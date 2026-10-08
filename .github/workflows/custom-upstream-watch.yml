@@ -1,0 +1,78 @@
+# Fork-only workflow (codeyoma/FinceptTerminal).
+# Weekly: fast-forward `main` to upstream, and open an issue when upstream
+# publishes a release newer than the one `custom` is based on
+# (custom/UPSTREAM_BASE). Merging the release stays a manual step:
+# custom/merge-upstream-release.sh
+name: custom-upstream-watch
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'   # Monday 00:00 UTC = 09:00 KST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: custom-upstream-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    if: github.repository == 'codeyoma/FinceptTerminal'
+    runs-on: ubuntu-latest
+    env:
+      GH_REPO: ${{ github.repository }}
+      UPSTREAM: Fincept-Corporation/FinceptTerminal
+    steps:
+      # GITHUB_TOKEN cannot update files under .github/workflows, so a sync
+      # that brings upstream workflow changes needs the SYNC_TOKEN secret
+      # (fine-grained PAT: Contents + Workflows read/write on this repo).
+      - name: Sync main with upstream
+        id: sync
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN || github.token }}
+        run: gh repo sync "$GH_REPO" --branch main
+
+      - name: Report failed sync
+        if: steps.sync.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Sync of main with upstream failed"
+          open=$(gh issue list --state open --search "\"$title\" in:title" --json number -q '.[0].number')
+          if [ -z "$open" ]; then
+            gh issue create --title "$title" --body "The weekly sync of \`main\` failed (run: $GITHUB_SERVER_URL/$GH_REPO/actions/runs/$GITHUB_RUN_ID). This usually means upstream changed workflow files and the \`SYNC_TOKEN\` secret is missing. Fix: press **Sync fork** on the repository page, or add \`SYNC_TOKEN\`."
+          fi
+
+      - name: Check for a new upstream release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh release view --repo "$UPSTREAM" --json tagName -q .tagName)
+          base=$(gh api "repos/$GH_REPO/contents/custom/UPSTREAM_BASE?ref=custom" -q .content | base64 -d | tr -d '[:space:]')
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "upstream latest: $latest, custom base: $base"
+
+      - name: Open an issue for the new release
+        if: steps.release.outputs.latest != steps.release.outputs.base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.release.outputs.latest }}
+          BASE: ${{ steps.release.outputs.base }}
+        run: |
+          title="Upstream $LATEST released"
+          open=$(gh issue list --state open --search "\"$title\" in:title" --json number -q '.[0].number')
+          if [ -z "$open" ]; then
+            gh issue create --title "$title" --body "Upstream published $LATEST (https://github.com/$UPSTREAM/releases/tag/$LATEST). \`custom\` is based on $BASE.
+
+          To merge it, on the \`custom\` branch run:
+          \`\`\`bash
+          custom/merge-upstream-release.sh $LATEST
+          \`\`\`
+          Then build, check the KRX screen, and push."
+          fi
