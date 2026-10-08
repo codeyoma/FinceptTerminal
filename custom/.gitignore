@@ -1,0 +1,2 @@
+# Upstream ignores *.md repo-wide; fork docs under custom/ must be tracked.
+!*.md
