@@ -37,6 +37,10 @@ workflow는 기본 `GITHUB_TOKEN`으로 `main`을 동기화한다. upstream이 `
 |---|---|
 | (P3에서 채움) | |
 
+## 에이전트 설정
+
+루트 `CLAUDE.md`는 `@custom/AGENTS.md` 한 줄만 담는다. upstream `.gitignore`가 `CLAUDE.md`를 무시하므로 `git add -f`로 추적하고, upstream이 같은 파일을 만들 일이 없어 merge 충돌이 나지 않는다. 설정 본문은 `custom/AGENTS.md`와 `custom/agents/`에 있다. 작업 ticket은 비공개 저장소 `codeyoma/krx-quant`의 이슈로 관리한다. 두 저장소는 같은 상위 폴더에 나란히 clone 한다.
+
 ## upstream workflow
 
 이 fork에서는 upstream의 예약·릴리스 workflow를 끈다(GitHub Actions 설정에서 disable). 개인 빌드용 workflow는 P3에서 `custom-` 접두사로 추가한다.
