@@ -10,4 +10,4 @@ Default five-role vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `
 
 ### Domain docs
 
-Two domains: upstream Fincept (`docs/ARCHITECTURE.md`, `docs/adr/`) and the krx-quant engine (`../krx-quant/docs/design.md`), plus fork rules in `custom/README.md`. See `custom/agents/domain.md`.
+Two domains: upstream Fincept (`docs/ARCHITECTURE.md`, `docs/adr/`) and the krx-quant engine (`../docs/design.md`; this fork is the `fincept/` submodule of krx-quant), plus fork rules in `custom/README.md`. See `custom/agents/domain.md`.
