@@ -151,10 +151,9 @@ void UpdateService::check_for_updates(bool silent) {
     // Fork addition (custom/README.md): personal builds never update themselves.
     LOG_INFO("UpdateService", "Auto-update is off in this personal build");
     if (!silent)
-        show_error(QStringLiteral("자동 업데이트는 개인 빌드에서 꺼져 있습니다. 새 버전은 개인 빌드 태그로 만듭니다."));
+        show_error(tr("자동 업데이트는 개인 빌드에서 꺼져 있습니다. 새 버전은 개인 빌드 태그로 만듭니다."));
     emit check_finished(false);
-    return;
-#endif
+#else
     if (in_progress_) {
         LOG_INFO("UpdateService", "Check already in progress — ignoring duplicate call");
         return;
@@ -223,6 +222,7 @@ void UpdateService::check_for_updates(bool silent) {
                   QString("FinceptTerminal/%1 (%2)").arg(local_version, platform_key));
     QNetworkReply* reply = net_.get(req);
     connect(reply, &QNetworkReply::finished, this, &UpdateService::on_manifest_reply_finished);
+#endif // FINCEPT_DISABLE_AUTO_UPDATE
 }
 
 // ── Manifest signature ──────────────────────────────────────────────────────

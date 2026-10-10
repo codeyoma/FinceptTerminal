@@ -24,7 +24,7 @@ QDateTime time_of(const QJsonValue& v) {
 /// The object of an answer, or the engine's error ({"error": "..."}).
 Result<QJsonObject> object_of(const QJsonDocument& doc) {
     if (!doc.isObject())
-        return Result<QJsonObject>::err("the engine's answer is not a JSON object");
+        return Result<QJsonObject>::err(QStringLiteral("엔진 응답이 JSON 객체가 아닙니다").toStdString());
     const QJsonObject obj = doc.object();
     if (obj.contains("error"))
         return Result<QJsonObject>::err(obj.value("error").toString().toStdString());
@@ -33,7 +33,7 @@ Result<QJsonObject> object_of(const QJsonDocument& doc) {
 
 /// 0: consensus, 1: algorithm, 2: baseline.
 int group_of(const QString& algorithm) {
-    if (algorithm.startsWith("consensus-"))
+    if (is_consensus(algorithm))
         return 0;
     if (algorithm.startsWith("baseline-"))
         return 2;
@@ -119,18 +119,47 @@ Result<Latest> parse_latest(const QJsonDocument& doc) {
     return Result<Latest>::ok(latest);
 }
 
-QString direction(const Prediction& p) {
+Direction direction(const Prediction& p) {
     if (!p.p_up || !p.p_flat || !p.p_down)
-        return {};
+        return Direction::None;
     const double up = *p.p_up, flat = *p.p_flat, down = *p.p_down;
-    constexpr double kSame = 0.005; // half a percentage point: shown as the same number
-    if (std::abs(up - down) < kSame && std::max(up, down) >= flat)
-        return {}; // leans neither way
+    // The screen shows whole percents: up and down shown alike lean neither way.
+    if (std::lround(up * 100) == std::lround(down * 100) && std::max(up, down) >= flat)
+        return Direction::None;
     if (up >= flat && up >= down)
-        return QStringLiteral("상승");
+        return Direction::Up;
     if (down > flat)
-        return QStringLiteral("하락");
-    return QStringLiteral("보합");
+        return Direction::Down;
+    return Direction::Flat;
+}
+
+QString direction_label(Direction d) {
+    switch (d) {
+        case Direction::Up:
+            return QStringLiteral("상승");
+        case Direction::Flat:
+            return QStringLiteral("보합");
+        case Direction::Down:
+            return QStringLiteral("하락");
+        case Direction::None:
+            break;
+    }
+    return {};
+}
+
+bool is_consensus(const QString& predictor) {
+    return predictor.startsWith("consensus-");
+}
+
+QString predictor_label(const QString& predictor) {
+    static const QMap<QString, QString> labels = {
+        {"consensus-final", QStringLiteral("합의 (최종)")},
+        {"consensus-fast", QStringLiteral("합의 (빠른)")},
+        {"baseline-flat", QStringLiteral("기준: 늘 보합")},
+        {"baseline-persist", QStringLiteral("기준: 직전 4분 방향")},
+        {"baseline-random", QStringLiteral("기준: 비율대로 무작위")},
+    };
+    return labels.value(predictor, predictor);
 }
 
 QString phase_label(const QString& phase) {
@@ -155,6 +184,25 @@ QString status_label(const QString& status) {
         {"none_finished", QStringLiteral("끝난 알고리즘 없음")},
     };
     return labels.value(status, status);
+}
+
+QString special_label(const QString& kind) {
+    static const QMap<QString, QString> labels = {
+        {"vi", QStringLiteral("VI")},
+        {"circuit_breaker", QStringLiteral("서킷브레이커")},
+        {"sidecar", QStringLiteral("사이드카")},
+    };
+    return labels.value(kind, kind);
+}
+
+QString failure_text(int http_status, const QString& message) {
+    if (http_status == 0 && message.isEmpty())
+        return QStringLiteral("엔진에 연결할 수 없습니다. 엔진 주소와 네트워크를 확인하세요.");
+    if (http_status == 0)
+        return QStringLiteral("엔진 응답을 읽을 수 없습니다: %1").arg(message);
+    if (message.isEmpty())
+        return QStringLiteral("엔진 오류 (HTTP %1)").arg(http_status);
+    return QStringLiteral("엔진 오류 (HTTP %1): %2").arg(http_status).arg(message);
 }
 
 } // namespace fincept::krx_quant

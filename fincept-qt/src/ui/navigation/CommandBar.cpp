@@ -126,6 +126,13 @@ void CommandBar::build_commands() {
          {"watch", "watchlist", "wl"},
          "F6",
          {"watchlist", "favorites", "track"}},
+        // Fork addition (custom/README.md)
+        {"krx_quant",
+         tr("KRX 4분 예측"),
+         "KRX 4-minute predictions",
+         {"krx", "krx_quant", "predict"},
+         "",
+         {"krx", "korea", "prediction", "예측"}},
         {"crypto_trading",
          tr("Crypto Trading"),
          "Cryptocurrency trading",

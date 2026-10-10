@@ -73,12 +73,29 @@ Result<EngineStatus> parse_status(const QJsonDocument& doc);        ///< GET /v1
 Result<QList<SymbolQuote>> parse_symbols(const QJsonDocument& doc); ///< GET /v1/symbols
 Result<Latest> parse_latest(const QJsonDocument& doc);              ///< GET /v1/symbols/{symbol}/latest
 
-/// "상승", "보합" or "하락": the likeliest class. Empty without a forecast, or when up and
-/// down are about as likely and more likely than flat (it leans neither way).
-QString direction(const Prediction& p);
+enum class Direction { Up, Flat, Down, None };
+
+/// The likeliest class. None without a forecast, or when up and down show as the same
+/// whole percent and are likelier than flat: it leans neither way.
+Direction direction(const Prediction& p);
+/// "상승", "보합" or "하락"; empty for None.
+QString direction_label(Direction d);
+
+/// Whether a predictor is one of the consensus predictions.
+bool is_consensus(const QString& predictor);
+/// A predictor's name on the screen: the consensus and the baselines in Korean, an
+/// algorithm by its own name.
+QString predictor_label(const QString& predictor);
 /// The market phase in Korean; an unknown phase as it is.
 QString phase_label(const QString& phase);
 /// Why a prediction has no forecast, in Korean; empty for "ok".
 QString status_label(const QString& status);
+/// A special situation's kind in Korean ("vi", "circuit_breaker", "sidecar").
+QString special_label(const QString& kind);
+
+/// Why a request to the engine failed, in Korean, from HttpClient's error: its HTTP status
+/// (0 without a response) and message (empty for a transport failure; a JSON parse
+/// error's text when the body was not JSON).
+QString failure_text(int http_status, const QString& message);
 
 } // namespace fincept::krx_quant

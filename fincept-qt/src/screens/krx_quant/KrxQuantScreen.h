@@ -28,6 +28,7 @@ class KrxQuantScreen : public QWidget {
     void show_failure(const QString& reason);
     void fill_table(const services::KrxQuantService::Snapshot& snapshot);
 
+    services::KrxQuantService* service_ = nullptr;
     QLineEdit* url_edit_ = nullptr;
     QLabel* status_label_ = nullptr;
     QLabel* special_label_ = nullptr;

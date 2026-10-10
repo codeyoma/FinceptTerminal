@@ -6,14 +6,18 @@
 #include <QMap>
 #include <QObject>
 #include <QString>
+#include <QStringList>
+
+#include <functional>
+#include <string>
 
 namespace fincept::services {
 
-/// Reads the KRX prediction engine (a separate, private service) over its HTTP API v1,
-/// for the KRX prediction screen. Screens never call HttpClient directly.
+/// Reads the KRX prediction engine (a separate service) over its HTTP API v1 for the KRX
+/// prediction screen, which owns it. Screens never call HttpClient directly.
 ///
-/// The engine's address is a setting (`krx_quant/base_url`), by default the engine's
-/// Tailscale name. Nothing is cached: each refresh reads the engine again.
+/// The engine's address is a setting (`krx_quant/base_url`), empty until set. Nothing is
+/// cached: each refresh reads the engine again.
 class KrxQuantService : public QObject {
     Q_OBJECT
 
@@ -23,14 +27,14 @@ class KrxQuantService : public QObject {
         krx_quant::EngineStatus status;
         QList<krx_quant::SymbolQuote> symbols;
         QMap<QString, krx_quant::Latest> latest; ///< by symbol; missing where its answer failed
-        QStringList errors;                      ///< per-symbol failures, already in Korean
+        QStringList errors;                      ///< why those answers failed, one per symbol
     };
 
-    static KrxQuantService& instance();
+    explicit KrxQuantService(QObject* parent = nullptr);
 
-    QString base_url() const;
+    static QString base_url();
     /// Save the engine's address (a trailing slash is dropped).
-    void set_base_url(const QString& url);
+    static void set_base_url(const QString& url);
 
     /// Read the status, the symbols and each symbol's latest predictions. Either
     /// snapshot_ready or refresh_failed follows. While a refresh is under way another is
@@ -44,9 +48,10 @@ class KrxQuantService : public QObject {
     void refresh_failed(const QString& reason);
 
   private:
-    KrxQuantService();
-    Q_DISABLE_COPY(KrxQuantService)
+    /// A step of a refresh: the answer to one GET, or why it failed.
+    using Step = std::function<void(Result<QJsonDocument>)>;
 
+    void get(const QString& path, int generation, Step step);
     void read_symbols(int generation, Snapshot snapshot);
     void read_latest(int generation, Snapshot snapshot);
     void finish_with(const Snapshot& snapshot);
@@ -55,6 +60,9 @@ class KrxQuantService : public QObject {
     int generation_ = 0;
     bool in_flight_ = false;
 };
+
+/// Why a request failed, in Korean, from HttpClient's error string.
+QString krx_failure(const std::string& error);
 
 } // namespace fincept::services
 

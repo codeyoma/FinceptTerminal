@@ -38,15 +38,16 @@ workflow는 기본 `GITHUB_TOKEN`으로 `main`을 동기화한다. upstream이 `
 | `fincept-qt/src/app/WindowFrame_Setup.cpp` | `KrxQuantScreen` include와 `krx_quant` 화면 factory 등록 |
 | `fincept-qt/src/app/DockScreenRouter.cpp` | `krx_quant` 탭 제목 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/ToolBar.cpp` | Navigate → Trading & Portfolio 메뉴에 "KRX 4분 예측" |
+| `fincept-qt/src/ui/navigation/CommandBar.cpp` | 명령 팔레트에 `krx_quant` ("krx"로 찾는다) |
 | `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON) |
 | `fincept-qt/tests/CMakeLists.txt` | `tst_krx_engine_data` 테스트 등록 |
-| `fincept-qt/src/services/updater/UpdateService.cpp` | `FINCEPT_DISABLE_AUTO_UPDATE`이면 업데이트 확인을 하지 않는다 |
+| `fincept-qt/src/services/updater/UpdateService.cpp` | `FINCEPT_DISABLE_AUTO_UPDATE`이면 업데이트 확인을 하지 않는다(`check_for_updates` 본문을 `#ifdef … #else … #endif`로 감쌌다) |
 
 ## KRX 예측 화면 (#20)
 
 - 코드: `fincept-qt/src/screens/krx_quant/`(화면), `fincept-qt/src/services/krx_quant/`(엔진 API 읽기, 응답 해석).
-- Navigate → Trading & Portfolio → **KRX 4분 예측**으로 연다. 화면이 보이는 동안 5초마다 엔진의 `/v1/status`, `/v1/symbols`, `/v1/symbols/<종목>/latest`를 읽는다.
-- 엔진 주소는 화면 위의 **엔진 주소** 칸에서 바꾼다. 기본은 `http://krx-quant:8080`(Tailscale)이다. 값은 QSettings `krx_quant/base_url`에 남는다.
+- Navigate → Trading & Portfolio → **KRX 4분 예측**(또는 명령 팔레트에서 "krx")으로 연다. 화면이 보이는 동안 5초마다 엔진의 `/v1/status`, `/v1/symbols`, `/v1/symbols/<종목>/latest`를 읽는다. 읽기가 끝나기 전에는 다시 묻지 않는다. 실패하면 지난 예측을 지우고 이유를 보여준다.
+- 엔진 주소는 화면 위의 **엔진 주소** 칸에 넣는다(처음에는 비어 있다). 값은 QSettings `krx_quant/base_url`에 남는다. 실제 주소는 krx-quant 저장소의 문서에 있다.
 - 엔진 없이 화면을 만들 때는 krx-quant 저장소에서 `uv run krx-quant demo-engine`을 띄우고 주소를 `http://127.0.0.1:8090`으로 바꾼다. 고정된 가상 데이터다.
 - 응답 해석 테스트: `cmake -B build -DFINCEPT_BUILD_TESTS=ON … && cmake --build build --target tst_krx_engine_data && ctest --test-dir build -R krx`.
 
