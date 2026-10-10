@@ -77,6 +77,7 @@
 #include "screens/surface_analytics/SurfaceAnalyticsScreen.h"
 #include "screens/trade_viz/TradeVizScreen.h"
 #include "screens/watchlist/WatchlistScreen.h"
+#include "screens/krx_quant/KrxQuantScreen.h" // fork addition (custom/README.md)
 #include "ui/navigation/DockStatusBar.h"
 #include "ui/navigation/DockToolBar.h"
 #include "ui/navigation/FKeyBar.h"
@@ -305,6 +306,8 @@ void WindowFrame::setup_dock_screens() {
     dock_router_->register_factory("privacy", []() { return new screens::PrivacyScreen; });
     dock_router_->register_factory("trademarks", []() { return new screens::TrademarksScreen; });
     dock_router_->register_factory("help", []() { return new screens::HelpScreen; });
+    // Fork addition (custom/README.md): the KRX 4-minute prediction engine's screen.
+    dock_router_->register_factory("krx_quant", []() { return new screens::KrxQuantScreen; });
 }
 
 } // namespace fincept

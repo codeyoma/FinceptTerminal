@@ -35,7 +35,26 @@ workflow는 기본 `GITHUB_TOKEN`으로 `main`을 동기화한다. upstream이 `
 
 | upstream 파일 | 수정 내용 |
 |---|---|
-| (P3에서 채움) | |
+| `fincept-qt/src/app/WindowFrame_Setup.cpp` | `KrxQuantScreen` include와 `krx_quant` 화면 factory 등록 |
+| `fincept-qt/src/app/DockScreenRouter.cpp` | `krx_quant` 탭 제목 "KRX 4분 예측" |
+| `fincept-qt/src/ui/navigation/ToolBar.cpp` | Navigate → Trading & Portfolio 메뉴에 "KRX 4분 예측" |
+| `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON) |
+| `fincept-qt/tests/CMakeLists.txt` | `tst_krx_engine_data` 테스트 등록 |
+| `fincept-qt/src/services/updater/UpdateService.cpp` | `FINCEPT_DISABLE_AUTO_UPDATE`이면 업데이트 확인을 하지 않는다 |
+
+## KRX 예측 화면 (#20)
+
+- 코드: `fincept-qt/src/screens/krx_quant/`(화면), `fincept-qt/src/services/krx_quant/`(엔진 API 읽기, 응답 해석).
+- Navigate → Trading & Portfolio → **KRX 4분 예측**으로 연다. 화면이 보이는 동안 5초마다 엔진의 `/v1/status`, `/v1/symbols`, `/v1/symbols/<종목>/latest`를 읽는다.
+- 엔진 주소는 화면 위의 **엔진 주소** 칸에서 바꾼다. 기본은 `http://krx-quant:8080`(Tailscale)이다. 값은 QSettings `krx_quant/base_url`에 남는다.
+- 엔진 없이 화면을 만들 때는 krx-quant 저장소에서 `uv run krx-quant demo-engine`을 띄우고 주소를 `http://127.0.0.1:8090`으로 바꾼다. 고정된 가상 데이터다.
+- 응답 해석 테스트: `cmake -B build -DFINCEPT_BUILD_TESTS=ON … && cmake --build build --target tst_krx_engine_data && ctest --test-dir build -R krx`.
+
+## 개인 빌드
+
+- `custom` 브랜치의 커밋에 `custom-v*` 태그(예: `custom-v4.5.0-krx.1`)를 달아 push하면 `custom-release` workflow가 맥 DMG와 윈도우 `setup.exe`를 만들어 이 fork의 Release(prerelease)에 올린다.
+- 서명하지 않은 빌드다. 맥은 처음 열 때 우클릭 → 열기(또는 `xattr -dr com.apple.quarantine /Applications/FinceptTerminal.app`), 윈도우는 SmartScreen에서 추가 정보 → 실행.
+- 앱 내 자동 업데이트는 꺼져 있다(`FINCEPT_DISABLE_AUTO_UPDATE`). 새 버전은 새 태그로 만든다.
 
 ## 에이전트 설정
 
@@ -43,4 +62,4 @@ workflow는 기본 `GITHUB_TOKEN`으로 `main`을 동기화한다. upstream이 `
 
 ## upstream workflow
 
-이 fork에서는 upstream의 예약·릴리스 workflow를 끈다(GitHub Actions 설정에서 disable). 개인 빌드용 workflow는 P3에서 `custom-` 접두사로 추가한다.
+이 fork에서는 upstream의 예약·릴리스 workflow를 끈다(GitHub Actions 설정에서 disable). 개인 빌드용 workflow는 `custom-` 접두사로 둔다: `custom-upstream-watch`(upstream 릴리스 알림), `custom-release`(개인 빌드, 위 "개인 빌드").

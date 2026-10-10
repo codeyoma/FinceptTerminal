@@ -100,6 +100,7 @@ QString DockScreenRouter::title_for_id(const QString& id) {
         {"privacy", QT_TRANSLATE_NOOP("fincept::DockScreenRouter", "Privacy")},
         {"trademarks", QT_TRANSLATE_NOOP("fincept::DockScreenRouter", "Trademarks")},
         {"help", QT_TRANSLATE_NOOP("fincept::DockScreenRouter", "Help")},
+        {"krx_quant", QT_TRANSLATE_NOOP("fincept::DockScreenRouter", "KRX 4분 예측")}, // fork addition
     };
     auto it = titles.find(id);
     if (it == titles.end())
