@@ -36,16 +36,19 @@ class KrxQuantService : public QObject {
     /// Save the engine's address (a trailing slash is dropped).
     static void set_base_url(const QString& url);
 
-    /// Read the status, the symbols and each symbol's latest predictions. Either
-    /// snapshot_ready or refresh_failed follows. While a refresh is under way another is
-    /// skipped (a slow engine is not asked again and again), unless it is a restart:
-    /// then the one under way is dropped (the address changed).
+    /// Read the status, the symbols and each symbol's latest predictions from one address,
+    /// the setting's when the refresh starts. Either snapshot_ready or refresh_failed
+    /// follows. While a refresh is under way another is skipped (a slow engine is not
+    /// asked again and again), unless the setting changed since (another KRX panel
+    /// applied an address) or it is a restart: then the one under way is dropped.
     void refresh();
     void restart();
 
   signals:
     void snapshot_ready(const fincept::services::KrxQuantService::Snapshot& snapshot);
     void refresh_failed(const QString& reason);
+    /// The address this service reads changed (also when another panel set it).
+    void base_url_changed(const QString& url);
 
   private:
     /// A step of a refresh: the answer to one GET, or why it failed.
@@ -59,6 +62,7 @@ class KrxQuantService : public QObject {
 
     int generation_ = 0;
     bool in_flight_ = false;
+    QString url_; ///< the address of the refresh under way, or of the last one
 };
 
 /// Why a request failed, in Korean, from HttpClient's error string.

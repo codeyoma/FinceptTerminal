@@ -36,13 +36,17 @@ void KrxQuantService::set_base_url(const QString& url) {
 }
 
 void KrxQuantService::refresh() {
-    if (!in_flight_)
+    if (!in_flight_ || base_url() != url_)
         restart();
 }
 
 void KrxQuantService::restart() {
     const int generation = ++generation_;
-    if (base_url().isEmpty()) {
+    if (const QString url = base_url(); url != url_) {
+        url_ = url;
+        emit base_url_changed(url_);
+    }
+    if (url_.isEmpty()) {
         fail_with(QStringLiteral("엔진 주소를 입력하세요."));
         return;
     }
@@ -62,7 +66,7 @@ void KrxQuantService::restart() {
 void KrxQuantService::get(const QString& path, int generation, Step step) {
     // `this` as the context: the answer is dropped if the screen (and this service) is gone.
     HttpClient::instance().get(
-        base_url() + path,
+        url_ + path,
         [this, generation, step = std::move(step)](Result<QJsonDocument> answer) {
             if (generation == generation_) // a restart since drops it
                 step(std::move(answer));

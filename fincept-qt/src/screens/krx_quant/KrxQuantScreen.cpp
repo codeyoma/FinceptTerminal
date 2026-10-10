@@ -97,6 +97,10 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     service_ = new services::KrxQuantService(this);
     connect(service_, &services::KrxQuantService::snapshot_ready, this, &KrxQuantScreen::show_snapshot);
     connect(service_, &services::KrxQuantService::refresh_failed, this, &KrxQuantScreen::show_failure);
+    connect(service_, &services::KrxQuantService::base_url_changed, this, [this](const QString& url) {
+        if (!url_edit_->hasFocus()) // not while the address is being typed here
+            url_edit_->setText(url);
+    });
     connect(apply, &QPushButton::clicked, this, &KrxQuantScreen::apply_base_url);
     connect(url_edit_, &QLineEdit::returnPressed, this, &KrxQuantScreen::apply_base_url);
 

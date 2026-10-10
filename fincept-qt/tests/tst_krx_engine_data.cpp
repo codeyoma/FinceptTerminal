@@ -22,21 +22,21 @@ QJsonDocument json(const char* text) {
 
 const char* kStatus = R"({
   "mode": "live",
-  "now": "2026-10-12T10:30:05+09:00",
+  "now": "2026-10-08T10:30:05+09:00",
   "phase": "continuous",
-  "last_bar_close": "2026-10-12T10:30:00+09:00",
+  "last_bar_close": "2026-10-08T10:30:00+09:00",
   "pending_outcomes": 96,
   "special": [
-    {"kind": "vi", "symbol": "000660", "start": "2026-10-12T09:40:10+09:00", "end": "2026-10-12T09:42:20+09:00"},
-    {"kind": "sidecar", "symbol": null, "start": "2026-10-12T10:01:00+09:00", "end": "2026-10-12T10:06:00+09:00"}
+    {"kind": "vi", "symbol": "000660", "start": "2026-10-08T09:40:10+09:00", "end": "2026-10-08T09:42:20+09:00"},
+    {"kind": "sidecar", "symbol": null, "start": "2026-10-08T10:01:00+09:00", "end": "2026-10-08T10:06:00+09:00"}
   ],
-  "training": {"day": "2026-10-09", "applied": true, "reason": "applied", "promoted": {"alg-b": "alg-b-2"}},
+  "training": {"day": "2026-10-07", "applied": true, "reason": "applied", "promoted": {"alg-b": "alg-b-2"}},
   "kis": {"connected": true}
 })";
 
 const char* kLatest = R"({
   "symbol": "005930",
-  "bar_close": "2026-10-12T10:30:00+09:00",
+  "bar_close": "2026-10-08T10:30:00+09:00",
   "predictions": [
     {"algorithm": "baseline-flat", "model_version": "v1", "status": "ok",
      "p_up": 0.0, "p_flat": 1.0, "p_down": 0.0, "expected_ticks": 0.0},
@@ -66,20 +66,20 @@ class TstKrxEngineData : public QObject {
         QVERIFY(status.is_ok());
         const auto& s = status.value();
         QCOMPARE(s.phase, QStringLiteral("continuous"));
-        QCOMPARE(s.last_bar_close, QDateTime::fromString("2026-10-12T10:30:00+09:00", Qt::ISODate));
+        QCOMPARE(s.last_bar_close, QDateTime::fromString("2026-10-08T10:30:00+09:00", Qt::ISODate));
         QCOMPARE(s.pending_outcomes, 96);
         QCOMPARE(s.special.size(), 2);
         QCOMPARE(s.special[0].symbol, QStringLiteral("000660"));
         QVERIFY(s.special[1].symbol.isEmpty()); // the whole market
         QVERIFY(s.training.has_value());
-        QCOMPARE(s.training->day, QStringLiteral("2026-10-09"));
+        QCOMPARE(s.training->day, QStringLiteral("2026-10-07"));
         QVERIFY(s.training->applied);
         QCOMPARE(s.training->promoted.value("alg-b"), QStringLiteral("alg-b-2"));
         QCOMPARE(s.kis_connected, std::optional<bool>(true));
     }
 
     void status_without_a_training_kis_or_bar_close_yet() {
-        const auto status = parse_status(json(R"({"mode": "demo", "now": "2026-10-12T08:10:00+09:00",
+        const auto status = parse_status(json(R"({"mode": "demo", "now": "2026-10-08T08:10:00+09:00",
             "phase": "pre_open", "last_bar_close": null, "pending_outcomes": 0, "special": [], "training": null})"));
         QVERIFY(status.is_ok());
         QVERIFY(!status.value().last_bar_close.isValid());
@@ -118,7 +118,7 @@ class TstKrxEngineData : public QObject {
     void latest_predictions_come_consensus_first_then_algorithms_then_baselines() {
         const auto latest = parse_latest(json(kLatest));
         QVERIFY(latest.is_ok());
-        QCOMPARE(latest.value().bar_close, QDateTime::fromString("2026-10-12T10:30:00+09:00", Qt::ISODate));
+        QCOMPARE(latest.value().bar_close, QDateTime::fromString("2026-10-08T10:30:00+09:00", Qt::ISODate));
         QStringList order;
         for (const auto& p : latest.value().predictions)
             order << p.algorithm;
