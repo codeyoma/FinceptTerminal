@@ -1466,6 +1466,9 @@ set(SERVICE_SOURCES
     src/services/notifications/providers/PagerDutyProvider.cpp
     src/services/notifications/providers/OpsgenieProvider.cpp
     src/services/notifications/providers/SMSProvider.cpp
+    # KRX prediction engine reader (fork addition, custom/README.md)
+    src/services/krx_quant/EngineData.cpp
+    src/services/krx_quant/KrxQuantService.cpp
 )
 
 # UI framework
@@ -2060,6 +2063,8 @@ set(SCREEN_SOURCES
     # Crypto Center — Phase 4 (MARKETS tab — internal prediction markets)
     src/screens/crypto_center/tabs/MarketsTab.cpp
     src/screens/crypto_center/panels/MarketsListPanel.cpp
+    # KRX prediction screen (fork addition, custom/README.md)
+    src/screens/krx_quant/KrxQuantScreen.cpp
 )
 
 # App
@@ -2610,6 +2615,10 @@ set_source_files_properties(
     src/trading/brokers/saxo/SaxoBankBroker.cpp
     src/trading/brokers/metaapi/MetaApiBroker.cpp
     src/trading/brokers/tickerall/TickerAllBroker.cpp
+    # Fork addition: file-scope helpers with common names, kept out of unity batches.
+    src/screens/krx_quant/KrxQuantScreen.cpp
+    src/services/krx_quant/EngineData.cpp
+    src/services/krx_quant/KrxQuantService.cpp
     PROPERTIES SKIP_UNITY_BUILD_INCLUSION TRUE
 )
 
@@ -3317,6 +3326,13 @@ endif()
 if(HAS_WEBENGINE)
     target_link_libraries(FinceptTerminal PRIVATE Qt6::WebEngineWidgets Qt6::WebChannel)
     target_compile_definitions(FinceptTerminal PRIVATE HAS_QT_WEBENGINE)
+endif()
+
+# Fork addition (custom/README.md): a personal build never updates itself, so an official
+# release cannot replace it and its KRX screen.
+option(FINCEPT_DISABLE_AUTO_UPDATE "Turn the in-app updater off (codeyoma fork's personal builds)" ON)
+if(FINCEPT_DISABLE_AUTO_UPDATE)
+    target_compile_definitions(FinceptTerminal PRIVATE FINCEPT_DISABLE_AUTO_UPDATE=1)
 endif()
 
 # ── Copy qgeoview DLL next to the exe so it's found at runtime ────────────────

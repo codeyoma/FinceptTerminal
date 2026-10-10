@@ -417,6 +417,7 @@ QMenu* ToolBar::build_navigate_menu() {
     nav(trd, tr("Derivatives"), "derivatives");
     nav(trd, tr("F&&O"), "fno");
     nav(trd, tr("Watchlist"), "watchlist");
+    nav(trd, tr("KRX 4분 예측"), "krx_quant"); // fork addition (custom/README.md)
 
     auto* crypto = add_sub(tr("Crypto"));
     nav(crypto, tr("Crypto Center"), "crypto_center");

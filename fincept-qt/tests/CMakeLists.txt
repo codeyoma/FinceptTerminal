@@ -120,3 +120,9 @@ fincept_add_test(tst_order_validator
     "${PROJECT_SOURCE_DIR}/src/trading/OrderValidator.cpp")
 
 message(STATUS "Fincept tests: tst_broker_modify_fields, tst_result, tst_order_validator")
+
+# src/services/krx_quant/EngineData.{h,cpp} — how the KRX prediction screen (fork addition,
+# custom/README.md) reads the prediction engine's answers. Qt Core only.
+fincept_add_test(tst_krx_engine_data
+    tst_krx_engine_data.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
