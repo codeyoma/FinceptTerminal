@@ -140,3 +140,10 @@ fincept_add_test(tst_krx_signals
     tst_krx_signals.cpp
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
+
+# src/services/krx_quant/StatsView.{h,cpp} — what the KRX screen's leaderboard and an
+# algorithm's detail window show of the engine's stats. Qt Core only.
+fincept_add_test(tst_krx_stats_view
+    tst_krx_stats_view.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/StatsView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")

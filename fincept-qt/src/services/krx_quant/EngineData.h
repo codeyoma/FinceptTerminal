@@ -131,6 +131,18 @@ struct Interval {
     int n = 0;
 };
 
+/// The lift over one baseline: the mean difference of hits (1 or 0) with it, on the symbols
+/// and bar closes both predicted, and its one-sided test.
+struct Lift {
+    QString baseline;             ///< "baseline-flat", "baseline-persist" or "baseline-random"
+    std::optional<Interval> gain; ///< its n is the pairs; none without a bar close in common
+    std::optional<double> p;
+    /// The luck-corrected p, and whether it passes (q ≤ 0.05 and a gain above 0). Empty
+    /// where it was not tested with the leaderboard's (a breakdown, an unranked entry).
+    std::optional<double> q;
+    std::optional<bool> significant;
+};
+
 /// One predictor's line of the leaderboard. What was not measured (nothing scored, no
 /// direction predicted) stays empty.
 struct Entry {
@@ -148,6 +160,7 @@ struct Entry {
     std::optional<Interval> per_trade;
     std::optional<double> lift_low; ///< the weakest lift's lower bound; none without a baseline to compare with
     bool significant = false;       ///< beats every baseline after the luck correction (q ≤ 0.05)
+    QList<Lift> lifts;              ///< over each baseline, by name; none without a baseline to compare with
 };
 
 /// GET /v1/leaderboard: the query it answers and its three lists.
@@ -163,6 +176,33 @@ struct Leaderboard {
     QList<Entry> baselines;
 };
 
+/// A bin of the calibration curve: every class probability forecast in [low, high), and
+/// how often that class happened.
+struct CalibrationBin {
+    double low = 0;
+    double high = 0;
+    int count = 0;
+    std::optional<double> mean_p;     ///< the forecasts' mean; none for an empty bin
+    std::optional<Interval> observed; ///< how often it happened (Wilson interval); likewise
+};
+
+/// GET /v1/algorithms/{name}/stats: one predictor's stats for a leaderboard query.
+struct AlgorithmStats {
+    QString algorithm;
+    QString symbol; ///< the query's, as in Leaderboard
+    QString period;
+    QString basis;
+    QString special;
+    QStringList days;
+    int min_sample = 0;
+    Entry overall; ///< its leaderboard line (rank, luck correction)
+    QList<CalibrationBin> calibration;
+    // Breakdowns, by key. Their lifts were not tested together: no q, no verdict.
+    QMap<QString, Entry> by_symbol;
+    QMap<QString, Entry> by_slot; ///< the predicted bar's 30-minute slot: "09:00" for the closes 09:01–09:30
+    QMap<QString, Entry> by_model_version;
+};
+
 Result<EngineStatus> parse_status(const QJsonDocument& doc);        ///< GET /v1/status
 Result<QList<SymbolQuote>> parse_symbols(const QJsonDocument& doc); ///< GET /v1/symbols
 Result<Latest> parse_latest(const QJsonDocument& doc);              ///< GET /v1/symbols/{symbol}/latest
@@ -170,6 +210,7 @@ Result<Latest> parse_latest(const QJsonDocument& doc);              ///< GET /v1
 Result<QList<Prediction>> parse_predictions(const QJsonDocument& doc);
 Result<QList<Bar>> parse_bars(const QJsonDocument& doc);         ///< GET /v1/symbols/{symbol}/bars, oldest first
 Result<Leaderboard> parse_leaderboard(const QJsonDocument& doc); ///< GET /v1/leaderboard
+Result<AlgorithmStats> parse_stats(const QJsonDocument& doc);    ///< GET /v1/algorithms/{name}/stats
 Result<Macro> parse_macro(const QJsonDocument& doc);             ///< GET /v1/macro
 /// GET /v1/consensus: its members, the active algorithms.
 Result<QStringList> parse_members(const QJsonDocument& doc);
@@ -218,6 +259,8 @@ QString direction_label(Direction d);
 
 /// Whether a predictor is one of the consensus predictions.
 bool is_consensus(const QString& predictor);
+/// Whether a predictor is one of the baselines.
+bool is_baseline(const QString& predictor);
 /// A predictor's name on the screen: the consensus and the baselines in Korean, an
 /// algorithm by its own name.
 QString predictor_label(const QString& predictor);

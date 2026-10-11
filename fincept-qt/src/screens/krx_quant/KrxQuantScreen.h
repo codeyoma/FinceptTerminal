@@ -14,11 +14,13 @@ namespace fincept::screens {
 class KrxAlerts;
 class KrxChart;
 class KrxLeaderboard;
+class KrxStatsWindow;
 
 /// KRX 4-minute predictions (fork addition, see custom/README.md): the prediction engine's
 /// status and macro row, each symbol's latest predictions, the chosen symbol's chart with
-/// the final consensus over it, the leaderboard, and signal alerts. It renders what its
-/// KrxLive says and passes on the user's choices. The text is Korean.
+/// the final consensus over it, the leaderboard with a predictor's detail window, and
+/// signal alerts. It renders what its KrxLive says and passes on the user's choices. The
+/// text is Korean.
 class KrxQuantScreen : public QWidget {
     Q_OBJECT
   public:
@@ -36,6 +38,7 @@ class KrxQuantScreen : public QWidget {
     void fill_symbols();
     void fill_predictions();
     void fill_chart();
+    void open_detail(const QString& algorithm);
     void update_countdowns();
     /// Whether ``bar_close`` is of the engine's today (not the last session's, shown before the open).
     bool is_today(const QDateTime& bar_close) const;
@@ -52,6 +55,7 @@ class KrxQuantScreen : public QWidget {
     QLabel* panel_title_ = nullptr;
     QTableWidget* predictions_table_ = nullptr;
     KrxLeaderboard* leaderboard_ = nullptr;
+    KrxStatsWindow* stats_window_ = nullptr; ///< made when first asked for
     KrxAlerts* alerts_ = nullptr;
     QLabel* footer_label_ = nullptr;
     QTimer* clock_timer_ = nullptr; ///< the countdowns and the engine clock, every second

@@ -134,6 +134,42 @@ const char* kLeaderboard = R"({
   ]
 })";
 
+// One algorithm's stats: its leaderboard line with the calibration curve (two of the ten
+// bins; one with nothing in it), and its breakdowns, whose lifts were not tested together.
+const char* kStats = R"({
+  "algorithm": "alg-a", "symbol": "005930", "period": "20d", "days": ["2026-10-08"], "basis": "a",
+  "special": "include", "min_sample": 200,
+  "overall": {
+    "rank": 1, "algorithm": "alg-a", "model_versions": ["alg-a-1"], "n": 300,
+    "accuracy": {"value": 0.52, "low": 0.49, "high": 0.55, "n": 300}, "precision": null,
+    "coverage": null, "brier": {"value": 0.58, "low": 0.56, "high": 0.60, "n": 300},
+    "pnl": {"trades": 0, "total_ticks": 0.0, "per_trade": null},
+    "lift": {"low": 0.01, "vs": {
+      "baseline-flat": {"n": 300, "value": 0.04, "low": 0.01, "high": 0.07, "p": 0.001, "q": 0.003, "significant": true}}},
+    "calibration": [
+      {"low": 0.0, "high": 0.1, "count": 0, "mean_p": null, "observed": null},
+      {"low": 0.3, "high": 0.4, "count": 412, "mean_p": 0.347,
+       "observed": {"value": 0.31, "low": 0.27, "high": 0.36, "n": 412}}
+    ]
+  },
+  "by_symbol": {"005930": {"rank": null, "algorithm": "alg-a", "model_versions": ["alg-a-1"], "n": 300,
+    "accuracy": {"value": 0.52, "low": 0.49, "high": 0.55, "n": 300}, "precision": null, "coverage": null,
+    "brier": null, "pnl": {"trades": 0, "total_ticks": 0.0, "per_trade": null}}},
+  "by_slot": {
+    "09:30": {"rank": null, "algorithm": "alg-a", "model_versions": ["alg-a-1"], "n": 120,
+      "accuracy": {"value": 0.55, "low": 0.46, "high": 0.64, "n": 120}, "precision": null, "coverage": null,
+      "brier": null, "pnl": {"trades": 0, "total_ticks": 0.0, "per_trade": null},
+      "lift": {"low": -0.05, "vs": {
+        "baseline-flat": {"n": 120, "value": 0.03, "low": -0.05, "high": 0.11, "p": 0.24, "q": null, "significant": null}}}},
+    "09:00": {"rank": null, "algorithm": "alg-a", "model_versions": ["alg-a-1"], "n": 180,
+      "accuracy": {"value": 0.50, "low": 0.43, "high": 0.57, "n": 180}, "precision": null, "coverage": null,
+      "brier": null, "pnl": {"trades": 0, "total_ticks": 0.0, "per_trade": null}}
+  },
+  "by_model_version": {"alg-a-1": {"rank": null, "algorithm": "alg-a", "model_versions": ["alg-a-1"], "n": 300,
+    "accuracy": {"value": 0.52, "low": 0.49, "high": 0.55, "n": 300}, "precision": null, "coverage": null,
+    "brier": null, "pnl": {"trades": 0, "total_ticks": 0.0, "per_trade": null}}}
+})";
+
 Prediction forecast(double up, double flat, double down) {
     Prediction p;
     p.algorithm = "alg-c";
@@ -378,6 +414,102 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!board.value().baselines[0].significant);
     }
 
+    void each_baselines_lift_has_its_interval_and_test() {
+        const auto board = parse_leaderboard(json(kLeaderboard));
+        QVERIFY(board.is_ok());
+        const auto& lifts = board.value().ranked[0].lifts;
+        QCOMPARE(lifts.size(), 2);
+        QCOMPARE(lifts[0].baseline, QStringLiteral("baseline-flat"));
+        QCOMPARE(lifts[0].gain->value, 0.04);
+        QCOMPARE(lifts[0].gain->low, std::optional<double>(0.01));
+        QCOMPARE(lifts[0].gain->high, std::optional<double>(0.07));
+        QCOMPARE(lifts[0].gain->n, 1128);
+        QCOMPARE(lifts[0].p, std::optional<double>(0.001));
+        QCOMPARE(lifts[0].q, std::optional<double>(0.003));
+        QCOMPARE(lifts[0].significant, std::optional<bool>(true));
+        QCOMPARE(lifts[1].baseline, QStringLiteral("baseline-persist"));
+        QVERIFY(board.value().unranked[0].lifts.isEmpty()); // nothing to compare with
+    }
+
+    void an_algorithms_stats_keep_their_query_and_its_leaderboard_line() {
+        const auto stats = parse_stats(json(kStats));
+        QVERIFY(stats.is_ok());
+        const auto& s = stats.value();
+        QCOMPARE(s.algorithm, QStringLiteral("alg-a"));
+        QCOMPARE(s.symbol, QStringLiteral("005930"));
+        QCOMPARE(s.period, QStringLiteral("20d"));
+        QCOMPARE(s.basis, QStringLiteral("a"));
+        QCOMPARE(s.special, QStringLiteral("include"));
+        QCOMPARE(s.days, QStringList{"2026-10-08"});
+        QCOMPARE(s.min_sample, 200);
+        QCOMPARE(s.overall.rank, std::optional<int>(1));
+        QCOMPARE(s.overall.n, 300);
+        QCOMPARE(s.overall.lifts.size(), 1);
+        QVERIFY(s.overall.significant);
+    }
+
+    void the_calibration_curve_keeps_its_empty_bins_unknown() {
+        const auto stats = parse_stats(json(kStats));
+        QVERIFY(stats.is_ok());
+        const auto& bins = stats.value().calibration;
+        QCOMPARE(bins.size(), 2);
+        QCOMPARE(bins[0].count, 0);
+        QVERIFY(!bins[0].mean_p.has_value());
+        QVERIFY(!bins[0].observed.has_value());
+        QCOMPARE(bins[1].low, 0.3);
+        QCOMPARE(bins[1].high, 0.4);
+        QCOMPARE(bins[1].count, 412);
+        QCOMPARE(bins[1].mean_p, std::optional<double>(0.347));
+        QCOMPARE(bins[1].observed->value, 0.31);
+        QCOMPARE(bins[1].observed->low, std::optional<double>(0.27));
+    }
+
+    void the_breakdowns_are_by_symbol_slot_and_model_version_in_order() {
+        const auto stats = parse_stats(json(kStats));
+        QVERIFY(stats.is_ok());
+        const auto& s = stats.value();
+        QCOMPARE(s.by_symbol.keys(), QStringList{"005930"});
+        QCOMPARE(s.by_slot.keys(), (QStringList{"09:00", "09:30"}));
+        const Entry slot = s.by_slot.value("09:30");
+        QCOMPARE(slot.n, 120);
+        QCOMPARE(s.by_model_version.keys(), QStringList{"alg-a-1"});
+        // A breakdown's lift was not tested with the others: no q, no verdict.
+        const Lift& lift = slot.lifts.first();
+        QCOMPARE(lift.p, std::optional<double>(0.24));
+        QVERIFY(!lift.q.has_value());
+        QVERIFY(!lift.significant.has_value());
+    }
+
+    void stats_with_nothing_scored_are_empty_not_zero() {
+        // A consensus over a period it did not predict in: the baselines are still there to
+        // compare with, but no bar close pairs with them.
+        const auto stats = parse_stats(json(R"({
+          "algorithm": "consensus-final", "symbol": "all", "period": "today", "days": [], "basis": "b",
+          "special": "exclude", "min_sample": 200,
+          "overall": {"rank": null, "algorithm": "consensus-final", "model_versions": [], "n": 0,
+            "accuracy": null, "precision": null, "coverage": null, "brier": null,
+            "pnl": {"trades": 0, "total_ticks": 0.0, "per_trade": null},
+            "lift": {"low": null, "vs": {
+              "baseline-flat": {"n": 0, "value": null, "low": null, "high": null, "p": null, "q": null, "significant": false}}},
+            "calibration": [{"low": 0.0, "high": 0.1, "count": 0, "mean_p": null, "observed": null}]},
+          "by_symbol": {}, "by_slot": {}, "by_model_version": {}
+        })"));
+        QVERIFY(stats.is_ok());
+        const auto& s = stats.value();
+        QCOMPARE(s.overall.n, 0);
+        QVERIFY(!s.overall.lift_low.has_value());
+        QVERIFY(!s.overall.significant);
+        QCOMPARE(s.overall.lifts.size(), 1);
+        QVERIFY(!s.overall.lifts[0].gain.has_value()); // no pairs: unknown, not a gain of 0
+        QVERIFY(!s.overall.lifts[0].p.has_value());
+        QVERIFY(s.by_symbol.isEmpty() && s.by_slot.isEmpty() && s.by_model_version.isEmpty());
+        QVERIFY(s.days.isEmpty());
+    }
+
+    void stats_of_an_unknown_algorithm_are_an_error() {
+        QVERIFY(parse_stats(json(R"({"error": "unknown algorithm alg-z"})")).is_err());
+    }
+
     void what_was_not_measured_stays_unknown() {
         const auto board = parse_leaderboard(json(kLeaderboard));
         QVERIFY(board.is_ok());
@@ -565,6 +697,13 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(kst_text(QDateTime(), "HH:mm"), QStringLiteral("—"));
         QCOMPARE(price_text(81250.0), QStringLiteral("81,250"));
         QCOMPARE(price_text(1392.2), QStringLiteral("1,392.2")); // a mid-point between ticks keeps a decimal
+    }
+
+    void the_consensus_and_the_baselines_are_told_by_their_names() {
+        QVERIFY(is_consensus("consensus-final"));
+        QVERIFY(is_baseline("baseline-random"));
+        QVERIFY(!is_baseline("newton"));
+        QVERIFY(!is_consensus("newton"));
     }
 
     void more_names_read_in_korean() {

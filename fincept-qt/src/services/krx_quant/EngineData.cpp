@@ -38,7 +38,7 @@ Result<QJsonObject> object_of(const QJsonDocument& doc) {
 int group_of(const QString& algorithm) {
     if (is_consensus(algorithm))
         return 0;
-    if (algorithm.startsWith("baseline-"))
+    if (is_baseline(algorithm))
         return 2;
     return 1;
 }
@@ -106,6 +106,13 @@ Entry entry_of(const QJsonObject& e) {
         entry.significant = !vs.isEmpty() && std::all_of(vs.begin(), vs.end(), [](const auto& v) {
             return v.toObject().value("significant").toBool();
         });
+        for (auto it = vs.begin(); it != vs.end(); ++it) {
+            const QJsonObject l = it.value().toObject();
+            const QJsonValue significant = l.value("significant");
+            const auto gain = l.value("value").isDouble() ? interval_of(l) : std::nullopt;
+            entry.lifts.push_back({it.key(), gain, number(l.value("p")), number(l.value("q")),
+                                   significant.isBool() ? std::optional<bool>(significant.toBool()) : std::nullopt});
+        }
     }
     return entry;
 }
@@ -114,6 +121,14 @@ QList<Entry> entries_of(const QJsonValue& v) {
     QList<Entry> out;
     for (const auto& e : v.toArray())
         out.push_back(entry_of(e.toObject()));
+    return out;
+}
+
+QMap<QString, Entry> entries_by_key(const QJsonValue& v) {
+    QMap<QString, Entry> out;
+    const QJsonObject o = v.toObject();
+    for (auto it = o.begin(); it != o.end(); ++it)
+        out.insert(it.key(), entry_of(it.value().toObject()));
     return out;
 }
 
@@ -238,6 +253,32 @@ Result<Leaderboard> parse_leaderboard(const QJsonDocument& doc) {
     board.unranked = entries_of(o.value("unranked"));
     board.baselines = entries_of(o.value("baselines"));
     return Result<Leaderboard>::ok(board);
+}
+
+Result<AlgorithmStats> parse_stats(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<AlgorithmStats>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    AlgorithmStats stats;
+    stats.algorithm = o.value("algorithm").toString();
+    stats.symbol = o.value("symbol").toString();
+    stats.period = o.value("period").toString();
+    stats.basis = o.value("basis").toString();
+    stats.special = o.value("special").toString();
+    stats.days = strings_of(o.value("days"));
+    stats.min_sample = o.value("min_sample").toInt();
+    const QJsonObject overall = o.value("overall").toObject();
+    stats.overall = entry_of(overall);
+    for (const auto& v : overall.value("calibration").toArray()) {
+        const QJsonObject b = v.toObject();
+        stats.calibration.push_back({b.value("low").toDouble(), b.value("high").toDouble(), b.value("count").toInt(),
+                                     number(b.value("mean_p")), interval_of(b.value("observed"))});
+    }
+    stats.by_symbol = entries_by_key(o.value("by_symbol"));
+    stats.by_slot = entries_by_key(o.value("by_slot"));
+    stats.by_model_version = entries_by_key(o.value("by_model_version"));
+    return Result<AlgorithmStats>::ok(stats);
 }
 
 Result<Macro> parse_macro(const QJsonDocument& doc) {
@@ -365,6 +406,10 @@ QString direction_label(Direction d) {
 
 bool is_consensus(const QString& predictor) {
     return predictor.startsWith("consensus-");
+}
+
+bool is_baseline(const QString& predictor) {
+    return predictor.startsWith("baseline-");
 }
 
 QString predictor_label(const QString& predictor) {

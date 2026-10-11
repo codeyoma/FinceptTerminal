@@ -4,6 +4,7 @@
 #include "screens/krx_quant/KrxAlerts.h"
 #include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxLeaderboard.h"
+#include "screens/krx_quant/KrxStatsWindow.h"
 #include "screens/krx_quant/KrxTables.h"
 #include "ui/theme/Theme.h"
 
@@ -212,6 +213,14 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     });
     connect(live_, &services::KrxLive::leaderboard_changed, leaderboard_, &KrxLeaderboard::show_leaderboard);
     connect(live_, &services::KrxLive::leaderboard_failed, leaderboard_, &KrxLeaderboard::show_failure);
+    connect(live_, &services::KrxLive::stats_changed, this, [this](const krx_quant::AlgorithmStats& stats) {
+        if (stats_window_)
+            stats_window_->show_stats(stats);
+    });
+    connect(live_, &services::KrxLive::stats_failed, this, [this](const QString& reason) {
+        if (stats_window_)
+            stats_window_->show_failure(reason);
+    });
     connect(live_, &services::KrxLive::signal_raised, alerts_, &KrxAlerts::raise);
     connect(live_, &services::KrxLive::base_url_changed, this, [this](const QString& url) {
         if (!url_edit_->hasFocus()) // not while the address is being typed here
@@ -234,6 +243,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         live_->set_leaderboard_query(leaderboard_->query());
         fill_chart(); // the chart's ✓/✗ are on the leaderboard's basis
     });
+    connect(leaderboard_, &KrxLeaderboard::detail_requested, this, &KrxQuantScreen::open_detail);
     connect(alerts_, &KrxAlerts::changed, this, [this]() { live_->set_alerts(alerts_->is_on(), alerts_->rule()); });
 
     clock_timer_ = new QTimer(this);
@@ -455,6 +465,17 @@ void KrxQuantScreen::fill_chart() {
         return;
     }
     chart_->set_data(live_->bars(), live_->board().marks(symbol, leaderboard_->query().basis));
+}
+
+void KrxQuantScreen::open_detail(const QString& algorithm) {
+    if (algorithm.isEmpty())
+        return;
+    if (!stats_window_) {
+        stats_window_ = new KrxStatsWindow(this); // a window of its own, gone with the screen
+        connect(stats_window_, &KrxStatsWindow::closed, this, [this]() { live_->set_detail({}); });
+    }
+    stats_window_->open(algorithm);
+    live_->set_detail(algorithm);
 }
 
 void KrxQuantScreen::update_countdowns() {
