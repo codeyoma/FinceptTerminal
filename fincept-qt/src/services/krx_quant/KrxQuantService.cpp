@@ -208,11 +208,13 @@ void KrxQuantService::read_chart(const QString& symbol) {
 
 void KrxQuantService::read_leaderboard(const LeaderboardQuery& query) {
     if (busy_[kLeaderboard] && !url_.isEmpty()) {
-        next_leaderboard_ = query; // read once the one under way ends
+        // Another is read once the one under way ends; the one under way answers itself.
+        next_leaderboard_ = query == leaderboard_asked_ ? std::nullopt : std::optional(query);
         return;
     }
     if (!begin(kLeaderboard))
         return;
+    leaderboard_asked_ = query;
     get("/v1/leaderboard?" + query_string(query), [this](Result<QJsonDocument> answer) {
         end(kLeaderboard);
         if (next_leaderboard_) { // asked again meanwhile: this answer, or its failure, is stale
@@ -229,11 +231,14 @@ void KrxQuantService::read_leaderboard(const LeaderboardQuery& query) {
 
 void KrxQuantService::read_stats(const QString& algorithm, const LeaderboardQuery& query) {
     if (busy_[kStats] && !url_.isEmpty()) {
-        next_stats_ = {algorithm, query}; // read once the one under way ends
+        // Likewise.
+        const std::pair asked{algorithm, query};
+        next_stats_ = asked == stats_asked_ ? std::nullopt : std::optional(asked);
         return;
     }
     if (!begin(kStats))
         return;
+    stats_asked_ = {algorithm, query};
     const QString path =
         "/v1/algorithms/" + QString::fromUtf8(QUrl::toPercentEncoding(algorithm)) + "/stats?" + query_string(query);
     get(path, [this, algorithm](Result<QJsonDocument> answer) {

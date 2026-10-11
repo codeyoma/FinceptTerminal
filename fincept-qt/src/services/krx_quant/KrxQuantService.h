@@ -45,6 +45,7 @@ class KrxQuantService : public QObject {
 
         /// The API's value for ``special``: "include" or "exclude".
         QString special_value() const { return special ? "include" : "exclude"; }
+        bool operator==(const LeaderboardQuery&) const = default;
         /// Whether ``answer`` (a Leaderboard, or an AlgorithmStats) answers this query.
         template <typename Answer>
         bool matches(const Answer& answer) const {
@@ -72,7 +73,8 @@ class KrxQuantService : public QObject {
     /// A symbol's 1-minute bars and final consensus over the day: chart_ready or chart_failed.
     void read_chart(const QString& symbol);
     /// leaderboard_ready or leaderboard_failed. Asked again while one is under way, the
-    /// latest query is read once it ends, and the stale answer is dropped.
+    /// latest query is read once it ends, and the stale answer is dropped; asked for the one
+    /// under way, that one answers (a slow engine polled every 5 s still answers).
     void read_leaderboard(const LeaderboardQuery& query);
     /// An algorithm's stats for a leaderboard query: stats_ready or stats_failed. Asked again
     /// while one is under way, likewise.
@@ -113,8 +115,10 @@ class KrxQuantService : public QObject {
 
     int generation_ = 0;
     bool busy_[kKinds] = {};
-    std::optional<LeaderboardQuery> next_leaderboard_; ///< asked for while one was under way
-    std::optional<std::pair<QString, LeaderboardQuery>> next_stats_; ///< likewise: the algorithm and query
+    LeaderboardQuery leaderboard_asked_;               ///< the leaderboard under way, or the last
+    std::optional<LeaderboardQuery> next_leaderboard_; ///< asked for while another was under way
+    std::pair<QString, LeaderboardQuery> stats_asked_; ///< likewise for the stats: the algorithm and query
+    std::optional<std::pair<QString, LeaderboardQuery>> next_stats_;
     QString url_;                                      ///< the address of the reads under way, or of the last ones
 };
 
