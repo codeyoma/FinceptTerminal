@@ -216,6 +216,8 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(usd->change_pct, std::optional<double>(0.497));
         const auto unknown = parse_status(json(R"({"mode": "live", "usd_futures": {"price": 1390.0,
             "at": "2026-10-08T09:00:05+09:00", "previous_close": null, "change_pct": null}})"));
+        QVERIFY(unknown.is_ok());
+        QVERIFY(unknown.value().usd_futures.has_value());
         QVERIFY(!unknown.value().usd_futures->change_pct.has_value());
     }
 

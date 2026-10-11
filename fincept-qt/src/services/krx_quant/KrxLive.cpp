@@ -68,6 +68,10 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
     });
     connect(service_, &KrxQuantService::base_url_changed, this, [this](const QString& url) {
         stream_->open(url); // also when another KRX panel applied an address
+        // The old engine's macro row goes; the new engine's is read.
+        macro_.reset();
+        macro_failure_.clear();
+        service_->read_macro();
         emit base_url_changed(url);
     });
 
