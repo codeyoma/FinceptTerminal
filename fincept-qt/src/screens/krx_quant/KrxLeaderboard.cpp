@@ -4,7 +4,6 @@
 #include "ui/theme/Theme.h"
 
 #include <QHBoxLayout>
-#include <QLocale>
 #include <QSignalBlocker>
 #include <QVBoxLayout>
 
@@ -15,50 +14,7 @@ namespace {
 using krx_tables::cell;
 using krx_tables::kNumber;
 
-enum Column {
-    kRank,
-    kName,
-    kStatus,
-    kModels,
-    kN,
-    kAccuracy,
-    kPrecision,
-    kCoverage,
-    kBrier,
-    kPerTrade,
-    kLift,
-    kSignificant,
-    kColumns
-};
-
-QString krx_number(double value, int decimals) {
-    static const QLocale locale(QLocale::Korean, QLocale::SouthKorea);
-    return locale.toString(value, 'f', decimals);
-}
-
-/// A rate as a percent, its interval in the tooltip.
-QTableWidgetItem* rate_cell(const std::optional<krx_quant::Interval>& rate) {
-    if (!rate)
-        return cell(QStringLiteral("—"), kNumber);
-    auto* item = cell(krx_number(rate->value * 100, 1) + "%", kNumber);
-    if (rate->low && rate->high)
-        item->setToolTip(QStringLiteral("95% 구간 %1–%2% (n %3)")
-                             .arg(krx_number(*rate->low * 100, 1), krx_number(*rate->high * 100, 1))
-                             .arg(rate->n));
-    return item;
-}
-
-/// A mean (Brier, ticks a trade), its interval in the tooltip.
-QTableWidgetItem* mean_cell(const std::optional<krx_quant::Interval>& mean, int decimals) {
-    if (!mean)
-        return cell(QStringLiteral("—"), kNumber);
-    auto* item = cell(krx_number(mean->value, decimals), kNumber);
-    if (mean->low && mean->high)
-        item->setToolTip(QStringLiteral("95% 구간 %1 – %2 (n %3)")
-                             .arg(krx_number(*mean->low, decimals), krx_number(*mean->high, decimals))
-                             .arg(mean->n));
-    return item;
-}
+enum Column { kRank, kName, kStatus, kModels, kStats, kSignificant = kStats + krx_tables::kStatsColumns, kColumns };
 
 } // namespace
 
@@ -68,14 +24,13 @@ KrxLeaderboard::KrxLeaderboard(QWidget* parent) : QWidget(parent) {
     auto* controls = new QHBoxLayout;
     controls->addWidget(new QLabel(tr("기간")));
     period_ = new QComboBox;
-    period_->addItem(tr("오늘"), "today");
-    period_->addItem(tr("5일"), "5d");
-    period_->addItem(tr("20일"), "20d");
+    for (const char* period : {"today", "5d", "20d"})
+        period_->addItem(krx_quant::period_label(period), period);
     controls->addWidget(period_);
     controls->addWidget(new QLabel(tr("채점 기준")));
     basis_ = new QComboBox;
-    basis_->addItem(tr("표시 시점 (B)"), "b");
-    basis_->addItem(tr("봉 마감 (A)"), "a");
+    for (const char* basis : {"b", "a"})
+        basis_->addItem(krx_quant::basis_label(basis), basis);
     basis_->setToolTip(tr("B: 예측이 화면에 뜬 시각의 중간가부터, A: 봉 마감의 중간가부터 4분. "
                           "차트의 ✓/✗도 이 기준이다."));
     controls->addWidget(basis_);
@@ -89,9 +44,8 @@ KrxLeaderboard::KrxLeaderboard(QWidget* parent) : QWidget(parent) {
     controls->addStretch();
     layout->addLayout(controls);
 
-    table_ = krx_tables::table({tr("순위"), tr("예측"), tr("상태"), tr("모델"), tr("표본"), tr("정답률"),
-                                tr("방향 정밀도"), tr("커버리지"), tr("Brier"), tr("거래당 손익(틱)"),
-                                tr("가장 약한 lift 하한"), tr("운 보정")});
+    table_ = krx_tables::table(QStringList{tr("순위"), tr("예측"), tr("상태"), tr("모델")} +
+                               krx_tables::stats_headers() + QStringList{tr("운 보정")});
     table_->horizontalHeader()->setStretchLastSection(false);
     table_->horizontalHeader()->setSectionResizeMode(kModels, QHeaderView::Stretch);
     layout->addWidget(table_, 1);
@@ -103,6 +57,10 @@ KrxLeaderboard::KrxLeaderboard(QWidget* parent) : QWidget(parent) {
     for (auto* combo : {period_, basis_, symbol_})
         connect(combo, &QComboBox::currentIndexChanged, this, &KrxLeaderboard::query_changed);
     connect(special_, &QCheckBox::toggled, this, &KrxLeaderboard::query_changed);
+    connect(table_, &QTableWidget::cellDoubleClicked, this, [this](int row, int) {
+        if (const auto* name = table_->item(row, kName))
+            emit detail_requested(name->data(Qt::UserRole).toString());
+    });
 }
 
 services::KrxQuantService::LeaderboardQuery KrxLeaderboard::query() const {
@@ -134,24 +92,14 @@ void KrxLeaderboard::show_leaderboard(const krx_quant::Leaderboard& leaderboard)
         const int row = table_->rowCount();
         table_->insertRow(row);
         table_->setItem(row, kRank, cell(e.rank ? QString::number(*e.rank) : QStringLiteral("—"), kNumber));
-        table_->setItem(row, kName, cell(krx_quant::predictor_label(e.algorithm)));
+        auto* name = cell(krx_quant::predictor_label(e.algorithm));
+        name->setData(Qt::UserRole, e.algorithm);
+        table_->setItem(row, kName, name);
         table_->setItem(row, kStatus, cell(krx_quant::standing_label(e.status)));
         auto* models = cell(e.model_versions.join(", "));
         models->setToolTip(e.model_versions.join("\n"));
         table_->setItem(row, kModels, models);
-        table_->setItem(row, kN, cell(krx_number(e.n, 0), kNumber));
-        table_->setItem(row, kAccuracy, rate_cell(e.accuracy));
-        table_->setItem(row, kPrecision, rate_cell(e.precision));
-        table_->setItem(row, kCoverage, rate_cell(e.coverage));
-        table_->setItem(row, kBrier, mean_cell(e.brier, 3));
-        auto* pnl = mean_cell(e.per_trade, 2);
-        const QString trades = tr("거래 %1건, 합계 %2틱").arg(e.trades).arg(krx_number(e.total_ticks, 1));
-        pnl->setToolTip(pnl->toolTip().isEmpty() ? trades : trades + "\n" + pnl->toolTip());
-        table_->setItem(row, kPerTrade, pnl);
-        const QString lift = e.lift_low
-                                 ? QStringLiteral("%1%2").arg(*e.lift_low > 0 ? "+" : "", krx_number(*e.lift_low, 3))
-                                 : QStringLiteral("—");
-        table_->setItem(row, kLift, cell(lift, kNumber));
+        krx_tables::set_stats(table_, row, kStats, e);
         table_->setItem(row, kSignificant, cell(e.significant ? tr("통과") : QString()));
         if (baseline || krx_quant::is_consensus(e.algorithm)) {
             const QColor color(baseline ? ui::colors::TEXT_DIM() : ui::colors::AMBER());
@@ -165,15 +113,10 @@ void KrxLeaderboard::show_leaderboard(const krx_quant::Leaderboard& leaderboard)
         add(e, false);
     for (const auto& e : leaderboard.baselines)
         add(e, true);
-    QString days = tr("예측이 있는 날 없음");
-    if (leaderboard.days.size() == 1)
-        days = leaderboard.days.first();
-    else if (leaderboard.days.size() > 1)
-        days = tr("%1 ~ %2 (%3일)").arg(leaderboard.days.first(), leaderboard.days.last()).arg(leaderboard.days.size());
     note_->setText(tr("%1 · 순위에는 채점 %2건 이상, 기준 예측과의 짝도 그만큼 있어야 오른다. "
                       "순위는 가장 약한 lift의 하한 순이고, 운 보정 통과는 기준 예측 셋을 모두 이긴 것이 "
-                      "운으로 보기 어렵다는 뜻이다(q ≤ 0.05).")
-                       .arg(days)
+                      "운으로 보기 어렵다는 뜻이다(q ≤ 0.05). 줄을 두 번 누르면 그 예측의 상세 통계가 열린다.")
+                       .arg(krx_quant::days_text(leaderboard.days))
                        .arg(leaderboard.min_sample));
 }
 

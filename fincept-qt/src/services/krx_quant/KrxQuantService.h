@@ -11,6 +11,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <utility>
 
 namespace fincept::services {
 
@@ -44,10 +45,11 @@ class KrxQuantService : public QObject {
 
         /// The API's value for ``special``: "include" or "exclude".
         QString special_value() const { return special ? "include" : "exclude"; }
-        /// Whether ``leaderboard`` answers this query.
-        bool matches(const krx_quant::Leaderboard& leaderboard) const {
-            return leaderboard.symbol == symbol && leaderboard.period == period && leaderboard.basis == basis &&
-                   leaderboard.special == special_value();
+        /// Whether ``answer`` (a Leaderboard, or an AlgorithmStats) answers this query.
+        template <typename Answer>
+        bool matches(const Answer& answer) const {
+            return answer.symbol == symbol && answer.period == period && answer.basis == basis &&
+                   answer.special == special_value();
         }
     };
 
@@ -72,6 +74,9 @@ class KrxQuantService : public QObject {
     /// leaderboard_ready or leaderboard_failed. Asked again while one is under way, the
     /// latest query is read once it ends, and the stale answer is dropped.
     void read_leaderboard(const LeaderboardQuery& query);
+    /// An algorithm's stats for a leaderboard query: stats_ready or stats_failed. Asked again
+    /// while one is under way, likewise.
+    void read_stats(const QString& algorithm, const LeaderboardQuery& query);
     void read_macro(); ///< macro_ready or macro_failed
 
   signals:
@@ -83,6 +88,8 @@ class KrxQuantService : public QObject {
     void chart_failed(const QString& symbol, const QString& reason);
     void leaderboard_ready(const fincept::krx_quant::Leaderboard& leaderboard);
     void leaderboard_failed(const QString& reason);
+    void stats_ready(const fincept::krx_quant::AlgorithmStats& stats);
+    void stats_failed(const QString& algorithm, const QString& reason);
     void macro_ready(const fincept::krx_quant::Macro& macro);
     void macro_failed(const QString& reason);
     /// The address this service reads changed (also when another panel set it).
@@ -91,7 +98,7 @@ class KrxQuantService : public QObject {
   private:
     /// A step of a read: the answer to one GET, or why it failed.
     using Step = std::function<void(Result<QJsonDocument>)>;
-    enum Kind { kRefresh, kStatus, kChart, kLeaderboard, kMacro, kKinds };
+    enum Kind { kRefresh, kStatus, kChart, kLeaderboard, kStats, kMacro, kKinds };
 
     /// Start a read of ``kind`` unless one is under way; false if skipped.
     bool begin(Kind kind);
@@ -107,6 +114,7 @@ class KrxQuantService : public QObject {
     int generation_ = 0;
     bool busy_[kKinds] = {};
     std::optional<LeaderboardQuery> next_leaderboard_; ///< asked for while one was under way
+    std::optional<std::pair<QString, LeaderboardQuery>> next_stats_; ///< likewise: the algorithm and query
     QString url_;                                      ///< the address of the reads under way, or of the last ones
 };
 

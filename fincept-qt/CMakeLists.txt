@@ -1473,6 +1473,7 @@ set(SERVICE_SOURCES
     src/services/krx_quant/KrxQuantService.cpp
     src/services/krx_quant/KrxStream.cpp
     src/services/krx_quant/Signals.cpp
+    src/services/krx_quant/StatsView.cpp
 )
 
 # UI framework
@@ -2072,6 +2073,7 @@ set(SCREEN_SOURCES
     src/screens/krx_quant/KrxChart.cpp
     src/screens/krx_quant/KrxLeaderboard.cpp
     src/screens/krx_quant/KrxQuantScreen.cpp
+    src/screens/krx_quant/KrxStatsWindow.cpp
 )
 
 # App
@@ -2627,12 +2629,14 @@ set_source_files_properties(
     src/screens/krx_quant/KrxChart.cpp
     src/screens/krx_quant/KrxLeaderboard.cpp
     src/screens/krx_quant/KrxQuantScreen.cpp
+    src/screens/krx_quant/KrxStatsWindow.cpp
     src/services/krx_quant/Board.cpp
     src/services/krx_quant/EngineData.cpp
     src/services/krx_quant/KrxLive.cpp
     src/services/krx_quant/KrxQuantService.cpp
     src/services/krx_quant/KrxStream.cpp
     src/services/krx_quant/Signals.cpp
+    src/services/krx_quant/StatsView.cpp
     PROPERTIES SKIP_UNITY_BUILD_INCLUSION TRUE
 )
 

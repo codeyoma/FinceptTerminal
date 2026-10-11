@@ -33,6 +33,16 @@ QString why(const std::string& error) {
     return QString::fromStdString(error);
 }
 
+/// The leaderboard's query string, also an algorithm's stats'.
+QString query_string(const KrxQuantService::LeaderboardQuery& query) {
+    QUrlQuery q;
+    q.addQueryItem("symbol", query.symbol);
+    q.addQueryItem("period", query.period);
+    q.addQueryItem("basis", query.basis);
+    q.addQueryItem("special", query.special_value());
+    return q.toString(QUrl::FullyEncoded);
+}
+
 } // namespace
 
 QString krx_failure(const std::string& error) {
@@ -74,6 +84,7 @@ void KrxQuantService::restart() {
     for (bool& busy : busy_)
         busy = false;
     next_leaderboard_.reset();
+    next_stats_.reset();
     if (const QString url = base_url(); url != url_) {
         url_ = url;
         emit base_url_changed(url_);
@@ -202,12 +213,7 @@ void KrxQuantService::read_leaderboard(const LeaderboardQuery& query) {
     }
     if (!begin(kLeaderboard))
         return;
-    QUrlQuery q;
-    q.addQueryItem("symbol", query.symbol);
-    q.addQueryItem("period", query.period);
-    q.addQueryItem("basis", query.basis);
-    q.addQueryItem("special", query.special_value());
-    get("/v1/leaderboard?" + q.toString(QUrl::FullyEncoded), [this](Result<QJsonDocument> answer) {
+    get("/v1/leaderboard?" + query_string(query), [this](Result<QJsonDocument> answer) {
         end(kLeaderboard);
         if (next_leaderboard_) { // asked again meanwhile: this answer, or its failure, is stale
             const LeaderboardQuery next = *next_leaderboard_;
@@ -218,6 +224,29 @@ void KrxQuantService::read_leaderboard(const LeaderboardQuery& query) {
         if (leaderboard.is_err())
             return emit leaderboard_failed(why(leaderboard.error()));
         emit leaderboard_ready(leaderboard.value());
+    });
+}
+
+void KrxQuantService::read_stats(const QString& algorithm, const LeaderboardQuery& query) {
+    if (busy_[kStats] && !url_.isEmpty()) {
+        next_stats_ = {algorithm, query}; // read once the one under way ends
+        return;
+    }
+    if (!begin(kStats))
+        return;
+    const QString path =
+        "/v1/algorithms/" + QString::fromUtf8(QUrl::toPercentEncoding(algorithm)) + "/stats?" + query_string(query);
+    get(path, [this, algorithm](Result<QJsonDocument> answer) {
+        end(kStats);
+        if (next_stats_) { // asked again meanwhile: this answer, or its failure, is stale
+            const auto [next_algorithm, next_query] = *next_stats_;
+            next_stats_.reset();
+            return read_stats(next_algorithm, next_query);
+        }
+        auto stats = parsed(answer, krx_quant::parse_stats);
+        if (stats.is_err())
+            return emit stats_failed(algorithm, why(stats.error()));
+        emit stats_ready(stats.value());
     });
 }
 

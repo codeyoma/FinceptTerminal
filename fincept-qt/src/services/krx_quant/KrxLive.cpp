@@ -43,9 +43,21 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         if (query_.matches(leaderboard))
             emit leaderboard_changed(leaderboard);
         else
-            read_leaderboard(); // another was asked for meanwhile
+            service_->read_leaderboard(query_); // another was asked for meanwhile
     });
     connect(service_, &KrxQuantService::leaderboard_failed, this, &KrxLive::leaderboard_failed);
+    connect(service_, &KrxQuantService::stats_ready, this, [this](const krx_quant::AlgorithmStats& stats) {
+        if (stats.algorithm == detail_ && query_.matches(stats))
+            emit stats_changed(stats);
+        else if (!detail_.isEmpty())
+            service_->read_stats(detail_, query_); // another was asked for meanwhile
+    });
+    connect(service_, &KrxQuantService::stats_failed, this, [this](const QString& algorithm, const QString& reason) {
+        if (algorithm == detail_)
+            emit stats_failed(reason);
+        else if (!detail_.isEmpty())
+            service_->read_stats(detail_, query_);
+    });
     connect(service_, &KrxQuantService::base_url_changed, this, [this](const QString& url) {
         stream_->open(url); // also when another KRX panel applied an address
         emit base_url_changed(url);
@@ -116,6 +128,12 @@ void KrxLive::set_leaderboard_query(const KrxQuantService::LeaderboardQuery& que
     read_leaderboard();
 }
 
+void KrxLive::set_detail(const QString& algorithm) {
+    detail_ = algorithm;
+    if (!detail_.isEmpty())
+        service_->read_stats(detail_, query_);
+}
+
 void KrxLive::set_alerts(bool on, const krx_quant::SignalRule& rule) {
     alerts_on_ = on;
     alerts_.set_rule(rule);
@@ -133,6 +151,10 @@ void KrxLive::tick() {
         // an address another KRX panel applied is followed, not the old engine's stream.
         if ((alerts_on_ && !live) || KrxQuantService::base_url() != service_->url())
             service_->refresh();
+        // A detail window stays open beside other screens: without the stream (whose
+        // outcomes read it with the leaderboard), it is read here.
+        if (!live && !detail_.isEmpty())
+            service_->read_stats(detail_, query_);
         return;
     }
     if (!live || ticks_ % kRefreshEvery == 0)
@@ -158,6 +180,8 @@ void KrxLive::read_everything() {
 
 void KrxLive::read_leaderboard() {
     service_->read_leaderboard(query_);
+    if (!detail_.isEmpty())
+        service_->read_stats(detail_, query_);
 }
 
 void KrxLive::on_snapshot(const KrxQuantService::Snapshot& snapshot) {

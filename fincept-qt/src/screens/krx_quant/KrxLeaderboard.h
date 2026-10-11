@@ -12,7 +12,7 @@ namespace fincept::screens {
 
 /// The KRX screen's leaderboard: its query (period, scoring basis, symbol, special
 /// situations) and the ranked, unranked and baseline entries with their stats; intervals
-/// in tooltips.
+/// in tooltips. A line double-clicked asks for that predictor's detail.
 class KrxLeaderboard : public QWidget {
     Q_OBJECT
   public:
@@ -27,6 +27,8 @@ class KrxLeaderboard : public QWidget {
   signals:
     /// The user chose another period, basis, symbol or special situations.
     void query_changed();
+    /// The user asked for a predictor's detail (double-clicked its line).
+    void detail_requested(const QString& algorithm);
 
   private:
     QComboBox* period_ = nullptr;
