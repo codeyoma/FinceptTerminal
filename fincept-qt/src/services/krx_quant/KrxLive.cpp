@@ -37,8 +37,16 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         else if (!selected_.isEmpty())
             service_->read_chart(selected_); // another was chosen meanwhile
     });
-    connect(service_, &KrxQuantService::macro_ready, this, &KrxLive::macro_changed);
-    connect(service_, &KrxQuantService::macro_failed, this, &KrxLive::macro_failed);
+    connect(service_, &KrxQuantService::macro_ready, this, [this](const krx_quant::Macro& macro) {
+        macro_ = macro;
+        macro_failure_.clear();
+        emit macro_changed(macro);
+    });
+    connect(service_, &KrxQuantService::macro_failed, this, [this](const QString& reason) {
+        macro_.reset();
+        macro_failure_ = reason;
+        emit macro_failed(reason);
+    });
     connect(service_, &KrxQuantService::leaderboard_ready, this, [this](const krx_quant::Leaderboard& leaderboard) {
         if (query_.matches(leaderboard))
             emit leaderboard_changed(leaderboard);
@@ -60,6 +68,10 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
     });
     connect(service_, &KrxQuantService::base_url_changed, this, [this](const QString& url) {
         stream_->open(url); // also when another KRX panel applied an address
+        // The old engine's macro row goes; the new engine's is read.
+        macro_.reset();
+        macro_failure_.clear();
+        service_->read_macro();
         emit base_url_changed(url);
     });
 
@@ -94,6 +106,8 @@ void KrxLive::apply_base_url(const QString& url) {
     board_ = {};
     bars_.clear();
     status_.reset();
+    macro_.reset(); // the new engine's is read below
+    macro_failure_.clear();
     failure_.clear();
     read_errors_.clear();
     emit predictions_changed();

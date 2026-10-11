@@ -44,6 +44,13 @@ struct Feed {
     QString gap; ///< an open gap, the engine's judgement of trouble: "stale" or "disconnected: …"
 };
 
+/// The USD futures' latest trade today, against the previous close read at 07:30.
+struct UsdFutures {
+    double price = 0;
+    QDateTime at;                     ///< when it traded
+    std::optional<double> change_pct; ///< since the previous close; none without it
+};
+
 struct EngineStatus {
     QString mode;  ///< "live", or "demo" for the development engine
     QString phase; ///< the market phase, e.g. "continuous" (see phase_label)
@@ -54,6 +61,7 @@ struct EngineStatus {
     std::optional<Training> training;
     std::optional<bool> kis_connected; ///< only a live engine reports its KIS connection
     QList<Feed> feeds;                 ///< likewise
+    std::optional<UsdFutures> usd_futures; ///< none before today's first trade
 };
 
 /// A macro indicator as read the morning the regime was decided. Unknown values stay empty.
@@ -277,6 +285,12 @@ QString standing_label(const QString& status);
 /// Why last night's training runs or not, in Korean where the engine's reason is known; an
 /// unknown one as it is.
 QString training_reason_label(const QString& reason);
+
+/// A macro reading as the screen writes it: its name, value and change.
+QString reading_text(const Reading& reading);
+/// The USD futures on the macro row: the latest trade today with its change and time, or
+/// before any, the morning's reading (``usdf``), named as that reading; empty without either.
+QString usd_futures_text(const std::optional<UsdFutures>& live, const QList<Reading>& readings);
 
 /// A time in KST, the exchange's and the engine's, in ``format`` (QDateTime's); "—" if invalid.
 QString kst_text(const QDateTime& t, const QString& format);

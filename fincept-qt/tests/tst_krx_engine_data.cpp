@@ -36,7 +36,8 @@ const char* kStatus = R"({
     {"feed": "H0UNCNT0", "key": "005930", "last_received_at": "2026-10-08T10:30:03+09:00", "seconds_since": 2.0, "gap": null},
     {"feed": "H0UNMBC0", "key": "000660", "last_received_at": "2026-10-08T10:14:05+09:00", "seconds_since": 960.0, "gap": "stale"},
     {"feed": "H0IFCNT0", "key": "A01612", "last_received_at": null, "seconds_since": null, "gap": "disconnected: closed"}
-  ]}
+  ]},
+  "usd_futures": {"price": 1395.2, "at": "2026-10-08T10:29:58+09:00", "previous_close": 1388.3, "change_pct": 0.497}
 })";
 
 const char* kMacro = R"json({
@@ -205,6 +206,36 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(s.kis_connected, std::optional<bool>(true));
     }
 
+    void status_has_the_usd_futures_now() {
+        const auto status = parse_status(json(kStatus));
+        QVERIFY(status.is_ok());
+        const auto& usd = status.value().usd_futures;
+        QVERIFY(usd.has_value());
+        QCOMPARE(usd->price, 1395.2);
+        QCOMPARE(usd->at, QDateTime::fromString("2026-10-08T10:29:58+09:00", Qt::ISODate));
+        QCOMPARE(usd->change_pct, std::optional<double>(0.497));
+        const auto unknown = parse_status(json(R"({"mode": "live", "usd_futures": {"price": 1390.0,
+            "at": "2026-10-08T09:00:05+09:00", "previous_close": null, "change_pct": null}})"));
+        QVERIFY(unknown.is_ok());
+        QVERIFY(unknown.value().usd_futures.has_value());
+        QVERIFY(!unknown.value().usd_futures->change_pct.has_value());
+    }
+
+    void the_usd_futures_show_live_or_as_read_in_the_morning() {
+        UsdFutures live{1395.2, QDateTime::fromString("2026-10-08T10:29:58+09:00", Qt::ISODate), 0.497};
+        const QList<Reading> morning = {
+            {"sox", "필라델피아 반도체지수", "2026-10-07", 12620.8, -1.4},
+            {"usdf", "달러선물 최근월물", "2026-10-07", 1388.3, 0.3},
+        };
+        // Named as the morning's reading, so the row reads the same before and after the first trade.
+        QCOMPARE(usd_futures_text(live, morning), QStringLiteral("달러선물 최근월물 1,395.2 (+0.50%, 10:29)"));
+        live.change_pct.reset();                                                          // no close to compare with
+        QCOMPARE(usd_futures_text(live, {}), QStringLiteral("달러선물 1,395.2 (10:29)")); // and no reading
+        // Before today's first trade: the morning's reading.
+        QCOMPARE(usd_futures_text(std::nullopt, morning), QStringLiteral("달러선물 최근월물 1,388.3 (+0.30%)"));
+        QCOMPARE(usd_futures_text(std::nullopt, {}), QString());
+    }
+
     void status_without_a_training_kis_or_bar_close_yet() {
         const auto status = parse_status(json(R"({"mode": "demo", "now": "2026-10-08T08:10:00+09:00",
             "phase": "pre_open", "last_bar_close": null, "pending_outcomes": 0, "special": [], "training": null})"));
@@ -212,6 +243,7 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!status.value().last_bar_close.isValid());
         QVERIFY(!status.value().training.has_value());
         QVERIFY(!status.value().kis_connected.has_value()); // only a live engine reports KIS
+        QVERIFY(!status.value().usd_futures.has_value());   // no trade today yet (or an older engine)
     }
 
     void an_answer_that_is_not_an_object_is_an_error_in_korean() {
