@@ -3,6 +3,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <QUrl>
 
 #include <algorithm>
 #include <cmath>
@@ -40,6 +41,98 @@ int group_of(const QString& algorithm) {
     return 1;
 }
 
+std::optional<Outcome> outcome_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return Outcome{number(o.value("mid_close")),     number(o.value("mid_display")), number(o.value("mid_target")),
+                   o.value("class_a").toString(),    o.value("class_b").toString(),  o.value("special").toBool(),
+                   o.value("unscorable").toString(), time_of(o.value("scored_at"))};
+}
+
+/// The feeds of a KIS status (``/v1/status``'s ``kis``, a health event's).
+QList<Feed> feeds_of(const QJsonObject& kis) {
+    QList<Feed> out;
+    for (const auto& v : kis.value("feeds").toArray()) {
+        const QJsonObject f = v.toObject();
+        out.push_back({f.value("feed").toString(), f.value("key").toString(), time_of(f.value("last_received_at")),
+                       number(f.value("seconds_since")), f.value("gap").toString()});
+    }
+    return out;
+}
+
+std::optional<Interval> interval_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return Interval{o.value("value").toDouble(), number(o.value("low")), number(o.value("high")), o.value("n").toInt()};
+}
+
+QStringList strings_of(const QJsonValue& v) {
+    QStringList out;
+    for (const auto& s : v.toArray())
+        out << s.toString();
+    return out;
+}
+
+Entry entry_of(const QJsonObject& e) {
+    Entry entry;
+    if (e.value("rank").isDouble())
+        entry.rank = e.value("rank").toInt();
+    entry.algorithm = e.value("algorithm").toString();
+    entry.status = e.value("status").toString();
+    entry.model_versions = strings_of(e.value("model_versions"));
+    entry.n = e.value("n").toInt();
+    entry.accuracy = interval_of(e.value("accuracy"));
+    entry.precision = interval_of(e.value("precision"));
+    entry.coverage = interval_of(e.value("coverage"));
+    entry.brier = interval_of(e.value("brier"));
+    const QJsonObject pnl = e.value("pnl").toObject();
+    entry.trades = pnl.value("trades").toInt();
+    entry.total_ticks = pnl.value("total_ticks").toDouble();
+    entry.per_trade = interval_of(pnl.value("per_trade"));
+    if (e.value("lift").isObject()) {
+        const QJsonObject lift = e.value("lift").toObject();
+        entry.lift_low = number(lift.value("low"));
+        const QJsonObject vs = lift.value("vs").toObject();
+        entry.significant = !vs.isEmpty() && std::all_of(vs.begin(), vs.end(), [](const auto& v) {
+            return v.toObject().value("significant").toBool();
+        });
+    }
+    return entry;
+}
+
+QList<Entry> entries_of(const QJsonValue& v) {
+    QList<Entry> out;
+    for (const auto& e : v.toArray())
+        out.push_back(entry_of(e.toObject()));
+    return out;
+}
+
+/// A prediction as the API shows it. ``symbol`` and ``bar_close`` are the answer's, for
+/// items that do not carry their own.
+Prediction prediction_of(const QJsonObject& p, const QString& symbol, const QDateTime& bar_close) {
+    Prediction made{p.value("algorithm").toString(),
+                    p.value("model_version").toString(),
+                    p.value("status").toString(),
+                    std::nullopt,
+                    std::nullopt,
+                    std::nullopt,
+                    std::nullopt,
+                    p.contains("symbol") ? p.value("symbol").toString() : symbol,
+                    p.contains("bar_close") ? time_of(p.value("bar_close")) : bar_close,
+                    time_of(p.value("displayed_at")),
+                    time_of(p.value("target_at")),
+                    outcome_of(p.value("outcome"))};
+    if (made.status == "ok") {
+        made.p_up = number(p.value("p_up"));
+        made.p_flat = number(p.value("p_flat"));
+        made.p_down = number(p.value("p_down"));
+        made.expected_ticks = number(p.value("expected_ticks"));
+    }
+    return made;
+}
+
 } // namespace
 
 Result<EngineStatus> parse_status(const QJsonDocument& doc) {
@@ -66,8 +159,16 @@ Result<EngineStatus> parse_status(const QJsonDocument& doc) {
             training.promoted.insert(it.key(), it.value().toString());
         s.training = training;
     }
-    if (o.value("kis").isObject())
-        s.kis_connected = o.value("kis").toObject().value("connected").toBool();
+    if (o.value("session").isObject()) {
+        const QJsonObject session = o.value("session").toObject();
+        s.session_open = time_of(session.value("open"));
+        s.session_close = time_of(session.value("close"));
+    }
+    if (o.value("kis").isObject()) {
+        const QJsonObject kis = o.value("kis").toObject();
+        s.kis_connected = kis.value("connected").toBool();
+        s.feeds = feeds_of(kis);
+    }
     return Result<EngineStatus>::ok(s);
 }
 
@@ -89,34 +190,139 @@ Result<Latest> parse_latest(const QJsonDocument& doc) {
         return Result<Latest>::err(obj.error());
     const QJsonObject& o = obj.value();
     Latest latest{o.value("symbol").toString(), time_of(o.value("bar_close")), {}};
-    for (const auto& v : o.value("predictions").toArray()) {
-        const QJsonObject p = v.toObject();
-        Prediction made{p.value("algorithm").toString(),
-                        p.value("model_version").toString(),
-                        p.value("status").toString(),
-                        std::nullopt,
-                        std::nullopt,
-                        std::nullopt,
-                        std::nullopt};
-        if (made.status == "ok") {
-            made.p_up = number(p.value("p_up"));
-            made.p_flat = number(p.value("p_flat"));
-            made.p_down = number(p.value("p_down"));
-            made.expected_ticks = number(p.value("expected_ticks"));
-        }
-        latest.predictions.push_back(made);
-    }
-    // The final consensus before the fast one: it is the one to read once both are there.
-    std::stable_sort(latest.predictions.begin(), latest.predictions.end(),
-                     [](const Prediction& a, const Prediction& b) {
-                         const int ga = group_of(a.algorithm), gb = group_of(b.algorithm);
-                         if (ga != gb)
-                             return ga < gb;
-                         if (ga == 0)
-                             return a.algorithm > b.algorithm; // consensus-final, then consensus-fast
-                         return false;
-                     });
+    for (const auto& v : o.value("predictions").toArray())
+        latest.predictions.push_back(prediction_of(v.toObject(), latest.symbol, latest.bar_close));
+    latest.predictions = in_screen_order(latest.predictions);
     return Result<Latest>::ok(latest);
+}
+
+Result<QList<Prediction>> parse_predictions(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<QList<Prediction>>::err(obj.error());
+    const QString symbol = obj.value().value("symbol").toString();
+    QList<Prediction> out;
+    for (const auto& v : obj.value().value("predictions").toArray())
+        out.push_back(prediction_of(v.toObject(), symbol, {}));
+    return Result<QList<Prediction>>::ok(out);
+}
+
+Result<QList<Bar>> parse_bars(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<QList<Bar>>::err(obj.error());
+    QList<Bar> out;
+    for (const auto& v : obj.value().value("bars").toArray()) {
+        const QJsonObject b = v.toObject();
+        out.push_back({time_of(b.value("start")), b.value("open").toDouble(), b.value("high").toDouble(),
+                       b.value("low").toDouble(), b.value("close").toDouble(), b.value("volume").toDouble()});
+    }
+    return Result<QList<Bar>>::ok(out);
+}
+
+Result<Leaderboard> parse_leaderboard(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<Leaderboard>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    Leaderboard board;
+    board.symbol = o.value("symbol").toString();
+    board.period = o.value("period").toString();
+    board.basis = o.value("basis").toString();
+    board.special = o.value("special").toString();
+    board.days = strings_of(o.value("days"));
+    board.min_sample = o.value("min_sample").toInt();
+    board.ranked = entries_of(o.value("ranked"));
+    board.unranked = entries_of(o.value("unranked"));
+    board.baselines = entries_of(o.value("baselines"));
+    return Result<Leaderboard>::ok(board);
+}
+
+Result<Macro> parse_macro(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<Macro>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    Macro macro;
+    macro.day = o.value("day").toString();
+    macro.decided_at = time_of(o.value("decided_at"));
+    macro.regime = o.value("regime").toString();
+    macro.reasons = strings_of(o.value("reasons"));
+    for (const auto& v : o.value("readings").toArray()) {
+        const QJsonObject r = v.toObject();
+        macro.readings.push_back({r.value("indicator").toString(), r.value("label").toString(),
+                                  r.value("as_of").toString(), number(r.value("value")),
+                                  number(r.value("change_pct"))});
+    }
+    const QJsonObject failed = o.value("failed").toObject();
+    for (auto it = failed.begin(); it != failed.end(); ++it)
+        macro.failed.insert(it.key(), it.value().toString());
+    macro.skipped = strings_of(o.value("skipped"));
+    return Result<Macro>::ok(macro);
+}
+
+Result<Consensus> parse_consensus(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<Consensus>::err(obj.error());
+    return Result<Consensus>::ok({strings_of(obj.value().value("members")), obj.value().value("version").toString()});
+}
+
+Result<Event> parse_event(const QString& message) {
+    QJsonParseError error;
+    const QJsonDocument doc = QJsonDocument::fromJson(message.toUtf8(), &error);
+    if (error.error != QJsonParseError::NoError || !doc.isObject())
+        return Result<Event>::err(QStringLiteral("엔진 스트림 메시지를 읽을 수 없습니다").toStdString());
+    const QJsonObject o = doc.object();
+    static const QMap<QString, Event::Type> types = {
+        {"prediction", Event::Type::Prediction}, {"consensus", Event::Type::Consensus},
+        {"outcome", Event::Type::Outcome},       {"health", Event::Type::Health},
+        {"lifecycle", Event::Type::Lifecycle},
+    };
+    Event event;
+    event.type = types.value(o.value("type").toString(), Event::Type::Other);
+    event.at = time_of(o.value("at"));
+    event.kind = o.value("kind").toString();
+    event.bar_close = time_of(o.value("bar_close"));
+    const QJsonArray items = o.value(event.type == Event::Type::Outcome ? "outcomes" : "predictions").toArray();
+    for (const auto& v : items)
+        event.predictions.push_back(prediction_of(v.toObject(), {}, event.bar_close));
+    if (o.value("kis").isObject()) {
+        const QJsonObject kis = o.value("kis").toObject();
+        event.kis_connected = kis.value("connected").toBool();
+        event.feeds = feeds_of(kis);
+    }
+    event.algorithm = o.value("algorithm").toString();
+    const QJsonObject change = o.value("change").toObject();
+    event.change = {time_of(change.value("at")), change.value("from").toString(), change.value("to").toString(),
+                    change.value("reason").toString()};
+    return Result<Event>::ok(event);
+}
+
+QString stream_url(const QString& base_url) {
+    QUrl url(base_url.trimmed());
+    const QString scheme = url.scheme().toLower();
+    if (url.host().isEmpty() || (scheme != "http" && scheme != "https"))
+        return {};
+    url.setScheme(scheme == "https" ? "wss" : "ws");
+    QString path = url.path();
+    while (path.endsWith('/'))
+        path.chop(1);
+    url.setPath(path + "/v1/stream");
+    return url.toString();
+}
+
+QList<Prediction> in_screen_order(QList<Prediction> predictions) {
+    std::stable_sort(predictions.begin(), predictions.end(), [](const Prediction& a, const Prediction& b) {
+        const int ga = group_of(a.algorithm), gb = group_of(b.algorithm);
+        if (ga != gb)
+            return ga < gb;
+        // The final consensus before the fast one: it is the one to read once both are there.
+        if (ga == 0)
+            return a.algorithm > b.algorithm;
+        return a.algorithm < b.algorithm;
+    });
+    return predictions;
 }
 
 Direction direction(const Prediction& p) {
@@ -131,6 +337,15 @@ Direction direction(const Prediction& p) {
     if (down > flat)
         return Direction::Down;
     return Direction::Flat;
+}
+
+Direction most_likely(const Prediction& p) {
+    if (!p.p_up || !p.p_flat || !p.p_down)
+        return Direction::None;
+    const double best = std::max({*p.p_up, *p.p_flat, *p.p_down});
+    if (*p.p_flat == best)
+        return Direction::Flat;
+    return *p.p_up == best ? Direction::Up : Direction::Down;
 }
 
 QString direction_label(Direction d) {
@@ -180,8 +395,27 @@ QString status_label(const QString& status) {
         {"timed_out", QStringLiteral("시간 초과")},
         {"error", QStringLiteral("오류")},
         {"vi", QStringLiteral("VI 중")},
+        {"no_book", QStringLiteral("호가 없음")},
         {"no_members", QStringLiteral("합의 대상 없음")},
         {"none_finished", QStringLiteral("끝난 알고리즘 없음")},
+    };
+    return labels.value(status, status);
+}
+
+QString regime_label(const QString& regime) {
+    static const QMap<QString, QString> labels = {
+        {"shock", QStringLiteral("충격")},
+        {"risk_off", QStringLiteral("위험회피")},
+        {"risk_on", QStringLiteral("위험선호")},
+        {"neutral", QStringLiteral("중립")},
+    };
+    return labels.value(regime, regime);
+}
+
+QString standing_label(const QString& status) {
+    static const QMap<QString, QString> labels = {
+        {"probation", QStringLiteral("수습")}, {"active", QStringLiteral("정식")}, {"bench", QStringLiteral("벤치")},
+        {"retired", QStringLiteral("은퇴")},   {"clone", QStringLiteral("복제")},
     };
     return labels.value(status, status);
 }
