@@ -129,8 +129,9 @@ void KrxLive::tick() {
     ++ticks_;
     const bool live = stream_->is_connected();
     if (!shown_) {
-        // Only for the signal alerts: without the stream, the predictions are read here.
-        if (alerts_on_ && !live)
+        // Only for the signal alerts: without the stream, the predictions are read here; and
+        // an address another KRX panel applied is followed, not the old engine's stream.
+        if ((alerts_on_ && !live) || KrxQuantService::base_url() != service_->url())
             service_->refresh();
         return;
     }
@@ -138,11 +139,11 @@ void KrxLive::tick() {
         service_->refresh();
     else
         service_->read_status();
-    if (ticks_ % kChartEvery == 0) {
-        if (!selected_.isEmpty())
-            service_->read_chart(selected_);
+    // Without the stream no outcome tells when the leaderboard changed: it is read each tick.
+    if (!live || ticks_ % kChartEvery == 0)
         read_leaderboard();
-    }
+    if (ticks_ % kChartEvery == 0 && !selected_.isEmpty())
+        service_->read_chart(selected_); // and on each new bar close
     if (ticks_ % kMacroEvery == 0)
         service_->read_macro();
 }

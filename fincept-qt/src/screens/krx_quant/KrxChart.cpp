@@ -64,9 +64,10 @@ QString mark_text(const krx_quant::Mark& mark) {
 
 struct KrxChart::Frame {
     QRectF plot;
-    int count = 0;
-    double slot = 0;  ///< px per bar
-    double glyph = 0; ///< px of a mark
+    qsizetype first = 0; ///< in bars_, the first bar shown
+    int count = 0;       ///< bars shown
+    double slot = 0;     ///< px per bar
+    double glyph = 0;    ///< px of a mark
     double low = 0;
     double high = 0;
     double pad = 0; ///< px kept free above and below the bars for the marks
@@ -101,29 +102,27 @@ void KrxChart::set_empty_text(const QString& text) {
     update();
 }
 
-QList<krx_quant::Bar> KrxChart::visible() const {
-    if (window_ <= 0 || bars_.size() <= window_)
-        return bars_;
-    return bars_.mid(bars_.size() - window_);
+qsizetype KrxChart::first_shown() const {
+    return window_ <= 0 || bars_.size() <= window_ ? 0 : bars_.size() - window_;
 }
 
 KrxChart::Frame KrxChart::frame() const {
     Frame f;
-    const QList<krx_quant::Bar> bars = visible();
     f.plot = QRectF(kMargin, kMargin, width() - kMargin - kPriceAxis, height() - kMargin - kTimeAxis);
     if (f.plot.width() < kSmallest || f.plot.height() < kSmallest)
         return f; // no room: nothing is drawn
-    f.count = static_cast<int>(bars.size());
+    f.first = first_shown();
+    f.count = static_cast<int>(bars_.size() - f.first);
     if (f.count == 0)
         return f;
     f.slot = f.plot.width() / f.count;
     f.glyph = std::clamp(f.slot * 0.8, 6.0, 12.0);
     f.pad = 2 * f.glyph + 10;
-    f.low = bars[0].low;
-    f.high = bars[0].high;
-    for (const auto& b : bars) {
-        f.low = std::min(f.low, b.low);
-        f.high = std::max(f.high, b.high);
+    f.low = bars_[f.first].low;
+    f.high = bars_[f.first].high;
+    for (qsizetype i = f.first; i < bars_.size(); ++i) {
+        f.low = std::min(f.low, bars_[i].low);
+        f.high = std::max(f.high, bars_[i].high);
     }
     return f;
 }
@@ -132,8 +131,8 @@ void KrxChart::paintEvent(QPaintEvent*) {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
     p.fillRect(rect(), QColor(ui::colors::BG_SURFACE()));
-    const QList<krx_quant::Bar> bars = visible();
     const Frame f = frame();
+    const auto bar = [this, &f](int i) -> const krx_quant::Bar& { return bars_[f.first + i]; };
     if (f.plot.width() < kSmallest || f.plot.height() < kSmallest)
         return;
     if (f.count == 0) {
@@ -163,7 +162,7 @@ void KrxChart::paintEvent(QPaintEvent*) {
     for (int i = 0; i < f.count; i += every) {
         const double left = std::max(0.0, std::min(f.x_of(i) - 30, f.plot.right() - 60));
         p.drawText(QRectF(left, f.plot.bottom() + 2, 60, kTimeAxis - 2), Qt::AlignHCenter | Qt::AlignTop,
-                   hhmm(bars[i].start));
+                   hhmm(bar(i).start));
     }
 
     if (hovered_ >= 0 && hovered_ < f.count) {
@@ -174,7 +173,7 @@ void KrxChart::paintEvent(QPaintEvent*) {
     // The bars.
     const double body = std::max(1.0, f.slot * 0.6);
     for (int i = 0; i < f.count; ++i) {
-        const auto& b = bars[i];
+        const auto& b = bar(i);
         const QColor color(b.close >= b.open ? ui::colors::POSITIVE() : ui::colors::NEGATIVE());
         const double x = f.x_of(i);
         p.setPen(QPen(color, 1));
@@ -189,13 +188,13 @@ void KrxChart::paintEvent(QPaintEvent*) {
     glyph_font.setBold(true);
     p.setFont(glyph_font);
     for (int i = 0; i < f.count; ++i) {
-        const auto mark = marks_.constFind(bars[i].start);
+        const auto mark = marks_.constFind(bar(i).start);
         if (mark == marks_.cend())
             continue;
         const double x = f.x_of(i), g = f.glyph;
         const bool down = mark->predicted == krx_quant::Direction::Down;
         // Up and flat below the bar, down above it; the result further out.
-        const double arrow_y = down ? f.y_of(bars[i].high) - 4 - g : f.y_of(bars[i].low) + 4;
+        const double arrow_y = down ? f.y_of(bar(i).high) - 4 - g : f.y_of(bar(i).low) + 4;
         const double result_y = down ? arrow_y - g - 2 : arrow_y + g + 2;
         p.setOpacity(mark->special ? 0.35 : 1.0);
         QPainterPath arrow;
@@ -234,7 +233,7 @@ void KrxChart::mouseMoveEvent(QMouseEvent* event) {
         QToolTip::hideText();
         return;
     }
-    const auto b = visible()[index];
+    const auto& b = bars_[f.first + index];
     QString text = tr("%1 · 시가 %2 · 고가 %3 · 저가 %4 · 종가 %5 · 거래량 %6")
                        .arg(hhmm(b.start), krx_quant::price_text(b.open), krx_quant::price_text(b.high),
                             krx_quant::price_text(b.low), krx_quant::price_text(b.close),

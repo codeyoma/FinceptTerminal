@@ -32,7 +32,8 @@ class KrxChart : public QWidget {
   private:
     struct Frame; ///< where the visible bars go, for painting and for hovering
     Frame frame() const;
-    QList<krx_quant::Bar> visible() const;
+    /// The index in bars_ of the first bar shown: the window's start.
+    qsizetype first_shown() const;
 
     QList<krx_quant::Bar> bars_;
     QMap<QDateTime, krx_quant::Mark> marks_; ///< by the start of the bar that closed at their bar close

@@ -56,6 +56,8 @@ class KrxQuantService : public QObject {
     static QString base_url();
     /// Save the engine's address (a trailing slash is dropped).
     static void set_base_url(const QString& url);
+    /// The address this service reads: the setting's when it last (re)started.
+    const QString& url() const { return url_; }
 
     /// Read a snapshot from one address, the setting's when the refresh starts. Either
     /// snapshot_ready or refresh_failed follows. Skipped while one is under way, unless the
@@ -67,8 +69,10 @@ class KrxQuantService : public QObject {
     void read_status();
     /// A symbol's 1-minute bars and final consensus over the day: chart_ready or chart_failed.
     void read_chart(const QString& symbol);
-    void read_leaderboard(const LeaderboardQuery& query); ///< leaderboard_ready or leaderboard_failed
-    void read_macro();                                    ///< macro_ready or macro_failed
+    /// leaderboard_ready or leaderboard_failed. Asked again while one is under way, the
+    /// latest query is read once it ends, and the stale answer is dropped.
+    void read_leaderboard(const LeaderboardQuery& query);
+    void read_macro(); ///< macro_ready or macro_failed
 
   signals:
     void snapshot_ready(const fincept::services::KrxQuantService::Snapshot& snapshot);
@@ -102,7 +106,8 @@ class KrxQuantService : public QObject {
 
     int generation_ = 0;
     bool busy_[kKinds] = {};
-    QString url_; ///< the address of the reads under way, or of the last ones
+    std::optional<LeaderboardQuery> next_leaderboard_; ///< asked for while one was under way
+    QString url_;                                      ///< the address of the reads under way, or of the last ones
 };
 
 /// Why a request failed, in Korean, from HttpClient's error string.

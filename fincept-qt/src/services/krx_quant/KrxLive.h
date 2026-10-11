@@ -24,8 +24,9 @@ namespace fincept::services {
 /// Reads: with the stream connected, the status every 5 s (the feeds' silences), the
 /// symbols, latest predictions and members every 30 s, the chosen symbol's chart and the
 /// leaderboard every 60 s (and the chart on a new bar close, the leaderboard 3 s after
-/// outcomes), the macro row every 5 min. Without the stream, all of it every 5 s. While the
-/// screen is hidden only what the alerts need is read.
+/// outcomes), the macro row every 5 min. Without the stream, the status, predictions,
+/// members and leaderboard every 5 s; the chart and the macro row as with it. While the
+/// screen is hidden only what the alerts need is read, and an address applied elsewhere.
 class KrxLive : public QObject {
     Q_OBJECT
   public:

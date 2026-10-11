@@ -73,6 +73,7 @@ void KrxQuantService::restart() {
     ++generation_; // every answer still under way is dropped
     for (bool& busy : busy_)
         busy = false;
+    next_leaderboard_.reset();
     if (const QString url = base_url(); url != url_) {
         url_ = url;
         emit base_url_changed(url_);
@@ -195,6 +196,10 @@ void KrxQuantService::read_chart(const QString& symbol) {
 }
 
 void KrxQuantService::read_leaderboard(const LeaderboardQuery& query) {
+    if (busy_[kLeaderboard] && !url_.isEmpty()) {
+        next_leaderboard_ = query; // read once the one under way ends
+        return;
+    }
     if (!begin(kLeaderboard))
         return;
     QUrlQuery q;
@@ -204,6 +209,11 @@ void KrxQuantService::read_leaderboard(const LeaderboardQuery& query) {
     q.addQueryItem("special", query.special_value());
     get("/v1/leaderboard?" + q.toString(QUrl::FullyEncoded), [this](Result<QJsonDocument> answer) {
         end(kLeaderboard);
+        if (next_leaderboard_) { // asked again meanwhile: this answer, or its failure, is stale
+            const LeaderboardQuery next = *next_leaderboard_;
+            next_leaderboard_.reset();
+            return read_leaderboard(next);
+        }
         auto leaderboard = parsed(answer, krx_quant::parse_leaderboard);
         if (leaderboard.is_err())
             return emit leaderboard_failed(why(leaderboard.error()));
