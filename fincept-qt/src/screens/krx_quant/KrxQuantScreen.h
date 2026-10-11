@@ -1,7 +1,8 @@
 #pragma once
 
-#include "services/krx_quant/KrxQuantService.h"
+#include "services/krx_quant/KrxLive.h"
 
+#include <QComboBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QTableWidget>
@@ -10,9 +11,14 @@
 
 namespace fincept::screens {
 
-/// KRX 4-minute predictions (fork addition, see custom/README.md): the prediction
-/// engine's status and each symbol's latest predictions, read every few seconds while
-/// the screen is shown. The text is Korean.
+class KrxAlerts;
+class KrxChart;
+class KrxLeaderboard;
+
+/// KRX 4-minute predictions (fork addition, see custom/README.md): the prediction engine's
+/// status and macro row, each symbol's latest predictions, the chosen symbol's chart with
+/// the final consensus over it, the leaderboard, and signal alerts. It renders what its
+/// KrxLive says and passes on the user's choices. The text is Korean.
 class KrxQuantScreen : public QWidget {
     Q_OBJECT
   public:
@@ -24,17 +30,31 @@ class KrxQuantScreen : public QWidget {
 
   private:
     void apply_base_url();
-    void show_snapshot(const services::KrxQuantService::Snapshot& snapshot);
-    void show_failure(const QString& reason);
-    void fill_table(const services::KrxQuantService::Snapshot& snapshot);
+    void show_status();
+    void show_macro(const krx_quant::Macro& macro);
+    void show_footer();
+    void fill_symbols();
+    void fill_predictions();
+    void fill_chart();
+    void update_countdowns();
+    /// Whether ``bar_close`` is of the engine's today (not the last session's, shown before the open).
+    bool is_today(const QDateTime& bar_close) const;
 
-    services::KrxQuantService* service_ = nullptr;
+    services::KrxLive* live_ = nullptr;
     QLineEdit* url_edit_ = nullptr;
     QLabel* status_label_ = nullptr;
+    QLabel* macro_label_ = nullptr;
     QLabel* special_label_ = nullptr;
+    QTableWidget* symbols_table_ = nullptr;
+    QLabel* chart_title_ = nullptr;
+    QComboBox* window_combo_ = nullptr;
+    KrxChart* chart_ = nullptr;
+    QLabel* panel_title_ = nullptr;
+    QTableWidget* predictions_table_ = nullptr;
+    KrxLeaderboard* leaderboard_ = nullptr;
+    KrxAlerts* alerts_ = nullptr;
     QLabel* footer_label_ = nullptr;
-    QTableWidget* table_ = nullptr;
-    QTimer* timer_ = nullptr;
+    QTimer* clock_timer_ = nullptr; ///< the countdowns and the engine clock, every second
 };
 
 } // namespace fincept::screens

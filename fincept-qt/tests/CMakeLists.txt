@@ -126,3 +126,17 @@ message(STATUS "Fincept tests: tst_broker_modify_fields, tst_result, tst_order_v
 fincept_add_test(tst_krx_engine_data
     tst_krx_engine_data.cpp
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
+
+# src/services/krx_quant/Board.{h,cpp} — what the KRX screen shows, from the engine's answers
+# and its stream in whatever order they come. Qt Core only.
+fincept_add_test(tst_krx_board
+    tst_krx_board.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
+
+# src/services/krx_quant/Signals.{h,cpp} — when the KRX screen raises a signal alert: the
+# engine's Telegram signal rule with the screen's threshold and N. Qt Core only.
+fincept_add_test(tst_krx_signals
+    tst_krx_signals.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
