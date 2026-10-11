@@ -186,6 +186,10 @@ Result<EngineStatus> parse_status(const QJsonDocument& doc) {
         s.kis_connected = kis.value("connected").toBool();
         s.feeds = feeds_of(kis);
     }
+    if (o.value("usd_futures").isObject()) {
+        const QJsonObject u = o.value("usd_futures").toObject();
+        s.usd_futures = UsdFutures{u.value("price").toDouble(), time_of(u.value("at")), number(u.value("change_pct"))};
+    }
     return Result<EngineStatus>::ok(s);
 }
 
@@ -481,14 +485,49 @@ QString training_reason_label(const QString& reason) {
     return reason;
 }
 
+namespace {
+
+const QLocale& korean() {
+    static const QLocale locale(QLocale::Korean, QLocale::SouthKorea);
+    return locale;
+}
+
+/// A percent change with its sign, two decimals.
+QString change_text(double change_pct) {
+    return QStringLiteral("%1%2%").arg(change_pct >= 0 ? "+" : "", korean().toString(change_pct, 'f', 2));
+}
+
+/// A macro value: one decimal from 100 up, else two.
+QString value_text(double value) {
+    return korean().toString(value, 'f', std::abs(value) >= 100 ? 1 : 2);
+}
+
+} // namespace
+
+QString reading_text(const Reading& r) {
+    const QString value = r.value ? value_text(*r.value) : QStringLiteral("모름");
+    const QString change = r.change_pct ? QStringLiteral(" (%1)").arg(change_text(*r.change_pct)) : QString();
+    return QStringLiteral("%1 %2%3").arg(r.label, value, change);
+}
+
+QString usd_futures_text(const std::optional<UsdFutures>& live, const QList<Reading>& readings) {
+    const auto morning =
+        std::find_if(readings.begin(), readings.end(), [](const Reading& r) { return r.indicator == "usdf"; });
+    if (!live)
+        return morning != readings.end() ? reading_text(*morning) : QString();
+    const QString label = morning != readings.end() ? morning->label : QStringLiteral("달러선물");
+    const QString when = kst_text(live->at, "HH:mm");
+    const QString aside = live->change_pct ? QStringLiteral("%1, %2").arg(change_text(*live->change_pct), when) : when;
+    return QStringLiteral("%1 %2 (%3)").arg(label, value_text(live->price), aside);
+}
+
 QString kst_text(const QDateTime& t, const QString& format) {
     static const QTimeZone kst("Asia/Seoul");
     return t.isValid() ? t.toTimeZone(kst).toString(format) : QStringLiteral("—");
 }
 
 QString price_text(double price) {
-    static const QLocale locale(QLocale::Korean, QLocale::SouthKorea);
-    return locale.toString(price, 'f', std::floor(price) == price ? 0 : 1);
+    return korean().toString(price, 'f', std::floor(price) == price ? 0 : 1);
 }
 
 QString special_label(const QString& kind) {

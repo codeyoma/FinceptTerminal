@@ -188,6 +188,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(live_, &services::KrxLive::status_changed, this, [this]() {
         show_status();
         show_footer();
+        show_macro(); // the USD futures move with each status
     });
     connect(live_, &services::KrxLive::predictions_changed, this, [this]() {
         QStringList symbols;
@@ -206,11 +207,8 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         chart_->set_data({}, {});
         chart_->set_empty_text(tr("1분봉을 읽지 못했습니다: %1").arg(reason));
     });
-    connect(live_, &services::KrxLive::macro_changed, this, &KrxQuantScreen::show_macro);
-    connect(live_, &services::KrxLive::macro_failed, this, [this](const QString& reason) {
-        macro_label_->setText(tr("매크로: %1").arg(reason));
-        macro_label_->show();
-    });
+    connect(live_, &services::KrxLive::macro_changed, this, [this]() { show_macro(); });
+    connect(live_, &services::KrxLive::macro_failed, this, [this]() { show_macro(); });
     connect(live_, &services::KrxLive::leaderboard_changed, leaderboard_, &KrxLeaderboard::show_leaderboard);
     connect(live_, &services::KrxLive::leaderboard_failed, leaderboard_, &KrxLeaderboard::show_failure);
     connect(live_, &services::KrxLive::stats_changed, this, [this](const krx_quant::AlgorithmStats& stats) {
@@ -349,39 +347,48 @@ void KrxQuantScreen::show_status() {
     status_label_->setText(parts.join("  ·  "));
 }
 
-void KrxQuantScreen::show_macro(const krx_quant::Macro& macro) {
-    macro_label_->show();
-    if (macro.day.isEmpty()) {
-        macro_label_->setText(tr("매크로: 아직 정한 국면이 없습니다"));
+void KrxQuantScreen::show_macro() {
+    const auto& status = live_->status();
+    const std::optional<krx_quant::UsdFutures> live_usd = status ? status->usd_futures : std::nullopt;
+    if (!live_->macro()) {
+        // Not read yet, or the read failed: the USD futures still show once they trade.
+        QStringList parts;
+        if (!live_->macro_failure().isEmpty())
+            parts << tr("매크로: %1").arg(live_->macro_failure());
+        if (const QString usd = krx_quant::usd_futures_text(live_usd, {}); !usd.isEmpty())
+            parts << usd;
+        macro_label_->setVisible(!parts.isEmpty());
+        macro_label_->setText(parts.join("  ·  "));
         macro_label_->setToolTip(QString());
         return;
     }
-    QString regime = tr("매크로 %1 %2").arg(macro.day, krx_quant::regime_label(macro.regime));
-    if (macro.day != krx_quant::kst_text(live_->engine_now(), "yyyy-MM-dd"))
-        regime += tr(" (오늘 것이 아님)");
-    QStringList parts{regime};
-    if (!macro.reasons.isEmpty())
-        parts << macro.reasons.join(", ");
-    QStringList all;
-    const QLocale locale(QLocale::Korean, QLocale::SouthKorea);
-    for (const auto& r : macro.readings) {
-        const QString value = r.value ? locale.toString(*r.value, 'f', std::abs(*r.value) >= 100 ? 1 : 2) : tr("모름");
-        const QString change =
-            r.change_pct
-                ? QStringLiteral(" (%1%2%)").arg(*r.change_pct >= 0 ? "+" : "", locale.toString(*r.change_pct, 'f', 2))
-                : QString();
-        const QString line = QStringLiteral("%1 %2%3").arg(r.label, value, change);
-        all << QStringLiteral("%1 · %2").arg(line, r.as_of.isEmpty() ? tr("날짜 모름") : r.as_of);
-        if (r.indicator == "usdf")
-            parts << line; // the USD futures, on the row itself
+    const krx_quant::Macro& macro = *live_->macro();
+    macro_label_->show();
+    QStringList parts;
+    if (macro.day.isEmpty()) {
+        parts << tr("매크로: 아직 정한 국면이 없습니다");
+    } else {
+        QString regime = tr("매크로 %1 %2").arg(macro.day, krx_quant::regime_label(macro.regime));
+        if (macro.day != krx_quant::kst_text(live_->engine_now(), "yyyy-MM-dd"))
+            regime += tr(" (오늘 것이 아님)");
+        parts << regime;
+        if (!macro.reasons.isEmpty())
+            parts << macro.reasons.join(", ");
     }
+    if (const QString usd = krx_quant::usd_futures_text(live_usd, macro.readings); !usd.isEmpty())
+        parts << usd; // the USD futures, on the row itself
+    QStringList all;
+    for (const auto& r : macro.readings)
+        all << QStringLiteral("%1 · %2").arg(krx_quant::reading_text(r), r.as_of.isEmpty() ? tr("날짜 모름") : r.as_of);
     for (auto it = macro.failed.begin(); it != macro.failed.end(); ++it)
         all << tr("%1 읽기 실패: %2").arg(it.key(), it.value());
     if (!macro.skipped.isEmpty())
         all << tr("키 없어 건너뜀: %1").arg(macro.skipped.join(", "));
     macro_label_->setText(parts.join("  ·  "));
     macro_label_->setToolTip(
-        tr("국면을 정한 %1의 지표\n%2").arg(krx_quant::kst_text(macro.decided_at, "HH:mm"), all.join("\n")));
+        macro.day.isEmpty()
+            ? QString()
+            : tr("국면을 정한 %1의 지표\n%2").arg(krx_quant::kst_text(macro.decided_at, "HH:mm"), all.join("\n")));
 }
 
 void KrxQuantScreen::show_footer() {

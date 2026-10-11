@@ -50,6 +50,10 @@ class KrxLive : public QObject {
     const krx_quant::Board& board() const { return board_; }
     /// The engine's status; none while it cannot be read.
     const std::optional<krx_quant::EngineStatus>& status() const { return status_; }
+    /// The macro row's last answer; none before one, or since a read failed.
+    const std::optional<krx_quant::Macro>& macro() const { return macro_; }
+    /// Why the macro row's last read failed; empty once one works.
+    const QString& macro_failure() const { return macro_failure_; }
     const QString& selected() const { return selected_; }
     /// The chosen symbol's bars of the day.
     const QList<krx_quant::Bar>& bars() const { return bars_; }
@@ -102,6 +106,8 @@ class KrxLive : public QObject {
     KrxQuantService::LeaderboardQuery query_;
     QString detail_; ///< the algorithm whose stats are read, if any
     std::optional<krx_quant::EngineStatus> status_;
+    std::optional<krx_quant::Macro> macro_;
+    QString macro_failure_;
     QString failure_;
     QString stream_state_;
     QStringList read_errors_;

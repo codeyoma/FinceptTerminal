@@ -33,7 +33,8 @@ class KrxQuantScreen : public QWidget {
   private:
     void apply_base_url();
     void show_status();
-    void show_macro(const krx_quant::Macro& macro);
+    /// The macro row: the regime, its reasons and the USD futures (live once they trade).
+    void show_macro();
     void show_footer();
     void fill_symbols();
     void fill_predictions();
