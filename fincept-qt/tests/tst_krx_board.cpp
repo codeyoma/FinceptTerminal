@@ -32,7 +32,6 @@ Prediction made(const QString& symbol, const QString& algorithm, const char* bar
     p.p_down = down;
     p.expected_ticks = 0.0;
     p.bar_close = at(bar_close);
-    p.displayed_at = p.bar_close;
     p.target_at = p.bar_close.addSecs(240);
     return p;
 }
@@ -43,12 +42,13 @@ Prediction not_made(const QString& symbol, const QString& algorithm, const char*
     p.algorithm = algorithm;
     p.status = why;
     p.bar_close = at(bar_close);
-    p.displayed_at = p.bar_close;
     return p;
 }
 
-Prediction scored(Prediction p, const QString& class_a, const QString& class_b, bool special = false) {
-    p.outcome = Outcome{81000.0, 81000.0, 81200.0, class_a, class_b, special, QString(), p.target_at};
+/// ``p`` scored: Direction::None where a basis could not be scored (its mid-point was missing).
+Prediction scored(Prediction p, Direction class_a, Direction class_b, bool special = false) {
+    const bool missing = class_a == Direction::None || class_b == Direction::None;
+    p.outcome = Outcome{class_a, class_b, special, missing ? QStringLiteral("missing mid: display") : QString()};
     return p;
 }
 
@@ -70,7 +70,7 @@ Event lifecycle(const QString& algorithm, const QString& from, const QString& to
     Event e;
     e.type = Event::Type::Lifecycle;
     e.algorithm = algorithm;
-    e.change = {at("15:40"), from, to, "review"};
+    e.change = {from, to};
     return e;
 }
 
@@ -123,7 +123,7 @@ class TstKrxBoard : public QObject {
     void a_prediction_already_scored_stays_scored() {
         Board board;
         const Prediction final = made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1);
-        board.apply(event_of(Event::Type::Outcome, {scored(final, "up", "up")}));
+        board.apply(event_of(Event::Type::Outcome, {scored(final, Direction::Up, Direction::Up)}));
 
         board.set_latest(latest_of("005930", "09:31", {final})); // read before it was scored
         board.set_history("005930", {final});
@@ -158,15 +158,17 @@ class TstKrxBoard : public QObject {
 
     void marks_say_what_the_final_consensus_predicted_and_whether_it_was_right() {
         Board board;
-        board.set_history("005930",
-                          {
-                              scored(made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1), "up", "up"),
-                              scored(made("005930", "consensus-final", "09:32", 0.1, 0.3, 0.6), "up", "flat"),
-                              scored(made("005930", "consensus-final", "09:33", 0.2, 0.7, 0.1), "flat", ""),
-                              scored(made("005930", "consensus-final", "09:34", 0.2, 0.7, 0.1), "flat", "flat", true),
-                              made("005930", "consensus-final", "09:35", 0.3, 0.3, 0.4),
-                              not_made("005930", "consensus-final", "09:36", "no_members"),
-                          });
+        board.set_history(
+            "005930",
+            {
+                scored(made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1), Direction::Up, Direction::Up),
+                scored(made("005930", "consensus-final", "09:32", 0.1, 0.3, 0.6), Direction::Up, Direction::Flat),
+                scored(made("005930", "consensus-final", "09:33", 0.2, 0.7, 0.1), Direction::Flat, Direction::None),
+                scored(made("005930", "consensus-final", "09:34", 0.2, 0.7, 0.1), Direction::Flat, Direction::Flat,
+                       true),
+                made("005930", "consensus-final", "09:35", 0.3, 0.3, 0.4),
+                not_made("005930", "consensus-final", "09:36", "no_members"),
+            });
 
         const QList<Mark> marks = board.marks("005930", "b");
 
@@ -179,6 +181,7 @@ class TstKrxBoard : public QObject {
         QCOMPARE(marks[1].result, Mark::Result::Miss);
         QCOMPARE(marks[2].predicted, Direction::Flat);
         QCOMPARE(marks[2].result, Mark::Result::Unscorable); // not scored on basis B
+        QCOMPARE(marks[2].unscorable, QStringLiteral("missing mid: display"));
         QCOMPARE(marks[3].result, Mark::Result::Hit);
         QVERIFY(marks[3].special);
         QCOMPARE(marks[4].result, Mark::Result::Pending);
@@ -186,8 +189,8 @@ class TstKrxBoard : public QObject {
 
     void marks_follow_the_chosen_basis() {
         Board board;
-        board.set_history("005930",
-                          {scored(made("005930", "consensus-final", "09:32", 0.1, 0.3, 0.6), "down", "flat")});
+        board.set_history("005930", {scored(made("005930", "consensus-final", "09:32", 0.1, 0.3, 0.6), Direction::Down,
+                                            Direction::Flat)});
 
         QCOMPARE(board.marks("005930", "a")[0].result, Mark::Result::Hit);
         QCOMPARE(board.marks("005930", "b")[0].result, Mark::Result::Miss);
@@ -199,7 +202,7 @@ class TstKrxBoard : public QObject {
         board.apply(event_of(Event::Type::Consensus, {final}, "final"));
         QCOMPARE(board.marks("005930", "b")[0].result, Mark::Result::Pending);
 
-        board.apply(event_of(Event::Type::Outcome, {scored(final, "down", "down")}));
+        board.apply(event_of(Event::Type::Outcome, {scored(final, Direction::Down, Direction::Down)}));
 
         QCOMPARE(board.marks("005930", "b").size(), 1);
         QCOMPARE(board.marks("005930", "b")[0].result, Mark::Result::Miss);
@@ -240,6 +243,36 @@ class TstKrxBoard : public QObject {
                       {not_made("005930", "alg-b", "09:31", "vi"), made("005930", "alg-a", "09:31", 0.5, 0.3, 0.2)});
         QCOMPARE(scoring_at(latest), at("09:35"));
         QVERIFY(!scoring_at(latest_of("005930", "09:31", {not_made("005930", "alg-b", "09:31", "vi")})).isValid());
+    }
+
+    void a_failed_read_forgets_the_predictions_not_who_the_members_are() {
+        Board board;
+        board.set_members({"alg-a", "alg-b"});
+        board.set_symbols({{"005930", 81250.0}});
+        board.set_latest(latest_of("005930", "09:31", {made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1)}));
+
+        board.forget_predictions();
+
+        QVERIFY(board.symbols().isEmpty());
+        QVERIFY(board.latest("005930").predictions.isEmpty());
+        QVERIFY(board.marks("005930", "b").isEmpty());
+        QCOMPARE(board.members(), (QStringList{"alg-a", "alg-b"})); // a signal still counts them
+    }
+
+    void an_engine_whose_clock_went_back_takes_the_screen_back_too() {
+        // A demo engine started again: its 10:00 comes after the 10:30 already shown.
+        Board board;
+        board.set_history("005930", {made("005930", "consensus-final", "09:59", 0.6, 0.3, 0.1),
+                                     made("005930", "consensus-final", "10:30", 0.6, 0.3, 0.1)});
+        board.set_latest(latest_of("005930", "10:30", {made("005930", "alg-a", "10:30", 0.5, 0.3, 0.2)}));
+
+        board.rewind_to(at("10:00"));
+
+        QVERIFY(!board.latest("005930").bar_close.isValid());
+        QCOMPARE(board.marks("005930", "b").size(), 1);
+        QCOMPARE(board.marks("005930", "b")[0].bar_close, at("09:59"));
+        board.set_latest(latest_of("005930", "10:00", {made("005930", "alg-a", "10:00", 0.5, 0.3, 0.2)}));
+        QCOMPARE(board.latest("005930").bar_close, at("10:00")); // the earlier bar close shows again
     }
 
     void symbols_are_kept_as_given() {

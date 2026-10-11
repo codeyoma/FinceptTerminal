@@ -76,7 +76,7 @@ const char* kLatest = R"({
 const char* kHistory = R"({
   "symbol": "005930",
   "predictions": [
-    {"algorithm": "consensus-final", "model_version": "condorcet-equal",
+    {"algorithm": "consensus-final", "model_version": "w1",
      "bar_close": "2026-10-08T10:26:00+09:00", "displayed_at": "2026-10-08T10:26:00.180000+09:00",
      "target_at": "2026-10-08T10:30:00+09:00", "status": "ok",
      "p_up": 0.62, "p_flat": 0.30, "p_down": 0.08, "expected_ticks": 1.2,
@@ -238,26 +238,26 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(timed_out.status, QStringLiteral("timed_out"));
         QVERIFY(!timed_out.p_up.has_value());
         QVERIFY(!timed_out.expected_ticks.has_value());
-        QCOMPARE(direction(timed_out), Direction::None);
+        QCOMPARE(shown_direction(timed_out), Direction::None);
         QCOMPARE(made[2].p_up, std::optional<double>(0.52));
     }
 
-    void the_direction_is_the_likeliest_class() {
+    void the_direction_shown_is_the_likeliest_class() {
         const auto latest = parse_latest(json(kLatest));
         QVERIFY(latest.is_ok());
         const auto& made = latest.value().predictions;
-        QCOMPARE(direction(made[0]), Direction::Flat); // consensus-final: 0.70 flat
-        QCOMPARE(direction(made[1]), Direction::Up);   // consensus-fast: 0.47 up
-        QCOMPARE(direction(forecast(0.30, 0.10, 0.60)), Direction::Down);
+        QCOMPARE(shown_direction(made[0]), Direction::Flat); // consensus-final: 0.70 flat
+        QCOMPARE(shown_direction(made[1]), Direction::Up);   // consensus-fast: 0.47 up
+        QCOMPARE(shown_direction(forecast(0.30, 0.10, 0.60)), Direction::Down);
         QCOMPARE(direction_label(Direction::Up), QStringLiteral("상승"));
         QCOMPARE(direction_label(Direction::None), QString());
     }
 
     void up_and_down_shown_as_the_same_percent_lean_neither_way() {
         // Shown as 36% / 28% / 36%: no direction, whatever the rounding underneath.
-        QCOMPARE(direction(forecast(0.3600000001, 0.28, 0.3599999999)), Direction::None);
-        QCOMPARE(direction(forecast(0.474, 0.06, 0.466)), Direction::None); // both 47%
-        QCOMPARE(direction(forecast(0.30, 0.40, 0.30)), Direction::Flat);
+        QCOMPARE(shown_direction(forecast(0.3600000001, 0.28, 0.3599999999)), Direction::None);
+        QCOMPARE(shown_direction(forecast(0.474, 0.06, 0.466)), Direction::None); // both 47%
+        QCOMPARE(shown_direction(forecast(0.30, 0.40, 0.30)), Direction::Flat);
     }
 
     void names_and_codes_read_in_korean() {
@@ -283,20 +283,18 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(made[0].bar_close, QDateTime::fromString("2026-10-08T10:26:00+09:00", Qt::ISODate));
         QCOMPARE(made[0].target_at, QDateTime::fromString("2026-10-08T10:30:00+09:00", Qt::ISODate));
         QVERIFY(made[0].outcome.has_value());
-        QCOMPARE(made[0].outcome->class_a, QStringLiteral("up"));
-        QCOMPARE(made[0].outcome->class_b, QStringLiteral("up"));
-        QCOMPARE(made[0].outcome->mid_target, std::optional<double>(81550.0));
+        QCOMPARE(made[0].outcome->class_a, Direction::Up);
+        QCOMPARE(made[0].outcome->class_b, Direction::Up);
         QVERIFY(!made[0].outcome->special);
     }
 
-    void an_outcome_unscorable_on_one_basis_keeps_that_class_empty() {
+    void an_outcome_unscorable_on_one_basis_has_no_class_there() {
         const auto history = parse_predictions(json(kHistory));
         QVERIFY(history.is_ok());
         const auto& outcome = history.value()[1].outcome;
         QVERIFY(outcome.has_value());
-        QCOMPARE(outcome->class_a, QStringLiteral("down"));
-        QVERIFY(outcome->class_b.isEmpty());
-        QVERIFY(!outcome->mid_display.has_value());
+        QCOMPARE(outcome->class_a, Direction::Down);
+        QCOMPARE(outcome->class_b, Direction::None);
         QCOMPARE(outcome->unscorable, QStringLiteral("missing mid: display"));
         QVERIFY(outcome->special);
     }
@@ -395,12 +393,10 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!baseline.lift_low.has_value());
     }
 
-    void status_has_the_session_and_each_feeds_delay_and_gap() {
+    void status_has_each_feeds_silence_and_gap() {
         const auto status = parse_status(json(kStatus));
         QVERIFY(status.is_ok());
         const auto& s = status.value();
-        QCOMPARE(s.session_open, QDateTime::fromString("2026-10-08T09:00:00+09:00", Qt::ISODate));
-        QCOMPARE(s.session_close, QDateTime::fromString("2026-10-08T15:30:00+09:00", Qt::ISODate));
         QCOMPARE(s.feeds.size(), 3);
         QCOMPARE(s.feeds[0].feed, QStringLiteral("H0UNCNT0"));
         QCOMPARE(s.feeds[0].key, QStringLiteral("005930"));
@@ -408,15 +404,13 @@ class TstKrxEngineData : public QObject {
         QVERIFY(s.feeds[0].gap.isEmpty());
         QCOMPARE(s.feeds[1].gap, QStringLiteral("stale"));
         QVERIFY(!s.feeds[2].seconds_since.has_value()); // never received
-        QVERIFY(!s.feeds[2].last_received_at.isValid());
     }
 
-    void a_holiday_has_no_session() {
+    void a_disconnected_engine_lists_no_feeds() {
         const auto status = parse_status(json(R"({"mode": "live", "now": "2026-10-09T10:00:00+09:00",
             "phase": "closed", "session": null, "last_bar_close": null, "pending_outcomes": 0, "special": [],
             "training": null, "kis": {"connected": false, "feeds": []}})"));
         QVERIFY(status.is_ok());
-        QVERIFY(!status.value().session_open.isValid());
         QCOMPARE(status.value().kis_connected, std::optional<bool>(false));
         QVERIFY(status.value().feeds.isEmpty());
     }
@@ -448,12 +442,11 @@ class TstKrxEngineData : public QObject {
     }
 
     void the_consensus_members_are_the_active_algorithms() {
-        const auto consensus = parse_consensus(json(R"({"names": ["consensus-fast", "consensus-final"],
-            "version": "condorcet-20261012", "computed_at": "2026-10-12T15:40:00+09:00",
+        const auto members = parse_members(json(R"({"names": ["consensus-fast", "consensus-final"],
+            "version": "w-20261012", "computed_at": "2026-10-12T15:40:00+09:00",
             "members": ["alg-a", "alg-b"], "fast_seconds": 2.0, "weights": {}})"));
-        QVERIFY(consensus.is_ok());
-        QCOMPARE(consensus.value().members, (QStringList{"alg-a", "alg-b"}));
-        QCOMPARE(consensus.value().version, QStringLiteral("condorcet-20261012"));
+        QVERIFY(members.is_ok());
+        QCOMPARE(members.value(), (QStringList{"alg-a", "alg-b"}));
     }
 
     void a_prediction_event_brings_a_bar_closes_predictions_with_their_symbols() {
@@ -478,7 +471,7 @@ class TstKrxEngineData : public QObject {
     void a_consensus_event_says_which_one() {
         const auto event = parse_event(QStringLiteral(R"({"type": "consensus", "at": "2026-10-12T09:31:02+09:00",
             "kind": "final", "bar_close": "2026-10-12T09:31:00+09:00", "predictions": [
-              {"symbol": "005930", "algorithm": "consensus-final", "model_version": "condorcet-equal",
+              {"symbol": "005930", "algorithm": "consensus-final", "model_version": "w1",
                "bar_close": "2026-10-12T09:31:00+09:00", "displayed_at": "2026-10-12T09:31:02+09:00",
                "target_at": "2026-10-12T09:35:00+09:00", "status": "ok",
                "p_up": 0.64, "p_flat": 0.26, "p_down": 0.1, "expected_ticks": 1.1, "outcome": null}]})"));
@@ -491,7 +484,7 @@ class TstKrxEngineData : public QObject {
     void an_outcome_event_brings_the_scored_predictions() {
         const auto event = parse_event(QStringLiteral(R"({"type": "outcome", "at": "2026-10-12T09:35:00+09:00",
             "outcomes": [
-              {"symbol": "005930", "algorithm": "consensus-final", "model_version": "condorcet-equal",
+              {"symbol": "005930", "algorithm": "consensus-final", "model_version": "w1",
                "bar_close": "2026-10-12T09:31:00+09:00", "displayed_at": "2026-10-12T09:31:02+09:00",
                "target_at": "2026-10-12T09:35:00+09:00", "status": "ok",
                "p_up": 0.64, "p_flat": 0.26, "p_down": 0.1, "expected_ticks": 1.1,
@@ -501,7 +494,7 @@ class TstKrxEngineData : public QObject {
         QVERIFY(event.is_ok());
         QCOMPARE(event.value().type, Event::Type::Outcome);
         QCOMPARE(event.value().predictions.size(), 1);
-        QCOMPARE(event.value().predictions[0].outcome->class_b, QStringLiteral("down"));
+        QCOMPARE(event.value().predictions[0].outcome->class_b, Direction::Down);
     }
 
     void a_health_event_brings_the_kis_status() {
@@ -553,6 +546,25 @@ class TstKrxEngineData : public QObject {
         Prediction not_made;
         not_made.status = "timed_out";
         QCOMPARE(most_likely(not_made), Direction::None);
+    }
+
+    void why_last_nights_training_is_not_running_reads_in_korean() {
+        QCOMPARE(training_reason_label("waiting for 08:00"), QStringLiteral("08:00 교체 대기"));
+        QCOMPARE(training_reason_label("final at 10-10 07:41, after 07:30: yesterday's models run on"),
+                 QStringLiteral("07:30 뒤에 확정되어 어제 모델로 돈다"));
+        QCOMPARE(training_reason_label("not in the store: alg-a-20261010-abc123; yesterday's models run on"),
+                 QStringLiteral("모델 파일이 저장소에 없어 어제 모델로 돈다"));
+        QCOMPARE(training_reason_label("applied, then replaced: alg-a runs its defaults"),
+                 QStringLiteral("적용 뒤 바뀜: alg-a runs its defaults"));
+        QCOMPARE(training_reason_label("something new"), QStringLiteral("something new")); // as it is
+    }
+
+    void times_read_in_kst_and_prices_as_on_the_exchange() {
+        const QDateTime utc = QDateTime::fromString("2026-10-12T00:31:05Z", Qt::ISODate);
+        QCOMPARE(kst_text(utc, "HH:mm"), QStringLiteral("09:31"));
+        QCOMPARE(kst_text(QDateTime(), "HH:mm"), QStringLiteral("—"));
+        QCOMPARE(price_text(81250.0), QStringLiteral("81,250"));
+        QCOMPARE(price_text(1392.2), QStringLiteral("1,392.2")); // a mid-point between ticks keeps a decimal
     }
 
     void more_names_read_in_korean() {

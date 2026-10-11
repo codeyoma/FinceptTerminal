@@ -6,7 +6,6 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
-#include <QTimeZone>
 #include <QToolTip>
 
 #include <algorithm>
@@ -20,60 +19,42 @@ constexpr int kPriceAxis = 72; ///< px on the right for the prices
 constexpr int kTimeAxis = 20;  ///< px at the bottom for the times
 constexpr int kMargin = 8;
 
-QString kst_hhmm(const QDateTime& t) {
-    static const QTimeZone kst("Asia/Seoul");
-    return t.toTimeZone(kst).toString("HH:mm");
+constexpr int kSmallest = 40; ///< px of plot below which nothing is drawn (a splitter squeezed it)
+
+QString hhmm(const QDateTime& t) {
+    return krx_quant::kst_text(t, "HH:mm");
 }
 
-QString price_text(double price) {
-    static const QLocale locale(QLocale::Korean, QLocale::SouthKorea);
-    return locale.toString(price, 'f', std::floor(price) == price ? 0 : 1);
-}
+/// How a mark's result looks: its glyph beside the arrow, its words in the tooltip, its color.
+struct Look {
+    QString glyph;
+    QString words;
+    QColor color;
+};
 
-QString result_text(krx_quant::Mark::Result result) {
-    switch (result) {
-        case krx_quant::Mark::Result::Hit:
-            return QStringLiteral("✓");
-        case krx_quant::Mark::Result::Miss:
-            return QStringLiteral("✗");
-        case krx_quant::Mark::Result::Unscorable:
-            return QStringLiteral("?");
-        case krx_quant::Mark::Result::Pending:
-            break;
-    }
-    return {};
-}
-
-QColor result_color(krx_quant::Mark::Result result) {
-    switch (result) {
-        case krx_quant::Mark::Result::Hit:
-            return QColor(ui::colors::POSITIVE());
-        case krx_quant::Mark::Result::Miss:
-            return QColor(ui::colors::NEGATIVE());
-        default:
-            return QColor(ui::colors::TEXT_DIM());
-    }
-}
-
-/// "09:31 봉 마감 합의(최종) 상승 62% ✓" for a hovered bar's mark.
-QString mark_text(const krx_quant::Mark& mark) {
-    QString text = QStringLiteral("%1 봉 마감 합의(최종) %2 %3%")
-                       .arg(kst_hhmm(mark.bar_close), krx_quant::direction_label(mark.predicted))
-                       .arg(std::lround(mark.probability * 100));
+Look look_of(const krx_quant::Mark& mark) {
     switch (mark.result) {
         case krx_quant::Mark::Result::Hit:
-            text += QStringLiteral(" ✓ 맞음");
-            break;
+            return {QStringLiteral("✓"), QStringLiteral("✓ 맞음"), QColor(ui::colors::POSITIVE())};
         case krx_quant::Mark::Result::Miss:
-            text += QStringLiteral(" ✗ 틀림");
-            break;
+            return {QStringLiteral("✗"), QStringLiteral("✗ 틀림"), QColor(ui::colors::NEGATIVE())};
         case krx_quant::Mark::Result::Unscorable:
-            text += QStringLiteral(" ? 채점 불가");
-            break;
+            return {QStringLiteral("?"),
+                    mark.unscorable.isEmpty() ? QStringLiteral("? 채점 불가")
+                                              : QStringLiteral("? 채점 불가 (%1)").arg(mark.unscorable),
+                    QColor(ui::colors::TEXT_DIM())};
         case krx_quant::Mark::Result::Pending:
-            text += QStringLiteral(" (채점 전)");
             break;
     }
+    return {QString(), QStringLiteral("(채점 전)"), QColor(ui::colors::TEXT_DIM())};
+}
+
+/// "09:31 봉 마감 합의(최종) 상승 62% ✓ 맞음" for a hovered bar's mark.
+QString mark_text(const krx_quant::Mark& mark) {
+    QString text = QStringLiteral("%1 봉 마감 합의(최종) %2 %3% %4")
+                       .arg(hhmm(mark.bar_close), krx_quant::direction_label(mark.predicted))
+                       .arg(std::lround(mark.probability * 100))
+                       .arg(look_of(mark).words);
     if (mark.special)
         text += QStringLiteral(" · 특수 상황(통계 제외)");
     return text;
@@ -130,6 +111,8 @@ KrxChart::Frame KrxChart::frame() const {
     Frame f;
     const QList<krx_quant::Bar> bars = visible();
     f.plot = QRectF(kMargin, kMargin, width() - kMargin - kPriceAxis, height() - kMargin - kTimeAxis);
+    if (f.plot.width() < kSmallest || f.plot.height() < kSmallest)
+        return f; // no room: nothing is drawn
     f.count = static_cast<int>(bars.size());
     if (f.count == 0)
         return f;
@@ -151,6 +134,8 @@ void KrxChart::paintEvent(QPaintEvent*) {
     p.fillRect(rect(), QColor(ui::colors::BG_SURFACE()));
     const QList<krx_quant::Bar> bars = visible();
     const Frame f = frame();
+    if (f.plot.width() < kSmallest || f.plot.height() < kSmallest)
+        return;
     if (f.count == 0) {
         p.setPen(QColor(ui::colors::TEXT_DIM()));
         p.drawText(rect(), Qt::AlignCenter, empty_text_.isEmpty() ? tr("오늘의 1분봉이 아직 없습니다") : empty_text_);
@@ -169,16 +154,16 @@ void KrxChart::paintEvent(QPaintEvent*) {
         p.drawLine(QPointF(f.plot.left(), y), QPointF(f.plot.right(), y));
         p.setPen(QColor(ui::colors::TEXT_SECONDARY()));
         p.drawText(QRectF(f.plot.right() + 4, y - 8, kPriceAxis - 6, 16), Qt::AlignLeft | Qt::AlignVCenter,
-                   price_text(price));
+                   krx_quant::price_text(price));
     }
 
     // Times at the bottom, at least 60 px apart.
     const int every = std::max(1, static_cast<int>(std::ceil(60.0 / f.slot)));
     p.setPen(QColor(ui::colors::TEXT_SECONDARY()));
     for (int i = 0; i < f.count; i += every) {
-        const double left = std::clamp(f.x_of(i) - 30, 0.0, f.plot.right() - 60);
+        const double left = std::max(0.0, std::min(f.x_of(i) - 30, f.plot.right() - 60));
         p.drawText(QRectF(left, f.plot.bottom() + 2, 60, kTimeAxis - 2), Qt::AlignHCenter | Qt::AlignTop,
-                   kst_hhmm(bars[i].start));
+                   hhmm(bars[i].start));
     }
 
     if (hovered_ >= 0 && hovered_ < f.count) {
@@ -227,10 +212,9 @@ void KrxChart::paintEvent(QPaintEvent*) {
         } else if (f.slot >= 4) { // flat, where there is room for it
             p.fillRect(QRectF(x - g / 2, arrow_y + g / 2 - 1, g, 2), QColor(ui::colors::TEXT_DIM()));
         }
-        const QString result = result_text(mark->result);
-        if (!result.isEmpty()) {
-            p.setPen(result_color(mark->result));
-            p.drawText(QRectF(x - g, result_y, 2 * g, g), Qt::AlignCenter, result);
+        if (const Look look = look_of(*mark); !look.glyph.isEmpty()) {
+            p.setPen(look.color);
+            p.drawText(QRectF(x - g, result_y, 2 * g, g), Qt::AlignCenter, look.glyph);
         }
         p.setOpacity(1.0);
     }
@@ -252,8 +236,9 @@ void KrxChart::mouseMoveEvent(QMouseEvent* event) {
     }
     const auto b = visible()[index];
     QString text = tr("%1 · 시가 %2 · 고가 %3 · 저가 %4 · 종가 %5 · 거래량 %6")
-                       .arg(kst_hhmm(b.start), price_text(b.open), price_text(b.high), price_text(b.low),
-                            price_text(b.close), QLocale(QLocale::Korean).toString(b.volume, 'f', 0));
+                       .arg(hhmm(b.start), krx_quant::price_text(b.open), krx_quant::price_text(b.high),
+                            krx_quant::price_text(b.low), krx_quant::price_text(b.close),
+                            QLocale(QLocale::Korean).toString(b.volume, 'f', 0));
     if (const auto mark = marks_.constFind(b.start); mark != marks_.cend())
         text += "\n" + mark_text(*mark);
     QToolTip::showText(event->globalPosition().toPoint(), text, this);

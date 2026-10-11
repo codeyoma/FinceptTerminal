@@ -46,6 +46,10 @@ std::optional<Signal> judge(const Prediction& consensus, const QList<Prediction>
 
 std::optional<Signal> Alerts::consider(const Prediction& consensus, const QList<Prediction>& pooled,
                                        const QDateTime& now) {
+    // A final consensus pools at least one member: none means they are not known yet (read
+    // again after a failure). It is judged once they are, not now.
+    if (pooled.isEmpty())
+        return std::nullopt;
     const QPair<QString, qint64> bar{consensus.symbol, consensus.bar_close.toMSecsSinceEpoch()};
     if (judged_.contains(bar))
         return std::nullopt;

@@ -12,8 +12,8 @@
 #include <optional>
 
 /// The KRX screen's signal alerts: the engine's Telegram signal rule (krx-quant
-/// signals.py), with the threshold and N set on the screen. Qt Core only, unit-tested on
-/// its own (tests/tst_krx_signals.cpp).
+/// docs/engine-api.md, "텔레그램 신호 알림"), with the threshold and N set on the screen.
+/// Qt Core only, unit-tested on its own (tests/tst_krx_signals.cpp).
 namespace fincept::krx_quant {
 
 struct SignalRule {
@@ -51,8 +51,9 @@ class Alerts {
 
     /// A final consensus seen at ``now`` (the engine clock) and what it pooled: the signal
     /// to raise, if any. Each bar close is judged once (the answers and the stream both
-    /// bring it), none whose 4 minutes are over, and a move already raised for the symbol
-    /// is not raised again before that signal's target time.
+    /// bring it), not before its members are known, none whose 4 minutes are over, and a
+    /// move already raised for the symbol is not raised again before that signal's target
+    /// time.
     std::optional<Signal> consider(const Prediction& consensus, const QList<Prediction>& pooled, const QDateTime& now);
 
   private:

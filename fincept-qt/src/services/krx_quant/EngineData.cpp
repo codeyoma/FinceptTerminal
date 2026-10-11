@@ -3,6 +3,8 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <QLocale>
+#include <QTimeZone>
 #include <QUrl>
 
 #include <algorithm>
@@ -41,13 +43,19 @@ int group_of(const QString& algorithm) {
     return 1;
 }
 
+/// A class as the engine writes it ("up", "flat", "down"); None for null (not scored).
+Direction class_of(const QJsonValue& v) {
+    static const QMap<QString, Direction> classes = {
+        {"up", Direction::Up}, {"flat", Direction::Flat}, {"down", Direction::Down}};
+    return classes.value(v.toString(), Direction::None);
+}
+
 std::optional<Outcome> outcome_of(const QJsonValue& v) {
     if (!v.isObject())
         return std::nullopt;
     const QJsonObject o = v.toObject();
-    return Outcome{number(o.value("mid_close")),     number(o.value("mid_display")), number(o.value("mid_target")),
-                   o.value("class_a").toString(),    o.value("class_b").toString(),  o.value("special").toBool(),
-                   o.value("unscorable").toString(), time_of(o.value("scored_at"))};
+    return Outcome{class_of(o.value("class_a")), class_of(o.value("class_b")), o.value("special").toBool(),
+                   o.value("unscorable").toString()};
 }
 
 /// The feeds of a KIS status (``/v1/status``'s ``kis``, a health event's).
@@ -55,8 +63,8 @@ QList<Feed> feeds_of(const QJsonObject& kis) {
     QList<Feed> out;
     for (const auto& v : kis.value("feeds").toArray()) {
         const QJsonObject f = v.toObject();
-        out.push_back({f.value("feed").toString(), f.value("key").toString(), time_of(f.value("last_received_at")),
-                       number(f.value("seconds_since")), f.value("gap").toString()});
+        out.push_back({f.value("feed").toString(), f.value("key").toString(), number(f.value("seconds_since")),
+                       f.value("gap").toString()});
     }
     return out;
 }
@@ -121,7 +129,6 @@ Prediction prediction_of(const QJsonObject& p, const QString& symbol, const QDat
                     std::nullopt,
                     p.contains("symbol") ? p.value("symbol").toString() : symbol,
                     p.contains("bar_close") ? time_of(p.value("bar_close")) : bar_close,
-                    time_of(p.value("displayed_at")),
                     time_of(p.value("target_at")),
                     outcome_of(p.value("outcome"))};
     if (made.status == "ok") {
@@ -158,11 +165,6 @@ Result<EngineStatus> parse_status(const QJsonDocument& doc) {
         for (auto it = promoted.begin(); it != promoted.end(); ++it)
             training.promoted.insert(it.key(), it.value().toString());
         s.training = training;
-    }
-    if (o.value("session").isObject()) {
-        const QJsonObject session = o.value("session").toObject();
-        s.session_open = time_of(session.value("open"));
-        s.session_close = time_of(session.value("close"));
     }
     if (o.value("kis").isObject()) {
         const QJsonObject kis = o.value("kis").toObject();
@@ -261,11 +263,11 @@ Result<Macro> parse_macro(const QJsonDocument& doc) {
     return Result<Macro>::ok(macro);
 }
 
-Result<Consensus> parse_consensus(const QJsonDocument& doc) {
+Result<QStringList> parse_members(const QJsonDocument& doc) {
     const auto obj = object_of(doc);
     if (obj.is_err())
-        return Result<Consensus>::err(obj.error());
-    return Result<Consensus>::ok({strings_of(obj.value().value("members")), obj.value().value("version").toString()});
+        return Result<QStringList>::err(obj.error());
+    return Result<QStringList>::ok(strings_of(obj.value().value("members")));
 }
 
 Result<Event> parse_event(const QString& message) {
@@ -294,8 +296,7 @@ Result<Event> parse_event(const QString& message) {
     }
     event.algorithm = o.value("algorithm").toString();
     const QJsonObject change = o.value("change").toObject();
-    event.change = {time_of(change.value("at")), change.value("from").toString(), change.value("to").toString(),
-                    change.value("reason").toString()};
+    event.change = {change.value("from").toString(), change.value("to").toString()};
     return Result<Event>::ok(event);
 }
 
@@ -325,7 +326,7 @@ QList<Prediction> in_screen_order(QList<Prediction> predictions) {
     return predictions;
 }
 
-Direction direction(const Prediction& p) {
+Direction shown_direction(const Prediction& p) {
     if (!p.p_up || !p.p_flat || !p.p_down)
         return Direction::None;
     const double up = *p.p_up, flat = *p.p_flat, down = *p.p_down;
@@ -418,6 +419,31 @@ QString standing_label(const QString& status) {
         {"retired", QStringLiteral("은퇴")},   {"clone", QStringLiteral("복제")},
     };
     return labels.value(status, status);
+}
+
+QString training_reason_label(const QString& reason) {
+    // The engine's reasons (swap.py), by how they start; the details stay as they are.
+    if (reason == "applied")
+        return QStringLiteral("적용됨");
+    if (reason == "waiting for 08:00")
+        return QStringLiteral("08:00 교체 대기");
+    if (reason.startsWith("final at ") && reason.endsWith("yesterday's models run on"))
+        return QStringLiteral("07:30 뒤에 확정되어 어제 모델로 돈다");
+    if (reason.startsWith("not in the store: "))
+        return QStringLiteral("모델 파일이 저장소에 없어 어제 모델로 돈다");
+    if (reason.startsWith("applied, then replaced: "))
+        return QStringLiteral("적용 뒤 바뀜: ") + reason.mid(QStringLiteral("applied, then replaced: ").size());
+    return reason;
+}
+
+QString kst_text(const QDateTime& t, const QString& format) {
+    static const QTimeZone kst("Asia/Seoul");
+    return t.isValid() ? t.toTimeZone(kst).toString(format) : QStringLiteral("—");
+}
+
+QString price_text(double price) {
+    static const QLocale locale(QLocale::Korean, QLocale::SouthKorea);
+    return locale.toString(price, 'f', std::floor(price) == price ? 0 : 1);
 }
 
 QString special_label(const QString& kind) {

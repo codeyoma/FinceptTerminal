@@ -21,6 +21,7 @@ struct Mark {
     double probability = 0;                ///< of that class
     Result result = Result::Pending;
     bool special = false; ///< a VI, circuit breaker or sidecar touched its 4 minutes: left out of the stats
+    QString unscorable;   ///< why it could not be scored (Unscorable only), e.g. "missing mid: display"
 };
 
 /// Each symbol's predictions of its latest bar close and its final consensus over the day.
@@ -39,6 +40,12 @@ class Board {
     /// What the stream brought. Returns the final consensus predictions in it, for the
     /// signal alerts; nothing for the other events.
     QList<Prediction> apply(const Event& event);
+    /// The engine could not be read: its predictions must not pass for current ones. The
+    /// members stay (a signal arriving meanwhile still counts them).
+    void forget_predictions();
+    /// The engine's clock is at ``now``, before what is shown (a demo engine started again):
+    /// what is later than it is dropped, so earlier bar closes show again. Whether anything was.
+    bool rewind_to(const QDateTime& now);
 
     const QList<SymbolQuote>& symbols() const { return symbols_; }
     const QStringList& members() const { return members_; }

@@ -2,7 +2,7 @@
 //
 // The KRX screen raises a desktop notification and a sound when a final consensus is sure
 // enough of a move that enough of the active algorithms it pooled agree: the rule of the
-// engine's Telegram signals (krx-quant signals.py), with the threshold and N set on the
+// engine's Telegram signals (krx-quant docs/engine-api.md), with the threshold and N set on the
 // screen. A move that keeps holding is raised once per 4 minutes, not every minute, and a
 // consensus whose 4 minutes are over (read on opening the screen after the close) is not.
 
@@ -134,6 +134,15 @@ class TstKrxSignals : public QObject {
         QVERIFY(alerts.consider(forecast("consensus-final", "09:32", 0.64, 0.26, 0.10), two_up_one_down("09:32"),
                                 at("09:32")));
         QCOMPARE(alerts.rule().min_probability, 0.6);
+    }
+
+    void a_consensus_seen_before_its_members_are_known_is_judged_once_they_are() {
+        // A final consensus always pools at least one member: none means they are not known yet
+        // (being read again after a failure), not that nobody agreed.
+        Alerts alerts;
+        const auto consensus = forecast("consensus-final", "09:31", 0.64, 0.26, 0.10);
+        QVERIFY(!alerts.consider(consensus, {}, at("09:31")));
+        QVERIFY(alerts.consider(consensus, two_up_one_down("09:31"), at("09:32")));
     }
 
     void a_consensus_not_made_is_no_signal() {

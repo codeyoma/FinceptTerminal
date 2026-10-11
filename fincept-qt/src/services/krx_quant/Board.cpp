@@ -14,20 +14,6 @@ bool replaces(const Prediction& shown, const Prediction& incoming) {
     return incoming.outcome.has_value() || !shown.outcome.has_value();
 }
 
-QString class_name(Direction d) {
-    switch (d) {
-        case Direction::Up:
-            return QStringLiteral("up");
-        case Direction::Flat:
-            return QStringLiteral("flat");
-        case Direction::Down:
-            return QStringLiteral("down");
-        case Direction::None:
-            break;
-    }
-    return {};
-}
-
 double probability_of(const Prediction& p, Direction d) {
     switch (d) {
         case Direction::Up:
@@ -93,6 +79,29 @@ QList<Prediction> Board::apply(const Event& event) {
     return finals;
 }
 
+void Board::forget_predictions() {
+    symbols_.clear();
+    latest_.clear();
+    finals_.clear();
+}
+
+bool Board::rewind_to(const QDateTime& now) {
+    bool dropped = false;
+    for (auto it = latest_.begin(); it != latest_.end();) {
+        const bool later = it->bar_close > now;
+        dropped |= later;
+        it = later ? latest_.erase(it) : std::next(it);
+    }
+    for (auto& finals : finals_) {
+        for (auto it = finals.begin(); it != finals.end();) {
+            const bool later = it.key() > now;
+            dropped |= later;
+            it = later ? finals.erase(it) : std::next(it);
+        }
+    }
+    return dropped;
+}
+
 void Board::put(const Prediction& p) {
     Latest& latest = latest_[p.symbol];
     if (!latest.bar_close.isValid() || p.bar_close > latest.bar_close) {
@@ -125,14 +134,16 @@ QList<Mark> Board::marks(const QString& symbol, const QString& basis) const {
         const Direction predicted = most_likely(p);
         if (p.status != "ok" || predicted == Direction::None)
             continue;
-        Mark mark{p.bar_close, predicted, probability_of(p, predicted), Mark::Result::Pending, false};
+        Mark mark{p.bar_close, predicted, probability_of(p, predicted), Mark::Result::Pending, false, {}};
         if (p.outcome) {
-            const QString happened = basis == "a" ? p.outcome->class_a : p.outcome->class_b;
+            const Direction happened = basis == "a" ? p.outcome->class_a : p.outcome->class_b;
             mark.special = p.outcome->special;
-            if (happened.isEmpty())
+            if (happened == Direction::None) {
                 mark.result = Mark::Result::Unscorable;
-            else
-                mark.result = happened == class_name(predicted) ? Mark::Result::Hit : Mark::Result::Miss;
+                mark.unscorable = p.outcome->unscorable;
+            } else {
+                mark.result = happened == predicted ? Mark::Result::Hit : Mark::Result::Miss;
+            }
         }
         out << mark;
     }

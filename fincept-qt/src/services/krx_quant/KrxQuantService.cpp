@@ -21,6 +21,18 @@ QString symbol_path(const QString& symbol, const QString& rest) {
     return "/v1/symbols/" + QString::fromUtf8(QUrl::toPercentEncoding(symbol)) + rest;
 }
 
+/// An answer read with ``parse``; a request that failed, why in Korean.
+template <typename T>
+Result<T> parsed(const Result<QJsonDocument>& answer, Result<T> (*parse)(const QJsonDocument&)) {
+    if (answer.is_err())
+        return Result<T>::err(krx_failure(answer.error()).toStdString());
+    return parse(answer.value());
+}
+
+QString why(const std::string& error) {
+    return QString::fromStdString(error);
+}
+
 } // namespace
 
 QString krx_failure(const std::string& error) {
@@ -48,11 +60,9 @@ void KrxQuantService::refresh() {
     if (!begin(kRefresh))
         return;
     get("/v1/status", [this](Result<QJsonDocument> answer) {
-        if (answer.is_err())
-            return fail_with(krx_failure(answer.error()));
-        auto status = krx_quant::parse_status(answer.value());
+        auto status = parsed(answer, krx_quant::parse_status);
         if (status.is_err())
-            return fail_with(QString::fromStdString(status.error()));
+            return fail_refresh(why(status.error()));
         Snapshot snapshot;
         snapshot.status = status.value();
         read_symbols(snapshot);
@@ -96,11 +106,9 @@ void KrxQuantService::get(const QString& path, Step step) {
 
 void KrxQuantService::read_symbols(Snapshot snapshot) {
     get("/v1/symbols", [this, snapshot](Result<QJsonDocument> answer) mutable {
-        if (answer.is_err())
-            return fail_with(krx_failure(answer.error()));
-        auto symbols = krx_quant::parse_symbols(answer.value());
+        auto symbols = parsed(answer, krx_quant::parse_symbols);
         if (symbols.is_err())
-            return fail_with(QString::fromStdString(symbols.error()));
+            return fail_refresh(why(symbols.error()));
         snapshot.symbols = symbols.value();
         read_members(snapshot);
     });
@@ -108,13 +116,11 @@ void KrxQuantService::read_symbols(Snapshot snapshot) {
 
 void KrxQuantService::read_members(Snapshot snapshot) {
     get("/v1/consensus", [this, snapshot](Result<QJsonDocument> answer) mutable {
-        if (answer.is_err()) {
-            snapshot.errors << QStringLiteral("합의 구성원: %1").arg(krx_failure(answer.error()));
-        } else if (auto consensus = krx_quant::parse_consensus(answer.value()); consensus.is_ok()) {
-            snapshot.members = consensus.value().members;
-        } else {
-            snapshot.errors << QStringLiteral("합의 구성원: %1").arg(QString::fromStdString(consensus.error()));
-        }
+        // Without the members the predictions still show; the signals wait for them.
+        if (auto members = parsed(answer, krx_quant::parse_members); members.is_ok())
+            snapshot.members = members.value();
+        else
+            snapshot.errors << QStringLiteral("합의 구성원: %1").arg(why(members.error()));
         read_latest(snapshot);
     });
 }
@@ -128,13 +134,10 @@ void KrxQuantService::read_latest(Snapshot snapshot) {
     for (const auto& quote : shared->symbols) {
         const QString symbol = quote.symbol;
         get(symbol_path(symbol, "/latest"), [this, shared, waiting, symbol](Result<QJsonDocument> answer) {
-            if (answer.is_err()) {
-                shared->errors << QStringLiteral("%1: %2").arg(symbol, krx_failure(answer.error()));
-            } else if (auto latest = krx_quant::parse_latest(answer.value()); latest.is_ok()) {
+            if (auto latest = parsed(answer, krx_quant::parse_latest); latest.is_ok())
                 shared->latest.insert(symbol, latest.value());
-            } else {
-                shared->errors << QStringLiteral("%1: %2").arg(symbol, QString::fromStdString(latest.error()));
-            }
+            else
+                shared->errors << QStringLiteral("%1: %2").arg(symbol, why(latest.error()));
             if (--*waiting == 0)
                 finish_with(*shared);
         });
@@ -148,7 +151,7 @@ void KrxQuantService::finish_with(const Snapshot& snapshot) {
     emit snapshot_ready(snapshot);
 }
 
-void KrxQuantService::fail_with(const QString& reason) {
+void KrxQuantService::fail_refresh(const QString& reason) {
     end(kRefresh);
     LOG_WARN("KrxQuant", reason);
     emit refresh_failed(reason);
@@ -161,11 +164,11 @@ void KrxQuantService::read_status() {
         return;
     get("/v1/status", [this](Result<QJsonDocument> answer) {
         end(kStatus);
-        if (answer.is_err())
-            return fail_with(krx_failure(answer.error()));
-        auto status = krx_quant::parse_status(answer.value());
-        if (status.is_err())
-            return fail_with(QString::fromStdString(status.error()));
+        auto status = parsed(answer, krx_quant::parse_status);
+        if (status.is_err()) {
+            LOG_WARN("KrxQuant", why(status.error()));
+            return emit refresh_failed(why(status.error()));
+        }
         emit status_ready(status.value());
     });
 }
@@ -174,24 +177,18 @@ void KrxQuantService::read_chart(const QString& symbol) {
     if (!begin(kChart))
         return;
     get(symbol_path(symbol, "/bars"), [this, symbol](Result<QJsonDocument> answer) {
-        if (answer.is_err()) {
-            end(kChart);
-            return emit chart_failed(symbol, krx_failure(answer.error()));
-        }
-        auto bars = krx_quant::parse_bars(answer.value());
+        auto bars = parsed(answer, krx_quant::parse_bars);
         if (bars.is_err()) {
             end(kChart);
-            return emit chart_failed(symbol, QString::fromStdString(bars.error()));
+            return emit chart_failed(symbol, why(bars.error()));
         }
         const QString path =
             symbol_path(symbol, QString("/predictions?limit=%1&algorithm=consensus-final").arg(kFinalsLimit));
         get(path, [this, symbol, bars = bars.value()](Result<QJsonDocument> answer) {
             end(kChart);
-            if (answer.is_err())
-                return emit chart_failed(symbol, krx_failure(answer.error()));
-            auto finals = krx_quant::parse_predictions(answer.value());
+            auto finals = parsed(answer, krx_quant::parse_predictions);
             if (finals.is_err())
-                return emit chart_failed(symbol, QString::fromStdString(finals.error()));
+                return emit chart_failed(symbol, why(finals.error()));
             emit chart_ready(symbol, bars, finals.value());
         });
     });
@@ -204,15 +201,13 @@ void KrxQuantService::read_leaderboard(const LeaderboardQuery& query) {
     q.addQueryItem("symbol", query.symbol);
     q.addQueryItem("period", query.period);
     q.addQueryItem("basis", query.basis);
-    q.addQueryItem("special", query.special ? "include" : "exclude");
+    q.addQueryItem("special", query.special_value());
     get("/v1/leaderboard?" + q.toString(QUrl::FullyEncoded), [this](Result<QJsonDocument> answer) {
         end(kLeaderboard);
-        if (answer.is_err())
-            return emit leaderboard_failed(krx_failure(answer.error()));
-        auto board = krx_quant::parse_leaderboard(answer.value());
-        if (board.is_err())
-            return emit leaderboard_failed(QString::fromStdString(board.error()));
-        emit leaderboard_ready(board.value());
+        auto leaderboard = parsed(answer, krx_quant::parse_leaderboard);
+        if (leaderboard.is_err())
+            return emit leaderboard_failed(why(leaderboard.error()));
+        emit leaderboard_ready(leaderboard.value());
     });
 }
 
@@ -221,11 +216,9 @@ void KrxQuantService::read_macro() {
         return;
     get("/v1/macro", [this](Result<QJsonDocument> answer) {
         end(kMacro);
-        if (answer.is_err())
-            return emit macro_failed(krx_failure(answer.error()));
-        auto macro = krx_quant::parse_macro(answer.value());
+        auto macro = parsed(answer, krx_quant::parse_macro);
         if (macro.is_err())
-            return emit macro_failed(QString::fromStdString(macro.error()));
+            return emit macro_failed(why(macro.error()));
         emit macro_ready(macro.value());
     });
 }

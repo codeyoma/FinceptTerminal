@@ -15,7 +15,7 @@
 namespace fincept::services {
 
 /// Reads the KRX prediction engine (a separate service) over its HTTP API v1 for the KRX
-/// prediction screen, which owns it. Screens never call HttpClient directly.
+/// screen's live state (KrxLive), which owns it. Screens never call HttpClient directly.
 ///
 /// The engine's address is a setting (`krx_quant/base_url`), empty until set. Nothing is
 /// cached: each read asks the engine again. Each kind of read runs one at a time (a slow
@@ -41,6 +41,14 @@ class KrxQuantService : public QObject {
         QString period = "today"; ///< "today", "5d" or "20d"
         QString basis = "b";      ///< "a" or "b"
         bool special = false;     ///< include the predictions a VI, circuit breaker or sidecar touched
+
+        /// The API's value for ``special``: "include" or "exclude".
+        QString special_value() const { return special ? "include" : "exclude"; }
+        /// Whether ``leaderboard`` answers this query.
+        bool matches(const krx_quant::Leaderboard& leaderboard) const {
+            return leaderboard.symbol == symbol && leaderboard.period == period && leaderboard.basis == basis &&
+                   leaderboard.special == special_value();
+        }
     };
 
     explicit KrxQuantService(QObject* parent = nullptr);
@@ -55,7 +63,7 @@ class KrxQuantService : public QObject {
     void refresh();
     /// Drop every read under way and refresh from the setting's address.
     void restart();
-    /// The status alone (its feeds' delays change by the second): status_ready or refresh_failed.
+    /// The status alone (its feeds' silences change by the second): status_ready or refresh_failed.
     void read_status();
     /// A symbol's 1-minute bars and final consensus over the day: chart_ready or chart_failed.
     void read_chart(const QString& symbol);
@@ -69,7 +77,7 @@ class KrxQuantService : public QObject {
     void chart_ready(const QString& symbol, const QList<fincept::krx_quant::Bar>& bars,
                      const QList<fincept::krx_quant::Prediction>& finals);
     void chart_failed(const QString& symbol, const QString& reason);
-    void leaderboard_ready(const fincept::krx_quant::Leaderboard& board);
+    void leaderboard_ready(const fincept::krx_quant::Leaderboard& leaderboard);
     void leaderboard_failed(const QString& reason);
     void macro_ready(const fincept::krx_quant::Macro& macro);
     void macro_failed(const QString& reason);
@@ -89,7 +97,8 @@ class KrxQuantService : public QObject {
     void read_members(Snapshot snapshot);
     void read_latest(Snapshot snapshot);
     void finish_with(const Snapshot& snapshot);
-    void fail_with(const QString& reason);
+    /// The refresh failed: why, after ending it.
+    void fail_refresh(const QString& reason);
 
     int generation_ = 0;
     bool busy_[kKinds] = {};
