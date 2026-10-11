@@ -111,7 +111,8 @@ Entry entry_of(const QJsonObject& e) {
             const QJsonValue significant = l.value("significant");
             const auto gain = l.value("value").isDouble() ? interval_of(l) : std::nullopt;
             entry.lifts.push_back({it.key(), gain, number(l.value("p")), number(l.value("q")),
-                                   significant.isBool() ? std::optional<bool>(significant.toBool()) : std::nullopt});
+                                   significant.isBool() ? std::optional<bool>(significant.toBool()) : std::nullopt,
+                                   interval_of(l.value("by_day"))});
         }
     }
     return entry;

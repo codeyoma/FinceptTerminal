@@ -36,6 +36,8 @@ struct LiftRow {
     QString p;        ///< one-sided
     QString q;        ///< luck-corrected; "—" where not tested with the leaderboard's
     QString verdict;  ///< "통과" (q ≤ 0.05 and a gain above 0), "미통과", or "—" likewise
+    QString day_interval; ///< 95%, taken by trading day (what the statuses go by); "—" from fewer than two days
+    QString days;         ///< the trading days it was taken over; "—" likewise
 };
 
 /// One row per baseline, in the entry's order (by name).

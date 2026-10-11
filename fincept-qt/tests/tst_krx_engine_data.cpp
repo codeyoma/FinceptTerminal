@@ -110,9 +110,11 @@ const char* kLeaderboard = R"({
      "coverage": {"value": 0.085, "low": 0.07, "high": 0.10, "n": 1128},
      "brier": {"value": 0.58, "low": 0.56, "high": 0.60, "n": 1128},
      "pnl": {"trades": 96, "total_ticks": 12.4, "per_trade": {"value": 0.13, "low": -0.2, "high": 0.46, "n": 96}},
-     "lift": {"low": 0.01, "vs": {
-       "baseline-flat": {"n": 1128, "value": 0.04, "low": 0.01, "high": 0.07, "p": 0.001, "q": 0.003, "significant": true},
-       "baseline-persist": {"n": 1128, "value": 0.06, "low": 0.03, "high": 0.09, "p": 0.0001, "q": 0.0006, "significant": true}}}},
+     "lift": {"low": 0.01, "day_low": -0.01, "vs": {
+       "baseline-flat": {"n": 1128, "value": 0.04, "low": 0.01, "high": 0.07, "p": 0.001, "q": 0.003, "significant": true,
+                         "by_day": {"n": 5, "value": 0.04, "low": -0.01, "high": 0.09, "p": 0.06}},
+       "baseline-persist": {"n": 1128, "value": 0.06, "low": 0.03, "high": 0.09, "p": 0.0001, "q": 0.0006, "significant": true,
+                            "by_day": null}}}},
     {"rank": 2, "algorithm": "alg-b", "status": "probation", "model_versions": ["alg-b-1"], "n": 900,
      "accuracy": {"value": 0.50, "low": 0.47, "high": 0.53, "n": 900}, "precision": null,
      "coverage": {"value": 0.0, "low": 0.0, "high": 0.004, "n": 900},
@@ -461,6 +463,19 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(lifts[0].significant, std::optional<bool>(true));
         QCOMPARE(lifts[1].baseline, QStringLiteral("baseline-persist"));
         QVERIFY(board.value().unranked[0].lifts.isEmpty()); // nothing to compare with
+    }
+
+    void a_lift_taken_by_trading_day_has_its_days_and_interval() {
+        const auto board = parse_leaderboard(json(kLeaderboard));
+        QVERIFY(board.is_ok());
+        const auto& lifts = board.value().ranked[0].lifts;
+        QCOMPARE(lifts[0].by_day->n, 5); // days, not pairs
+        QCOMPARE(lifts[0].by_day->value, 0.04);
+        QCOMPARE(lifts[0].by_day->low, std::optional<double>(-0.01));
+        QCOMPARE(lifts[0].by_day->high, std::optional<double>(0.09));
+        QVERIFY(!lifts[1].by_day); // fewer than two days
+        // An engine from before the lifts by trading day has none.
+        QVERIFY(!board.value().ranked[1].lifts[0].by_day);
     }
 
     void an_algorithms_stats_keep_their_query_and_its_leaderboard_line() {
