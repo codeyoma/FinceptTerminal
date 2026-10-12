@@ -62,6 +62,14 @@ jobs:
         run: |
           latest=$(gh release view --repo "$UPSTREAM" --json tagName -q .tagName)
           base=$(gh api "repos/$GH_REPO/contents/custom/UPSTREAM_BASE?ref=custom" -q .content | base64 -d | tr -d '[:space:]')
+          # Both tags reach git, branch names, issue titles and searches below.
+          # Upstream picks the tag name, so allow only a plain release tag.
+          for t in "$latest" "$base"; do
+            if [[ ! "$t" =~ ^v[0-9A-Za-z._-]+$ ]]; then
+              echo "::error::Refusing release tag '$t': expected v followed by letters, digits, '.', '_' or '-'."
+              exit 1
+            fi
+          done
           echo "latest=$latest" >> "$GITHUB_OUTPUT"
           echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "upstream latest: $latest, custom base: $base"
@@ -172,7 +180,8 @@ jobs:
           ```
           This issue closes itself once `custom/UPSTREAM_BASE` says @LATEST@. Closing it earlier lets the daily run try the merge again.
           EOF
-          sed -i "s/@LATEST@/$LATEST/g" "$body"
+          text=$(cat "$body")
+          printf '%s\n' "${text//@LATEST@/$LATEST}" > "$body"
           gh issue create --title "Upstream $LATEST: merge needs a hand" --body-file "$body"
 
       - name: Note a release.yml change

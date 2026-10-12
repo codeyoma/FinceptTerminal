@@ -1460,8 +1460,9 @@ jobs:
             echo "::warning::custom moved during the trial build. custom-upstream-watch merges again on its next run."
             exit 0
           fi
-          git push origin "${SHA}:refs/heads/custom"
-          git push origin "${SHA}:refs/tags/${TAG}"
+          # One atomic push: custom never records the new UPSTREAM_BASE without
+          # its release tag. If the tag was taken meanwhile, neither ref moves.
+          git push --atomic origin "${SHA}:refs/heads/custom" "${SHA}:refs/tags/${TAG}"
           git push origin --delete "${BRANCH}" || true
           echo "custom -> ${SHA}, tagged ${TAG}; the tag push builds and publishes the release."
 
@@ -1479,7 +1480,7 @@ jobs:
     permissions:
       issues: write
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
       TAG: ${{ needs.verify-tag.outputs.tag }}
       UPSTREAM: ${{ needs.verify-tag.outputs.upstream }}
       BRANCH: ${{ needs.verify-tag.outputs.branch }}
@@ -1521,5 +1522,14 @@ jobs:
           This issue closes itself once `custom/UPSTREAM_BASE` says @UPSTREAM@. Closing it earlier lets the daily run try the merge again.
           EOF
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          sed -i "s#@UPSTREAM@#${UPSTREAM}#g; s#@BRANCH@#${BRANCH}#g; s#@TAG@#${TAG}#g; s#@RUN@#${run_url}#g; s#@WINDOWS@#${WINDOWS}#g; s#@MACOS@#${MACOS}#g; s#@LAND@#${LAND}#g" "${body}"
+          # Plain string replacement, no sed program built from the values.
+          text="$(cat "${body}")"
+          text="${text//@UPSTREAM@/${UPSTREAM}}"
+          text="${text//@BRANCH@/${BRANCH}}"
+          text="${text//@TAG@/${TAG}}"
+          text="${text//@RUN@/${run_url}}"
+          text="${text//@WINDOWS@/${WINDOWS}}"
+          text="${text//@MACOS@/${MACOS}}"
+          text="${text//@LAND@/${LAND}}"
+          printf '%s\n' "${text}" > "${body}"
           gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" --body-file "${body}"
