@@ -1,0 +1,87 @@
+# Fork-only workflow (codeyoma/FinceptTerminal, codeyoma/krx-quant#98).
+# Every push to `custom` that changes the app becomes a personal build: the pushed
+# commit is tagged custom-<custom/UPSTREAM_BASE>-krx.<N+1>, N being the highest
+# build number already used for that upstream version. The tag push starts
+# custom-release, which builds and publishes the release, and installed apps then
+# offer it as an update (custom/README.md "앱 업데이트").
+#
+# Nothing is tagged when the commit already has a custom-v* tag (the upstream
+# landing pushes custom together with its krx.1 tag, and a hand-made tag still
+# works) or when the push changed only docs or workflows (paths-ignore below);
+# a hand-made tag still builds such a commit.
+#
+# The tag is pushed with SYNC_TOKEN: a tag pushed with GITHUB_TOKEN starts no
+# workflow, so it would never be built.
+name: custom-auto-tag
+
+on:
+  push:
+    branches: [custom]
+    paths-ignore:
+      - 'custom/**'
+      - '**/*.md'
+      - 'docs/**'
+      - 'fincept-qt/docs/**'
+      - '.github/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Queued, never cancelled: two quick merges get consecutive build numbers.
+concurrency:
+  group: custom-auto-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Tag the next personal build
+    runs-on: ubuntu-latest
+    env:
+      HAS_SYNC_TOKEN: ${{ secrets.SYNC_TOKEN != '' }}
+
+    steps:
+      - name: Require SYNC_TOKEN
+        if: env.HAS_SYNC_TOKEN != 'true'
+        run: |
+          echo "::error::The SYNC_TOKEN secret is missing (fine-grained PAT on this repository: Contents and Workflows read/write). A tag pushed with GITHUB_TOKEN would start no build."
+          exit 1
+
+      - name: Checkout the pushed commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
+
+      - name: Tag it custom-<upstream>-krx.<next>
+        run: |
+          set -euo pipefail
+          git fetch --tags --force origin
+
+          existing=$(git tag --points-at HEAD -l 'custom-v*')
+          if [ -n "$existing" ]; then
+            echo "Already a personal build: $existing"
+            exit 0
+          fi
+
+          base=$(tr -d '[:space:]' < custom/UPSTREAM_BASE)
+          if ! [[ "$base" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::custom/UPSTREAM_BASE is '$base', not vX.Y.Z. The app only updates to custom-vX.Y.Z-krx.N tags (fincept-qt/src/services/krx_quant/AppRelease.h)."
+            exit 1
+          fi
+
+          prefix="custom-${base}-krx."
+          last=0
+          for t in $(git tag -l "${prefix}*"); do
+            n=${t#"$prefix"}
+            if [[ "$n" =~ ^[0-9]+$ ]] && (( n > last )); then
+              last=$n
+            fi
+          done
+          tag="${prefix}$((last + 1))"
+
+          git tag "$tag" HEAD
+          # Fails rather than moves the tag if another run took the number meanwhile.
+          git push origin "refs/tags/${tag}"
+          echo "Tagged $(git rev-parse --short HEAD) as ${tag}; custom-release builds and publishes it."
