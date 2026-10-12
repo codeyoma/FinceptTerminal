@@ -39,14 +39,6 @@ inline constexpr const char* kStatsHeaders[] = {"표본",  "정답률",         
                                                 "Brier", "중간가 손익(틱)", "가장 약한 lift 하한"};
 inline constexpr int kStatsColumns = static_cast<int>(std::size(kStatsHeaders));
 
-/// What a column's name alone would let be misread, shown on its header.
-inline QString header_tip(const QString& header) {
-    if (header == QObject::tr("중간가 손익(틱)"))
-        return QObject::tr("거래당 평균, 연구용 값이다. 방향을 낸 모든 예측을 거래로 치고 시작 중간가에서 목표 "
-                           "중간가까지 잰다. 스프레드와 체결은 반영하지 않아 따라 했을 때의 손익이 아니다.");
-    return {};
-}
-
 inline QStringList stats_headers() {
     QStringList headers;
     for (const char* header : kStatsHeaders)
@@ -85,7 +77,7 @@ inline QTableWidget* table(const QStringList& headers) {
     table->set_headers(headers);
     for (int column = 0; column < headers.size(); ++column) {
         auto* item = table->horizontalHeaderItem(column);
-        if (const QString tip = header_tip(headers[column]); item && !tip.isEmpty())
+        if (const QString tip = krx_quant::column_tip(headers[column]); item && !tip.isEmpty())
             item->setToolTip(tip);
     }
     table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);

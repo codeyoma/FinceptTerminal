@@ -2,6 +2,7 @@
 
 #include "services/krx_quant/EngineData.h"
 
+#include <QHash>
 #include <QList>
 #include <QMap>
 #include <QObject>
@@ -76,8 +77,9 @@ class KrxQuantService : public QObject {
     /// latest query is read once it ends, and the stale answer is dropped; asked for the one
     /// under way, that one answers (a slow engine polled every 5 s still answers).
     void read_leaderboard(const LeaderboardQuery& query);
-    /// An algorithm's stats for a leaderboard query: stats_ready or stats_failed. Asked again
-    /// while one is under way, likewise.
+    /// An algorithm's stats for a leaderboard query: stats_ready or stats_failed. Each
+    /// algorithm's are read on their own, several at once (a detail window each); asked
+    /// again while that algorithm's are under way, likewise.
     void read_stats(const QString& algorithm, const LeaderboardQuery& query);
     void read_macro(); ///< macro_ready or macro_failed
 
@@ -100,7 +102,7 @@ class KrxQuantService : public QObject {
   private:
     /// A step of a read: the answer to one GET, or why it failed.
     using Step = std::function<void(Result<QJsonDocument>)>;
-    enum Kind { kRefresh, kStatus, kChart, kLeaderboard, kStats, kMacro, kKinds };
+    enum Kind { kRefresh, kStatus, kChart, kLeaderboard, kMacro, kKinds };
 
     /// Start a read of ``kind`` unless one is under way; false if skipped.
     bool begin(Kind kind);
@@ -117,9 +119,13 @@ class KrxQuantService : public QObject {
     bool busy_[kKinds] = {};
     LeaderboardQuery leaderboard_asked_;               ///< the leaderboard under way, or the last
     std::optional<LeaderboardQuery> next_leaderboard_; ///< asked for while another was under way
-    std::pair<QString, LeaderboardQuery> stats_asked_; ///< likewise for the stats: the algorithm and query
-    std::optional<std::pair<QString, LeaderboardQuery>> next_stats_;
-    QString url_;                                      ///< the address of the reads under way, or of the last ones
+    /// An algorithm's stats under way: the query asked, and one asked for meanwhile.
+    struct StatsRead {
+        LeaderboardQuery asked;
+        std::optional<LeaderboardQuery> next;
+    };
+    QHash<QString, StatsRead> stats_reads_; ///< by algorithm
+    QString url_;                           ///< the address of the reads under way, or of the last ones
 };
 
 /// Why a request failed, in Korean, from HttpClient's error string.

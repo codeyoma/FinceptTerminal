@@ -1,5 +1,6 @@
 #pragma once
 
+#include "screens/krx_quant/KrxPanel.h"
 #include "services/krx_quant/StatsView.h"
 
 #include <QLabel>
@@ -7,6 +8,10 @@
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QWidget>
+
+namespace fincept::ui {
+class LoadingOverlay;
+}
 
 namespace fincept::screens {
 
@@ -35,14 +40,15 @@ class KrxCalibrationPlot : public QWidget {
 
 /// A predictor's detail window, on the leaderboard's query: the lift over each baseline
 /// with its test, the calibration curve, and the stats by 30-minute slot, model version and
-/// symbol. The screen keeps one, not modal; the screen's live state reads the stats with
-/// the leaderboard while it is open.
+/// symbol, in Fincept's panels and tables. The screen opens one per predictor, not modal,
+/// so several can be compared side by side; the screen's live state reads each one's stats
+/// with the leaderboard while it is open.
 class KrxStatsWindow : public QWidget {
     Q_OBJECT
   public:
     explicit KrxStatsWindow(QWidget* parent = nullptr);
 
-    /// Show ``algorithm``'s detail, emptied until its stats come.
+    /// Show ``algorithm``'s detail, emptied and loading until its stats come.
     void open(const QString& algorithm);
     void show_stats(const krx_quant::AlgorithmStats& stats);
     void show_failure(const QString& reason);
@@ -52,21 +58,30 @@ class KrxStatsWindow : public QWidget {
 
   protected:
     void closeEvent(QCloseEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
   private:
     void clear();
+    /// Paint in the theme's colors and the user's font size now.
+    void restyle();
 
     QString algorithm_;
+    krx_panel::Header header_; ///< the predictor; the query and a failure on the right
     QLabel* query_ = nullptr;
+    QLabel* failure_ = nullptr;
+    QWidget* body_ = nullptr;
+    ui::LoadingOverlay* loading_ = nullptr;
     QLabel* excluded_ = nullptr;      ///< what the stats left out
     QTableWidget* overall_ = nullptr; ///< one line: the leaderboard's
+    krx_panel::Header lift_header_;   ///< what lift is on its tooltip
     QTableWidget* lifts_ = nullptr;
+    krx_panel::Header calibration_header_; ///< what the plot compares on its tooltip
     KrxCalibrationPlot* calibration_ = nullptr;
+    krx_panel::Header breakdown_header_;
     QTabWidget* breakdowns_ = nullptr;
     QTableWidget* by_slot_ = nullptr;
     QTableWidget* by_model_version_ = nullptr;
     QTableWidget* by_symbol_ = nullptr;
-    QLabel* note_ = nullptr;
 };
 
 } // namespace fincept::screens

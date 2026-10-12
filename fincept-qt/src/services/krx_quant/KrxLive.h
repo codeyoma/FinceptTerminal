@@ -24,8 +24,8 @@ namespace fincept::services {
 /// Reads: with the stream connected, the status every 5 s (the feeds' silences), the
 /// symbols, latest predictions and members every 30 s, the chosen symbol's chart and the
 /// leaderboard every 60 s (and the chart on a new bar close, the leaderboard 3 s after
-/// outcomes), the macro row every 5 min. An algorithm's stats, while a detail window
-/// shows them, are read with the leaderboard. Without the stream, the status, predictions,
+/// outcomes), the macro row every 5 min. The stats of each predictor a detail window
+/// shows are read with the leaderboard, each on its own. Without the stream, the status, predictions,
 /// members and leaderboard every 5 s; the chart and the macro row as with it. While the
 /// screen is hidden only what the alerts need is read, and an address applied elsewhere.
 class KrxLive : public QObject {
@@ -42,9 +42,9 @@ class KrxLive : public QObject {
     /// The symbol whose chart is read.
     void select(const QString& symbol);
     void set_leaderboard_query(const KrxQuantService::LeaderboardQuery& query);
-    /// The algorithm whose stats are read with the leaderboard, on its query (a detail
-    /// window); empty for none.
-    void set_detail(const QString& algorithm);
+    /// The algorithms whose stats are read with the leaderboard, on its query (a detail
+    /// window each); a new one's at once.
+    void set_details(const QStringList& algorithms);
     void set_alerts(bool on, const krx_quant::SignalRule& rule);
 
     const krx_quant::Board& board() const { return board_; }
@@ -76,14 +76,16 @@ class KrxLive : public QObject {
     void macro_failed(const QString& reason);
     void leaderboard_changed(const fincept::krx_quant::Leaderboard& leaderboard);
     void leaderboard_failed(const QString& reason);
-    void stats_changed(const fincept::krx_quant::AlgorithmStats& stats); ///< the detail's, on the leaderboard's query
-    void stats_failed(const QString& reason);
+    void stats_changed(const fincept::krx_quant::AlgorithmStats& stats); ///< a detail's, on the leaderboard's query
+    void stats_failed(const QString& algorithm, const QString& reason);
     void signal_raised(const fincept::krx_quant::Signal& signal);
 
   private:
     void tick();
     void read_everything();
     void read_leaderboard();
+    /// The stats of every detail window.
+    void read_details();
     void on_snapshot(const KrxQuantService::Snapshot& snapshot);
     /// A status read; ``with_snapshot`` when it came with the predictions.
     void on_status(const krx_quant::EngineStatus& status, bool with_snapshot);
@@ -104,7 +106,7 @@ class KrxLive : public QObject {
     QString selected_;
     QList<krx_quant::Bar> bars_;
     KrxQuantService::LeaderboardQuery query_;
-    QString detail_; ///< the algorithm whose stats are read, if any
+    QStringList details_; ///< the algorithms whose stats are read
     std::optional<krx_quant::EngineStatus> status_;
     std::optional<krx_quant::Macro> macro_;
     QString macro_failure_;

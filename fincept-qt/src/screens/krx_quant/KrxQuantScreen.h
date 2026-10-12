@@ -4,6 +4,7 @@
 #include "services/krx_quant/KrxLive.h"
 
 #include <QComboBox>
+#include <QHash>
 #include <QLabel>
 #include <QLineEdit>
 #include <QTableWidget>
@@ -68,7 +69,7 @@ class KrxQuantScreen : public QWidget {
     krx_panel::Header predictions_header_; ///< titled with the bar close and the countdown
     QTableWidget* predictions_table_ = nullptr;
     KrxLeaderboard* leaderboard_ = nullptr;
-    KrxStatsWindow* stats_window_ = nullptr; ///< made when first asked for
+    QHash<QString, KrxStatsWindow*> stats_windows_; ///< open, by predictor
     KrxAlerts* alerts_ = nullptr;
     QWidget* body_ = nullptr;
     ui::LoadingOverlay* loading_ = nullptr; ///< over the body until the engine first answers
