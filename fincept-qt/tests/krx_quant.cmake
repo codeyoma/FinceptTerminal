@@ -29,6 +29,14 @@ fincept_add_test(tst_krx_stats_view
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/StatsView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
 
+# src/services/krx_quant/ChartModel.{h,cpp} — what the KRX screen's chart draws: its bars and
+# the final consensus's icons, worked out so its page only draws (codeyoma/krx-quant#105). Qt Core only.
+fincept_add_test(tst_krx_chart_model
+    tst_krx_chart_model.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
+
 # src/services/krx_quant/AppRelease.{h,cpp} — which personal build is newer, and the newest one
 # on the fork's Releases page, for the app's one-click update. Qt Core only.
 fincept_add_test(tst_krx_app_release

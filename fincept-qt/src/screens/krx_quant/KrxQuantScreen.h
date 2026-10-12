@@ -63,8 +63,8 @@ class KrxQuantScreen : public QWidget {
     QLabel* special_label_ = nullptr;
     krx_panel::Header symbols_header_;
     QTableWidget* symbols_table_ = nullptr;
-    krx_panel::Header chart_header_; ///< titled with the chosen symbol
-    QComboBox* window_combo_ = nullptr;
+    krx_panel::Header chart_header_;  ///< titled with the chosen symbol
+    QLabel* chart_failure_ = nullptr; ///< on the chart's header, while the bars cannot be read
     KrxChart* chart_ = nullptr;
     krx_panel::Header predictions_header_; ///< titled with the bar close and the countdown
     QTableWidget* predictions_table_ = nullptr;

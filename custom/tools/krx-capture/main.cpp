@@ -5,8 +5,9 @@
 //
 //   krx_capture <engine url> <out.png> [seconds=8] [width=1600] [height=1000] [predictor,...]
 //
-// Run it with QT_QPA_PLATFORM=offscreen so no window opens. The theme and font are the
-// app's defaults (Obsidian, Consolas 14px).
+// The window shows for those seconds: the chart (Qt WebEngine) draws in a real window only.
+// With QT_QPA_PLATFORM=offscreen no window opens, and the chart's panel stays empty. The
+// theme and font are the app's defaults (Obsidian, Consolas 14px).
 #include "screens/krx_quant/KrxLeaderboard.h"
 #include "screens/krx_quant/KrxQuantScreen.h"
 #include "screens/krx_quant/KrxStatsWindow.h"

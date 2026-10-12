@@ -15,6 +15,7 @@ set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 find_package(Qt6 QUIET COMPONENTS WebSockets)
+find_package(Qt6 QUIET COMPONENTS WebEngineWidgets WebChannel)
 
 # macOS 14+ has no AGL framework, which Qt's WrapOpenGL still names: drop it, as the app's
 # CMakeLists.txt does.
@@ -39,6 +40,7 @@ add_executable(krx_capture
     "${SRC}/screens/krx_quant/KrxQuantScreen.cpp"
     "${SRC}/screens/krx_quant/KrxStatsWindow.cpp"
     "${SRC}/services/krx_quant/Board.cpp"
+    "${SRC}/services/krx_quant/ChartModel.cpp"
     "${SRC}/services/krx_quant/EngineData.cpp"
     "${SRC}/services/krx_quant/KrxLive.cpp"
     "${SRC}/services/krx_quant/KrxQuantService.cpp"
@@ -65,6 +67,17 @@ add_executable(krx_capture
     "${SRC}/ui/widgets/LoadingOverlay.h")
 target_include_directories(krx_capture PRIVATE "${SRC}")
 target_link_libraries(krx_capture PRIVATE Qt6::Widgets Qt6::Network)
+# The chart page, as the app bundles it (fincept-qt/CMakeLists.txt, "krx_chart").
+qt_add_resources(krx_capture "krx_chart"
+    PREFIX "/krx/chart"
+    BASE "${SRC}/screens/krx_quant/chart"
+    FILES
+        "${SRC}/screens/krx_quant/chart/index.html"
+        "${SRC}/screens/krx_quant/chart/lightweight-charts.standalone.production.js")
+if(Qt6WebEngineWidgets_FOUND AND Qt6WebChannel_FOUND)
+    target_link_libraries(krx_capture PRIVATE Qt6::WebEngineWidgets Qt6::WebChannel)
+    target_compile_definitions(krx_capture PRIVATE HAS_QT_WEBENGINE)
+endif()
 if(TARGET Qt6::WebSockets)
     target_link_libraries(krx_capture PRIVATE Qt6::WebSockets)
     target_compile_definitions(krx_capture PRIVATE HAS_QT_WEBSOCKETS)

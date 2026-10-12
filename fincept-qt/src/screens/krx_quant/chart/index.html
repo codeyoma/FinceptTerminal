@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!--
+  The KRX screen's chart (fork addition, codeyoma/krx-quant#105), drawn with TradingView
+  Lightweight Charts (NOTICE). It only draws what the screen sends over the web channel:
+  the bars and their volumes, the final consensus's icons, the theme, and when to fit.
+-->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #080808; }
+  #chart { position: absolute; inset: 0; }
+</style>
+<script src="lightweight-charts.standalone.production.js"></script>
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+</head>
+<body>
+<div id="chart"></div>
+<script>
+(function () {
+  const L = LightweightCharts;
+  const chart = L.createChart(document.getElementById('chart'), {
+    autoSize: true,
+    layout: { attributionLogo: false }, // the attribution is on the panel title and in the README
+    timeScale: { timeVisible: true, secondsVisible: false, rightOffset: 3 },
+  });
+  const candles = chart.addSeries(L.CandlestickSeries, {
+    priceLineVisible: true,
+    lastValueVisible: true,
+    priceFormat: { type: 'price', precision: 0, minMove: 1 }, // won, as KRX stocks trade
+  });
+  const volumes = chart.addSeries(
+    L.HistogramSeries,
+    { priceFormat: { type: 'volume' }, priceLineVisible: false, lastValueVisible: false },
+    1 // the pane below
+  );
+  chart.panes()[0].setStretchFactor(0.78);
+  chart.panes()[1].setStretchFactor(0.22);
+  const icons = L.createSeriesMarkers(candles, []);
+
+  let fitRange = null;
+  function fit() {
+    if (fitRange) chart.timeScale().setVisibleLogicalRange(fitRange);
+  }
+
+  let shown = false;
+  function show(data) {
+    candles.setData(data.bars);
+    volumes.setData(data.volumes);
+    icons.setMarkers(data.icons);
+    fitRange = data.fit;
+    if (!shown && data.bars.length) { // the first bars: the last ones in view
+      shown = true;
+      fit();
+    }
+  }
+
+  function theme(t) {
+    document.body.style.background = t.background;
+    chart.applyOptions({
+      layout: {
+        background: { type: 'solid', color: t.background },
+        textColor: t.text,
+        fontFamily: t.font,
+        fontSize: t.size,
+        attributionLogo: false,
+        panes: { separatorColor: t.border, separatorHoverColor: t.border },
+      },
+      grid: { vertLines: { color: t.grid }, horzLines: { color: t.grid } },
+      rightPriceScale: { borderColor: t.border },
+      timeScale: { borderColor: t.border },
+      crosshair: {
+        vertLine: { color: t.text, labelBackgroundColor: t.label },
+        horzLine: { color: t.text, labelBackgroundColor: t.label },
+      },
+    });
+    candles.applyOptions({
+      upColor: t.up, downColor: t.down,
+      borderUpColor: t.up, borderDownColor: t.down,
+      wickUpColor: t.up, wickDownColor: t.down,
+    });
+  }
+
+  document.getElementById('chart').addEventListener('dblclick', fit);
+
+  new QWebChannel(qt.webChannelTransport, function (channel) {
+    const bridge = channel.objects.bridge;
+    bridge.theme_changed.connect(function (json) { theme(JSON.parse(json)); });
+    bridge.data_changed.connect(function (json) { show(JSON.parse(json)); });
+    bridge.fit_requested.connect(fit);
+    bridge.ready();
+  });
+})();
+</script>
+</body>
+</html>

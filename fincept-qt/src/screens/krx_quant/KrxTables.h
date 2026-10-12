@@ -84,6 +84,7 @@ inline QTableWidget* table(const QStringList& headers) {
     // Rows as high as the user's font and density make them, not DataTable's fixed 26px:
     // these tables have a few dozen rows at most.
     table->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    table->setWordWrap(false); // one line a row: a narrow column elides, as DataTable's fixed rows did
     restyle(table);
     return table;
 }
