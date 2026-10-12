@@ -17,6 +17,13 @@ name: Custom Release — personal Windows + macOS builds
 # To rebuild an existing tag: Actions -> this workflow -> Run workflow, and
 # enter the tag.
 #
+# Trial build of an upstream release merge: custom-upstream-watch runs this
+# workflow on the branch upstream-merge/<tag>. Both builds run, nothing is
+# released, and when they pass the land job fast-forwards custom to the merge
+# and pushes the tag custom-<tag>-krx.N. That tag push runs this workflow again
+# and publishes the release. When a build or the land job fails, report-trial
+# opens an issue. The land job needs the SYNC_TOKEN secret.
+#
 # The build, deploy and package steps are copied from release.yml's
 # build-windows and build-macos jobs. When an upstream merge changes those
 # jobs, carry the change over here.
@@ -63,6 +70,9 @@ jobs:
     outputs:
       tag: ${{ steps.check.outputs.tag }}
       sha: ${{ steps.check.outputs.sha }}
+      trial: ${{ steps.check.outputs.trial }}
+      upstream: ${{ steps.check.outputs.upstream }}
+      branch: ${{ steps.check.outputs.branch }}
 
     steps:
       - name: Checkout (full history)
@@ -73,9 +83,41 @@ jobs:
       - name: Check the tag is on origin/custom
         id: check
         env:
-          TAG: ${{ inputs.tag || github.ref_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
+          if [[ -z "${INPUT_TAG}" && "${REF_NAME}" =~ ^upstream-merge/(v[0-9A-Za-z._-]+)$ ]]; then
+            # Trial build of an upstream release merge (custom-upstream-watch).
+            # The builds name their assets after the tag the merge will get.
+            UPSTREAM="${BASH_REMATCH[1]}"
+            if [[ ! "${UPSTREAM}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::${UPSTREAM} is not vX.Y.Z, so custom-${UPSTREAM}-krx.N would not be a tag the app updates from (AppRelease.h)."
+              exit 1
+            fi
+            SHA="${GITHUB_SHA}"
+            git fetch --force --tags origin '+refs/heads/custom:refs/remotes/origin/custom'
+            if [ "$(git show "${SHA}:custom/UPSTREAM_BASE" | tr -d '[:space:]')" != "${UPSTREAM}" ]; then
+              echo "::error::${REF_NAME} (${SHA}) does not record ${UPSTREAM} in custom/UPSTREAM_BASE."
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor refs/remotes/origin/custom "${SHA}"; then
+              echo "::error::custom moved after ${REF_NAME} was made. custom-upstream-watch merges again on its next run."
+              exit 1
+            fi
+            N="$(git tag -l "custom-${UPSTREAM}-krx.*" | sed -n 's/^.*-krx\.\([0-9][0-9]*\)$/\1/p' | sort -n | tail -1)"
+            TAG="custom-${UPSTREAM}-krx.$(( ${N:-0} + 1 ))"
+            echo "Trial build of ${REF_NAME} (${SHA}); it is released as ${TAG}"
+            {
+              echo "tag=${TAG}"
+              echo "sha=${SHA}"
+              echo "trial=true"
+              echo "upstream=${UPSTREAM}"
+              echo "branch=${REF_NAME}"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          TAG="${INPUT_TAG:-${REF_NAME}}"
           # The app reads its tag as custom-v<major>.<minor>.<patch>-krx.<n> to update
           # itself (AppRelease.h): a tag of any other shape would build an app that
           # never updates.
@@ -1373,11 +1415,13 @@ jobs:
 
 # ═════════════════════════════════════════════════════════════════════════════
 # JOB 4 — GitHub prerelease on this fork, with GITHUB_TOKEN only
-# Runs only when the tag check and both builds succeeded.
+# Runs only when the tag check and both builds succeeded, and not for a trial
+# build.
 # ═════════════════════════════════════════════════════════════════════════════
   release:
     name: Create GitHub Release
     needs: [verify-tag, build-windows, build-macos]
+    if: needs.verify-tag.outputs.trial != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1446,3 +1490,116 @@ jobs:
               --title "Fincept Terminal ${TAG} (personal build)" \
               --notes-file "${NOTES}"
           fi
+
+# ═════════════════════════════════════════════════════════════════════════════
+# JOB 5 — Trial build only: put the upstream merge on custom and tag it
+# Runs when both trial builds succeeded. The tag push runs this workflow again,
+# which publishes the release. Both pushes need SYNC_TOKEN: GITHUB_TOKEN cannot
+# push upstream workflow changes, and its pushes start no workflow.
+# ═════════════════════════════════════════════════════════════════════════════
+  land:
+    name: Land the upstream merge on custom
+    needs: [verify-tag, build-windows, build-macos]
+    if: needs.verify-tag.outputs.trial == 'true'
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.verify-tag.outputs.tag }}
+      SHA: ${{ needs.verify-tag.outputs.sha }}
+      BRANCH: ${{ needs.verify-tag.outputs.branch }}
+      HAS_SYNC_TOKEN: ${{ secrets.SYNC_TOKEN != '' }}
+
+    steps:
+      - name: Require SYNC_TOKEN
+        if: env.HAS_SYNC_TOKEN != 'true'
+        run: |
+          echo "::error::The SYNC_TOKEN secret is missing (fine-grained PAT on this repository: Contents and Workflows read/write)."
+          exit 1
+
+      - name: Checkout the merge
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify-tag.outputs.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
+
+      - name: Fast-forward custom and push the tag
+        run: |
+          set -euo pipefail
+          git fetch origin '+refs/heads/custom:refs/remotes/origin/custom'
+          if ! git merge-base --is-ancestor refs/remotes/origin/custom "${SHA}"; then
+            echo "::warning::custom moved during the trial build. custom-upstream-watch merges again on its next run."
+            exit 0
+          fi
+          # One atomic push: custom never records the new UPSTREAM_BASE without
+          # its release tag. If the tag was taken meanwhile, neither ref moves.
+          git push --atomic origin "${SHA}:refs/heads/custom" "${SHA}:refs/tags/${TAG}"
+          git push origin --delete "${BRANCH}" || true
+          echo "custom -> ${SHA}, tagged ${TAG}; the tag push builds and publishes the release."
+
+# ═════════════════════════════════════════════════════════════════════════════
+# JOB 6 — Trial build only: open an issue when a build or the land job failed
+# custom-upstream-watch waits while the issue is open.
+# ═════════════════════════════════════════════════════════════════════════════
+  report-trial:
+    name: Report a failed trial build
+    needs: [verify-tag, build-windows, build-macos, land]
+    if: >-
+      always() && needs.verify-tag.outputs.trial == 'true' &&
+      (needs.build-windows.result == 'failure' || needs.build-macos.result == 'failure' || needs.land.result == 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.verify-tag.outputs.tag }}
+      UPSTREAM: ${{ needs.verify-tag.outputs.upstream }}
+      BRANCH: ${{ needs.verify-tag.outputs.branch }}
+      WINDOWS: ${{ needs.build-windows.result }}
+      MACOS: ${{ needs.build-macos.result }}
+      LAND: ${{ needs.land.result }}
+
+    steps:
+      - name: Open an issue
+        run: |
+          set -euo pipefail
+          title="Upstream ${UPSTREAM}: merge needs a hand"
+          open=$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open --search "\"${title}\" in:title" \
+            --json number,title --jq ".[] | select(.title == \"${title}\") | .number" | head -1)
+          if [ -n "${open}" ]; then
+            echo "Issue #${open} is already open."
+            exit 0
+          fi
+          body="${RUNNER_TEMP}/body.md"
+          cat > "${body}" <<'EOF'
+          The automatic merge of upstream @UPSTREAM@ is on the branch `@BRANCH@`, but its trial build did not land on `custom` (run: @RUN@).
+
+          - Windows build: @WINDOWS@
+          - macOS build: @MACOS@
+          - Land on custom: @LAND@
+
+          A failed land usually means the `SYNC_TOKEN` secret is missing or lacks Contents and Workflows write on this repository. Fix it, then close this issue; the next daily custom-upstream-watch run tries again.
+
+          To fix a build by hand, work on the merge branch and then land it:
+          ```bash
+          git fetch origin
+          git switch @BRANCH@
+          # fix the build and commit
+          git switch custom && git pull --ff-only && git merge @BRANCH@
+          git push origin custom
+          git tag @TAG@ && git push origin @TAG@
+          git push origin --delete @BRANCH@
+          ```
+          This issue closes itself once `custom/UPSTREAM_BASE` says @UPSTREAM@. Closing it earlier lets the daily run try the merge again.
+          EOF
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          # Plain string replacement, no sed program built from the values.
+          text="$(cat "${body}")"
+          text="${text//@UPSTREAM@/${UPSTREAM}}"
+          text="${text//@BRANCH@/${BRANCH}}"
+          text="${text//@TAG@/${TAG}}"
+          text="${text//@RUN@/${run_url}}"
+          text="${text//@WINDOWS@/${WINDOWS}}"
+          text="${text//@MACOS@/${MACOS}}"
+          text="${text//@LAND@/${LAND}}"
+          printf '%s\n' "${text}" > "${body}"
+          gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" --body-file "${body}"
