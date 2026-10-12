@@ -103,6 +103,11 @@ jobs:
           if [ -n "$open" ]; then
             echo "Waiting for issue #$open to be finished by hand."
             echo "go=false" >> "$GITHUB_OUTPUT"
+          elif [[ ! "$LATEST" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            # Personal builds are tagged custom-vX.Y.Z-krx.N, the only shape the
+            # app updates from (AppRelease.h).
+            gh issue create --title "$title" --body "Upstream published $LATEST, which is not vX.Y.Z. Personal builds are tagged \`custom-vX.Y.Z-krx.N\`, the only shape the app updates from (\`fincept-qt/src/services/krx_quant/AppRelease.h\`), so the automatic merge stops here. Merge it by hand with \`custom/merge-upstream-release.sh $LATEST\` and pick a tag the app can read. This issue closes itself once \`custom/UPSTREAM_BASE\` says $LATEST."
+            echo "go=false" >> "$GITHUB_OUTPUT"
           elif [ "$busy" != "0" ]; then
             echo "The trial build of upstream-merge/$LATEST is still running."
             echo "go=false" >> "$GITHUB_OUTPUT"

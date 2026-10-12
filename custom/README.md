@@ -25,6 +25,7 @@
 - merge 충돌: 충돌한 파일 목록이 issue에 있다.
 - 시험 빌드 실패: merge는 `upstream-merge/<tag>` 브랜치에 남아 있다. 그 브랜치에서 고친 뒤 `custom`에 merge 하고 태그를 단다.
 - 브랜치 push나 `custom` 반영 실패: 대부분 `SYNC_TOKEN` 문제다(아래).
+- upstream 태그가 `vX.Y.Z` 꼴이 아님: 앱은 `custom-vX.Y.Z-krx.N` 태그만 업데이트로 받는다(아래 "앱 업데이트"). 그래서 merge 하지 않고 issue만 연다. 손으로 반영하고 앱이 읽을 수 있는 태그를 정한다.
 
 시험 빌드 중에 `custom`이 움직이면(다른 PR merge) `custom`에 반영하지 않고 경고만 남긴다. 다음 날 실행이 새 `custom` 위에서 다시 merge 한다.
 
@@ -57,7 +58,9 @@ custom/merge-upstream-release.sh [tag]
 - 새 코드는 새 디렉터리에 둔다 (`fincept-qt/src/screens/krx_quant/`, `fincept-qt/src/services/krx_quant/`).
 - 화면 등록 때문에 고치는 upstream 파일은 아래 목록으로 제한하고, 고칠 때마다 이 표를 갱신한다.
 - Fincept SQLite migration(`src/storage/sqlite/migrations/`)은 쓰지 않는다. 데이터는 엔진이 가진다.
-- 개인 빌드는 앱 내 자동 업데이트를 끈다. 공식 버전으로 덮어써지는 것을 막기 위해서다.
+- 개인 빌드는 공식 버전 업데이트를 끈다. 공식 버전으로 덮어써지는 것을 막기 위해서다. 대신 이 fork의 개인 빌드 Release에서만 업데이트한다(아래 "앱 업데이트").
+
+> **바뀜** (2026-10-12, codeyoma/krx-quant#95): "개인 빌드는 앱 내 자동 업데이트를 끈다" → 공식 버전 업데이트만 끄고 개인 빌드 Release에서 업데이트한다. 그래서 아래 표의 `UpdateService.cpp`는 업데이트 확인을 멈추는 대신 `krx_quant::AppUpdater`로 넘긴다. 이유: 새 화면 빌드마다 직접 다시 설치해야 했다(codeyoma/krx-quant#92).
 
 | upstream 파일 | 수정 내용 |
 |---|---|
@@ -65,9 +68,9 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/src/app/DockScreenRouter.cpp` | `krx_quant` 탭 제목 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/ToolBar.cpp` | Navigate → Trading & Portfolio 메뉴에 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/CommandBar.cpp` | 명령 팔레트에 `krx_quant` ("krx"로 찾는다) |
-| `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON) |
-| `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
-| `fincept-qt/src/services/updater/UpdateService.cpp` | `FINCEPT_DISABLE_AUTO_UPDATE`이면 업데이트 확인을 하지 않는다(`check_for_updates` 본문을 `#ifdef … #else … #endif`로 감쌌다) |
+| `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`) |
+| `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
+| `fincept-qt/src/services/updater/UpdateService.cpp` | `FINCEPT_DISABLE_AUTO_UPDATE`이면 공식 업데이트 대신 개인 빌드 업데이트(`krx_quant::AppUpdater`)로 넘긴다(`check_for_updates` 본문을 `#ifdef … #else … #endif`로 감쌌다) |
 
 > **바뀜** (2026-10-12, krx-quant #94): KRX 테스트 등록을 `fincept-qt/tests/CMakeLists.txt` 끝에 붙였다 → `krx_quant.cmake`로 옮기고 `fincept_add_test()` 정의 뒤에서 include 한다. 이유: upstream도 파일 끝에 테스트를 붙여서, v4.5.0 이후 upstream `main`을 merge 하면 충돌했다. 자동 반영이 멈추지 않게 하려고(krx-quant #93).
 
@@ -128,13 +131,28 @@ custom/merge-upstream-release.sh [tag]
   - `tst_krx_board`: 답과 스트림을 합친 화면 상태(최신 봉 마감, 차트 표시, 합의 구성원, 신호가 볼 예측, 실패와 되감기).
   - `tst_krx_signals`: 신호 규칙, 다시 알리지 않는 규칙, 구성원을 모를 때 미루기.
   - `tst_krx_stats_view`: 순위표와 상세 통계 창이 보이는 문구(비율·평균과 구간, 기준별 lift 줄과 거래일 구간, 시간대, 보정도 점, 조건과 날짜).
+  - `tst_krx_app_release`: 개인 빌드 태그 해석과 순서, Release 목록에서 업데이트할 빌드·설치 파일·sha256 고르기.
 
 ## 개인 빌드
 
 - `custom` 브랜치의 커밋에 `custom-v*` 태그(예: `custom-v4.5.0-krx.1`)를 달아 push하면 `custom-release` workflow가 맥 DMG와 윈도우 `setup.exe`를 만들어 이 fork의 Release(prerelease)에 올린다.
 - 서명하지 않은 빌드다. 맥은 처음 열 때 우클릭 → 열기(또는 `xattr -dr com.apple.quarantine /Applications/FinceptTerminal.app`), 윈도우는 SmartScreen에서 추가 정보 → 실행.
-- 앱 내 자동 업데이트는 꺼져 있다(`FINCEPT_DISABLE_AUTO_UPDATE`). 새 버전은 새 태그로 만든다.
+- 공식 버전 업데이트는 꺼져 있다(`FINCEPT_DISABLE_AUTO_UPDATE`). 새 버전은 새 태그로 만들고, 설치된 앱은 아래처럼 스스로 업데이트한다.
 - upstream 릴리스를 반영한 첫 빌드는 workflow가 `custom-<tag>-krx.1`로 태그한다(위 "upstream 릴리스 반영"). 그 뒤 화면 변경은 같은 upstream 버전에 번호를 올려 손으로 태그한다(`custom-<tag>-krx.2`, …).
+
+> **바뀜** (2026-10-12, codeyoma/krx-quant#95): 앱 내 업데이트 꺼짐 → 이 fork의 개인 빌드 Release에서 버튼 한 번으로 업데이트. 이유: 새 화면 빌드마다 DMG·setup.exe를 받아 직접 다시 설치해야 했다(codeyoma/krx-quant#92). 공식 버전 업데이트는 여전히 꺼져 있다.
+
+## 앱 업데이트 (codeyoma/krx-quant#92)
+
+- **빌드 태그.** `custom-release` workflow가 태그를 `-DFINCEPT_CUSTOM_TAG`로 빌드에 넘긴다. 앱은 자기가 어느 개인 빌드인지 안다. 로컬 빌드는 태그가 없어 업데이트를 확인하지 않는다.
+- **확인.** 로그인 뒤 한 번 조용히 확인하고, 새 빌드가 있을 때만 묻는다. 메뉴의 업데이트 확인과 About 화면의 버튼은 늘 결과를 알려 준다. GitHub API(토큰 없음)로 이 fork의 Release를 읽어, 지금보다 새 `custom-v*` 빌드 가운데 이 플랫폼의 설치 파일(`…-macos-arm64.dmg`, `…-windows-x64-setup.exe`)과 GitHub의 sha256 digest가 있는 가장 새 것을 고른다. 순서는 upstream 버전, 다음 `krx.N`이다. 초안 Release와 공식 태그는 보지 않는다.
+- **지금 업데이트.** 설치 파일을 내려받아 sha256을 확인한다. 맞지 않거나 digest가 없으면 지우고 멈춘다. 확인되면 도우미 스크립트(`fincept-qt/src/services/krx_quant/update/`, 앱 리소스에 들어 있다)를 띄우고 앱을 닫는다. 도우미는 앱이 끝나기를 기다린 뒤 새 빌드를 같은 자리에 설치하고 연다. 기록은 임시 폴더의 `fincept-update.log`에 남는다.
+  - 맥(`update-macos.sh`): DMG를 붙여 설치된 `.app`을 새 것으로 바꾸고 서명을 확인한다. 옛 앱은 복사가 끝날 때까지 옆에 두었다가, 실패하면 되돌린다. macOS가 "앱 관리" 권한을 물으면 허용한다. 막히면 옛 앱이 그대로 남고 DMG가 열린다.
+  - 윈도우(`update-windows.ps1`): 설치 폴더의 `FinceptMaintenanceTool.exe purge`로 지우고, 새 `setup.exe`를 같은 폴더에 무인 설치한다(workflow의 설치 확인과 같은 옵션). 설치 폴더가 Program Files면 UAC 확인이 지울 때와 설치할 때 두 번 뜬다. 옛 설치로 되돌리지는 못한다. 두 번째 확인을 거절하거나 설치가 실패하면 앱이 없는 상태가 되고, 설치 마법사가 열리니 그것으로 다시 설치한다.
+  - 자동 설치가 안 되는 경우(설치 프로그램으로 설치하지 않은 앱, 쓸 수 없는 폴더, 도우미 실패)에는 설치 파일을 열어 직접 설치하게 한다.
+- **설치 중.** "지금 업데이트"를 누르면 내려받는 동안 진행 창(취소 가능)이 뜬다. 설치 전에 앱이 닫힌다는 안내가 나오고, 확인을 누르면 앱이 닫힌다. 그 뒤 1–2분 동안은 화면이 없다(윈도우는 숨은 창에서 설치한다).
+- **신뢰.** Release에서 직접 받는 것과 같다(이 fork의 GitHub 계정과 Release). 거기에 GitHub digest 확인을 더했다. 서명 키는 쓰지 않는다.
+- **CI.** `custom-release` workflow가 두 도우미를 새로 만든 설치 파일로 돌려 본다. 윈도우는 설치한 앱 위에 다시 설치하고, 맥은 설치된 복사본을 새 DMG로 바꾼다.
 
 ## 에이전트 설정
 
