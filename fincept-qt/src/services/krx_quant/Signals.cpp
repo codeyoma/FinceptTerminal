@@ -17,7 +17,9 @@ QString Signal::text() const {
 }
 
 std::optional<Signal> judge(const Prediction& consensus, const QList<Prediction>& pooled, const SignalRule& rule) {
-    if (consensus.status != "ok" || !consensus.p_up || !consensus.p_down)
+    // A consensus the engine says not to act on (a VI or breaker, no reference price, too
+    // late) is no signal, as for its Telegram signals.
+    if (consensus.status != "ok" || !consensus.p_up || !consensus.p_down || !consensus.blocked.isEmpty())
         return std::nullopt;
     Direction direction = Direction::None;
     double probability = 0;

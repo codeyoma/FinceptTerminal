@@ -39,6 +39,7 @@ struct Signal {
 /// The signal of a final consensus, given what it pooled (the active members' forecasts):
 /// up if its p_up is at least the threshold, else down if its p_down is; then at least N
 /// of the members must predict that move (their likeliest class, a tie going to flat).
+/// None for a consensus the engine blocked (``Prediction::blocked``).
 std::optional<Signal> judge(const Prediction& consensus, const QList<Prediction>& pooled, const SignalRule& rule);
 
 /// Judges each final consensus once and says which to raise.

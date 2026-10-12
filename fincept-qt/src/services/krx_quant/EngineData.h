@@ -112,6 +112,9 @@ struct Prediction {
     QDateTime bar_close;
     QDateTime target_at;            ///< invalid unless status is "ok": only those are scored
     std::optional<Outcome> outcome; ///< once scored
+    /// A final consensus not to be acted on, why ("special", "no_reference", "expired"; the
+    /// engine's, krx-quant #88); empty otherwise, and from an older engine.
+    QString blocked;
 };
 
 /// A symbol's predictions of its latest bar close, in the screen's order (in_screen_order).

@@ -145,6 +145,17 @@ class TstKrxSignals : public QObject {
         QVERIFY(alerts.consider(consensus, two_up_one_down("09:31"), at("09:32")));
     }
 
+    void a_consensus_the_engine_blocked_is_no_signal() {
+        auto consensus = forecast("consensus-final", "09:31", 0.7, 0.2, 0.1);
+        QVERIFY(judge(consensus, two_up_one_down("09:31"), SignalRule{}));
+        for (const char* why : {"special", "no_reference", "expired"}) {
+            consensus.blocked = why;
+            QVERIFY(!judge(consensus, two_up_one_down("09:31"), SignalRule{}));
+            Alerts alerts;
+            QVERIFY(!alerts.consider(consensus, two_up_one_down("09:31"), at("09:31")));
+        }
+    }
+
     void a_consensus_not_made_is_no_signal() {
         Prediction none;
         none.symbol = "005930";
