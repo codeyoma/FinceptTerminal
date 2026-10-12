@@ -462,6 +462,26 @@ QStringList engine_build_parts(const EngineStatus& status) {
     return parts;
 }
 
+EngineDot engine_dot(bool answered, const QString& failure, const QStringList& read_errors, const QDateTime& refreshed,
+                     const QDateTime& engine_now) {
+    EngineDot dot;
+    QStringList lines;
+    if (!failure.isEmpty()) {
+        dot.state = EngineDot::State::Failed;
+        lines << QStringLiteral("엔진을 읽지 못함: %1").arg(failure);
+    } else if (!answered) {
+        lines << QStringLiteral("엔진을 읽는 중");
+    } else {
+        dot.state = read_errors.isEmpty() ? EngineDot::State::Ok : EngineDot::State::Failed;
+    }
+    if (!read_errors.isEmpty())
+        lines << QStringLiteral("읽지 못한 것: %1").arg(read_errors.join("; "));
+    lines << QStringLiteral("갱신 %1 · 엔진 시계 %2")
+                 .arg(kst_text(refreshed, "HH:mm:ss"), kst_text(engine_now, "HH:mm:ss"));
+    dot.tip = lines.join('\n');
+    return dot;
+}
+
 QString phase_label(const QString& phase) {
     static const QMap<QString, QString> labels = {
         {"closed", QStringLiteral("휴장")},

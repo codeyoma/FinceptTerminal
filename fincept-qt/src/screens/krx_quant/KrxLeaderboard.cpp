@@ -3,7 +3,6 @@
 #include "screens/krx_quant/KrxTables.h"
 #include "ui/theme/Theme.h"
 
-#include <QHBoxLayout>
 #include <QSignalBlocker>
 #include <QVBoxLayout>
 
@@ -21,7 +20,13 @@ enum Column { kRank, kName, kStatus, kModels, kStats, kSignificant = kStats + kr
 KrxLeaderboard::KrxLeaderboard(QWidget* parent) : QWidget(parent) {
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
-    auto* controls = new QHBoxLayout;
+    layout->setSpacing(0);
+    header_ = krx_panel::header(tr("순위표"));
+    layout->addWidget(header_.bar);
+    auto* controls = header_.controls;
+    failure_ = new QLabel(tr("읽지 못함"));
+    failure_->hide();
+    controls->addWidget(failure_);
     controls->addWidget(new QLabel(tr("기간")));
     period_ = new QComboBox;
     for (const char* period : {"today", "5d", "20d"})
@@ -41,18 +46,13 @@ KrxLeaderboard::KrxLeaderboard(QWidget* parent) : QWidget(parent) {
     special_ = new QCheckBox(tr("특수 상황 포함"));
     special_->setToolTip(tr("VI·서킷브레이커·사이드카가 4분 구간에 낀 예측도 센다(기본은 뺀다)."));
     controls->addWidget(special_);
-    controls->addStretch();
-    layout->addLayout(controls);
 
     table_ = krx_tables::table(QStringList{tr("순위"), tr("예측"), tr("상태"), tr("모델")} +
                                krx_tables::stats_headers() + QStringList{tr("운 보정")});
     table_->horizontalHeader()->setStretchLastSection(false);
     table_->horizontalHeader()->setSectionResizeMode(kModels, QHeaderView::Stretch);
     layout->addWidget(table_, 1);
-    note_ = new QLabel;
-    note_->setObjectName("krxNote");
-    note_->setWordWrap(true);
-    layout->addWidget(note_);
+    restyle();
 
     for (auto* combo : {period_, basis_, symbol_})
         connect(combo, &QComboBox::currentIndexChanged, this, &KrxLeaderboard::query_changed);
@@ -87,6 +87,9 @@ void KrxLeaderboard::set_symbols(const QStringList& symbols) {
 }
 
 void KrxLeaderboard::show_leaderboard(const krx_quant::Leaderboard& leaderboard) {
+    shown_ = leaderboard;
+    failure_->hide();
+    header_.title->setToolTip(krx_quant::ranking_rules(leaderboard.days, leaderboard.min_sample));
     table_->setRowCount(0);
     const auto add = [this](const krx_quant::Entry& e, bool baseline) {
         const int row = table_->rowCount();
@@ -113,16 +116,21 @@ void KrxLeaderboard::show_leaderboard(const krx_quant::Leaderboard& leaderboard)
         add(e, false);
     for (const auto& e : leaderboard.baselines)
         add(e, true);
-    note_->setText(tr("%1 · 순위에는 채점 %2건 이상, 기준 예측과의 짝도 그만큼 있어야 오른다. "
-                      "순위는 가장 약한 lift의 하한 순이고, 운 보정 통과는 기준 예측 셋을 모두 이긴 것이 "
-                      "운으로 보기 어렵다는 뜻이다(q ≤ 0.05). 줄을 두 번 누르면 그 예측의 상세 통계가 열린다.")
-                       .arg(krx_quant::days_text(leaderboard.days))
-                       .arg(leaderboard.min_sample));
 }
 
 void KrxLeaderboard::show_failure(const QString& reason) {
+    shown_.reset();
     table_->setRowCount(0);
-    note_->setText(tr("순위표를 읽지 못했습니다: %1").arg(reason));
+    failure_->setToolTip(tr("순위표를 읽지 못했습니다: %1").arg(reason));
+    failure_->show();
+}
+
+void KrxLeaderboard::restyle() {
+    header_.restyle();
+    failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
+    krx_tables::restyle(table_);
+    if (shown_) // its highlighted lines in the theme's colors
+        show_leaderboard(*shown_);
 }
 
 } // namespace fincept::screens

@@ -143,6 +143,17 @@ QString days_text(const QStringList& days) {
     return QStringLiteral("%1 ~ %2 (%3일)").arg(days.first(), days.last()).arg(days.size());
 }
 
+QString ranking_rules(const QStringList& days, int min_sample) {
+    return QStringList{
+        days_text(days),
+        QStringLiteral("순위에는 채점 %1건 이상, 기준 예측과의 짝도 그만큼 있어야 오른다.").arg(min_sample),
+        QStringLiteral("순위는 가장 약한 lift의 하한 순이다."),
+        QStringLiteral("운 보정 통과는 기준 예측 셋을 모두 이긴 것이 운으로 보기 어렵다는 뜻이다(q ≤ 0.05)."),
+        QStringLiteral("줄을 두 번 누르면 그 예측의 상세 통계가 열린다."),
+    }
+        .join('\n');
+}
+
 QString period_label(const QString& period) {
     static const QMap<QString, QString> labels = {
         {"today", QStringLiteral("오늘")}, {"5d", QStringLiteral("5일")}, {"20d", QStringLiteral("20일")}};

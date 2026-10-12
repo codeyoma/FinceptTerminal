@@ -94,6 +94,19 @@ custom/merge-upstream-release.sh [tag]
 
 ### 구성
 
+- **모양** (codeyoma/krx-quant#103): Fincept의 다른 화면과 같은 부품이다.
+  - 패널마다 Portfolio 화면식 머리줄(얇은 바, 주황 표시, 굵은 제목, 오른쪽 조작)이 있다. upstream의 `PortfolioPanelHeader.h`는 고치지 않고, 같은 모양의 helper를 `screens/krx_quant/KrxPanel.h`에 둔다.
+  - 표는 Fincept 공용 표(`ui::DataTable`)다. 상세 통계 창의 표도 같다.
+  - 글꼴과 밀도는 Fincept 설정(전역 스타일)을 따른다. 테마가 바뀌면(`ThemeManager::theme_changed`) 머리줄, 표, 셀 색을 다시 칠한다.
+  - 엔진을 처음 읽는 동안은 Fincept 읽는 중 표시(`ui::LoadingOverlay`)가 본문을 덮는다. 엔진 주소를 바꿔 적용해도 다시 덮는다.
+  - 화면 머리줄의 제목 옆 점이 엔진 연결이다. 초록은 정상, 빨강은 엔진이나 일부(종목 예측, 합의 구성원)를 읽지 못함, 회색은 처음 읽는 중이다. 툴팁에 이유, 마지막 갱신 시각, 엔진 시계가 있다.
+  - 순위 규칙(날짜, 순위에 오르는 조건, 순서, 운 보정의 뜻, 두 번 누르면 상세 창)은 순위표 제목의 툴팁에, 알림 규칙은 신호 알림 제목의 툴팁에 있다. 순위표를 읽지 못하면 머리줄에 빨간 "읽지 못함"이 나오고 이유는 그 툴팁에 있다.
+
+  > **삭제됨** (2026-10-13, codeyoma/krx-quant#PRxx): 화면 맨 아래 회색 상태 줄(갱신 시각, 엔진 시계, 읽기 오류). 이유: 화면을 Fincept의 다른 화면 모양으로 맞추고 회색 설명을 없앴다(codeyoma/krx-quant#100, #103). 대신: 머리줄의 엔진 점과 그 툴팁.
+
+  > **삭제됨** (2026-10-13, codeyoma/krx-quant#PRxx): 순위표 아래 회색 설명(날짜, 순위 규칙, 운 보정의 뜻, 두 번 누르기, 읽기 실패), 알림 설정의 회색 규칙 설명, 신호가 오기 전의 "아직 신호가 없습니다". 이유: 위와 같다. 대신: 순위표·신호 알림 제목의 툴팁과 순위표 머리줄의 "읽지 못함". 마지막 신호 줄은 첫 신호가 온 뒤에 보인다.
+
+  > **바뀜** (2026-10-13, codeyoma/krx-quant#PRxx): 테두리 상자(순위표, 신호 알림), 화면 자체의 표·입력 스타일, 굵은 제목 줄 → Fincept의 패널 머리줄, 공용 표, 전역 글꼴·테마와 읽는 중 표시. 기간·채점 기준·종목·특수 상황과 차트 범위는 각 패널 머리줄의 오른쪽으로 옮겼다. 이유: Fincept의 다른 요소와 같은 디자인과 레이아웃 코드를 쓰려고(codeyoma/krx-quant#100).
 - **위쪽 줄**: 엔진 상태(엔진이 도는 커밋과 시작 시각("엔진 0123abc", "10-13 06:02 시작". 커밋을 모르면 "엔진 커밋 모름", codeyoma/krx-quant#85), 장 단계, 마지막 봉 마감, 채점 대기, KIS 연결, 지난밤 학습, 스트림 연결), 매크로 줄(그날 국면과 이유, 달러선물. 지표 전체와 읽기 실패는 툴팁), 오늘의 특수 상황(VI·서킷브레이커·사이드카). 매크로가 오늘 것이 아니면 "(오늘 것이 아님)"을 붙인다.
   - 달러선물은 그날 첫 체결 뒤로는 엔진 상태의 장중 마지막 체결가, 전일 종가 대비 등락, 체결 시각이다(예: "달러선물 최근월물 1,395.2 (+0.50%, 10:29)"). 상태를 읽을 때마다(5초) 바뀐다. 매크로를 읽지 못했거나 아직 정한 국면이 없어도 보인다. 체결 전(장 전, 휴장일)에는 07:30 매크로 읽기의 값과 등락이다.
   - KIS는 "마지막 수신 N초 전"(가장 최근에 받은 피드)과 결측 피드 수(엔진이 끊김·멈춤으로 판정한 피드, 목록은 툴팁)로 보인다. 피드마다 조용한 시간은 지연이 아니다. 원래 드문 피드가 있고 장 밖에서는 모두 조용하다. 문제는 엔진이 결측으로 판정한다.
@@ -145,11 +158,14 @@ custom/merge-upstream-release.sh [tag]
   - `uv run krx-quant demo-engine --pace 2`: 10:00에 열고 10:30까지 1분을 2초마다 이어 재생하며 스트림을 보낸다. 차트, 패널, 채점이 움직이는 것을 볼 수 있다. 데모 아침의 최종 합의는 50%를 거의 넘지 않아 신호는 나오지 않는다. 알림은 **시험 알림**으로 본다.
 - 테스트(Qt Core만): `cmake -B build -DFINCEPT_BUILD_TESTS=ON … && cmake --build build --target tst_krx_engine_data tst_krx_board tst_krx_signals tst_krx_stats_view tst_krx_app_release && ctest --test-dir build -R krx`.
   - CI는 경고를 오류로 빌드한다(`-Werror`, 환경 변수 `CI`가 있을 때). 로컬에서 같은 조건으로 보려면 `CI=1 cmake -B build …`로 설정한다. 그러지 않으면 구조체에 필드를 더하고 테스트의 초기화 목록을 그대로 두는 것 같은 경고를 놓친다(`custom-v4.5.0-krx.4` 맥 빌드가 이것으로 실패했다).
-  - `tst_krx_engine_data`: 엔진 API와 스트림 메시지 해석(상세 통계의 기준별 lift와 그 거래일 단위 값, 보정 곡선, 나눠 본 통계 포함), 한국어 이름, 시각·가격 표기.
+  - `tst_krx_engine_data`: 엔진 API와 스트림 메시지 해석(상세 통계의 기준별 lift와 그 거래일 단위 값, 보정 곡선, 나눠 본 통계 포함), 한국어 이름, 시각·가격 표기, 머리줄 엔진 점의 상태와 툴팁.
   - `tst_krx_board`: 답과 스트림을 합친 화면 상태(최신 봉 마감, 차트 표시, 합의 구성원, 신호가 볼 예측, 실패와 되감기).
   - `tst_krx_signals`: 신호 규칙, 다시 알리지 않는 규칙, 구성원을 모를 때 미루기.
-  - `tst_krx_stats_view`: 순위표와 상세 통계 창이 보이는 문구(비율·평균과 구간, 기준별 lift 줄과 거래일 구간, 시간대, 보정도 곡선과 점, 제외 건수, 조건과 날짜).
+  - `tst_krx_stats_view`: 순위표와 상세 통계 창이 보이는 문구(비율·평균과 구간, 기준별 lift 줄과 거래일 구간, 시간대, 보정도 곡선과 점, 제외 건수, 조건과 날짜, 순위표 제목 툴팁의 순위 규칙).
   - `tst_krx_app_release`: 개인 빌드 태그 해석과 순서, Release 목록에서 업데이트할 빌드·설치 파일·sha256 고르기.
+- 화면 캡처(codeyoma/krx-quant#103): `custom/tools/krx-capture`는 KRX 화면을 엔진에 붙여 PNG로 저장한다. 화면 PR에 데모 엔진 화면을 남길 때 쓴다. 앱 빌드와 따로인 CMake 프로젝트이고, 설정은 임시 폴더의 `krx-capture.ini`에 쓴다. 같은 컴퓨터의 Fincept 설정(엔진 주소, 알림 설정)은 건드리지 않는다.
+  - 빌드: `cmake -S custom/tools/krx-capture -B fincept-qt/build/krx-capture -G Ninja -DCMAKE_PREFIX_PATH=<Qt 6.8.3> && cmake --build fincept-qt/build/krx-capture`
+  - 실행: `QT_QPA_PLATFORM=offscreen fincept-qt/build/krx-capture/krx_capture http://127.0.0.1:8090 out.png [초=8] [가로=1600] [세로=1000]`. 창을 띄우지 않고, 그 초만큼 엔진을 읽은 뒤 찍는다. 테마와 글꼴은 앱 기본값(Obsidian, Consolas 14px)이다.
 
 ## 로컬 CLI LLM (codeyoma/krx-quant#96)
 

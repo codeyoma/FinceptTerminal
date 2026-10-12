@@ -315,6 +315,18 @@ QString usd_futures_text(const std::optional<UsdFutures>& live, const QList<Read
 /// "엔진 커밋 모름"; an older engine that says neither, no part.
 QStringList engine_build_parts(const EngineStatus& status);
 
+/// The header's engine dot (krx-quant #103), in place of the status line at the bottom:
+/// reading until the engine first answers, ok, or failed when the engine or anything a
+/// refresh reads could not be read. Its tooltip says why, then the refresh's and the
+/// engine's clocks.
+struct EngineDot {
+    enum class State { Reading, Ok, Failed };
+    State state = State::Reading;
+    QString tip;
+};
+EngineDot engine_dot(bool answered, const QString& failure, const QStringList& read_errors, const QDateTime& refreshed,
+                     const QDateTime& engine_now);
+
 /// A time in KST, the exchange's and the engine's, in ``format`` (QDateTime's); "—" if invalid.
 QString kst_text(const QDateTime& t, const QString& format);
 /// A price as the exchange writes it: thousands grouped, a decimal only for a mid-point

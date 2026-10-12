@@ -364,6 +364,28 @@ class TstKrxEngineData : public QObject {
         QVERIFY(engine_build_parts(older).isEmpty());
     }
 
+    void the_engine_dot_is_green_only_when_everything_was_read() {
+        const QDateTime refreshed = QDateTime::fromString("2026-10-13T09:31:05+09:00", Qt::ISODate);
+        const QDateTime engine = QDateTime::fromString("2026-10-13T09:31:04+09:00", Qt::ISODate);
+        const QString clocks = QStringLiteral("갱신 09:31:05 · 엔진 시계 09:31:04");
+
+        auto dot = engine_dot(false, {}, {}, refreshed, engine);
+        QCOMPARE(dot.state, EngineDot::State::Reading);
+        QCOMPARE(dot.tip, QStringLiteral("엔진을 읽는 중\n") + clocks);
+
+        dot = engine_dot(true, {}, {}, refreshed, engine);
+        QCOMPARE(dot.state, EngineDot::State::Ok);
+        QCOMPARE(dot.tip, clocks);
+
+        dot = engine_dot(true, {}, {"000660 예측: 시간 초과", "합의 구성원: HTTP 503"}, refreshed, engine);
+        QCOMPARE(dot.state, EngineDot::State::Failed);
+        QCOMPARE(dot.tip, QStringLiteral("읽지 못한 것: 000660 예측: 시간 초과; 합의 구성원: HTTP 503\n") + clocks);
+
+        dot = engine_dot(false, QStringLiteral("연결 거부"), {}, refreshed, engine);
+        QCOMPARE(dot.state, EngineDot::State::Failed);
+        QCOMPARE(dot.tip, QStringLiteral("엔진을 읽지 못함: 연결 거부\n") + clocks);
+    }
+
     void a_final_consensus_says_why_it_is_not_to_be_acted_on() {
         const auto read = parse_predictions(json(R"({"symbol": "005930", "predictions": [
           {"algorithm": "consensus-final", "model_version": "condorcet-equal",

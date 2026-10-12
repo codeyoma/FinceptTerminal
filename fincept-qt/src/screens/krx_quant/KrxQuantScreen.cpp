@@ -7,8 +7,9 @@
 #include "screens/krx_quant/KrxStatsWindow.h"
 #include "screens/krx_quant/KrxTables.h"
 #include "ui/theme/Theme.h"
+#include "ui/widgets/LoadingOverlay.h"
 
-#include <QGroupBox>
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QLocale>
 #include <QPushButton>
@@ -68,70 +69,49 @@ const krx_quant::Prediction* final_in(const krx_quant::Latest& latest) {
 
 KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     setObjectName("krxQuantScreen");
-    // One style sheet for the whole screen, by object name.
-    setStyleSheet(QString("#krxQuantScreen{background:%1;color:%2;}"
-                          "#krxQuantScreen QLabel{background:transparent;}"
-                          "#krxTitle{color:%3;font-size:16px;font-weight:700;}"
-                          "#krxSubtitle{color:%3;font-weight:700;}"
-                          "#krxSpecial{color:%3;}"
-                          "#krxFooter,#krxNote{color:%4;}"
-                          "#krxQuantScreen QLineEdit,#krxQuantScreen QComboBox,#krxQuantScreen QSpinBox"
-                          "{background:%5;border:1px solid %6;padding:3px;}"
-                          "#krxQuantScreen QPushButton{background:%7;border:1px solid %6;padding:3px 10px;}"
-                          "#krxQuantScreen QTableWidget{background:%5;gridline-color:%8;border:1px solid %8;}"
-                          "#krxQuantScreen QHeaderView::section{background:%7;color:%9;border:none;padding:4px;}"
-                          "#krxQuantScreen QTableWidget::item:selected{background:%7;color:%2;}"
-                          "#krxQuantScreen QGroupBox{border:1px solid %8;margin-top:14px;padding-top:6px;}"
-                          "#krxQuantScreen QGroupBox::title{subcontrol-origin:margin;left:8px;color:%3;}")
-                      .arg(ui::colors::BG_BASE(), ui::colors::TEXT_PRIMARY(), ui::colors::AMBER(),
-                           ui::colors::TEXT_DIM(), ui::colors::BG_SURFACE(), ui::colors::BORDER_MED(),
-                           ui::colors::BG_RAISED(), ui::colors::BORDER_DIM(), ui::colors::TEXT_SECONDARY()));
     auto* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(12, 12, 12, 12);
-    layout->setSpacing(6);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
 
-    auto* top = new QHBoxLayout;
-    auto* title = new QLabel(tr("KRX 4분 예측"));
-    title->setObjectName("krxTitle");
-    top->addWidget(title);
-    top->addStretch();
-    top->addWidget(new QLabel(tr("엔진 주소")));
+    header_ = krx_panel::header(tr("KRX 4분 예측"));
+    dot_ = new QLabel;
+    dot_->setFixedSize(8, 8);
+    header_.row->insertWidget(2, dot_); // right after the title
+    header_.controls->addWidget(new QLabel(tr("엔진 주소")));
     url_edit_ = new QLineEdit(services::KrxQuantService::base_url());
     url_edit_->setPlaceholderText(tr("예: http://엔진-주소:8080"));
     url_edit_->setMinimumWidth(260);
-    top->addWidget(url_edit_);
+    header_.controls->addWidget(url_edit_);
     auto* apply = new QPushButton(tr("적용"));
-    top->addWidget(apply);
-    layout->addLayout(top);
+    header_.controls->addWidget(apply);
+    layout->addWidget(header_.bar);
 
-    status_label_ = new QLabel(tr("엔진을 읽는 중…"));
+    auto* rows = new QWidget;
+    auto* rows_layout = new QVBoxLayout(rows);
+    rows_layout->setContentsMargins(12, 4, 12, 4);
+    rows_layout->setSpacing(2);
+    status_label_ = new QLabel;
     status_label_->setWordWrap(true);
-    layout->addWidget(status_label_);
+    rows_layout->addWidget(status_label_);
     macro_label_ = new QLabel;
     macro_label_->setWordWrap(true);
     macro_label_->hide();
-    layout->addWidget(macro_label_);
+    rows_layout->addWidget(macro_label_);
     special_label_ = new QLabel;
     special_label_->setObjectName("krxSpecial");
     special_label_->setWordWrap(true);
     special_label_->hide();
-    layout->addWidget(special_label_);
+    rows_layout->addWidget(special_label_);
+    layout->addWidget(rows);
 
     // Top: the symbols, the chosen one's chart, and its predictions.
     auto* upper = new QSplitter(Qt::Horizontal);
+    symbols_header_ = krx_panel::header(tr("종목"));
     symbols_table_ = krx_tables::table({tr("종목"), tr("기준가"), tr("최종 합의"), tr("채점까지")});
-    symbols_table_->setSelectionMode(QAbstractItemView::SingleSelection);
-    upper->addWidget(symbols_table_);
+    upper->addWidget(krx_panel::panel(symbols_header_, symbols_table_));
 
-    auto* chart_box = new QWidget;
-    auto* chart_layout = new QVBoxLayout(chart_box);
-    chart_layout->setContentsMargins(0, 0, 0, 0);
-    auto* chart_bar = new QHBoxLayout;
-    chart_title_ = new QLabel;
-    chart_title_->setObjectName("krxSubtitle");
-    chart_bar->addWidget(chart_title_);
-    chart_bar->addStretch();
-    chart_bar->addWidget(new QLabel(tr("범위")));
+    chart_header_ = krx_panel::header(tr("차트"));
+    chart_header_.controls->addWidget(new QLabel(tr("범위")));
     window_combo_ = new QComboBox;
     window_combo_->addItem(tr("30분"), 30);
     window_combo_->addItem(tr("1시간"), 60);
@@ -139,37 +119,25 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     window_combo_->addItem(tr("하루 전체"), 0);
     window_combo_->setCurrentIndex(
         std::max(0, window_combo_->findData(AppConfig::instance().get(kChartMinutesKey, 60).toInt())));
-    chart_bar->addWidget(window_combo_);
-    chart_layout->addLayout(chart_bar);
+    chart_header_.controls->addWidget(window_combo_);
     chart_ = new KrxChart;
     chart_->set_window(window_combo_->currentData().toInt());
-    chart_layout->addWidget(chart_, 1);
-    upper->addWidget(chart_box);
+    upper->addWidget(krx_panel::panel(chart_header_, chart_));
 
-    auto* panel = new QWidget;
-    auto* panel_layout = new QVBoxLayout(panel);
-    panel_layout->setContentsMargins(0, 0, 0, 0);
-    panel_title_ = new QLabel;
-    panel_title_->setObjectName("krxSubtitle");
-    panel_layout->addWidget(panel_title_);
+    predictions_header_ = krx_panel::header(tr("예측"));
     predictions_table_ =
         krx_tables::table({tr("예측"), tr("방향"), tr("상승"), tr("보합"), tr("하락"), tr("기대 틱"), tr("모델")});
-    panel_layout->addWidget(predictions_table_, 1);
-    upper->addWidget(panel);
-    upper->setStretchFactor(0, 2);
+    upper->addWidget(krx_panel::panel(predictions_header_, predictions_table_));
+    upper->setStretchFactor(0, 3);
     upper->setStretchFactor(1, 5);
     upper->setStretchFactor(2, 4);
 
-    // Bottom: the leaderboard and the signal alerts.
+    // Bottom: the leaderboard and the signal alerts, each with its own header.
     auto* lower = new QSplitter(Qt::Horizontal);
-    auto* leaderboard_box = new QGroupBox(tr("순위표"));
     leaderboard_ = new KrxLeaderboard;
-    (new QVBoxLayout(leaderboard_box))->addWidget(leaderboard_);
-    lower->addWidget(leaderboard_box);
-    auto* alerts_box = new QGroupBox(tr("신호 알림"));
+    lower->addWidget(leaderboard_);
     alerts_ = new KrxAlerts;
-    (new QVBoxLayout(alerts_box))->addWidget(alerts_);
-    lower->addWidget(alerts_box);
+    lower->addWidget(alerts_);
     lower->setStretchFactor(0, 4);
     lower->setStretchFactor(1, 1);
 
@@ -178,16 +146,21 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     body->addWidget(lower);
     body->setStretchFactor(0, 3);
     body->setStretchFactor(1, 2);
-    layout->addWidget(body, 1);
-
-    footer_label_ = new QLabel;
-    footer_label_->setObjectName("krxFooter");
-    layout->addWidget(footer_label_);
+    body_ = new QWidget; // the overlay's parent: a splitter would take it for a pane
+    auto* body_layout = new QVBoxLayout(body_);
+    body_layout->setContentsMargins(0, 0, 0, 0);
+    body_layout->addWidget(body);
+    layout->addWidget(body_, 1);
+    loading_ = new ui::LoadingOverlay(body_);
+    body_->installEventFilter(this); // the overlay keeps the body's size
+    loading_->show_loading(tr("엔진을 읽는 중…"));
 
     live_ = new services::KrxLive(this);
     connect(live_, &services::KrxLive::status_changed, this, [this]() {
+        if (live_->status() || !live_->failure().isEmpty())
+            loading_->hide_loading(); // answered, or failed: the dot says which
         show_status();
-        show_footer();
+        show_dot();
         show_macro(); // the USD futures move with each status
     });
     connect(live_, &services::KrxLive::predictions_changed, this, [this]() {
@@ -248,8 +221,11 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     clock_timer_->setInterval(1000);
     connect(clock_timer_, &QTimer::timeout, this, [this]() {
         update_countdowns();
-        show_footer();
+        show_dot();
     });
+
+    refresh_theme();
+    connect(&ui::ThemeManager::instance(), &ui::ThemeManager::theme_changed, this, [this]() { refresh_theme(); });
 
     live_->set_alerts(alerts_->is_on(), alerts_->rule());
     live_->set_leaderboard_query(leaderboard_->query());
@@ -274,8 +250,37 @@ void KrxQuantScreen::hideEvent(QHideEvent* event) {
     QWidget::hideEvent(event);
 }
 
+bool KrxQuantScreen::eventFilter(QObject* watched, QEvent* event) {
+    if (watched == body_ && event->type() == QEvent::Resize)
+        loading_->setGeometry(body_->rect());
+    return QWidget::eventFilter(watched, event);
+}
+
+void KrxQuantScreen::refresh_theme() {
+    // The last two lines are the detail window's (a child window), until it is made over
+    // too (krx-quant #104).
+    setStyleSheet(
+        QString("#krxQuantScreen{background:%1;}"
+                "#krxQuantScreen QLabel{background:transparent;}"
+                "#krxSpecial{color:%2;}"
+                "#krxNote{color:%3;}"
+                "#krxQuantScreen QGroupBox{border:1px solid %4;margin-top:14px;padding-top:6px;}"
+                "#krxQuantScreen QGroupBox::title{subcontrol-origin:margin;left:8px;color:%2;}")
+            .arg(ui::colors::BG_BASE(), ui::colors::AMBER(), ui::colors::TEXT_DIM(), ui::colors::BORDER_DIM()));
+    for (const auto* header : {&header_, &symbols_header_, &chart_header_, &predictions_header_})
+        header->restyle();
+    krx_tables::restyle(symbols_table_);
+    krx_tables::restyle(predictions_table_);
+    leaderboard_->restyle();
+    alerts_->restyle();
+    dot_->setProperty("krxColor", QVariant()); // the dot in the new colors
+    show_dot();
+    fill_symbols(); // the cells' colors are the theme's when they are filled
+    fill_predictions();
+}
+
 void KrxQuantScreen::apply_base_url() {
-    status_label_->setText(tr("엔진을 읽는 중…"));
+    loading_->show_loading(tr("엔진을 읽는 중…"));
     live_->apply_base_url(url_edit_->text());
     url_edit_->setText(services::KrxQuantService::base_url());
 }
@@ -392,13 +397,18 @@ void KrxQuantScreen::show_macro() {
             : tr("국면을 정한 %1의 지표\n%2").arg(krx_quant::kst_text(macro.decided_at, "HH:mm"), all.join("\n")));
 }
 
-void KrxQuantScreen::show_footer() {
-    QString footer = tr("갱신 %1 (엔진 시계 %2)")
-                         .arg(krx_quant::kst_text(QDateTime::currentDateTime(), "HH:mm:ss"),
-                              krx_quant::kst_text(live_->engine_now(), "HH:mm:ss"));
-    if (!live_->read_errors().isEmpty())
-        footer += "  ·  " + live_->read_errors().join("; ");
-    footer_label_->setText(footer);
+void KrxQuantScreen::show_dot() {
+    const auto dot = krx_quant::engine_dot(live_->status().has_value(), live_->failure(), live_->read_errors(),
+                                           QDateTime::currentDateTime(), live_->engine_now());
+    using State = krx_quant::EngineDot::State;
+    const QString color = dot.state == State::Ok       ? ui::colors::POSITIVE()
+                          : dot.state == State::Failed ? ui::colors::NEGATIVE()
+                                                       : ui::colors::TEXT_DIM();
+    if (dot_->property("krxColor").toString() != color) { // not every second
+        dot_->setStyleSheet(QString("background:%1;border-radius:4px;").arg(color));
+        dot_->setProperty("krxColor", color);
+    }
+    dot_->setToolTip(dot.tip);
 }
 
 void KrxQuantScreen::fill_symbols() {
@@ -467,7 +477,7 @@ void KrxQuantScreen::fill_predictions() {
 
 void KrxQuantScreen::fill_chart() {
     const QString& symbol = live_->selected();
-    chart_title_->setText(symbol.isEmpty() ? QString() : tr("%1 · 1분봉과 최종 합의").arg(symbol));
+    chart_header_.title->setText(symbol.isEmpty() ? tr("차트") : tr("%1 · 1분봉과 최종 합의").arg(symbol));
     if (symbol.isEmpty()) {
         chart_->set_data({}, {});
         return;
@@ -502,17 +512,18 @@ void KrxQuantScreen::update_countdowns() {
             item->setText(now.secsTo(at) > 0 ? krx_countdown(now.secsTo(at)) : tr("채점됨"));
     }
     const QString& symbol = live_->selected();
+    QLabel* panel_title = predictions_header_.title;
     if (symbol.isEmpty()) {
-        panel_title_->clear();
+        panel_title->setText(tr("예측"));
         return;
     }
     const krx_quant::Latest latest = live_->board().latest(symbol);
     if (!latest.bar_close.isValid()) {
-        panel_title_->setText(tr("%1 · 예측 없음").arg(symbol));
+        panel_title->setText(tr("%1 · 예측 없음").arg(symbol));
         return;
     }
     if (!is_today(latest.bar_close)) {
-        panel_title_->setText(
+        panel_title->setText(
             tr("%1 · %2 봉 마감 (지난 거래일)").arg(symbol, krx_quant::kst_text(latest.bar_close, "MM-dd HH:mm")));
         return;
     }
@@ -520,7 +531,7 @@ void KrxQuantScreen::update_countdowns() {
     if (const QDateTime at = krx_quant::scoring_at(latest); at.isValid())
         title += now.secsTo(at) > 0 ? tr(" · 채점까지 %1").arg(krx_countdown(now.secsTo(at)))
                                     : tr(" · %1에 채점").arg(krx_quant::kst_text(at, "HH:mm"));
-    panel_title_->setText(title);
+    panel_title->setText(title);
 }
 
 } // namespace fincept::screens

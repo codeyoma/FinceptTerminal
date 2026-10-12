@@ -158,6 +158,15 @@ class TstKrxStatsView : public QObject {
                  QStringLiteral("2026-10-07 ~ 2026-10-09 (3일)"));
     }
 
+    void the_ranking_rules_name_the_days_and_the_least_sample() {
+        QCOMPARE(ranking_rules({"2026-10-07", "2026-10-08"}, 30),
+                 QStringLiteral("2026-10-07 ~ 2026-10-08 (2일)\n"
+                                "순위에는 채점 30건 이상, 기준 예측과의 짝도 그만큼 있어야 오른다.\n"
+                                "순위는 가장 약한 lift의 하한 순이다.\n"
+                                "운 보정 통과는 기준 예측 셋을 모두 이긴 것이 운으로 보기 어렵다는 뜻이다(q ≤ 0.05).\n"
+                                "줄을 두 번 누르면 그 예측의 상세 통계가 열린다."));
+    }
+
     void the_query_reads_in_korean() {
         AlgorithmStats s;
         s.symbol = "005930";
