@@ -21,6 +21,8 @@ QVector<CurrencyInfo> CurrencyManager::available() {
         {"CHF", "Fr", "Swiss Franc"},
         {"CAD", "$", "Canadian Dollar"},
         {"AUD", "$", "Australian Dollar"},
+        // fork addition (codeyoma/krx-quant#138): Korean won in the shared display-currency list.
+        {"KRW", QString::fromUtf8("\xe2\x82\xa9"), "South Korean Won"}, // ₩
     };
 }
 

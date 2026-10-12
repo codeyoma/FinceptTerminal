@@ -73,6 +73,7 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`), 윈도우 설치 프로그램의 기본 폴더 `CPACK_IFW_TARGET_DIRECTORY`(사용자 폴더, codeyoma/krx-quant#130), 한국어 언어 팩 `translations/fincept_ko_KR.ts`의 컴파일·리소스 포함 |
 | `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`, `tst_krx_korean`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
 | `fincept-qt/src/core/i18n/LanguageManager.cpp` | 공용 언어 목록에 `ko_KR`, 언어 이름에 `한국어`를 추가한다(codeyoma/krx-quant#132). 설정 화면과 로그인 언어 선택이 이 목록을 그대로 쓴다 |
+| `fincept-qt/src/core/currency/CurrencyManager.cpp` | 기존 표시 통화 목록에 `KRW`·`₩`·`South Korean Won`을 추가한다(codeyoma/krx-quant#138). 설정 화면과 표시 기호 helper가 같은 목록을 쓴다 |
 | `fincept-qt/src/screens/settings/SettingsScreen.cpp` | 동적으로 번역하는 설정 메뉴·범위 제목 18개를 `QT_TRANSLATE_NOOP`으로 표시한다. `update_translations`를 돌려도 기존 번역이 지워지지 않게 한다(codeyoma/krx-quant#132) |
 | `fincept-qt/src/services/updater/UpdateService.cpp` | `FINCEPT_DISABLE_AUTO_UPDATE`이면 공식 업데이트 대신 개인 빌드 업데이트(`krx_quant::AppUpdater`)로 넘긴다(`check_for_updates` 본문을 `#ifdef … #else … #endif`로 감쌌다) |
 | `fincept-qt/src/services/llm/ProviderCatalog.cpp` | provider 목록에 로컬 CLI provider(`claude_cli`, `codex_cli`)를 붙이고, 이름·기본 모델·키 불필요·OpenAI 호환 아님을 `krx_quant::cli_llm`에 묻는다 |
@@ -95,6 +96,12 @@ custom/merge-upstream-release.sh [tag]
 - **빌드:** 다른 언어와 동일하게 `lrelease`가 `.qm`을 만들고 `:/i18n/fincept_ko_KR.qm`에 포함한다. 외부 번역 API, 다운로드, 추가 설정은 필요 없다. 기존 팩은 자동으로 다시 쓰지 않는다.
 - **갱신:** 설정 메뉴는 문자열을 저장했다가 동적으로 `tr()`에 넘긴다. 이 메뉴와 범위 제목 18개에는 실제 런타임 문맥의 `QT_TRANSLATE_NOOP` 표시를 넣어, 수동 `update_translations`의 `-no-obsolete` 갱신에서도 한국어 번역이 남게 한다. 새 동적 메뉴를 더할 때도 같은 표시가 필요하다.
 - **검증:** `FINCEPT_BUILD_TESTS=ON`으로 설정한 빌드에서 `cmake --build <build> --target tst_krx_korean` 뒤 `ctest --test-dir <build> -R krx_korean --output-on-failure`. 앱과 같은 경로의 실제 컴파일된 리소스, 설정 메뉴 문맥, 공통 팩 전체 키·Qt 치환자, 복수형, 영어 fallback을 검사한다.
+
+## 원화 표시 통화 (codeyoma/krx-quant#138)
+
+- **설정 경로:** Settings → General → Display currency(한국어 UI에서는 설정 → 일반 → 표시 통화). 언어 설정 바로 아래에서 **₩ South Korean Won (KRW)**을 고른다.
+- **저장과 적용:** 기존 `CurrencyManager`가 SQLite settings의 `general.currency=KRW`에 저장한다. 다음 실행에도 복원되고, 공용 통화 helper에 연결된 계산기·분석 화면의 기호가 `₩`로 바뀐다. 같은 목록에서 다른 통화로 되돌릴 수 있다.
+- **표시 범위:** 기존 기능처럼 기호만 바꾼다. 환율을 조회하거나 금액을 환산하지 않는다. 숫자 형식도 기존 helper를 따르며, 고유 통화를 지정하는 시세·포트폴리오 금액은 그 통화를 유지한다.
 
 ## KRX 예측 화면 (#20, #21, #68)
 
