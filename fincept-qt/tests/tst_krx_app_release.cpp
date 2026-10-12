@@ -106,10 +106,10 @@ class TstKrxAppRelease : public QObject {
         const auto found = newest_release(releases(), "custom-v4.5.0-krx.3", kMac);
         QVERIFY(found);
         QCOMPARE(found->tag, QStringLiteral("custom-v4.5.0-krx.4"));
-        QCOMPARE(found->installer, QUrl("https:\/\/example.test/krx.4.dmg"));
+        QCOMPARE(found->installer, QUrl("https://example.test/krx.4.dmg"));
         QCOMPARE(found->sha256, QStringLiteral("05df925f2ffba75bf44b0af9c5094d1bad209414ccf439ff28ec1c6f0a6cb4fe"));
         QCOMPARE(found->size, 263925072);
-        QCOMPARE(found->page, QUrl("https:\/\/github.com/codeyoma/FinceptTerminal/releases/tag/custom-v4.5.0-krx.4"));
+        QCOMPARE(found->page, QUrl("https://github.com/codeyoma/FinceptTerminal/releases/tag/custom-v4.5.0-krx.4"));
     }
 
     void each_platform_looks_for_its_own_installer() {
@@ -117,7 +117,7 @@ class TstKrxAppRelease : public QObject {
         const auto found = newest_release(releases(), "custom-v4.5.0-krx.3", kWindows);
         QVERIFY(found);
         QCOMPARE(found->tag, QStringLiteral("custom-v4.5.0-krx.6"));
-        QCOMPARE(found->installer, QUrl("https:\/\/example.test/krx.6.exe"));
+        QCOMPARE(found->installer, QUrl("https://example.test/krx.6.exe"));
     }
 
     void the_running_build_or_an_older_one_is_not_offered() {
