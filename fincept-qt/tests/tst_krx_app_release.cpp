@@ -67,6 +67,24 @@ const char* kReleases = R"([
                "browser_download_url": "https:\/\/example.test/krx.3.dmg"}]}
 ])";
 
+// krx.9 carries the Windows update ZIP next to its installer; the newer krx.10 has only the
+// installer, so an install that swaps its folder skips it.
+const char* kWithZip = R"([
+  {"tag_name": "custom-v4.5.0-krx.10", "draft": false, "prerelease": true,
+   "html_url": "https:\/\/github.com/codeyoma/FinceptTerminal/releases/tag/custom-v4.5.0-krx.10",
+   "assets": [{"name": "FinceptTerminal-custom-v4.5.0-krx.10-windows-x64-setup.exe", "size": 10,
+               "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+               "browser_download_url": "https:\/\/example.test/krx.10.exe"}]},
+  {"tag_name": "custom-v4.5.0-krx.9", "draft": false, "prerelease": true,
+   "html_url": "https:\/\/github.com/codeyoma/FinceptTerminal/releases/tag/custom-v4.5.0-krx.9",
+   "assets": [{"name": "FinceptTerminal-custom-v4.5.0-krx.9-windows-x64-setup.exe", "size": 9,
+               "digest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+               "browser_download_url": "https:\/\/example.test/krx.9.exe"},
+              {"name": "FinceptTerminal-custom-v4.5.0-krx.9-windows-x64.zip", "size": 9,
+               "digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+               "browser_download_url": "https:\/\/example.test/krx.9.zip"}]}
+])";
+
 QJsonDocument releases() {
     return QJsonDocument::fromJson(kReleases);
 }
@@ -129,6 +147,43 @@ class TstKrxAppRelease : public QObject {
     void a_build_without_a_tag_is_never_offered_an_update() {
         QVERIFY(!newest_release(releases(), "", kMac));
         QVERIFY(!newest_release(releases(), "4.5.0", kMac));
+    }
+
+    void windows_updates_by_swapping_the_folder_only_in_the_users_folder() {
+        const QString local = QStringLiteral("C:\\Users\\A B\\AppData\\Local");
+        QCOMPARE(windows_user_install_dir(local),
+                 QStringLiteral("C:/Users/A B/AppData/Local/Programs/FinceptTerminal"));
+        // Windows paths compare without case and with either separator.
+        QCOMPARE(windows_update_mode("C:\\Users\\A B\\AppData\\Local\\Programs\\FinceptTerminal", local, true),
+                 UpdateMode::SwapFolder);
+        QCOMPARE(windows_update_mode("c:/users/a b/appdata/local/programs/finceptterminal/", local, true),
+                 UpdateMode::SwapFolder);
+        // Anywhere else, Program Files included, the next update moves it there.
+        QCOMPARE(windows_update_mode("C:\\Program Files\\FinceptTerminal", local, true), UpdateMode::MoveToUserFolder);
+        QCOMPARE(windows_update_mode("D:\\Apps\\FinceptTerminal", local, true), UpdateMode::MoveToUserFolder);
+        // Not installed by setup.exe (no maintenance tool): a manual install.
+        QCOMPARE(windows_update_mode("C:\\Users\\A B\\AppData\\Local\\Programs\\FinceptTerminal", local, false),
+                 UpdateMode::Manual);
+        // No %LOCALAPPDATA%: no user folder to swap in or move to.
+        QCOMPARE(windows_update_mode("/Programs/FinceptTerminal", QString(), true), UpdateMode::Manual);
+        QCOMPARE(windows_update_mode("C:\\Program Files\\FinceptTerminal", "  ", true), UpdateMode::Manual);
+    }
+
+    void each_update_mode_downloads_its_own_asset() {
+        QCOMPARE(update_asset_suffix(UpdateMode::SwapBundle), QStringLiteral("macos-arm64.dmg"));
+        QCOMPARE(update_asset_suffix(UpdateMode::SwapFolder), QStringLiteral("windows-x64.zip"));
+        QCOMPARE(update_asset_suffix(UpdateMode::MoveToUserFolder), QStringLiteral("windows-x64-setup.exe"));
+        QCOMPARE(update_asset_suffix(UpdateMode::Manual), installer_suffix());
+    }
+
+    void the_windows_zip_is_found_like_any_other_asset() {
+        const auto found = newest_release(QJsonDocument::fromJson(kWithZip), "custom-v4.5.0-krx.3", "windows-x64.zip");
+        QVERIFY(found);
+        QCOMPARE(found->tag, QStringLiteral("custom-v4.5.0-krx.9"));
+        QCOMPARE(found->installer, QUrl("https://example.test/krx.9.zip"));
+        QCOMPARE(found->sha256, QStringLiteral("9999999999999999999999999999999999999999999999999999999999999999"));
+        // A release from before the ZIP existed has nothing to swap in.
+        QVERIFY(!newest_release(QJsonDocument::fromJson(kWithZip), "custom-v4.5.0-krx.9", "windows-x64.zip"));
     }
 
     void an_answer_that_is_not_a_list_offers_nothing() {
