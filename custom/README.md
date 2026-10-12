@@ -189,11 +189,11 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 - **확인.** 로그인 뒤 한 번 조용히 확인하고, 새 빌드가 있을 때만 묻는다. 메뉴의 업데이트 확인과 About 화면의 버튼은 늘 결과를 알려 준다. GitHub API(토큰 없음)로 이 fork의 Release를 읽어, 지금보다 새 `custom-v*` 빌드 가운데 이 플랫폼의 설치 파일(`…-macos-arm64.dmg`, `…-windows-x64-setup.exe`)과 GitHub의 sha256 digest가 있는 가장 새 것을 고른다. 순서는 upstream 버전, 다음 `krx.N`이다. 초안 Release와 공식 태그는 보지 않는다.
 - **지금 업데이트.** 설치 파일을 내려받아 sha256을 확인한다. 맞지 않거나 digest가 없으면 지우고 멈춘다. 확인되면 도우미 스크립트(`fincept-qt/src/services/krx_quant/update/`, 앱 리소스에 들어 있다)를 띄우고 앱을 닫는다. 도우미는 앱이 끝나기를 기다린 뒤 새 빌드를 같은 자리에 설치하고 연다. 기록은 임시 폴더의 `fincept-update.log`에 남는다.
   - 맥(`update-macos.sh`): DMG를 붙여 설치된 `.app`을 새 것으로 바꾸고 서명을 확인한다. 옛 앱은 복사가 끝날 때까지 옆에 두었다가, 실패하면 되돌린다. macOS가 "앱 관리" 권한을 물으면 허용한다. 막히면 옛 앱이 그대로 남고 DMG가 열린다.
-  - 윈도우(`update-windows.ps1`): 설치 폴더의 `FinceptMaintenanceTool.exe purge`로 지우고, 새 `setup.exe`를 같은 폴더에 무인 설치한다(workflow의 설치 확인과 같은 옵션). 설치 폴더가 Program Files면 UAC 확인이 지울 때와 설치할 때 두 번 뜬다. 옛 설치로 되돌리지는 못한다. 두 번째 확인을 거절하거나 설치가 실패하면 앱이 없는 상태가 되고, 설치 마법사가 열리니 그것으로 다시 설치한다.
+  - 윈도우(`update-windows.ps1`): 앱은 이 도우미를 Windows PowerShell의 전체 경로(`%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`, 없으면 PATH의 `powershell.exe`)로 띄운다. PATH에 없을 수 있어서다(codeyoma/krx-quant#101). 설치 폴더의 `FinceptMaintenanceTool.exe purge`로 지우고, 새 `setup.exe`를 같은 폴더에 무인 설치한다(workflow의 설치 확인과 같은 옵션). 설치 폴더가 Program Files면 UAC 확인이 지울 때와 설치할 때 두 번 뜬다. 옛 설치로 되돌리지는 못한다. 두 번째 확인을 거절하거나 설치가 실패하면 앱이 없는 상태가 되고, 설치 마법사가 열리니 그것으로 다시 설치한다.
   - 자동 설치가 안 되는 경우(설치 프로그램으로 설치하지 않은 앱, 쓸 수 없는 폴더, 도우미 실패)에는 설치 파일을 열어 직접 설치하게 한다.
 - **설치 중.** "지금 업데이트"를 누르면 내려받는 동안 진행 창(취소 가능)이 뜬다. 설치 전에 앱이 닫힌다는 안내가 나오고, 확인을 누르면 앱이 닫힌다. 그 뒤 1–2분 동안은 화면이 없다(윈도우는 숨은 창에서 설치한다).
 - **신뢰.** Release에서 직접 받는 것과 같다(이 fork의 GitHub 계정과 Release). 거기에 GitHub digest 확인을 더했다. 서명 키는 쓰지 않는다.
-- **CI.** `custom-release` workflow가 두 도우미를 새로 만든 설치 파일로 돌려 본다. 윈도우는 설치한 앱 위에 다시 설치하고, 맥은 설치된 복사본을 새 DMG로 바꾼다.
+- **CI.** `custom-release` workflow가 두 도우미를 새로 만든 설치 파일로 돌려 본다. 윈도우 단계도 PowerShell을 전체 경로로 띄운다. 앞의 IFW 설치 단계가 PATH를 MSYS 꼴로 `GITHUB_ENV`에 써서, 뒤의 PowerShell 단계는 PATH로 `powershell.exe`를 찾지 못한다. 그 때문에 `krx.4`–`krx.6`은 윈도우 단계에서 실패해 Release가 나오지 않았다(codeyoma/krx-quant#101). 윈도우는 설치한 앱 위에 다시 설치하고, 맥은 설치된 복사본을 새 DMG로 바꾼다.
 
 ## 에이전트 설정
 

@@ -261,7 +261,10 @@ void AppUpdater::install(const QString& installer) {
         return;
     }
     helper = write_helper(QStringLiteral("update-windows.ps1"));
-    program = QStringLiteral("powershell.exe");
+    // Windows PowerShell by its full path: PATH can lack it (codeyoma/krx-quant#101).
+    const QString powershell = QDir(qEnvironmentVariable("SystemRoot"))
+                                   .filePath(QStringLiteral("System32/WindowsPowerShell/v1.0/powershell.exe"));
+    program = QFileInfo::exists(powershell) ? QDir::toNativeSeparators(powershell) : QStringLiteral("powershell.exe");
     arguments = {QStringLiteral("-NoProfile"),
                  QStringLiteral("-ExecutionPolicy"),
                  QStringLiteral("Bypass"),

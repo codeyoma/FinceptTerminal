@@ -724,7 +724,11 @@ jobs:
           $marker = Join-Path $dest 'left-from-the-old-install.txt'
           Set-Content -Path $marker -Value 'old'
           $helper = Join-Path $env:GITHUB_WORKSPACE 'fincept-qt/src/services/krx_quant/update/update-windows.ps1'
-          $p = Start-Process -FilePath 'powershell.exe' -Wait -PassThru -NoNewWindow -ArgumentList `
+          # By full path: the IFW step above writes PATH to GITHUB_ENV in MSYS form,
+          # so PowerShell steps after it cannot find powershell.exe on PATH (codeyoma/krx-quant#101).
+          $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+          if (-not (Test-Path $powershell)) { Write-Host "::error::Windows PowerShell not found at $powershell"; exit 1 }
+          $p = Start-Process -FilePath $powershell -Wait -PassThru -NoNewWindow -ArgumentList `
                  "-NoProfile -ExecutionPolicy Bypass -File `"$helper`" -Setup `"$copy`" -Root `"$dest`" -NoLaunch"
           Write-Host "----- fincept-update.log -----"
           Get-Content (Join-Path $env:TEMP 'fincept-update.log') -ErrorAction SilentlyContinue | Write-Host
