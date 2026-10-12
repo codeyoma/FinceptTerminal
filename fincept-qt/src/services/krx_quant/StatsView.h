@@ -31,11 +31,11 @@ QString weakest_lift_text(const Entry& entry);
 struct LiftRow {
     QString baseline; ///< its name in Korean
     QString gain;
-    QString interval; ///< 95%
-    QString pairs;    ///< the bar closes both predicted
-    QString p;        ///< one-sided
-    QString q;        ///< luck-corrected; "—" where not tested with the leaderboard's
-    QString verdict;  ///< "통과" (q ≤ 0.05 and a gain above 0), "미통과", or "—" likewise
+    QString interval;     ///< 95%
+    QString pairs;        ///< the bar closes both predicted
+    QString p;            ///< one-sided
+    QString q;            ///< luck-corrected; "—" where not tested with the leaderboard's
+    QString verdict;      ///< "통과" (q ≤ 0.05 and a gain above 0), "미통과", or "—" likewise
     QString day_interval; ///< 95%, taken by trading day (what the statuses go by); "—" from fewer than two days
     QString days;         ///< the trading days it was taken over; "—" likewise
 };
@@ -58,6 +58,22 @@ struct CalibrationPoint {
 
 /// One point per bin with forecasts in it, in the bins' order.
 QList<CalibrationPoint> calibration_points(const QList<CalibrationBin>& bins);
+
+/// A curve of the calibration plot: the three classes pooled, or one class on its own.
+struct CalibrationSeries {
+    QString key;                    ///< "all", "up", "flat" or "down"
+    QString name;                   ///< in Korean
+    QList<CalibrationPoint> points; ///< each tip names the curve
+};
+
+/// The pooled curve, then up, flat and down: each that has a point. Pooled, the classes
+/// can look well calibrated when each class on its own is not.
+QList<CalibrationSeries> calibration_series(const AlgorithmStats& stats);
+
+/// What the stats left out, in Korean: special situations (left out, or counted in when the
+/// query includes them), the predictions the basis could not score, and those not made by
+/// status. "제외 없음" if nothing.
+QString excluded_text(const Excluded& excluded, const QString& special);
 
 /// A leaderboard period in Korean ("today", "5d", "20d"); an unknown one as it is.
 QString period_label(const QString& period);

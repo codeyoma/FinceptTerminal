@@ -109,6 +109,32 @@ class TstKrxStatsView : public QObject {
         QCOMPARE(slot_label("later"), QStringLiteral("later")); // not a time: as it is
     }
 
+    void the_calibration_plot_draws_the_classes_pooled_then_each_with_points() {
+        AlgorithmStats stats;
+        const CalibrationBin third{0.3, 0.4, 10, 1.0 / 3, Interval{1.0, 0.72, 1.0, 10}};
+        stats.calibration = {CalibrationBin{0.3, 0.4, 30, 1.0 / 3, Interval{1.0 / 3, 0.19, 0.51, 30}}};
+        stats.calibration_by_class = {{"up", {third}},
+                                      {"flat", {CalibrationBin{0.3, 0.4, 10, 1.0 / 3, Interval{0.0, 0.0, 0.28, 10}}}},
+                                      {"down", {CalibrationBin{0.0, 0.1, 0, std::nullopt, std::nullopt}}}};
+        const auto series = calibration_series(stats);
+        QCOMPARE(series.size(), 3); // down has no point
+        QCOMPARE(series[0].key, QStringLiteral("all"));
+        QCOMPARE(series[1].key, QStringLiteral("up"));
+        QCOMPARE(series[2].key, QStringLiteral("flat"));
+        QCOMPARE(series[1].points[0].observed, 1.0);
+        QVERIFY(series[1].points[0].tip.startsWith(QStringLiteral("상승 · 확률 30–40%: 10건")));
+        QVERIFY(series[0].points[0].tip.startsWith(QStringLiteral("전체 · ")));
+    }
+
+    void what_the_stats_left_out_reads_in_korean() {
+        const Excluded some{2, 1, {{"timed_out", 3}, {"vi", 4}}};
+        QCOMPARE(excluded_text(some, "exclude"),
+                 QStringLiteral("제외: 특수 상황 제외 2 · 채점 불가 1 · 시간 초과 3 · VI 4"));
+        QCOMPARE(excluded_text(some, "include"),
+                 QStringLiteral("제외: 특수 상황 포함 2 · 채점 불가 1 · 시간 초과 3 · VI 4"));
+        QCOMPARE(excluded_text(Excluded{}, "exclude"), QStringLiteral("제외 없음"));
+    }
+
     void the_calibration_plot_has_a_point_per_bin_with_forecasts_in_it() {
         const QList<CalibrationBin> bins = {
             {0.0, 0.1, 0, std::nullopt, std::nullopt},

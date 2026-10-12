@@ -95,6 +95,42 @@ QList<CalibrationPoint> calibration_points(const QList<CalibrationBin>& bins) {
     return points;
 }
 
+QList<CalibrationSeries> calibration_series(const AlgorithmStats& stats) {
+    const QList<QPair<QString, QString>> curves = {{"all", QStringLiteral("전체")},
+                                                   {"up", QStringLiteral("상승")},
+                                                   {"flat", QStringLiteral("보합")},
+                                                   {"down", QStringLiteral("하락")}};
+    QList<CalibrationSeries> series;
+    for (const auto& [key, name] : curves) {
+        auto points = calibration_points(key == "all" ? stats.calibration : stats.calibration_by_class.value(key));
+        if (points.isEmpty())
+            continue;
+        for (auto& point : points)
+            point.tip = name + " · " + point.tip;
+        series.push_back({key, name, points});
+    }
+    return series;
+}
+
+QString excluded_text(const Excluded& excluded, const QString& special) {
+    static const QMap<QString, QString> kStatus = {{"vi", QStringLiteral("VI")},
+                                                   {"no_book", QStringLiteral("호가 없음")},
+                                                   {"timed_out", QStringLiteral("시간 초과")},
+                                                   {"error", QStringLiteral("오류")},
+                                                   {"no_members", QStringLiteral("구성원 없음")},
+                                                   {"none_finished", QStringLiteral("결과 없음")}};
+    QStringList parts;
+    if (excluded.special > 0) {
+        const QString how = special == "include" ? QStringLiteral("특수 상황 포함") : QStringLiteral("특수 상황 제외");
+        parts << QStringLiteral("%1 %2").arg(how).arg(excluded.special);
+    }
+    if (excluded.unscorable > 0)
+        parts << QStringLiteral("채점 불가 %1").arg(excluded.unscorable);
+    for (auto it = excluded.statuses.begin(); it != excluded.statuses.end(); ++it)
+        parts << QStringLiteral("%1 %2").arg(kStatus.value(it.key(), it.key())).arg(it.value());
+    return parts.isEmpty() ? QStringLiteral("제외 없음") : QStringLiteral("제외: ") + parts.join(" · ");
+}
+
 QString days_text(const QStringList& days) {
     if (days.isEmpty())
         return QStringLiteral("예측이 있는 날 없음");

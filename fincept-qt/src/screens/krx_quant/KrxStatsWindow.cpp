@@ -64,11 +64,26 @@ KrxCalibrationPlot::KrxCalibrationPlot(QWidget* parent) : QWidget(parent) {
     setMinimumSize(240, 240);
 }
 
-void KrxCalibrationPlot::set_points(const QList<krx_quant::CalibrationPoint>& points) {
-    points_ = points;
-    hovered_ = -1;
+void KrxCalibrationPlot::set_series(const QList<krx_quant::CalibrationSeries>& series) {
+    series_ = series;
+    hovered_ = {-1, -1};
     update();
 }
+
+namespace {
+
+/// A curve's colour: the classes pooled in amber, up and down as prices move, flat in grey.
+QColor series_color(const QString& key) {
+    if (key == "up")
+        return QColor(ui::colors::POSITIVE());
+    if (key == "down")
+        return QColor(ui::colors::NEGATIVE());
+    if (key == "flat")
+        return QColor(ui::colors::TEXT_SECONDARY());
+    return QColor(ui::colors::AMBER());
+}
+
+} // namespace
 
 QRectF KrxCalibrationPlot::plot_rect() const {
     const double side = std::max(0, std::min(width() - kAxis - 8, height() - kAxis - 8));
@@ -110,46 +125,61 @@ void KrxCalibrationPlot::paintEvent(QPaintEvent*) {
     p.setPen(QPen(QColor(ui::colors::BORDER_MED()), 1, Qt::DashLine));
     p.drawLine(QPointF(x_of(0), y_of(0)), QPointF(x_of(1), y_of(1)));
 
-    if (points_.isEmpty()) {
+    if (series_.isEmpty()) {
         p.setPen(QColor(ui::colors::TEXT_DIM()));
         p.drawText(r, Qt::AlignCenter, tr("채점된 예측이 없습니다"));
         return;
     }
-    const QColor color(ui::colors::AMBER());
-    for (int i = 0; i < points_.size(); ++i) {
-        const auto& point = points_[i];
-        const double x = x_of(point.forecast);
-        p.setPen(QPen(color, 1));
-        if (point.low && point.high)
-            p.drawLine(QPointF(x, y_of(*point.low)), QPointF(x, y_of(*point.high)));
-        p.setBrush(i == hovered_ ? QColor(ui::colors::TEXT_PRIMARY()) : color);
-        p.drawEllipse(position(point.forecast, point.observed), kDot, kDot);
+    for (int s = 0; s < series_.size(); ++s) {
+        const QColor color = series_color(series_[s].key);
+        const auto& points = series_[s].points;
+        for (int i = 0; i < points.size(); ++i) {
+            const auto& point = points[i];
+            const double x = x_of(point.forecast);
+            p.setPen(QPen(color, 1));
+            if (i > 0) // the curve, through its points
+                p.drawLine(position(points[i - 1].forecast, points[i - 1].observed),
+                           position(point.forecast, point.observed));
+            if (point.low && point.high)
+                p.drawLine(QPointF(x, y_of(*point.low)), QPointF(x, y_of(*point.high)));
+            p.setBrush(hovered_ == QPair<int, int>{s, i} ? QColor(ui::colors::TEXT_PRIMARY()) : color);
+            p.drawEllipse(position(point.forecast, point.observed), kDot, kDot);
+        }
+        // The legend, top left: a swatch and the curve's name.
+        const QRectF swatch(r.left() + 6, r.top() + 6 + s * 16, 10, 10);
+        p.fillRect(swatch, color);
+        p.setPen(QColor(ui::colors::TEXT_PRIMARY()));
+        p.drawText(QRectF(swatch.right() + 4, swatch.top() - 3, 80, 16), Qt::AlignLeft | Qt::AlignVCenter,
+                   series_[s].name);
     }
 }
 
 void KrxCalibrationPlot::mouseMoveEvent(QMouseEvent* event) {
     const QPointF at = event->position();
-    int nearest = -1;
+    QPair<int, int> nearest{-1, -1};
     double best = kNear;
-    for (int i = 0; i < points_.size(); ++i) {
-        const QPointF point = position(points_[i].forecast, points_[i].observed);
-        if (const double d = std::hypot(point.x() - at.x(), point.y() - at.y()); d <= best) {
-            best = d;
-            nearest = i;
+    for (int s = 0; s < series_.size(); ++s) {
+        const auto& points = series_[s].points;
+        for (int i = 0; i < points.size(); ++i) {
+            const QPointF point = position(points[i].forecast, points[i].observed);
+            if (const double d = std::hypot(point.x() - at.x(), point.y() - at.y()); d <= best) {
+                best = d;
+                nearest = {s, i};
+            }
         }
     }
     if (nearest != hovered_) {
         hovered_ = nearest;
         update();
     }
-    if (nearest < 0)
+    if (nearest.first < 0)
         QToolTip::hideText();
     else
-        QToolTip::showText(event->globalPosition().toPoint(), points_[nearest].tip, this);
+        QToolTip::showText(event->globalPosition().toPoint(), series_[nearest.first].points[nearest.second].tip, this);
 }
 
 void KrxCalibrationPlot::leaveEvent(QEvent* event) {
-    hovered_ = -1;
+    hovered_ = {-1, -1};
     QToolTip::hideText();
     update();
     QWidget::leaveEvent(event);
@@ -166,6 +196,9 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
 
     overall_ = krx_tables::table(QStringList{tr("순위")} + krx_tables::stats_headers() + QStringList{tr("운 보정")});
     layout->addWidget(overall_);
+    excluded_ = new QLabel;
+    excluded_->setWordWrap(true);
+    layout->addWidget(excluded_);
 
     auto* middle = new QHBoxLayout;
     auto* lift_box = new QGroupBox(tr("기준 예측 대비 lift"));
@@ -208,9 +241,10 @@ void KrxStatsWindow::open(const QString& algorithm) {
 
 void KrxStatsWindow::clear() {
     query_->clear();
+    excluded_->clear();
     for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_})
         table->setRowCount(0);
-    calibration_->set_points({});
+    calibration_->set_series({});
 }
 
 void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats) {
@@ -238,7 +272,8 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats) {
         lifts_->setItem(row, kDayInterval, cell(l.day_interval, kNumber));
         lifts_->setItem(row, kDays, cell(l.days, kNumber));
     }
-    calibration_->set_points(krx_quant::calibration_points(stats.calibration));
+    excluded_->setText(e.excluded ? krx_quant::excluded_text(*e.excluded, stats.special) : QString());
+    calibration_->set_series(krx_quant::calibration_series(stats));
 
     fill_breakdown(by_slot_, stats.by_slot, krx_quant::slot_label);
     fill_breakdown(by_model_version_, stats.by_model_version, nullptr);
@@ -249,7 +284,8 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats) {
            "순위표의 다른 lift와 함께 보정한 것이고, 순위 밖이거나 나눠 본 줄은 함께 검정하지 않아 없다. "
            "95% 구간과 p는 봉 마감마다 따로 센 설명용이다. 같은 날의 4분 정답은 서로 겹쳐 실제보다 확실해 "
            "보인다. 상태(수습·정식·벤치)는 하루를 값 하나로 본 거래일 95% 구간으로 정한다. 2일보다 적으면 없다. "
-           "보정도는 모든 클래스 확률을 10% 구간으로 나눠, 예측한 확률과 실제로 일어난 비율을 견준다. "
+           "보정도는 확률을 10% 구간으로 나눠, 예측한 확률과 실제로 일어난 비율을 견준다. 전체는 세 클래스를 "
+           "합친 것이라 방향별 오차를 숨길 수 있어, 상승·보합·하락을 따로 그린다. "
            "점이 점선에 가까울수록 확률을 믿을 수 있다.");
     if (krx_quant::is_baseline(stats.algorithm))
         note.prepend(tr("기준 예측 자신이라 lift가 없다. "));

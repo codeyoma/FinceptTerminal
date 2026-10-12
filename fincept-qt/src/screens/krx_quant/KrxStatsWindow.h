@@ -10,14 +10,14 @@
 
 namespace fincept::screens {
 
-/// The calibration curve: how often a class happened against how likely it was forecast,
-/// one point per bin with its 95% interval, over the diagonal of a perfect forecast.
-/// Hovering a point shows its bin.
+/// The calibration curves: how often a class happened against how likely it was forecast,
+/// one point per bin with its 95% interval, over the diagonal of a perfect forecast; the
+/// classes pooled and each class in its own colour. Hovering a point shows its bin.
 class KrxCalibrationPlot : public QWidget {
     Q_OBJECT
   public:
     explicit KrxCalibrationPlot(QWidget* parent = nullptr);
-    void set_points(const QList<krx_quant::CalibrationPoint>& points);
+    void set_series(const QList<krx_quant::CalibrationSeries>& series);
 
   protected:
     void paintEvent(QPaintEvent* event) override;
@@ -29,8 +29,8 @@ class KrxCalibrationPlot : public QWidget {
     QRectF plot_rect() const;
     /// Where a forecast and how often it happened go in it.
     QPointF position(double forecast, double observed) const;
-    QList<krx_quant::CalibrationPoint> points_;
-    int hovered_ = -1;
+    QList<krx_quant::CalibrationSeries> series_;
+    QPair<int, int> hovered_{-1, -1}; ///< (curve, point)
 };
 
 /// A predictor's detail window, on the leaderboard's query: the lift over each baseline
@@ -58,6 +58,7 @@ class KrxStatsWindow : public QWidget {
 
     QString algorithm_;
     QLabel* query_ = nullptr;
+    QLabel* excluded_ = nullptr;      ///< what the stats left out
     QTableWidget* overall_ = nullptr; ///< one line: the leaderboard's
     QTableWidget* lifts_ = nullptr;
     KrxCalibrationPlot* calibration_ = nullptr;
