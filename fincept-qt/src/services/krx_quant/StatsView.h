@@ -70,9 +70,9 @@ struct CalibrationSeries {
 /// can look well calibrated when each class on its own is not.
 QList<CalibrationSeries> calibration_series(const AlgorithmStats& stats);
 
-/// What the stats left out, in Korean: special situations (left out, or counted in when the
-/// query includes them), the predictions the basis could not score, and those not made by
-/// status. "제외 없음" if nothing.
+/// What the stats left out, in Korean: special situations, the predictions the basis could
+/// not score, and those not made by status; "제외 없음" if nothing. Special situations a
+/// query includes are counted in, and said apart before it ("특수 상황 포함 2 · …").
 QString excluded_text(const Excluded& excluded, const QString& special);
 
 /// A leaderboard period in Korean ("today", "5d", "20d"); an unknown one as it is.

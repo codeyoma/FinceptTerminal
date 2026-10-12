@@ -129,9 +129,10 @@ class TstKrxStatsView : public QObject {
     void what_the_stats_left_out_reads_in_korean() {
         const Excluded some{2, 1, {{"timed_out", 3}, {"vi", 4}}};
         QCOMPARE(excluded_text(some, "exclude"),
-                 QStringLiteral("제외: 특수 상황 제외 2 · 채점 불가 1 · 시간 초과 3 · VI 4"));
+                 QStringLiteral("제외: 특수 상황 2 · 채점 불가 1 · 시간 초과 3 · VI 4"));
         QCOMPARE(excluded_text(some, "include"),
-                 QStringLiteral("제외: 특수 상황 포함 2 · 채점 불가 1 · 시간 초과 3 · VI 4"));
+                 QStringLiteral("특수 상황 포함 2 · 제외: 채점 불가 1 · 시간 초과 3 · VI 4"));
+        QCOMPARE(excluded_text(Excluded{2, 0, {}}, "include"), QStringLiteral("특수 상황 포함 2 · 제외 없음"));
         QCOMPARE(excluded_text(Excluded{}, "exclude"), QStringLiteral("제외 없음"));
     }
 

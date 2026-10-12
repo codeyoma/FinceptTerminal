@@ -154,8 +154,6 @@ struct Lift {
     std::optional<Interval> by_day;
 };
 
-/// One predictor's line of the leaderboard. What was not measured (nothing scored, no
-/// direction predicted) stays empty.
 /// What a query's stats leave out of a predictor's predictions (krx-quant #83).
 struct Excluded {
     int special = 0;             ///< scored, touched by a special situation: left out, or counted in on "include"
@@ -163,6 +161,8 @@ struct Excluded {
     QMap<QString, int> statuses; ///< not made, by status ("vi", "no_book", "timed_out", "error", …)
 };
 
+/// One predictor's line of the leaderboard. What was not measured (nothing scored, no
+/// direction predicted) stays empty.
 struct Entry {
     std::optional<int> rank; ///< none: unranked, or a baseline
     QString algorithm;

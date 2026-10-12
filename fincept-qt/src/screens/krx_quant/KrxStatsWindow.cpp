@@ -145,11 +145,18 @@ void KrxCalibrationPlot::paintEvent(QPaintEvent*) {
             p.setBrush(hovered_ == QPair<int, int>{s, i} ? QColor(ui::colors::TEXT_PRIMARY()) : color);
             p.drawEllipse(position(point.forecast, point.observed), kDot, kDot);
         }
-        // The legend, top left: a swatch and the curve's name.
-        const QRectF swatch(r.left() + 6, r.top() + 6 + s * 16, 10, 10);
-        p.fillRect(swatch, color);
+    }
+    // The legend, bottom right over a backing so the curves under it stay apart from it: a
+    // swatch and the curve's name each.
+    const QRectF legend(r.right() - 66, r.bottom() - 8 - series_.size() * 16, 60, series_.size() * 16 + 4);
+    QColor backing(ui::colors::BG_SURFACE());
+    backing.setAlpha(220);
+    p.fillRect(legend, backing);
+    for (int s = 0; s < series_.size(); ++s) {
+        const QRectF swatch(legend.left() + 4, legend.top() + 5 + s * 16, 10, 10);
+        p.fillRect(swatch, series_color(series_[s].key));
         p.setPen(QColor(ui::colors::TEXT_PRIMARY()));
-        p.drawText(QRectF(swatch.right() + 4, swatch.top() - 3, 80, 16), Qt::AlignLeft | Qt::AlignVCenter,
+        p.drawText(QRectF(swatch.right() + 4, swatch.top() - 3, 44, 16), Qt::AlignLeft | Qt::AlignVCenter,
                    series_[s].name);
     }
 }
@@ -172,10 +179,20 @@ void KrxCalibrationPlot::mouseMoveEvent(QMouseEvent* event) {
         hovered_ = nearest;
         update();
     }
-    if (nearest.first < 0)
+    if (nearest.first < 0) {
         QToolTip::hideText();
-    else
-        QToolTip::showText(event->globalPosition().toPoint(), series_[nearest.first].points[nearest.second].tip, this);
+        return;
+    }
+    // Points drawn on one another (the pooled curve and a class can meet) show together.
+    QStringList tips;
+    for (const auto& curve : series_) {
+        for (const auto& point : curve.points) {
+            const QPointF there = position(point.forecast, point.observed);
+            if (std::hypot(there.x() - at.x(), there.y() - at.y()) <= best + 1)
+                tips << point.tip;
+        }
+    }
+    QToolTip::showText(event->globalPosition().toPoint(), tips.join("\n\n"), this);
 }
 
 void KrxCalibrationPlot::leaveEvent(QEvent* event) {

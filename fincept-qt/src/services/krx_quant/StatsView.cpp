@@ -119,16 +119,20 @@ QString excluded_text(const Excluded& excluded, const QString& special) {
                                                    {"error", QStringLiteral("오류")},
                                                    {"no_members", QStringLiteral("구성원 없음")},
                                                    {"none_finished", QStringLiteral("결과 없음")}};
+    const bool included = special == "include";
     QStringList parts;
-    if (excluded.special > 0) {
-        const QString how = special == "include" ? QStringLiteral("특수 상황 포함") : QStringLiteral("특수 상황 제외");
-        parts << QStringLiteral("%1 %2").arg(how).arg(excluded.special);
-    }
+    if (excluded.special > 0 && !included)
+        parts << QStringLiteral("특수 상황 %1").arg(excluded.special);
     if (excluded.unscorable > 0)
         parts << QStringLiteral("채점 불가 %1").arg(excluded.unscorable);
     for (auto it = excluded.statuses.begin(); it != excluded.statuses.end(); ++it)
         parts << QStringLiteral("%1 %2").arg(kStatus.value(it.key(), it.key())).arg(it.value());
-    return parts.isEmpty() ? QStringLiteral("제외 없음") : QStringLiteral("제외: ") + parts.join(" · ");
+    const QString left_out =
+        parts.isEmpty() ? QStringLiteral("제외 없음") : QStringLiteral("제외: ") + parts.join(" · ");
+    // Counted in, not left out: said apart.
+    if (excluded.special > 0 && included)
+        return QStringLiteral("특수 상황 포함 %1 · %2").arg(excluded.special).arg(left_out);
+    return left_out;
 }
 
 QString days_text(const QStringList& days) {
