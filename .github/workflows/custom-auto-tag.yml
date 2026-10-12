@@ -28,12 +28,15 @@ on:
 permissions:
   contents: read
 
-# One run at a time, so two runs never pick the same number. GitHub keeps one run
-# waiting: a newer push replaces it, and that newer commit's build carries the
-# skipped commit's changes too.
+# One run at a time, so two runs never pick the same number. queue: max keeps
+# every waiting run (up to 100) instead of letting a newer push replace the
+# waiting one, so each merge gets its own build. GitHub does not promise the
+# order of waiting runs; the tagging step skips a commit that a newer build
+# already contains.
 concurrency:
   group: custom-auto-tag
   cancel-in-progress: false
+  queue: max
 
 jobs:
   tag:
@@ -79,6 +82,13 @@ jobs:
             n=${t#"$prefix"}
             if [[ "$n" =~ ^[0-9]+$ ]] && (( n > last )); then
               last=$n
+            fi
+            # Runs can start out of order. A build of a newer commit already has
+            # this one's changes, and a higher number here would make the app
+            # "update" back to older code.
+            if git merge-base --is-ancestor HEAD "$t"; then
+              echo "A newer build already contains this commit: $t"
+              exit 0
             fi
           done
           tag="${prefix}$((last + 1))"
