@@ -65,7 +65,7 @@ QList<LiftRow> lift_rows(const Entry& entry) {
         QString verdict = QStringLiteral("—");
         if (l.significant)
             verdict = *l.significant ? QStringLiteral("통과") : QStringLiteral("미통과");
-        rows.push_back({predictor_label(l.baseline), signed_text(gain.value, 3), interval_text(gain),
+        rows.push_back({predictor_label(l.baseline), signed_text(gain.value, 3), interval_text(l.gain),
                         number_text(gain.n, 0), p_text(l.p), p_text(l.q), verdict, day_interval, days});
     }
     return rows;
