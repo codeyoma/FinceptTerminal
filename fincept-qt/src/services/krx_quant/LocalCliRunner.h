@@ -17,10 +17,22 @@ namespace fincept::krx_quant::cli_llm {
 /// How to start a provider's CLI.
 struct Executable {
     QString path;            ///< the CLI as found
-    QString program;         ///< what is started: path, or cmd.exe for a Windows .cmd shim
-    QStringList prefix_args; ///< arguments before the CLI's own (cmd.exe's /d /c path)
+    QString program;         ///< what is started: path, node for an npm shim, or cmd.exe
+    QStringList prefix_args; ///< arguments before the CLI's own (the shim's node script)
+    bool via_cmd = false;    ///< a Windows .cmd/.bat started as cmd.exe with cmd_arguments()
     QString error;           ///< why it was not found; empty when found
 };
+
+/// The node script an npm .cmd shim runs (its "%dp0%\..." or "%~dp0\..." path), in the folder
+/// of ``shim_path``. Empty when ``shim_text`` is not such a shim. On Windows
+/// npm installs `codex` and `claude` as these shims; running the script with node directly avoids
+/// cmd.exe and its quoting rules.
+QString npm_shim_script(const QString& shim_path, const QByteArray& shim_text);
+
+/// cmd.exe's native argument string for running the batch file ``path`` with ``args``:
+/// /d /s /c "<command line>". With /s, cmd.exe drops only the outer quotes, so a path or an
+/// argument with spaces keeps its own.
+QString cmd_arguments(const QString& path, const QStringList& args);
 
 /// The CLI for ``provider``: ``override_path`` when set (the "CLI path" field), else the first
 /// match on search_path().

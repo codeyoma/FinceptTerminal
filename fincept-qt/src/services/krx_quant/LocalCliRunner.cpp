@@ -6,6 +6,7 @@
 #include <QMetaObject>
 #include <QPointer>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QTimer>
 
@@ -70,6 +71,20 @@ QStringList models_for(const QString& provider) {
                 models << m;
     }
     return models;
+}
+
+/// Starts ``exe`` with ``args``. A batch file goes through cmd.exe with one quoted command line,
+/// which QProcess's own argument quoting cannot express.
+void start(QProcess& p, const Executable& exe, const QStringList& args) {
+#ifdef Q_OS_WIN
+    if (exe.via_cmd) {
+        p.setProgram(exe.program);
+        p.setNativeArguments(cmd_arguments(exe.path, args));
+        p.start();
+        return;
+    }
+#endif
+    p.start(exe.program, exe.prefix_args + args);
 }
 
 QString shortened(const QByteArray& bytes) {
@@ -142,15 +157,58 @@ Executable find_executable(const QString& provider, const QString& override_path
 
     e.program = e.path;
 #ifdef Q_OS_WIN
-    // npm installs a .cmd shim, which only cmd.exe can run.
-    const QString suffix = QFileInfo(e.path).suffix().toLower();
+    // npm installs `codex` and `claude` as .cmd shims, which CreateProcess cannot start. Run the
+    // shim's node script with node; failing that, run the shim through cmd.exe.
+    const QFileInfo shim(e.path);
+    const QString suffix = shim.suffix().toLower();
     if (suffix == QLatin1String("cmd") || suffix == QLatin1String("bat")) {
-        const QString comspec = qEnvironmentVariable("ComSpec");
-        e.program = comspec.isEmpty() ? QStringLiteral("cmd.exe") : comspec;
-        e.prefix_args = {QStringLiteral("/d"), QStringLiteral("/c"), QDir::toNativeSeparators(e.path)};
+        QString script;
+        QFile f(e.path);
+        if (f.open(QIODevice::ReadOnly))
+            script = npm_shim_script(e.path, f.read(64 * 1024));
+        const QString node = script.isEmpty()
+                                 ? QString()
+                                 : QStandardPaths::findExecutable(QStringLiteral("node"),
+                                                                  QStringList{shim.absolutePath()} + search_path());
+        if (!script.isEmpty() && QFileInfo::exists(script) && !node.isEmpty()) {
+            e.program = node;
+            e.prefix_args = {QDir::toNativeSeparators(script)};
+        } else {
+            const QString comspec = qEnvironmentVariable("ComSpec");
+            e.program = comspec.isEmpty() ? QStringLiteral("cmd.exe") : comspec;
+            e.via_cmd = true;
+        }
     }
 #endif
     return e;
+}
+
+QString npm_shim_script(const QString& shim_path, const QByteArray& shim_text) {
+    // npm's cmd-shim: "%dp0%\node_modules\...\x.js" (SET dp0=%~dp0), or "%~dp0\..." in older ones.
+    static const QRegularExpression re(QStringLiteral(R"re("%(?:dp0%|~dp0)\\?([^"]+\.[cm]?js)")re"),
+                                       QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch m = re.match(QString::fromUtf8(shim_text));
+    if (!m.hasMatch())
+        return {};
+    QString rel = m.captured(1);
+    rel.replace(QLatin1Char('\\'), QLatin1Char('/'));
+    return QDir(QFileInfo(shim_path).path()).filePath(rel); // shim_path is already absolute
+}
+
+QString cmd_arguments(const QString& path, const QStringList& args) {
+    static const QRegularExpression needs_quotes(QStringLiteral(R"re([\s"&|<>^(),;=!%])re"));
+    auto quoted = [](QString a) {
+        if (a.isEmpty())
+            return QStringLiteral("\"\"");
+        if (!needs_quotes.match(a).hasMatch())
+            return a;
+        a.replace(QLatin1Char('"'), QStringLiteral("\"\""));
+        return QLatin1Char('"') + a + QLatin1Char('"');
+    };
+    QStringList line{quoted(QDir::toNativeSeparators(path))};
+    for (const QString& a : args)
+        line << quoted(a);
+    return QStringLiteral("/d /s /c \"") + line.join(QLatin1Char(' ')) + QLatin1Char('"');
 }
 
 QProcessEnvironment environment_for(const QString& path) {
@@ -178,7 +236,7 @@ RunResult run_blocking(const Executable& exe, const QStringList& args, const QBy
     QProcess p;
     p.setProcessEnvironment(environment_for(exe.path));
     p.setWorkingDirectory(work_dir());
-    p.start(exe.program, exe.prefix_args + args);
+    start(p, exe, args);
     if (!p.waitForStarted(kStartTimeoutMs)) {
         r.error = QStringLiteral("could not start %1: %2").arg(exe.path, p.errorString());
         return r;
@@ -267,7 +325,7 @@ void probe(const QString& provider, const QString& override_path, QObject* conte
             }
             finish(models_for(provider), {});
         });
-    proc->start(exe.program, exe.prefix_args + version_arguments());
+    start(*proc, exe, version_arguments());
 }
 
 } // namespace fincept::krx_quant::cli_llm

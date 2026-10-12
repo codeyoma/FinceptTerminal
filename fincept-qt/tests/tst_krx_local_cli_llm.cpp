@@ -9,6 +9,7 @@
 #include "services/krx_quant/LocalCliLlm.h"
 #include "services/krx_quant/LocalCliRunner.h"
 
+#include <QDir>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -183,6 +184,32 @@ class TestKrxLocalCliLlm : public QObject {
     void codex_models_listed_by_priority_without_hidden_ones() {
         QCOMPARE(codex_cached_models(kCodexModels), (QStringList{"gpt-6.1-sol", "gpt-6-astra", "gpt-5.6-terra"}));
         QVERIFY(codex_cached_models("not json").isEmpty());
+    }
+
+    void npm_shim_runs_its_node_script() {
+        // npm's cmd-shim for `codex`, as `npm install -g` writes it on Windows.
+        const QByteArray shim = "@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b\r\n:start\r\n"
+                                "SETLOCAL\r\nCALL :find_dp0\r\n\r\nIF EXIST \"%dp0%\\node.exe\" (\r\n"
+                                "  SET \"_prog=%dp0%\\node.exe\"\r\n) ELSE (\r\n  SET \"_prog=node\"\r\n)\r\n\r\n"
+                                "endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & \"%_prog%\"  "
+                                "\"%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js\" %*\r\n";
+        QCOMPARE(npm_shim_script("C:/Users/A B/AppData/Roaming/npm/codex.cmd", shim),
+                 QString("C:/Users/A B/AppData/Roaming/npm/node_modules/@openai/codex/bin/codex.js"));
+        // Older shims name the folder as %~dp0.
+        QCOMPARE(
+            npm_shim_script("C:/npm/claude.cmd", "@\"%~dp0\\node_modules\\@anthropic-ai\\claude-code\\cli.js\" %*"),
+            QString("C:/npm/node_modules/@anthropic-ai/claude-code/cli.js"));
+        QVERIFY(npm_shim_script("C:/tools/codex.cmd", "@echo off\r\ncodex.exe %*\r\n").isEmpty());
+    }
+
+    void cmd_line_keeps_each_argument_whole() {
+        // /s: cmd.exe drops only the outer pair of quotes, so a path with spaces keeps its own.
+        QCOMPARE(cmd_arguments("C:/Users/A B/npm/codex.cmd", {"exec", "--cd", "C:/Temp/x y", "-", ""}),
+                 QString(R"(/d /s /c ""C:/Users/A B/npm/codex.cmd" exec --cd "C:/Temp/x y" - """)")
+                     .replace("C:/Users/A B/npm/codex.cmd", QDir::toNativeSeparators("C:/Users/A B/npm/codex.cmd")));
+        QCOMPARE(cmd_arguments("C:/npm/claude.cmd", {"--system-prompt", "a <tool_call> b; c"}),
+                 QString(R"(/d /s /c "%1 --system-prompt "a <tool_call> b; c"")")
+                     .arg(QDir::toNativeSeparators("C:/npm/claude.cmd")));
     }
 
 #ifndef Q_OS_WIN
