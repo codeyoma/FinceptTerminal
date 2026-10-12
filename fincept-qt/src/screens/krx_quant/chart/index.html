@@ -43,13 +43,17 @@
     if (fitRange) chart.timeScale().setVisibleLogicalRange(fitRange);
   }
 
+  // Fitted since the chart last emptied: another symbol is chosen by emptying the chart
+  // first (KrxLive::select), and its first bars are fitted again.
   let shown = false;
   function show(data) {
     candles.setData(data.bars);
     volumes.setData(data.volumes);
     icons.setMarkers(data.icons);
     fitRange = data.fit;
-    if (!shown && data.bars.length) { // the first bars: the last ones in view
+    if (!data.bars.length) {
+      shown = false;
+    } else if (!shown) { // the first bars: the last ones in view
       shown = true;
       fit();
     }

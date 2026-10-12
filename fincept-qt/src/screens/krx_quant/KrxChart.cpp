@@ -11,6 +11,8 @@
 #include <QJsonObject>
 #include <QLabel>
 #include <QLibraryInfo>
+#include <QStringList>
+#include <QUrl>
 #include <QVBoxLayout>
 
 #include <algorithm>
