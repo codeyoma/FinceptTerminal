@@ -404,6 +404,13 @@ LlmResponse LlmService::do_request(const QString& user_message, const std::vecto
         return resp;
     }
 
+    // Fork addition (codeyoma/krx-quant#96): a local CLI has no endpoint. It runs the Fincept
+    // flat-prompt tool loop with the CLI as the transport (LlmFinceptAsync.cpp).
+    if (krx_quant::cli_llm::is_cli_provider(provider_)) {
+        LOG_INFO(kLlmSvcTag, "do_request: routing " + provider_ + " to the local CLI loop");
+        return fincept_async_request(user_message, history);
+    }
+
     QString url = get_endpoint_url();
     if (url.isEmpty()) {
         resp.error = "No endpoint URL for provider: " + provider_;
@@ -843,7 +850,9 @@ LlmResponse LlmService::do_streaming_request(const QString& user_message,
                                              const std::vector<ConversationMessage>& history, StreamCallback on_chunk) {
     // Gemini uses :streamGenerateContent, Fincept uses async submit/poll — neither
     // fits this OpenAI-compat SSE path. Fall back to do_request and emit as one chunk.
-    if (provider_ == "gemini" || provider_ == "google" || provider_ == "fincept") {
+    // So does a local CLI (fork addition, codeyoma/krx-quant#96).
+    if (provider_ == "gemini" || provider_ == "google" || provider_ == "fincept" ||
+        krx_quant::cli_llm::is_cli_provider(provider_)) {
         detail::ProgressEmitterGuard pg([on_chunk](const QString& s) { on_chunk(s, false); });
         auto resp = do_request(user_message, history);
         if (resp.success && !resp.content.isEmpty())

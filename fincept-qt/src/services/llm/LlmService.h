@@ -3,6 +3,7 @@
 
 #include "core/result/Result.h"
 #include "mcp/McpTypes.h"
+#include "services/krx_quant/LocalCliLlm.h" // fork addition: local CLI providers (codeyoma/krx-quant#96)
 #include "storage/repositories/LlmProfileRepository.h"
 
 #include <QJsonArray>
@@ -24,11 +25,12 @@ inline bool provider_supports_streaming(const QString& provider) {
     return provider == "openai" || provider == "anthropic" || provider == "gemini" || provider == "google" ||
            provider == "groq" || provider == "deepseek" || provider == "openrouter" || provider == "minimax" ||
            provider == "kimi" || provider == "ollama" || provider == "xai" || provider == "fincept" ||
-           provider == "astraflow" || provider == "astraflow_cn" || provider == "aihubmix";
+           provider == "astraflow" || provider == "astraflow_cn" || provider == "aihubmix" ||
+           krx_quant::cli_llm::is_cli_provider(provider);
 }
 
 inline bool provider_requires_api_key(const QString& provider) {
-    return provider != "ollama" && provider != "fincept";
+    return provider != "ollama" && provider != "fincept" && !krx_quant::cli_llm::is_cli_provider(provider);
 }
 
 /// In-band sentinel prefixed onto a streamed chunk to mark it as chain-of-thought

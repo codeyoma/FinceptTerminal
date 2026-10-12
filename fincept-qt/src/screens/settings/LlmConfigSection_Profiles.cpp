@@ -7,6 +7,7 @@
 
 #include "core/logging/Logger.h"
 #include "screens/settings/LlmConfigSection.h"
+#include "services/krx_quant/LocalCliLlm.h" // fork addition (codeyoma/krx-quant#96)
 #include "services/llm/LlmService.h"
 #include "storage/repositories/LlmConfigRepository.h"
 #include "storage/repositories/LlmProfileRepository.h"
@@ -156,8 +157,13 @@ QWidget* LlmConfigSection::build_profile_form_panel() {
     vl->addWidget(profile_provider_field_lbl_);
     profile_provider_combo_ = new QComboBox;
     // Formatted names, alphabetical; the provider id rides in itemData.
-    for (const auto& id : providers_sorted())
+    for (const auto& id : providers_sorted()) {
+        // Fork addition (codeyoma/krx-quant#96): profiles drive the Python agents, which call
+        // provider APIs directly; a local CLI provider only serves LlmService.
+        if (krx_quant::cli_llm::is_cli_provider(id))
+            continue;
         profile_provider_combo_->addItem(provider_display_name(id), id);
+    }
     profile_provider_combo_->setStyleSheet(
         QString("QComboBox{%1}QComboBox::drop-down{border:none;}").arg(field_style()));
     connect(profile_provider_combo_, &QComboBox::currentIndexChanged, this,

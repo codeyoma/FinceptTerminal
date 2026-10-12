@@ -5,6 +5,7 @@
 #include "mcp/GeminiSchema.h"
 #include "mcp/McpProvider.h"
 #include "mcp/McpService.h"
+#include "services/krx_quant/LocalCliLlm.h" // fork addition (codeyoma/krx-quant#96)
 #include "services/llm/ProviderCatalog.h"
 
 #include <QHash>
@@ -619,6 +620,8 @@ int run_provider_tool_format_selftest() {
         for (const QString& prov : ai_chat::ProviderCatalog::known_providers()) {
             if (prov == QLatin1String("fincept"))
                 continue; // route is AppConfig::api_base_url() + "/research/chat", composed by the caller
+            if (krx_quant::cli_llm::is_cli_provider(prov))
+                continue; // fork addition (codeyoma/krx-quant#96): a local CLI, no endpoint
             const QString url =
                 ai_chat::ProviderCatalog::chat_endpoint(prov, QString(), QStringLiteral("test-model"));
             if (url.isEmpty()) {
