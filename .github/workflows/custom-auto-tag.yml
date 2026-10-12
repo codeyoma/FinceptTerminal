@@ -1,0 +1,109 @@
+# Fork-only workflow (codeyoma/FinceptTerminal, codeyoma/krx-quant#98).
+# Every push to `custom` that changes the app gets into a personal build: the
+# pushed commit is tagged custom-<custom/UPSTREAM_BASE>-krx.<N+1>, N being the
+# highest build number already used for that upstream version, unless a build of
+# a newer commit already contains it (see the tagging step). The tag push starts
+# custom-release, which builds and publishes the release, and installed apps then
+# offer it as an update (custom/README.md "앱 업데이트").
+#
+# Nothing is tagged when the commit already has a custom-v* tag (the upstream
+# landing pushes custom together with its krx.1 tag, and a hand-made tag still
+# works) or when the push changed only docs or workflows (paths-ignore below);
+# a hand-made tag still builds such a commit. Only commits on `custom` are
+# tagged: a manual run from another branch does nothing.
+#
+# The tag is pushed with SYNC_TOKEN: a tag pushed with GITHUB_TOKEN starts no
+# workflow, so it would never be built.
+name: custom-auto-tag
+
+on:
+  push:
+    branches: [custom]
+    paths-ignore:
+      - 'custom/**'
+      - '**/*.md'
+      - 'docs/**'
+      - 'fincept-qt/docs/**'
+      - '.github/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run at a time, so two runs never pick the same number. queue: max keeps
+# every waiting run (up to 100) instead of letting a newer push replace the
+# waiting one, so each merge gets its own build. GitHub does not promise the
+# order of waiting runs; the tagging step skips a commit that a newer build
+# already contains.
+concurrency:
+  group: custom-auto-tag
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  tag:
+    name: Tag the next personal build
+    # A manual run from another branch would spend a build number, or publish an
+    # old commit as the newest build.
+    if: github.ref == 'refs/heads/custom'
+    runs-on: ubuntu-latest
+    env:
+      HAS_SYNC_TOKEN: ${{ secrets.SYNC_TOKEN != '' }}
+
+    steps:
+      - name: Require SYNC_TOKEN
+        if: env.HAS_SYNC_TOKEN != 'true'
+        run: |
+          echo "::error::The SYNC_TOKEN secret is missing (fine-grained PAT on this repository: Contents and Workflows read/write). A tag pushed with GITHUB_TOKEN would start no build."
+          exit 1
+
+      - name: Checkout the pushed commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
+
+      - name: Tag it custom-<upstream>-krx.<next>
+        run: |
+          set -euo pipefail
+          git fetch --tags --force origin
+          git fetch origin '+refs/heads/custom:refs/remotes/origin/custom'
+          if ! git merge-base --is-ancestor HEAD refs/remotes/origin/custom; then
+            echo "::error::$(git rev-parse --short HEAD) is not on custom; personal builds are tagged only from custom."
+            exit 1
+          fi
+
+          existing=$(git tag --points-at HEAD -l 'custom-v*')
+          if [ -n "$existing" ]; then
+            echo "Already a personal build: $existing"
+            exit 0
+          fi
+
+          base=$(tr -d '[:space:]' < custom/UPSTREAM_BASE)
+          if ! [[ "$base" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::custom/UPSTREAM_BASE is '$base', not vX.Y.Z. The app only updates to custom-vX.Y.Z-krx.N tags (fincept-qt/src/services/krx_quant/AppRelease.h)."
+            exit 1
+          fi
+
+          prefix="custom-${base}-krx."
+          last=0
+          for t in $(git tag -l "${prefix}*"); do
+            n=${t#"$prefix"}
+            if [[ "$n" =~ ^[0-9]+$ ]] && (( n > last )); then
+              last=$n
+            fi
+            # Runs can start out of order. A build of a newer commit already has
+            # this one's changes, and a higher number here would make the app
+            # "update" back to older code.
+            if git merge-base --is-ancestor HEAD "$t"; then
+              echo "A newer build already contains this commit: $t"
+              exit 0
+            fi
+          done
+          tag="${prefix}$((last + 1))"
+
+          git tag "$tag" HEAD
+          # Fails rather than moves the tag if another run took the number meanwhile.
+          git push origin "refs/tags/${tag}"
+          echo "Tagged $(git rev-parse --short HEAD) as ${tag}; custom-release builds and publishes it."
