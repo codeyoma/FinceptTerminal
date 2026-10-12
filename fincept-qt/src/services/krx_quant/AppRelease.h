@@ -44,4 +44,27 @@ std::optional<AppRelease> newest_release(const QJsonDocument& releases, const QS
 /// the fork builds none.
 QString installer_suffix();
 
+/// How an installed personal build updates itself (codeyoma/krx-quant#130).
+enum class UpdateMode {
+    SwapBundle,       ///< macOS: the installed .app is swapped for the one in the new DMG
+    SwapFolder,       ///< Windows, installed in the user's folder: the folder is swapped for the new ZIP's tree
+    MoveToUserFolder, ///< Windows, installed elsewhere: the new setup.exe goes into the user's folder, the old install
+                      ///< is removed
+    Manual,           ///< neither possible: the installer is opened for a manual install
+};
+
+/// Windows: the per-user install folder, <%LOCALAPPDATA%>/Programs/FinceptTerminal. New
+/// installs default to it, and updates move other installs there: it needs no administrator.
+QString windows_user_install_dir(const QString& local_app_data);
+
+/// Windows: how the build installed at ``app_dir`` updates. Manual without the installer's
+/// maintenance tool next to it (not installed by setup.exe) or without %LOCALAPPDATA%,
+/// SwapFolder in the per-user folder, MoveToUserFolder anywhere else (Program Files).
+UpdateMode windows_update_mode(const QString& app_dir, const QString& local_app_data, bool has_maintenance_tool);
+
+/// The release asset a mode downloads: "macos-arm64.dmg", "windows-x64.zip" (the installed
+/// tree without the installer's own files), "windows-x64-setup.exe" (MoveToUserFolder), or this
+/// platform's installer (Manual).
+QString update_asset_suffix(UpdateMode mode);
+
 } // namespace fincept::krx_quant
