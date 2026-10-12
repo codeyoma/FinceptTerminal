@@ -154,6 +154,44 @@ QString ranking_rules(const QStringList& days, int min_sample) {
         .join('\n');
 }
 
+QString column_tip(const QString& header) {
+    static const QMap<QString, QString> tips = {
+        {QStringLiteral("중간가 손익(틱)"),
+         QStringLiteral("거래당 평균, 연구용 값이다. 방향을 낸 모든 예측을 거래로 치고 시작 중간가에서 목표 "
+                        "중간가까지 잰다. 스프레드와 체결은 반영하지 않아 따라 했을 때의 손익이 아니다.")},
+        {QStringLiteral("95% 구간"), QStringLiteral("봉 마감마다 따로 센 설명용 구간이다. 같은 날의 4분 정답은 서로 "
+                                                    "겹쳐 실제보다 확실해 보인다. p도 그렇다.")},
+        {QStringLiteral("거래일 95% 구간"), QStringLiteral("하루를 값 하나로 본 구간이다. 상태(수습·정식·벤치)는 "
+                                                           "이것으로 정한다. 거래일이 2일보다 적으면 없다.")},
+        {QStringLiteral("q"), QStringLiteral("순위표의 다른 lift와 함께 보정한 값이다. 순위 밖이거나 나눠 본 줄은 "
+                                             "함께 검정하지 않아 없다.")},
+        {QStringLiteral("운 보정"),
+         QStringLiteral("기준 예측 셋을 모두 이긴 것이 운으로 보기 어렵다는 뜻이다(q ≤ 0.05).")},
+    };
+    return tips.value(header);
+}
+
+QString lift_tip(const AlgorithmStats& stats) {
+    QStringList lines;
+    if (is_baseline(stats.algorithm))
+        lines << QStringLiteral("기준 예측 자신이라 lift가 없다.");
+    else if (lift_rows(stats.overall).isEmpty())
+        lines << QStringLiteral("기준 예측과 짝지을 채점된 예측이 없어 lift가 없다.");
+    lines << QStringLiteral("lift는 같은 종목·봉 마감의 기준 예측과 정답(1/0) 차이의 평균이다. 열 제목에 마우스를 "
+                            "올리면 각 구간의 뜻이 나온다.");
+    return lines.join('\n');
+}
+
+QString calibration_tip(const AlgorithmStats& stats) {
+    QStringList lines;
+    if (calibration_series(stats).isEmpty())
+        lines << QStringLiteral("채점된 예측이 없다.");
+    lines << QStringLiteral("확률을 10% 구간으로 나눠, 예측한 확률과 실제로 일어난 비율을 견준다.")
+          << QStringLiteral("전체는 세 클래스를 합친 것이라 방향별 오차를 숨길 수 있어, 상승·보합·하락을 따로 그린다.")
+          << QStringLiteral("점이 점선에 가까울수록 확률을 믿을 수 있다.");
+    return lines.join('\n');
+}
+
 QString period_label(const QString& period) {
     static const QMap<QString, QString> labels = {
         {"today", QStringLiteral("오늘")}, {"5d", QStringLiteral("5일")}, {"20d", QStringLiteral("20일")}};

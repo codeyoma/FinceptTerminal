@@ -84,7 +84,7 @@ void KrxQuantService::restart() {
     for (bool& busy : busy_)
         busy = false;
     next_leaderboard_.reset();
-    next_stats_.reset();
+    stats_reads_.clear();
     if (const QString url = base_url(); url != url_) {
         url_ = url;
         emit base_url_changed(url_);
@@ -230,24 +230,20 @@ void KrxQuantService::read_leaderboard(const LeaderboardQuery& query) {
 }
 
 void KrxQuantService::read_stats(const QString& algorithm, const LeaderboardQuery& query) {
-    if (busy_[kStats] && !url_.isEmpty()) {
-        // Likewise.
-        const std::pair asked{algorithm, query};
-        next_stats_ = asked == stats_asked_ ? std::nullopt : std::optional(asked);
+    if (url_.isEmpty())
+        return;
+    if (auto under_way = stats_reads_.find(algorithm); under_way != stats_reads_.end()) {
+        // Likewise, for this algorithm.
+        under_way->next = query == under_way->asked ? std::nullopt : std::optional(query);
         return;
     }
-    if (!begin(kStats))
-        return;
-    stats_asked_ = {algorithm, query};
+    stats_reads_.insert(algorithm, {query, std::nullopt});
     const QString path =
         "/v1/algorithms/" + QString::fromUtf8(QUrl::toPercentEncoding(algorithm)) + "/stats?" + query_string(query);
     get(path, [this, algorithm](Result<QJsonDocument> answer) {
-        end(kStats);
-        if (next_stats_) { // asked again meanwhile: this answer, or its failure, is stale
-            const auto [next_algorithm, next_query] = *next_stats_;
-            next_stats_.reset();
-            return read_stats(next_algorithm, next_query);
-        }
+        const StatsRead read = stats_reads_.take(algorithm);
+        if (read.next) // asked again meanwhile: this answer, or its failure, is stale
+            return read_stats(algorithm, *read.next);
         auto stats = parsed(answer, krx_quant::parse_stats);
         if (stats.is_err())
             return emit stats_failed(algorithm, why(stats.error()));

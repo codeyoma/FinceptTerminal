@@ -2,12 +2,14 @@
 
 #include "screens/krx_quant/KrxTables.h"
 #include "ui/theme/Theme.h"
+#include "ui/widgets/LoadingOverlay.h"
 
 #include <QCloseEvent>
-#include <QGroupBox>
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QSplitter>
 #include <QToolTip>
 #include <QVBoxLayout>
 
@@ -118,18 +120,16 @@ void KrxCalibrationPlot::paintEvent(QPaintEvent*) {
         p.drawText(QRectF(0, y_of(share) - 8, kAxis - 4, 16), Qt::AlignRight | Qt::AlignVCenter, label);
         p.drawText(QRectF(x_of(share) - 20, r.bottom() + 2, 40, 14), Qt::AlignHCenter | Qt::AlignTop, label);
     }
-    p.drawText(QRectF(r.left(), r.bottom() + 16, r.width(), 14), Qt::AlignHCenter | Qt::AlignTop,
+    // Across the whole width: wider than a narrow plot.
+    p.drawText(QRectF(0, r.bottom() + 16, width(), 14), Qt::AlignHCenter | Qt::AlignTop,
                tr("가로: 예측한 확률 · 세로: 실제로 일어난 비율"));
 
     // A perfect forecast: what was forecast at p happens p of the time.
     p.setPen(QPen(QColor(ui::colors::BORDER_MED()), 1, Qt::DashLine));
     p.drawLine(QPointF(x_of(0), y_of(0)), QPointF(x_of(1), y_of(1)));
 
-    if (series_.isEmpty()) {
-        p.setPen(QColor(ui::colors::TEXT_DIM()));
-        p.drawText(r, Qt::AlignCenter, tr("채점된 예측이 없습니다"));
+    if (series_.isEmpty()) // nothing scored: the title's tooltip says so
         return;
-    }
     for (int s = 0; s < series_.size(); ++s) {
         const QColor color = series_color(series_[s].key);
         const auto& points = series_[s].points;
@@ -205,30 +205,45 @@ void KrxCalibrationPlot::leaveEvent(QEvent* event) {
 // ── The window ──────────────────────────────────────────────────────────────────────────
 
 KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
+    setObjectName("krxStatsWindow");
+    setAttribute(Qt::WA_StyledBackground);
     resize(980, 760);
     auto* layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    header_ = krx_panel::header(QString());
+    failure_ = new QLabel(tr("읽지 못함"));
+    failure_->hide();
+    header_.controls->addWidget(failure_);
     query_ = new QLabel;
-    query_->setWordWrap(true);
-    layout->addWidget(query_);
+    header_.controls->addWidget(query_);
+    layout->addWidget(header_.bar);
 
+    body_ = new QWidget;
+    auto* body = new QVBoxLayout(body_);
+    body->setContentsMargins(0, 0, 0, 0);
+    body->setSpacing(0);
     overall_ = krx_tables::table(QStringList{tr("순위")} + krx_tables::stats_headers() + QStringList{tr("운 보정")});
-    layout->addWidget(overall_);
+    body->addWidget(overall_);
     excluded_ = new QLabel;
+    excluded_->setContentsMargins(12, 4, 12, 4);
     excluded_->setWordWrap(true);
-    layout->addWidget(excluded_);
+    body->addWidget(excluded_);
 
-    auto* middle = new QHBoxLayout;
-    auto* lift_box = new QGroupBox(tr("기준 예측 대비 lift"));
+    auto* middle = new QSplitter(Qt::Horizontal);
+    lift_header_ = krx_panel::header(tr("기준 예측 대비 lift"));
     lifts_ = krx_tables::table({tr("기준"), tr("lift"), tr("95% 구간"), tr("짝"), tr("p"), tr("q"), tr("운 보정"),
                                 tr("거래일 95% 구간"), tr("날")});
-    (new QVBoxLayout(lift_box))->addWidget(lifts_);
-    middle->addWidget(lift_box, 3);
-    auto* calibration_box = new QGroupBox(tr("보정도"));
+    middle->addWidget(krx_panel::panel(lift_header_, lifts_));
+    calibration_header_ = krx_panel::header(tr("보정도"));
     calibration_ = new KrxCalibrationPlot;
-    (new QVBoxLayout(calibration_box))->addWidget(calibration_);
-    middle->addWidget(calibration_box, 2);
-    layout->addLayout(middle, 2);
+    middle->addWidget(krx_panel::panel(calibration_header_, calibration_));
+    middle->setStretchFactor(0, 3);
+    middle->setStretchFactor(1, 2);
 
+    breakdown_header_ =
+        krx_panel::header(tr("나눠 본 통계"), tr("이 줄들의 lift는 함께 검정하지 않아 q와 운 보정이 없다."));
     breakdowns_ = new QTabWidget;
     by_slot_ = breakdown_table(tr("시간대 (봉 마감)"));
     by_model_version_ = breakdown_table(tr("모델 버전"));
@@ -236,21 +251,31 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
     breakdowns_->addTab(by_slot_, tr("30분 시간대별"));
     breakdowns_->addTab(by_model_version_, tr("모델 버전별"));
     breakdowns_->addTab(by_symbol_, tr("종목별"));
-    layout->addWidget(breakdowns_, 3);
 
-    note_ = new QLabel;
-    note_->setObjectName("krxNote");
-    note_->setWordWrap(true);
-    layout->addWidget(note_);
+    auto* split = new QSplitter(Qt::Vertical);
+    split->addWidget(middle);
+    split->addWidget(krx_panel::panel(breakdown_header_, breakdowns_));
+    split->setStretchFactor(0, 2);
+    split->setStretchFactor(1, 3);
+    body->addWidget(split, 1);
+    layout->addWidget(body_, 1);
+
+    loading_ = new ui::LoadingOverlay(body_);
+    body_->installEventFilter(this); // the overlay keeps the body's size
+    restyle();
+    connect(&ui::ThemeManager::instance(), &ui::ThemeManager::theme_changed, this, [this]() { restyle(); });
 }
 
 void KrxStatsWindow::open(const QString& algorithm) {
-    if (algorithm != algorithm_ || !isVisible()) { // reopened: the query may have changed since
+    if (algorithm != algorithm_ || !isVisible()) {
         algorithm_ = algorithm;
         clear();
-        note_->setText(tr("읽는 중…"));
+        loading_->show_loading(tr("읽는 중…"));
     }
-    setWindowTitle(tr("%1 상세 통계").arg(krx_quant::predictor_label(algorithm)));
+    const QString title = tr("%1 상세 통계").arg(krx_quant::predictor_label(algorithm));
+    header_.title->setText(title);
+    // As Fincept names its windows: the app, then what is shown.
+    setWindowTitle(QStringLiteral("Fincept Terminal — %1 — %2").arg(tr("KRX 4분 예측"), title));
     show();
     raise();
     activateWindow();
@@ -259,12 +284,17 @@ void KrxStatsWindow::open(const QString& algorithm) {
 void KrxStatsWindow::clear() {
     query_->clear();
     excluded_->clear();
+    failure_->hide();
     for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_})
         table->setRowCount(0);
+    lift_header_.title->setToolTip(QString());
+    calibration_header_.title->setToolTip(QString());
     calibration_->set_series({});
 }
 
 void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats) {
+    loading_->hide_loading();
+    failure_->hide();
     query_->setText(tr("%1 · %2").arg(krx_quant::query_text(stats), krx_quant::days_text(stats.days)));
 
     const auto& e = stats.overall;
@@ -274,9 +304,8 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats) {
     overall_->setItem(0, kSignificant, cell(e.significant ? tr("통과") : QString()));
     fit_rows(overall_);
 
-    const auto rows = krx_quant::lift_rows(e);
     lifts_->setRowCount(0);
-    for (const auto& l : rows) {
+    for (const auto& l : krx_quant::lift_rows(e)) {
         const int row = lifts_->rowCount();
         lifts_->insertRow(row);
         lifts_->setItem(row, kBaseline, cell(l.baseline));
@@ -289,31 +318,39 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats) {
         lifts_->setItem(row, kDayInterval, cell(l.day_interval, kNumber));
         lifts_->setItem(row, kDays, cell(l.days, kNumber));
     }
+    lift_header_.title->setToolTip(krx_quant::lift_tip(stats));
     excluded_->setText(e.excluded ? krx_quant::excluded_text(*e.excluded, stats.special) : QString());
     calibration_->set_series(krx_quant::calibration_series(stats));
+    calibration_header_.title->setToolTip(krx_quant::calibration_tip(stats));
 
     fill_breakdown(by_slot_, stats.by_slot, krx_quant::slot_label);
     fill_breakdown(by_model_version_, stats.by_model_version, nullptr);
     fill_breakdown(by_symbol_, stats.by_symbol, nullptr);
-
-    QString note =
-        tr("lift는 같은 종목·봉 마감의 기준 예측과 정답(1/0) 차이의 평균이다. q와 운 보정은 "
-           "순위표의 다른 lift와 함께 보정한 것이고, 순위 밖이거나 나눠 본 줄은 함께 검정하지 않아 없다. "
-           "95% 구간과 p는 봉 마감마다 따로 센 설명용이다. 같은 날의 4분 정답은 서로 겹쳐 실제보다 확실해 "
-           "보인다. 상태(수습·정식·벤치)는 하루를 값 하나로 본 거래일 95% 구간으로 정한다. 2일보다 적으면 없다. "
-           "보정도는 확률을 10% 구간으로 나눠, 예측한 확률과 실제로 일어난 비율을 견준다. 전체는 세 클래스를 "
-           "합친 것이라 방향별 오차를 숨길 수 있어, 상승·보합·하락을 따로 그린다. "
-           "점이 점선에 가까울수록 확률을 믿을 수 있다.");
-    if (krx_quant::is_baseline(stats.algorithm))
-        note.prepend(tr("기준 예측 자신이라 lift가 없다. "));
-    else if (rows.isEmpty())
-        note.prepend(tr("기준 예측과 짝지을 채점된 예측이 없어 lift가 없다. "));
-    note_->setText(note);
 }
 
 void KrxStatsWindow::show_failure(const QString& reason) {
     clear();
-    note_->setText(tr("상세 통계를 읽지 못했습니다: %1").arg(reason));
+    loading_->hide_loading();
+    failure_->setToolTip(tr("상세 통계를 읽지 못했습니다: %1").arg(reason));
+    failure_->show();
+}
+
+void KrxStatsWindow::restyle() {
+    setStyleSheet(QString("#krxStatsWindow{background:%1;}#krxStatsWindow QLabel{background:transparent;}")
+                      .arg(ui::colors::BG_BASE()));
+    for (const auto* header : {&header_, &lift_header_, &calibration_header_, &breakdown_header_})
+        header->restyle();
+    failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
+    for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_})
+        krx_tables::restyle(table);
+    fit_rows(overall_);
+    calibration_->update();
+}
+
+bool KrxStatsWindow::eventFilter(QObject* watched, QEvent* event) {
+    if (watched == body_ && event->type() == QEvent::Resize)
+        loading_->setGeometry(body_->rect());
+    return QWidget::eventFilter(watched, event);
 }
 
 void KrxStatsWindow::closeEvent(QCloseEvent* event) {

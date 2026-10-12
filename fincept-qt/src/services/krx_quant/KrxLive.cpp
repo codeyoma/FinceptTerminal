@@ -1,5 +1,7 @@
 #include "services/krx_quant/KrxLive.h"
 
+#include <utility>
+
 namespace fincept::services {
 
 namespace {
@@ -55,16 +57,16 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
     });
     connect(service_, &KrxQuantService::leaderboard_failed, this, &KrxLive::leaderboard_failed);
     connect(service_, &KrxQuantService::stats_ready, this, [this](const krx_quant::AlgorithmStats& stats) {
-        if (stats.algorithm == detail_ && query_.matches(stats))
+        if (!details_.contains(stats.algorithm))
+            return; // its window closed meanwhile
+        if (query_.matches(stats))
             emit stats_changed(stats);
-        else if (!detail_.isEmpty())
-            service_->read_stats(detail_, query_); // another was asked for meanwhile
+        else
+            service_->read_stats(stats.algorithm, query_); // another query was chosen meanwhile
     });
     connect(service_, &KrxQuantService::stats_failed, this, [this](const QString& algorithm, const QString& reason) {
-        if (algorithm == detail_)
-            emit stats_failed(reason);
-        else if (!detail_.isEmpty())
-            service_->read_stats(detail_, query_);
+        if (details_.contains(algorithm))
+            emit stats_failed(algorithm, reason);
     });
     connect(service_, &KrxQuantService::base_url_changed, this, [this](const QString& url) {
         stream_->open(url); // also when another KRX panel applied an address
@@ -142,10 +144,16 @@ void KrxLive::set_leaderboard_query(const KrxQuantService::LeaderboardQuery& que
     read_leaderboard();
 }
 
-void KrxLive::set_detail(const QString& algorithm) {
-    detail_ = algorithm;
-    if (!detail_.isEmpty())
-        service_->read_stats(detail_, query_);
+void KrxLive::set_details(const QStringList& algorithms) {
+    const QStringList before = std::exchange(details_, algorithms);
+    for (const auto& algorithm : details_)
+        if (!before.contains(algorithm))
+            service_->read_stats(algorithm, query_);
+}
+
+void KrxLive::read_details() {
+    for (const auto& algorithm : details_)
+        service_->read_stats(algorithm, query_);
 }
 
 void KrxLive::set_alerts(bool on, const krx_quant::SignalRule& rule) {
@@ -165,10 +173,10 @@ void KrxLive::tick() {
         // an address another KRX panel applied is followed, not the old engine's stream.
         if ((alerts_on_ && !live) || KrxQuantService::base_url() != service_->url())
             service_->refresh();
-        // A detail window stays open beside other screens: without the stream (whose
-        // outcomes read it with the leaderboard), it is read here.
-        if (!live && !detail_.isEmpty())
-            service_->read_stats(detail_, query_);
+        // Detail windows stay open beside other screens: without the stream (whose outcomes
+        // read them with the leaderboard), they are read here.
+        if (!live)
+            read_details();
         return;
     }
     if (!live || ticks_ % kRefreshEvery == 0)
@@ -194,8 +202,7 @@ void KrxLive::read_everything() {
 
 void KrxLive::read_leaderboard() {
     service_->read_leaderboard(query_);
-    if (!detail_.isEmpty())
-        service_->read_stats(detail_, query_);
+    read_details();
 }
 
 void KrxLive::on_snapshot(const KrxQuantService::Snapshot& snapshot) {

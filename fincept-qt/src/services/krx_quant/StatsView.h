@@ -85,6 +85,14 @@ QString days_text(const QStringList& days);
 /// what ranks an entry and in what order, what passing the luck check means, and how a
 /// detail opens.
 QString ranking_rules(const QStringList& days, int min_sample);
+/// What a stats column is, on its header's tooltip, where its name alone could mislead
+/// (krx-quant #103, #104); empty for the others.
+QString column_tip(const QString& header);
+/// The detail window's lift title tooltip: why there is no lift, if so, and what lift is.
+QString lift_tip(const AlgorithmStats& stats);
+/// The detail window's calibration title tooltip: what the plot compares, and that nothing
+/// was scored, if so.
+QString calibration_tip(const AlgorithmStats& stats);
 /// The query the stats answer, in Korean: period · scoring basis · symbol · special situations.
 QString query_text(const AlgorithmStats& stats);
 

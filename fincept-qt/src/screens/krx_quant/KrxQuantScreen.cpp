@@ -185,12 +185,12 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(live_, &services::KrxLive::leaderboard_changed, leaderboard_, &KrxLeaderboard::show_leaderboard);
     connect(live_, &services::KrxLive::leaderboard_failed, leaderboard_, &KrxLeaderboard::show_failure);
     connect(live_, &services::KrxLive::stats_changed, this, [this](const krx_quant::AlgorithmStats& stats) {
-        if (stats_window_)
-            stats_window_->show_stats(stats);
+        if (auto* window = stats_windows_.value(stats.algorithm))
+            window->show_stats(stats);
     });
-    connect(live_, &services::KrxLive::stats_failed, this, [this](const QString& reason) {
-        if (stats_window_)
-            stats_window_->show_failure(reason);
+    connect(live_, &services::KrxLive::stats_failed, this, [this](const QString& algorithm, const QString& reason) {
+        if (auto* window = stats_windows_.value(algorithm))
+            window->show_failure(reason);
     });
     connect(live_, &services::KrxLive::signal_raised, alerts_, &KrxAlerts::raise);
     connect(live_, &services::KrxLive::base_url_changed, this, [this](const QString& url) {
@@ -257,16 +257,10 @@ bool KrxQuantScreen::eventFilter(QObject* watched, QEvent* event) {
 }
 
 void KrxQuantScreen::refresh_theme() {
-    // The last two lines are the detail window's (a child window), until it is made over
-    // too (krx-quant #104).
-    setStyleSheet(
-        QString("#krxQuantScreen{background:%1;}"
-                "#krxQuantScreen QLabel{background:transparent;}"
-                "#krxSpecial{color:%2;}"
-                "#krxNote{color:%3;}"
-                "#krxQuantScreen QGroupBox{border:1px solid %4;margin-top:14px;padding-top:6px;}"
-                "#krxQuantScreen QGroupBox::title{subcontrol-origin:margin;left:8px;color:%2;}")
-            .arg(ui::colors::BG_BASE(), ui::colors::AMBER(), ui::colors::TEXT_DIM(), ui::colors::BORDER_DIM()));
+    setStyleSheet(QString("#krxQuantScreen{background:%1;}"
+                          "#krxQuantScreen QLabel{background:transparent;}"
+                          "#krxSpecial{color:%2;}")
+                      .arg(ui::colors::BG_BASE(), ui::colors::AMBER()));
     for (const auto* header : {&header_, &symbols_header_, &chart_header_, &predictions_header_})
         header->restyle();
     krx_tables::restyle(symbols_table_);
@@ -488,12 +482,18 @@ void KrxQuantScreen::fill_chart() {
 void KrxQuantScreen::open_detail(const QString& algorithm) {
     if (algorithm.isEmpty())
         return;
-    if (!stats_window_) {
-        stats_window_ = new KrxStatsWindow(this); // a window of its own, gone with the screen
-        connect(stats_window_, &KrxStatsWindow::closed, this, [this]() { live_->set_detail({}); });
+    KrxStatsWindow* window = stats_windows_.value(algorithm);
+    if (!window) { // a window of its own for each predictor, gone with the screen
+        window = new KrxStatsWindow(this);
+        stats_windows_.insert(algorithm, window);
+        connect(window, &KrxStatsWindow::closed, this, [this, algorithm]() {
+            if (auto* closed = stats_windows_.take(algorithm))
+                closed->deleteLater();
+            live_->set_details(stats_windows_.keys());
+        });
     }
-    stats_window_->open(algorithm);
-    live_->set_detail(algorithm);
+    window->open(algorithm);
+    live_->set_details(stats_windows_.keys());
 }
 
 void KrxQuantScreen::update_countdowns() {
