@@ -74,7 +74,10 @@ jobs:
           TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
-          if [[ ! "${TAG}" =~ ^custom-v[0-9A-Za-z._-]+$ ]]; then
+          # The app reads its tag as custom-v<major>.<minor>.<patch>-krx.<n> to update
+          # itself (AppRelease.h): a tag of any other shape would build an app that
+          # never updates.
+          if [[ ! "${TAG}" =~ ^custom-v[0-9]+\.[0-9]+\.[0-9]+-krx\.[0-9]+$ ]]; then
             echo "::error::'${TAG}' is not a custom-v* tag. Push a custom-v* tag, or run this workflow with the tag input."
             exit 1
           fi
@@ -206,8 +209,10 @@ jobs:
           fi
 
       # ── Configure + Build ─────────────────────────────────────────────────
-      # release.yml's flags, plus FINCEPT_RELEASE_BUILD (Qt pinned EXACT) and
-      # FINCEPT_DISABLE_AUTO_UPDATE (fork rule: personal builds never update).
+      # release.yml's flags, plus FINCEPT_RELEASE_BUILD (Qt pinned EXACT),
+      # FINCEPT_DISABLE_AUTO_UPDATE (fork rule: an official release never replaces a
+      # personal build) and FINCEPT_CUSTOM_TAG (the build updates from this fork's
+      # releases by its tag, codeyoma/krx-quant#92).
       - name: Configure CMake
         shell: bash
         working-directory: fincept-qt
@@ -222,7 +227,8 @@ jobs:
             -DFINCEPT_BUILD_INSTALLER=ON \
             -DFINCEPT_REQUIRE_BUNDLED_YTDLP=ON \
             -DFINCEPT_RELEASE_BUILD=ON \
-            -DFINCEPT_DISABLE_AUTO_UPDATE=ON
+            -DFINCEPT_DISABLE_AUTO_UPDATE=ON \
+            -DFINCEPT_CUSTOM_TAG="${TAG}"
 
       - name: Build
         shell: bash
@@ -657,6 +663,36 @@ jobs:
           }
           Write-Host "Installer payload OK — all essential runtime files present in the shipped tree."
 
+      # ── Exercise the in-app update helper (codeyoma/krx-quant#92) ────────
+      # The app's one-click update runs update-windows.ps1 under Windows
+      # PowerShell 5.1: purge the install with its maintenance tool, then install
+      # the new setup.exe headless into the same folder. Run it over the install
+      # the payload check just made, with a copy of the same installer.
+      - name: Verify the in-place update helper
+        shell: pwsh
+        working-directory: fincept-qt/build
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = Get-ChildItem -Filter "${{ env.APP_NAME }}-*-windows-x64-setup.exe" | Select-Object -First 1
+          $dest = Join-Path $env:RUNNER_TEMP 'fincept-payload-check'
+          $copy = Join-Path $env:RUNNER_TEMP 'fincept-update-setup.exe'
+          Copy-Item $setup.FullName $copy
+          $marker = Join-Path $dest 'left-from-the-old-install.txt'
+          Set-Content -Path $marker -Value 'old'
+          $helper = Join-Path $env:GITHUB_WORKSPACE 'fincept-qt/src/services/krx_quant/update/update-windows.ps1'
+          $p = Start-Process -FilePath 'powershell.exe' -Wait -PassThru -NoNewWindow -ArgumentList `
+                 "-NoProfile -ExecutionPolicy Bypass -File `"$helper`" -Setup `"$copy`" -Root `"$dest`" -NoLaunch"
+          Write-Host "----- fincept-update.log -----"
+          Get-Content (Join-Path $env:TEMP 'fincept-update.log') -ErrorAction SilentlyContinue | Write-Host
+          if ($p.ExitCode -ne 0) { Write-Host "::error::update helper exited $($p.ExitCode)"; exit 1 }
+          foreach ($f in @('FinceptTerminal.exe', 'FinceptMaintenanceTool.exe', 'Qt6Core.dll', 'Qt6Gui.dll',
+                           'Qt6Widgets.dll', 'qt.conf', 'platforms/qwindows.dll', 'sqldrivers/qsqlite.dll')) {
+            if (-not (Test-Path (Join-Path $dest $f))) { Write-Host "::error::$f missing after the update"; exit 1 }
+          }
+          if (Test-Path $marker) { Write-Host "::error::the old install was not removed"; exit 1 }
+          if (Test-Path $copy) { Write-Host "::error::the helper left the installer behind"; exit 1 }
+          Write-Host "In-place update OK."
+
       # ── Upload ────────────────────────────────────────────────────────────
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -762,7 +798,8 @@ jobs:
       # No FINCEPT_BUILD_INSTALLER on macOS — we ship a DMG built from the
       # post-processed bundle (see "Generate Installer (DMG)" step below).
       # Added to release.yml's flags: FINCEPT_RELEASE_BUILD (Qt pinned EXACT),
-      # FINCEPT_DISABLE_AUTO_UPDATE (fork rule), and FINCEPT_BUILD_TESTS so the
+      # FINCEPT_DISABLE_AUTO_UPDATE (fork rule), FINCEPT_CUSTOM_TAG (the build updates
+      # from this fork's releases by its tag), and FINCEPT_BUILD_TESTS so the
       # Qt Test suites (including the fork's tst_krx_engine_data) build in the
       # same tree. Test executables land in build/tests/ and have no install
       # rule, so they never reach the .app or the DMG.
@@ -779,6 +816,7 @@ jobs:
             -DFINCEPT_REQUIRE_BUNDLED_YTDLP=ON \
             -DFINCEPT_RELEASE_BUILD=ON \
             -DFINCEPT_DISABLE_AUTO_UPDATE=ON \
+            -DFINCEPT_CUSTOM_TAG="${TAG}" \
             -DFINCEPT_BUILD_TESTS=ON
 
       - name: Build
@@ -1295,6 +1333,32 @@ jobs:
             "build/${DMG_NAME}"
 
           ls -lh "build/${DMG_NAME}"
+
+      # ── Exercise the in-app update helper (codeyoma/krx-quant#92) ────────
+      # The app's one-click update runs update-macos.sh: swap the installed .app
+      # for the one in the DMG and verify its signature. Run it over an installed
+      # copy of this build, with a copy of the DMG (the helper removes it).
+      - name: Verify the in-place update helper
+        working-directory: fincept-qt
+        run: |
+          set -euo pipefail
+          DMG_NAME="${{ env.APP_NAME }}-${TAG}-macos-arm64.dmg"
+          WORK="$(mktemp -d)"
+          mkdir -p "${WORK}/Applications"
+          cp -R "dist/${{ env.APP_NAME }}.app" "${WORK}/Applications/"
+          touch "${WORK}/Applications/${{ env.APP_NAME }}.app/Contents/left-from-the-old-install"
+          cp "build/${DMG_NAME}" "${WORK}/update.dmg"
+          sleep 0 & PID=$!; wait "${PID}"   # an app that has already quit
+          STATUS=0
+          TMPDIR="${WORK}/" bash src/services/krx_quant/update/update-macos.sh \
+            "${PID}" "${WORK}/update.dmg" "${WORK}/Applications/${{ env.APP_NAME }}.app" --no-launch || STATUS=$?
+          echo "----- fincept-update.log -----"; cat "${WORK}/fincept-update.log" || true
+          [ "${STATUS}" -eq 0 ] || { echo "::error::update helper exited ${STATUS}"; exit 1; }
+          [ ! -e "${WORK}/Applications/${{ env.APP_NAME }}.app/Contents/left-from-the-old-install" ] || { echo "::error::the old bundle is still there"; exit 1; }
+          [ ! -e "${WORK}/Applications/${{ env.APP_NAME }}.app.previous" ] || { echo "::error::the old bundle was left aside"; exit 1; }
+          [ ! -e "${WORK}/update.dmg" ] || { echo "::error::the helper left the DMG behind"; exit 1; }
+          codesign --verify --deep --strict "${WORK}/Applications/${{ env.APP_NAME }}.app"
+          echo "In-place update OK."
 
       # ── Upload ────────────────────────────────────────────────────────────
       - name: Upload artifact
