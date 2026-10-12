@@ -430,13 +430,14 @@ QString predictor_label(const QString& predictor) {
     return labels.value(predictor, predictor);
 }
 
-QString engine_build_text(const EngineStatus& status) {
+QStringList engine_build_parts(const EngineStatus& status) {
     if (status.commit.isEmpty())
         return {};
     const QString code = status.commit == "unknown" ? QStringLiteral("커밋 모름") : status.commit.left(7);
-    if (!status.started_at.isValid())
-        return QStringLiteral("엔진 %1").arg(code);
-    return QStringLiteral("엔진 %1 · %2 시작").arg(code, kst_text(status.started_at, "MM-dd HH:mm"));
+    QStringList parts{QStringLiteral("엔진 %1").arg(code)};
+    if (status.started_at.isValid())
+        parts << QStringLiteral("%1 시작").arg(kst_text(status.started_at, "MM-dd HH:mm"));
+    return parts;
 }
 
 QString phase_label(const QString& phase) {

@@ -297,9 +297,10 @@ QString reading_text(const Reading& reading);
 /// before any, the morning's reading (``usdf``), named as that reading; empty without either.
 QString usd_futures_text(const std::optional<UsdFutures>& live, const QList<Reading>& readings);
 
-/// The code the engine runs and when it started: "엔진 0123abc · 10-13 06:02 시작". An engine
-/// built without its commit says "커밋 모름"; an older engine that says neither, nothing.
-QString engine_build_text(const EngineStatus& status);
+/// The code the engine runs and when it started, as parts of the status row:
+/// {"엔진 0123abc", "10-13 06:02 시작"}. An engine built without its commit gives
+/// "엔진 커밋 모름"; an older engine that says neither, no part.
+QStringList engine_build_parts(const EngineStatus& status);
 
 /// A time in KST, the exchange's and the engine's, in ``format`` (QDateTime's); "—" if invalid.
 QString kst_text(const QDateTime& t, const QString& format);

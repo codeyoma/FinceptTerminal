@@ -349,12 +349,12 @@ class TstKrxEngineData : public QObject {
     void the_status_names_the_engine_s_code_and_when_it_started() {
         const auto status = parse_status(json(kStatus));
         QVERIFY(status.is_ok());
-        QCOMPARE(engine_build_text(status.value()), QStringLiteral("엔진 0123456 · 10-08 06:02 시작"));
+        QCOMPARE(engine_build_parts(status.value()), (QStringList{"엔진 0123456", "10-08 06:02 시작"}));
         EngineStatus by_hand = status.value();
         by_hand.commit = "unknown";
-        QCOMPARE(engine_build_text(by_hand), QStringLiteral("엔진 커밋 모름 · 10-08 06:02 시작"));
+        QCOMPARE(engine_build_parts(by_hand), (QStringList{"엔진 커밋 모름", "10-08 06:02 시작"}));
         EngineStatus older; // an engine from before krx-quant #85 says neither
-        QCOMPARE(engine_build_text(older), QString());
+        QVERIFY(engine_build_parts(older).isEmpty());
     }
 
     void a_history_keeps_each_prediction_with_its_symbol_times_and_outcome() {
