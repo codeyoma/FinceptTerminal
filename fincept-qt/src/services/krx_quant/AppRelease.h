@@ -48,7 +48,8 @@ QString installer_suffix();
 enum class UpdateMode {
     SwapBundle,       ///< macOS: the installed .app is swapped for the one in the new DMG
     SwapFolder,       ///< Windows, installed in the user's folder: the folder is swapped for the new ZIP's tree
-    MoveToUserFolder, ///< Windows, installed elsewhere: the new setup.exe goes into the user's folder, the old install is removed
+    MoveToUserFolder, ///< Windows, installed elsewhere: the new setup.exe goes into the user's folder, the old install
+                      ///< is removed
     Manual,           ///< neither possible: the installer is opened for a manual install
 };
 

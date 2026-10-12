@@ -191,9 +191,8 @@ void AppUpdater::offer(const AppRelease& release) {
     QMessageBox box(parent_);
     box.setWindowTitle(tr("앱 업데이트"));
     box.setIcon(QMessageBox::Information);
-    const QString then = mode() == UpdateMode::Manual
-                             ? tr("받으면 확인한 뒤 설치 파일을 엽니다. 직접 설치해 주세요.")
-                             : tr("받으면 확인한 뒤, 지금 재시작할지 묻습니다.");
+    const QString then = mode() == UpdateMode::Manual ? tr("받으면 확인한 뒤 설치 파일을 엽니다. 직접 설치해 주세요.")
+                                                      : tr("받으면 확인한 뒤, 지금 재시작할지 묻습니다.");
     box.setText(tr("새 개인 빌드가 있습니다.\n\n지금: %1\n새 빌드: %2 (%3 MB)\n\n%4")
                     .arg(running_tag(), release.tag)
                     .arg(release.size / (1024 * 1024))
@@ -233,8 +232,7 @@ void AppUpdater::download(const AppRelease& release, bool in_background) {
                                     in_background ? QStringLiteral(" in the background") : QString()));
 
     if (!in_background) {
-        progress_ =
-            new QProgressDialog(tr("%1을(를) 내려받는 중…").arg(release.tag), tr("취소"), 0, 100, parent_);
+        progress_ = new QProgressDialog(tr("%1을(를) 내려받는 중…").arg(release.tag), tr("취소"), 0, 100, parent_);
         progress_->setWindowTitle(tr("앱 업데이트"));
         progress_->setWindowModality(Qt::WindowModal);
         progress_->setMinimumDuration(0);

@@ -56,14 +56,22 @@ QString installer_suffix() {
 #endif
 }
 
+namespace {
+/// A Windows path with forward slashes and no trailing one. Not QDir::fromNativeSeparators, which
+/// leaves backslashes alone off Windows (where this is unit-tested).
+QString windows_path(QString path) {
+    return QDir::cleanPath(path.replace(QLatin1Char('\\'), QLatin1Char('/')));
+}
+} // namespace
+
 QString windows_user_install_dir(const QString& local_app_data) {
-    return QDir::cleanPath(QDir::fromNativeSeparators(local_app_data) + QStringLiteral("/Programs/FinceptTerminal"));
+    return windows_path(local_app_data + QStringLiteral("/Programs/FinceptTerminal"));
 }
 
 UpdateMode windows_update_mode(const QString& app_dir, const QString& local_app_data, bool has_maintenance_tool) {
     if (!has_maintenance_tool)
         return UpdateMode::Manual;
-    const QString here = QDir::cleanPath(QDir::fromNativeSeparators(app_dir));
+    const QString here = windows_path(app_dir);
     const QString user_dir = windows_user_install_dir(local_app_data);
     // Windows paths compare without case.
     if (!local_app_data.isEmpty() && here.compare(user_dir, Qt::CaseInsensitive) == 0)
@@ -73,14 +81,14 @@ UpdateMode windows_update_mode(const QString& app_dir, const QString& local_app_
 
 QString update_asset_suffix(UpdateMode mode) {
     switch (mode) {
-    case UpdateMode::SwapBundle:
-        return QStringLiteral("macos-arm64.dmg");
-    case UpdateMode::SwapFolder:
-        return QStringLiteral("windows-x64.zip");
-    case UpdateMode::MoveToUserFolder:
-        return QStringLiteral("windows-x64-setup.exe");
-    case UpdateMode::Manual:
-        break;
+        case UpdateMode::SwapBundle:
+            return QStringLiteral("macos-arm64.dmg");
+        case UpdateMode::SwapFolder:
+            return QStringLiteral("windows-x64.zip");
+        case UpdateMode::MoveToUserFolder:
+            return QStringLiteral("windows-x64-setup.exe");
+        case UpdateMode::Manual:
+            break;
     }
     return installer_suffix(); // this platform's installer, to open by hand
 }
