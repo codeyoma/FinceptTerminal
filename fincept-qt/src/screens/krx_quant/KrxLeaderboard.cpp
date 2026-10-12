@@ -120,6 +120,7 @@ void KrxLeaderboard::show_leaderboard(const krx_quant::Leaderboard& leaderboard)
 
 void KrxLeaderboard::show_failure(const QString& reason) {
     shown_.reset();
+    header_.title->setToolTip(QString()); // the rules were the last leaderboard's
     table_->setRowCount(0);
     failure_->setToolTip(tr("순위표를 읽지 못했습니다: %1").arg(reason));
     failure_->show();

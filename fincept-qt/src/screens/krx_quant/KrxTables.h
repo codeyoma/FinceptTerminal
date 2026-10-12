@@ -69,13 +69,13 @@ inline void set_stats(QTableWidget* table, int row, int column, const krx_quant:
     table->setItem(row, column + 6, cell(krx_quant::weakest_lift_text(e), kNumber));
 }
 
-/// DataTable's look (ui/tables/DataTable.cpp) in the theme's colors now. DataTable paints
-/// once, when it is made.
+/// DataTable's colors (ui/tables/DataTable.cpp), the theme's now: DataTable paints once,
+/// when it is made. Its fixed cell padding is left out, so the global style's, which
+/// follows the user's density, applies.
 inline void restyle(QTableWidget* table) {
     table->setStyleSheet(
         QString("QTableWidget { background: %1; alternate-background-color: %2; "
                 "gridline-color: %3; border: none; }"
-                "QTableWidget::item { padding: 4px 8px; height: 26px; }"
                 "QTableWidget::item:selected { background: %4; }")
             .arg(ui::colors::DARK(), ui::colors::ROW_ALT(), ui::colors::BORDER(), ui::colors::BG_RAISED()));
 }
@@ -89,6 +89,9 @@ inline QTableWidget* table(const QStringList& headers) {
             item->setToolTip(tip);
     }
     table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    // Rows as high as the user's font and density make them, not DataTable's fixed 26px:
+    // these tables have a few dozen rows at most.
+    table->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     restyle(table);
     return table;
 }
