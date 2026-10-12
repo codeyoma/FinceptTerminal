@@ -8,6 +8,7 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
+#include <QJsonObject>
 #include <QMessageBox>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -67,7 +68,7 @@ AppUpdater::AppUpdater(QObject* parent) : QObject(parent) {
 void AppUpdater::check(bool silent, QWidget* parent, Done done) {
     if (busy_) { // a check or a download under way: a check from the menu still gets an answer
         if (!silent) {
-            QMessageBox::information(parent, tr("화면 업데이트"), tr("업데이트를 이미 확인하거나 내려받는 중입니다."));
+            QMessageBox::information(parent, tr("앱 업데이트"), tr("업데이트를 이미 확인하거나 내려받는 중입니다."));
             if (done)
                 done(false);
         }
@@ -113,7 +114,16 @@ void AppUpdater::on_releases(QNetworkReply* reply) {
         finish(false);
         return;
     }
-    const auto release = newest_release(QJsonDocument::fromJson(reply->readAll()), running_tag(), installer_suffix());
+    const QJsonDocument answer = QJsonDocument::fromJson(reply->readAll());
+    if (!answer.isArray()) { // an error object or a broken answer: not "up to date"
+        const QString message = answer.object().value("message").toString();
+        LOG_WARN("AppUpdater", QString("Unexpected releases answer: %1").arg(message));
+        if (!silent_)
+            tell(tr("업데이트를 확인하지 못했습니다. GitHub의 답을 읽을 수 없습니다.\n\n%1").arg(message));
+        finish(false);
+        return;
+    }
+    const auto release = newest_release(answer, running_tag(), installer_suffix());
     if (!release) {
         LOG_INFO("AppUpdater", QString("Up to date: %1").arg(running_tag()));
         if (!silent_)
@@ -127,7 +137,7 @@ void AppUpdater::on_releases(QNetworkReply* reply) {
 void AppUpdater::offer(const AppRelease& release) {
     LOG_INFO("AppUpdater", QString("Update available: %1 -> %2").arg(running_tag(), release.tag));
     QMessageBox box(parent_);
-    box.setWindowTitle(tr("화면 업데이트"));
+    box.setWindowTitle(tr("앱 업데이트"));
     box.setIcon(QMessageBox::Information);
     box.setText(tr("새 개인 빌드가 있습니다.\n\n지금: %1\n새 빌드: %2 (%3 MB)\n\n"
                    "지금 업데이트하면 내려받아 확인한 뒤, 앱을 닫고 새 빌드를 설치해 다시 엽니다.")
@@ -166,7 +176,7 @@ void AppUpdater::download(const AppRelease& release) {
     LOG_INFO("AppUpdater", QString("Downloading %1 to %2").arg(release.installer.toString(), file_->fileName()));
 
     progress_ = new QProgressDialog(tr("%1을(를) 내려받는 중…").arg(release.tag), tr("취소"), 0, 100, parent_);
-    progress_->setWindowTitle(tr("화면 업데이트"));
+    progress_->setWindowTitle(tr("앱 업데이트"));
     progress_->setWindowModality(Qt::WindowModal);
     progress_->setMinimumDuration(0);
     progress_->setAttribute(Qt::WA_DeleteOnClose);
@@ -298,7 +308,7 @@ void AppUpdater::finish(bool update_found) {
 }
 
 void AppUpdater::tell(const QString& text) {
-    QMessageBox::information(parent_, tr("화면 업데이트"), text);
+    QMessageBox::information(parent_, tr("앱 업데이트"), text);
 }
 
 } // namespace fincept::krx_quant

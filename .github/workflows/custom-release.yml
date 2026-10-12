@@ -4,8 +4,10 @@ name: Custom Release — personal Windows + macOS builds
 # Personal release of the codeyoma fork (see custom/README.md). Builds an
 # unsigned Windows x64 IFW installer and an ad-hoc-signed macOS arm64 DMG, then
 # publishes both as a prerelease on this fork. It uses no signing or
-# notarization secrets, only GITHUB_TOKEN, and compiles the in-app updater out
-# (-DFINCEPT_DISABLE_AUTO_UPDATE=ON) so an official release cannot replace it.
+# notarization secrets, only GITHUB_TOKEN, and compiles the official updater out
+# (-DFINCEPT_DISABLE_AUTO_UPDATE=ON) so an official release cannot replace it; the
+# build updates itself from this fork's releases by its tag instead
+# (-DFINCEPT_CUSTOM_TAG, codeyoma/krx-quant#92).
 #
 # Release from the custom branch:
 #   git switch custom && git pull --ff-only
@@ -1414,7 +1416,7 @@ jobs:
           cat > "${NOTES}" <<'EOF'
           Personal build of the codeyoma fork of Fincept Terminal, with the KRX prediction screen added. It is not an official Fincept release.
 
-          **Unsigned.** The Windows installer has no Authenticode signature, and the macOS app is only ad-hoc signed and not notarized, so both systems warn on first launch. The in-app updater is turned off in this build.
+          **Unsigned.** The Windows installer has no Authenticode signature, and the macOS app is only ad-hoc signed and not notarized, so both systems warn on first launch. Official Fincept updates are turned off in this build; it updates itself from this fork's releases instead (Check for Updates, or the prompt after login).
 
           | Platform | File |
           |---|---|
