@@ -139,8 +139,9 @@ const char* kLeaderboard = R"({
   ]
 })";
 
-// One algorithm's stats: its leaderboard line with the calibration curve (two of the ten
-// bins; one with nothing in it), and its breakdowns, whose lifts were not tested together.
+// One algorithm's stats: its leaderboard line with what it left out and the calibration
+// curves (two of the ten bins; one with nothing in it; and up on its own), and its
+// breakdowns, whose lifts were not tested together and which leave out nothing.
 const char* kStats = R"({
   "algorithm": "alg-a", "symbol": "005930", "period": "20d", "days": ["2026-10-08"], "basis": "a",
   "special": "include", "min_sample": 200,
@@ -155,7 +156,13 @@ const char* kStats = R"({
       {"low": 0.0, "high": 0.1, "count": 0, "mean_p": null, "observed": null},
       {"low": 0.3, "high": 0.4, "count": 412, "mean_p": 0.347,
        "observed": {"value": 0.31, "low": 0.27, "high": 0.36, "n": 412}}
-    ]
+    ],
+    "calibration_by_class": {
+      "up": [{"low": 0.3, "high": 0.4, "count": 10, "mean_p": 0.333,
+              "observed": {"value": 1.0, "low": 0.72, "high": 1.0, "n": 10}}],
+      "flat": [], "down": []
+    },
+    "excluded": {"special": 2, "unscorable": 1, "status": {"timed_out": 3, "vi": 4}}
   },
   "by_symbol": {"005930": {"rank": null, "algorithm": "alg-a", "model_versions": ["alg-a-1"], "n": 300,
     "accuracy": {"value": 0.52, "low": 0.49, "high": 0.55, "n": 300}, "precision": null, "coverage": null,
@@ -522,6 +529,21 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(bins[1].mean_p, std::optional<double>(0.347));
         QCOMPARE(bins[1].observed->value, 0.31);
         QCOMPARE(bins[1].observed->low, std::optional<double>(0.27));
+    }
+
+    void the_stats_carry_each_class_calibration_and_what_they_left_out() {
+        const auto stats = parse_stats(json(kStats));
+        QVERIFY(stats.is_ok());
+        const auto& s = stats.value();
+        QCOMPARE(s.calibration_by_class.keys(), (QStringList{"down", "flat", "up"}));
+        QCOMPARE(s.calibration_by_class.value("up").size(), 1);
+        QCOMPARE(s.calibration_by_class.value("up")[0].observed->value, 1.0);
+        QVERIFY(s.calibration_by_class.value("down").isEmpty());
+        QVERIFY(s.overall.excluded.has_value());
+        QCOMPARE(s.overall.excluded->special, 2);
+        QCOMPARE(s.overall.excluded->unscorable, 1);
+        QCOMPARE(s.overall.excluded->statuses, (QMap<QString, int>{{"timed_out", 3}, {"vi", 4}}));
+        QVERIFY(!s.by_symbol.value("005930").excluded.has_value());
     }
 
     void the_breakdowns_are_by_symbol_slot_and_model_version_in_order() {

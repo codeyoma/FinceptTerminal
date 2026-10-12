@@ -83,6 +83,27 @@ QStringList strings_of(const QJsonValue& v) {
     return out;
 }
 
+QList<CalibrationBin> bins_of(const QJsonValue& value) {
+    QList<CalibrationBin> bins;
+    for (const auto& v : value.toArray()) {
+        const QJsonObject b = v.toObject();
+        bins.push_back({b.value("low").toDouble(), b.value("high").toDouble(), b.value("count").toInt(),
+                        number(b.value("mean_p")), interval_of(b.value("observed"))});
+    }
+    return bins;
+}
+
+std::optional<Excluded> excluded_of(const QJsonValue& value) {
+    if (!value.isObject())
+        return std::nullopt;
+    const QJsonObject o = value.toObject();
+    Excluded excluded{o.value("special").toInt(), o.value("unscorable").toInt(), {}};
+    const QJsonObject statuses = o.value("status").toObject();
+    for (auto it = statuses.begin(); it != statuses.end(); ++it)
+        excluded.statuses.insert(it.key(), it.value().toInt());
+    return excluded;
+}
+
 Entry entry_of(const QJsonObject& e) {
     Entry entry;
     if (e.value("rank").isDouble())
@@ -99,6 +120,7 @@ Entry entry_of(const QJsonObject& e) {
     entry.trades = pnl.value("trades").toInt();
     entry.total_ticks = pnl.value("total_ticks").toDouble();
     entry.per_trade = interval_of(pnl.value("per_trade"));
+    entry.excluded = excluded_of(e.value("excluded"));
     if (e.value("lift").isObject()) {
         const QJsonObject lift = e.value("lift").toObject();
         entry.lift_low = number(lift.value("low"));
@@ -277,11 +299,10 @@ Result<AlgorithmStats> parse_stats(const QJsonDocument& doc) {
     stats.min_sample = o.value("min_sample").toInt();
     const QJsonObject overall = o.value("overall").toObject();
     stats.overall = entry_of(overall);
-    for (const auto& v : overall.value("calibration").toArray()) {
-        const QJsonObject b = v.toObject();
-        stats.calibration.push_back({b.value("low").toDouble(), b.value("high").toDouble(), b.value("count").toInt(),
-                                     number(b.value("mean_p")), interval_of(b.value("observed"))});
-    }
+    stats.calibration = bins_of(overall.value("calibration"));
+    const QJsonObject by_class = overall.value("calibration_by_class").toObject();
+    for (auto it = by_class.begin(); it != by_class.end(); ++it)
+        stats.calibration_by_class.insert(it.key(), bins_of(it.value()));
     stats.by_symbol = entries_by_key(o.value("by_symbol"));
     stats.by_slot = entries_by_key(o.value("by_slot"));
     stats.by_model_version = entries_by_key(o.value("by_model_version"));
