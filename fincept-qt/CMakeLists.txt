@@ -4021,7 +4021,10 @@ if(FINCEPT_BUILD_INSTALLER)
     # shown interactively now that controlscript.qs guards its auto-advance
     # with isCommandLineInstance()).
     if(WIN32)
-        set(CPACK_IFW_TARGET_DIRECTORY "@ApplicationsDirX64@/FinceptTerminal")
+        # Fork change (codeyoma/krx-quant#130): the user's own folder, %LOCALAPPDATA%\Programs,
+        # so the personal build updates itself without administrator rights. Upstream:
+        # "@ApplicationsDirX64@/FinceptTerminal" (Program Files).
+        set(CPACK_IFW_TARGET_DIRECTORY "@HomeDir@/AppData/Local/Programs/FinceptTerminal")
     elseif(APPLE)
         set(CPACK_IFW_TARGET_DIRECTORY "/Applications/FinceptTerminal")
     else()

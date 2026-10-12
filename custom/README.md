@@ -70,7 +70,7 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/src/app/DockScreenRouter.cpp` | `krx_quant` 탭 제목 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/ToolBar.cpp` | Navigate → Trading & Portfolio 메뉴에 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/CommandBar.cpp` | 명령 팔레트에 `krx_quant` ("krx"로 찾는다) |
-| `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`) |
+| `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`), 윈도우 설치 프로그램의 기본 폴더 `CPACK_IFW_TARGET_DIRECTORY`(사용자 폴더, codeyoma/krx-quant#130) |
 | `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
 | `fincept-qt/src/services/updater/UpdateService.cpp` | `FINCEPT_DISABLE_AUTO_UPDATE`이면 공식 업데이트 대신 개인 빌드 업데이트(`krx_quant::AppUpdater`)로 넘긴다(`check_for_updates` 본문을 `#ifdef … #else … #endif`로 감쌌다) |
 | `fincept-qt/src/services/llm/ProviderCatalog.cpp` | provider 목록에 로컬 CLI provider(`claude_cli`, `codex_cli`)를 붙이고, 이름·기본 모델·키 불필요·OpenAI 호환 아님을 `krx_quant::cli_llm`에 묻는다 |
@@ -231,17 +231,30 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 
 > **바뀜** (2026-10-12, codeyoma/krx-quant#95): 앱 내 업데이트 꺼짐 → 이 fork의 개인 빌드 Release에서 버튼 한 번으로 업데이트. 이유: 새 화면 빌드마다 DMG·setup.exe를 받아 직접 다시 설치해야 했다(codeyoma/krx-quant#92). 공식 버전 업데이트는 여전히 꺼져 있다.
 
-## 앱 업데이트 (codeyoma/krx-quant#92)
+## 앱 업데이트 (codeyoma/krx-quant#92, #130)
 
 - **빌드 태그.** `custom-release` workflow가 태그를 `-DFINCEPT_CUSTOM_TAG`로 빌드에 넘긴다. 앱은 자기가 어느 개인 빌드인지 안다. 로컬 빌드는 태그가 없어 업데이트를 확인하지 않는다.
-- **확인.** 로그인 뒤 한 번 조용히 확인하고, 새 빌드가 있을 때만 묻는다. 메뉴의 업데이트 확인과 About 화면의 버튼은 늘 결과를 알려 준다. GitHub API(토큰 없음)로 이 fork의 Release를 읽어, 지금보다 새 `custom-v*` 빌드 가운데 이 플랫폼의 설치 파일(`…-macos-arm64.dmg`, `…-windows-x64-setup.exe`)과 GitHub의 sha256 digest가 있는 가장 새 것을 고른다. 순서는 upstream 버전, 다음 `krx.N`이다. 초안 Release와 공식 태그는 보지 않는다.
-- **지금 업데이트.** 설치 파일을 내려받아 sha256을 확인한다. 맞지 않거나 digest가 없으면 지우고 멈춘다. 확인되면 도우미 스크립트(`fincept-qt/src/services/krx_quant/update/`, 앱 리소스에 들어 있다)를 띄우고 앱을 닫는다. 도우미는 앱이 끝나기를 기다린 뒤 새 빌드를 같은 자리에 설치하고 연다. 기록은 임시 폴더의 `fincept-update.log`에 남는다.
-  - 맥(`update-macos.sh`): DMG를 붙여 설치된 `.app`을 새 것으로 바꾸고 서명을 확인한다. 옛 앱은 복사가 끝날 때까지 옆에 두었다가, 실패하면 되돌린다. macOS가 "앱 관리" 권한을 물으면 허용한다. 막히면 옛 앱이 그대로 남고 DMG가 열린다.
-  - 윈도우(`update-windows.ps1`): 앱은 이 도우미를 Windows PowerShell의 전체 경로(`%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`, 없으면 PATH의 `powershell.exe`)로 띄운다. PATH에 없을 수 있어서다(codeyoma/krx-quant#101). 설치 폴더의 `FinceptMaintenanceTool.exe purge`로 지우고, 새 `setup.exe`를 같은 폴더에 무인 설치한다(workflow의 설치 확인과 같은 옵션). 설치 폴더가 Program Files면 UAC 확인이 지울 때와 설치할 때 두 번 뜬다. 옛 설치로 되돌리지는 못한다. 두 번째 확인을 거절하거나 설치가 실패하면 앱이 없는 상태가 되고, 설치 마법사가 열리니 그것으로 다시 설치한다.
-  - 자동 설치가 안 되는 경우(설치 프로그램으로 설치하지 않은 앱, 쓸 수 없는 폴더, 도우미 실패)에는 설치 파일을 열어 직접 설치하게 한다.
-- **설치 중.** "지금 업데이트"를 누르면 내려받는 동안 진행 창(취소 가능)이 뜬다. 설치 전에 앱이 닫힌다는 안내가 나오고, 확인을 누르면 앱이 닫힌다. 그 뒤 1–2분 동안은 화면이 없다(윈도우는 숨은 창에서 설치한다).
+- **확인.** 로그인 뒤 한 번, 그리고 앱이 켜져 있는 동안 6시간마다 조용히 확인한다. 메뉴의 업데이트 확인과 About 화면의 버튼은 늘 결과를 알려 준다. GitHub API(토큰 없음)로 이 fork의 Release를 읽어, 지금보다 새 `custom-v*` 빌드 가운데 이 설치가 쓰는 파일(아래)과 GitHub의 sha256 digest가 있는 가장 새 것을 고른다. 순서는 upstream 버전, 다음 `krx.N`이다. 초안 Release와 공식 태그는 보지 않는다.
+- **내려받기.** 조용한 확인은 묻지 않고 백그라운드에서 내려받는다. 메뉴의 확인은 "받기"를 물은 뒤 진행 창(취소 가능)을 띄운다. 받은 파일은 sha256을 확인하고, 맞지 않거나 digest가 없으면 지운다. 백그라운드에서 실패하면 알리지 않고 다음 확인 때 다시 받는다.
+- **준비되면 버튼 하나.** 확인된 빌드는 도우미 스크립트(`fincept-qt/src/services/krx_quant/update/`, 앱 리소스에 들어 있다)에 넘긴다. 도우미는 앱이 끝나기를 기다린다. 앱은 "새 개인 빌드 krx.N이 준비됐습니다"와 **지금 재시작**, **나중에**를 띄운다(다른 작업을 막지 않는 창).
+  - 지금 재시작: 앱이 닫히고, 도우미가 새 빌드로 바꾼 뒤 몇 초 안에 다시 연다. 앱은 닫기 전에 재시작 표시 파일(받은 파일 이름 + `.relaunch`)을 만들고, 도우미는 그 파일이 있을 때만 앱을 다시 연다.
+  - 나중에: 앱을 언제든 끌 때 바뀐다. 다음에 켜면 새 빌드다. 그사이 메뉴로 확인하면 같은 창을 다시 띄운다.
+  - 기록은 임시 폴더의 `fincept-update.log`에 남는다.
+- **이 설치가 쓰는 파일과 방식.**
+  - 맥(`update-macos.sh`, `…-macos-arm64.dmg`): DMG를 붙여 설치된 `.app`을 새 것으로 바꾸고 서명을 확인한다. 옛 앱은 복사가 끝날 때까지 옆에 두었다가, 실패하면 되돌린다. macOS가 "앱 관리" 권한을 물으면 허용한다. 재시작을 눌렀는데 실패하면 옛 앱과 DMG가 열린다.
+  - 윈도우, 사용자 폴더 설치(`%LOCALAPPDATA%\Programs\FinceptTerminal`, `…-windows-x64.zip`): 폴더를 통째로 바꾼다. ZIP은 설치된 파일 트리에서 설치 프로그램 자신의 파일(`FinceptMaintenanceTool.*`, `components.xml`, `InstallationLog.txt`, `network.xml`, `installer.dat`, `installerResources`)을 뺀 것이다. 도우미는 앱이 도는 동안 ZIP을 `<설치 폴더>.staging`에 풀어 둔다. 앱이 끝나면 그 폴더에서 띄운 프로세스(QtWebEngineProcess 등)도 끝나기를 2분까지 기다리고, 남은 것은 멈춘다. 앱이 그 폴더에서 다시 켜져 있으면 이번 업데이트는 그만둔다. 설치 폴더를 `<설치 폴더>.old`로 옮기고 새 트리를 그 자리에 놓은 뒤, 새 트리에 없는 것(제거 도구와 그 기록, 사용자가 넣은 파일)을 옛 폴더에서 복사해 온다. 그래서 제어판의 제거도 그대로 된다. 어느 단계든 실패하면 옛 폴더를 되돌린다. 관리자 권한이 필요 없어 UAC가 뜨지 않는다.
+  - 윈도우, 다른 곳 설치(Program Files 등, `…-windows-x64-setup.exe`): 이번 한 번 사용자 폴더로 옮긴다. 앱이 끝나면 새 `setup.exe`를 사용자 폴더에 무인 설치하고(workflow의 설치 확인과 같은 옵션), 옛 설치를 그 제거 도구(`FinceptMaintenanceTool.exe purge`)로 지운다. 옛 폴더에 쓸 수 없으면(Program Files) 지울 때 UAC가 한 번 뜬다. 거절하면 옛 설치는 남고 새 설치는 그대로 쓴다. 옛 설치를 지우면 그 바로가기(시작 메뉴의 `Fincept\Fincept Terminal`, 바탕 화면의 `Fincept Terminal`)도 지워지는데, 새 설치가 같은 이름으로 만든 것일 수 있다. 그래서 지우기 전에 새 설치를 여는 바로가기를 적어 두고, 지워졌으면 다시 만든다. 옛 설치를 먼저 지우지 않는 것은, 새 설치가 실패하면 앱이 없는 상태가 되기 때문이다. 준비 창에 옮길 위치와 UAC 안내가 나온다. 그 뒤로는 위의 폴더 바꾸기다.
+  - 앱은 도우미를 Windows PowerShell의 전체 경로(`%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`, 없으면 PATH의 `powershell.exe`)로 숨은 창에서 띄운다. PATH에 없을 수 있어서다(codeyoma/krx-quant#101).
+  - 스스로 업데이트할 수 없는 경우(설치 프로그램으로 설치하지 않은 윈도우 앱, `%LOCALAPPDATA%`를 모르는 윈도우, 쓸 수 없는 폴더의 맥 앱)에는 메뉴의 확인에서만 알리고, 설치 파일을 받아 열어 직접 설치하게 한다. 도우미를 띄우지 못하면 설치 파일이나(ZIP이면) 릴리스 페이지를 연다.
+- **새 설치 위치.** 윈도우 설치 프로그램의 기본 폴더는 `%LOCALAPPDATA%\Programs\FinceptTerminal`이다(`fincept-qt/CMakeLists.txt`의 `CPACK_IFW_TARGET_DIRECTORY`, upstream은 Program Files). 마법사에서 다른 곳을 고를 수 있지만, 그러면 첫 업데이트 때 이 폴더로 옮긴다.
 - **신뢰.** Release에서 직접 받는 것과 같다(이 fork의 GitHub 계정과 Release). 거기에 GitHub digest 확인을 더했다. 서명 키는 쓰지 않는다.
-- **CI.** `custom-release` workflow가 두 도우미를 새로 만든 설치 파일로 돌려 본다. 윈도우 단계도 PowerShell을 전체 경로로 띄운다. 앞의 IFW 설치 단계가 PATH를 MSYS 꼴로 `GITHUB_ENV`에 써서, 뒤의 PowerShell 단계는 PATH로 `powershell.exe`를 찾지 못한다. 그 때문에 `krx.4`–`krx.6`은 윈도우 단계에서 실패해 Release가 나오지 않았다(codeyoma/krx-quant#101). 윈도우는 설치한 앱 위에 다시 설치하고, 맥은 설치된 복사본을 새 DMG로 바꾼다.
+- **CI.** `custom-release` workflow가 Release마다 윈도우 ZIP을 만들어 올리고, 두 도우미를 새로 만든 파일로 돌려 본다.
+  - 윈도우: 설치 확인으로 설치한 트리에서 ZIP을 만든다. 폴더 바꾸기(옛 설치에만 있던 파일이 남는지, 바꾼 뒤에도 제거 도구가 지우는지)와 사용자 폴더로 옮기기(새 폴더에 설치되고 옛 설치가 지워지는지)를 확인한다. PowerShell은 전체 경로로 띄운다. 앞의 IFW 설치 단계가 PATH를 MSYS 꼴로 `GITHUB_ENV`에 써서, 뒤의 PowerShell 단계는 PATH로 `powershell.exe`를 찾지 못한다. 그 때문에 `krx.4`–`krx.6`은 윈도우 단계에서 실패해 Release가 나오지 않았다(codeyoma/krx-quant#101).
+  - 맥: 설치된 복사본을 새 DMG로 바꾼다. 재시작 표시 파일 없이 돌려 아무것도 열지 않는다.
+
+> **바뀜** (2026-10-13, codeyoma/krx-quant#133): "지금 업데이트"를 눌러야 내려받고, 받으면 앱을 바로 닫고 설치했다 → 백그라운드에서 받고 "지금 재시작" 버튼 하나, 누르지 않으면 앱을 끌 때 바뀐다. 확인은 로그인 뒤 한 번 → 그 뒤 6시간마다도. 이유: 업데이트를 사용자가 편하게, 버튼 한 번으로(codeyoma/krx-quant#130).
+
+> **바뀜** (2026-10-13, codeyoma/krx-quant#133): 윈도우는 설치 폴더를 제거 도구로 지우고 새 `setup.exe`를 같은 폴더에 무인 설치했다(Program Files면 UAC 두 번, 실패하면 설치 마법사가 열렸고 마법사는 비어 있지 않은 폴더에 설치하지 못했다) → 사용자 폴더 설치는 ZIP으로 폴더를 바꾸고(UAC 없음, 실패하면 되돌림), 다른 곳 설치는 첫 업데이트 때 사용자 폴더로 옮긴다. 기본 설치 폴더는 Program Files → `%LOCALAPPDATA%\Programs\FinceptTerminal`. 이유: 윈도우에서 업데이트를 누르면 설치 마법사가 뜨고 덮어쓰지 못했다(codeyoma/krx-quant#130).
 
 ## 에이전트 설정
 

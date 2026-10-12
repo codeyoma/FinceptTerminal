@@ -1,42 +1,52 @@
 #!/bin/bash
-# The personal build's in-place update on macOS (codeyoma/krx-quant#92, custom/README.md).
+# The personal build's self-update on macOS (codeyoma/krx-quant#92, #130, custom/README.md
+# "앱 업데이트").
 #
-# The app downloads a new build's DMG, checks its sha256, starts this script and quits. This
-# waits for the app to exit, swaps the installed .app bundle for the one in the DMG (the old
-# one is kept aside until the copy succeeds, and put back if it fails) and opens the new one.
-# If the swap cannot be done, it opens the DMG so the user can drag the app across by hand.
+# The app downloads a new build's DMG, checks its sha256, starts this script and keeps running.
+# This waits for the app to exit (the user pressed 지금 재시작, or quit the app some other time),
+# swaps the installed .app bundle for the one in the DMG (the old one is kept aside until the copy
+# succeeds, and put back if it fails), and opens the new one only when the relaunch file exists by
+# then (the app makes it for 지금 재시작). If the swap fails after a restart was asked for, it
+# opens the old app and the DMG, so the user can drag the new app across by hand.
 #
-#   update-macos.sh <app pid> <dmg> <installed .app> [--no-launch]
+#   update-macos.sh <app pid> <dmg> <installed .app> [<relaunch file> | --no-launch]
 #
-# --no-launch (CI): open nothing, neither the new app nor the DMG; the exit code tells.
+# --no-launch (CI), or no relaunch file: open nothing; the exit code tells.
 # The DMG is removed after a successful swap. A log goes to $TMPDIR/fincept-update.log.
 
 set -u
 pid=$1
 dmg=$2
 app=$3
-launch=${4:-}
+relaunch=${4:-}
 log="${TMPDIR:-/tmp}/fincept-update.log"
 exec >>"$log" 2>&1
 echo "$(date '+%F %T') update ${app} from ${dmg}"
 
 mnt=""
+# True when the user asked for a restart: the app made the relaunch file before it quit.
+restart_asked() {
+    [ -n "$relaunch" ] && [ "$relaunch" != "--no-launch" ] && [ -e "$relaunch" ]
+}
+
 fail() {
     echo "failed: $1"
     if [ -n "$mnt" ]; then
         hdiutil detach "$mnt" -quiet 2>/dev/null
         rmdir "$mnt" 2>/dev/null
     fi
-    [ "$launch" = "--no-launch" ] || open "$dmg"
+    if restart_asked; then
+        rm -f "$relaunch"
+        [ -d "$app" ] && open "$app"
+        open "$dmg"
+    fi
     exit 1
 }
 
-# The app quits right after starting this; give it up to two minutes.
-for _ in $(seq 1 600); do
-    kill -0 "$pid" 2>/dev/null || break
-    sleep 0.2
+# The app keeps running until the user restarts or quits it: wait as long as that takes.
+while kill -0 "$pid" 2>/dev/null; do
+    sleep 1
 done
-kill -0 "$pid" 2>/dev/null && fail "the app is still running"
 
 case "$app" in
     *.app) ;;
@@ -65,5 +75,8 @@ mnt=""
 xattr -dr com.apple.quarantine "$app" 2>/dev/null
 rm -f "$dmg"
 echo "updated"
-[ "$launch" = "--no-launch" ] || open "$app"
+if restart_asked; then
+    rm -f "$relaunch"
+    open "$app"
+fi
 exit 0
