@@ -1,5 +1,6 @@
 #pragma once
 
+#include "screens/krx_quant/KrxPanel.h"
 #include "services/krx_quant/Signals.h"
 
 #include <QCheckBox>
@@ -22,6 +23,8 @@ class KrxAlerts : public QWidget {
     krx_quant::SignalRule rule() const;
     /// Show the signal here and send it out.
     void raise(const krx_quant::Signal& signal);
+    /// Paint in the theme's colors and font now.
+    void restyle();
 
   signals:
     /// The user turned the alerts on or off, or changed the threshold or N.
@@ -30,6 +33,8 @@ class KrxAlerts : public QWidget {
   private:
     void save();
     void notify(const QString& text);
+
+    krx_panel::Header header_; ///< the panel's title; the alert rules on its tooltip
 
     QCheckBox* on_ = nullptr;
     QSpinBox* probability_ = nullptr;

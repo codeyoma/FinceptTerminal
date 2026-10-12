@@ -21,8 +21,19 @@ constexpr auto kSoundKey = "krx_quant/signal_sound";
 } // namespace
 
 KrxAlerts::KrxAlerts(QWidget* parent) : QWidget(parent) {
-    auto* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
+    auto* outer = new QVBoxLayout(this);
+    outer->setContentsMargins(0, 0, 0, 0);
+    outer->setSpacing(0);
+    header_ = krx_panel::header(tr("신호 알림"),
+                                tr("같은 종목·같은 방향은 4분(채점 시각)까지 다시 알리지 않는다.\n"
+                                   "엔진이 막은 최종 합의(특수 상황, 기준가 없음, 목표 시각 지남)로는 알리지 않는다.\n"
+                                   "알림은 Fincept 알림(앱 안 알림과 OS 알림)으로 나간다.\n"
+                                   "이 화면을 연 뒤부터 다른 화면을 보는 동안에도 알리고, 탭을 닫으면 멈춘다."));
+    outer->addWidget(header_.bar);
+    auto* body = new QWidget;
+    outer->addWidget(body, 1);
+    auto* layout = new QVBoxLayout(body);
+    layout->setContentsMargins(12, 8, 12, 8);
     on_ = new QCheckBox(tr("신호 알림 켜기"));
     on_->setChecked(AppConfig::instance().get(kOnKey, true).toBool());
     layout->addWidget(on_);
@@ -53,15 +64,9 @@ KrxAlerts::KrxAlerts(QWidget* parent) : QWidget(parent) {
     sound_->setChecked(AppConfig::instance().get(kSoundKey, true).toBool());
     layout->addWidget(sound_);
 
-    auto* rule = new QLabel(tr("같은 종목·같은 방향은 4분(채점 시각)까지 다시 알리지 않는다. "
-                               "알림은 Fincept 알림(앱 안 알림과 OS 알림)으로 나간다. 이 화면을 연 뒤부터 "
-                               "다른 화면을 보는 동안에도 알리고, 탭을 닫으면 멈춘다."));
-    rule->setObjectName("krxNote");
-    rule->setWordWrap(true);
-    layout->addWidget(rule);
-
-    last_ = new QLabel(tr("아직 신호가 없습니다"));
+    last_ = new QLabel; // shown from the first signal on
     last_->setWordWrap(true);
+    last_->hide();
     layout->addWidget(last_);
 
     auto* test = new QPushButton(tr("시험 알림"));
@@ -88,7 +93,12 @@ krx_quant::SignalRule KrxAlerts::rule() const {
 void KrxAlerts::raise(const krx_quant::Signal& signal) {
     const QString text = signal.text();
     last_->setText(tr("마지막 신호 (%1): %2").arg(krx_quant::kst_text(QDateTime::currentDateTime(), "HH:mm:ss"), text));
+    last_->show();
     notify(tr("KRX 신호 · %1").arg(text));
+}
+
+void KrxAlerts::restyle() {
+    header_.restyle();
 }
 
 void KrxAlerts::save() {

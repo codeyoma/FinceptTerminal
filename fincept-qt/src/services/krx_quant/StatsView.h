@@ -81,6 +81,10 @@ QString period_label(const QString& period);
 QString basis_label(const QString& basis);
 /// The days a query covered: one, or the first ~ the last (how many).
 QString days_text(const QStringList& days);
+/// The leaderboard's rules, on its title's tooltip (krx-quant #103): the days it counts,
+/// what ranks an entry and in what order, what passing the luck check means, and how a
+/// detail opens.
+QString ranking_rules(const QStringList& days, int min_sample);
 /// The query the stats answer, in Korean: period · scoring basis · symbol · special situations.
 QString query_text(const AlgorithmStats& stats);
 

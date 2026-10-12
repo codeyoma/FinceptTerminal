@@ -1,6 +1,8 @@
 #pragma once
 
 #include "services/krx_quant/StatsView.h"
+#include "ui/tables/DataTable.h"
+#include "ui/theme/Theme.h"
 
 #include <QHeaderView>
 #include <QObject>
@@ -11,7 +13,8 @@
 
 #include <iterator>
 
-/// The KRX screen's tables: read-only, whole rows selected, columns sized to their contents.
+/// The KRX screen's tables: Fincept's DataTable (read-only, whole rows selected, alternating
+/// rows), columns sized to their contents, and painted again on a theme change (restyle).
 /// Also the stats columns the leaderboard and a detail window's breakdowns share.
 namespace fincept::screens::krx_tables {
 
@@ -66,19 +69,30 @@ inline void set_stats(QTableWidget* table, int row, int column, const krx_quant:
     table->setItem(row, column + 6, cell(krx_quant::weakest_lift_text(e), kNumber));
 }
 
+/// DataTable's colors (ui/tables/DataTable.cpp), the theme's now: DataTable paints once,
+/// when it is made. Its fixed cell padding is left out, so the global style's, which
+/// follows the user's density, applies.
+inline void restyle(QTableWidget* table) {
+    table->setStyleSheet(
+        QString("QTableWidget { background: %1; alternate-background-color: %2; "
+                "gridline-color: %3; border: none; }"
+                "QTableWidget::item:selected { background: %4; }")
+            .arg(ui::colors::DARK(), ui::colors::ROW_ALT(), ui::colors::BORDER(), ui::colors::BG_RAISED()));
+}
+
 inline QTableWidget* table(const QStringList& headers) {
-    auto* table = new QTableWidget(0, static_cast<int>(headers.size()));
-    table->setHorizontalHeaderLabels(headers);
+    auto* table = new ui::DataTable;
+    table->set_headers(headers);
     for (int column = 0; column < headers.size(); ++column) {
         auto* item = table->horizontalHeaderItem(column);
         if (const QString tip = header_tip(headers[column]); item && !tip.isEmpty())
             item->setToolTip(tip);
     }
-    table->verticalHeader()->hide();
-    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    table->horizontalHeader()->setStretchLastSection(true);
+    // Rows as high as the user's font and density make them, not DataTable's fixed 26px:
+    // these tables have a few dozen rows at most.
+    table->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    restyle(table);
     return table;
 }
 
