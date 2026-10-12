@@ -9,6 +9,7 @@
 #include "auth/AuthManager.h"
 #include "core/logging/Logger.h"
 #include "screens/settings/LlmConfigSection.h"
+#include "services/krx_quant/LocalCliLlm.h" // fork addition (codeyoma/krx-quant#96)
 #include "services/llm/LlmService.h"
 #include "storage/repositories/LlmConfigRepository.h"
 #include "storage/repositories/LlmProfileRepository.h"
@@ -530,6 +531,15 @@ void LlmConfigSection::populate_form(const QString& provider) {
 
     bool is_fincept = (provider.toLower() == "fincept");
     bool is_ollama = (provider.toLower() == "ollama");
+    // Fork addition (codeyoma/krx-quant#96): a local CLI uses its own login, and its base_url is
+    // the path to the CLI.
+    const bool is_cli = krx_quant::cli_llm::is_cli_provider(provider);
+    const QString keyless_hint =
+        is_cli ? tr("Not required — uses the CLI's own login") : tr("Not required — local provider");
+    base_url_field_lbl_->setText(is_cli ? tr("CLI path") : tr("Base URL"));
+    base_url_edit_->setPlaceholderText(
+        is_cli ? tr("Auto — finds %1 on this computer").arg(krx_quant::cli_llm::program(provider))
+               : tr("Optional — leave empty for default"));
 
     // Populate model combo with fallback suggestions (empty for ollama — see fallback_models).
     model_combo_->blockSignals(true);
@@ -578,12 +588,12 @@ void LlmConfigSection::populate_form(const QString& provider) {
                 model_combo_->setVisible(false);
                 fetch_btn_->setVisible(false);
                 base_url_edit_->setVisible(false);
-            } else if (is_ollama) {
+            } else if (is_ollama || is_cli) {
                 // Local provider — no API key needed. Mark the field clearly so users
                 // don't think it's broken or required.
                 api_key_edit_->clear();
                 api_key_edit_->setEnabled(false);
-                api_key_edit_->setPlaceholderText(tr("Not required — local provider"));
+                api_key_edit_->setPlaceholderText(keyless_hint);
                 model_combo_->setVisible(true);
                 model_combo_->setEnabled(true);
                 fetch_btn_->setVisible(true);
@@ -610,7 +620,7 @@ void LlmConfigSection::populate_form(const QString& provider) {
 
     // New provider — clear form
     api_key_edit_->clear();
-    api_key_edit_->setEnabled(!is_fincept && !is_ollama);
+    api_key_edit_->setEnabled(!is_fincept && !is_ollama && !is_cli);
     if (is_fincept) {
         const QString stored = fincept::auth::AuthManager::instance().fincept_api_key();
         if (!stored.isEmpty())
@@ -620,8 +630,8 @@ void LlmConfigSection::populate_form(const QString& provider) {
         model_combo_->setVisible(false);
         fetch_btn_->setVisible(false);
         base_url_edit_->setVisible(false);
-    } else if (is_ollama) {
-        api_key_edit_->setPlaceholderText(tr("Not required — local provider"));
+    } else if (is_ollama || is_cli) {
+        api_key_edit_->setPlaceholderText(keyless_hint);
         model_combo_->setVisible(true);
         model_combo_->setEnabled(true);
         fetch_btn_->setVisible(true);
@@ -681,8 +691,16 @@ void LlmConfigSection::on_save_provider() {
         cfg.base_url = {}; // not used for fincept
     }
 
+    // Fork addition (codeyoma/krx-quant#96): a local CLI needs no key; no model means the CLI's own.
+    const bool is_cli = krx_quant::cli_llm::is_cli_provider(provider);
+    if (is_cli) {
+        cfg.api_key = {};
+        if (cfg.model.isEmpty())
+            cfg.model = krx_quant::cli_llm::kDefaultModel;
+    }
+
     // Basic validation
-    if (!is_fincept && provider != "ollama" && cfg.api_key.isEmpty()) {
+    if (!is_fincept && provider != "ollama" && !is_cli && cfg.api_key.isEmpty()) {
         show_status(tr("API key is required for %1").arg(provider), true);
         return;
     }
@@ -784,7 +802,7 @@ void LlmConfigSection::on_test_connection() {
         return;
     }
 
-    if (provider != "ollama") {
+    if (provider != "ollama" && !krx_quant::cli_llm::is_cli_provider(provider)) {
         if (api_key_edit_->text().trimmed().isEmpty()) {
             show_status(tr("API key required for test"), true);
             return;
@@ -826,7 +844,7 @@ void LlmConfigSection::on_fetch_models() {
         return;
     }
 
-    if (provider != "ollama") {
+    if (provider != "ollama" && !krx_quant::cli_llm::is_cli_provider(provider)) {
         if (api_key_edit_->text().trimmed().isEmpty()) {
             show_status(tr("Enter API key first, then fetch models"), true);
             return;

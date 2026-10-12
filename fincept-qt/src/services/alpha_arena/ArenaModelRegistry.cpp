@@ -1,6 +1,7 @@
 #include "services/alpha_arena/ArenaModelRegistry.h"
 
 #include "core/logging/Logger.h"
+#include "services/krx_quant/LocalCliLlm.h" // fork addition (codeyoma/krx-quant#96)
 #include "services/llm/LlmService.h"
 #include "services/llm/ProviderCatalog.h"
 #include "storage/repositories/LlmConfigRepository.h"
@@ -36,6 +37,10 @@ QVector<ArenaModelOption> ArenaModelRegistry::available_models() const {
     auto add = [&](ArenaModelOption o) {
         const QString key = o.provider.toLower() + "/" + o.model_id;
         if (o.model_id.isEmpty() || seen.contains(key))
+            return;
+        // Fork addition (codeyoma/krx-quant#96): the arena calls provider APIs directly, which a
+        // local CLI provider does not have.
+        if (krx_quant::cli_llm::is_cli_provider(o.provider))
             return;
         seen.insert(key);
         if (o.color_hex.isEmpty())

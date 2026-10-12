@@ -3,6 +3,7 @@
 #include "auth/AuthManager.h"
 #include "core/config/AppConfig.h"
 #include "core/logging/Logger.h"
+#include "services/krx_quant/LocalCliRunner.h" // fork addition (codeyoma/krx-quant#96)
 #include "services/llm/LlmService.h"
 #include "services/llm/ProviderCatalog.h"
 #include "storage/repositories/SettingsRepository.h"
@@ -185,6 +186,20 @@ QStringList LlmService::parse_models_response(const QString& provider, const QBy
 }
 
 void LlmService::fetch_models(const QString& provider, const QString& api_key, const QString& base_url) {
+    // Fork addition (codeyoma/krx-quant#96): a local CLI has no models endpoint. Check that it runs
+    // and list its models; base_url is the "CLI path" field.
+    if (krx_quant::cli_llm::is_cli_provider(provider)) {
+        krx_quant::cli_llm::probe(provider, base_url, this,
+                                  [this, provider](const QStringList& models, const QString& error) {
+                                      LOG_INFO(TAG, QString("fetch_models %1 → %2 models%3")
+                                                        .arg(provider)
+                                                        .arg(models.size())
+                                                        .arg(error.isEmpty() ? QString() : " (" + error + ")"));
+                                      emit models_fetched(provider, models, error);
+                                  });
+        return;
+    }
+
     // No public /models endpoint for fincept — return known list immediately.
     if (provider.toLower() == "fincept") {
         emit models_fetched(provider,

@@ -52,6 +52,7 @@
 #include "mcp/McpProvider.h"
 #include "mcp/McpService.h"
 #include "mcp/ResultStore.h"
+#include "services/krx_quant/LocalCliRunner.h" // fork addition (codeyoma/krx-quant#96)
 #include "services/llm/LlmContentExtractors.h"
 #include "services/llm/LlmRequestPolicy.h"
 #include "services/llm/LlmService.h"
@@ -420,10 +421,51 @@ LlmResponse LlmService::fincept_submit_poll(const QString& prompt, QJsonArray* o
     return resp;
 }
 
+// Fork addition (codeyoma/krx-quant#96): one round through a local CLI (claude_cli, codex_cli).
+// The CLI gets the same flat prompt the Fincept endpoint would; `cli_path` is the provider's
+// base_url field, shown as "CLI path" in Settings.
+static LlmResponse local_cli_submit(const QString& provider, const QString& model, const QString& cli_path,
+                                    const QString& prompt) {
+    LOG_INFO(kLlmFinceptTag, QString("Local CLI %1: running a round (model=%2, prompt_len=%3)")
+                                 .arg(provider, model.isEmpty() ? QStringLiteral("default") : model)
+                                 .arg(prompt.length()));
+    QElapsedTimer clock;
+    clock.start();
+    const auto answer = krx_quant::cli_llm::ask(provider, model, cli_path, prompt);
+    LlmResponse resp;
+    resp.prompt_tokens = answer.input_tokens;
+    resp.completion_tokens = answer.output_tokens;
+    resp.total_tokens = answer.input_tokens + answer.output_tokens;
+    if (!answer.ok) {
+        resp.error = answer.error;
+        LOG_ERROR(kLlmFinceptTag,
+                  QString("Local CLI %1 failed after %2 ms: %3").arg(provider).arg(clock.elapsed()).arg(answer.error));
+        return resp;
+    }
+    resp.content = strip_think_blocks(answer.text);
+    resp.success = true;
+    LOG_INFO(kLlmFinceptTag, QString("Local CLI %1: answered in %2 ms (%3 chars, %4 in / %5 out tokens)")
+                                 .arg(provider)
+                                 .arg(clock.elapsed())
+                                 .arg(resp.content.length())
+                                 .arg(answer.input_tokens)
+                                 .arg(answer.output_tokens));
+    return resp;
+}
+
 LlmResponse LlmService::fincept_async_request(const QString& user_message,
                                               const std::vector<ConversationMessage>& history) {
     const bool tools_on = detail::effective_tools_enabled(tools_enabled_);
     const mcp::ToolFilter filter = detail::apply_request_policy(tool_filter_);
+
+    // Fork addition (codeyoma/krx-quant#96): a local CLI provider runs this same loop. Only the
+    // transport and the prompt budget differ: a CLI has no 50 000-char server cap.
+    const bool local_cli = krx_quant::cli_llm::is_cli_provider(provider_);
+    const qsizetype max_prompt_chars = local_cli ? krx_quant::cli_llm::kMaxPromptChars : kServerMaxPromptChars;
+    auto submit = [this, local_cli](const QString& prompt, QJsonArray* out_tool_calls) {
+        return local_cli ? local_cli_submit(provider_, model_, base_url_, prompt)
+                         : fincept_submit_poll(prompt, out_tool_calls);
+    };
 
     // ── Prompt parts, kept separate so each can be trimmed independently ──
     // Priority when the 50 000-char cap bites, least valuable dropped first:
@@ -473,7 +515,7 @@ LlmResponse LlmService::fincept_async_request(const QString& user_message,
     // Assemble head + history + ask + rounds + tail so the whole thing fits
     // under the server cap, dropping the least valuable parts first.
     auto compose_prompt = [&](const QString& tail) -> QString {
-        const qsizetype budget = kServerMaxPromptChars - kPromptSafetyMargin;
+        const qsizetype budget = max_prompt_chars - kPromptSafetyMargin;
         const qsizetype fixed = head.size() + ask.size() + tail.size();
 
         qsizetype avail = budget - fixed;
@@ -484,7 +526,7 @@ LlmResponse LlmService::fincept_async_request(const QString& user_message,
             LOG_ERROR(kLlmFinceptTag, QString("Fincept: fixed prompt parts are %1 chars, over the %2 cap — the "
                                               "system prompt or tool catalog is too large")
                                           .arg(fixed)
-                                          .arg(kServerMaxPromptChars));
+                                          .arg(max_prompt_chars));
             avail = 0;
         }
 
@@ -527,7 +569,7 @@ LlmResponse LlmService::fincept_async_request(const QString& user_message,
         out += round_blocks.join(QString());
         out += tail;
 
-        if (out.size() > kServerMaxPromptChars) {
+        if (out.size() > max_prompt_chars) {
             LOG_ERROR(kLlmFinceptTag,
                       QString("Fincept: composed prompt is %1 chars, still over the cap").arg(out.size()));
         }
@@ -585,14 +627,14 @@ LlmResponse LlmService::fincept_async_request(const QString& user_message,
     for (int round = 0; round < kFinceptHardStop; ++round) {
         QJsonArray structured_calls;
         const QString prompt = compose_prompt(round_blocks.isEmpty() ? QString() : kContinueHint);
-        resp = fincept_submit_poll(prompt, &structured_calls);
+        resp = submit(prompt, &structured_calls);
         // One retry on a transient upstream failure. An observed task ran 62 s
         // and then reported failure with no reason on a 5 KB prompt — nothing
         // about the request to fix, so resubmitting is the only useful response.
         // The endpoint documents that failed tasks are not charged.
         if (!resp.success && resp.retryable) {
             LOG_WARN(kLlmFinceptTag, "Fincept: task failed upstream — resubmitting once");
-            resp = fincept_submit_poll(prompt, &structured_calls);
+            resp = submit(prompt, &structured_calls);
         }
         if (!resp.success)
             return resp;
@@ -791,10 +833,10 @@ LlmResponse LlmService::fincept_async_request(const QString& user_message,
     const QString final_prompt = compose_prompt(QStringLiteral(
         "\n\nStop calling tools now and reply in plain text with no tool calls or markup: state what you completed "
         "and anything still incomplete.\n\nAssistant:"));
-    LlmResponse final_turn = fincept_submit_poll(final_prompt, nullptr);
+    LlmResponse final_turn = submit(final_prompt, nullptr);
     if (!final_turn.success && final_turn.retryable) {
         LOG_WARN(kLlmFinceptTag, "Fincept: close-out turn failed upstream — resubmitting once");
-        final_turn = fincept_submit_poll(final_prompt, nullptr);
+        final_turn = submit(final_prompt, nullptr);
     }
     if (final_turn.success && !final_turn.content.isEmpty())
         return final_turn;

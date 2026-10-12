@@ -56,7 +56,9 @@ custom/merge-upstream-release.sh [tag]
 ## upstream 파일 수정 원칙
 
 - 새 코드는 새 디렉터리에 둔다 (`fincept-qt/src/screens/krx_quant/`, `fincept-qt/src/services/krx_quant/`).
-- 화면 등록 때문에 고치는 upstream 파일은 아래 목록으로 제한하고, 고칠 때마다 이 표를 갱신한다.
+- 화면 등록과 로컬 CLI LLM(아래) 때문에 고치는 upstream 파일은 아래 목록으로 제한하고, 고칠 때마다 이 표를 갱신한다. 고친 곳에는 `fork addition (codeyoma/krx-quant#N)` 주석을 단다.
+
+> **바뀜** (2026-10-12, codeyoma/krx-quant#97): 화면 등록 때문에 고치는 upstream 파일만 → 로컬 CLI LLM provider(codeyoma/krx-quant#96) 때문에 고치는 LLM 파일 9개도. 이유: Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에 로그인된 Claude Code·Codex CLI로 쓰려면 provider 목록, 요청 경로, 설정 화면에 갈래가 하나씩 필요했다. 새 코드는 `src/services/krx_quant/LocalCli*`에 두고 upstream 파일에는 한두 줄짜리 갈래만 넣었다.
 - Fincept SQLite migration(`src/storage/sqlite/migrations/`)은 쓰지 않는다. 데이터는 엔진이 가진다.
 - 개인 빌드는 공식 버전 업데이트를 끈다. 공식 버전으로 덮어써지는 것을 막기 위해서다. 대신 이 fork의 개인 빌드 Release에서만 업데이트한다(아래 "앱 업데이트").
 
@@ -69,8 +71,17 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/src/ui/navigation/ToolBar.cpp` | Navigate → Trading & Portfolio 메뉴에 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/CommandBar.cpp` | 명령 팔레트에 `krx_quant` ("krx"로 찾는다) |
 | `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`) |
-| `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
+| `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
 | `fincept-qt/src/services/updater/UpdateService.cpp` | `FINCEPT_DISABLE_AUTO_UPDATE`이면 공식 업데이트 대신 개인 빌드 업데이트(`krx_quant::AppUpdater`)로 넘긴다(`check_for_updates` 본문을 `#ifdef … #else … #endif`로 감쌌다) |
+| `fincept-qt/src/services/llm/ProviderCatalog.cpp` | provider 목록에 로컬 CLI provider(`claude_cli`, `codex_cli`)를 붙이고, 이름·기본 모델·키 불필요·OpenAI 호환 아님을 `krx_quant::cli_llm`에 묻는다 |
+| `fincept-qt/src/services/llm/LlmService.h` | 로컬 CLI provider는 키가 필요 없고, AI Chat이 스트리밍 경로(답은 한 덩어리)로 부른다 |
+| `fincept-qt/src/services/llm/LlmService.cpp` | `do_request`가 로컬 CLI provider를 endpoint 확인 전에 Fincept 평문 프롬프트 루프(`fincept_async_request`)로 보낸다. `do_streaming_request`도 Fincept처럼 `do_request`로 돌린다 |
+| `fincept-qt/src/services/llm/LlmFinceptAsync.cpp` | 평문 프롬프트 루프의 한 라운드를 Fincept 서버 대신 CLI로 보낸다(`local_cli_submit`). 프롬프트 한도는 CLI면 200,000자, Fincept면 그대로 50,000자 |
+| `fincept-qt/src/services/llm/LlmModelsApi.cpp` | 로컬 CLI provider의 Fetch·Test는 CLI의 `--version`이 도는지 보고 모델 목록을 준다 |
+| `fincept-qt/src/screens/settings/LlmConfigSection_Providers.cpp` | 로컬 CLI provider는 API key 칸을 끄고 Base URL 칸을 "CLI path"로 보인다. 저장·Test·Fetch에 키를 요구하지 않고, 모델이 비면 `default`로 저장한다 |
+| `fincept-qt/src/screens/settings/LlmConfigSection_Profiles.cpp` | LLM 프로필의 provider 목록에서 로컬 CLI provider를 뺀다(프로필은 Python 에이전트가 쓰고, Python 에이전트는 CLI를 부르지 못한다) |
+| `fincept-qt/src/services/alpha_arena/ArenaModelRegistry.cpp` | Alpha Arena 모델 목록에서 로컬 CLI provider를 뺀다(Arena는 provider API를 직접 부른다) |
+| `fincept-qt/src/mcp/ProviderToolFormatSelfTest.cpp` | provider별 endpoint 자가 검사에서 로컬 CLI provider를 건너뛴다(endpoint가 없다) |
 
 > **바뀜** (2026-10-12, krx-quant #94): KRX 테스트 등록을 `fincept-qt/tests/CMakeLists.txt` 끝에 붙였다 → `krx_quant.cmake`로 옮기고 `fincept_add_test()` 정의 뒤에서 include 한다. 이유: upstream도 파일 끝에 테스트를 붙여서, v4.5.0 이후 upstream `main`을 merge 하면 충돌했다. 자동 반영이 멈추지 않게 하려고(krx-quant #93).
 
@@ -133,6 +144,27 @@ custom/merge-upstream-release.sh [tag]
   - `tst_krx_signals`: 신호 규칙, 다시 알리지 않는 규칙, 구성원을 모를 때 미루기.
   - `tst_krx_stats_view`: 순위표와 상세 통계 창이 보이는 문구(비율·평균과 구간, 기준별 lift 줄과 거래일 구간, 시간대, 보정도 점, 조건과 날짜).
   - `tst_krx_app_release`: 개인 빌드 태그 해석과 순서, Release 목록에서 업데이트할 빌드·설치 파일·sha256 고르기.
+
+## 로컬 CLI LLM (codeyoma/krx-quant#96)
+
+Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에 로그인된 **Claude Code CLI**(`claude`)나 **Codex CLI**(`codex`)로 돌린다. 요청은 각 CLI의 구독(Claude Pro/Max, ChatGPT 플랜) 사용량에서 나간다.
+
+- **설정.** Settings → LLM Config에서 provider **Claude Code CLI (local)**(`claude_cli`)나 **Codex CLI (local)**(`codex_cli`)를 추가하고 Save 한다. Save 한 provider가 활성 provider가 된다.
+  - API key: 없다. CLI의 로그인을 쓴다. CLI에 먼저 로그인한다(`claude`를 한 번 실행, `codex login`).
+  - Model: `default`는 CLI의 기본 모델이다(모델 인자를 넘기지 않는다). Claude는 CLI의 별칭(`opus`, `sonnet`, `haiku`)이나 모델 id를 쓴다. Codex는 Fetch가 CLI의 모델 캐시(`$CODEX_HOME/models_cache.json`, 기본 `~/.codex`)에서 숨김이 아닌 모델을 우선순위대로 보인다.
+  - CLI path(다른 provider의 Base URL 칸): 비우면 자동으로 찾는다. 실행 파일이나 그것이 든 폴더를 넣으면 그것을 쓴다. 값은 LLM 설정의 `base_url`에 남는다.
+  - Test와 Fetch는 CLI의 `--version`이 도는지만 본다. 로그인은 확인하지 않는다. 로그인이 안 되어 있으면 첫 대화에서 CLI의 오류가 그대로 나온다.
+- **쓰는 곳.** `LlmService`를 부르는 곳: AI Chat 화면, 떠 있는 채팅 버블, workflow의 agent 노드. 쓰지 않는 곳: Python 에이전트(Agents, Teams)와 그것이 쓰는 LLM 프로필, Alpha Arena. 이들은 provider API를 직접 불러서 프로필과 Arena 목록에 로컬 CLI provider가 나오지 않는다. 대시보드 위젯 등 LLM을 쓰지 않는 화면은 상관없다.
+- **동작.** LLM 한 라운드마다 CLI를 한 번 실행한다. 프롬프트는 stdin으로 주고 답은 JSON으로 받는다. CLI에는 자기 도구가 없다. Fincept의 도구(시세, 화면 이동, 리포트 등)는 Fincept LLM과 같은 평문 프롬프트 루프로 돈다: 도구 목록을 프롬프트에 넣고, 모델이 `<tool_call>` 블록으로 답하면 Fincept가 실행해 결과를 붙여 다시 부른다.
+  - Claude: `claude -p --safe-mode --tools "" --no-session-persistence --output-format json --system-prompt <Fincept 안내> [--model <모델>]`. CLAUDE.md, hooks, MCP 서버, skills, plugins를 읽지 않고, 세션을 저장하지 않는다.
+  - Codex: `codex exec --ignore-user-config --ignore-rules --ephemeral --skip-git-repo-check --sandbox read-only --json --cd <빈 폴더> -c web_search="disabled" -c features.<이름>=false … [--model <모델>] -`. `~/.codex/config.toml`(MCP 서버, 모델·추론 설정)과 rules를 읽지 않고, 세션을 저장하지 않으며, sandbox는 읽기 전용이다. 웹 검색과, 모델에게 Codex 자체 도구를 주는 기능(셸 `shell_tool`·`unified_exec`, 앱 커넥터 `apps`, 브라우저·컴퓨터 사용, 이미지 생성, 하위 에이전트 `multi_agent`, skills, plugins, memories, hooks 등 25개)을 끈다. 목록은 `LocalCliLlm.cpp`의 `kCodexFeaturesOff`다. `--disable`이 아니라 `-c features.<이름>=false`로 끄는 것은, `--disable`은 모르는 이름이면 실행이 실패하지만 `-c`는 무시해서 Codex가 기능 이름을 바꾸거나 없애도 돌게 하려고서다. 끄지 않으면 config를 무시해도 앱 커넥터(예: Atlassian 쓰기)와 웹 검색이 켜져 있어, 모델이 Fincept 도구 대신 그것을 쓴다. `~/.codex/AGENTS.md`(전역 지시)는 끌 방법이 없어 그대로 적용된다.
+  - CLI는 라운드마다 새로 만든 빈 임시 폴더(`fincept-llm-cli-XXXXXX`)에서 돌고, 끝나면 그 폴더를 지운다. 그 자리의 파일을 프로젝트 지시로 읽지 않게 하려고서다.
+  - 맥의 GUI 앱은 PATH가 짧다. 그래서 앱의 PATH, 로그인 셸(`$SHELL -l`)의 PATH, `~/.local/bin`, `~/.claude/local`, `/opt/homebrew/bin`, `/usr/local/bin`, `~/.npm-global/bin`, `~/.bun/bin`, `~/.volta/bin` 순으로 찾는다. CLI가 든 폴더를 PATH 맨 앞에 두고 실행한다(Codex는 node로 돈다).
+  - 윈도우: npm은 `codex`와 `claude`를 `.cmd` shim으로 깐다. shim이 부르는 node 스크립트(`node_modules\…\codex.js`)를 node로 바로 실행한다. 스크립트를 못 찾으면 shim을 `cmd.exe /d /s /c "<명령줄>"`로 실행한다(`/s`라서 공백이 든 경로도 따옴표가 그대로 남는다). 윈도우에서는 시험하지 않았다.
+- **한도와 속도.** 한 라운드의 프롬프트는 200,000자까지다. 넘으면 Fincept LLM처럼 오래된 대화와 오래된 도구 결과부터 뺀다. 한 라운드는 300초가 지나면 CLI와 CLI가 띄운 프로세스까지 모두 멈추고 오류를 낸다(맥·리눅스는 프로세스 그룹, 윈도우는 job object). Codex의 node 실행기는 실제 바이너리를 자식으로 띄워서, CLI만 멈추면 그 자식이 남아 구독을 계속 쓴다. 답은 토큰 단위로 흐르지 않고 끝나면 한 번에 나온다. 라운드마다 CLI를 새로 띄워서(Claude 약 5초, Codex 약 8초에 모델 시간이 더해진다) 도구를 여러 번 쓰는 질문은 느리다.
+- **주의.** Claude CLI는 환경 변수 `ANTHROPIC_API_KEY`가 있으면 구독 대신 그 키로 과금될 수 있다.
+- **코드.** `fincept-qt/src/services/krx_quant/LocalCliLlm.{h,cpp}`(provider, 인자, 출력 해석, Codex 모델 캐시), `LocalCliRunner.{h,cpp}`(CLI 찾기, 실행, Settings의 확인). upstream 파일의 갈래는 위 "upstream 파일 수정 원칙" 표에 있다.
+- **테스트.** `tst_krx_local_cli_llm`(Qt Core만): CLI별 인자, 각 CLI 출력의 답·사용량·오류 해석, Codex 모델 캐시, 대역 CLI로 찾기·stdin 전달·시간 초과, Settings의 확인(`--version`)과 실패 문구, 윈도우 npm shim의 node 스크립트 찾기와 `cmd.exe` 명령줄 따옴표, Codex 자체 도구 끄기, 라운드마다 새 빈 폴더, 시간 초과 때 CLI가 띄운 프로세스까지 멈추기.
 
 ## 개인 빌드
 

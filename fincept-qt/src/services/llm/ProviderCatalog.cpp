@@ -4,6 +4,8 @@
 // (2026-06-10); update HERE when adding a provider.
 #include "services/llm/ProviderCatalog.h"
 
+#include "services/krx_quant/LocalCliLlm.h" // fork addition: local CLI providers (codeyoma/krx-quant#96)
+
 #include <QHash>
 #include <QRegularExpression>
 
@@ -13,7 +15,9 @@ const QStringList& ProviderCatalog::known_providers() {
     static const QStringList kProviders = {"openai",     "anthropic", "gemini",       "groq",    "deepseek",
                                            "openrouter", "minimax",   "kimi",         "ollama",  "xai",
                                            "fincept",    "astraflow", "astraflow_cn", "aihubmix"};
-    return kProviders;
+    // Fork addition (codeyoma/krx-quant#96): the local CLI providers.
+    static const QStringList kWithLocalCli = kProviders + krx_quant::cli_llm::providers();
+    return kWithLocalCli;
 }
 
 // AtlasCloud is banned by Fincept and has been removed as a provider. This hard
@@ -27,6 +31,8 @@ bool ProviderCatalog::is_blocked(const QString& provider, const QString& base_ur
 }
 
 QString ProviderCatalog::display_name(const QString& provider_id) {
+    if (krx_quant::cli_llm::is_cli_provider(provider_id))
+        return krx_quant::cli_llm::display_name(provider_id);
     static const QHash<QString, QString> kNames = {
         {"openai", "OpenAI"},
         {"anthropic", "Anthropic"},
@@ -90,6 +96,8 @@ QString ProviderCatalog::default_base_url(const QString& provider) {
 
 QStringList ProviderCatalog::fallback_models(const QString& provider) {
     const QString p = provider.toLower();
+    if (krx_quant::cli_llm::is_cli_provider(p))
+        return krx_quant::cli_llm::fallback_models(p);
     if (p == "openai")
         return {"gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o3-mini"};
     if (p == "anthropic")
@@ -166,12 +174,13 @@ QStringList ProviderCatalog::fallback_models(const QString& provider) {
 
 bool ProviderCatalog::requires_api_key(const QString& provider) {
     const QString p = provider.toLower();
-    return p != "ollama" && p != "fincept";
+    return p != "ollama" && p != "fincept" && !krx_quant::cli_llm::is_cli_provider(p);
 }
 
 bool ProviderCatalog::is_openai_compatible(const QString& provider) {
     const QString p = provider.toLower();
-    return p != "anthropic" && p != "gemini" && p != "google" && p != "fincept";
+    return p != "anthropic" && p != "gemini" && p != "google" && p != "fincept" &&
+           !krx_quant::cli_llm::is_cli_provider(p);
 }
 
 QString ProviderCatalog::brand_color(const QString& provider) {
