@@ -28,7 +28,9 @@ on:
 permissions:
   contents: read
 
-# Queued, never cancelled: two quick merges get consecutive build numbers.
+# One run at a time, so two runs never pick the same number. GitHub keeps one run
+# waiting: a newer push replaces it, and that newer commit's build carries the
+# skipped commit's changes too.
 concurrency:
   group: custom-auto-tag
   cancel-in-progress: false
