@@ -1,18 +1,26 @@
 # Fork-only workflow (codeyoma/FinceptTerminal).
-# Weekly: fast-forward `main` to upstream, and open an issue when upstream
-# publishes a release newer than the one `custom` is based on
-# (custom/UPSTREAM_BASE). Merging the release stays a manual step:
-# custom/merge-upstream-release.sh
+# Daily: fast-forward `main` to upstream, and merge a new upstream release into
+# `custom` by itself:
+#   1. When upstream publishes a release newer than custom/UPSTREAM_BASE, merge
+#      it on the runner with custom/merge-upstream-release.sh and push the
+#      result to the branch upstream-merge/<tag>.
+#   2. Start custom-release on that branch as a trial build. When both builds
+#      pass, custom-release fast-forwards `custom` to the merge and pushes the
+#      tag custom-<tag>-krx.1, which publishes the personal build.
+# Nothing reaches `custom` when the merge conflicts or a trial build fails; an
+# issue titled "Upstream <tag>: merge needs a hand" says how to finish by hand,
+# and the daily run waits while it is open.
 name: custom-upstream-watch
 
 on:
   schedule:
-    - cron: '0 0 * * 1'   # Monday 00:00 UTC = 09:00 KST
+    - cron: '0 20 * * *'   # daily 20:00 UTC = 05:00 KST
   workflow_dispatch:
 
 permissions:
   contents: write
   issues: write
+  actions: write   # start the custom-release trial build
 
 concurrency:
   group: custom-upstream-watch
@@ -44,7 +52,7 @@ jobs:
           title="Sync of main with upstream failed"
           open=$(gh issue list --state open --search "\"$title\" in:title" --json number -q '.[0].number')
           if [ -z "$open" ]; then
-            gh issue create --title "$title" --body "The weekly sync of \`main\` failed (run: $GITHUB_SERVER_URL/$GH_REPO/actions/runs/$GITHUB_RUN_ID). This usually means upstream changed workflow files and the \`SYNC_TOKEN\` secret is missing. Fix: press **Sync fork** on the repository page, or add \`SYNC_TOKEN\`."
+            gh issue create --title "$title" --body "The daily sync of \`main\` failed (run: $GITHUB_SERVER_URL/$GH_REPO/actions/runs/$GITHUB_RUN_ID). This usually means upstream changed workflow files and the \`SYNC_TOKEN\` secret is missing or lacks Contents and Workflows write on this repository. Fix: press **Sync fork** on the repository page, or fix \`SYNC_TOKEN\`."
           fi
 
       - name: Check for a new upstream release
@@ -58,21 +66,125 @@ jobs:
           echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "upstream latest: $latest, custom base: $base"
 
-      - name: Open an issue for the new release
+      - name: Close the notices of the base release
+        if: steps.release.outputs.latest == steps.release.outputs.base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ steps.release.outputs.base }}
+        run: |
+          for title in "Upstream $BASE released" "Upstream $BASE: merge needs a hand"; do
+            gh issue list --state open --search "\"$title\" in:title" --json number,title \
+              --jq ".[] | select(.title == \"$title\") | .number" |
+              while read -r n; do
+                gh issue close "$n" --comment "\`custom\` is based on $BASE now."
+              done
+          done
+
+      - name: Decide whether to merge
+        id: plan
         if: steps.release.outputs.latest != steps.release.outputs.base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.release.outputs.latest }}
+        run: |
+          title="Upstream $LATEST: merge needs a hand"
+          open=$(gh issue list --state open --search "\"$title\" in:title" --json number,title \
+            --jq ".[] | select(.title == \"$title\") | .number" | head -1)
+          busy=$(gh run list --workflow custom-release.yml --branch "upstream-merge/$LATEST" \
+            --json status --jq '[.[] | select(.status != "completed")] | length')
+          if [ -n "$open" ]; then
+            echo "Waiting for issue #$open to be finished by hand."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          elif [ "$busy" != "0" ]; then
+            echo "The trial build of upstream-merge/$LATEST is still running."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The checkout token is the one `git push` uses below. Pushing a merge
+      # that brings upstream workflow changes needs SYNC_TOKEN.
+      - name: Check out custom
+        if: steps.plan.outputs.go == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: custom
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN || github.token }}
+
+      - name: Merge the release and start the trial build
+        id: merge
+        if: steps.plan.outputs.go == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           LATEST: ${{ steps.release.outputs.latest }}
           BASE: ${{ steps.release.outputs.base }}
         run: |
-          title="Upstream $LATEST released"
-          open=$(gh issue list --state open --search "\"$title\" in:title" --json number -q '.[0].number')
-          if [ -z "$open" ]; then
-            gh issue create --title "$title" --body "Upstream published $LATEST (https://github.com/$UPSTREAM/releases/tag/$LATEST). \`custom\` is based on $BASE.
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ! custom/merge-upstream-release.sh "$LATEST"; then
+            git diff --name-only --diff-filter=U > "$RUNNER_TEMP/conflicts.txt" || true
+            git merge --abort || true
+            echo "result=conflict" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! git diff --quiet "$BASE" "$LATEST" -- .github/workflows/release.yml; then
+            echo "release_yml=changed" >> "$GITHUB_OUTPUT"
+          fi
+          branch="upstream-merge/$LATEST"
+          if ! git push --force origin "HEAD:refs/heads/$branch"; then
+            echo "result=push-failed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gh workflow run custom-release.yml --ref "$branch"
+          echo "result=trial" >> "$GITHUB_OUTPUT"
+          echo "Pushed $branch and started its trial build."
 
-          To merge it, on the \`custom\` branch run:
-          \`\`\`bash
-          custom/merge-upstream-release.sh $LATEST
-          \`\`\`
-          Then build, check the KRX screen, and push."
+      - name: Ask for a hand
+        if: steps.merge.outputs.result == 'conflict' || steps.merge.outputs.result == 'push-failed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.release.outputs.latest }}
+          RESULT: ${{ steps.merge.outputs.result }}
+        run: |
+          body="$RUNNER_TEMP/body.md"
+          run_url="$GITHUB_SERVER_URL/$GH_REPO/actions/runs/$GITHUB_RUN_ID"
+          if [ "$RESULT" = conflict ]; then
+            {
+              echo "Upstream published $LATEST (https://github.com/$UPSTREAM/releases/tag/$LATEST). Merging it into \`custom\` stopped on conflicts (run: $run_url):"
+              echo
+              while read -r f; do echo "- \`$f\`"; done < "$RUNNER_TEMP/conflicts.txt"
+            } > "$body"
+          else
+            echo "Upstream published $LATEST (https://github.com/$UPSTREAM/releases/tag/$LATEST). The merge into \`custom\` is clean, but pushing it to \`upstream-merge/$LATEST\` failed (run: $run_url). Upstream changed workflow files, and pushing them needs the \`SYNC_TOKEN\` secret: a fine-grained PAT on this repository with Contents and Workflows read/write. After fixing the secret, close this issue; the next daily run, or Actions → custom-upstream-watch → Run workflow, tries again." > "$body"
+          fi
+          cat >> "$body" <<'EOF'
+
+          To finish by hand on the `custom` branch:
+          ```bash
+          git switch custom && git pull --ff-only
+          custom/merge-upstream-release.sh @LATEST@
+          ```
+          Resolve the conflicts as the script says, build, and check the KRX screen. Then push `custom` and tag the personal build:
+          ```bash
+          git push origin custom
+          git tag custom-@LATEST@-krx.1 && git push origin custom-@LATEST@-krx.1
+          ```
+          This issue closes itself once `custom/UPSTREAM_BASE` says @LATEST@. Closing it earlier lets the daily run try the merge again.
+          EOF
+          sed -i "s/@LATEST@/$LATEST/g" "$body"
+          gh issue create --title "Upstream $LATEST: merge needs a hand" --body-file "$body"
+
+      - name: Note a release.yml change
+        if: steps.merge.outputs.release_yml == 'changed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.release.outputs.latest }}
+          BASE: ${{ steps.release.outputs.base }}
+        run: |
+          title="Upstream $LATEST changed release.yml"
+          open=$(gh issue list --state open --search "\"$title\" in:title" --json number,title \
+            --jq ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ -z "$open" ]; then
+            gh issue create --title "$title" --body "Upstream changed \`.github/workflows/release.yml\` between $BASE and $LATEST: https://github.com/$UPSTREAM/compare/$BASE...$LATEST. \`custom-release.yml\` copies its build-windows and build-macos jobs, so carry over what applies. The automatic merge does not do this; the trial build only shows that the copied jobs still build."
           fi
