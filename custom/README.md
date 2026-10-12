@@ -33,7 +33,7 @@ workflow는 기본 `GITHUB_TOKEN`으로 `main`을 동기화한다. upstream이 `
 - Fincept SQLite migration(`src/storage/sqlite/migrations/`)은 쓰지 않는다. 데이터는 엔진이 가진다.
 - 개인 빌드는 공식 버전 업데이트를 끈다. 공식 버전으로 덮어써지는 것을 막기 위해서다. 대신 이 fork의 개인 빌드 Release에서만 업데이트한다(아래 "앱 업데이트").
 
-> **바뀜** (2026-10-12, codeyoma/krx-quant#93): "개인 빌드는 앱 내 자동 업데이트를 끈다" → 공식 버전 업데이트만 끄고 개인 빌드 Release에서 업데이트한다. 그래서 아래 표의 `UpdateService.cpp`는 업데이트 확인을 멈추는 대신 `krx_quant::AppUpdater`로 넘긴다. 이유: 새 화면 빌드마다 직접 다시 설치해야 했다(codeyoma/krx-quant#92).
+> **바뀜** (2026-10-12, codeyoma/krx-quant#95): "개인 빌드는 앱 내 자동 업데이트를 끈다" → 공식 버전 업데이트만 끄고 개인 빌드 Release에서 업데이트한다. 그래서 아래 표의 `UpdateService.cpp`는 업데이트 확인을 멈추는 대신 `krx_quant::AppUpdater`로 넘긴다. 이유: 새 화면 빌드마다 직접 다시 설치해야 했다(codeyoma/krx-quant#92).
 
 | upstream 파일 | 수정 내용 |
 |---|---|
@@ -110,7 +110,7 @@ workflow는 기본 `GITHUB_TOKEN`으로 `main`을 동기화한다. upstream이 `
 - 서명하지 않은 빌드다. 맥은 처음 열 때 우클릭 → 열기(또는 `xattr -dr com.apple.quarantine /Applications/FinceptTerminal.app`), 윈도우는 SmartScreen에서 추가 정보 → 실행.
 - 공식 버전 업데이트는 꺼져 있다(`FINCEPT_DISABLE_AUTO_UPDATE`). 새 버전은 새 태그로 만들고, 설치된 앱은 아래처럼 스스로 업데이트한다.
 
-> **바뀜** (2026-10-12, codeyoma/krx-quant#93): 앱 내 업데이트 꺼짐 → 이 fork의 개인 빌드 Release에서 버튼 한 번으로 업데이트. 이유: 새 화면 빌드마다 DMG·setup.exe를 받아 직접 다시 설치해야 했다(codeyoma/krx-quant#92). 공식 버전 업데이트는 여전히 꺼져 있다.
+> **바뀜** (2026-10-12, codeyoma/krx-quant#95): 앱 내 업데이트 꺼짐 → 이 fork의 개인 빌드 Release에서 버튼 한 번으로 업데이트. 이유: 새 화면 빌드마다 DMG·setup.exe를 받아 직접 다시 설치해야 했다(codeyoma/krx-quant#92). 공식 버전 업데이트는 여전히 꺼져 있다.
 
 ## 앱 업데이트 (codeyoma/krx-quant#92)
 
