@@ -168,7 +168,8 @@ Prediction prediction_of(const QJsonObject& p, const QString& symbol, const QDat
                     p.contains("symbol") ? p.value("symbol").toString() : symbol,
                     p.contains("bar_close") ? time_of(p.value("bar_close")) : bar_close,
                     time_of(p.value("target_at")),
-                    outcome_of(p.value("outcome"))};
+                    outcome_of(p.value("outcome")),
+                    p.value("blocked").toString()};
     if (made.status == "ok") {
         made.p_up = number(p.value("p_up"));
         made.p_flat = number(p.value("p_flat"));

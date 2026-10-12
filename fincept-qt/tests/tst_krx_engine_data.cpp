@@ -351,6 +351,22 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(special_label("sidecar"), QStringLiteral("사이드카"));
     }
 
+    void a_final_consensus_says_why_it_is_not_to_be_acted_on() {
+        const auto read = parse_predictions(json(R"({"symbol": "005930", "predictions": [
+          {"algorithm": "consensus-final", "model_version": "condorcet-equal",
+           "bar_close": "2026-10-08T09:31:00+09:00", "displayed_at": "2026-10-08T09:31:03+09:00",
+           "target_at": "2026-10-08T09:35:00+09:00", "status": "ok", "blocked": "special",
+           "p_up": 0.7, "p_flat": 0.2, "p_down": 0.1, "expected_ticks": 1.0, "outcome": null},
+          {"algorithm": "consensus-final", "model_version": "condorcet-equal",
+           "bar_close": "2026-10-08T09:30:00+09:00", "displayed_at": "2026-10-08T09:30:03+09:00",
+           "target_at": "2026-10-08T09:34:00+09:00", "status": "ok", "blocked": null,
+           "p_up": 0.7, "p_flat": 0.2, "p_down": 0.1, "expected_ticks": 1.0, "outcome": null}]})"));
+        QVERIFY(read.is_ok());
+        QCOMPARE(read.value().size(), 2);
+        QCOMPARE(read.value()[0].blocked, QStringLiteral("special"));
+        QVERIFY(read.value()[1].blocked.isEmpty());
+    }
+
     void a_history_keeps_each_prediction_with_its_symbol_times_and_outcome() {
         const auto history = parse_predictions(json(kHistory));
         QVERIFY(history.is_ok());
