@@ -362,6 +362,7 @@ class TstKrxEngineData : public QObject {
            "target_at": "2026-10-08T09:34:00+09:00", "status": "ok", "blocked": null,
            "p_up": 0.7, "p_flat": 0.2, "p_down": 0.1, "expected_ticks": 1.0, "outcome": null}]})"));
         QVERIFY(read.is_ok());
+        QCOMPARE(read.value().size(), 2);
         QCOMPARE(read.value()[0].blocked, QStringLiteral("special"));
         QVERIFY(read.value()[1].blocked.isEmpty());
     }
