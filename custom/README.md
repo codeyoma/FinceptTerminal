@@ -120,9 +120,9 @@ custom/merge-upstream-release.sh [tag]
   - Qt WebEngine 없이 빌드했거나 실행 파일(QtWebEngineProcess)이 빠진 설치본이면 "차트를 열 수 없음"만 보인다.
   - 출처: 차트에 TradingView 로고는 끄고(`attributionLogo: false`), 차트 머리줄 제목의 툴팁과 아래 "차트 라이브러리" 절에 밝힌다.
 
-  > **삭제됨** (2026-10-13, codeyoma/krx-quant#PRxx105): 직접 그린 1분봉 차트(`KrxChart`의 QPainter 그림, 봉 호버 툴팁)와 범위 선택 상자(30분·1시간·2시간·하루 전체, QSettings `krx_quant/chart_minutes`). 이유: 휠 줌·드래그 스크롤·거래량이 없었다(codeyoma/krx-quant#100). 대신: Lightweight Charts 차트와 **맞춤**. 남아 있는 `krx_quant/chart_minutes` 값은 더 읽지 않는다. 아이콘 호버는 codeyoma/krx-quant#106에서 다시 붙는다.
+  > **삭제됨** (2026-10-13, codeyoma/krx-quant#134): 직접 그린 1분봉 차트(`KrxChart`의 QPainter 그림, 봉 호버 툴팁)와 범위 선택 상자(30분·1시간·2시간·하루 전체, QSettings `krx_quant/chart_minutes`). 이유: 휠 줌·드래그 스크롤·거래량이 없었다(codeyoma/krx-quant#100). 대신: Lightweight Charts 차트와 **맞춤**. 남아 있는 `krx_quant/chart_minutes` 값은 더 읽지 않는다. 아이콘 호버는 codeyoma/krx-quant#106에서 다시 붙는다.
 
-  > **바뀜** (2026-10-13, codeyoma/krx-quant#PRxx105): 상승 ▲는 봉 아래, 하락 ▼는 봉 위였다 → 모든 아이콘이 예측을 만든 봉 위에 있고, 보합은 – 대신 ●, 결과 글자는 아이콘 위다. 채점 전에도 ?가 붙는다. 이유: 스펙(codeyoma/krx-quant#100)이 "예측을 만든 봉 위에"로 정했고, Lightweight Charts의 표시(화살표·원과 글자)로 그린다.
+  > **바뀜** (2026-10-13, codeyoma/krx-quant#134): 상승 ▲는 봉 아래, 하락 ▼는 봉 위였다 → 모든 아이콘이 예측을 만든 봉 위에 있고, 보합은 – 대신 ●, 결과 글자는 아이콘 위다. 채점 전에도 ?가 붙는다. 이유: 스펙(codeyoma/krx-quant#100)이 "예측을 만든 봉 위에"로 정했고, Lightweight Charts의 표시(화살표·원과 글자)로 그린다.
 - **예측 패널**: 고른 종목의 최신 봉 마감 예측이다. 최종 합의, 빠른 합의, 알고리즘, 기준 예측 순이고 알고리즘과 기준 예측은 이름순이다. 열은 방향, 상승·보합·하락 확률, 기대 틱, 모델 버전이다. 상승과 하락이 같은 정수 %로 보이면 방향은 비운다. 제목에 봉 마감과 채점까지 남은 시간(엔진 시계 기준)이 나온다.
 - **순위표**: 기간(오늘·5일·20일), 채점 기준(B 표시 시점·A 봉 마감), 종목(전체·종목별), 특수 상황 포함을 고른다. 열은 순위, 상태(수습·정식·벤치·은퇴·복제), 모델 버전, 표본, 정답률, 방향 정밀도, 커버리지, Brier, 중간가 손익(틱), 가장 약한 lift 하한, 운 보정 통과다. 95% 구간은 툴팁에 있다. 중간가 손익 열 제목의 툴팁은 연구용 값이라는 것(스프레드와 체결을 반영하지 않음)을 알린다. 순위가 없는 항목, 기준 예측(흐리게) 순으로 이어진다. 차트의 ✓/✗도 여기서 고른 채점 기준을 따른다.
 
@@ -191,7 +191,7 @@ custom/merge-upstream-release.sh [tag]
   - 실행: `fincept-qt/build/krx-capture/krx_capture http://127.0.0.1:8090 out.png [초=8] [가로=1600] [세로=1000] [예측,...]`. 그 초만큼 엔진을 읽은 뒤 찍는다. 예측 이름(`gauss` 등)을 주면 그 상세 통계 창도 열어 `out-<예측>.png`로 찍는다. 테마와 글꼴은 앱 기본값(Obsidian, Consolas 14px)이다.
   - 창이 그 초 동안 화면에 뜬다. 차트(Qt WebEngine)는 실제 창에서만 그려지기 때문이다. 차트가 필요 없으면 `QT_QPA_PLATFORM=offscreen`을 앞에 붙여 창 없이 찍는다(차트 칸은 빈다). Qt에 WebEngine이 없으면 차트 칸은 "차트를 열 수 없음"이다.
 
-  > **바뀜** (2026-10-13, codeyoma/krx-quant#PRxx105): `QT_QPA_PLATFORM=offscreen`으로 창 없이 찍었다 → 실제 창으로 찍는다. 이유: 차트가 Qt WebEngine으로 바뀌어(codeyoma/krx-quant#105) offscreen에서는 그려지지 않는다.
+  > **바뀜** (2026-10-13, codeyoma/krx-quant#134): `QT_QPA_PLATFORM=offscreen`으로 창 없이 찍었다 → 실제 창으로 찍는다. 이유: 차트가 Qt WebEngine으로 바뀌어(codeyoma/krx-quant#105) offscreen에서는 그려지지 않는다.
 
 ## 로컬 CLI LLM (codeyoma/krx-quant#96)
 
