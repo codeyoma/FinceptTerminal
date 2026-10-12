@@ -83,7 +83,7 @@ class TstKrxStatsView : public QObject {
 
     void a_baseline_with_no_bar_close_in_common_has_no_lift() {
         Entry e;
-        e.lifts = {Lift{"baseline-flat", std::nullopt, std::nullopt, std::nullopt, false, std::nullopt}};
+        e.lifts = {Lift{"baseline-flat", std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}};
         const auto rows = lift_rows(e);
         QCOMPARE(rows[0].gain, QStringLiteral("—"));
         QCOMPARE(rows[0].interval, QStringLiteral("—"));
