@@ -59,8 +59,8 @@ struct EngineStatus {
     int pending_outcomes = 0;
     QList<SpecialWindow> special;
     std::optional<Training> training;
-    std::optional<bool> kis_connected; ///< only a live engine reports its KIS connection
-    QList<Feed> feeds;                 ///< likewise
+    std::optional<bool> kis_connected;     ///< only a live engine reports its KIS connection
+    QList<Feed> feeds;                     ///< likewise
     std::optional<UsdFutures> usd_futures; ///< none before today's first trade
 };
 
@@ -154,6 +154,13 @@ struct Lift {
     std::optional<Interval> by_day;
 };
 
+/// What a query's stats leave out of a predictor's predictions (krx-quant #83).
+struct Excluded {
+    int special = 0;             ///< scored, touched by a special situation: left out, or counted in on "include"
+    int unscorable = 0;          ///< made, but the query's basis could not score them
+    QMap<QString, int> statuses; ///< not made, by status ("vi", "no_book", "timed_out", "error", …)
+};
+
 /// One predictor's line of the leaderboard. What was not measured (nothing scored, no
 /// direction predicted) stays empty.
 struct Entry {
@@ -169,9 +176,10 @@ struct Entry {
     int trades = 0;
     double total_ticks = 0;
     std::optional<Interval> per_trade;
-    std::optional<double> lift_low; ///< the weakest lift's lower bound; none without a baseline to compare with
-    bool significant = false;       ///< beats every baseline after the luck correction (q ≤ 0.05)
-    QList<Lift> lifts;              ///< over each baseline, by name; none without a baseline to compare with
+    std::optional<double> lift_low;   ///< the weakest lift's lower bound; none without a baseline to compare with
+    bool significant = false;         ///< beats every baseline after the luck correction (q ≤ 0.05)
+    QList<Lift> lifts;                ///< over each baseline, by name; none without a baseline to compare with
+    std::optional<Excluded> excluded; ///< on a leaderboard line and a detail's overall; none in a breakdown
 };
 
 /// GET /v1/leaderboard: the query it answers and its three lists.
@@ -206,8 +214,9 @@ struct AlgorithmStats {
     QString special;
     QStringList days;
     int min_sample = 0;
-    Entry overall; ///< its leaderboard line (rank, luck correction)
-    QList<CalibrationBin> calibration;
+    Entry overall;                                             ///< its leaderboard line (rank, luck correction)
+    QList<CalibrationBin> calibration;                         ///< the three classes pooled
+    QMap<QString, QList<CalibrationBin>> calibration_by_class; ///< "up", "flat", "down": each class on its own
     // Breakdowns, by key. Their lifts were not tested together: no q, no verdict.
     QMap<QString, Entry> by_symbol;
     QMap<QString, Entry> by_slot; ///< the predicted bar's 30-minute slot: "09:00" for the closes 09:01–09:30
