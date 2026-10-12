@@ -707,46 +707,115 @@ jobs:
           }
           Write-Host "Installer payload OK — all essential runtime files present in the shipped tree."
 
-      # ── Exercise the in-app update helper (codeyoma/krx-quant#92) ────────
-      # The app's one-click update runs update-windows.ps1 under Windows
-      # PowerShell 5.1: purge the install with its maintenance tool, then install
-      # the new setup.exe headless into the same folder. Run it over the install
-      # the payload check just made, with a copy of the same installer.
-      - name: Verify the in-place update helper
+      # ── The in-app update's payload (codeyoma/krx-quant#130) ─────────────
+      # An install in the user's folder updates by swapping its folder for this
+      # ZIP's tree: the tree the payload check just installed, without the
+      # installer's own files (the maintenance tool and its records stay with
+      # each install).
+      - name: Build the update ZIP
         shell: pwsh
         working-directory: fincept-qt/build
         run: |
           $ErrorActionPreference = 'Stop'
-          $setup = Get-ChildItem -Filter "${{ env.APP_NAME }}-*-windows-x64-setup.exe" | Select-Object -First 1
-          $dest = Join-Path $env:RUNNER_TEMP 'fincept-payload-check'
-          $copy = Join-Path $env:RUNNER_TEMP 'fincept-update-setup.exe'
-          Copy-Item $setup.FullName $copy
-          $marker = Join-Path $dest 'left-from-the-old-install.txt'
-          Set-Content -Path $marker -Value 'old'
-          $helper = Join-Path $env:GITHUB_WORKSPACE 'fincept-qt/src/services/krx_quant/update/update-windows.ps1'
-          # By full path: the IFW step above writes PATH to GITHUB_ENV in MSYS form,
-          # so PowerShell steps after it cannot find powershell.exe on PATH (codeyoma/krx-quant#101).
+          $installed = Join-Path $env:RUNNER_TEMP 'fincept-payload-check'
+          $tree = Join-Path $env:RUNNER_TEMP 'fincept-zip-tree'
+          $zip = Join-Path (Get-Location) "${{ env.APP_NAME }}-${env:TAG}-windows-x64.zip"
+          $installerOwn = '^(FinceptMaintenanceTool\..+|components\.xml|InstallationLog\.txt|network\.xml|installer\.dat|installerResources)$'
+          if (Test-Path $tree) { Remove-Item -Recurse -Force $tree }
+          New-Item -ItemType Directory $tree | Out-Null
+          foreach ($item in Get-ChildItem -LiteralPath $installed -Force) {
+            if ($item.Name -match $installerOwn) { Write-Host "left out: $($item.Name)"; continue }
+            Copy-Item -LiteralPath $item.FullName -Destination $tree -Recurse -Force
+          }
+          if (-not (Test-Path (Join-Path $tree 'FinceptTerminal.exe'))) { Write-Host "::error::FinceptTerminal.exe missing from the ZIP tree"; exit 1 }
+          if (Test-Path (Join-Path $tree 'FinceptMaintenanceTool.exe')) { Write-Host "::error::the ZIP tree holds the maintenance tool"; exit 1 }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [System.IO.Compression.ZipFile]::CreateFromDirectory($tree, $zip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+          Get-Item $zip | Format-Table Name, Length -AutoSize
+
+      # ── Exercise the in-app update helper (codeyoma/krx-quant#92, #130) ──
+      # The app runs update-windows.ps1 under Windows PowerShell 5.1, by its full
+      # path: the IFW step above writes PATH to GITHUB_ENV in MSYS form, so
+      # PowerShell steps after it cannot find powershell.exe on PATH
+      # (codeyoma/krx-quant#101).
+      #  - Swap: over the install the payload check made, swap in the ZIP's tree.
+      #    A file only the old install has stays, and the maintenance tool still
+      #    uninstalls the result.
+      #  - Move: install this setup.exe somewhere else, then move it into a
+      #    "user folder" with the helper; the old install is removed.
+      - name: Verify the update helper
+        shell: pwsh
+        working-directory: fincept-qt/build
+        run: |
+          $ErrorActionPreference = 'Stop'
           $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
           if (-not (Test-Path $powershell)) { Write-Host "::error::Windows PowerShell not found at $powershell"; exit 1 }
-          $p = Start-Process -FilePath $powershell -Wait -PassThru -NoNewWindow -ArgumentList `
-                 "-NoProfile -ExecutionPolicy Bypass -File `"$helper`" -Setup `"$copy`" -Root `"$dest`" -NoLaunch"
-          Write-Host "----- fincept-update.log -----"
-          Get-Content (Join-Path $env:TEMP 'fincept-update.log') -ErrorAction SilentlyContinue | Write-Host
-          if ($p.ExitCode -ne 0) { Write-Host "::error::update helper exited $($p.ExitCode)"; exit 1 }
-          foreach ($f in @('FinceptTerminal.exe', 'FinceptMaintenanceTool.exe', 'Qt6Core.dll', 'Qt6Gui.dll',
-                           'Qt6Widgets.dll', 'qt.conf', 'platforms/qwindows.dll', 'sqldrivers/qsqlite.dll')) {
-            if (-not (Test-Path (Join-Path $dest $f))) { Write-Host "::error::$f missing after the update"; exit 1 }
+          $helper = Join-Path $env:GITHUB_WORKSPACE 'fincept-qt/src/services/krx_quant/update/update-windows.ps1'
+          $setup = (Get-ChildItem -Filter "${{ env.APP_NAME }}-*-windows-x64-setup.exe" | Select-Object -First 1).FullName
+          $zip = (Get-ChildItem -Filter "${{ env.APP_NAME }}-*-windows-x64.zip" | Select-Object -First 1).FullName
+          $log = Join-Path $env:TEMP 'fincept-update.log'
+          $required = @('FinceptTerminal.exe', 'FinceptMaintenanceTool.exe', 'Qt6Core.dll', 'Qt6Gui.dll',
+                        'Qt6Widgets.dll', 'qt.conf', 'platforms/qwindows.dll', 'sqldrivers/qsqlite.dll')
+          function Invoke-Helper([string]$arguments) {
+            $p = Start-Process -FilePath $powershell -Wait -PassThru -NoNewWindow -ArgumentList `
+                   "-NoProfile -ExecutionPolicy Bypass -File `"$helper`" $arguments -NoLaunch"
+            Write-Host "----- fincept-update.log -----"
+            Get-Content $log -ErrorAction SilentlyContinue | Write-Host
+            Remove-Item $log -ErrorAction SilentlyContinue
+            if ($p.ExitCode -ne 0) { Write-Host "::error::update helper exited $($p.ExitCode)"; exit 1 }
           }
-          if (Test-Path $marker) { Write-Host "::error::the old install was not removed"; exit 1 }
-          if (Test-Path $copy) { Write-Host "::error::the helper left the installer behind"; exit 1 }
-          Write-Host "In-place update OK."
+          function Assert-Installed([string]$root) {
+            foreach ($f in $required) {
+              if (-not (Test-Path (Join-Path $root $f))) { Write-Host "::error::$f missing from $root"; exit 1 }
+            }
+          }
+          function Invoke-Purge([string]$root) {
+            $p = Start-Process -FilePath (Join-Path $root 'FinceptMaintenanceTool.exe') -Wait -PassThru `
+                   -ArgumentList 'purge --default-answer --confirm-command'
+            for ($i = 0; $i -lt 60 -and (Test-Path (Join-Path $root 'FinceptTerminal.exe')); $i++) { Start-Sleep -Milliseconds 500 }
+            if ($p.ExitCode -ne 0 -or (Test-Path (Join-Path $root 'FinceptTerminal.exe'))) {
+              Write-Host "::error::the maintenance tool did not uninstall $root (exit $($p.ExitCode))"; exit 1
+            }
+          }
+
+          # Swap
+          $root = Join-Path $env:RUNNER_TEMP 'fincept-payload-check'
+          $kept = Join-Path $root 'kept-by-the-update.txt'
+          Set-Content -Path $kept -Value 'only the old install has this'
+          $zipCopy = Join-Path $env:RUNNER_TEMP 'fincept-update.zip'
+          Copy-Item $zip $zipCopy
+          Invoke-Helper "-Mode Swap -Zip `"$zipCopy`" -Root `"$root`""
+          Assert-Installed $root
+          if (-not (Test-Path $kept)) { Write-Host "::error::the swap lost a file only the old install had"; exit 1 }
+          foreach ($left in @("$root.staging", "$root.old", $zipCopy)) {
+            if (Test-Path $left) { Write-Host "::error::the swap left $left behind"; exit 1 }
+          }
+          Invoke-Purge $root
+          Write-Host "Swap OK; the maintenance tool still uninstalls the swapped install."
+
+          # Move
+          $oldRoot = Join-Path $env:RUNNER_TEMP 'fincept-old-location'
+          $userRoot = Join-Path $env:RUNNER_TEMP 'fincept-user-folder'
+          $p = Start-Process -FilePath $setup -Wait -PassThru `
+                 -ArgumentList "--root `"$oldRoot`" --accept-licenses --default-answer --confirm-command install"
+          if ($p.ExitCode -ne 0) { Write-Host "::error::could not install into $oldRoot"; exit 1 }
+          $setupCopy = Join-Path $env:RUNNER_TEMP 'fincept-update-setup.exe'
+          Copy-Item $setup $setupCopy
+          Invoke-Helper "-Mode Move -Setup `"$setupCopy`" -OldRoot `"$oldRoot`" -Root `"$userRoot`""
+          Assert-Installed $userRoot
+          if (Test-Path (Join-Path $oldRoot 'FinceptTerminal.exe')) { Write-Host "::error::the old install was not removed"; exit 1 }
+          if (Test-Path $setupCopy) { Write-Host "::error::the move left the installer behind"; exit 1 }
+          Invoke-Purge $userRoot
+          Write-Host "Move OK."
 
       # ── Upload ────────────────────────────────────────────────────────────
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: FinceptTerminal-Windows-x64-installer
-          path: fincept-qt/build/FinceptTerminal-*-windows-x64-setup.exe
+          path: |
+            fincept-qt/build/FinceptTerminal-*-windows-x64-setup.exe
+            fincept-qt/build/FinceptTerminal-*-windows-x64.zip
           if-no-files-found: error
           retention-days: 30
 
@@ -1455,8 +1524,9 @@ jobs:
         run: |
           set -euo pipefail
           WIN="dist/windows/${{ env.APP_NAME }}-${TAG}-windows-x64-setup.exe"
+          WIN_ZIP="dist/windows/${{ env.APP_NAME }}-${TAG}-windows-x64.zip"
           MAC="dist/macos/${{ env.APP_NAME }}-${TAG}-macos-arm64.dmg"
-          for f in "${WIN}" "${MAC}"; do
+          for f in "${WIN}" "${WIN_ZIP}" "${MAC}"; do
             [ -f "$f" ] || { echo "::error::missing release asset: $f"; exit 1; }
           done
 
@@ -1469,6 +1539,7 @@ jobs:
           | Platform | File |
           |---|---|
           | Windows x64 | `FinceptTerminal-@TAG@-windows-x64-setup.exe` |
+          | Windows x64, in-app update only | `FinceptTerminal-@TAG@-windows-x64.zip` |
           | macOS Apple Silicon (13+) | `FinceptTerminal-@TAG@-macos-arm64.dmg` |
 
           ### How to open it
@@ -1485,9 +1556,9 @@ jobs:
 
           if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             echo "Release ${TAG} already exists; replacing its assets."
-            gh release upload "${TAG}" "${WIN}" "${MAC}" --repo "${GITHUB_REPOSITORY}" --clobber
+            gh release upload "${TAG}" "${WIN}" "${WIN_ZIP}" "${MAC}" --repo "${GITHUB_REPOSITORY}" --clobber
           else
-            gh release create "${TAG}" "${WIN}" "${MAC}" \
+            gh release create "${TAG}" "${WIN}" "${WIN_ZIP}" "${MAC}" \
               --repo "${GITHUB_REPOSITORY}" \
               --verify-tag \
               --prerelease \

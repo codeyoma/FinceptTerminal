@@ -26,6 +26,8 @@ namespace {
 constexpr const char* kReleases = "https://api.github.com/repos/codeyoma/FinceptTerminal/releases?per_page=30";
 // Seconds without a byte before a request gives up, so a stalled one cannot hold the updater.
 constexpr int kStalledMs = 60 * 1000;
+// How often an open app looks again for a new build, after the check at login.
+constexpr int kRecheckMs = 6 * 60 * 60 * 1000;
 
 /// The build's custom-v* tag, given to this file by CMake; empty for a local build.
 QString running_tag() {
@@ -63,9 +65,45 @@ QString write_helper(const QString& name) {
 
 AppUpdater::AppUpdater(QObject* parent) : QObject(parent) {
     net_.setRedirectPolicy(QNetworkRequest::NoLessSafeRedirectPolicy);
+    // While the app stays open, look again now and then: a build can land hours after login.
+    recheck_.setInterval(kRecheckMs);
+    connect(&recheck_, &QTimer::timeout, this, [this] {
+        if (busy_ || !ready_tag_.isEmpty())
+            return;
+        done_ = {};
+        run_check(true);
+    });
+}
+
+UpdateMode AppUpdater::mode() {
+#if defined(Q_OS_MACOS)
+    // The running bundle: <name>.app/Contents/MacOS/<binary>. Swapping it needs its folder writable.
+    QDir dir(QCoreApplication::applicationDirPath());
+    dir.cdUp();
+    dir.cdUp();
+    const QString bundle = dir.absolutePath();
+    if (bundle.endsWith(QLatin1String(".app")) && QFileInfo(QFileInfo(bundle).absolutePath()).isWritable())
+        return UpdateMode::SwapBundle;
+    return UpdateMode::Manual;
+#elif defined(Q_OS_WIN)
+    const QString root = QCoreApplication::applicationDirPath();
+    const bool tool = QFileInfo::exists(QDir(root).filePath(QStringLiteral("FinceptMaintenanceTool.exe")));
+    return windows_update_mode(root, qEnvironmentVariable("LOCALAPPDATA"), tool);
+#else
+    return UpdateMode::Manual;
+#endif
 }
 
 void AppUpdater::check(bool silent, QWidget* parent, Done done) {
+    if (!ready_tag_.isEmpty()) { // a build already waits for the app to quit
+        if (!silent) {
+            parent_ = parent;
+            ask_to_restart();
+        }
+        if (done)
+            done(true);
+        return;
+    }
     if (busy_) { // a check or a download under way: a check from the menu still gets an answer
         if (!silent) {
             QMessageBox::information(parent, tr("앱 업데이트"), tr("업데이트를 이미 확인하거나 내려받는 중입니다."));
@@ -76,19 +114,27 @@ void AppUpdater::check(bool silent, QWidget* parent, Done done) {
     }
     if (silent && silent_checked_)
         return;
-    silent_checked_ = silent_checked_ || silent;
-    silent_ = silent;
+    if (silent) {
+        silent_checked_ = true;
+        recheck_.start();
+    }
     parent_ = parent;
     done_ = std::move(done);
+    run_check(silent);
+}
 
+void AppUpdater::run_check(bool silent) {
+    silent_ = silent;
     if (!parse_build_tag(running_tag())) {
         LOG_INFO("AppUpdater", "A local build without a custom-v* tag: no update check");
+        recheck_.stop();
         if (!silent_)
             tell(tr("이 빌드는 개인 빌드 태그가 없는 로컬 빌드라 업데이트를 확인하지 않습니다."));
         finish(false);
         return;
     }
     if (installer_suffix().isEmpty()) {
+        recheck_.stop();
         if (!silent_)
             tell(tr("이 플랫폼용 개인 빌드는 없습니다."));
         finish(false);
@@ -123,7 +169,8 @@ void AppUpdater::on_releases(QNetworkReply* reply) {
         finish(false);
         return;
     }
-    const auto release = newest_release(answer, running_tag(), installer_suffix());
+    const UpdateMode how = mode();
+    const auto release = newest_release(answer, running_tag(), update_asset_suffix(how));
     if (!release) {
         LOG_INFO("AppUpdater", QString("Up to date: %1").arg(running_tag()));
         if (!silent_)
@@ -131,26 +178,34 @@ void AppUpdater::on_releases(QNetworkReply* reply) {
         finish(false);
         return;
     }
+    LOG_INFO("AppUpdater", QString("Update available: %1 -> %2").arg(running_tag(), release->tag));
+    // A silent check fetches the build without asking; only a manual install needs the user first.
+    if (silent_ && how != UpdateMode::Manual) {
+        download(*release, true);
+        return;
+    }
     offer(*release);
 }
 
 void AppUpdater::offer(const AppRelease& release) {
-    LOG_INFO("AppUpdater", QString("Update available: %1 -> %2").arg(running_tag(), release.tag));
     QMessageBox box(parent_);
     box.setWindowTitle(tr("앱 업데이트"));
     box.setIcon(QMessageBox::Information);
-    box.setText(tr("새 개인 빌드가 있습니다.\n\n지금: %1\n새 빌드: %2 (%3 MB)\n\n"
-                   "지금 업데이트하면 내려받아 확인한 뒤, 앱을 닫고 새 빌드를 설치해 다시 엽니다.")
+    const QString then = mode() == UpdateMode::Manual
+                             ? tr("받으면 확인한 뒤 설치 파일을 엽니다. 직접 설치해 주세요.")
+                             : tr("받으면 확인한 뒤, 지금 재시작할지 묻습니다.");
+    box.setText(tr("새 개인 빌드가 있습니다.\n\n지금: %1\n새 빌드: %2 (%3 MB)\n\n%4")
                     .arg(running_tag(), release.tag)
-                    .arg(release.size / (1024 * 1024)));
-    QPushButton* now = box.addButton(tr("지금 업데이트"), QMessageBox::AcceptRole);
+                    .arg(release.size / (1024 * 1024))
+                    .arg(then));
+    QPushButton* now = box.addButton(tr("받기"), QMessageBox::AcceptRole);
     QPushButton* page = box.addButton(tr("릴리스 보기"), QMessageBox::HelpRole);
     box.addButton(tr("나중에"), QMessageBox::RejectRole);
     box.setDefaultButton(now);
     box.exec();
 
     if (box.clickedButton() == now) {
-        download(release);
+        download(release, false);
         return;
     }
     if (box.clickedButton() == page)
@@ -158,13 +213,13 @@ void AppUpdater::offer(const AppRelease& release) {
     finish(true);
 }
 
-void AppUpdater::download(const AppRelease& release) {
+void AppUpdater::download(const AppRelease& release, bool in_background) {
     pending_ = release;
+    background_ = in_background;
     file_ = std::make_unique<QFile>(temp_path(QFileInfo(release.installer.path()).fileName()));
     file_->remove();
     if (!file_->open(QIODevice::WriteOnly)) {
-        tell(tr("설치 파일을 저장할 수 없습니다.\n\n%1").arg(file_->errorString()));
-        finish(true);
+        fail(tr("새 빌드를 저장할 수 없습니다.\n\n%1").arg(file_->errorString()));
         return;
     }
     write_failed_ = false;
@@ -173,14 +228,19 @@ void AppUpdater::download(const AppRelease& release) {
     request.setHeader(QNetworkRequest::UserAgentHeader, user_agent());
     request.setTransferTimeout(kStalledMs);
     QNetworkReply* reply = net_.get(request);
-    LOG_INFO("AppUpdater", QString("Downloading %1 to %2").arg(release.installer.toString(), file_->fileName()));
+    LOG_INFO("AppUpdater", QString("Downloading %1 to %2%3")
+                               .arg(release.installer.toString(), file_->fileName(),
+                                    in_background ? QStringLiteral(" in the background") : QString()));
 
-    progress_ = new QProgressDialog(tr("%1을(를) 내려받는 중…").arg(release.tag), tr("취소"), 0, 100, parent_);
-    progress_->setWindowTitle(tr("앱 업데이트"));
-    progress_->setWindowModality(Qt::WindowModal);
-    progress_->setMinimumDuration(0);
-    progress_->setAttribute(Qt::WA_DeleteOnClose);
-    connect(progress_, &QProgressDialog::canceled, reply, &QNetworkReply::abort);
+    if (!in_background) {
+        progress_ =
+            new QProgressDialog(tr("%1을(를) 내려받는 중…").arg(release.tag), tr("취소"), 0, 100, parent_);
+        progress_->setWindowTitle(tr("앱 업데이트"));
+        progress_->setWindowModality(Qt::WindowModal);
+        progress_->setMinimumDuration(0);
+        progress_->setAttribute(Qt::WA_DeleteOnClose);
+        connect(progress_, &QProgressDialog::canceled, reply, &QNetworkReply::abort);
+    }
     connect(reply, &QNetworkReply::readyRead, this, [this, reply] {
         const QByteArray chunk = reply->readAll();
         if (file_->write(chunk) != chunk.size()) { // a full disk: stop here
@@ -212,59 +272,73 @@ void AppUpdater::on_downloaded(QNetworkReply* reply) {
 
     if (write_failed_) {
         file_->remove();
-        tell(tr("설치 파일을 다 저장하지 못했습니다(디스크 공간을 확인하세요).\n\n%1").arg(file_->errorString()));
-        finish(true);
+        fail(tr("새 빌드를 다 저장하지 못했습니다(디스크 공간을 확인하세요).\n\n%1").arg(file_->errorString()));
         return;
     }
     if (reply->error() != QNetworkReply::NoError) {
         file_->remove();
-        if (reply->error() != QNetworkReply::OperationCanceledError)
-            tell(tr("새 빌드를 내려받지 못했습니다.\n\n%1").arg(reply->errorString()));
-        finish(true);
+        if (reply->error() == QNetworkReply::OperationCanceledError && !background_) {
+            finish(true); // the user cancelled
+            return;
+        }
+        fail(tr("새 빌드를 내려받지 못했습니다.\n\n%1").arg(reply->errorString()));
         return;
     }
     const QString actual = sha256_of(path); // what is on disk, as the helper will read it
     if (actual != pending_.sha256) {
         LOG_ERROR("AppUpdater", QString("sha256 mismatch: expected %1, got %2").arg(pending_.sha256, actual));
         file_->remove();
-        tell(tr("내려받은 파일이 GitHub의 sha256과 맞지 않아 지웠습니다. 다시 시도하거나 릴리스 페이지에서 받으세요."));
-        finish(true);
+        fail(tr("내려받은 파일이 GitHub의 sha256과 맞지 않아 지웠습니다. 다시 시도하거나 릴리스 페이지에서 받으세요."));
         return;
     }
     LOG_INFO("AppUpdater", QString("sha256 verified: %1").arg(actual));
-    install(path);
+    prepare(path);
 }
 
-void AppUpdater::install(const QString& installer) {
+void AppUpdater::prepare(const QString& payload) {
+    const UpdateMode how = mode();
+    if (how == UpdateMode::Manual) {
+        install_by_hand(payload, tr("이 위치에 설치된 앱은 스스로 업데이트할 수 없습니다."));
+        return;
+    }
+    if (!start_helper(payload, how)) {
+        if (how == UpdateMode::SwapFolder) { // a ZIP is no installer: send the user to the release
+            QDesktopServices::openUrl(pending_.page);
+            fail(tr("자동 업데이트를 시작하지 못했습니다. 릴리스 페이지를 열었습니다. 설치 파일을 받아 직접 설치해 "
+                    "주세요."));
+            return;
+        }
+        install_by_hand(payload, tr("자동 업데이트를 시작하지 못했습니다."));
+        return;
+    }
+    ready_tag_ = pending_.tag;
+    LOG_INFO("AppUpdater", QString("%1 is ready; it goes in when this run quits").arg(ready_tag_));
+    finish(true);
+    ask_to_restart();
+}
+
+bool AppUpdater::start_helper(const QString& payload, UpdateMode how) {
+    relaunch_marker_ = payload + QStringLiteral(".relaunch");
+    QFile::remove(relaunch_marker_);
     const QString pid = QString::number(QCoreApplication::applicationPid());
-    QString helper; // the platform's install helper, written out of the app's resources
+    QString helper; // the platform's update helper, written out of the app's resources
     QString program;
     QStringList arguments;
 #if defined(Q_OS_MACOS)
-    // The running bundle: <name>.app/Contents/MacOS/<binary>. Swapping it needs its folder writable.
+    Q_UNUSED(how)
     QDir dir(QCoreApplication::applicationDirPath());
     dir.cdUp();
     dir.cdUp();
-    const QString bundle = dir.absolutePath();
-    if (!bundle.endsWith(QLatin1String(".app")) || !QFileInfo(QFileInfo(bundle).absolutePath()).isWritable()) {
-        install_by_hand(installer, tr("이 앱이 있는 폴더에 쓸 수 없습니다: %1").arg(bundle));
-        return;
-    }
     helper = write_helper(QStringLiteral("update-macos.sh"));
     program = QStringLiteral("/bin/bash");
-    arguments = {helper, pid, installer, bundle};
+    arguments = {helper, pid, payload, dir.absolutePath(), relaunch_marker_};
 #elif defined(Q_OS_WIN)
-    const QString root = QCoreApplication::applicationDirPath();
-    if (!QFileInfo::exists(QDir(root).filePath(QStringLiteral("FinceptMaintenanceTool.exe")))) {
-        install_by_hand(installer,
-                        tr("설치 프로그램으로 설치한 앱이 아닙니다: %1").arg(QDir::toNativeSeparators(root)));
-        return;
-    }
     helper = write_helper(QStringLiteral("update-windows.ps1"));
     // Windows PowerShell by its full path: PATH can lack it (codeyoma/krx-quant#101).
     const QString powershell = QDir(qEnvironmentVariable("SystemRoot"))
                                    .filePath(QStringLiteral("System32/WindowsPowerShell/v1.0/powershell.exe"));
     program = QFileInfo::exists(powershell) ? QDir::toNativeSeparators(powershell) : QStringLiteral("powershell.exe");
+    const QString root = QCoreApplication::applicationDirPath();
     arguments = {QStringLiteral("-NoProfile"),
                  QStringLiteral("-ExecutionPolicy"),
                  QStringLiteral("Bypass"),
@@ -274,32 +348,75 @@ void AppUpdater::install(const QString& installer) {
                  QDir::toNativeSeparators(helper),
                  QStringLiteral("-AppPid"),
                  pid,
-                 QStringLiteral("-Setup"),
-                 QDir::toNativeSeparators(installer),
-                 QStringLiteral("-Root"),
-                 QDir::toNativeSeparators(root)};
+                 QStringLiteral("-Relaunch"),
+                 QDir::toNativeSeparators(relaunch_marker_)};
+    if (how == UpdateMode::SwapFolder) {
+        arguments << QStringLiteral("-Mode") << QStringLiteral("Swap") << QStringLiteral("-Zip")
+                  << QDir::toNativeSeparators(payload) << QStringLiteral("-Root") << QDir::toNativeSeparators(root);
+    } else {
+        arguments << QStringLiteral("-Mode") << QStringLiteral("Move") << QStringLiteral("-Setup")
+                  << QDir::toNativeSeparators(payload) << QStringLiteral("-OldRoot") << QDir::toNativeSeparators(root)
+                  << QStringLiteral("-Root")
+                  << QDir::toNativeSeparators(windows_user_install_dir(qEnvironmentVariable("LOCALAPPDATA")));
+    }
+#else
+    Q_UNUSED(how)
+    Q_UNUSED(pid)
 #endif
-    if (helper.isEmpty()) {
-        install_by_hand(installer, tr("자동 설치를 준비하지 못했습니다."));
+    if (helper.isEmpty())
+        return false;
+    return QProcess::startDetached(program, arguments);
+}
+
+void AppUpdater::ask_to_restart() {
+    auto* box = new QMessageBox(parent_);
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->setWindowTitle(tr("앱 업데이트"));
+    box->setIcon(QMessageBox::Information);
+    QString text = tr("새 개인 빌드 %1이(가) 준비됐습니다.\n\n"
+                      "지금 재시작하면 몇 초 뒤 새 빌드로 다시 열립니다. 나중에 하면 앱을 끌 때 바뀌고, "
+                      "다음에 켜면 새 빌드가 열립니다.")
+                       .arg(ready_tag_);
+#if defined(Q_OS_WIN)
+    if (mode() == UpdateMode::MoveToUserFolder)
+        text += tr("\n\n이번 한 번은 설치 위치를 %1(으)로 옮깁니다. 예전 설치를 지울 때 관리자 확인이 뜨면 "
+                   "허용해 주세요.")
+                    .arg(QDir::toNativeSeparators(windows_user_install_dir(qEnvironmentVariable("LOCALAPPDATA"))));
+#endif
+    box->setText(text);
+    QPushButton* now = box->addButton(tr("지금 재시작"), QMessageBox::AcceptRole);
+    box->addButton(tr("나중에"), QMessageBox::RejectRole);
+    box->setDefaultButton(now);
+    connect(box, &QMessageBox::buttonClicked, this, [this, now](QAbstractButton* clicked) {
+        if (clicked == now)
+            restart_now();
+    });
+    box->setModal(false);
+    box->show();
+}
+
+void AppUpdater::restart_now() {
+    QFile marker(relaunch_marker_);
+    if (!marker.open(QIODevice::WriteOnly)) {
+        tell(tr("재시작을 준비하지 못했습니다. 앱을 직접 껐다 켜 주세요.\n\n%1").arg(marker.errorString()));
         return;
     }
-    // Said before the helper starts, which gives this run two minutes to quit.
-    tell(tr("앱을 닫고 %1을(를) 설치합니다. 설치가 끝나면 새 빌드가 저절로 열립니다(1–2분).\n"
-            "안 되면 설치 파일이 열리니 직접 설치하세요.")
-             .arg(pending_.tag));
-    if (!QProcess::startDetached(program, arguments)) {
-        install_by_hand(installer, tr("자동 설치를 시작하지 못했습니다."));
-        return;
-    }
-    LOG_INFO("AppUpdater", QString("Installing %1 after this run quits").arg(pending_.tag));
-    finish(true);
+    marker.close();
+    LOG_INFO("AppUpdater", QString("Restarting into %1").arg(ready_tag_));
     QTimer::singleShot(0, qApp, &QCoreApplication::quit);
 }
 
 void AppUpdater::install_by_hand(const QString& installer, const QString& why) {
-    LOG_WARN("AppUpdater", QString("In-place update not possible (%1); opening the installer").arg(why));
+    LOG_WARN("AppUpdater", QString("Self-update not possible (%1); opening the installer").arg(why));
     QDesktopServices::openUrl(QUrl::fromLocalFile(installer));
     tell(tr("%1\n\n설치 파일을 열었습니다. 직접 설치해 주세요.").arg(why));
+    finish(true);
+}
+
+void AppUpdater::fail(const QString& text) {
+    LOG_WARN("AppUpdater", text);
+    if (!background_) // a background download fails quietly; the next check tries again
+        tell(text);
     finish(true);
 }
 
@@ -308,6 +425,7 @@ void AppUpdater::finish(bool update_found) {
     file_.reset();
     if (done_)
         done_(update_found);
+    done_ = {};
 }
 
 void AppUpdater::tell(const QString& text) {

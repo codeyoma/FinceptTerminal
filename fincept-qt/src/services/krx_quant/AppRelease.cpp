@@ -1,5 +1,6 @@
 #include "services/krx_quant/AppRelease.h"
 
+#include <QDir>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QRegularExpression>
@@ -53,6 +54,35 @@ QString installer_suffix() {
     Q_UNUSED(arch);
     return {};
 #endif
+}
+
+QString windows_user_install_dir(const QString& local_app_data) {
+    return QDir::cleanPath(QDir::fromNativeSeparators(local_app_data) + QStringLiteral("/Programs/FinceptTerminal"));
+}
+
+UpdateMode windows_update_mode(const QString& app_dir, const QString& local_app_data, bool has_maintenance_tool) {
+    if (!has_maintenance_tool)
+        return UpdateMode::Manual;
+    const QString here = QDir::cleanPath(QDir::fromNativeSeparators(app_dir));
+    const QString user_dir = windows_user_install_dir(local_app_data);
+    // Windows paths compare without case.
+    if (!local_app_data.isEmpty() && here.compare(user_dir, Qt::CaseInsensitive) == 0)
+        return UpdateMode::SwapFolder;
+    return UpdateMode::MoveToUserFolder;
+}
+
+QString update_asset_suffix(UpdateMode mode) {
+    switch (mode) {
+    case UpdateMode::SwapBundle:
+        return QStringLiteral("macos-arm64.dmg");
+    case UpdateMode::SwapFolder:
+        return QStringLiteral("windows-x64.zip");
+    case UpdateMode::MoveToUserFolder:
+        return QStringLiteral("windows-x64-setup.exe");
+    case UpdateMode::Manual:
+        break;
+    }
+    return installer_suffix(); // this platform's installer, to open by hand
 }
 
 } // namespace fincept::krx_quant
