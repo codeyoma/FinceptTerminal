@@ -172,11 +172,12 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 - 서명하지 않은 빌드다. 맥은 처음 열 때 우클릭 → 열기(또는 `xattr -dr com.apple.quarantine /Applications/FinceptTerminal.app`), 윈도우는 SmartScreen에서 추가 정보 → 실행.
 - 공식 버전 업데이트는 꺼져 있다(`FINCEPT_DISABLE_AUTO_UPDATE`). 새 버전은 새 태그로 만들고, 설치된 앱은 아래처럼 스스로 업데이트한다.
 - upstream 릴리스를 반영한 첫 빌드는 workflow가 `custom-<tag>-krx.1`로 태그한다(위 "upstream 릴리스 반영").
-- 그 뒤 `custom`에 merge(push) 되는 변경은 `custom-auto-tag` workflow가 저절로 태그한다(codeyoma/krx-quant#98). push 된 커밋에 `custom-<custom/UPSTREAM_BASE>-krx.<N+1>`을 단다. N은 그 upstream 버전에서 이미 쓴 가장 큰 번호다(`-rc` 같은 꼴은 세지 않는다). 이 태그 push로 `custom-release`가 개인 빌드를 만들어 Release에 올리고, 설치된 앱이 업데이트로 받는다. 그래서 merge 한 번이면 앱 업데이트까지 간다.
+- 그 뒤 `custom`에 merge(push) 되는 변경은 `custom-auto-tag` workflow가 저절로 태그한다(codeyoma/krx-quant#98). push 된 커밋에 `custom-<custom/UPSTREAM_BASE>-krx.<N+1>`을 단다. N은 그 upstream 버전에서 이미 쓴 가장 큰 번호다(`-rc` 같은 꼴은 세지 않는다). 이 태그 push로 `custom-release`가 개인 빌드를 만들어 Release에 올리고, 설치된 앱이 업데이트로 받는다. 그래서 앱을 바꾸는 merge는 손대지 않아도 개인 빌드에 들어간다. 대개 그 merge의 빌드로 들어가고, 아래처럼 더 새 커밋의 빌드에 함께 들어가기도 한다. 문서나 workflow만 바꾼 merge는 빌드하지 않는다.
   - 태그를 달지 않는 경우: 그 커밋에 이미 `custom-v*` 태그가 있을 때(upstream 반영은 `custom`과 `krx.1` 태그를 한 번에 push 한다. 손으로 단 태그도 그대로 된다), push가 문서나 workflow만 바꿨을 때(`custom/**`, `*.md`, `docs/**`, `fincept-qt/docs/**`, `.github/**`). 이런 변경을 빌드하려면 손으로 태그한다.
   - 실행은 한 번에 하나라서 번호가 겹치지 않는다. `queue: max`로 기다리는 실행을 모두(최대 100개) 남겨서, 연달아 merge 해도 merge 마다 빌드가 나온다. GitHub는 기다리는 실행의 순서를 보장하지 않는다. 그래서 더 새 커밋의 빌드가 이미 있으면 그 커밋은 태그하지 않는다. 오래된 코드가 더 큰 번호를 받아 앱이 그쪽으로 "업데이트" 하는 일을 막으려고서다. 같은 번호를 다른 태그가 먼저 가졌으면 태그 push가 실패하고 기존 태그는 그대로다.
   - 태그는 `SYNC_TOKEN`으로 push 한다. `GITHUB_TOKEN`으로 push 한 태그는 `custom-release`를 돌리지 않는다. `SYNC_TOKEN`이 없으면 workflow가 실패로 끝난다.
   - 손으로 태그해도 된다. 이미 태그가 달린 커밋이면 `custom-auto-tag`는 아무것도 하지 않는다.
+  - `custom`의 커밋만 태그한다. 다른 브랜치에서 손으로 돌리면(Run workflow) 아무것도 하지 않는다. 빌드 번호를 쓰거나 옛 커밋을 가장 새 빌드로 올리는 일을 막으려고서다.
 
 > **바뀜** (2026-10-12, codeyoma/krx-quant#99): "그 뒤 화면 변경은 같은 upstream 버전에 번호를 올려 손으로 태그한다" → `custom`에 push 되면 `custom-auto-tag`가 다음 번호로 태그한다. 이유: merge 한 변경마다 사람이 태그를 달아야 앱 업데이트가 나왔다(codeyoma/krx-quant#98).
 

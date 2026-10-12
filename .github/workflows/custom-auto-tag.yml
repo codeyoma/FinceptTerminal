@@ -1,14 +1,16 @@
 # Fork-only workflow (codeyoma/FinceptTerminal, codeyoma/krx-quant#98).
-# Every push to `custom` that changes the app becomes a personal build: the pushed
-# commit is tagged custom-<custom/UPSTREAM_BASE>-krx.<N+1>, N being the highest
-# build number already used for that upstream version. The tag push starts
+# Every push to `custom` that changes the app gets into a personal build: the
+# pushed commit is tagged custom-<custom/UPSTREAM_BASE>-krx.<N+1>, N being the
+# highest build number already used for that upstream version, unless a build of
+# a newer commit already contains it (see the tagging step). The tag push starts
 # custom-release, which builds and publishes the release, and installed apps then
 # offer it as an update (custom/README.md "앱 업데이트").
 #
 # Nothing is tagged when the commit already has a custom-v* tag (the upstream
 # landing pushes custom together with its krx.1 tag, and a hand-made tag still
 # works) or when the push changed only docs or workflows (paths-ignore below);
-# a hand-made tag still builds such a commit.
+# a hand-made tag still builds such a commit. Only commits on `custom` are
+# tagged: a manual run from another branch does nothing.
 #
 # The tag is pushed with SYNC_TOKEN: a tag pushed with GITHUB_TOKEN starts no
 # workflow, so it would never be built.
@@ -41,6 +43,9 @@ concurrency:
 jobs:
   tag:
     name: Tag the next personal build
+    # A manual run from another branch would spend a build number, or publish an
+    # old commit as the newest build.
+    if: github.ref == 'refs/heads/custom'
     runs-on: ubuntu-latest
     env:
       HAS_SYNC_TOKEN: ${{ secrets.SYNC_TOKEN != '' }}
@@ -63,6 +68,11 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --tags --force origin
+          git fetch origin '+refs/heads/custom:refs/remotes/origin/custom'
+          if ! git merge-base --is-ancestor HEAD refs/remotes/origin/custom; then
+            echo "::error::$(git rev-parse --short HEAD) is not on custom; personal builds are tagged only from custom."
+            exit 1
+          fi
 
           existing=$(git tag --points-at HEAD -l 'custom-v*')
           if [ -n "$existing" ]; then
