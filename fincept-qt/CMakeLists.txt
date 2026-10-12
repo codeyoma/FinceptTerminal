@@ -2948,6 +2948,7 @@ set(FINCEPT_TS_FILES
     translations/fincept_es_ES.ts
     translations/fincept_fr_FR.ts
     translations/fincept_it_IT.ts
+    translations/fincept_ko_KR.ts # fork addition (codeyoma/krx-quant#132)
 )
 qt6_add_lrelease(FinceptTerminal
     TS_FILES ${FINCEPT_TS_FILES}
