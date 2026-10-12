@@ -70,8 +70,9 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/src/app/DockScreenRouter.cpp` | `krx_quant` 탭 제목 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/ToolBar.cpp` | Navigate → Trading & Portfolio 메뉴에 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/CommandBar.cpp` | 명령 팔레트에 `krx_quant` ("krx"로 찾는다) |
-| `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`) |
-| `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
+| `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`), 한국어 언어 팩 `translations/fincept_ko_KR.ts`의 컴파일·리소스 포함 |
+| `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`, `tst_krx_korean`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
+| `fincept-qt/src/core/i18n/LanguageManager.cpp` | 공용 언어 목록에 `ko_KR`, 언어 이름에 `한국어`를 추가한다(codeyoma/krx-quant#132). 설정 화면과 로그인 언어 선택이 이 목록을 그대로 쓴다 |
 | `fincept-qt/src/services/updater/UpdateService.cpp` | `FINCEPT_DISABLE_AUTO_UPDATE`이면 공식 업데이트 대신 개인 빌드 업데이트(`krx_quant::AppUpdater`)로 넘긴다(`check_for_updates` 본문을 `#ifdef … #else … #endif`로 감쌌다) |
 | `fincept-qt/src/services/llm/ProviderCatalog.cpp` | provider 목록에 로컬 CLI provider(`claude_cli`, `codex_cli`)를 붙이고, 이름·기본 모델·키 불필요·OpenAI 호환 아님을 `krx_quant::cli_llm`에 묻는다 |
 | `fincept-qt/src/services/llm/LlmService.h` | 로컬 CLI provider는 키가 필요 없고, AI Chat이 스트리밍 경로(답은 한 덩어리)로 부른다 |
@@ -84,6 +85,14 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/src/mcp/ProviderToolFormatSelfTest.cpp` | provider별 endpoint 자가 검사에서 로컬 CLI provider를 건너뛴다(endpoint가 없다) |
 
 > **바뀜** (2026-10-12, krx-quant #94): KRX 테스트 등록을 `fincept-qt/tests/CMakeLists.txt` 끝에 붙였다 → `krx_quant.cmake`로 옮기고 `fincept_add_test()` 정의 뒤에서 include 한다. 이유: upstream도 파일 끝에 테스트를 붙여서, v4.5.0 이후 upstream `main`을 merge 하면 충돌했다. 자동 반영이 멈추지 않게 하려고(krx-quant #93).
+
+## 한국어 언어 팩 (codeyoma/krx-quant#132)
+
+- **설정 경로:** Settings → General → Interface language → **한국어**. 한국어로 바꾼 뒤에는 설정 → 일반 → 인터페이스 언어다. 선택 즉시 적용되고, 같은 곳에서 English로 되돌릴 수 있다.
+- **저장:** 기존 `LanguageManager`가 SQLite settings의 `general.language`에 `ko_KR`를 저장한다. 다음 실행에도 유지된다. 저장된 언어가 없는 첫 실행은 기존 운영체제 언어 감지를 따르므로 한국어 환경에서는 한국어를 고른다. 이미 고른 다른 언어를 덮어쓰지 않는다.
+- **팩:** `fincept-qt/translations/fincept_ko_KR.ts`. 현재 내부 공통 팩의 382개 컨텍스트, 9,608개 항목을 기준으로 번역하고, 최신 설정·탐색의 누락 문구와 동적으로 읽는 설정 메뉴도 더했다. 이전 내부 한국어 팩의 맞는 표현을 참고했다. 제품명·티커·코드·수식·치환자는 유지한다. 원문에 새 문구가 생겨 팩에 아직 없거나 `tr()`로 연결되지 않은 문구는 기존 영어 fallback을 따른다.
+- **빌드:** 다른 언어와 동일하게 `lrelease`가 `.qm`을 만들고 `:/i18n/fincept_ko_KR.qm`에 포함한다. 외부 번역 API, 다운로드, 추가 설정은 필요 없다. 기존 팩은 자동으로 다시 쓰지 않는다.
+- **검증:** `FINCEPT_BUILD_TESTS=ON`으로 설정한 빌드에서 `cmake --build <build> --target tst_krx_korean` 뒤 `ctest --test-dir <build> -R krx_korean --output-on-failure`. 앱과 같은 경로의 실제 컴파일된 리소스, 설정 메뉴 문맥, 공통 팩 전체 키·Qt 치환자, 복수형, 영어 fallback을 검사한다.
 
 ## KRX 예측 화면 (#20, #21, #68)
 

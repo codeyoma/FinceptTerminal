@@ -29,7 +29,8 @@ LanguageManager& LanguageManager::instance() {
 QStringList LanguageManager::supported_languages() {
     return {QStringLiteral("en"),    QStringLiteral("zh_CN"), QStringLiteral("zh_HK"), QStringLiteral("zh_TW"),
             QStringLiteral("id_ID"), QStringLiteral("vi_VN"), QStringLiteral("tr_TR"), QStringLiteral("de_DE"),
-            QStringLiteral("pt_BR"), QStringLiteral("es_ES"), QStringLiteral("fr_FR"), QStringLiteral("it_IT")};
+            QStringLiteral("pt_BR"), QStringLiteral("es_ES"), QStringLiteral("fr_FR"), QStringLiteral("it_IT"),
+            QStringLiteral("ko_KR")}; // fork addition (codeyoma/krx-quant#132)
 }
 
 QString LanguageManager::native_name(const QString& code) {
@@ -61,6 +62,9 @@ QString LanguageManager::native_name(const QString& code) {
                                  "ais"); // Français
     if (code == QLatin1String("it_IT"))
         return QStringLiteral("Italiano");
+    // fork addition (codeyoma/krx-quant#132)
+    if (code == QLatin1String("ko_KR"))
+        return QString::fromUtf8("\xed\x95\x9c\xea\xb5\xad\xec\x96\xb4"); // 한국어
     return code;
 }
 
