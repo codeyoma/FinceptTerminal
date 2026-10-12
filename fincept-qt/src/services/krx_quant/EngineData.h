@@ -149,6 +149,9 @@ struct Lift {
     /// where it was not tested with the leaderboard's (a breakdown, an unranked entry).
     std::optional<double> q;
     std::optional<bool> significant;
+    /// The same lift taken a trading day at a time, each day's mean one value: what the
+    /// engine decides the statuses by. Its n is the days; none from fewer than two days.
+    std::optional<Interval> by_day;
 };
 
 /// One predictor's line of the leaderboard. What was not measured (nothing scored, no

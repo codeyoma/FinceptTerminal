@@ -62,6 +62,17 @@ class TstKrxStatsView : public QObject {
         QCOMPARE(rows[1].verdict, QStringLiteral("미통과"));
     }
 
+    void a_lift_by_trading_day_shows_its_interval_and_days() {
+        Entry e;
+        e.lifts = {lift("baseline-flat", 0.04, 0.003, true), lift("baseline-persist", 0.06, 0.001, true)};
+        e.lifts[0].by_day = Interval{0.04, -0.012, 0.092, 5};
+        const auto rows = lift_rows(e);
+        QCOMPARE(rows[0].day_interval, QStringLiteral("-0.012 – +0.092"));
+        QCOMPARE(rows[0].days, QStringLiteral("5"));
+        QCOMPARE(rows[1].day_interval, QStringLiteral("—")); // fewer than two days
+        QCOMPARE(rows[1].days, QStringLiteral("—"));
+    }
+
     void a_lift_not_tested_with_the_others_has_no_q_and_no_verdict() {
         Entry e;
         e.lifts = {lift("baseline-random", 0.02, std::nullopt, std::nullopt)};
@@ -79,6 +90,8 @@ class TstKrxStatsView : public QObject {
         QCOMPARE(rows[0].pairs, QStringLiteral("0"));
         QCOMPARE(rows[0].p, QStringLiteral("—"));
         QCOMPARE(rows[0].verdict, QStringLiteral("—")); // nothing was tested
+        QCOMPARE(rows[0].day_interval, QStringLiteral("—"));
+        QCOMPARE(rows[0].days, QStringLiteral("—"));
     }
 
     void a_tiny_p_still_reads() {

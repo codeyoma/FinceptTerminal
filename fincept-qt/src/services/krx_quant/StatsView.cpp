@@ -47,22 +47,26 @@ QList<LiftRow> lift_rows(const Entry& entry) {
             return QStringLiteral("—");
         return *p < 0.001 ? QStringLiteral("<0.001") : number_text(*p, 3);
     };
+    const auto interval_text = [](const std::optional<Interval>& i) {
+        if (!i || !i->low || !i->high)
+            return QStringLiteral("—");
+        return QStringLiteral("%1 – %2").arg(signed_text(*i->low, 3), signed_text(*i->high, 3));
+    };
     QList<LiftRow> rows;
     for (const auto& l : entry.lifts) {
+        const QString day_interval = interval_text(l.by_day);
+        const QString days = l.by_day ? number_text(l.by_day->n, 0) : QStringLiteral("—");
         if (!l.gain) { // no bar close in common: nothing to measure or test
             rows.push_back({predictor_label(l.baseline), QStringLiteral("—"), QStringLiteral("—"), QStringLiteral("0"),
-                            p_text(l.p), p_text(l.q), QStringLiteral("—")});
+                            p_text(l.p), p_text(l.q), QStringLiteral("—"), day_interval, days});
             continue;
         }
         const Interval& gain = *l.gain;
-        const QString interval =
-            gain.low && gain.high ? QStringLiteral("%1 – %2").arg(signed_text(*gain.low, 3), signed_text(*gain.high, 3))
-                                  : QStringLiteral("—");
         QString verdict = QStringLiteral("—");
         if (l.significant)
             verdict = *l.significant ? QStringLiteral("통과") : QStringLiteral("미통과");
-        rows.push_back({predictor_label(l.baseline), signed_text(gain.value, 3), interval, number_text(gain.n, 0),
-                        p_text(l.p), p_text(l.q), verdict});
+        rows.push_back({predictor_label(l.baseline), signed_text(gain.value, 3), interval_text(l.gain),
+                        number_text(gain.n, 0), p_text(l.p), p_text(l.q), verdict, day_interval, days});
     }
     return rows;
 }

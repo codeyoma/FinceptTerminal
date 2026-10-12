@@ -26,7 +26,7 @@ constexpr double kDot = 4.0;  ///< a point's radius, px
 constexpr double kNear = 9.0; ///< how close the pointer must be to a point to show it, px
 
 enum OverallColumn { kRank, kStats, kSignificant = kStats + krx_tables::kStatsColumns };
-enum LiftColumn { kBaseline, kGain, kInterval, kPairs, kP, kQ, kVerdict };
+enum LiftColumn { kBaseline, kGain, kInterval, kPairs, kP, kQ, kVerdict, kDayInterval, kDays };
 
 /// A breakdown table: what it is split by, then the stats.
 QTableWidget* breakdown_table(const QString& split) {
@@ -169,7 +169,8 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
 
     auto* middle = new QHBoxLayout;
     auto* lift_box = new QGroupBox(tr("기준 예측 대비 lift"));
-    lifts_ = krx_tables::table({tr("기준"), tr("lift"), tr("95% 구간"), tr("짝"), tr("p"), tr("q"), tr("운 보정")});
+    lifts_ = krx_tables::table({tr("기준"), tr("lift"), tr("95% 구간"), tr("짝"), tr("p"), tr("q"), tr("운 보정"),
+                                tr("거래일 95% 구간"), tr("날")});
     (new QVBoxLayout(lift_box))->addWidget(lifts_);
     middle->addWidget(lift_box, 3);
     auto* calibration_box = new QGroupBox(tr("보정도"));
@@ -234,6 +235,8 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats) {
         lifts_->setItem(row, kP, cell(l.p, kNumber));
         lifts_->setItem(row, kQ, cell(l.q, kNumber));
         lifts_->setItem(row, kVerdict, cell(l.verdict));
+        lifts_->setItem(row, kDayInterval, cell(l.day_interval, kNumber));
+        lifts_->setItem(row, kDays, cell(l.days, kNumber));
     }
     calibration_->set_points(krx_quant::calibration_points(stats.calibration));
 
@@ -241,10 +244,13 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats) {
     fill_breakdown(by_model_version_, stats.by_model_version, nullptr);
     fill_breakdown(by_symbol_, stats.by_symbol, nullptr);
 
-    QString note = tr("lift는 같은 종목·봉 마감의 기준 예측과 정답(1/0) 차이의 평균이다. q와 운 보정은 "
-                      "순위표의 다른 lift와 함께 보정한 것이고, 순위 밖이거나 나눠 본 줄은 함께 검정하지 않아 없다. "
-                      "보정도는 모든 클래스 확률을 10% 구간으로 나눠, 예측한 확률과 실제로 일어난 비율을 견준다. "
-                      "점이 점선에 가까울수록 확률을 믿을 수 있다.");
+    QString note =
+        tr("lift는 같은 종목·봉 마감의 기준 예측과 정답(1/0) 차이의 평균이다. q와 운 보정은 "
+           "순위표의 다른 lift와 함께 보정한 것이고, 순위 밖이거나 나눠 본 줄은 함께 검정하지 않아 없다. "
+           "95% 구간과 p는 봉 마감마다 따로 센 설명용이다. 같은 날의 4분 정답은 서로 겹쳐 실제보다 확실해 "
+           "보인다. 상태(수습·정식·벤치)는 하루를 값 하나로 본 거래일 95% 구간으로 정한다. 2일보다 적으면 없다. "
+           "보정도는 모든 클래스 확률을 10% 구간으로 나눠, 예측한 확률과 실제로 일어난 비율을 견준다. "
+           "점이 점선에 가까울수록 확률을 믿을 수 있다.");
     if (krx_quant::is_baseline(stats.algorithm))
         note.prepend(tr("기준 예측 자신이라 lift가 없다. "));
     else if (rows.isEmpty())
