@@ -1474,6 +1474,8 @@ set(SERVICE_SOURCES
     src/services/krx_quant/KrxStream.cpp
     src/services/krx_quant/Signals.cpp
     src/services/krx_quant/StatsView.cpp
+    src/services/krx_quant/AppRelease.cpp
+    src/services/krx_quant/AppUpdater.cpp
 )
 
 # UI framework
@@ -2637,6 +2639,8 @@ set_source_files_properties(
     src/services/krx_quant/KrxStream.cpp
     src/services/krx_quant/Signals.cpp
     src/services/krx_quant/StatsView.cpp
+    src/services/krx_quant/AppRelease.cpp
+    src/services/krx_quant/AppUpdater.cpp
     PROPERTIES SKIP_UNITY_BUILD_INCLUSION TRUE
 )
 
@@ -3346,12 +3350,25 @@ if(HAS_WEBENGINE)
     target_compile_definitions(FinceptTerminal PRIVATE HAS_QT_WEBENGINE)
 endif()
 
-# Fork addition (custom/README.md): a personal build never updates itself, so an official
-# release cannot replace it and its KRX screen.
-option(FINCEPT_DISABLE_AUTO_UPDATE "Turn the in-app updater off (codeyoma fork's personal builds)" ON)
+# Fork addition (custom/README.md): an official release never replaces a personal build and
+# its KRX screen. A personal build updates from the fork's own releases instead
+# (services/krx_quant/AppUpdater, codeyoma/krx-quant#92): it knows its custom-v* tag, and its
+# in-place install helpers ship in the app's resources.
+option(FINCEPT_DISABLE_AUTO_UPDATE "Turn the official updater off (codeyoma fork's personal builds)" ON)
 if(FINCEPT_DISABLE_AUTO_UPDATE)
     target_compile_definitions(FinceptTerminal PRIVATE FINCEPT_DISABLE_AUTO_UPDATE=1)
 endif()
+set(FINCEPT_CUSTOM_TAG "" CACHE STRING "The custom-v* tag a personal build is made from (empty: a local build)")
+# Only the updater reads it: a new tag recompiles one file, not the whole app (and its ccache).
+set_property(SOURCE src/services/krx_quant/AppUpdater.cpp APPEND PROPERTY
+    COMPILE_DEFINITIONS "FINCEPT_CUSTOM_TAG=\"${FINCEPT_CUSTOM_TAG}\"")
+qt6_add_resources(FinceptTerminal "krx_app_update"
+    PREFIX "/krx"
+    BASE "src/services/krx_quant/update"
+    FILES
+        src/services/krx_quant/update/update-macos.sh
+        src/services/krx_quant/update/update-windows.ps1
+)
 
 # ── Copy qgeoview DLL next to the exe so it's found at runtime ────────────────
 if(WIN32)

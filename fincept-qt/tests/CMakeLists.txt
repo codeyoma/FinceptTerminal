@@ -147,3 +147,9 @@ fincept_add_test(tst_krx_stats_view
     tst_krx_stats_view.cpp
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/StatsView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
+
+# src/services/krx_quant/AppRelease.{h,cpp} — which personal build is newer, and the newest one
+# on the fork's Releases page, for the app's one-click update. Qt Core only.
+fincept_add_test(tst_krx_app_release
+    tst_krx_app_release.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/AppRelease.cpp")

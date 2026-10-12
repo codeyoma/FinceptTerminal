@@ -2,6 +2,9 @@
 
 #include "core/logging/Logger.h"
 #include "services/wallet/Ed25519Verifier.h"
+#ifdef FINCEPT_DISABLE_AUTO_UPDATE
+#    include "services/krx_quant/AppUpdater.h"
+#endif
 
 #include <QAbstractButton>
 #include <QApplication>
@@ -148,11 +151,10 @@ bool UpdateService::is_newer(const QString& local, const QString& remote) {
 
 void UpdateService::check_for_updates(bool silent) {
 #ifdef FINCEPT_DISABLE_AUTO_UPDATE
-    // Fork addition (custom/README.md): personal builds never update themselves.
-    LOG_INFO("UpdateService", "Auto-update is off in this personal build");
-    if (!silent)
-        show_error(tr("자동 업데이트는 개인 빌드에서 꺼져 있습니다. 새 버전은 개인 빌드 태그로 만듭니다."));
-    emit check_finished(false);
+    // Fork addition (custom/README.md): an official release never replaces a personal build; it
+    // updates from the fork's own releases instead (codeyoma/krx-quant#92).
+    static auto* personal = new krx_quant::AppUpdater(qApp); // goes with the application
+    personal->check(silent, dialog_parent(), [this](bool found) { emit check_finished(found); });
 #else
     if (in_progress_) {
         LOG_INFO("UpdateService", "Check already in progress — ignoring duplicate call");
