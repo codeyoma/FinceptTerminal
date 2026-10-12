@@ -38,8 +38,12 @@ class TstKrxKorean : public QObject {
             const QString translated = korean.translate("fincept::screens::GeneralSection", source);
             QVERIFY2(hangul.match(translated).hasMatch(), source);
         }
-        // These keys are passed dynamically to tr() and are not found by lupdate.
-        for (const char* source : {"SETTINGS", "General", "Appearance", "Storage & Cache", "Search settings…"}) {
+        // Runtime keys use QT_TRANSLATE_NOOP markers so lupdate preserves these translations.
+        for (const char* source :
+             {"SETTINGS",      "Search settings…", "SHELL",       "General",         "Appearance",
+              "Notifications", "Keybindings",      "Voice",       "Logging",         "Developer",
+              "PROFILE",       "Profiles",         "Credentials", "Security",        "Data Sources",
+              "LLM Config",    "MCP Servers",      "Python Env",  "Storage & Cache", "Cloud Sync"}) {
             const QString translated = korean.translate("fincept::screens::SettingsScreen", source);
             QVERIFY2(hangul.match(translated).hasMatch(), source);
         }
