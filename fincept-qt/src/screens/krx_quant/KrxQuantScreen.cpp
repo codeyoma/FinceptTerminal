@@ -293,6 +293,8 @@ void KrxQuantScreen::show_status() {
         const auto& s = *status;
         if (s.mode == "demo")
             parts << tr("데모 데이터");
+        if (const QString build = krx_quant::engine_build_text(s); !build.isEmpty())
+            parts << build;
         parts << krx_quant::phase_label(s.phase);
         parts << tr("마지막 봉 마감 %1")
                      .arg(krx_quant::kst_text(s.last_bar_close,

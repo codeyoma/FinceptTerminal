@@ -55,12 +55,14 @@ struct EngineStatus {
     QString mode;  ///< "live", or "demo" for the development engine
     QString phase; ///< the market phase, e.g. "continuous" (see phase_label)
     QDateTime now;
+    QString commit;           ///< the code the engine runs, or "unknown" (krx-quant #85); empty from an older engine
+    QDateTime started_at;     ///< when it started; invalid from an older engine
     QDateTime last_bar_close; ///< invalid before the first prediction
     int pending_outcomes = 0;
     QList<SpecialWindow> special;
     std::optional<Training> training;
-    std::optional<bool> kis_connected; ///< only a live engine reports its KIS connection
-    QList<Feed> feeds;                 ///< likewise
+    std::optional<bool> kis_connected;     ///< only a live engine reports its KIS connection
+    QList<Feed> feeds;                     ///< likewise
     std::optional<UsdFutures> usd_futures; ///< none before today's first trade
 };
 
@@ -294,6 +296,10 @@ QString reading_text(const Reading& reading);
 /// The USD futures on the macro row: the latest trade today with its change and time, or
 /// before any, the morning's reading (``usdf``), named as that reading; empty without either.
 QString usd_futures_text(const std::optional<UsdFutures>& live, const QList<Reading>& readings);
+
+/// The code the engine runs and when it started: "엔진 0123abc · 10-13 06:02 시작". An engine
+/// built without its commit says "커밋 모름"; an older engine that says neither, nothing.
+QString engine_build_text(const EngineStatus& status);
 
 /// A time in KST, the exchange's and the engine's, in ``format`` (QDateTime's); "—" if invalid.
 QString kst_text(const QDateTime& t, const QString& format);

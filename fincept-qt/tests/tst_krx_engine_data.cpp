@@ -23,6 +23,8 @@ QJsonDocument json(const char* text) {
 const char* kStatus = R"({
   "mode": "live",
   "now": "2026-10-08T10:30:05+09:00",
+  "commit": "0123456789abcdef0123456789abcdef01234567",
+  "started_at": "2026-10-08T06:02:11+09:00",
   "phase": "continuous",
   "last_bar_close": "2026-10-08T10:30:00+09:00",
   "pending_outcomes": 96,
@@ -342,6 +344,17 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(status_label("vi"), QStringLiteral("VI 중"));
         QCOMPARE(status_label("timed_out"), QStringLiteral("시간 초과"));
         QCOMPARE(special_label("sidecar"), QStringLiteral("사이드카"));
+    }
+
+    void the_status_names_the_engine_s_code_and_when_it_started() {
+        const auto status = parse_status(json(kStatus));
+        QVERIFY(status.is_ok());
+        QCOMPARE(engine_build_text(status.value()), QStringLiteral("엔진 0123456 · 10-08 06:02 시작"));
+        EngineStatus by_hand = status.value();
+        by_hand.commit = "unknown";
+        QCOMPARE(engine_build_text(by_hand), QStringLiteral("엔진 커밋 모름 · 10-08 06:02 시작"));
+        EngineStatus older; // an engine from before krx-quant #85 says neither
+        QCOMPARE(engine_build_text(older), QString());
     }
 
     void a_history_keeps_each_prediction_with_its_symbol_times_and_outcome() {

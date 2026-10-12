@@ -167,6 +167,8 @@ Result<EngineStatus> parse_status(const QJsonDocument& doc) {
     s.mode = o.value("mode").toString();
     s.phase = o.value("phase").toString();
     s.now = time_of(o.value("now"));
+    s.commit = o.value("commit").toString();
+    s.started_at = time_of(o.value("started_at"));
     s.last_bar_close = time_of(o.value("last_bar_close"));
     s.pending_outcomes = o.value("pending_outcomes").toInt();
     for (const auto& v : o.value("special").toArray()) {
@@ -426,6 +428,15 @@ QString predictor_label(const QString& predictor) {
         {"baseline-random", QStringLiteral("기준: 비율대로 무작위")},
     };
     return labels.value(predictor, predictor);
+}
+
+QString engine_build_text(const EngineStatus& status) {
+    if (status.commit.isEmpty())
+        return {};
+    const QString code = status.commit == "unknown" ? QStringLiteral("커밋 모름") : status.commit.left(7);
+    if (!status.started_at.isValid())
+        return QStringLiteral("엔진 %1").arg(code);
+    return QStringLiteral("엔진 %1 · %2 시작").arg(code, kst_text(status.started_at, "MM-dd HH:mm"));
 }
 
 QString phase_label(const QString& phase) {
