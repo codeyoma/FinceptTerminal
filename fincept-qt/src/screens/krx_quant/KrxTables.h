@@ -33,8 +33,16 @@ inline QTableWidgetItem* shown_cell(const krx_quant::Shown& shown) {
 
 /// The stats columns set_stats fills, in order.
 inline constexpr const char* kStatsHeaders[] = {"표본",  "정답률",          "방향 정밀도",        "커버리지",
-                                                "Brier", "거래당 손익(틱)", "가장 약한 lift 하한"};
+                                                "Brier", "중간가 손익(틱)", "가장 약한 lift 하한"};
 inline constexpr int kStatsColumns = static_cast<int>(std::size(kStatsHeaders));
+
+/// What a column's name alone would let be misread, shown on its header.
+inline QString header_tip(const QString& header) {
+    if (header == QObject::tr("중간가 손익(틱)"))
+        return QObject::tr("거래당 평균, 연구용 값이다. 방향을 낸 모든 예측을 거래로 치고 시작 중간가에서 목표 "
+                           "중간가까지 잰다. 스프레드와 체결은 반영하지 않아 따라 했을 때의 손익이 아니다.");
+    return {};
+}
 
 inline QStringList stats_headers() {
     QStringList headers;
@@ -61,6 +69,10 @@ inline void set_stats(QTableWidget* table, int row, int column, const krx_quant:
 inline QTableWidget* table(const QStringList& headers) {
     auto* table = new QTableWidget(0, static_cast<int>(headers.size()));
     table->setHorizontalHeaderLabels(headers);
+    for (int column = 0; column < headers.size(); ++column) {
+        if (const QString tip = header_tip(headers[column]); !tip.isEmpty())
+            table->horizontalHeaderItem(column)->setToolTip(tip);
+    }
     table->verticalHeader()->hide();
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
