@@ -48,8 +48,9 @@ QStringList fallback_models(const QString& provider);
 /// empty folder the CLI runs in. An empty model or kDefaultModel passes no model.
 ///  - Claude: print mode, safe mode (no CLAUDE.md, hooks, MCP servers, skills, plugins), no
 ///    built-in tools, no saved session, one JSON result.
-///  - Codex: no user config.toml or rules, no saved session, read-only sandbox, no shell
-///    tools, JSONL events.
+///  - Codex: no user config.toml or rules, no saved session, read-only sandbox, no web search,
+///    and its tool-giving features off (shell, app connectors, browser and computer use, image
+///    generation, sub-agents, skills, plugins, memories, hooks), JSONL events.
 QStringList arguments(const QString& provider, const QString& model, const QString& workdir);
 
 /// The arguments that print the CLI's version, to check that it runs.

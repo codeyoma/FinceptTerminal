@@ -11,11 +11,16 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QList>
 #include <QTemporaryDir>
 #include <QTest>
+
+#ifndef Q_OS_WIN
+#    include <csignal>
+#endif
 
 using namespace fincept::krx_quant::cli_llm;
 
@@ -123,7 +128,15 @@ class TestKrxLocalCliLlm : public QObject {
             QVERIFY2(args.contains(a), a);
         QCOMPARE(args.at(index_of(args, "--sandbox") + 1), QString("read-only"));
         QCOMPARE(args.at(index_of(args, "--cd") + 1), QString("/tmp/w"));
-        QVERIFY(args.filter("shell_tool").size() == 1 && args.filter("unified_exec").size() == 1);
+        // Codex's own tools are off, by -c so an unknown feature name does not fail the run.
+        QCOMPARE(args.at(index_of(args, "web_search=\"disabled\"") - 1), QString("-c"));
+        for (const char* f : {"shell_tool", "unified_exec", "apps", "browser_use", "computer_use", "image_generation",
+                              "multi_agent", "plugins", "memories", "hooks"}) {
+            const QString flag = QStringLiteral("features.%1=false").arg(f);
+            QVERIFY2(args.contains(flag), qPrintable(flag));
+            QCOMPARE(args.at(index_of(args, flag) - 1), QString("-c"));
+        }
+        QVERIFY(!args.contains("--disable"));
         QCOMPARE(args.last(), QString("-")); // the prompt comes on stdin
         QVERIFY(!args.contains("--model"));
 
@@ -312,9 +325,49 @@ class TestKrxLocalCliLlm : public QObject {
         QVERIFY(script.setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
         const Executable exe = find_executable("codex_cli", path);
         QVERIFY(exe.error.isEmpty());
-        const RunResult r = run_blocking(exe, {}, "hi", 500);
+        const RunResult r = run_blocking(exe, {}, "hi", 500, dir.path());
         QVERIFY(r.started);
         QVERIFY(r.timed_out);
+    }
+
+    void timeout_stops_what_the_cli_started() {
+        // Like Codex's node launcher, a CLI that runs its real work as a child process.
+        QTemporaryDir dir;
+        const QString path = dir.filePath("codex");
+        const QString pid_file = dir.filePath("child.pid");
+        QFile script(path);
+        QVERIFY(script.open(QIODevice::WriteOnly));
+        script.write("#!/bin/sh\nsleep 30 &\necho $! > \"$1\"\nwait\n");
+        script.close();
+        QVERIFY(script.setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
+        const Executable exe = find_executable("codex_cli", path);
+        const RunResult r = run_blocking(exe, {pid_file}, {}, 1000, dir.path());
+        QVERIFY(r.timed_out);
+
+        QFile f(pid_file);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const pid_t child = static_cast<pid_t>(f.readAll().trimmed().toLongLong());
+        QVERIFY(child > 0);
+        QTRY_VERIFY_WITH_TIMEOUT(::kill(child, 0) != 0, 3000);
+    }
+
+    void each_round_runs_in_a_new_empty_folder() {
+        QTemporaryDir dir;
+        const QString path = dir.filePath("claude");
+        QFile script(path);
+        QVERIFY(script.open(QIODevice::WriteOnly));
+        // Answers with its working folder and how many entries it holds.
+        script.write("#!/bin/sh\ncat > /dev/null\nn=$(ls -A | wc -l | tr -d ' ')\n"
+                     "printf '{\"type\":\"result\",\"is_error\":false,\"result\":\"%s %s\"}\\n' \"$PWD\" \"$n\"\n");
+        script.close();
+        QVERIFY(script.setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
+        const Answer first = ask("claude_cli", "default", path, "hi");
+        const Answer second = ask("claude_cli", "default", path, "hi");
+        QVERIFY2(first.ok && second.ok, qPrintable(first.error + second.error));
+        QVERIFY2(first.text.endsWith(" 0"), qPrintable(first.text));
+        QVERIFY(first.text.contains("fincept-llm-cli-"));
+        QVERIFY(first.text != second.text);
+        QVERIFY(!QFileInfo::exists(first.text.section(' ', 0, 0))); // removed afterwards
     }
 #endif
 };

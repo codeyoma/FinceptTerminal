@@ -46,9 +46,6 @@ QStringList search_path();
 /// The environment for running the CLI at ``path``: PATH is its folder, then search_path().
 QProcessEnvironment environment_for(const QString& path);
 
-/// The empty folder a CLI runs in, so no project file there is read as instructions.
-QString work_dir();
-
 /// One process run.
 struct RunResult {
     bool started = false;
@@ -59,11 +56,15 @@ struct RunResult {
     QString error; ///< why it did not start or finish
 };
 
-/// Runs ``exe`` with ``args``, writes ``input`` to its stdin, and waits. Blocking: call from a
-/// worker thread.
-RunResult run_blocking(const Executable& exe, const QStringList& args, const QByteArray& input, int timeout_ms);
+/// Runs ``exe`` with ``args`` in ``workdir``, writes ``input`` to its stdin, and waits. On a
+/// timeout it stops the CLI and every process it started (Codex's node launcher runs the native
+/// binary as a child): a process group on macOS and Linux, a job object on Windows. Blocking:
+/// call from a worker thread.
+RunResult run_blocking(const Executable& exe, const QStringList& args, const QByteArray& input, int timeout_ms,
+                       const QString& workdir);
 
-/// One LLM round: find the CLI, run it on ``prompt``, read its answer. Blocking.
+/// One LLM round: find the CLI, run it on ``prompt`` in a new empty temporary folder (removed
+/// afterwards, so no project file there is read as instructions), read its answer. Blocking.
 Answer ask(const QString& provider, const QString& model, const QString& override_path, const QString& prompt);
 
 /// Checks that the CLI runs (its --version) and lists its models, without blocking. ``done``

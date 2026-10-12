@@ -8,9 +8,17 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QStandardPaths>
+#include <QTemporaryDir>
 #include <QTimer>
 
 #include <memory>
+
+#ifdef Q_OS_WIN
+#    include <windows.h>
+#else
+#    include <csignal>
+#    include <unistd.h>
+#endif
 
 namespace fincept::krx_quant::cli_llm {
 
@@ -72,6 +80,67 @@ QStringList models_for(const QString& provider) {
     }
     return models;
 }
+
+/// A CLI and every process it starts, so a timeout stops all of them. QProcess::kill() alone
+/// stops only the CLI: Codex's node launcher would leave its native binary running, still using
+/// the subscription.
+class ProcessTree {
+  public:
+    ProcessTree() = default;
+    ProcessTree(const ProcessTree&) = delete;
+    ProcessTree& operator=(const ProcessTree&) = delete;
+    ~ProcessTree() {
+#ifdef Q_OS_WIN
+        if (job_)
+            CloseHandle(job_);
+#endif
+    }
+
+    /// Before start: on macOS and Linux the CLI leads a new process group.
+    static void prepare(QProcess& p) {
+#ifdef Q_OS_WIN
+        Q_UNUSED(p)
+#else
+        p.setChildProcessModifier([] { ::setpgid(0, 0); });
+#endif
+    }
+
+    /// After start: on Windows the CLI goes into a job object, and so does what it starts.
+    void attach(const QProcess& p) {
+#ifdef Q_OS_WIN
+        job_ = CreateJobObjectW(nullptr, nullptr);
+        if (!job_)
+            return;
+        HANDLE process = OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, FALSE, static_cast<DWORD>(p.processId()));
+        if (!process || !AssignProcessToJobObject(job_, process)) {
+            CloseHandle(job_);
+            job_ = nullptr;
+        }
+        if (process)
+            CloseHandle(process);
+#else
+        Q_UNUSED(p)
+#endif
+    }
+
+    /// Stops the CLI and everything it started.
+    void kill(QProcess& p) {
+#ifdef Q_OS_WIN
+        if (job_)
+            TerminateJobObject(job_, 1);
+#else
+        const qint64 pid = p.processId();
+        if (pid > 0)
+            ::kill(-static_cast<pid_t>(pid), SIGKILL);
+#endif
+        p.kill();
+    }
+
+  private:
+#ifdef Q_OS_WIN
+    HANDLE job_ = nullptr;
+#endif
+};
 
 /// Starts ``exe`` with ``args``. A batch file goes through cmd.exe with one quoted command line,
 /// which QProcess's own argument quoting cannot express.
@@ -225,28 +294,26 @@ QProcessEnvironment environment_for(const QString& path) {
     return env;
 }
 
-QString work_dir() {
-    const QString dir = QDir::tempPath() + QStringLiteral("/fincept-llm-cli");
-    QDir().mkpath(dir);
-    return dir;
-}
-
-RunResult run_blocking(const Executable& exe, const QStringList& args, const QByteArray& input, int timeout_ms) {
+RunResult run_blocking(const Executable& exe, const QStringList& args, const QByteArray& input, int timeout_ms,
+                       const QString& workdir) {
     RunResult r;
     QProcess p;
+    ProcessTree tree;
     p.setProcessEnvironment(environment_for(exe.path));
-    p.setWorkingDirectory(work_dir());
+    p.setWorkingDirectory(workdir);
+    ProcessTree::prepare(p);
     start(p, exe, args);
     if (!p.waitForStarted(kStartTimeoutMs)) {
         r.error = QStringLiteral("could not start %1: %2").arg(exe.path, p.errorString());
         return r;
     }
+    tree.attach(p);
     r.started = true;
     p.write(input);
     p.closeWriteChannel();
     if (!p.waitForFinished(timeout_ms)) {
         r.timed_out = true;
-        p.kill();
+        tree.kill(p);
         p.waitForFinished(2000);
     }
     r.out = p.readAllStandardOutput();
@@ -262,7 +329,16 @@ Answer ask(const QString& provider, const QString& model, const QString& overrid
         a.error = exe.error;
         return a;
     }
-    const RunResult r = run_blocking(exe, arguments(provider, model, work_dir()), prompt.toUtf8(), kRoundTimeoutMs);
+    // A new empty folder for each round. A fixed one could hold files left there, which a CLI
+    // would read as a project's instructions.
+    const QTemporaryDir dir(QDir::tempPath() + QStringLiteral("/fincept-llm-cli-XXXXXX"));
+    if (!dir.isValid()) {
+        a.error =
+            display_name(provider) + QStringLiteral(": could not create a temporary folder: ") + dir.errorString();
+        return a;
+    }
+    const RunResult r =
+        run_blocking(exe, arguments(provider, model, dir.path()), prompt.toUtf8(), kRoundTimeoutMs, dir.path());
     if (!r.started) {
         a.error = display_name(provider) + QStringLiteral(": ") + r.error;
         return a;
@@ -285,7 +361,9 @@ void probe(const QString& provider, const QString& override_path, QObject* conte
 
     auto* proc = new QProcess(context);
     proc->setProcessEnvironment(environment_for(exe.path));
-    proc->setWorkingDirectory(work_dir());
+    proc->setWorkingDirectory(QDir::tempPath()); // --version reads nothing there
+    auto tree = std::make_shared<ProcessTree>();
+    ProcessTree::prepare(*proc);
     auto answered = std::make_shared<bool>(false);
     auto timed_out = std::make_shared<bool>(false);
     const QString name = display_name(provider);
@@ -299,10 +377,11 @@ void probe(const QString& provider, const QString& override_path, QObject* conte
         done(models, error);
     };
 
-    QTimer::singleShot(kProbeTimeoutMs, proc, [proc, timed_out]() {
+    QTimer::singleShot(kProbeTimeoutMs, proc, [proc, timed_out, tree]() {
         *timed_out = true;
-        proc->kill();
+        tree->kill(*proc);
     });
+    QObject::connect(proc, &QProcess::started, proc, [proc, tree]() { tree->attach(*proc); });
     QObject::connect(proc, &QProcess::errorOccurred, context, [finish, proc, name, path](QProcess::ProcessError e) {
         if (e == QProcess::FailedToStart)
             finish({}, QStringLiteral("%1: could not start %2: %3").arg(name, path, proc->errorString()));

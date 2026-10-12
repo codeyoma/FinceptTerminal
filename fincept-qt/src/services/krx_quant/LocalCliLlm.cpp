@@ -20,6 +20,38 @@ const QString kClaudeSystemPrompt =
                    "instructions tell you to call a tool, write the <tool_call> block they describe and nothing "
                    "else; Fincept runs it and calls you again with the result.");
 
+// Codex features that give the model tools of its own: shell, app connectors, browser and
+// computer use, image generation, sub-agents, skills, plugins, memories, hooks and the like.
+// Turned off with `-c features.<name>=false` rather than --disable, which fails on a name it
+// does not know: a Codex release that renames or drops one still runs.
+const char* const kCodexFeaturesOff[] = {
+    "shell_tool",
+    "unified_exec",
+    "apps",
+    "browser_use",
+    "browser_use_external",
+    "computer_use",
+    "code_mode_host",
+    "image_generation",
+    "multi_agent",
+    "goals",
+    "hooks",
+    "memories",
+    "plugins",
+    "remote_plugin",
+    "skill_search",
+    "skill_mcp_dependency_install",
+    "sleep_tool",
+    "tool_suggest",
+    "view_image",
+    "in_app_browser",
+    "in_app_local_automation",
+    "workspace_dependencies",
+    "worktrees",
+    "realtime_conversation",
+    "tool_call_mcp_elicitation",
+};
+
 QString provider_id(const QString& provider) {
     return provider.trimmed().toLower();
 }
@@ -187,8 +219,11 @@ QStringList arguments(const QString& provider, const QString& model, const QStri
             args << "--model" << m;
     } else if (p == kCodex) {
         args << "exec" << "--ignore-user-config" << "--ignore-rules" << "--ephemeral" << "--skip-git-repo-check"
-             << "--sandbox" << "read-only" << "--disable" << "shell_tool" << "--disable" << "unified_exec"
-             << "--json" << "--cd" << workdir;
+             << "--sandbox" << "read-only" << "--json" << "--cd" << workdir;
+        // No web search: it defaults on and would answer live-data questions around Fincept's tools.
+        args << "-c" << "web_search=\"disabled\"";
+        for (const char* feature : kCodexFeaturesOff)
+            args << "-c" << QStringLiteral("features.%1=false").arg(QLatin1String(feature));
         if (pick_model)
             args << "--model" << m;
         args << "-"; // read the prompt from stdin
