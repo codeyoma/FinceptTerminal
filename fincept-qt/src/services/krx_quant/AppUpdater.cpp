@@ -105,15 +105,17 @@ void AppUpdater::check(bool silent, QWidget* parent, Done done) {
         return;
     }
     if (busy_) { // a check or a download under way: a check from the menu still gets an answer
-        if (!silent) {
+        if (!silent)
             QMessageBox::information(parent, tr("앱 업데이트"), tr("업데이트를 이미 확인하거나 내려받는 중입니다."));
-            if (done)
-                done(false);
-        }
+        if (done)
+            done(false);
         return;
     }
-    if (silent && silent_checked_)
+    if (silent && silent_checked_) { // once per run; the updater checks again by itself
+        if (done)
+            done(false);
         return;
+    }
     if (silent) {
         silent_checked_ = true;
         recheck_.start();
@@ -179,9 +181,13 @@ void AppUpdater::on_releases(QNetworkReply* reply) {
         return;
     }
     LOG_INFO("AppUpdater", QString("Update available: %1 -> %2").arg(running_tag(), release->tag));
-    // A silent check fetches the build without asking; only a manual install needs the user first.
-    if (silent_ && how != UpdateMode::Manual) {
-        download(*release, true);
+    if (silent_) {
+        // A silent check fetches the build without asking. An install that cannot update itself
+        // hears of it only from a check from the menu, not from every scheduled check.
+        if (how == UpdateMode::Manual)
+            finish(true);
+        else
+            download(*release, true);
         return;
     }
     offer(*release);
@@ -300,6 +306,11 @@ void AppUpdater::prepare(const QString& payload) {
         return;
     }
     if (!start_helper(payload, how)) {
+        if (background_) { // quiet, like any background failure; the next check tries again
+            QFile::remove(payload);
+            fail(tr("자동 업데이트를 시작하지 못했습니다."));
+            return;
+        }
         if (how == UpdateMode::SwapFolder) { // a ZIP is no installer: send the user to the release
             QDesktopServices::openUrl(pending_.page);
             fail(tr("자동 업데이트를 시작하지 못했습니다. 릴리스 페이지를 열었습니다. 설치 파일을 받아 직접 설치해 "

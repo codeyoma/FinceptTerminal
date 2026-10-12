@@ -67,7 +67,8 @@ const char* kReleases = R"([
                "browser_download_url": "https:\/\/example.test/krx.3.dmg"}]}
 ])";
 
-// A release with the Windows update ZIP next to the installer, and one from before the ZIP.
+// krx.9 carries the Windows update ZIP next to its installer; the newer krx.10 has only the
+// installer, so an install that swaps its folder skips it.
 const char* kWithZip = R"([
   {"tag_name": "custom-v4.5.0-krx.10", "draft": false, "prerelease": true,
    "html_url": "https:\/\/github.com/codeyoma/FinceptTerminal/releases/tag/custom-v4.5.0-krx.10",
@@ -163,8 +164,9 @@ class TstKrxAppRelease : public QObject {
         // Not installed by setup.exe (no maintenance tool): a manual install.
         QCOMPARE(windows_update_mode("C:\\Users\\A B\\AppData\\Local\\Programs\\FinceptTerminal", local, false),
                  UpdateMode::Manual);
-        // No %LOCALAPPDATA%: never a swap.
-        QCOMPARE(windows_update_mode("/Programs/FinceptTerminal", QString(), true), UpdateMode::MoveToUserFolder);
+        // No %LOCALAPPDATA%: no user folder to swap in or move to.
+        QCOMPARE(windows_update_mode("/Programs/FinceptTerminal", QString(), true), UpdateMode::Manual);
+        QCOMPARE(windows_update_mode("C:\\Program Files\\FinceptTerminal", "  ", true), UpdateMode::Manual);
     }
 
     void each_update_mode_downloads_its_own_asset() {

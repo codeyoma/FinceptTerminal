@@ -36,7 +36,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $log = Join-Path $env:TEMP 'fincept-update.log'
-$Root = $Root.TrimEnd('\')
+
+# A folder path with backslashes only and no trailing separator.
+function Format-Dir([string]$path) {
+    return ($path -replace '/', '\').TrimEnd('\')
+}
+
+$Root = Format-Dir $Root
 $staging = "$Root.staging"
 $old = "$Root.old"
 
@@ -59,7 +65,7 @@ function Wait-App {
 
 # Processes started from <dir> (QtWebEngineProcess, another app window) keep its files open.
 function Get-ProcessesIn([string]$dir) {
-    $prefix = $dir.TrimEnd('\') + '\'
+    $prefix = (Format-Dir $dir) + '\'
     @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
         $_.ExecutablePath -and $_.ExecutablePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)
     })
@@ -115,6 +121,48 @@ function Start-App([string]$exe) {
     }
 }
 
+# The Start menu and desktop shortcuts (setup.exe's names, installscript.qs) that open <exe>.
+function Get-ShortcutsTo([string]$exe) {
+    $found = @()
+    try { $shell = New-Object -ComObject WScript.Shell } catch { return $found }
+    $places = @(
+        (Join-Path ([Environment]::GetFolderPath('Programs')) 'Fincept\Fincept Terminal.lnk'),
+        (Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'Fincept\Fincept Terminal.lnk'),
+        (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Fincept Terminal.lnk'),
+        (Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) 'Fincept Terminal.lnk'))
+    foreach ($place in $places) {
+        if (-not (Test-Path -LiteralPath $place)) { continue }
+        $link = $shell.CreateShortcut($place)
+        if ($link.TargetPath -ieq $exe) {
+            $found += [pscustomobject]@{
+                Path = $place; Target = $link.TargetPath; WorkingDirectory = $link.WorkingDirectory
+                Icon = $link.IconLocation; Description = $link.Description
+            }
+        }
+    }
+    return $found
+}
+
+function Restore-Shortcuts($shortcuts) {
+    if (-not $shortcuts) { return }
+    $shell = New-Object -ComObject WScript.Shell
+    foreach ($s in $shortcuts) {
+        if (Test-Path -LiteralPath $s.Path) { continue }
+        try {
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $s.Path) | Out-Null
+            $link = $shell.CreateShortcut($s.Path)
+            $link.TargetPath = $s.Target
+            $link.WorkingDirectory = $s.WorkingDirectory
+            $link.IconLocation = $s.Icon
+            $link.Description = $s.Description
+            $link.Save()
+            Write-Log "made the shortcut $($s.Path) again"
+        } catch {
+            Write-Log "could not make the shortcut $($s.Path) again: $($_.Exception.Message)"
+        }
+    }
+}
+
 function Update-Swap {
     if (-not $Zip -or -not (Test-Path -LiteralPath $Zip)) { throw "no ZIP: $Zip" }
     Remove-Quietly $staging # left over from an earlier run
@@ -155,7 +203,7 @@ function Update-Swap {
 function Update-Move {
     if (-not $Setup -or -not (Test-Path -LiteralPath $Setup)) { throw "no setup.exe: $Setup" }
     if (-not $OldRoot) { throw 'no -OldRoot' }
-    $from = $OldRoot.TrimEnd('\')
+    $from = Format-Dir $OldRoot
 
     Wait-App
     Wait-FolderFree $from
@@ -178,7 +226,10 @@ function Update-Move {
     if ($aside) { Remove-Quietly $old }
     Remove-Quietly $Setup
 
-    # The old install goes with its own maintenance tool, which also removes its shortcuts.
+    # The old install goes with its own maintenance tool, which also removes its shortcuts. Those
+    # can be the very paths the new install just made (the same Start menu and desktop names), so
+    # the new install's shortcuts are noted first and made again if the removal took them.
+    $shortcuts = Get-ShortcutsTo $exe
     $tool = Join-Path $from 'FinceptMaintenanceTool.exe'
     if (Test-Path -LiteralPath $tool) {
         $elevate = @{}
@@ -190,6 +241,7 @@ function Update-Move {
             Write-Log "the old install at $from stays: $($_.Exception.Message)"
         }
     }
+    Restore-Shortcuts $shortcuts
     Write-Log "moved to $Root and updated"
     Start-App $exe
 }

@@ -69,12 +69,13 @@ QString windows_user_install_dir(const QString& local_app_data) {
 }
 
 UpdateMode windows_update_mode(const QString& app_dir, const QString& local_app_data, bool has_maintenance_tool) {
-    if (!has_maintenance_tool)
+    // Without the maintenance tool, or without a user folder to install into.
+    if (!has_maintenance_tool || local_app_data.trimmed().isEmpty())
         return UpdateMode::Manual;
     const QString here = windows_path(app_dir);
     const QString user_dir = windows_user_install_dir(local_app_data);
     // Windows paths compare without case.
-    if (!local_app_data.isEmpty() && here.compare(user_dir, Qt::CaseInsensitive) == 0)
+    if (here.compare(user_dir, Qt::CaseInsensitive) == 0)
         return UpdateMode::SwapFolder;
     return UpdateMode::MoveToUserFolder;
 }

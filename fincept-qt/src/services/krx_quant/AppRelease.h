@@ -58,8 +58,8 @@ enum class UpdateMode {
 QString windows_user_install_dir(const QString& local_app_data);
 
 /// Windows: how the build installed at ``app_dir`` updates. Manual without the installer's
-/// maintenance tool next to it (not installed by setup.exe), SwapFolder in the per-user folder,
-/// MoveToUserFolder anywhere else (Program Files).
+/// maintenance tool next to it (not installed by setup.exe) or without %LOCALAPPDATA%,
+/// SwapFolder in the per-user folder, MoveToUserFolder anywhere else (Program Files).
 UpdateMode windows_update_mode(const QString& app_dir, const QString& local_app_data, bool has_maintenance_tool);
 
 /// The release asset a mode downloads: "macos-arm64.dmg", "windows-x64.zip" (the installed
