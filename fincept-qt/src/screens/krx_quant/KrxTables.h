@@ -70,8 +70,9 @@ inline QTableWidget* table(const QStringList& headers) {
     auto* table = new QTableWidget(0, static_cast<int>(headers.size()));
     table->setHorizontalHeaderLabels(headers);
     for (int column = 0; column < headers.size(); ++column) {
-        if (const QString tip = header_tip(headers[column]); !tip.isEmpty())
-            table->horizontalHeaderItem(column)->setToolTip(tip);
+        auto* item = table->horizontalHeaderItem(column);
+        if (const QString tip = header_tip(headers[column]); item && !tip.isEmpty())
+            item->setToolTip(tip);
     }
     table->verticalHeader()->hide();
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
