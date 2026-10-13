@@ -18,8 +18,9 @@ QString calendar_url(const QString& engine, int limit = kCalendarEvents);
 
 /// The engine's answer as the widget's events (MacroCalendarService's topic payload): event,
 /// category, country, date (yyyy-MM-dd) and time (HH:mm) in KST, reference_period, actual,
-/// forecast and previous as text with their unit, importance 1 (low) to 3 (high), url. An
-/// answer that is not the engine's calendar gives none.
+/// forecast and previous as text with their scale and unit ("3.7%", "23.75K", "-$1.2B",
+/// "90.45B CNY"), importance 1 (low) to 3 (high), url. An answer that is not the engine's
+/// calendar gives none.
 QJsonArray calendar_widget_events(const QJsonDocument& answer);
 
 } // namespace fincept::krx_quant

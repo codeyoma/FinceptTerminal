@@ -48,9 +48,22 @@ QJsonDocument answer() {
         {"source_url", QJsonValue()},
     };
     QJsonObject trade{
-        {"id", "4"},       {"at", "2026-10-13T01:00:00Z"}, // in UTC: still shown in KST
-        {"country", "CN"}, {"title", "Balance of Trade"},  {"actual", 90.45}, {"previous", -0.0},
-        {"unit", "B"},     {"importance", "low"},
+        {"id", "4"},        {"at", "2026-10-13T01:00:00Z"}, // in UTC: still shown in KST
+        {"country", "CN"},  {"title", "Balance of Trade"},
+        {"actual", 90.45},  {"forecast", -1.2},
+        {"previous", -0.0}, {"unit", "CNY"},
+        {"scale", "B"},     {"importance", "low"},
+    };
+    QJsonObject adp{
+        {"id", "5"},
+        {"at", "2026-10-15T21:15:00+09:00"},
+        {"country", "US"},
+        {"title", "ADP Employment Change"},
+        {"forecast", -12.5},
+        {"previous", 23.75},
+        {"unit", "$"},
+        {"scale", "K"},
+        {"importance", "medium"},
     };
     QJsonObject broken{{"id", "9"}, {"at", "not a time"}, {"title", "Broken"}};
     QJsonObject untitled{{"id", "10"}, {"at", "2026-10-13T08:00:00+09:00"}};
@@ -58,7 +71,7 @@ QJsonDocument answer() {
         {"fetched_at", "2026-10-13T09:00:00+09:00"},
         {"source", "tradingview"},
         {"countries", QJsonArray{"US", "KR", "CN"}},
-        {"events", QJsonArray{jobs, trade, cpi, broken, untitled}},
+        {"events", QJsonArray{jobs, trade, cpi, adp, broken, untitled}},
     };
     return QJsonDocument(root);
 }
@@ -76,7 +89,7 @@ class TestKrxEngineCalendar : public QObject {
 
     void events_become_the_widgets_rows_in_kst() {
         const QJsonArray rows = calendar_widget_events(answer());
-        QCOMPARE(rows.size(), 3); // a bad time and a missing title are left out
+        QCOMPARE(rows.size(), 4); // a bad time and a missing title are left out
         const QJsonObject jobs = rows[0].toObject();
         QCOMPARE(jobs["event"].toString(), QString("Unemployment Rate"));
         QCOMPARE(jobs["country"].toString(), QString("KR"));
@@ -90,8 +103,9 @@ class TestKrxEngineCalendar : public QObject {
 
         const QJsonObject trade = rows[1].toObject();
         QCOMPARE(trade["time"].toString(), QString("10:00")); // 01:00 UTC
-        QCOMPARE(trade["actual"].toString(), QString("90.45B"));
-        QCOMPARE(trade["previous"].toString(), QString("0B"));
+        QCOMPARE(trade["actual"].toString(), QString("90.45B CNY"));
+        QCOMPARE(trade["forecast"].toString(), QString("-1.2B CNY"));
+        QCOMPARE(trade["previous"].toString(), QString("0B CNY"));
         QCOMPARE(trade["importance"].toInt(), 1);
 
         const QJsonObject cpi = rows[2].toObject();
@@ -104,6 +118,11 @@ class TestKrxEngineCalendar : public QObject {
         QCOMPARE(cpi["importance"].toInt(), 3);
         QCOMPARE(cpi["category"].toString(), QString("prce"));
         QCOMPARE(cpi["url"].toString(), QString("https://www.bls.gov"));
+
+        // A currency sign goes before the number, after the minus: thousands of dollars.
+        const QJsonObject adp = rows[3].toObject();
+        QCOMPARE(adp["previous"].toString(), QString("$23.75K"));
+        QCOMPARE(adp["forecast"].toString(), QString("-$12.5K"));
     }
 
     void an_answer_that_is_not_the_calendar_gives_nothing() {
