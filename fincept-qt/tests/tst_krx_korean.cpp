@@ -60,7 +60,31 @@ class TstKrxKorean : public QObject {
             QVERIFY2(hangul.match(translated).hasMatch(), source);
             QCOMPARE(placeholders(translated), placeholders(QString::fromUtf8(source)));
         }
-        QCOMPARE(korean.translate("Currency", "(native)"), QStringLiteral("(원 단위)"));
+        QCOMPARE(korean.translate("Currency", "(native)"), QStringLiteral("(거래 통화)"));
+    }
+
+    void finance_terms_follow_korean_brokerage_usage() {
+        // custom/korean-glossary.md: Korean HTS/MTS and DART wording, not literal translations.
+        QTranslator korean;
+        QVERIFY(korean.load(QStringLiteral(":/i18n/fincept_ko_KR.qm")));
+        const struct {
+            const char* context;
+            const char* source;
+            QString expected;
+        } terms[] = {
+            {"fincept::screens::EquityPeersTab", "P/E", QStringLiteral("PER")},
+            {"fincept::screens::ReportsView", "UNREALIZED P&L", QStringLiteral("평가손익")},
+            {"fincept::screens::PortfolioBlotter", "AVG COST", QStringLiteral("평균단가")},
+            {"fincept::screens::PortfolioBlotter", "COST BASIS", QStringLiteral("매입금액")},
+            {"fincept::screens::PortfolioBlotter", "MKT VAL", QStringLiteral("평가금액")},
+            {"fincept::screens::EquityTradingScreen", "ACCOUNTS", QStringLiteral("계좌")},
+            {"fincept::screens::EquityTradingScreen", "PAPER", QStringLiteral("모의투자")},
+            {"fincept::screens::PerformanceRiskView", "SHARPE RATIO", QStringLiteral("샤프지수")},
+            {"fincept::screens::crypto::CryptoBottomPanel", "FUNDING RATE", QStringLiteral("펀딩비")},
+            {"fincept::ui::ToolBar", "Crypto Trading", QStringLiteral("가상자산 거래")},
+        };
+        for (const auto& term : terms)
+            QCOMPARE(korean.translate(term.context, term.source), term.expected);
     }
 
     void every_existing_catalog_entry_survives_compilation_with_its_placeholders() {
