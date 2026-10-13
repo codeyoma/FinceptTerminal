@@ -53,10 +53,11 @@ class KrxLive : public QObject {
     /// The chart's view of ``minutes`` (krx-quant #109) starts ``from`` of its bars (a logical
     /// index) from its left end: near it, the bars before are read (krx-quant #108).
     void view_from(double from, int minutes = 1);
-    /// The chart shows the view of ``minutes``: the day view (krx_quant::kDayView, krx-quant
-    /// #111) reads the engine's latest day candles if it has none yet, or none since the
-    /// engine day changed. The chart's reads call it again, so a screen left open past
-    /// midnight gets the day before's stored candle.
+    /// The chart shows the view of ``minutes``. A candle view (krx_quant::candle_view: day,
+    /// week, month, year; krx-quant #111, #112) reads the engine's latest candles of its
+    /// period if it has none yet, or none since the engine day changed, and so do its days
+    /// for a longer view (its last periods are made of them). The chart's reads call it
+    /// again, so a screen left open past midnight gets the day before's stored candles.
     void set_view(int minutes);
     /// The bar close pinned; invalid while the latest is followed.
     const QDateTime& pinned() const { return pinned_; }
@@ -77,11 +78,11 @@ class KrxLive : public QObject {
     QList<krx_quant::Bar> bars() const { return krx_quant::join_bars(older_, bars_); }
     /// The day's 1-minute bars alone, with the one being made.
     const QList<krx_quant::Bar>& day_bars() const { return bars_; }
-    /// The day view's candles (krx-quant #111): those the engine stored, read as the view
-    /// scrolled back, then today's made of the day's bars on the engine's market.
-    QList<krx_quant::Bar> day_candles() const { return krx_quant::day_candles(candles_, bars_, candle_venue_); }
-    /// The market of the engine's day candles: "UN" (integrated) or "KRX"; empty before any.
-    const QString& candle_venue() const { return candle_venue_; }
+    /// A candle view's candles: the day view's (krx-quant #111) those the engine stored, read
+    /// as the view scrolled back, then today's made of the day's bars on the engine's market;
+    /// a week, month or year view's (krx-quant #112) the engine's finished ones, then those
+    /// made of the day view's candles.
+    QList<krx_quant::Bar> view_candles(int view) const;
     /// Why the engine could not be read; empty once it can.
     const QString& failure() const { return failure_; }
     /// The stream's state in Korean ("스트림 연결됨", why it is down and when it is tried again).
@@ -141,12 +142,18 @@ class KrxLive : public QObject {
     bool oldest_ = false;                        ///< the engine has nothing before older_
     double view_from_ = krx_quant::kOlderMargin; ///< where the chart's view last started
     int view_minutes_ = 1;                       ///< and its minutes
-    QList<krx_quant::Bar> candles_;              ///< the engine's day candles read so far, oldest first
-    QString candle_venue_;                       ///< their market
-    bool candles_oldest_ = false;                ///< the engine has nothing before candles_
-    QDate candles_day_;                          ///< the engine day their latest page was read
+    /// A candle view's candles as read from the engine (krx-quant #111, #112).
+    struct Candles {
+        QList<krx_quant::Bar> read; ///< so far, oldest first
+        bool oldest = false;        ///< the engine has nothing before them
+        QDate day;                  ///< the engine day their latest page was read
+    };
+    QMap<int, Candles> candles_; ///< by view
+    QString candle_venue_;       ///< the market of the engine's candles: "UN" or "KRX"
     /// The engine clock's day in KST.
     QDate engine_day() const;
+    /// Read ``view``'s latest candles unless read on this engine day (or the engine has none).
+    void read_latest(int view);
     /// Back to today's bars only: a symbol or an engine changed, or the engine is lost.
     void forget_older();
     KrxQuantService::LeaderboardQuery query_;

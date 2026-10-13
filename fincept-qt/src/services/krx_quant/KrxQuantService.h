@@ -79,10 +79,11 @@ class KrxQuantService : public QObject {
     /// consensus (krx-quant #108): older_ready or older_failed. Asked again while one is
     /// read, it is not read: KrxLive asks again once that one answers.
     void read_older(const QString& symbol, const krx_quant::OlderRead& read);
-    /// kCandleRead day candles the engine stored before ``before`` (invalid: before now), for
-    /// the day view (krx-quant #111): candles_ready or candles_failed. Asked again while one
-    /// is read, it is not read: KrxLive asks again once that one answers.
-    void read_candles(const QString& symbol, const QDateTime& before);
+    /// kCandleRead candles of ``period`` ("day", "week", "month", "year") the engine stored
+    /// before ``before`` (invalid: before now), for the candle views (krx-quant #111, #112):
+    /// candles_ready or candles_failed. Asked again while one is read, it is not read:
+    /// KrxLive asks again once that one answers.
+    void read_candles(const QString& symbol, const QString& period, const QDateTime& before);
     /// Every prediction of one bar close (krx-quant #107) and the algorithms' statuses now:
     /// close_ready or close_failed.
     void read_close(const QString& symbol, const QDateTime& bar_close);
@@ -106,8 +107,9 @@ class KrxQuantService : public QObject {
     void older_ready(const QString& symbol, const QList<fincept::krx_quant::Bar>& bars,
                      const QList<fincept::krx_quant::Prediction>& finals);
     void older_failed(const QString& symbol, const QString& reason);
-    void candles_ready(const QString& symbol, const QDateTime& before, const fincept::krx_quant::Candles& candles);
-    void candles_failed(const QString& symbol, const QString& reason);
+    void candles_ready(const QString& symbol, const QString& period, const QDateTime& before,
+                       const fincept::krx_quant::Candles& candles);
+    void candles_failed(const QString& symbol, const QString& period, const QString& reason);
     void close_ready(const QString& symbol, const QDateTime& bar_close,
                      const QList<fincept::krx_quant::Prediction>& predictions, const QMap<QString, QString>& statuses);
     void close_failed(const QString& symbol, const QDateTime& bar_close, const QString& reason);
