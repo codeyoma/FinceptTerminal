@@ -67,6 +67,7 @@ QList<Prediction> Board::apply(const Event& event) {
             }
             break;
         case Event::Type::Health:
+        case Event::Type::Bar:
         case Event::Type::Other:
             break;
     }

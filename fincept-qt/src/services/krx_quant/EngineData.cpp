@@ -171,7 +171,14 @@ Prediction prediction_of(const QJsonObject& p, const QString& symbol, const QDat
                     time_of(p.value("target_at")),
                     outcome_of(p.value("outcome")),
                     p.value("blocked").toString(),
+                    std::nullopt,
                     std::nullopt};
+    if (const QJsonValue v = p.value("pooled"); v.isArray()) {
+        QStringList names;
+        for (const auto& name : v.toArray())
+            names << name.toString();
+        made.pooled = names;
+    }
     if (const QJsonValue v = p.value("votes"); v.isObject()) {
         const QJsonObject o = v.toObject();
         made.votes = Votes{o.value("up").toInt(), o.value("flat").toInt(), o.value("down").toInt()};
@@ -316,6 +323,20 @@ Result<AlgorithmStats> parse_stats(const QJsonDocument& doc) {
     return Result<AlgorithmStats>::ok(stats);
 }
 
+Result<QMap<QString, QString>> parse_statuses(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<QMap<QString, QString>>::err(obj.error());
+    const QJsonValue algorithms = obj.value().value("algorithms");
+    QMap<QString, QString> out;
+    for (const auto& v : algorithms.toArray()) {
+        const QJsonObject a = v.toObject();
+        if (const QString status = a.value("status").toObject().value("status").toString(); !status.isEmpty())
+            out.insert(a.value("name").toString(), status);
+    }
+    return Result<QMap<QString, QString>>::ok(out);
+}
+
 Result<Macro> parse_macro(const QJsonDocument& doc) {
     const auto obj = object_of(doc);
     if (obj.is_err())
@@ -355,7 +376,7 @@ Result<Event> parse_event(const QString& message) {
     static const QMap<QString, Event::Type> types = {
         {"prediction", Event::Type::Prediction}, {"consensus", Event::Type::Consensus},
         {"outcome", Event::Type::Outcome},       {"health", Event::Type::Health},
-        {"lifecycle", Event::Type::Lifecycle},
+        {"lifecycle", Event::Type::Lifecycle},   {"bar", Event::Type::Bar},
     };
     Event event;
     event.type = types.value(o.value("type").toString(), Event::Type::Other);
@@ -373,6 +394,10 @@ Result<Event> parse_event(const QString& message) {
     event.algorithm = o.value("algorithm").toString();
     const QJsonObject change = o.value("change").toObject();
     event.change = {change.value("from").toString(), change.value("to").toString()};
+    event.symbol = o.value("symbol").toString();
+    if (const QJsonObject b = o.value("bar").toObject(); !b.isEmpty())
+        event.bar = {time_of(b.value("start")), b.value("open").toDouble(),  b.value("high").toDouble(),
+                     b.value("low").toDouble(), b.value("close").toDouble(), b.value("volume").toDouble()};
     return Result<Event>::ok(event);
 }
 

@@ -406,6 +406,32 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!read.value()[1].votes.has_value());
     }
 
+    void a_consensus_names_whom_it_pooled() {
+        const auto read = parse_predictions(json(R"({"symbol": "005930", "predictions": [
+          {"algorithm": "consensus-final", "model_version": "condorcet-equal",
+           "bar_close": "2026-10-08T09:31:00+09:00", "displayed_at": "2026-10-08T09:31:03+09:00",
+           "target_at": "2026-10-08T09:35:00+09:00", "status": "ok", "blocked": null, "votes": null,
+           "pooled": ["gauss", "markov"],
+           "p_up": 0.7, "p_flat": 0.2, "p_down": 0.1, "expected_ticks": 1.0, "outcome": null},
+          {"algorithm": "consensus-fast", "model_version": "condorcet-equal",
+           "bar_close": "2026-10-08T09:31:00+09:00", "displayed_at": "2026-10-08T09:31:03+09:00",
+           "target_at": "2026-10-08T09:35:00+09:00", "status": "ok", "blocked": null, "votes": null,
+           "p_up": 0.7, "p_flat": 0.2, "p_down": 0.1, "expected_ticks": 1.0, "outcome": null}]})"));
+        QVERIFY(read.is_ok());
+        QCOMPARE(read.value()[0].pooled, std::optional<QStringList>(QStringList{"gauss", "markov"}));
+        QVERIFY(!read.value()[1].pooled.has_value()); // an older engine's: not there
+    }
+
+    void the_algorithms_say_their_statuses() {
+        const auto read = parse_statuses(json(R"({"algorithms": [
+          {"name": "newton", "model": {"version": "newton-default"}},
+          {"name": "gauss", "model": {"version": "gauss-default"},
+           "status": {"status": "probation", "since": "2026-10-12T08:00:00+09:00", "history": []}}]})"));
+        QVERIFY(read.is_ok());
+        QCOMPARE(read.value().value("gauss"), QStringLiteral("probation"));
+        QVERIFY(!read.value().contains("newton")); // none known
+    }
+
     void an_outcome_keeps_its_mid_points() {
         const auto history = parse_predictions(json(kHistory));
         QVERIFY(history.is_ok());
@@ -800,6 +826,19 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(event.value().algorithm, QStringLiteral("alg-b"));
         QCOMPARE(event.value().change.from, QStringLiteral("probation"));
         QCOMPARE(event.value().change.to, QStringLiteral("active"));
+    }
+
+    void a_bar_event_brings_the_bar_being_made() {
+        const auto event = parse_event(QStringLiteral(R"({"type": "bar", "at": "2026-10-12T09:30:04+09:00",
+            "symbol": "005930", "bar": {"start": "2026-10-12T09:30:00+09:00", "open": 81200, "high": 81400,
+            "low": 81200, "close": 81300, "volume": 16, "trades": 3}})"));
+        QVERIFY(event.is_ok());
+        QCOMPARE(event.value().type, Event::Type::Bar);
+        QCOMPARE(event.value().symbol, QStringLiteral("005930"));
+        QCOMPARE(event.value().bar.start, QDateTime::fromString("2026-10-12T09:30:00+09:00", Qt::ISODate));
+        QCOMPARE(event.value().bar.high, 81400.0);
+        QCOMPARE(event.value().bar.close, 81300.0);
+        QCOMPARE(event.value().bar.volume, 16.0);
     }
 
     void an_event_of_a_newer_engine_is_passed_over_not_an_error() {

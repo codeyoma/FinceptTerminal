@@ -1,5 +1,7 @@
 #include "services/krx_quant/KrxLive.h"
 
+#include <QTimeZone>
+
 #include <utility>
 
 namespace fincept::services {
@@ -39,6 +41,22 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         else if (!selected_.isEmpty())
             service_->read_chart(selected_); // another was chosen meanwhile
     });
+    connect(
+        service_, &KrxQuantService::older_ready, this,
+        [this](const QString& symbol, const QList<krx_quant::Bar>& bars, const QList<krx_quant::Prediction>& finals) {
+            if (symbol != selected_)
+                return view_from(view_from_, view_minutes_); // another was chosen meanwhile: its own, if its view asked
+            oldest_ = bars.isEmpty();
+            older_ = krx_quant::join_bars(bars, older_);
+            board_.set_history(symbol, finals);
+            emit chart_changed();
+        });
+    connect(service_, &KrxQuantService::older_failed, this, [this](const QString& symbol, const QString& reason) {
+        if (symbol == selected_)
+            emit older_failed(reason);
+        else
+            view_from(view_from_, view_minutes_); // another was chosen meanwhile
+    });
     connect(service_, &KrxQuantService::macro_ready, this, [this](const krx_quant::Macro& macro) {
         macro_ = macro;
         macro_failure_.clear();
@@ -64,6 +82,20 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         else
             service_->read_stats(stats.algorithm, query_); // another query was chosen meanwhile
     });
+    connect(service_, &KrxQuantService::close_ready, this,
+            [this](const QString& symbol, const QDateTime& bar_close, const QList<krx_quant::Prediction>& made,
+                   const QMap<QString, QString>& statuses) {
+                if (symbol != selected_ || bar_close != pinned_)
+                    return; // another was chosen meanwhile
+                pinned_predictions_ = made;
+                statuses_ = statuses;
+                emit pinned_changed();
+            });
+    connect(service_, &KrxQuantService::close_failed, this,
+            [this](const QString& symbol, const QDateTime& bar_close, const QString& reason) {
+                if (symbol == selected_ && bar_close == pinned_)
+                    emit pinned_failed(reason);
+            });
     connect(service_, &KrxQuantService::stats_failed, this, [this](const QString& algorithm, const QString& reason) {
         if (details_.contains(algorithm))
             emit stats_failed(algorithm, reason);
@@ -107,6 +139,8 @@ void KrxLive::apply_base_url(const QString& url) {
     KrxQuantService::set_base_url(url);
     board_ = {};
     bars_.clear();
+    live_.reset();
+    forget_older(); // the old engine's
     status_.reset();
     macro_.reset(); // the new engine's is read below
     macro_failure_.clear();
@@ -132,7 +166,12 @@ void KrxLive::select(const QString& symbol) {
     if (symbol == selected_)
         return;
     selected_ = symbol;
+    live_.reset();
+    pinned_ = {}; // another symbol: its latest
+    pinned_predictions_.clear();
+    emit pinned_changed();
     bars_.clear();
+    forget_older();
     emit chart_changed();
     emit predictions_changed();
     if (!symbol.isEmpty())
@@ -149,6 +188,33 @@ void KrxLive::set_details(const QStringList& algorithms) {
     for (const auto& algorithm : details_)
         if (!before.contains(algorithm))
             service_->read_stats(algorithm, query_);
+}
+
+void KrxLive::view_from(double from, int minutes) {
+    view_from_ = from;
+    view_minutes_ = minutes;
+    if (selected_.isEmpty() || oldest_)
+        return;
+    // The first bar shown: the earliest read before, else today's first.
+    const QDateTime first = !older_.isEmpty()  ? older_.first().start
+                            : !bars_.isEmpty() ? bars_.first().start
+                                               : QDateTime();
+    if (const auto read = krx_quant::older_read(first, from, minutes))
+        service_->read_older(selected_, *read);
+}
+
+void KrxLive::forget_older() {
+    older_.clear();
+    oldest_ = false;
+    view_from_ = krx_quant::kOlderMargin;
+}
+
+void KrxLive::pin(const QDateTime& bar_close) {
+    pinned_ = bar_close;
+    pinned_predictions_.clear();
+    emit pinned_changed();
+    if (pinned_.isValid() && !selected_.isEmpty())
+        service_->read_close(selected_, pinned_);
 }
 
 void KrxLive::read_details() {
@@ -186,8 +252,10 @@ void KrxLive::tick() {
     // Without the stream no outcome tells when the leaderboard changed: it is read each tick.
     if (!live || ticks_ % kChartEvery == 0)
         read_leaderboard();
-    if (ticks_ % kChartEvery == 0 && !selected_.isEmpty())
-        service_->read_chart(selected_); // and on each new bar close
+    // With the stream the bar being made comes as it moves and the finished bars on each new
+    // bar close (krx-quant #110); without it they are read here.
+    if (!live && ticks_ % kChartEvery == 0 && !selected_.isEmpty())
+        service_->read_chart(selected_);
     if (ticks_ % kMacroEvery == 0)
         service_->read_macro();
 }
@@ -203,13 +271,17 @@ void KrxLive::read_everything() {
 void KrxLive::read_leaderboard() {
     service_->read_leaderboard(query_);
     read_details();
+    if (pinned_.isValid() && !selected_.isEmpty()) // its outcomes come in as they are scored
+        service_->read_close(selected_, pinned_);
 }
 
 void KrxLive::on_snapshot(const KrxQuantService::Snapshot& snapshot) {
     read_errors_ = snapshot.errors;
     // An engine whose clock went back (a demo started again) takes the screen back too.
-    if (snapshot.status.now.isValid() && board_.rewind_to(snapshot.status.now))
+    if (snapshot.status.now.isValid() && board_.rewind_to(snapshot.status.now)) {
         bars_.clear();
+        live_.reset();
+    }
     const QDateTime shown_before = board_.latest(selected_).bar_close;
     board_.set_symbols(snapshot.symbols);
     if (snapshot.members)
@@ -237,6 +309,7 @@ void KrxLive::on_status(const krx_quant::EngineStatus& status, bool with_snapsho
     set_engine_clock(status.now);
     if (status.now.isValid() && board_.rewind_to(status.now)) {
         bars_.clear();
+        live_.reset();
         emit predictions_changed();
         emit chart_changed();
         if (!selected_.isEmpty())
@@ -260,6 +333,8 @@ void KrxLive::on_failure(const QString& reason) {
     read_errors_.clear();
     board_.forget_predictions(); // old predictions must not pass for current ones
     bars_.clear();
+    live_.reset();
+    forget_older();
     emit predictions_changed();
     emit chart_changed();
     emit status_changed();
@@ -273,8 +348,17 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
         return;
     }
     bars_ = bars;
+    // The finished bars, then the one being made: only today's (the engine's day), as a
+    // bar kept from before a rewind (a demo started again) or from yesterday is not.
+    const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+    if (live_ && live_->start.toTimeZone(kst).date() == engine_now().toTimeZone(kst).date())
+        krx_quant::merge_live(bars_, *live_);
+    else
+        live_.reset();
     board_.set_history(symbol, finals);
     emit chart_changed();
+    if (bars_.isEmpty() && older_.isEmpty())
+        view_from(0, view_minutes_); // nothing today yet (before the open): the last day's bars
 }
 
 void KrxLive::on_event(const krx_quant::Event& event) {
@@ -290,6 +374,13 @@ void KrxLive::on_event(const krx_quant::Event& event) {
             board_.apply(event);
             leaderboard_soon_.start(); // its status in the leaderboard
             emit predictions_changed();
+            return;
+        case krx_quant::Event::Type::Bar:
+            // The chosen symbol's bar being made (krx-quant #110); another's is not drawn.
+            if (event.symbol == selected_ && !selected_.isEmpty() && krx_quant::merge_live(bars_, event.bar)) {
+                live_ = event.bar; // only one drawn: a dropped (older) one never comes back on a read
+                emit live_changed();
+            }
             return;
         case krx_quant::Event::Type::Other:
             return;

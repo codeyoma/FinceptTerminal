@@ -7,6 +7,7 @@
 #include <QHash>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QTableWidget>
 #include <QTimer>
 #include <QWidget>
@@ -46,7 +47,11 @@ class KrxQuantScreen : public QWidget {
     void show_dot();
     void fill_symbols();
     void fill_predictions();
+    /// The table while a bar close is pinned (a chart icon clicked).
+    void fill_pinned();
     void fill_chart();
+    /// Show the chart as bars of ``minutes`` (krx-quant #109), and keep the choice.
+    void set_view(int minutes);
     void open_detail(const QString& algorithm);
     void update_countdowns();
     /// Paint in the theme's colors and font now (Fincept's theme, font or density changed).
@@ -66,8 +71,12 @@ class KrxQuantScreen : public QWidget {
     krx_panel::Header chart_header_;  ///< titled with the chosen symbol
     QLabel* chart_failure_ = nullptr; ///< on the chart's header, while the bars cannot be read
     KrxChart* chart_ = nullptr;
+    QWidget* chart_views_ = nullptr;       ///< the row of view buttons above the chart
+    QList<QPushButton*> view_buttons_;     ///< in kMinuteViews' order
+    int minutes_ = 1;                      ///< the chart's view
     krx_panel::Header predictions_header_; ///< titled with the bar close and the countdown
     QTableWidget* predictions_table_ = nullptr;
+    QPushButton* latest_ = nullptr; ///< back to the latest bar close, while one is pinned
     KrxLeaderboard* leaderboard_ = nullptr;
     QHash<QString, KrxStatsWindow*> stats_windows_; ///< open, by predictor
     KrxAlerts* alerts_ = nullptr;

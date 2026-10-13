@@ -82,6 +82,14 @@ void KrxChartBridge::ready() {
     emit page_ready();
 }
 
+void KrxChartBridge::clicked(const QString& bar_close) {
+    emit icon_clicked(bar_close);
+}
+
+void KrxChartBridge::moved(double from) {
+    emit view_moved(from);
+}
+
 KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
     setMinimumHeight(220);
     auto* layout = new QVBoxLayout(this);
@@ -92,6 +100,11 @@ KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
         if (!data_.isEmpty())
             emit bridge_->data_changed(data_);
     });
+    connect(bridge_, &KrxChartBridge::icon_clicked, this, [this](const QString& bar_close) {
+        if (const QDateTime at = QDateTime::fromString(bar_close, Qt::ISODate); at.isValid())
+            emit icon_clicked(at);
+    });
+    connect(bridge_, &KrxChartBridge::view_moved, this, &KrxChart::view_moved);
     unavailable_ = new QLabel(tr("차트를 열 수 없음"));
     unavailable_->setAlignment(Qt::AlignCenter);
     unavailable_->setToolTip(tr("이 빌드에 Qt WebEngine이 없거나 그 실행 파일이 빠졌다."));
@@ -123,19 +136,21 @@ void KrxChart::ensure_view() {
 }
 
 void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks, const QString& basis,
-                        const krx_quant::SignalRule& rule) {
+                        const krx_quant::SignalRule& rule, int minutes) {
     QJsonArray candles;
     QJsonArray volumes;
     const QColor up(ui::colors::POSITIVE());
     const QColor down(ui::colors::NEGATIVE());
-    const auto shown = krx_quant::chart_bars(bars);
+    const auto shown = krx_quant::chart_bars(krx_quant::group_bars(bars, minutes));
     for (const auto& b : shown) {
         candles.append(
             QJsonObject{{"time", b.time}, {"open", b.open}, {"high", b.high}, {"low", b.low}, {"close", b.close}});
         volumes.append(QJsonObject{{"time", b.time}, {"value", b.volume}, {"color", css(b.rising ? up : down, 0.5)}});
     }
     QJsonArray icons;
-    for (const auto& icon : krx_quant::chart_icons(marks, bars, basis, rule)) {
+    // Icons, their hover and click are the 1-minute view's: a wider bar holds many bar closes.
+    const auto drawn = minutes == 1 ? krx_quant::chart_icons(marks, bars, basis, rule) : QList<krx_quant::ChartIcon>{};
+    for (const auto& icon : drawn) {
         // A signal is larger and never faint; a special prediction otherwise is.
         const double alpha = icon.signal ? 1.0 : icon.faint ? 0.35 : 0.8;
         icons.append(QJsonObject{{"time", icon.time},
@@ -147,12 +162,27 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
                                  {"hover", QJsonArray::fromStringList(icon.hover)},
                                  {"target", icon.target},
                                  {"target_shown", icon.target_shown},
-                                 {"target_after_last", icon.target_after_last}});
+                                 {"target_after_last", icon.target_after_last},
+                                 {"bar_close", icon.bar_close.toString(Qt::ISODate)}});
     }
     const auto [from, to] = krx_quant::fit_range(static_cast<int>(shown.size()));
     data_ = compact(QJsonObject{
         {"bars", candles}, {"volumes", volumes}, {"icons", icons}, {"fit", QJsonObject{{"from", from}, {"to", to}}}});
     emit bridge_->data_changed(data_);
+}
+
+void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
+    const auto last = krx_quant::last_chart_bar(bars, minutes);
+    if (!last)
+        return;
+    const QColor color(last->rising ? ui::colors::POSITIVE() : ui::colors::NEGATIVE());
+    emit bridge_->live_changed(compact(QJsonObject{
+        {"bar", QJsonObject{{"time", last->time},
+                            {"open", last->open},
+                            {"high", last->high},
+                            {"low", last->low},
+                            {"close", last->close}}},
+        {"volume", QJsonObject{{"time", last->time}, {"value", last->volume}, {"color", css(color, 0.5)}}}}));
 }
 
 void KrxChart::fit() {
