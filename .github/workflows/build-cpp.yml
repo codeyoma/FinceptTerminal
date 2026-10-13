@@ -66,19 +66,8 @@ jobs:
             qt_arch: clang_64
             cmake_extra: "-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0"
 
-          # ---- macOS x64 (Intel) ----
-          # fork addition (codeyoma/krx-quant#136): built on an Intel runner, not
-          # cross-compiled on ARM64. Cross-compiled, it linked the runner's ARM64
-          # Homebrew OpenSSL into the x86_64 app ("Undefined symbols for
-          # architecture x86_64"); here Homebrew's OpenSSL is x86_64 too, and the
-          # binary runs, so its self-tests run as well.
-          - os: macos-15-intel
-            arch: x64
-            platform: macOS
-            artifact: FinceptTerminal-macOS-x64
-            exe: FinceptTerminal
-            qt_arch: clang_64
-            cmake_extra: "-DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0"
+          # fork addition (codeyoma/krx-quant#136): no macOS x64 (Intel) target.
+          # This build does not support Intel Macs; macOS is Apple Silicon only.
 
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.platform }} ${{ matrix.arch }}
@@ -328,10 +317,9 @@ jobs:
       # Exercise each of the freshly built binary's --selftest-* checks under Qt's
       # offscreen platform (no display / GPU needed). A non-zero exit fails the
       # job. Runs the build-tree binary (not the packaged AppImage / .app) so it
-      # needs no FUSE mount or codesigning. Skipped on the cross-compiled target
-      # (Windows arm64) whose binary can't execute on the host runner's
-      # architecture; macOS x64 is built on an Intel runner since
-      # codeyoma/krx-quant#136 and runs. timeout-minutes bounds any unexpected hang.
+      # needs no FUSE mount or codesigning. Skipped on cross-compiled targets
+      # (Windows arm64, macOS x64) whose binaries can't execute on the host
+      # runner's architecture. timeout-minutes bounds any unexpected hang.
       #
       # The flag list used to be spelled out here and DRIFTED: main.cpp
       # dispatches 10 --selftest-* flags, this loop listed 9, so
@@ -339,7 +327,7 @@ jobs:
       # .github/scripts/ci_app_checks.sh, which prefers `--selftest-list` from
       # the binary itself and is shared with release.yml and build-pr.yml.
       - name: Run self-tests (headless)
-        if: "!(matrix.platform == 'Windows' && matrix.arch == 'arm64')"
+        if: "!(matrix.platform == 'Windows' && matrix.arch == 'arm64') && !(matrix.platform == 'macOS' && matrix.arch == 'x64')"
         shell: bash
         working-directory: fincept-qt
         timeout-minutes: 25
@@ -963,96 +951,15 @@ jobs:
           path: ${{ runner.os == 'macOS' && 'fincept-qt/dist.tar.gz' || 'fincept-qt/dist/' }}
           retention-days: 30
 
-  # ---- macOS Universal Binary ----
-  macos-universal:
-    needs: build
-    runs-on: macos-15
-    name: macOS Universal
-    # Only run if ALL build matrix jobs succeeded (not just "didn't fail")
-    if: "!cancelled() && needs.build.result == 'success'"
-
-    steps:
-      # fork addition (codeyoma/krx-quant#136): the job had no checkout, so the
-      # sync script it calls below was not there.
-      - name: Checkout the CI scripts
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: .github/scripts
-          submodules: false
-
-      - name: Download macOS arm64
-        uses: actions/download-artifact@v4
-        with:
-          name: FinceptTerminal-macOS-arm64
-          path: arm64-dl
-
-      - name: Download macOS x64
-        uses: actions/download-artifact@v4
-        with:
-          name: FinceptTerminal-macOS-x64
-          path: x64-dl
-
-      - name: Extract macOS artifacts
-        run: |
-          # Artifacts were uploaded as dist.tar.gz to preserve execute permissions
-          mkdir -p arm64 x64
-          tar -xzf arm64-dl/dist.tar.gz -C arm64
-          tar -xzf x64-dl/dist.tar.gz  -C x64
-
-      - name: Create Universal Binary
-        run: |
-          # Locate the binary — may be inside a .app bundle or at the top level
-          find_bin() {
-            local base="$1"
-            if [ -f "$base/FinceptTerminal" ]; then
-              echo "$base/FinceptTerminal"
-            elif [ -f "$base/FinceptTerminal.app/Contents/MacOS/FinceptTerminal" ]; then
-              echo "$base/FinceptTerminal.app/Contents/MacOS/FinceptTerminal"
-            else
-              echo "::error::Cannot find FinceptTerminal binary under $base" >&2
-              find "$base" -type f | head -20 >&2
-              exit 1
-            fi
-          }
-          ARM64_BIN=$(find_bin arm64)
-          X64_BIN=$(find_bin x64)
-          echo "arm64 binary: $ARM64_BIN"
-          echo "x64   binary: $X64_BIN"
-
-          # Verify the two binaries are actually different architectures before lipo
-          ARM64_ARCH=$(lipo -archs "$ARM64_BIN")
-          X64_ARCH=$(lipo -archs "$X64_BIN")
-          echo "arm64 artifact arch: $ARM64_ARCH"
-          echo "x64   artifact arch: $X64_ARCH"
-          if [ "$ARM64_ARCH" = "$X64_ARCH" ]; then
-            echo "::error::Both binaries report the same architecture ($ARM64_ARCH) — cannot create universal binary" >&2
-            exit 1
-          fi
-
-          mkdir -p dist
-          lipo -create "$ARM64_BIN" "$X64_BIN" -output dist/FinceptTerminal
-          chmod +x dist/FinceptTerminal
-          cp -r arm64/resources dist/resources 2>/dev/null || true
-          bash "${GITHUB_WORKSPACE}/.github/scripts/sync_scripts.sh" arm64/scripts dist/scripts  # fork addition (codeyoma/krx-quant#136)
-          file dist/FinceptTerminal
-          lipo -info dist/FinceptTerminal
-          ls -lh dist/FinceptTerminal
-          # Tar to preserve execute permissions
-          tar -czf dist.tar.gz -C dist .
-
-      - name: Upload Universal artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: FinceptTerminal-macOS-universal
-          path: dist.tar.gz
-          retention-days: 30
+  # fork addition (codeyoma/krx-quant#136): no macOS Universal job. It merged the
+  # arm64 and x64 builds, and there is no x64 build (no Intel Macs).
 
   # ---- Release ----
   release:
-    needs: [build, macos-universal]
+    needs: [build]  # fork addition (codeyoma/krx-quant#136): no macos-universal job
     runs-on: ubuntu-latest
     name: Create Release
-    if: "!cancelled() && needs.build.result == 'success' && needs.macos-universal.result == 'success' && startsWith(github.ref, 'refs/tags/')"
+    if: "!cancelled() && needs.build.result == 'success' && startsWith(github.ref, 'refs/tags/')"
     permissions:
       contents: write
 
@@ -1109,17 +1016,13 @@ jobs:
             - `FinceptTerminal-Linux-x86_64.AppImage.zsync` — Delta update file (used by auto-updater)
 
             **macOS**
-            - `FinceptTerminal-macOS-universal.tar.gz` — macOS Universal (ARM64 + Intel)
             - `FinceptTerminal-macOS-arm64.tar.gz` — macOS Apple Silicon
-            - `FinceptTerminal-macOS-x64.tar.gz` — macOS Intel
           files: |
             FinceptTerminal-Windows-x64.zip
             FinceptTerminal-Windows-arm64.zip
             FinceptTerminal-Linux-x86_64.AppImage
             FinceptTerminal-Linux-x86_64.AppImage.zsync
             FinceptTerminal-macOS-arm64.tar.gz
-            FinceptTerminal-macOS-x64.tar.gz
-            FinceptTerminal-macOS-universal.tar.gz
           fail_on_unmatched_files: false
           draft: false
           prerelease: false
