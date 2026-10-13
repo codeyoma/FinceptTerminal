@@ -58,7 +58,7 @@ custom/merge-upstream-release.sh [tag]
 - 새 코드는 새 디렉터리에 둔다 (`fincept-qt/src/screens/krx_quant/`, `fincept-qt/src/services/krx_quant/`).
 - 화면 등록과 로컬 CLI LLM(아래) 때문에 고치는 upstream 파일은 아래 목록으로 제한하고, 고칠 때마다 이 표를 갱신한다. 고친 곳에는 `fork addition (codeyoma/krx-quant#N)` 주석을 단다.
 
-> **바뀜** (2026-10-13, codeyoma/krx-quant#PRNUM): 위의 것에 더해, 경제 캘린더(codeyoma/krx-quant#150) 때문에 `fincept-qt/src/services/economics/MacroCalendarService.cpp`도 고친다(아래 표). 이유: 대시보드의 Economic Calendar가 읽는 Fincept 서버 엔드포인트가 크레딧을 썼다. 엔진이 같은 데이터를 모아 두었으니, 엔진 주소가 있으면 거기서 읽도록 갈래를 하나 넣었다.
+> **바뀜** (2026-10-13, codeyoma/krx-quant#152): 위의 것에 더해, 경제 캘린더(codeyoma/krx-quant#150) 때문에 `fincept-qt/src/services/economics/MacroCalendarService.cpp`도 고친다(아래 표). 이유: 대시보드의 Economic Calendar가 읽는 Fincept 서버 엔드포인트가 크레딧을 썼다. 엔진이 같은 데이터를 모아 두었으니, 엔진 주소가 있으면 거기서 읽도록 갈래를 하나 넣었다.
 
 > **바뀜** (2026-10-13, codeyoma/FinceptTerminal#26): 화면 등록과 로컬 CLI LLM 때문에 고치는 upstream 파일만 → 원화 환산 표시(codeyoma/krx-quant#142) 때문에 고치는 시장·관심종목·대시보드·포트폴리오·주식 리서치·설정 화면과 시세 service도(아래 표). 이유: 출처 통화가 확인된 금액만 화면에서 환산하려면 각 화면이 금액을 그리는 곳에 갈래가 필요했다. upstream 릴리스를 merge 할 때 이 파일들이 충돌할 수 있다.
 
