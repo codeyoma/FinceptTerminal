@@ -42,6 +42,10 @@ int importance_level(const QString& importance) {
 
 } // namespace
 
+QMap<QByteArray, QByteArray> engine_request_headers() {
+    return {{"X-API-Key", QByteArray()}, {"X-Session-Token", QByteArray()}};
+}
+
 QString calendar_url(const QString& engine, int limit) {
     QString base = engine.trimmed();
     while (base.endsWith('/'))

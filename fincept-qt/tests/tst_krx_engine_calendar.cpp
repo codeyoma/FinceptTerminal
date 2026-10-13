@@ -125,6 +125,14 @@ class TestKrxEngineCalendar : public QObject {
         QCOMPARE(adp["forecast"].toString(), QString("-$12.5K"));
     }
 
+    void the_engine_request_carries_no_fincept_credentials() {
+        // Null values: QNetworkRequest::setRawHeader removes a header set to a null value.
+        const auto headers = engine_request_headers();
+        QCOMPARE(headers.keys(), (QList<QByteArray>{"X-API-Key", "X-Session-Token"}));
+        for (const QByteArray& value : headers)
+            QVERIFY(value.isNull());
+    }
+
     void an_answer_that_is_not_the_calendar_gives_nothing() {
         QVERIFY(calendar_widget_events(QJsonDocument()).isEmpty());
         QVERIFY(calendar_widget_events(QJsonDocument(QJsonObject{{"error", "x"}})).isEmpty());

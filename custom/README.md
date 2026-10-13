@@ -305,13 +305,14 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 
 - **엔진에서 읽기.** KRX 화면에 엔진 주소(`krx_quant/base_url`)를 넣어 두면 `MacroCalendarService`가 같은 주기로 엔진의 `GET /v1/calendar?limit=25`를 읽는다. 엔진은 15분마다 TradingView의 공개 경제 캘린더에서 미국·한국·중국·일본·유로존·독일·영국의 일정을 모은다(krx-quant `docs/design.md` 4.5의 "경제 캘린더", `docs/engine-api.md`의 `/v1/calendar`). Fincept 크레딧은 쓰지 않는다.
 - **엔진 주소가 없으면** 원래대로 Fincept 서버를 읽는다.
+- **인증 헤더.** 엔진 요청에는 Fincept 계정의 `X-API-Key`·`X-Session-Token`을 붙이지 않는다. `HttpClient`는 Fincept API와 호스트 이름이 같으면 포트가 달라도 이 헤더를 붙이는데, 엔진 요청은 두 헤더를 빈 값으로 덮어 지운다(`krx_quant::engine_request_headers`).
 - **보이는 값.** 엔진의 답을 위젯의 필드로 바꾼다(`fincept-qt/src/services/krx_quant/EngineCalendar.{h,cpp}`).
   - 날짜와 시각은 KST다(원래 출처의 시간대와 다를 수 있다).
   - 실제(ACT)·예상(FCST)·이전(PREV)은 엔진의 숫자에 배율(`K`·`M`·`B`·`T`)과 단위를 붙인 글자다. `%`는 뒤에, 통화 기호(`$`·`€`·`£`·`¥`·`₩`)는 앞에, 다른 단위는 띄어서 뒤에 붙인다(`3.7%`, `$23.75K`, `-$12.5K`, `90.45B CNY`). 아직 모르면 `--`다.
   - 컨센서스(CONS)는 비운다. 출처의 예상치는 하나뿐이라 FCST에 보인다.
   - 중요도는 `low`·`medium`·`high`를 1·2·3(LOW·MED·HIGH)으로 보인다.
   - 툴팁의 분류(Category)는 출처의 분류 코드(`prce` 등)다. 시장 반응(sentiment)과 종목(symbol)은 없다.
-- **테스트.** `tst_krx_engine_calendar`(Qt Core만): 요청 주소, 엔진 답에서 위젯 행으로(KST 시각, 배율과 단위를 붙인 값, 중요도), 읽을 수 없는 답.
+- **테스트.** `tst_krx_engine_calendar`(Qt Core만): 요청 주소와 인증 헤더를 지우는 값, 엔진 답에서 위젯 행으로(KST 시각, 배율과 단위를 붙인 값, 중요도), 읽을 수 없는 답.
 
 ## 개인 빌드
 

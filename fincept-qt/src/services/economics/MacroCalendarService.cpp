@@ -107,7 +107,7 @@ void MacroCalendarService::refresh(const QStringList& topics) {
                 from_engine ? krx_quant::calendar_widget_events(result.value()) : parse_events(result.value());
             hub.publish(QString::fromLatin1(kTopic), QVariant::fromValue(events));
         },
-        this);
+        this, from_engine ? krx_quant::engine_request_headers() : HttpClient::Headers{});
 }
 
 } // namespace fincept::services
