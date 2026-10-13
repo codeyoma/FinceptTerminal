@@ -33,7 +33,7 @@
   const chart = L.createChart(area, {
     autoSize: true,
     layout: { attributionLogo: false }, // the attribution is on the panel title and in the README
-    timeScale: { timeVisible: true, secondsVisible: false, rightOffset: 3 },
+    timeScale: { timeVisible: true, secondsVisible: false, rightOffset: 6 }, // the latest target's slot shows
   });
   const candles = chart.addSeries(L.CandlestickSeries, {
     priceLineVisible: true,
@@ -65,11 +65,12 @@
   function show(data) {
     bars = data.bars;
     barAt = new Map(bars.map((b, i) => [b.time, i]));
-    iconAt = new Map(data.icons.map((i) => [i.time, i]));
+    iconAt = new Map(data.icons.map((i) => [String(i.time), i]));
     candles.setData(bars);
     volumes.setData(data.volumes);
     icons.setMarkers(data.icons.map((i) => ({
-      time: i.time, position: i.position, shape: i.shape, color: i.color, size: i.size, text: i.text,
+      id: String(i.time), time: i.time, position: i.position, shape: i.shape, color: i.color, size: i.size,
+      text: i.text,
     })));
     fitRange = data.fit;
     if (!bars.length) {
@@ -121,7 +122,8 @@
   }
 
   function hover(param) {
-    const icon = param && param.time !== undefined ? iconAt.get(param.time) : undefined;
+    // Only over an icon itself, not anywhere over its bar (the volume pane included).
+    const icon = param && param.hoveredObjectId !== undefined ? iconAt.get(String(param.hoveredObjectId)) : undefined;
     if (!icon || !param.point) {
       tip.style.display = 'none';
       drawLink(null);

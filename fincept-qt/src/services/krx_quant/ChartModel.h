@@ -14,8 +14,9 @@
 /// their hover lines, the bars they aim at, and which were signals. Qt Core only.
 namespace fincept::krx_quant {
 
-/// Bars kept free to the right of the last one when the chart is fitted.
-inline constexpr double kRightOffset = 3;
+/// Bars kept free to the right of the last one when the chart is fitted: the latest
+/// prediction's target bar is four after it, and its slot must show (krx-quant #106).
+inline constexpr double kRightOffset = 6;
 /// Bars a fitted chart shows.
 inline constexpr int kFitBars = 60;
 

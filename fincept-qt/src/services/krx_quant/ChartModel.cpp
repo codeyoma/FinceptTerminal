@@ -97,13 +97,17 @@ QString result_line(const Mark& m, const QString& basis) {
 
 } // namespace
 
+/// When a prediction is scored: its own target time, or four minutes on for one without.
+static QDateTime target_of(const Mark& m) {
+    return m.prediction.target_at.isValid() ? m.prediction.target_at : m.bar_close.addSecs(240);
+}
+
 QStringList hover_lines(const Mark& m, const QString& basis, const SignalRule& rule) {
     const Prediction& p = m.prediction;
     const QString members = p.votes
                                 ? QStringLiteral("같은 방향 %1/%2").arg(p.votes->of(m.predicted)).arg(p.votes->total())
                                 : QStringLiteral("같은 방향 모델 수 알 수 없음");
-    return {QStringLiteral("%1 봉 → %2 목표")
-                .arg(kst_text(m.bar_close, "HH:mm"), kst_text(m.bar_close.addSecs(240), "HH:mm")),
+    return {QStringLiteral("%1 봉 → %2 목표").arg(kst_text(m.bar_close, "HH:mm"), kst_text(target_of(m), "HH:mm")),
             QStringLiteral("합의 %1 · 상승 %2 · 보합 %3 · 하락 %4")
                 .arg(direction_label(m.predicted), percent(p.p_up), percent(p.p_flat), percent(p.p_down)),
             members, signal_line(m, rule), result_line(m, basis)};
@@ -129,7 +133,7 @@ QList<ChartIcon> chart_icons(const QList<Mark>& marks, const QList<Bar>& bars, c
         icon.result = result_of(m.result);
         icon.faint = m.special;
         icon.hover = hover_lines(m, basis, rule);
-        icon.target = chart_time(m.bar_close.addSecs(180));
+        icon.target = chart_time(target_of(m).addSecs(-60)); // the bar closing then
         icon.target_shown = drawn.contains(icon.target);
         icon.target_after_last =
             icon.target_shown || bars.isEmpty() ? 0 : static_cast<int>(std::max<qint64>(0, (icon.target - last) / 60));
