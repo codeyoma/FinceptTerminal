@@ -1,5 +1,7 @@
 #include "services/krx_quant/KrxLive.h"
 
+#include <QTimeZone>
+
 #include <utility>
 
 namespace fincept::services {
@@ -276,8 +278,10 @@ void KrxLive::read_leaderboard() {
 void KrxLive::on_snapshot(const KrxQuantService::Snapshot& snapshot) {
     read_errors_ = snapshot.errors;
     // An engine whose clock went back (a demo started again) takes the screen back too.
-    if (snapshot.status.now.isValid() && board_.rewind_to(snapshot.status.now))
+    if (snapshot.status.now.isValid() && board_.rewind_to(snapshot.status.now)) {
         bars_.clear();
+        live_.reset();
+    }
     const QDateTime shown_before = board_.latest(selected_).bar_close;
     board_.set_symbols(snapshot.symbols);
     if (snapshot.members)
@@ -305,6 +309,7 @@ void KrxLive::on_status(const krx_quant::EngineStatus& status, bool with_snapsho
     set_engine_clock(status.now);
     if (status.now.isValid() && board_.rewind_to(status.now)) {
         bars_.clear();
+        live_.reset();
         emit predictions_changed();
         emit chart_changed();
         if (!selected_.isEmpty())
@@ -343,8 +348,13 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
         return;
     }
     bars_ = bars;
-    if (live_)
-        krx_quant::merge_live(bars_, *live_); // the finished bars, then the one being made
+    // The finished bars, then the one being made: only today's (the engine's day), as a
+    // bar kept from before a rewind (a demo started again) or from yesterday is not.
+    const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+    if (live_ && live_->start.toTimeZone(kst).date() == engine_now().toTimeZone(kst).date())
+        krx_quant::merge_live(bars_, *live_);
+    else
+        live_.reset();
     board_.set_history(symbol, finals);
     emit chart_changed();
     if (bars_.isEmpty() && older_.isEmpty())
@@ -367,10 +377,9 @@ void KrxLive::on_event(const krx_quant::Event& event) {
             return;
         case krx_quant::Event::Type::Bar:
             // The chosen symbol's bar being made (krx-quant #110); another's is not drawn.
-            if (event.symbol == selected_ && !selected_.isEmpty()) {
-                live_ = event.bar;
-                if (krx_quant::merge_live(bars_, event.bar))
-                    emit live_changed();
+            if (event.symbol == selected_ && !selected_.isEmpty() && krx_quant::merge_live(bars_, event.bar)) {
+                live_ = event.bar; // only one drawn: a dropped (older) one never comes back on a read
+                emit live_changed();
             }
             return;
         case krx_quant::Event::Type::Other:
