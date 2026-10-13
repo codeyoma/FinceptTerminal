@@ -50,6 +50,9 @@ class EquityValuationTab : public QWidget {
     // ── Data helpers ─────────────────────────────────────────────
     void pre_fill_dcf_inputs();
     void clear_results();
+    // fork addition (codeyoma/krx-quant#142): presentation only; never re-fill inputs on FX changes.
+    void refresh_currency_display();
+    bool matching_financial_currency() const;
     void run_scoring_models();
     void run_multiples();
 
@@ -99,7 +102,10 @@ class EquityValuationTab : public QWidget {
     // ── State ─────────────────────────────────────────────────────
     QString current_symbol_;
     double current_price_ = 0.0;
-    QString current_currency_ = QStringLiteral("USD");
+    QString current_currency_;
+    QJsonValue last_dcf_result_;
+    QString dcf_result_currency_;
+    bool multiples_calculated_ = false;
     services::equity::StockInfo last_info_;
     services::equity::FinancialsData last_financials_;
     bool financials_loaded_ = false;

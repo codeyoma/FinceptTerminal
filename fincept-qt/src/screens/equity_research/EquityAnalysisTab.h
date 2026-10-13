@@ -83,10 +83,9 @@ class EquityAnalysisTab : public QWidget {
 
     // ── Formatting ─────────────────────────────────────────────────────────────
     QString fmt(double v, int decimals = 2) const;
-    static QString fmt_large(double v);
+    QString fmt_large(double v) const;
     QString fmt_pct(double v) const;   ///< v is a fraction (0.31 → "31.00%")
-    QString fmt_money(double v) const; ///< currency-symbol prefixed price
-    QString cur_symbol_() const;       ///< $/₹/€/£ from cached_info_.currency
+    QString fmt_money(double v) const; ///< Source-aware display price
     QString color_for_(Tone t) const;
 
     // ── State ──────────────────────────────────────────────────────────────────

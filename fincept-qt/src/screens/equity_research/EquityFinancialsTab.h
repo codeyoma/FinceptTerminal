@@ -17,6 +17,8 @@ class EquityFinancialsTab : public QWidget {
   public:
     explicit EquityFinancialsTab(QWidget* parent = nullptr);
     void set_symbol(const QString& symbol);
+    // fork addition (codeyoma/krx-quant#142): explicit native statement units.
+    void set_reporting_currency(const QString& currency);
 
   protected:
     void changeEvent(QEvent* event) override;
@@ -73,6 +75,8 @@ class EquityFinancialsTab : public QWidget {
     static QColor growth_color(double v);
 
     QString current_symbol_;
+    QString reporting_currency_;
+    QLabel* reporting_currency_label_ = nullptr;
     bool loaded_ = false;
 
     // Statement selector buttons

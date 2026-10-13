@@ -71,6 +71,9 @@ class BaseWidget : public QFrame {
     /// Called automatically — no manual connection needed.
     virtual void on_theme_changed() {}
 
+    // Fork hook (codeyoma/krx-quant#142): rerender native caches after currency/rate/metadata changes.
+    virtual void on_display_currency_changed() {}
+
     /// Override to return a modal config dialog (takes ownership: parent =
     /// `parent`). Return nullptr (default) to disable configuration and
     /// hide the gear icon.

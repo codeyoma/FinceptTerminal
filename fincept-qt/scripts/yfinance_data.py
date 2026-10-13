@@ -73,6 +73,20 @@ def _int(value, default=None):
         return default
 
 
+# Fork hook (codeyoma/krx-quant#142): metadata travels with native quotes.
+# GBp is a subunit code, so preserve case; CurrencyManager normalizes pence.
+_quote_metadata_cache = {}
+_YIELD_SYMBOLS = {"^IRX", "^FVX", "^TNX", "^TYX"}
+
+
+def _quote_metadata(symbol, info):
+    quote_type = (info.get("quoteType") or "UNKNOWN").strip().upper()
+    if symbol in _YIELD_SYMBOLS:
+        quote_type = "YIELD"
+    return {"currency": (info.get("currency") or "").strip(),
+            "quote_type": quote_type}
+
+
 def get_quote(symbol):
     """Fetch real-time quote for a single symbol"""
     try:
@@ -91,16 +105,19 @@ def get_quote(symbol):
         change = current_price - previous_close
         change_percent = (change / previous_close) * 100 if previous_close else 0
 
+        metadata = _quote_metadata(symbol, info)
+        _quote_metadata_cache[symbol] = metadata
         quote_data = {
+            **metadata,
             "symbol": symbol,
-            "price": round(float(current_price), 2),
-            "change": round(float(change), 2),
+            "price": float(current_price),
+            "change": float(change),
             "change_percent": round(float(change_percent), 2),
             "volume": int(hist['Volume'].iloc[-1]) if not hist['Volume'].empty else None,
-            "high": round(float(hist['High'].iloc[-1]), 2) if not hist['High'].empty else None,
-            "low": round(float(hist['Low'].iloc[-1]), 2) if not hist['Low'].empty else None,
-            "open": round(float(hist['Open'].iloc[-1]), 2) if not hist['Open'].empty else None,
-            "previous_close": round(float(previous_close), 2),
+            "high": float(hist['High'].iloc[-1]) if not hist['High'].empty else None,
+            "low": float(hist['Low'].iloc[-1]) if not hist['Low'].empty else None,
+            "open": float(hist['Open'].iloc[-1]) if not hist['Open'].empty else None,
+            "previous_close": float(previous_close),
             "timestamp": int(datetime.now().timestamp()),
             "exchange": info.get('exchange', '')
         }
@@ -228,7 +245,9 @@ def get_info(symbol):
             "description": info.get('longBusinessSummary', 'N/A'),
             "website": info.get('website', 'N/A'),
             "country": info.get('country', 'N/A'),
-            "currency": info.get('currency', 'USD'),
+            "currency": info.get('currency', ''),
+            "financial_currency": info.get('financialCurrency', ''),
+            "quote_type": _quote_metadata(symbol, info)["quote_type"],
             "exchange": info.get('exchange', 'N/A'),
             "employees": info.get('fullTimeEmployees'),
             # Additional comprehensive metrics
@@ -361,15 +380,16 @@ def get_batch_quotes(symbols):
                 change_percent = (change / previous_close) * 100 if previous_close else 0
 
                 results.append({
+                    **_quote_metadata_cache.get(symbol, _quote_metadata(symbol, {})),
                     "symbol": symbol,
-                    "price": round(current_price, 2),
-                    "change": round(change, 2),
+                    "price": current_price,
+                    "change": change,
                     "change_percent": round(change_percent, 2),
                     "volume": int(hist['Volume'].iloc[-1]) if not pd.isna(hist['Volume'].iloc[-1]) else 0,
-                    "high": round(float(hist['High'].iloc[-1]), 2) if not pd.isna(hist['High'].iloc[-1]) else None,
-                    "low": round(float(hist['Low'].iloc[-1]), 2) if not pd.isna(hist['Low'].iloc[-1]) else None,
-                    "open": round(float(hist['Open'].iloc[-1]), 2) if not pd.isna(hist['Open'].iloc[-1]) else None,
-                    "previous_close": round(previous_close, 2),
+                    "high": float(hist['High'].iloc[-1]) if not pd.isna(hist['High'].iloc[-1]) else None,
+                    "low": float(hist['Low'].iloc[-1]) if not pd.isna(hist['Low'].iloc[-1]) else None,
+                    "open": float(hist['Open'].iloc[-1]) if not pd.isna(hist['Open'].iloc[-1]) else None,
+                    "previous_close": previous_close,
                     "timestamp": int(datetime.now().timestamp()),
                     "exchange": ""
                 })
@@ -407,18 +427,11 @@ def _clean_display_name(symbol, info):
     return name
 
 def get_quote_names(symbols):
-    """Resolve display names + quote currency for symbols via yfinance .info.
+    """Resolve names, source currency and explicit quote types via Yahoo info.
 
-    Returns {"names": {symbol: name}, "currencies": {symbol: code}}. Both are
-    static per symbol, so the C++ caller caches the result and only asks for
-    symbols it hasn't resolved yet — the per-symbol .info cost is paid once,
-    never on the quote-refresh path. Symbols yfinance can't name/price are
-    simply omitted (caller keeps the raw ticker / no prefix as fallback).
-
-    Currency is omitted for forex pairs (quoteType CURRENCY — the price is a
-    rate, not a monetary amount) and for indices/yields (quoteType INDEX —
-    e.g. a currency symbol on the S&P level or the 10Y yield is misleading),
-    so callers only ever prefix a currency where it's meaningful.
+    Metadata is cached separately from names by the C++ consumer. Currency is
+    provenance, not permission to convert: INDEX, CURRENCY and YIELD values
+    remain native units even when Yahoo supplies a currency code.
     """
     import io, contextlib, logging
     yf_logger = logging.getLogger("yfinance")
@@ -426,6 +439,7 @@ def get_quote_names(symbols):
     yf_logger.setLevel(logging.CRITICAL)
     names = {}
     currencies = {}
+    quote_types = {}
     try:
         for symbol in symbols:
             try:
@@ -436,15 +450,16 @@ def get_quote_names(symbols):
                 name = _clean_display_name(symbol, info)
                 if name:
                     names[symbol] = name
-                quote_type = (info.get("quoteType") or "").upper()
-                currency = info.get("currency")
-                if currency and quote_type not in ("CURRENCY", "INDEX"):
-                    currencies[symbol] = currency
+                metadata = _quote_metadata(symbol, info)
+                _quote_metadata_cache[symbol] = metadata
+                quote_types[symbol] = metadata["quote_type"]
+                if metadata["currency"]:
+                    currencies[symbol] = metadata["currency"]
             except Exception:
                 continue
     finally:
         yf_logger.setLevel(prev_level)
-    return {"names": names, "currencies": currencies}
+    return {"names": names, "currencies": currencies, "quote_types": quote_types}
 
 def get_batch_sparklines(symbols, period="5d", interval="1h"):
     """Fetch close price series for multiple symbols — used for blotter sparklines.

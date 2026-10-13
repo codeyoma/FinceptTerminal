@@ -1,5 +1,6 @@
 #include "screens/dashboard/widgets/TradeTapeWidget.h"
 
+#include "core/currency/Currency.h"
 #include "datahub/DataHub.h"
 #include "datahub/DataHubMetaTypes.h"
 #include "trading/TradingTypes.h"
@@ -108,7 +109,8 @@ void TradeTapeWidget::render() {
     for (int i = 0; i < trades_.size(); ++i) {
         const auto& t = trades_[i];
         auto* tm = new QTableWidgetItem(t.when.toString("HH:mm:ss"));
-        auto* px = new QTableWidgetItem(QString::number(t.price, 'f', 2));
+        auto* px = new QTableWidgetItem(
+            cur::display_money(t.price, pair_.contains('/') ? pair_.section('/', 1, 1).section(':', 0, 0) : QString()));
         auto* sz = new QTableWidgetItem(QString::number(t.amount, 'f', 4));
         const QColor col = (t.side.compare("buy", Qt::CaseInsensitive) == 0) ? buy : sell;
         px->setForeground(col);

@@ -96,9 +96,12 @@ void QuoteTableWidget::render_from_cache() {
             continue;
         const auto& q = it.value();
         QString display_name = label_map_.value(q.symbol, q.symbol);
-        QString price_str = QString::number(q.price, 'f', price_decimals_);
+        QString price_str = services::MarketDataService::instance().display_price(q.symbol, q.price, price_decimals_);
         double chg_abs = q.change;
-        QString chg_str = QString("%1%2").arg(chg_abs >= 0 ? "+" : "").arg(chg_abs, 0, 'f', price_decimals_);
+        QString chg_str =
+            QString("%1%2")
+                .arg(chg_abs >= 0 ? "+" : "")
+                .arg(services::MarketDataService::instance().display_price(q.symbol, chg_abs, price_decimals_));
         QString pct_str = QString("%1%2%").arg(q.change_pct >= 0 ? "+" : "").arg(q.change_pct, 0, 'f', 2);
 
         table_->add_row({display_name, price_str, chg_str, pct_str});

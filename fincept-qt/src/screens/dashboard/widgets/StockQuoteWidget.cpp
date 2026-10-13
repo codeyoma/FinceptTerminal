@@ -177,6 +177,7 @@ void StockQuoteWidget::hideEvent(QHideEvent* e) {
 void StockQuoteWidget::set_symbol(const QString& symbol) {
     symbol_ = normalize_symbol(symbol);
     set_title(tr("QUOTE: %1").arg(symbol_));
+    last_quote_ = {};
     ticker_label_->setText(symbol_);
 
     // Blank the previous symbol's numbers immediately — leaving AAPL's price
@@ -218,7 +219,9 @@ void StockQuoteWidget::hub_unsubscribe_all() {
 }
 
 void StockQuoteWidget::populate(const services::QuoteData& q) {
-    price_label_->setText(QString("$%1").arg(q.price, 0, 'f', 2));
+    last_quote_ = q;
+    auto& market = services::MarketDataService::instance();
+    price_label_->setText(market.display_price(q.symbol, q.price));
 
     bool positive = q.change_pct >= 0;
     QString color = positive ? ui::colors::POSITIVE() : ui::colors::NEGATIVE();
@@ -228,7 +231,7 @@ void StockQuoteWidget::populate(const services::QuoteData& q) {
 
     change_label_->setText(QString("%1%2 (%3%4%)")
                                .arg(positive ? "+" : "")
-                               .arg(q.change, 0, 'f', 2)
+                               .arg(market.display_price(q.symbol, q.change))
                                .arg(positive ? "+" : "")
                                .arg(q.change_pct, 0, 'f', 2));
     change_label_->setStyleSheet(
@@ -237,7 +240,7 @@ void StockQuoteWidget::populate(const services::QuoteData& q) {
     price_label_->setStyleSheet(
         QString("color: %1; font-size: 28px; font-weight: bold; background: transparent;").arg(color));
 
-    auto fmt = [](double v) { return v > 0 ? QString("$%1").arg(v, 0, 'f', 2) : QString("--"); };
+    auto fmt = [&market, &q](double v) { return v > 0 ? market.display_price(q.symbol, v) : QString("--"); };
     // The batch quote snapshot carries last/change/high/low/volume but no
     // session open. Showing `high` here (as this did previously) prints a
     // wrong number under an "OPEN" heading — on a trading terminal that is

@@ -88,6 +88,8 @@ QWidget* ProfileScreen::make_stat_box(const QString& label, QLabel*& value_out, 
 }
 
 ProfileScreen::ProfileScreen(QWidget* parent) : QWidget(parent) {
+    connect(&currency::CurrencyManager::instance(), &currency::CurrencyManager::display_changed, this,
+            &ProfileScreen::render_billing_history);
     setStyleSheet(QString("background:%1;").arg(ui::colors::BG_BASE()));
     auto* root = new QVBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
@@ -731,18 +733,28 @@ void ProfileScreen::fetch_billing_data() {
             p = d["transactions"].toArray();
         if (p.isEmpty() && d.contains("data"))
             p = d["data"].toArray();
-        self->bill_history_->setRowCount(0);
-        for (const auto& v : p) {
-            auto e = v.toObject();
-            int row = self->bill_history_->rowCount();
-            self->bill_history_->insertRow(row);
-            self->bill_history_->setItem(row, 0, new QTableWidgetItem(e["created_at"].toString().left(10)));
-            self->bill_history_->setItem(row, 1, new QTableWidgetItem(e["plan_name"].toString()));
-            self->bill_history_->setItem(row, 2, new QTableWidgetItem(cur::money(e["amount_usd"].toDouble())));
-            self->bill_history_->setItem(row, 3, new QTableWidgetItem(QString::number(e["credits_purchased"].toInt())));
-            self->bill_history_->setItem(row, 4, new QTableWidgetItem(e["status"].toString().toUpper()));
-        }
+        self->billing_payments_ = p;
+        self->render_billing_history();
     });
+}
+
+// fork addition (codeyoma/krx-quant#142): payment amounts are explicitly USD.
+void ProfileScreen::render_billing_history() {
+    if (!bill_history_)
+        return;
+    bill_history_->setRowCount(0);
+    for (const auto& value : billing_payments_) {
+        const auto entry = value.toObject();
+        const int row = bill_history_->rowCount();
+        bill_history_->insertRow(row);
+        bill_history_->setItem(row, 0, new QTableWidgetItem(entry["created_at"].toString().left(10)));
+        bill_history_->setItem(row, 1, new QTableWidgetItem(entry["plan_name"].toString()));
+        auto* amount = new QTableWidgetItem(cur::display_money(entry["amount_usd"].toDouble(), "USD"));
+        amount->setToolTip(tr("Charged in USD: %1").arg(cur::money(entry["amount_usd"].toDouble(), false, "USD")));
+        bill_history_->setItem(row, 2, amount);
+        bill_history_->setItem(row, 3, new QTableWidgetItem(QString::number(entry["credits_purchased"].toInt())));
+        bill_history_->setItem(row, 4, new QTableWidgetItem(entry["status"].toString().toUpper()));
+    }
 }
 
 void ProfileScreen::fetch_login_history() {

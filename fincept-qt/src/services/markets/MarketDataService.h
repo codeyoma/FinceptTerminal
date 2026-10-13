@@ -5,6 +5,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
+#include <QSet>
 #include <QTimer>
 #include <QVector>
 
@@ -21,6 +22,9 @@ struct QuoteData {
     double high = 0;
     double low = 0;
     double volume = 0;
+    // Fork hook (codeyoma/krx-quant#142): source metadata; all numeric fields stay native.
+    QString currency{};
+    QString quote_type{};
 };
 
 struct InfoData {
@@ -137,6 +141,20 @@ class MarketDataService : public QObject, public fincept::datahub::Producer {
     /// cheap synchronous lookup.
     QString currency_prefix(const QString& symbol);
 
+    // Fork hook (codeyoma/krx-quant#142): display conversion never mutates quotes.
+    // Unknown metadata is not inferred from ticker suffixes or a USD default.
+    QString currency_code(const QString& symbol);
+    bool is_monetary(const QString& symbol);
+    QString display_price(const QString& symbol, double amount, int precision = -1, bool compact = false);
+    double display_value(const QString& symbol, double amount);
+    QString native_price(const QString& symbol, double amount, int precision = -1);
+
+  signals:
+    void metadata_changed();
+    /// Emitted for source metadata, preferred currency, rates, or rate expiry.
+    void display_changed();
+
+  public:
     static QVector<MarketCategory> default_global_markets();
     static QVector<RegionalMarket> default_regional_markets();
 
@@ -164,8 +182,12 @@ class MarketDataService : public QObject, public fincept::datahub::Producer {
     // per-symbol yfinance .info cost is paid at most once.
     void load_name_cache();
     void persist_name_cache();
+    void enrich_quote(QuoteData& quote);
     QHash<QString, QString> name_cache_;
-    QHash<QString, QString> currency_cache_; // symbol → ISO currency code (e.g. "USD")
+    QHash<QString, QString> currency_cache_; // symbol → source currency code (e.g. "USD", "GBp")
+    QHash<QString, QString> quote_type_cache_;
+    QSet<QString> metadata_in_flight_;
+    QHash<QString, qint64> metadata_retry_after_;
     bool name_cache_loaded_ = false;
 
     // ── Batching ──

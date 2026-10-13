@@ -16,6 +16,7 @@ class PortfolioStatusBar : public QWidget {
     explicit PortfolioStatusBar(QWidget* parent = nullptr);
 
     void set_summary(const portfolio::PortfolioSummary& summary);
+    void set_monetary_available(bool available);
     void set_portfolio_name(const QString& name);
 
     /// Drive the ●LIVE / ●STALE indicator from what actually happened.
@@ -47,6 +48,7 @@ class PortfolioStatusBar : public QWidget {
     QTimer* clock_timer_ = nullptr;
     QString tz_abbrev_; // cached — recomputed only when it actually changes
     bool feed_live_ = true;
+    bool monetary_available_ = true;
 
     std::optional<portfolio::PortfolioSummary> last_summary_;
 };

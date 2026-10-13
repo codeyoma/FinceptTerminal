@@ -24,6 +24,7 @@ class WatchlistWidget : public BaseWidget {
 
   protected:
     void on_theme_changed() override;
+    void on_display_currency_changed() override { render_from_cache(); }
     void showEvent(QShowEvent* e) override;
     void hideEvent(QHideEvent* e) override;
     void retranslateUi() override;

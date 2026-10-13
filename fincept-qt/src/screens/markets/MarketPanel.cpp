@@ -29,6 +29,9 @@ MarketPanel::MarketPanel(const MarketPanelConfig& config, QWidget* parent) : QWi
     setMinimumHeight(kHeaderH + kColHeaderH + kRowH * 4); // always room for at least 4 rows
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Ignored);
     build_ui();
+    // Fork hook (codeyoma/krx-quant#142): metadata/rate updates only repaint cached native quotes.
+    connect(&services::MarketDataService::instance(), &services::MarketDataService::display_changed, this,
+            &MarketPanel::schedule_populate);
     connect(&ui::ThemeManager::instance(), &ui::ThemeManager::theme_changed, this,
             [this](const ui::ThemeTokens&) { refresh_theme(); });
     refresh_theme();
@@ -506,10 +509,9 @@ void MarketPanel::populate(const QVector<services::QuoteData>& quotes) {
         if (disp.isEmpty())
             disp = (!q.name.isEmpty() && q.name != q.symbol) ? q.name : q.symbol;
 
-        // Currency symbol shown in front of price levels (e.g. "$", "₹").
-        // Empty for forex pairs / index levels / yields, where it isn't
-        // meaningful. Resolved & cached alongside the display name.
-        const QString cur = services::MarketDataService::instance().currency_prefix(q.symbol);
+        // Resolve display units from source metadata. Indices, yields and FX
+        // remain native; monetary quote values use the selected display currency.
+        auto& market = services::MarketDataService::instance();
 
         const QStringList& cols = config_.column_order;
         for (int ci = 0; ci < cols.size(); ++ci) {
@@ -526,15 +528,16 @@ void MarketPanel::populate(const QVector<services::QuoteData>& quotes) {
             else if (col == "TICKER")
                 table_->setItem(row, ci, mk(q.symbol, ui::colors::TEXT_DIM(), Qt::AlignLeft | Qt::AlignVCenter));
             else if (col == "LAST")
-                table_->setItem(row, ci, mk(cur + QString::number(q.price, 'f', prec), ui::colors::AMBER()));
+                table_->setItem(row, ci, mk(market.display_price(q.symbol, q.price, prec), ui::colors::AMBER()));
             else if (col == "CHG")
-                table_->setItem(row, ci, mk(QString("%1 %2").arg(arr).arg(std::abs(q.change), 0, 'f', 2), cc));
+                table_->setItem(
+                    row, ci, mk(QString("%1 %2").arg(arr).arg(market.display_price(q.symbol, std::abs(q.change))), cc));
             else if (col == "CHG%")
                 table_->setItem(row, ci, mk(QString("%1%2%").arg(arr).arg(std::abs(q.change_pct), 0, 'f', 2), cc));
             else if (col == "HIGH")
-                table_->setItem(row, ci, mk(cur + QString::number(q.high, 'f', 2), ui::colors::TEXT_SECONDARY()));
+                table_->setItem(row, ci, mk(market.display_price(q.symbol, q.high), ui::colors::TEXT_SECONDARY()));
             else if (col == "LOW")
-                table_->setItem(row, ci, mk(cur + QString::number(q.low, 'f', 2), ui::colors::TEXT_SECONDARY()));
+                table_->setItem(row, ci, mk(market.display_price(q.symbol, q.low), ui::colors::TEXT_SECONDARY()));
             else if (col == "VOL")
                 table_->setItem(row, ci,
                                 mk(fincept::ui::formatting::format_compact_volume(static_cast<qint64>(q.volume)),

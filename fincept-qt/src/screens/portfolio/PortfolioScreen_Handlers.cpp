@@ -75,6 +75,9 @@ void PortfolioScreen::on_portfolio_selected(const QString& id) {
     selected_id_ = id;
     ScreenStateManager::instance().notify_changed(this);
     summary_loaded_ = false;
+    monetary_available_ = false;
+    status_bar_->set_monetary_available(false);
+    current_snapshots_.clear();
     // Drop any error caption left over from a previous failed load.
     if (loading_label_) {
         loading_label_->setText(tr("Loading portfolio data…"));
@@ -109,9 +112,15 @@ void PortfolioScreen::on_summary_loaded(portfolio::PortfolioSummary summary) {
     summary_loaded_ = true;
 
     command_bar_->set_refreshing(false);
-    stats_ribbon_->set_summary(summary);
-    status_bar_->set_summary(summary);
     status_bar_->set_feed_state(true);
+
+    blotter_->set_source_currency(summary.portfolio.currency);
+    blotter_->set_holdings(summary.holdings);
+
+    QStringList symbols;
+    for (const auto& h : summary.holdings)
+        symbols.append(h.symbol);
+    services::MarketDataService::instance().resolve_names(symbols, {});
 
     update_main_view_data();
     update_content_state();
@@ -209,8 +218,9 @@ void PortfolioScreen::on_metrics_computed(portfolio::ComputedMetrics metrics) {
 void PortfolioScreen::on_snapshots_loaded(QString portfolio_id, QVector<portfolio::PortfolioSnapshot> snapshots) {
     if (portfolio_id != selected_id_)
         return;
-    if (perf_chart_)
-        perf_chart_->set_snapshots(snapshots);
+    current_snapshots_ = snapshots;
+    if (summary_loaded_)
+        update_main_view_data();
     if (detail_wrapper_)
         detail_wrapper_->update_snapshots(snapshots);
 }
@@ -338,7 +348,8 @@ void PortfolioScreen::reposition_order_panel() {
 
     const int panel_w = order_panel_->width();
     // Anchor below command bar + stats ribbon; stop above status bar.
-    const int top = command_bar_->height() + (stats_ribbon_->isVisible() ? stats_ribbon_->height() : 0);
+    const int top = command_bar_->height() + (stats_ribbon_->isVisible() ? stats_ribbon_->height() : 0) +
+                    (currency_note_ && currency_note_->isVisible() ? currency_note_->height() : 0);
     const int bottom = status_bar_->isVisible() ? status_bar_->height() : 0;
     const int h = height() - top - bottom;
     order_panel_->setGeometry(width() - panel_w, top, panel_w, h);
@@ -350,7 +361,8 @@ void PortfolioScreen::animate_order_panel_in() {
         return;
 
     const int panel_w = order_panel_->width();
-    const int top = command_bar_->height() + (stats_ribbon_->isVisible() ? stats_ribbon_->height() : 0);
+    const int top = command_bar_->height() + (stats_ribbon_->isVisible() ? stats_ribbon_->height() : 0) +
+                    (currency_note_ && currency_note_->isVisible() ? currency_note_->height() : 0);
     const int bottom = status_bar_->isVisible() ? status_bar_->height() : 0;
     const int h = height() - top - bottom;
 

@@ -112,7 +112,7 @@ class EquityChartPanel : public QWidget {
     QString pos_side_; // "long" | "short"
     QString pos_exchange_;
     QString pos_product_;
-    QString pos_currency_; // currency code for P&L (e.g. "INR"); empty = global
+    QString pos_currency_; // Source currency for P&L; empty means unavailable, never global.
     double pos_qty_ = 0.0;
     double pos_entry_ = 0.0;
     double pos_ltp_ = 0.0;

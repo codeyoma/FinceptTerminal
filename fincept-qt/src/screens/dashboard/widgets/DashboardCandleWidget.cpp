@@ -154,11 +154,11 @@ void CandleCanvas::rebuild_cache() {
     QFontMetrics fm(lbl_font);
     p.setPen(QColor(ui::colors::TEXT_SECONDARY.get()));
 
-    const bool is_large = hi > 1000;
     for (int g = 0; g <= 6; ++g) {
         double price = lo + (hi - lo) * g / 6.0;
         int gy = py(price);
-        QString txt = is_large ? QString::number(price, 'f', 0) : QString::number(price, 'f', 2);
+        // Fork hook (codeyoma/krx-quant#142): raw geometry and OHLC data remain untouched.
+        QString txt = services::MarketDataService::instance().display_price(symbol_, price);
         p.drawText(plot_w + 4, gy + fm.ascent() / 2, txt);
     }
 
@@ -207,6 +207,7 @@ DashboardCandleWidget::DashboardCandleWidget(const QJsonObject& cfg, QWidget* pa
     vl->setSpacing(0);
 
     canvas_ = new CandleCanvas(this);
+    canvas_->set_symbol(symbol_);
     vl->addWidget(canvas_, 1);
 
     set_configurable(true);
@@ -232,6 +233,7 @@ void DashboardCandleWidget::apply_config(const QJsonObject& cfg) {
     symbol_ = next;
     set_title(tr("CANDLE \xc2\xb7 %1").arg(symbol_));
     canvas_->clear();
+    canvas_->set_symbol(symbol_);
     if (isVisible()) {
         set_loading(true);
         hub_resubscribe();

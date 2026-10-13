@@ -13,6 +13,8 @@
 // replays it on a language change.
 #include "screens/equity_research/EquityAnalysisTab.h"
 
+#include "core/currency/Currency.h"
+#include "screens/equity_research/EquityValuationUnits.h"
 #include "services/equity/EquityResearchService.h"
 #include "ui/theme/Theme.h"
 
@@ -42,12 +44,15 @@ class AnalysisPriceTargetGauge : public QWidget {
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     }
 
-    void set_data(double low, double mean, double high, double price, const QString& cur) {
+    void set_data(double low, double mean, double high, double price, const QString& low_text, const QString& mean_text,
+                  const QString& high_text) {
         low_ = low;
         mean_ = mean;
         high_ = high;
         price_ = price;
-        cur_ = cur;
+        low_text_ = low_text;
+        mean_text_ = mean_text;
+        high_text_ = high_text;
         has_data_ = (low > 0.0 || mean > 0.0 || high > 0.0);
         update();
     }
@@ -103,17 +108,12 @@ class AnalysisPriceTargetGauge : public QWidget {
         p.setFont(small);
         const QFontMetrics fm(small);
 
-        auto money = [&](double v) -> QString {
-            const int dec = v >= 1000.0 ? 0 : 2;
-            return cur_ + QString::number(v, 'f', dec);
-        };
-
         // Mean tick + label (above the track).
         if (mean_ > 0.0) {
             double xm = x_for(mean_);
             p.setPen(QPen(QColor(ui::colors::AMBER()), 1.5));
             p.drawLine(QPointF(xm, y_track - 9), QPointF(xm, y_track + 9));
-            const QString t = QStringLiteral("mean ") + money(mean_);
+            const QString t = QStringLiteral("mean ") + mean_text_;
             double tx = std::clamp(xm - (fm.horizontalAdvance(t) / 2.0), x_left, x_right - fm.horizontalAdvance(t));
             p.setPen(QColor(ui::colors::AMBER()));
             p.drawText(QPointF(tx, y_track - 12), t);
@@ -122,9 +122,9 @@ class AnalysisPriceTargetGauge : public QWidget {
         // Low / high labels (below the track ends).
         p.setPen(QColor(ui::colors::TEXT_TERTIARY()));
         if (low_ > 0.0)
-            p.drawText(QPointF(x_left, y_track + 20), QStringLiteral("low ") + money(low_));
+            p.drawText(QPointF(x_left, y_track + 20), QStringLiteral("low ") + low_text_);
         if (high_ > 0.0) {
-            const QString t = QStringLiteral("high ") + money(high_);
+            const QString t = QStringLiteral("high ") + high_text_;
             p.drawText(QPointF(x_right - fm.horizontalAdvance(t), y_track + 20), t);
         }
 
@@ -150,7 +150,7 @@ class AnalysisPriceTargetGauge : public QWidget {
     double mean_ = 0.0;
     double high_ = 0.0;
     double price_ = 0.0;
-    QString cur_ = QStringLiteral("$");
+    QString low_text_, mean_text_, high_text_;
     bool has_data_ = false;
 };
 
@@ -195,6 +195,11 @@ EquityAnalysisTab::EquityAnalysisTab(QWidget* parent) : QWidget(parent) {
     build_ui();
     auto& svc = services::equity::EquityResearchService::instance();
     connect(&svc, &services::equity::EquityResearchService::info_loaded, this, &EquityAnalysisTab::on_info_loaded);
+    // fork addition (codeyoma/krx-quant#142): replay raw info for both labels and gauge.
+    connect(&currency::CurrencyManager::instance(), &currency::CurrencyManager::display_changed, this, [this]() {
+        if (info_loaded_)
+            on_info_loaded(cached_info_);
+    });
     // The overlay was only ever hidden on the success path, so a failed "Info"
     // fetch left "LOADING ANALYSIS…" spinning over the tab forever.
     connect(&svc, &services::equity::EquityResearchService::error_occurred, this,
@@ -406,7 +411,8 @@ void EquityAnalysisTab::populate_hero_(const services::equity::StockInfo& info) 
     hero_empty_->setVisible(false);
     hero_upside_->setVisible(true);
     gauge_->setVisible(true);
-    gauge_->set_data(info.target_low, info.target_mean, info.target_high, info.current_price, cur_symbol_());
+    gauge_->set_data(info.target_low, info.target_mean, info.target_high, info.current_price,
+                     fmt_money(info.target_low), fmt_money(info.target_mean), fmt_money(info.target_high));
 
     hero_price_->setText(info.current_price > 0.0 ? fmt_money(info.current_price) + tr(" now") : QStringLiteral("—"));
 
@@ -719,47 +725,28 @@ QString EquityAnalysisTab::fmt(double v, int decimals) const {
     return v != 0.0 ? QString::number(v, 'f', decimals) : QStringLiteral("—");
 }
 
-QString EquityAnalysisTab::fmt_large(double v) {
+QString EquityAnalysisTab::fmt_large(double v) const {
     if (v == 0.0)
         return QStringLiteral("—");
-    const bool neg = v < 0;
-    const double a = std::abs(v);
-    QString s;
-    if (a >= 1e12)
-        s = QString("%1T").arg(a / 1e12, 0, 'f', 2);
-    else if (a >= 1e9)
-        s = QString("%1B").arg(a / 1e9, 0, 'f', 2);
-    else if (a >= 1e6)
-        s = QString("%1M").arg(a / 1e6, 0, 'f', 1);
-    else
-        s = QString::number(a, 'f', 0);
-    return neg ? "-" + s : s;
+    return cur::display_money(v, cached_info_.financial_currency, true);
 }
 
 QString EquityAnalysisTab::fmt_pct(double v) const {
     return v != 0.0 ? QString("%1%").arg(v * 100.0, 0, 'f', 2) : QStringLiteral("—");
 }
 
-QString EquityAnalysisTab::cur_symbol_() const {
-    const QString c = cached_info_.currency.toUpper();
-    if (c == "INR")
-        return QStringLiteral("₹");
-    if (c == "EUR")
-        return QStringLiteral("€");
-    if (c == "GBP")
-        return QStringLiteral("£");
-    if (c == "JPY")
-        return QStringLiteral("¥");
-    if (c.isEmpty() || c == "USD")
-        return QStringLiteral("$");
-    return c + QStringLiteral(" ");
-}
-
 QString EquityAnalysisTab::fmt_money(double v) const {
     if (v == 0.0)
         return QStringLiteral("—");
-    const int dec = std::abs(v) >= 1000.0 ? 0 : 2;
-    return cur_symbol_() + QString::number(v, 'f', dec);
+    if (cached_info_.quote_type == QLatin1String("INDEX"))
+        return tr("%1 points").arg(QString::number(v, 'f', 2));
+    if (cached_info_.quote_type == QLatin1String("CURRENCY"))
+        return tr("%1 (native quote)").arg(QString::number(v, 'f', 4));
+    if (cached_info_.quote_type == QLatin1String("YIELD"))
+        return QString::number(v, 'f', 3) + QLatin1Char('%');
+    if (!equity::monetary_quote_type(equity::resolved_quote_type(cached_info_.quote_type)))
+        return tr("%1 (native quote)").arg(QString::number(v, 'f', 4));
+    return cur::display_money(v, cached_info_.currency);
 }
 
 QString EquityAnalysisTab::color_for_(Tone t) const {

@@ -6,6 +6,7 @@
 //
 // Part of the partial-class split of PortfolioScreen.cpp.
 
+#include "core/currency/CurrencyManager.h"
 #include "core/events/EventBus.h"
 #include "core/session/ScreenStateManager.h"
 #include "core/symbol/SymbolContext.h"
@@ -20,6 +21,7 @@
 #include "screens/portfolio/PortfolioOrderPanel.h"
 #include "screens/portfolio/PortfolioPanelHeader.h"
 #include "screens/portfolio/PortfolioPerfChart.h"
+#include "screens/portfolio/PortfolioPresentation.h"
 #include "screens/portfolio/PortfolioScreen.h"
 #include "screens/portfolio/PortfolioSectorPanel.h"
 #include "screens/portfolio/PortfolioStatsRibbon.h"
@@ -61,6 +63,12 @@ void PortfolioScreen::build_ui() {
     // Command bar
     command_bar_ = new PortfolioCommandBar(this);
     layout->addWidget(command_bar_);
+
+    currency_note_ = new QLabel(this);
+    currency_note_->setWordWrap(true);
+    currency_note_->setContentsMargins(12, 4, 12, 4);
+    currency_note_->hide();
+    layout->addWidget(currency_note_);
 
     connect(command_bar_, &PortfolioCommandBar::portfolio_selected, this, &PortfolioScreen::on_portfolio_selected);
     connect(command_bar_, &PortfolioCommandBar::create_requested, this, &PortfolioScreen::on_create_requested);
@@ -470,6 +478,8 @@ QWidget* PortfolioScreen::build_loading_state() {
 }
 
 void PortfolioScreen::update_content_state() {
+    if (currency_note_)
+        currency_note_->setVisible(summary_loaded_ && !selected_id_.isEmpty() && !portfolios_.isEmpty());
     bool has_portfolios = !portfolios_.isEmpty();
     bool has_selection = !selected_id_.isEmpty();
 
@@ -502,7 +512,7 @@ void PortfolioScreen::update_content_state() {
         command_bar_->set_has_selection(true);
     } else {
         content_stack_->setCurrentIndex(2); // main view
-        stats_ribbon_->setVisible(true);
+        stats_ribbon_->setVisible(monetary_available_);
         status_bar_->setVisible(true);
         command_bar_->setVisible(true);
         command_bar_->set_has_selection(true);
@@ -526,6 +536,7 @@ QWidget* PortfolioScreen::build_main_view() {
 
     // ── Top row: heatmap | chart | sector — 40% vertical ────────────────────
     auto* top_split = new QSplitter(Qt::Horizontal);
+    monetary_panels_ = top_split;
     top_split->setHandleWidth(1);
     top_split->setStyleSheet(QString("QSplitter::handle { background:%1; }").arg(ui::colors::BORDER_DIM()));
 
@@ -732,22 +743,62 @@ void PortfolioScreen::update_main_view_data() {
     if (!heatmap_)
         return;
 
-    QString currency = current_summary_.portfolio.currency;
+    auto& market = services::MarketDataService::instance();
+    QHash<QString, portfolio::PortfolioQuoteUnit> quote_currencies;
+    for (const auto& h : current_summary_.holdings) {
+        quote_currencies.insert(h.symbol, {market.currency_code(h.symbol), market.is_monetary(h.symbol)});
+    }
+    auto& manager = currency::CurrencyManager::instance();
+    const auto unit = manager.display_amount(1.0, current_summary_.portfolio.currency);
+    const auto display =
+        portfolio::present_portfolio(current_summary_, current_snapshots_, quote_currencies, unit.currency,
+                                     unit.available ? std::optional<double>(unit.value) : std::nullopt);
+    const QString currency = display.summary.portfolio.currency;
 
-    heatmap_->set_holdings(current_summary_.holdings);
-    heatmap_->set_currency(currency);
+    monetary_available_ = display.monetary_available;
+    stats_ribbon_->setVisible(monetary_available_ && summary_loaded_ && !show_ffn_ && !active_detail_.has_value());
+    monetary_panels_->setVisible(monetary_available_);
+    status_bar_->set_monetary_available(monetary_available_);
+    if (monetary_available_)
+        stats_ribbon_->set_summary(display.summary);
+    status_bar_->set_summary(display.summary);
+    if (currency_note_) {
+        QString note;
+        if (!display.source_verified) {
+            note = tr("Totals unavailable — quote and cost currencies are mixed or unverified. "
+                      "Aggregate panels are hidden; verified individual quotes remain in the positions table.");
+        } else if (!unit.available || currency != manager.code()) {
+            note = tr("Native %1 — daily FX conversion to %2 is unavailable.").arg(currency, manager.code());
+        } else if (display.converted) {
+            note = tr("Current values display %1 · source %2 · daily FX %3.")
+                       .arg(currency, current_summary_.portfolio.currency, unit.rate_date.toString(Qt::ISODate));
+        } else {
+            note = tr("Display and source currency: %1.").arg(currency);
+        }
+        note += tr(" History stays native because snapshot currencies are unverified. Orders, transactions and "
+                   "detailed analytics retain their source units.");
+        currency_note_->setText(note);
+        currency_note_->setVisible(summary_loaded_);
+    }
 
-    perf_chart_->set_summary(current_summary_);
-    perf_chart_->set_currency(currency);
+    if (monetary_available_) {
+        heatmap_->set_holdings(display.summary.holdings);
+        heatmap_->set_currency(currency);
 
-    sector_panel_->set_holdings(current_summary_.holdings);
-    sector_panel_->set_currency(currency);
+        perf_chart_->set_summary(current_summary_);
+        perf_chart_->set_currency(current_summary_.portfolio.currency);
+        perf_chart_->set_snapshots(display.snapshots);
+        perf_chart_->setToolTip(tr("Native history. Historical snapshots do not record their currency; changing "
+                                   "display currency does not convert this chart."));
 
-    blotter_->set_holdings(current_summary_.holdings);
+        sector_panel_->set_holdings(display.summary.holdings);
+        sector_panel_->set_currency(currency);
+    }
+
     if (positions_count_label_)
         positions_count_label_->setText(QString::number(current_summary_.holdings.size()));
 
-    order_panel_->set_currency(currency);
+    order_panel_->set_currency(current_summary_.portfolio.currency);
 
     // Re-select the current symbol. find_holding() returns nullptr once the
     // position is gone (sold out, portfolio emptied) — always push the result

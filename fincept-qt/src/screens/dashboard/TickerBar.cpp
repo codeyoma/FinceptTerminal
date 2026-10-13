@@ -30,6 +30,11 @@ static const char* kSettingsCategory = "dashboard";
 
 TickerBar::TickerBar(QWidget* parent)
     : QWidget(parent), ticker_font_(ui::fonts::DATA_FAMILY(), ui::fonts::font_px(-2)), ticker_fm_(ticker_font_) {
+    // Fork hook (codeyoma/krx-quant#142): cached text/widths refresh without fetching quotes.
+    connect(&services::MarketDataService::instance(), &services::MarketDataService::display_changed, this, [this]() {
+        rebuild_entry_cache();
+        update();
+    });
     setFixedHeight(kEditBarHeight);
     setContextMenuPolicy(Qt::DefaultContextMenu);
     setAccessibleName(tr("Market ticker"));
@@ -166,7 +171,7 @@ void TickerBar::rebuild_entry_cache() {
 
     total_width_ = 0;
     for (auto& e : entries_) {
-        e.price_text = QString::number(e.price, 'f', 2);
+        e.price_text = services::MarketDataService::instance().display_price(e.symbol, e.price);
         e.change_text = QString("%1%2%").arg(e.change >= 0 ? "+" : "").arg(e.change, 0, 'f', 2);
         e.change_col = QColor(ui::change_color(e.change));
 

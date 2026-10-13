@@ -1,8 +1,10 @@
 // src/screens/portfolio/PortfolioBlotter.cpp
 #include "screens/portfolio/PortfolioBlotter.h"
 
+#include "core/currency/Currency.h"
 #include "datahub/DataHub.h"
 #include "datahub/DataHubMetaTypes.h"
+#include "screens/portfolio/PortfolioPresentation.h"
 #include "screens/portfolio/PortfolioSparkline.h"
 #include "services/markets/MarketDataService.h"
 #include "storage/repositories/SettingsRepository.h"
@@ -80,6 +82,8 @@ PortfolioBlotter::PortfolioBlotter(QWidget* parent) : QWidget(parent) {
         }
     }
     build_ui();
+    connect(&services::MarketDataService::instance(), &services::MarketDataService::display_changed, this,
+            [this] { populate_table(); });
 }
 
 void PortfolioBlotter::build_ui() {
@@ -395,12 +399,19 @@ void PortfolioBlotter::hub_resubscribe_broker_quotes(const QString& broker_accou
 }
 
 void PortfolioBlotter::update_row_price(const QString& symbol, double ltp, double change_pct) {
+    if (!std::isfinite(ltp) || ltp <= 0 || !std::isfinite(change_pct))
+        return;
+    // Keep exact native values for later FX/metadata repaints. Previously only
+    // the text changed, so a re-render restored the last polled stale price.
+    portfolio::update_native_quote(holdings_, symbol, ltp, change_pct);
+    portfolio::update_native_quote(sorted_, symbol, ltp, change_pct);
+    invalidate_view_cache();
     for (int r = 0; r < table_->rowCount(); ++r) {
         auto* item = table_->item(r, kColSymbol);
         if (!item || item->data(Qt::UserRole).toString() != symbol)
             continue;
         if (auto* last_item = table_->item(r, kColLast))
-            last_item->setText(format_value(ltp));
+            last_item->setText(services::MarketDataService::instance().display_price(symbol, ltp));
         // Recalculate market value & P&L from holdings data
         const int idx = r + (current_page_ - 1) * page_size_;
         const auto& view = visible_view();
@@ -411,16 +422,19 @@ void PortfolioBlotter::update_row_price(const QString& symbol, double ltp, doubl
             const double pnl_pct = h.cost_basis > 0 ? (pnl / h.cost_basis) * 100.0 : 0.0;
             const char* pnl_color = pnl >= 0 ? ui::colors::POSITIVE : ui::colors::NEGATIVE;
             if (auto* mv = table_->item(r, kColMktVal))
-                mv->setText(format_value(mkt_val));
+                mv->setText(services::MarketDataService::instance().display_price(symbol, mkt_val));
             if (auto* pnl_item = table_->item(r, kColPnl)) {
-                pnl_item->setText(QString("%1%2").arg(pnl >= 0 ? "+" : "").arg(format_value(pnl)));
+                pnl_item->setText(cost_currency_verified(symbol)
+                                      ? QString("%1%2").arg(pnl >= 0 ? "+" : "").arg(format_cost(pnl, symbol))
+                                      : QStringLiteral("—"));
                 // Recolour too: a tick that flipped a position from green to
                 // red kept the stale green foreground until the next full poll.
                 pnl_item->setForeground(QColor(pnl_color));
             }
             if (auto* pnl_pct_item = table_->item(r, kColPnlPct)) {
-                pnl_pct_item->setText(
-                    QString("%1%2%").arg(pnl_pct >= 0 ? "+" : "").arg(format_value(pnl_pct)));
+                pnl_pct_item->setText(cost_currency_verified(symbol)
+                                          ? QString("%1%2%").arg(pnl_pct >= 0 ? "+" : "").arg(format_value(pnl_pct))
+                                          : QStringLiteral("—"));
                 pnl_pct_item->setForeground(QColor(pnl_color));
             }
         }
@@ -676,27 +690,34 @@ void PortfolioBlotter::populate_table() {
         set_cell(kColQty, format_value(h.quantity, h.quantity == std::floor(h.quantity) ? 0 : 2));
 
         // LAST (price)
-        set_cell(kColLast, format_value(h.current_price));
+        set_cell(kColLast, services::MarketDataService::instance().display_price(h.symbol, h.current_price));
 
         // AVG COST
-        set_cell(kColAvgCost, format_value(h.avg_buy_price));
+        set_cell(kColAvgCost, format_cost(h.avg_buy_price, h.symbol));
 
         // MKT VAL
-        set_cell(kColMktVal, format_value(h.market_value), ui::colors::WARNING);
+        set_cell(kColMktVal, services::MarketDataService::instance().display_price(h.symbol, h.market_value),
+                 ui::colors::WARNING);
 
         // COST BASIS
-        set_cell(kColCostBasis, format_value(h.cost_basis));
+        set_cell(kColCostBasis, format_cost(h.cost_basis, h.symbol));
 
         // P&L
         const char* pnl_color = h.unrealized_pnl >= 0 ? ui::colors::POSITIVE : ui::colors::NEGATIVE;
-        set_cell(kColPnl, QString("%1%2").arg(h.unrealized_pnl >= 0 ? "+" : "").arg(format_value(h.unrealized_pnl)),
-                 pnl_color);
+        set_cell(
+            kColPnl,
+            cost_currency_verified(h.symbol)
+                ? QString("%1%2").arg(h.unrealized_pnl >= 0 ? "+" : "").arg(format_cost(h.unrealized_pnl, h.symbol))
+                : QStringLiteral("—"),
+            pnl_color);
 
         // P&L%
-        set_cell(
-            kColPnlPct,
-            QString("%1%2%").arg(h.unrealized_pnl_percent >= 0 ? "+" : "").arg(format_value(h.unrealized_pnl_percent)),
-            pnl_color);
+        set_cell(kColPnlPct,
+                 cost_currency_verified(h.symbol) ? QString("%1%2%")
+                                                        .arg(h.unrealized_pnl_percent >= 0 ? "+" : "")
+                                                        .arg(format_value(h.unrealized_pnl_percent))
+                                                  : QStringLiteral("—"),
+                 pnl_color);
 
         // CHG%
         const char* chg_color = h.day_change_percent >= 0 ? ui::colors::POSITIVE : ui::colors::NEGATIVE;
@@ -762,6 +783,17 @@ void PortfolioBlotter::populate_table() {
 
     // Footer status + nav button enabled-state must reflect what we just rendered.
     update_pagination_controls();
+}
+
+bool PortfolioBlotter::cost_currency_verified(const QString& symbol) const {
+    auto& market = services::MarketDataService::instance();
+    return !source_currency_.isEmpty() && market.is_monetary(symbol) &&
+           market.currency_code(symbol) == source_currency_;
+}
+
+QString PortfolioBlotter::format_cost(double value, const QString& symbol) const {
+    return cost_currency_verified(symbol) ? cur::display_money(value, source_currency_)
+                                          : tr("%1 (native)").arg(format_value(value));
 }
 
 QString PortfolioBlotter::format_value(double v, int dp) const {

@@ -49,6 +49,20 @@ class TstKrxKorean : public QObject {
         }
     }
 
+    void exchange_rate_status_resolves_in_runtime_context() {
+        QTranslator korean;
+        QVERIFY(korean.load(QStringLiteral(":/i18n/fincept_ko_KR.qm")));
+        const QRegularExpression hangul(QStringLiteral("[가-힣]"));
+        for (const char* source :
+             {"Refresh exchange rates", "ECB daily reference rates — %1",
+              "Reference rates unavailable. Amounts keep their original currency.", "Refreshing exchange rates…"}) {
+            const auto translated = korean.translate("fincept::screens::GeneralSection", source);
+            QVERIFY2(hangul.match(translated).hasMatch(), source);
+            QCOMPARE(placeholders(translated), placeholders(QString::fromUtf8(source)));
+        }
+        QCOMPARE(korean.translate("Currency", "(native)"), QStringLiteral("(원 단위)"));
+    }
+
     void every_existing_catalog_entry_survives_compilation_with_its_placeholders() {
         QTranslator korean;
         QVERIFY(korean.load(QStringLiteral(":/i18n/fincept_ko_KR.qm")));

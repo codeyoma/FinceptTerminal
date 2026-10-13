@@ -860,6 +860,8 @@ set(CORE_SOURCES
     src/core/session/ScreenStateManager.cpp
     src/core/i18n/LanguageManager.cpp
     src/core/currency/CurrencyManager.cpp
+    # fork addition (codeyoma/krx-quant#142): leaf reference-rate model.
+    src/core/currency/fx/FxRates.cpp
     src/core/keys/KeyConfigManager.cpp
     src/core/keys/WindowCycler.cpp
     src/core/net/NetSpeedMeter.cpp
@@ -2630,6 +2632,7 @@ set_source_files_properties(
     src/trading/brokers/metaapi/MetaApiBroker.cpp
     src/trading/brokers/tickerall/TickerAllBroker.cpp
     # Fork addition: file-scope helpers with common names, kept out of unity batches.
+    src/core/currency/fx/FxRates.cpp
     src/screens/krx_quant/KrxAlerts.cpp
     src/screens/krx_quant/KrxChart.cpp
     src/screens/krx_quant/KrxLeaderboard.cpp

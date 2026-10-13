@@ -1,5 +1,6 @@
 #include "services/markets/MarketDataService.h"
 
+#include "core/currency/CurrencyManager.h"
 #include "core/logging/Logger.h"
 #include "datahub/DataHub.h"
 #include "datahub/DataHubMetaTypes.h"
@@ -9,23 +10,63 @@
 #include "storage/cache/CacheManager.h"
 #include "storage/repositories/SettingsRepository.h"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLocale>
 #include <QPointer>
 #include <QSet>
 
+#include <cmath>
 #include <memory>
 
 namespace fincept::services {
+
+namespace {
+// Fork hook (codeyoma/krx-quant#142): one native serializer covers hub, callback and cache paths.
+QuoteData parse_native_quote(const QJsonObject& q) {
+    return {q["symbol"].toString(),
+            q["name"].toString(q["symbol"].toString()),
+            q["price"].toDouble(),
+            q["change"].toDouble(),
+            q.contains("change_pct") ? q["change_pct"].toDouble() : q["change_percent"].toDouble(),
+            q["high"].toDouble(),
+            q["low"].toDouble(),
+            q["volume"].toDouble(),
+            q["currency"].toString(),
+            q["quote_type"].toString()};
+}
+
+QJsonObject native_quote_json(const QuoteData& q) {
+    return {{"symbol", q.symbol},
+            {"name", q.name},
+            {"price", q.price},
+            {"change", q.change},
+            {"change_pct", q.change_pct},
+            {"high", q.high},
+            {"low", q.low},
+            {"volume", q.volume},
+            {"currency", q.currency},
+            {"quote_type", q.quote_type}};
+}
+
+bool monetary_type(const QString& type) {
+    return currency::monetary_quote_type(type);
+}
+} // namespace
 
 MarketDataService& MarketDataService::instance() {
     static MarketDataService s;
     return s;
 }
 
-MarketDataService::MarketDataService() {}
+MarketDataService::MarketDataService() {
+    connect(&currency::CurrencyManager::instance(), &currency::CurrencyManager::display_changed, this,
+            &MarketDataService::display_changed);
+    connect(this, &MarketDataService::metadata_changed, this, &MarketDataService::display_changed);
+}
 
 // ── DataHub Producer integration ────────────────────────────────────────────
 
@@ -80,6 +121,13 @@ void MarketDataService::refresh(const QStringList& topics) {
                             .arg(quote_syms.size())
                             .arg(spark_syms.size())
                             .arg(hist_reqs.size()));
+
+    // Resolve independently of names, including history-only chart subscriptions.
+    QStringList metadata_symbols = quote_syms + spark_syms;
+    for (const auto& h : hist_reqs)
+        metadata_symbols.append(h.symbol);
+    metadata_symbols.removeDuplicates();
+    resolve_names(metadata_symbols, {});
 
     // Build the unified batch_all payload.
     QJsonObject payload;
@@ -174,25 +222,9 @@ void MarketDataService::refresh(const QStringList& topics) {
                     }
                     continue;
                 }
-                QuoteData qd{sym,
-                             q["name"].toString(sym),
-                             q["price"].toDouble(),
-                             q["change"].toDouble(),
-                             q["change_percent"].toDouble(),
-                             q["high"].toDouble(),
-                             q["low"].toDouble(),
-                             q["volume"].toDouble()};
-
-                // Cache write — mirrors store_quote() in flush_batch.
-                QJsonObject co;
-                co["symbol"] = qd.symbol;
-                co["name"] = qd.name;
-                co["price"] = qd.price;
-                co["change"] = qd.change;
-                co["change_pct"] = qd.change_pct;
-                co["high"] = qd.high;
-                co["low"] = qd.low;
-                co["volume"] = qd.volume;
+                QuoteData qd = parse_native_quote(q);
+                self->enrich_quote(qd);
+                const QJsonObject co = native_quote_json(qd);
                 fincept::CacheManager::instance().put(
                     "market:" + qd.symbol,
                     QVariant(QString::fromUtf8(QJsonDocument(co).toJson(QJsonDocument::Compact))), kQuoteCacheTtlSec,
@@ -356,6 +388,8 @@ void MarketDataService::fetch_quotes(const QStringList& symbols, QuoteCallback c
         return;
     }
 
+    resolve_names(symbols, {});
+
     // Check if ALL requested symbols are cached and fresh
     bool all_cached = true;
     QVector<QuoteData> cached_results;
@@ -363,9 +397,9 @@ void MarketDataService::fetch_quotes(const QStringList& symbols, QuoteCallback c
         const QVariant cv = fincept::CacheManager::instance().get("market:" + sym);
         if (!cv.isNull()) {
             const QJsonObject o = QJsonDocument::fromJson(cv.toString().toUtf8()).object();
-            cached_results.append({o["symbol"].toString(), o["name"].toString(), o["price"].toDouble(),
-                                   o["change"].toDouble(), o["change_pct"].toDouble(), o["high"].toDouble(),
-                                   o["low"].toDouble(), o["volume"].toDouble()});
+            auto quote = parse_native_quote(o);
+            enrich_quote(quote);
+            cached_results.append(quote);
         } else {
             all_cached = false;
             break;
@@ -418,31 +452,11 @@ void MarketDataService::flush_batch() {
             if (result.success) {
                 auto doc = QJsonDocument::fromJson(result.output.toUtf8());
 
-                auto parse_quote = [](const QJsonObject& q) -> QuoteData {
-                    return {q["symbol"].toString(),
-                            q["name"].toString(q["symbol"].toString()),
-                            q["price"].toDouble(),
-                            q["change"].toDouble(),
-                            q["change_percent"].toDouble(),
-                            q["high"].toDouble(),
-                            q["low"].toDouble(),
-                            q["volume"].toDouble()};
-                };
-
                 auto store_quote = [](const QuoteData& q) {
-                    QJsonObject o;
-                    o["symbol"] = q.symbol;
-                    o["name"] = q.name;
-                    o["price"] = q.price;
-                    o["change"] = q.change;
-                    o["change_pct"] = q.change_pct;
-                    o["high"] = q.high;
-                    o["low"] = q.low;
-                    o["volume"] = q.volume;
                     fincept::CacheManager::instance().put(
                         "market:" + q.symbol,
-                        QVariant(QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact))), kQuoteCacheTtlSec,
-                        "market_data");
+                        QVariant(QString::fromUtf8(QJsonDocument(native_quote_json(q)).toJson(QJsonDocument::Compact))),
+                        kQuoteCacheTtlSec, "market_data");
                 };
 
                 if (doc.isArray()) {
@@ -450,7 +464,8 @@ void MarketDataService::flush_batch() {
                         auto q = v.toObject();
                         if (q.contains("error"))
                             continue;
-                        auto quote = parse_quote(q);
+                        auto quote = parse_native_quote(q);
+                        enrich_quote(quote);
                         all_quotes.append(quote);
                         store_quote(quote);
                         publish_quote_to_hub(quote);
@@ -458,7 +473,8 @@ void MarketDataService::flush_batch() {
                 } else if (doc.isObject()) {
                     auto obj = doc.object();
                     if (obj.contains("symbol") && !obj.contains("error")) {
-                        auto quote = parse_quote(obj);
+                        auto quote = parse_native_quote(obj);
+                        enrich_quote(quote);
                         all_quotes.append(quote);
                         store_quote(quote);
                         publish_quote_to_hub(quote);
@@ -479,9 +495,9 @@ void MarketDataService::flush_batch() {
                         const QVariant cv = fincept::CacheManager::instance().get("market:" + sym);
                         if (!cv.isNull()) {
                             const QJsonObject o = QJsonDocument::fromJson(cv.toString().toUtf8()).object();
-                            stale.append({o["symbol"].toString(), o["name"].toString(), o["price"].toDouble(),
-                                          o["change"].toDouble(), o["change_pct"].toDouble(), o["high"].toDouble(),
-                                          o["low"].toDouble(), o["volume"].toDouble()});
+                            auto quote = parse_native_quote(o);
+                            enrich_quote(quote);
+                            stale.append(quote);
                         }
                     }
                     req.cb(!stale.isEmpty(), stale);
@@ -572,7 +588,7 @@ void MarketDataService::fetch_info(const QString& symbol, InfoCallback cb) {
                                              shared->info.sector = o["sector"].toString();
                                              shared->info.industry = o["industry"].toString();
                                              shared->info.country = o["country"].toString();
-                                             shared->info.currency = o["currency"].toString("USD");
+                                             shared->info.currency = o["currency"].toString();
                                              shared->info.market_cap = o["market_cap"].toDouble();
                                              shared->info.beta = o["beta"].toDouble();
                                              shared->info.week52_high = o["fifty_two_week_high"].toDouble();
@@ -618,6 +634,7 @@ void MarketDataService::fetch_info(const QString& symbol, InfoCallback cb) {
 
 void MarketDataService::fetch_history(const QString& symbol, const QString& period, const QString& interval,
                                       HistoryCallback cb) {
+    resolve_names({symbol}, {});
     QStringList args;
     args << "historical_period" << symbol << period << interval;
 
@@ -755,6 +772,8 @@ void MarketDataService::fetch_sparklines(const QStringList& symbols, SparklineCa
         return;
     }
 
+    resolve_names(symbols, {});
+
     // Use existing yfinance_data.py — batch_sparklines command takes symbols as args
     QStringList args;
     args << "batch_sparklines" << symbols;
@@ -821,6 +840,7 @@ void MarketDataService::load_name_cache() {
     };
     load("market_symbol_names", name_cache_);
     load("market_symbol_currencies", currency_cache_);
+    load("market_symbol_quote_types", quote_type_cache_);
 
     name_cache_loaded_ = !read_failed;
     retry_after_ms = read_failed ? now + 30000 : 0;
@@ -844,15 +864,31 @@ void MarketDataService::persist_name_cache() {
     auto& settings = SettingsRepository::instance();
     settings.set("market_symbol_names", dump(name_cache_), "market_data");
     settings.set("market_symbol_currencies", dump(currency_cache_), "market_data");
+    settings.set("market_symbol_quote_types", dump(quote_type_cache_), "market_data");
 }
 
-// ISO 4217 code → display symbol. Falls back to "<CODE> " so an unmapped but
-// valid currency still reads sensibly (e.g. "SEK 142.50").
+// Fork hook (codeyoma/krx-quant#142): format only at presentation boundaries. Unknown/rate/index
+// values retain native units; failed FX conversion retains the source code.
+QString MarketDataService::currency_code(const QString& symbol) {
+    load_name_cache();
+    return currency_cache_.value(symbol);
+}
+
+bool MarketDataService::is_monetary(const QString& symbol) {
+    load_name_cache();
+    return !currency_cache_.value(symbol).isEmpty() && monetary_type(quote_type_cache_.value(symbol));
+}
+
 QString MarketDataService::currency_prefix(const QString& symbol) {
+    if (!is_monetary(symbol))
+        return {};
     load_name_cache();
     const QString code = currency_cache_.value(symbol);
     if (code.isEmpty())
         return {};
+
+    if (code == QLatin1String("GBp") || code == QLatin1String("GBX"))
+        return code + QLatin1Char(' ');
 
     static const QHash<QString, QString> kSymbols = {
         {"USD", "$"},    {"EUR", "€"},  {"GBP", "£"},   {"JPY", "¥"},  {"CNY", "CN¥"}, {"INR", "₹"},  {"HKD", "HK$"},
@@ -861,6 +897,60 @@ QString MarketDataService::currency_prefix(const QString& symbol) {
     };
     auto it = kSymbols.find(code.toUpper());
     return it != kSymbols.end() ? it.value() : (code + QLatin1Char(' '));
+}
+
+QString MarketDataService::native_price(const QString& symbol, double amount, int precision) {
+    load_name_cache();
+    const QString type = quote_type_cache_.value(symbol);
+    const QString source = currency_cache_.value(symbol);
+    const int decimals = precision >= 0 ? precision : (std::abs(amount) >= 1.0 ? 2 : 4);
+    const QString value = QLocale(QLocale::English).toString(amount, 'f', decimals);
+    if (type == QLatin1String("INDEX"))
+        return value + QStringLiteral(" ") + QCoreApplication::translate("Currency", "points");
+    if (type == QLatin1String("YIELD"))
+        return value + QLatin1Char('%');
+    if (type == QLatin1String("CURRENCY"))
+        return value + QStringLiteral(" ") + QCoreApplication::translate("Currency", "rate");
+    if (type == QLatin1String("FUTURE"))
+        return value + QStringLiteral(" ") + QCoreApplication::translate("Currency", "(native)");
+    if (!source.isEmpty())
+        return source + QLatin1Char(' ') + value +
+               (monetary_type(type) ? QString()
+                                    : QStringLiteral(" ") + QCoreApplication::translate("Currency", "(native)"));
+    return value + QStringLiteral(" ") + QCoreApplication::translate("Currency", "(native)");
+}
+
+QString MarketDataService::display_price(const QString& symbol, double amount, int precision, bool compact) {
+    if (!is_monetary(symbol))
+        return native_price(symbol, amount, precision);
+    return currency::format_display_amount(
+        currency::CurrencyManager::instance().display_amount(amount, currency_code(symbol)), compact, precision);
+}
+
+double MarketDataService::display_value(const QString& symbol, double amount) {
+    if (!is_monetary(symbol))
+        return amount;
+    return currency::CurrencyManager::instance().display_amount(amount, currency_code(symbol)).value;
+}
+
+void MarketDataService::enrich_quote(QuoteData& quote) {
+    load_name_cache();
+    bool changed = false;
+    if (!quote.currency.isEmpty() && currency_cache_.value(quote.symbol) != quote.currency) {
+        currency_cache_.insert(quote.symbol, quote.currency);
+        changed = true;
+    }
+    if (!quote.quote_type.isEmpty() && quote.quote_type != QLatin1String("UNKNOWN") &&
+        quote_type_cache_.value(quote.symbol) != quote.quote_type) {
+        quote_type_cache_.insert(quote.symbol, quote.quote_type);
+        changed = true;
+    }
+    if (quote.currency.isEmpty())
+        quote.currency = currency_cache_.value(quote.symbol);
+    if (quote.quote_type.isEmpty() || quote.quote_type == QLatin1String("UNKNOWN"))
+        quote.quote_type = quote_type_cache_.value(quote.symbol, QStringLiteral("UNKNOWN"));
+    if (changed)
+        emit metadata_changed();
 }
 
 void MarketDataService::resolve_names(const QStringList& symbols, NamesCallback cb) {
@@ -879,11 +969,21 @@ void MarketDataService::resolve_names(const QStringList& symbols, NamesCallback 
     if (cb)
         cb(subset_for(symbols));
 
-    // Collect the symbols we still need a name for.
+    // Names alone do not prove currency metadata was resolved (old disk caches
+    // contain names without types). Deduplicate in-flight work and back off
+    // unavailable metadata instead of launching .info requests on every tick.
     QStringList missing;
-    for (const auto& s : symbols)
-        if (!s.isEmpty() && !name_cache_.contains(s))
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    for (const auto& s : symbols) {
+        const QString type = quote_type_cache_.value(s);
+        const bool incomplete = !name_cache_.contains(s) || type.isEmpty() || type == QLatin1String("UNKNOWN") ||
+                                (monetary_type(type) && currency_cache_.value(s).isEmpty());
+        if (!s.isEmpty() && incomplete && !metadata_in_flight_.contains(s) && metadata_retry_after_.value(s) <= now) {
             missing.append(s);
+            metadata_in_flight_.insert(s);
+            metadata_retry_after_.insert(s, now + 60000);
+        }
+    }
     if (missing.isEmpty())
         return;
 
@@ -892,15 +992,18 @@ void MarketDataService::resolve_names(const QStringList& symbols, NamesCallback 
 
     QPointer<MarketDataService> self = this;
     python::PythonRunner::instance().run(
-        "yfinance_data.py", args, [self, symbols, cb, subset_for](python::PythonResult result) {
+        "yfinance_data.py", args, [self, symbols, missing, cb, subset_for](python::PythonResult result) {
             if (!self)
                 return;
+            for (const auto& symbol : missing)
+                self->metadata_in_flight_.remove(symbol);
             if (result.success && !result.output.trimmed().isEmpty()) {
                 auto doc = QJsonDocument::fromJson(result.output.trimmed().toUtf8());
                 if (doc.isObject()) {
                     const QJsonObject root = doc.object();
                     const QJsonObject names = root.value("names").toObject();
                     const QJsonObject currs = root.value("currencies").toObject();
+                    const QJsonObject types = root.value("quote_types").toObject();
                     bool changed = false;
                     for (auto it = names.begin(); it != names.end(); ++it) {
                         const QString name = it.value().toString().trimmed();
@@ -916,8 +1019,17 @@ void MarketDataService::resolve_names(const QStringList& symbols, NamesCallback 
                             changed = true;
                         }
                     }
-                    if (changed)
+                    for (auto it = types.begin(); it != types.end(); ++it) {
+                        const QString type = it.value().toString().trimmed().toUpper();
+                        if (!type.isEmpty() && self->quote_type_cache_.value(it.key()) != type) {
+                            self->quote_type_cache_.insert(it.key(), type);
+                            changed = true;
+                        }
+                    }
+                    if (changed) {
                         self->persist_name_cache();
+                        emit self->metadata_changed();
+                    }
                 }
             } else if (!result.success) {
                 LOG_WARN("MarketData", "quote_names failed: " + result.error.left(200));

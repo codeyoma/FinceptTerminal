@@ -59,3 +59,9 @@ qt6_add_resources(tst_krx_korean "krx_korean_i18n"
     PREFIX "/i18n"
     BASE "${PROJECT_BINARY_DIR}"
     FILES ${FINCEPT_QM_FILES})
+
+# fork addition (codeyoma/krx-quant#142): deterministic FX parsing and conversion.
+fincept_add_test(tst_fx_rates tst_fx_rates.cpp
+    "${PROJECT_SOURCE_DIR}/src/core/currency/fx/FxRates.cpp")
+fincept_add_test(tst_portfolio_presentation tst_portfolio_presentation.cpp)
+fincept_add_test(tst_equity_valuation_units tst_equity_valuation_units.cpp)
