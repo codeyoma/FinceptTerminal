@@ -54,7 +54,9 @@ class KrxLive : public QObject {
     /// index) from its left end: near it, the bars before are read (krx-quant #108).
     void view_from(double from, int minutes = 1);
     /// The chart shows the view of ``minutes``: the day view (krx_quant::kDayView, krx-quant
-    /// #111) reads the engine's day candles if it has none yet.
+    /// #111) reads the engine's latest day candles if it has none yet, or none since the
+    /// engine day changed. The chart's reads call it again, so a screen left open past
+    /// midnight gets the day before's stored candle.
     void set_view(int minutes);
     /// The bar close pinned; invalid while the latest is followed.
     const QDateTime& pinned() const { return pinned_; }
@@ -142,6 +144,9 @@ class KrxLive : public QObject {
     QList<krx_quant::Bar> candles_;              ///< the engine's day candles read so far, oldest first
     QString candle_venue_;                       ///< their market
     bool candles_oldest_ = false;                ///< the engine has nothing before candles_
+    QDate candles_day_;                          ///< the engine day their latest page was read
+    /// The engine clock's day in KST.
+    QDate engine_day() const;
     /// Back to today's bars only: a symbol or an engine changed, or the engine is lost.
     void forget_older();
     KrxQuantService::LeaderboardQuery query_;
