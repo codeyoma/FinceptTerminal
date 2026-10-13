@@ -58,6 +58,8 @@ custom/merge-upstream-release.sh [tag]
 - 새 코드는 새 디렉터리에 둔다 (`fincept-qt/src/screens/krx_quant/`, `fincept-qt/src/services/krx_quant/`).
 - 화면 등록과 로컬 CLI LLM(아래) 때문에 고치는 upstream 파일은 아래 목록으로 제한하고, 고칠 때마다 이 표를 갱신한다. 고친 곳에는 `fork addition (codeyoma/krx-quant#N)` 주석을 단다.
 
+> **바뀜** (2026-10-13, codeyoma/FinceptTerminal#26): 화면 등록과 로컬 CLI LLM 때문에 고치는 upstream 파일만 → 원화 환산 표시(codeyoma/krx-quant#142) 때문에 고치는 시장·관심종목·대시보드·포트폴리오·주식 리서치·설정 화면과 시세 service도(아래 표). 이유: 출처 통화가 확인된 금액만 화면에서 환산하려면 각 화면이 금액을 그리는 곳에 갈래가 필요했다. upstream 릴리스를 merge 할 때 이 파일들이 충돌할 수 있다.
+
 > **바뀜** (2026-10-12, codeyoma/krx-quant#97): 화면 등록 때문에 고치는 upstream 파일만 → 로컬 CLI LLM provider(codeyoma/krx-quant#96) 때문에 고치는 LLM 파일 9개도. 이유: Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에 로그인된 Claude Code·Codex CLI로 쓰려면 provider 목록, 요청 경로, 설정 화면에 갈래가 하나씩 필요했다. 새 코드는 `src/services/krx_quant/LocalCli*`에 두고 upstream 파일에는 한두 줄짜리 갈래만 넣었다.
 - Fincept SQLite migration(`src/storage/sqlite/migrations/`)은 쓰지 않는다. 데이터는 엔진이 가진다.
 - 개인 빌드는 공식 버전 업데이트를 끈다. 공식 버전으로 덮어써지는 것을 막기 위해서다. 대신 이 fork의 개인 빌드 Release에서만 업데이트한다(아래 "앱 업데이트").
@@ -73,7 +75,16 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`), 윈도우 설치 프로그램의 기본 폴더 `CPACK_IFW_TARGET_DIRECTORY`(사용자 폴더, codeyoma/krx-quant#130), 한국어 언어 팩 `translations/fincept_ko_KR.ts`의 컴파일·리소스 포함 |
 | `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`, `tst_krx_korean`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
 | `fincept-qt/src/core/i18n/LanguageManager.cpp` | 공용 언어 목록에 `ko_KR`, 언어 이름에 `한국어`를 추가한다(codeyoma/krx-quant#132). 설정 화면과 로그인 언어 선택이 이 목록을 그대로 쓴다 |
-| `fincept-qt/src/core/currency/CurrencyManager.cpp` | 기존 표시 통화 목록에 `KRW`·`₩`·`South Korean Won`을 추가한다(codeyoma/krx-quant#138). 설정 화면과 표시 기호 helper가 같은 목록을 쓴다 |
+| `fincept-qt/src/core/currency/CurrencyManager.{h,cpp}`, `Currency.h`, 새 `core/currency/fx/` | KRW 목록, 출처 통화를 요구하는 환산 API, ECB 비인증 조회·캐시·갱신 신호(codeyoma/krx-quant#138, #142). 공용 인프라라 KRX 엔진 service 대신 독립 디렉터리에 둔다 |
+| `fincept-qt/src/screens/settings/GeneralSection.{h,cpp}` | 통화 설명, 환율 출처·기준일·갱신 상태·버튼(#142) |
+| `fincept-qt/src/services/markets/MarketDataService.{h,cpp}`, `scripts/yfinance_data.py` | 원 통화·종목 유형 보존, 메타데이터 캐시와 화면용 환산 API(#142) |
+| `fincept-qt/src/screens/markets/MarketPanel.cpp`, `screens/watchlist/WatchlistScreen.cpp` | 시세 표시·숫자 정렬에 환산 적용, 원본 캐시에서 다시 그리기(#142) |
+| `fincept-qt/src/screens/dashboard/DashboardScreen.cpp`, `MarketPulsePanel.cpp`, `TickerBar.cpp`, `widgets/{BaseWidget,BrokerHoldingsWidget,CryptoTickerWidget,DashboardCandleWidget,MarketQuoteStripWidget,PortfolioSummaryWidget,QuickTradeWidget,QuoteTableWidget,RiskMetricsWidget,ScreenerWidget,StockQuoteWidget,TopMoversWidget,TradeTapeWidget,WatchlistWidget}.{h,cpp}` | 시세·금액 환산과 원 주문 단위 표시, 환율/메타데이터 변경 때 다시 그리기(#142) |
+| `fincept-qt/src/screens/portfolio/{PortfolioBlotter,PortfolioScreen}.{h,cpp}`, `PortfolioScreen_Handlers.cpp`, `PortfolioScreen_Layout.cpp`, `PortfolioStatusBar.{h,cpp}`, 새 `PortfolioPresentation.h` | 출처가 확인된 현재 값의 화면용 사본, 혼합 단위와 과거 기록의 원 단위 안내(#142) |
+| `fincept-qt/src/screens/equity_research/{EquityAnalysisTab,EquityFinancialsTab,EquityOverviewTab,EquityResearchScreen,EquityValuationTab}.{h,cpp}`, 새 `EquityValuationUnits.h`, `services/equity/EquityResearchModels.h`, `EquityResearchService.cpp` | 가격·보고 통화 구별, 원 차트 안내, 확인된 금액 환산, 서로 다른 통화의 가치평가 비교 차단(#142) |
+| `fincept-qt/src/screens/equity_trading/EquityChartPanel.{h,cpp}`, `EquityTradingScreen_Streams.cpp` | 출처 통화가 없는 포지션은 원 단위로 표시하고 계좌 통화로 추정하지 않기(#142) |
+| `fincept-qt/src/screens/profile/ProfileScreen.{h,cpp}`, `screens/auth/PricingScreen.cpp` | USD 청구 금액과 환산 표시를 구별(#142) |
+| `fincept-qt/tests/tst_fx_rates.cpp`, `tst_portfolio_presentation.cpp`, `tst_equity_valuation_units.cpp`, `test_market_quote_metadata.py` | 표시 환산과 원 단위 보존 회귀 검사(#142) |
 | `fincept-qt/src/screens/settings/SettingsScreen.cpp` | 동적으로 번역하는 설정 메뉴·범위 제목 18개를 `QT_TRANSLATE_NOOP`으로 표시한다. `update_translations`를 돌려도 기존 번역이 지워지지 않게 한다(codeyoma/krx-quant#132) |
 | `fincept-qt/src/services/updater/UpdateService.cpp` | `FINCEPT_DISABLE_AUTO_UPDATE`이면 공식 업데이트 대신 개인 빌드 업데이트(`krx_quant::AppUpdater`)로 넘긴다(`check_for_updates` 본문을 `#ifdef … #else … #endif`로 감쌌다) |
 | `fincept-qt/src/services/llm/ProviderCatalog.cpp` | provider 목록에 로컬 CLI provider(`claude_cli`, `codex_cli`)를 붙이고, 이름·기본 모델·키 불필요·OpenAI 호환 아님을 `krx_quant::cli_llm`에 묻는다 |
@@ -97,11 +108,40 @@ custom/merge-upstream-release.sh [tag]
 - **갱신:** 설정 메뉴는 문자열을 저장했다가 동적으로 `tr()`에 넘긴다. 이 메뉴와 범위 제목 18개에는 실제 런타임 문맥의 `QT_TRANSLATE_NOOP` 표시를 넣어, 수동 `update_translations`의 `-no-obsolete` 갱신에서도 한국어 번역이 남게 한다. 새 동적 메뉴를 더할 때도 같은 표시가 필요하다.
 - **검증:** `FINCEPT_BUILD_TESTS=ON`으로 설정한 빌드에서 `cmake --build <build> --target tst_krx_korean` 뒤 `ctest --test-dir <build> -R krx_korean --output-on-failure`. 앱과 같은 경로의 실제 컴파일된 리소스, 설정 메뉴 문맥, 공통 팩 전체 키·Qt 치환자, 복수형, 영어 fallback을 검사한다.
 
-## 원화 표시 통화 (codeyoma/krx-quant#138)
+## 원화 표시 통화 (codeyoma/krx-quant#138, #142)
 
-- **설정 경로:** Settings → General → Display currency(한국어 UI에서는 설정 → 일반 → 표시 통화). 언어 설정 바로 아래에서 **₩ South Korean Won (KRW)**을 고른다.
-- **저장과 적용:** 기존 `CurrencyManager`가 SQLite settings의 `general.currency=KRW`에 저장한다. 다음 실행에도 복원되고, 공용 통화 helper에 연결된 계산기·분석 화면의 기호가 `₩`로 바뀐다. 같은 목록에서 다른 통화로 되돌릴 수 있다.
-- **표시 범위:** 기존 기능처럼 기호만 바꾼다. 환율을 조회하거나 금액을 환산하지 않는다. 숫자 형식도 기존 helper를 따르며, 고유 통화를 지정하는 시세·포트폴리오 금액은 그 통화를 유지한다.
+- **설정 경로:** Settings → General → Display currency(설정 → 일반 → 표시 통화). 언어 바로 아래에서 **₩ South Korean Won (KRW)**을 고른다. 기본값 USD를 포함해 목록의 모든 표시 통화에 같은 환산 규칙을 적용한다.
+- **저장:** 기존 SQLite settings의 `general.currency`에 선택을 저장하여 재시작 때 복원한다. `general.fx_rates_v1`에는 `version=1`, `source=ECB`, `date=YYYY-MM-DD`, EUR당 통화별 값인 `rates`를 JSON으로 저장한다. DB 스키마는 바꾸지 않는다.
+- **환율:** [ECB 일일 참고환율](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html)의 [XML](https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml)을 앱 시작과 6시간마다 읽는다. 설정에서 수동 새로고침도 할 수 있다. 원 금액 × 대상 통화의 EUR당 값 ÷ 원 통화의 EUR당 값으로 환산한다. 설정에 기준일·캐시 여부·조회 상태와 `100 USD` 환산 예시를 보인다. 주문 체결이나 결제 환율이 아닌 표시용 참고환율이다.
+- **실패:** 마지막 검증 자료를 쓰되 기준일로부터 7일을 넘으면 환산하지 않는다. 1분마다 만료를 확인한다. 미래 날짜·0/음수/무한 환율·중복 통화·손상 응답을 거부하고, 실패한 조회는 유효한 캐시를 덮어쓰지 않는다. 출처 통화가 없거나 환율이 없으면 **원래 숫자와 통화/원 단위 표시**를 유지한다. 1:1 환율을 만들어 쓰지 않는다. 동일 통화 표시는 환율 없이 가능하다.
+- **통화 구별:** `GBp`/`GBX`는 GBP의 1/100이다. USDT/USDC는 USD로 취급하지 않는다. KRW/JPY는 기본 소수 자릿수 0이며 아주 작은 금액은 0으로 사라지지 않도록 자릿수를 늘린다. 화면이 가격 정밀도를 명시한 경우에는 그 자릿수를 따른다. 기호가 같은 USD/CAD/AUD도 통화 코드로 구별한다.
+- **시세 메타데이터:** `QuoteData`와 시세 캐시 JSON은 `currency`, `quote_type`을 원 값과 함께 보관한다. 이름이 이미 있어도 통화/유형이 없으면 다시 조회한다. SQLite settings의 `market_symbol_names`, `market_symbol_currencies`에 더해 `market_symbol_quote_types`를 쓴다. 회사 정보는 시세 통화와 재무제표 `financial_currency`를 구별한다. 지수·수익률·환율쌍·거래량·수량·퍼센트는 금액처럼 환산하지 않는다.
+
+| 화면 | 환산 범위와 원 단위 유지 범위 |
+|---|---|
+| 시장·관심종목·대시보드 | 확인된 통화의 가격·절대 등락·고가/저가·금액. 대시보드 캔들 가격축도 같은 환율로 표시한다. FX/지수/수익률은 원 단위다. 선물은 USD 계약이어도 지수·채권 포인트일 수 있어 원 단위를 유지한다. 암호화폐는 페어의 실제 호가 자산을 쓴다 |
+| 포트폴리오 | 현재 보유종목의 통화가 포트폴리오 취득원가 통화와 일치한다고 확인되면 카드·합계·보유표·히트맵·섹터 금액을 환산한다. 혼합/미확인 합계·히트맵·섹터 금액은 숨기고 환산 불가를 표시한다. 대시보드 포트폴리오 합계는 불완전하면 비운다 |
+| 포트폴리오 과거 기록·상세 분석 | 과거 스냅샷에는 통화 증거가 없어 원래 차트를 유지하고 안내한다. 거래 내역·주문·계획 입력·상세 분석은 원 단위이며 현재 환율로 과거 수익률을 재계산하지 않는다 |
+| 주식 리서치 | 출처를 확인한 가격·목표가·가치평가 표시·현금흐름을 환산한다. 보고 통화가 없거나 가격 통화와 다르면 서로 다른 단위를 비교하는 가치평가 판단을 내리지 않는다. GBp 시가총액의 별도 통화를 확인할 수 없으면 환산하지 않는다. OHLC 차트와 재무제표 표/차트에는 원 통화를 명시한다 |
+| 주문·브로커 | 주문 가격·수량·저장 잔고는 원 값이다. Quick Trade는 원 주문 단위와 환산 예시를 함께 표시한다. 종목 통화가 없는 브로커 데이터는 계좌 통화로 추정하지 않는다 |
+| 결제 | USD 가격과 결제 기록의 환산 표시를 제공하고 실제 USD 청구액을 별도로 명시한다. 결제 요청은 바꾸지 않는다 |
+| 계산기·기타 분석 | 출처 통화 계약이 없는 수동 계산기는 기존 선택 통화 단위를 사용한다. 크기가 큰 숫자라고 금액으로 추정해 환산하지 않는다. 기존 CSV 내보내기는 원 값이다 |
+
+환율/표시 통화/시세 통화 정보가 바뀌면 원본에서 화면을 다시 그린다. 환산된 값을 원본·주문·저장소로 돌려쓰지 않으며 새 환율이 도착했다고 가격을 재구독하거나 분석을 다시 실행하지 않는다.
+
+> **바뀜** (2026-10-13, codeyoma/FinceptTerminal#26): KRW 옵션은 계산기·분석의 기호만 바꿨다 → 출처 통화가 확인되는 위의 금액 표시에 날짜가 명시된 일일 참고환율을 적용한다. 이유: 기호 교체가 아니라 실제 원화 금액 표시를 요청했다. 원본 시세·주문·저장 값은 유지한다.
+
+검증: `ctest --test-dir <build> -R 'fx_rates|portfolio_presentation|equity_valuation_units|krx_korean' --output-on-failure`, `python3 fincept-qt/tests/test_market_quote_metadata.py`. 환율 모델은 Qt Core만으로 XML·캐시·교차환산·만료·미지원 통화를 검사한다. 포트폴리오는 원본 불변·혼합/미확인/비금액 단위·overflow를, 가치평가는 가격과 보고 통화의 비교 경계를 검사한다.
+
+화면 이벤트 순서 회귀 검사(일반 CTest의 Core-only 규칙과 분리):
+
+```bash
+cmake -S custom/tools/fx-ui-check -B fincept-qt/build/fx-ui-check -G Ninja -DCMAKE_PREFIX_PATH=<Qt 6.8.3>
+cmake --build fincept-qt/build/fx-ui-check --parallel 1
+QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
+```
+
+실제 `BaseWidget`/`LoadingOverlay`/테마 코드를 사용하고 시세 service의 생성과 신호만 대역으로 제공한다. 조회나 사용자 DB 없이 시세·통화 변경의 두 도착 순서, 기본 hook, 생성/소멸, 시세 합치기를 검사한다. 통화 갱신이 대기 중인 시세 그리기를 지우던 구현에서는 실패한다.
 
 ## KRX 예측 화면 (#20, #21, #68)
 

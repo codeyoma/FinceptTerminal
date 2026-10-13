@@ -52,6 +52,13 @@ PortfolioScreen::PortfolioScreen(QWidget* parent) : QWidget(parent) {
     build_ui();
     refresh_theme(); // Apply theme-aware font sizes and colors on first build
 
+    // Only repaint cached source data. Display preference changes must never
+    // run analytics, refresh quotes, or write portfolio snapshots.
+    connect(&services::MarketDataService::instance(), &services::MarketDataService::display_changed, this, [this] {
+        if (summary_loaded_)
+            update_main_view_data();
+    });
+
     // Reload the portfolio list from the local cache when a cloud pull lands.
     connect(&fincept::services::cloud::CloudSyncEngine::instance(),
             &fincept::services::cloud::CloudSyncEngine::cloud_data_changed, this, [](const QString& entity) {

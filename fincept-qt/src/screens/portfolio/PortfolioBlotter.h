@@ -22,6 +22,7 @@ class PortfolioBlotter : public QWidget {
     explicit PortfolioBlotter(QWidget* parent = nullptr);
 
     void set_holdings(const QVector<portfolio::HoldingWithQuote>& holdings);
+    void set_source_currency(const QString& currency) { source_currency_ = currency; }
     void set_selected_symbol(const QString& symbol);
     void set_filter(const QString& text);
     /// Show only rows whose symbol is in @p symbols. Empty list = show all.
@@ -48,6 +49,8 @@ class PortfolioBlotter : public QWidget {
     void on_row_clicked(int row, int col);
     void on_context_menu(const QPoint& pos);
     QString format_value(double v, int dp = 2) const;
+    bool cost_currency_verified(const QString& symbol) const;
+    QString format_cost(double value, const QString& symbol) const;
 
     // ── Pagination ──────────────────────────────────────────────────────────
     /// Filtered + sorted view (after filter/sector trim) used as the source
@@ -91,6 +94,7 @@ class PortfolioBlotter : public QWidget {
     bool hub_active_ = false;
 
     QVector<portfolio::HoldingWithQuote> holdings_;
+    QString source_currency_;
     QVector<portfolio::HoldingWithQuote> sorted_;
     mutable QVector<portfolio::HoldingWithQuote> view_cache_;
     mutable bool view_cache_valid_ = false;

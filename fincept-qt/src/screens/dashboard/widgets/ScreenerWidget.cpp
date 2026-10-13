@@ -223,10 +223,16 @@ void ScreenerWidget::apply_filter() {
             std::sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) { return a.volume > b.volume; });
             break;
         case 3: // price desc
-            std::sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) { return a.price > b.price; });
+            std::sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) {
+                return services::MarketDataService::instance().display_value(a.symbol, a.price) >
+                       services::MarketDataService::instance().display_value(b.symbol, b.price);
+            });
             break;
         case 4: // price asc
-            std::sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) { return a.price < b.price; });
+            std::sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) {
+                return services::MarketDataService::instance().display_value(a.symbol, a.price) <
+                       services::MarketDataService::instance().display_value(b.symbol, b.price);
+            });
             break;
     }
 
@@ -270,7 +276,7 @@ void ScreenerWidget::render_rows(const QVector<services::QuoteData>& rows) {
         sym->setObjectName("scSym");
         rl->addWidget(sym, 2);
 
-        auto* price = new QLabel(QString("$%1").arg(q.price, 0, 'f', 2));
+        auto* price = new QLabel(services::MarketDataService::instance().display_price(q.symbol, q.price));
         price->setObjectName("scPrice");
         price->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         rl->addWidget(price, 2);

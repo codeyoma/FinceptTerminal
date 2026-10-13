@@ -62,6 +62,11 @@ EquityChartPanel::EquityChartPanel(QWidget* parent) : QWidget(parent) {
     }
 
     build_position_card();
+    // fork addition (codeyoma/krx-quant#142): re-render raw P&L on preference and rate changes.
+    connect(&currency::CurrencyManager::instance(), &currency::CurrencyManager::display_changed, this, [this]() {
+        refresh_position_card();
+        layout_position_card();
+    });
 }
 
 void EquityChartPanel::build_kline_ui() {
@@ -346,7 +351,9 @@ void EquityChartPanel::set_position(const QString& symbol, const QString& side, 
         pos_title_lbl_->setText(QStringLiteral("%1 %2 @ %3")
                                     .arg(is_long ? tr("LONG") : tr("SHORT"))
                                     .arg(qty_str)
-                                    .arg(QString::number(pos_entry_, 'f', 2)));
+                                    .arg(tr("%1 %2 (native)")
+                                             .arg(pos_currency_.isEmpty() ? tr("currency unavailable") : pos_currency_,
+                                                  QString::number(pos_entry_, 'f', 2))));
         pos_title_lbl_->setStyleSheet(QString("background:transparent;border:none;font-weight:700;"
                                               "font-size:%1px;font-family:%2;color:%3;")
                                           .arg(fincept::ui::fonts::TINY)
@@ -397,7 +404,7 @@ void EquityChartPanel::refresh_position_card() {
     const double basis = pos_entry_ * pos_qty_;
     const double pct = basis != 0.0 ? (pnl / basis) * 100.0 : 0.0;
 
-    const QString pnl_txt = (pnl >= 0 ? QStringLiteral("+") : QString()) + cur::money(pnl, false, pos_currency_);
+    const QString pnl_txt = (pnl >= 0 ? QStringLiteral("+") : QString()) + cur::display_money(pnl, pos_currency_);
     const QString pct_txt = QStringLiteral("%1%2%").arg(pct >= 0 ? "+" : "").arg(pct, 0, 'f', 2);
     pos_pnl_lbl_->setText(pnl_txt + QStringLiteral("   ") + pct_txt);
 

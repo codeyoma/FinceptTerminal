@@ -113,6 +113,9 @@ static QString list_style() {
 
 WatchlistScreen::WatchlistScreen(QWidget* parent) : QWidget(parent) {
     build_ui();
+    // Fork hook (codeyoma/krx-quant#142): currency/rates change presentation, never raw row_cache_.
+    connect(&services::MarketDataService::instance(), &services::MarketDataService::display_changed, this,
+            &WatchlistScreen::schedule_table_rebuild);
     load_watchlists();
 
     connect(&ThemeManager::instance(), &ThemeManager::theme_changed, this,
@@ -732,21 +735,29 @@ void WatchlistScreen::populate_table(const QVector<services::QuoteData>& quotes)
         auto it = quote_map.find(s.symbol);
         if (it != quote_map.end()) {
             const auto& q = it.value();
-            table_->add_row({q.symbol, q.name.isEmpty() ? s.name : q.name, QString("$%1").arg(q.price, 0, 'f', 2),
-                             QString("%1%2").arg(q.change >= 0 ? "+" : "").arg(q.change, 0, 'f', 2),
+            table_->add_row({q.symbol, q.name.isEmpty() ? s.name : q.name,
+                             services::MarketDataService::instance().display_price(q.symbol, q.price),
+                             QString("%1%2")
+                                 .arg(q.change >= 0 ? "+" : "")
+                                 .arg(services::MarketDataService::instance().display_price(q.symbol, q.change)),
                              QString("%1%2%").arg(q.change_pct >= 0 ? "+" : "").arg(q.change_pct, 0, 'f', 2),
-                             QString("$%1").arg(q.high, 0, 'f', 2), QString("$%1").arg(q.low, 0, 'f', 2),
+                             services::MarketDataService::instance().display_price(q.symbol, q.high),
+                             services::MarketDataService::instance().display_price(q.symbol, q.low),
                              fincept::ui::formatting::format_compact_volume(static_cast<qint64>(q.volume))});
 
             int row = table_->rowCount() - 1;
 
             // Stamp numeric EditRole values so Qt sorts by magnitude,
             // not by the display string ("$2.5M" vs "$999K" etc.).
-            table_->set_cell_numeric(row, 2, q.price);      // PRICE
-            table_->set_cell_numeric(row, 3, q.change);     // CHANGE
+            table_->set_cell_numeric(row, 2,
+                                     services::MarketDataService::instance().display_value(q.symbol, q.price)); // PRICE
+            table_->set_cell_numeric(
+                row, 3, services::MarketDataService::instance().display_value(q.symbol, q.change)); // CHANGE
             table_->set_cell_numeric(row, 4, q.change_pct); // CHG %
-            table_->set_cell_numeric(row, 5, q.high);       // HIGH
-            table_->set_cell_numeric(row, 6, q.low);        // LOW
+            table_->set_cell_numeric(row, 5,
+                                     services::MarketDataService::instance().display_value(q.symbol, q.high)); // HIGH
+            table_->set_cell_numeric(row, 6,
+                                     services::MarketDataService::instance().display_value(q.symbol, q.low)); // LOW
             table_->set_cell_numeric(row, 7, q.volume);     // VOLUME
 
             // Green = good, Red = bad

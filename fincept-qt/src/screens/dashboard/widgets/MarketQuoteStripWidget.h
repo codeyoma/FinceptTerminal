@@ -7,6 +7,7 @@
 // When no config is supplied, defaults to a tech-index starter set.
 
 #include "screens/dashboard/widgets/BaseWidget.h"
+#include "services/markets/MarketDataService.h"
 
 #include <QHash>
 #include <QSet>
@@ -31,6 +32,7 @@ class MarketQuoteStripWidget : public BaseWidget {
 
   protected:
     void on_theme_changed() override;
+    void on_display_currency_changed() override;
     void showEvent(QShowEvent* e) override;
     void hideEvent(QHideEvent* e) override;
     void retranslateUi() override;
@@ -50,6 +52,7 @@ class MarketQuoteStripWidget : public BaseWidget {
     void hub_unsubscribe_all();
 
     QStringList symbols_;
+    QHash<QString, services::QuoteData> quote_cache_;
     QHash<QString, Row> rows_; // symbol → widgets
     QSet<QString> received_;   // symbols that have published at least once — used to drive the loading overlay
     bool hub_active_ = false;

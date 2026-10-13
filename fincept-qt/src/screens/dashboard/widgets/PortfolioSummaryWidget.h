@@ -70,7 +70,7 @@ class PortfolioSummaryWidget : public BaseWidget {
     // ── Selected portfolio ─────────────────────────────────────────────────
     QString selected_portfolio_id_;
     QString selected_portfolio_name_;
-    QString selected_portfolio_currency_ = QStringLiteral("USD"); // the picked portfolio's own currency
+    QString selected_portfolio_currency_; // the picked portfolio's declared source currency
     QVector<portfolio::Portfolio> portfolio_cache_;
 
     // ── Summary labels ──────────────────────────────────────────────────────
@@ -90,6 +90,8 @@ class PortfolioSummaryWidget : public BaseWidget {
     QWidget* header_row_ = nullptr;
     QScrollArea* scroll_area_ = nullptr;
     QLabel* portfolio_name_lbl_ = nullptr;
+    QLabel* currency_note_ = nullptr;
+    QString empty_message_;
     QVector<QLabel*> metric_labels_;
     QVector<QLabel*> metric_values_;
     QVector<QLabel*> header_labels_;

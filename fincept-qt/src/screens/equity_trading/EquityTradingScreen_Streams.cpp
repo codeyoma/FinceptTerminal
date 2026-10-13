@@ -310,10 +310,13 @@ void EquityTradingScreen::update_chart_position() {
             chart_->clear_position();
             return;
         }
+        // fork addition (codeyoma/krx-quant#142): PtPosition has no verified instrument currency.
+        // The portfolio's declared code alone cannot denominate price-difference P&L.
+        const QString paper_currency;
         for (const auto& p : pt_get_positions(account.paper_portfolio_id)) {
             if (p.symbol == selected_symbol_ && qAbs(p.quantity) > 0.0) {
                 chart_->set_position(selected_symbol_, p.side, qAbs(p.quantity), p.entry_price, selected_exchange_,
-                                     QString());
+                                     QString(), paper_currency);
                 if (current_price_ > 0.0)
                     chart_->update_pnl(current_price_);
                 return;
@@ -323,11 +326,9 @@ void EquityTradingScreen::update_chart_position() {
         return;
     }
 
-    // Live: scan the cached broker positions for the displayed symbol. P&L is in
-    // the broker's own currency (intrinsic), not the global preference.
-    QString ccy;
-    if (auto* broker = BrokerRegistry::instance().get(account.broker_id))
-        ccy = broker->profile().currency;
+    // BrokerPosition/BrokerQuote do not carry authoritative instrument currency.
+    // Broker profile defaults (including multi-currency brokers) are not source evidence.
+    const QString ccy;
     for (const auto& p : live_positions_) {
         if (p.symbol == selected_symbol_ && qAbs(p.quantity) > 0.0) {
             QString side = p.side.toLower();

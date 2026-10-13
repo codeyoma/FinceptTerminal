@@ -62,7 +62,8 @@ BrokerHoldingsWidget::BrokerHoldingsWidget(const QJsonObject& cfg, QWidget* pare
 
     // Columns: Symbol, Qty, Avg, LTP, P&L %, and a trailing per-row exit button.
     table_ = new QTableWidget(0, 6, this);
-    table_->setHorizontalHeaderLabels({tr("Symbol"), tr("Qty"), tr("Avg"), tr("LTP"), tr("P&L %"), QString()});
+    table_->setHorizontalHeaderLabels(
+        {tr("Symbol"), tr("Qty"), tr("Avg (native)"), tr("LTP (native)"), tr("P&L %"), QString()});
     table_->verticalHeader()->setVisible(false);
     table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table_->setSelectionMode(QAbstractItemView::NoSelection);
@@ -170,6 +171,8 @@ void BrokerHoldingsWidget::populate(const QVector<trading::BrokerHolding>& rows)
         return;
     }
 
+    // Fork hook (codeyoma/krx-quant#142): broker holdings lack per-instrument currency.
+    // Keep execution-linked prices explicitly native rather than assume account currency.
     table_->setRowCount(static_cast<int>(rows.size()));
     int sellable = 0;
     for (int i = 0; i < rows.size(); ++i) {
@@ -379,7 +382,8 @@ void BrokerHoldingsWidget::retranslateUi() {
     // Re-apply the actual strings (the old body called hub_resubscribe(),
     // which rebuilds subscriptions and translates nothing).
     if (table_) {
-        table_->setHorizontalHeaderLabels({tr("Symbol"), tr("Qty"), tr("Avg"), tr("LTP"), tr("P&L %"), QString()});
+        table_->setHorizontalHeaderLabels(
+            {tr("Symbol"), tr("Qty"), tr("Avg (native)"), tr("LTP (native)"), tr("P&L %"), QString()});
         for (int r = 0; r < table_->rowCount(); ++r) {
             if (auto* btn = qobject_cast<QPushButton*>(table_->cellWidget(r, 5)))
                 btn->setText(tr("Exit"));

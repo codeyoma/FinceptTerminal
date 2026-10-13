@@ -36,7 +36,7 @@ class ResearchCandleCanvas : public QWidget {
     QVector<services::equity::Candle> candles_;
     QPixmap cache_;
     bool dirty_ = true;
-    QString currency_sym_ = "$";
+    QString currency_sym_;
 
     static constexpr int MAX_VISIBLE = 260;
     static constexpr int PRICE_AXIS_W = 80;
@@ -131,6 +131,9 @@ class EquityOverviewTab : public QWidget {
     QLabel* insiders_val_ = nullptr;
     QLabel* institutions_val_ = nullptr;
     QLabel* short_pct_val_ = nullptr;
+
+    // fork addition (codeyoma/krx-quant#142): both chart backends retain native OHLC.
+    QLabel* chart_currency_label_ = nullptr;
 
     // Chart
 #ifdef HAS_QT_WEBENGINE

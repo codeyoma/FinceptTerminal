@@ -1,5 +1,6 @@
 #pragma once
 #include <QDialog>
+#include <QJsonArray>
 #include <QLabel>
 #include <QLineEdit>
 #include <QList>
@@ -88,6 +89,8 @@ class ProfileScreen : public QWidget {
     void refresh_all();
     void fetch_usage_data();
     void fetch_billing_data();
+    void render_billing_history();
+    QJsonArray billing_payments_;
     void fetch_login_history();
 
     // Helpers

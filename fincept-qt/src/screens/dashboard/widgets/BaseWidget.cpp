@@ -1,6 +1,7 @@
 #include "screens/dashboard/widgets/BaseWidget.h"
 
 #include "screens/dashboard/widgets/LoadingOverlay.h"
+#include "services/markets/MarketDataService.h"
 #include "ui/theme/Theme.h"
 #include "ui/theme/ThemeManager.h"
 
@@ -12,6 +13,12 @@ namespace fincept::screens::widgets {
 
 BaseWidget::BaseWidget(const QString& title, QWidget* parent, const QString& accent_color)
     : QFrame(parent), accent_color_(accent_color.isEmpty() ? ui::colors::AMBER : accent_color) {
+    // Fork hook (codeyoma/krx-quant#142): queue display invalidation independently.
+    // schedule_render() owns pending quote work; replacing its callback here can
+    // drop a quote update. Queued delivery also avoids virtual calls during construction.
+    connect(
+        &services::MarketDataService::instance(), &services::MarketDataService::display_changed, this,
+        [this]() { on_display_currency_changed(); }, Qt::QueuedConnection);
     setObjectName("dashboardBaseWidget");
     setAttribute(Qt::WA_StyledBackground, true);
     setAutoFillBackground(true);

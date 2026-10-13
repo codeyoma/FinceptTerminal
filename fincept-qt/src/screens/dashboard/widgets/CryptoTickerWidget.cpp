@@ -1,5 +1,6 @@
 #include "screens/dashboard/widgets/CryptoTickerWidget.h"
 
+#include "core/currency/Currency.h"
 #include "datahub/DataHub.h"
 #include "datahub/DataHubMetaTypes.h"
 #include "trading/TradingTypes.h"
@@ -80,6 +81,7 @@ void CryptoTickerWidget::build_rows() {
         delete it;
     }
     rows_.clear();
+    ticker_cache_.clear();
 
     auto* hdr = new QLabel(exchange_.toUpper());
     hdr->setStyleSheet(
@@ -146,14 +148,23 @@ void CryptoTickerWidget::on_ticker(const QString& pair, const fincept::trading::
     auto it = rows_.find(pair);
     if (it == rows_.end())
         return;
+    ticker_cache_.insert(pair, t);
     Row& r = it.value();
-    r.price->setText(QString::number(t.last, 'f', t.last < 10 ? 4 : 2));
+    // Fork hook (codeyoma/krx-quant#142): preserve USDT/USDC as source assets, never assume USD.
+    const QString source = pair.contains('/') ? pair.section('/', 1, 1).section(':', 0, 0) : QString();
+    r.price->setText(cur::display_money(t.last, source, false, t.last < 10 ? 4 : -1));
     const QString sign = t.percentage >= 0 ? "+" : "";
     r.change->setText(QString("%1%2%").arg(sign).arg(t.percentage, 0, 'f', 2));
     const QColor col = t.percentage >= 0 ? ui::colors::POSITIVE() : ui::colors::NEGATIVE();
     r.change->setStyleSheet(QString("color:%1;font-size:11px;font-weight:600;background:transparent;").arg(col.name()));
     received_.insert(pair);
     set_loading_progress(received_.size(), pairs_.size());
+}
+
+void CryptoTickerWidget::on_display_currency_changed() {
+    const auto tickers = ticker_cache_;
+    for (auto it = tickers.constBegin(); it != tickers.constEnd(); ++it)
+        on_ticker(it.key(), it.value());
 }
 
 QDialog* CryptoTickerWidget::make_config_dialog(QWidget* parent) {

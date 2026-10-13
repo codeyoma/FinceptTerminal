@@ -4,6 +4,7 @@
 #include "datahub/DataHubMetaTypes.h"
 #include "ui/theme/Theme.h"
 
+#include <QCoreApplication>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QMessageBox>
@@ -123,6 +124,7 @@ QuickTradeWidget::QuickTradeWidget(QWidget* parent) : BaseWidget(tr("QUICK TRADE
 
     // Estimated total
     est_total_ = new QLabel(tr("EST. TOTAL  --"));
+    est_total_->setWordWrap(true);
     vl->addWidget(est_total_);
 
     // Submit button
@@ -153,14 +155,10 @@ QuickTradeWidget::QuickTradeWidget(QWidget* parent) : BaseWidget(tr("QUICK TRADE
     connect(order_type_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int idx) {
         price_input_->setEnabled(idx != 0); // disable for MARKET
         price_input_->setPlaceholderText(idx == 0 ? tr("market") : QStringLiteral("0.00"));
+        update_estimate();
     });
-    connect(qty_input_, &QLineEdit::textChanged, this, [this](const QString&) {
-        if (current_price_ > 0) {
-            double qty = qty_input_->text().toDouble();
-            double total = qty * current_price_;
-            est_total_->setText(tr("EST. TOTAL  $%1").arg(total, 0, 'f', 2));
-        }
-    });
+    connect(qty_input_, &QLineEdit::textChanged, this, &QuickTradeWidget::update_estimate);
+    connect(price_input_, &QLineEdit::textChanged, this, &QuickTradeWidget::update_estimate);
     connect(this, &BaseWidget::refresh_requested, this, &QuickTradeWidget::lookup_symbol);
 
     apply_styles();
@@ -234,6 +232,8 @@ void QuickTradeWidget::lookup_symbol() {
         return;
     }
 
+    last_quote_ = {};
+    current_price_ = 0;
     current_symbol_ = sym;
     auto& hub = datahub::DataHub::instance();
     // Swap subscription to the new symbol; drop the old one first.
@@ -253,11 +253,17 @@ void QuickTradeWidget::lookup_symbol() {
 }
 
 void QuickTradeWidget::apply_quote(const services::QuoteData& q) {
+    // Fork hook (codeyoma/krx-quant#142): only labels convert; order inputs retain native units.
+    last_quote_ = q;
     current_price_ = q.price;
     current_symbol_ = q.symbol.isEmpty() ? current_symbol_ : q.symbol;
 
     sym_label_->setText(current_symbol_);
-    price_label_->setText(QString("$%1").arg(q.price, 0, 'f', 2));
+    auto& market = services::MarketDataService::instance();
+    price_label_->setText(market.display_price(current_symbol_, q.price));
+    const QString source = market.currency_code(current_symbol_);
+    price_lbl_->setText(source.isEmpty() ? tr("PRICE (native)") : tr("PRICE (%1 native)").arg(source));
+    price_input_->setToolTip(tr("Enter the instrument's native price. Display currency does not change order units."));
 
     double chg = q.change_pct;
     QString chg_str = QString("%1%2%").arg(chg >= 0 ? "▲ +" : "▼ ").arg(chg, 0, 'f', 2);
@@ -275,9 +281,24 @@ void QuickTradeWidget::apply_quote(const services::QuoteData& q) {
     bid_label_->setText(tr("BID  —"));
     ask_label_->setText(tr("ASK  —"));
 
-    double qty = qty_input_->text().toDouble();
-    if (qty > 0)
-        est_total_->setText(tr("EST. TOTAL  $%1").arg(qty * q.price, 0, 'f', 2));
+    update_estimate();
+}
+
+void QuickTradeWidget::update_estimate() {
+    const double qty = qty_input_->text().toDouble();
+    const double price = order_type_->currentIndex() == 0 ? current_price_ : price_input_->text().toDouble();
+    if (qty <= 0 || price <= 0) {
+        est_total_->setText(tr("EST. TOTAL  --"));
+        return;
+    }
+    auto& market = services::MarketDataService::instance();
+    const double total = qty * price;
+    // native_price() already ends with the marker for futures and unknown units: once only.
+    QString native = market.native_price(current_symbol_, total);
+    const QString marker = QCoreApplication::translate("Currency", "(native)");
+    if (!native.endsWith(marker))
+        native += QLatin1Char(' ') + marker;
+    est_total_->setText(tr("EST. TOTAL %1 · display %2").arg(native, market.display_price(current_symbol_, total)));
 }
 
 void QuickTradeWidget::hub_unsubscribe_all() {
@@ -361,11 +382,10 @@ void QuickTradeWidget::retranslateUi() {
         bid_label_->setText(current_price_ > 0 ? tr("BID  —") : tr("BID --"));
     if (ask_label_)
         ask_label_->setText(current_price_ > 0 ? tr("ASK  —") : tr("ASK --"));
-    if (est_total_) {
-        const double qty = qty_input_ ? qty_input_->text().toDouble() : 0.0;
-        est_total_->setText(current_price_ > 0 && qty > 0 ? tr("EST. TOTAL  $%1").arg(qty * current_price_, 0, 'f', 2)
-                                                          : tr("EST. TOTAL  --"));
-    }
+    if (!last_quote_.symbol.isEmpty())
+        apply_quote(last_quote_);
+    else if (est_total_)
+        update_estimate();
     // submit_btn_ text is side-aware ("PLACE BUY ORDER" etc.) — let on_side_changed re-derive it.
     if (side_combo_)
         on_side_changed(side_combo_->currentIndex());

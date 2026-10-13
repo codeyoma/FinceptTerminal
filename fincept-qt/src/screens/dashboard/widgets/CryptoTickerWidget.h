@@ -9,6 +9,7 @@
 //     "pairs":    ["BTC/USD", "ETH/USD", ...] }
 
 #include "screens/dashboard/widgets/BaseWidget.h"
+#include "trading/TradingTypes.h"
 
 #include <QHash>
 #include <QSet>
@@ -33,6 +34,7 @@ class CryptoTickerWidget : public BaseWidget {
 
   protected:
     void on_theme_changed() override;
+    void on_display_currency_changed() override;
     void showEvent(QShowEvent* e) override;
     void hideEvent(QHideEvent* e) override;
     void retranslateUi() override;
@@ -54,6 +56,7 @@ class CryptoTickerWidget : public BaseWidget {
     QString exchange_;
     QStringList pairs_;
     QHash<QString, Row> rows_;
+    QHash<QString, trading::TickerData> ticker_cache_;
     QSet<QString> received_; // pairs that have published at least once
     bool hub_active_ = false;
 };

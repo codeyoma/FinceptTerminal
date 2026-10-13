@@ -165,6 +165,11 @@ static const QString kYellow = "#eab308";
 
 EquityFinancialsTab::EquityFinancialsTab(QWidget* parent) : QWidget(parent) {
     build_ui();
+    // fork addition (codeyoma/krx-quant#142): raw statement charts/tables retain their reporting units.
+    reporting_currency_label_ = new QLabel(this);
+    reporting_currency_label_->setWordWrap(true);
+    static_cast<QVBoxLayout*>(layout())->insertWidget(0, reporting_currency_label_);
+    set_reporting_currency({});
     auto& svc = services::equity::EquityResearchService::instance();
     connect(&svc, &services::equity::EquityResearchService::financials_loaded, this,
             &EquityFinancialsTab::on_financials_loaded);
@@ -183,6 +188,13 @@ void EquityFinancialsTab::set_symbol(const QString& symbol) {
     loaded_ = false;
     loading_overlay_->show_loading(tr("LOADING FINANCIALS…"));
     services::equity::EquityResearchService::instance().fetch_financials(symbol);
+}
+
+void EquityFinancialsTab::set_reporting_currency(const QString& currency) {
+    reporting_currency_ = currency;
+    reporting_currency_label_->setText(currency.isEmpty()
+                                           ? tr("Financial statements: native amounts; reporting currency unavailable")
+                                           : tr("Financial statements: %1 (native amounts)").arg(currency));
 }
 
 // ── Re-translation ───────────────────────────────────────────────────────────
@@ -206,6 +218,7 @@ void EquityFinancialsTab::changeEvent(QEvent* event) {
 }
 
 void EquityFinancialsTab::retranslateUi() {
+    set_reporting_currency(reporting_currency_);
     if (btn_income_)
         btn_income_->setText(tr("Income Statement"));
     if (btn_balance_)

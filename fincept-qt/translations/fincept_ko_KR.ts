@@ -10386,6 +10386,14 @@ EIA_API_KEY 환경 변수를 설정하세요.
             <source>SHORT RATIO</source>
             <translation>공매도 상환 소요일</translation>
         </message>
+        <message>
+            <source>%1 points</source>
+            <translation>%1 포인트</translation>
+        </message>
+        <message>
+            <source>%1 (native quote)</source>
+            <translation>%1 (원 시세)</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::EquityFinancialsTab</name>
@@ -10693,6 +10701,14 @@ EIA_API_KEY 환경 변수를 설정하세요.
             <source>CASH FLOW STATEMENT</source>
             <translation>현금흐름표</translation>
         </message>
+        <message>
+            <source>Financial statements: native amounts; reporting currency unavailable</source>
+            <translation>재무제표: 원래 금액 · 보고 통화 확인 불가</translation>
+        </message>
+        <message>
+            <source>Financial statements: %1 (native amounts)</source>
+            <translation>재무제표: %1 (원래 금액)</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::EquityNewsTab</name>
@@ -10939,6 +10955,34 @@ EIA_API_KEY 환경 변수를 설정하세요.
             <source>STRONG SELL</source>
             <translation>적극 매도</translation>
         </message>
+        <message>
+            <source>points</source>
+            <translation>포인트</translation>
+        </message>
+        <message>
+            <source>native quote</source>
+            <translation>원 시세</translation>
+        </message>
+        <message>
+            <source>yield (%)</source>
+            <translation>수익률 (%)</translation>
+        </message>
+        <message>
+            <source>currency unavailable</source>
+            <translation>통화 확인 불가</translation>
+        </message>
+        <message>
+            <source>Chart: %1 (native prices)</source>
+            <translation>차트: %1 (원래 가격)</translation>
+        </message>
+        <message>
+            <source>%1 points</source>
+            <translation>%1 포인트</translation>
+        </message>
+        <message>
+            <source>%1 (native quote)</source>
+            <translation>%1 (원 시세)</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::EquityPeersTab</name>
@@ -11104,6 +11148,18 @@ EIA_API_KEY 환경 변수를 설정하세요.
         <message>
             <source>BACKTEST</source>
             <translation>백테스트</translation>
+        </message>
+        <message>
+            <source>%1 points</source>
+            <translation>%1 포인트</translation>
+        </message>
+        <message>
+            <source>%1 (native quote)</source>
+            <translation>%1 (원 시세)</translation>
+        </message>
+        <message>
+            <source>H: %1  L: %2</source>
+            <translation>고가: %1  저가: %2</translation>
         </message>
     </context>
     <context>
@@ -12794,6 +12850,42 @@ fred.stlouisfed.org/docs/api/api_key.html</translation>
         <message>
             <source>Changes the currency symbol on calculators and analytics. Live market data keeps its own currency — values are not converted.</source>
             <translation>계산기와 분석 화면의 통화 기호를 변경합니다. 실시간 시장 데이터는 원래 통화를 유지하며, 값은 환산되지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Converts supported monetary displays using dated ECB reference rates. Orders keep their source units. Calculators use the selected denomination. Unavailable conversions keep the original currency.</source>
+            <translation>지원되는 금액 표시에 기준일이 명시된 ECB 참고환율을 적용합니다. 주문은 원 단위를 유지하며 계산기는 선택한 통화 단위를 사용합니다. 환산할 수 없으면 원래 통화로 표시합니다.</translation>
+        </message>
+        <message>
+            <source>Refresh exchange rates</source>
+            <translation>환율 새로고침</translation>
+        </message>
+        <message>
+            <source>ECB daily reference rates — %1</source>
+            <translation>ECB 일일 참고환율 — %1</translation>
+        </message>
+        <message>
+            <source> (cached)</source>
+            <translation> (저장된 환율)</translation>
+        </message>
+        <message>
+            <source>100 USD ≈ %1</source>
+            <translation>100 USD ≈ %1</translation>
+        </message>
+        <message>
+            <source>For display estimates only; actual execution and billing rates may differ.</source>
+            <translation>표시용 참고 금액입니다. 실제 체결·청구 환율과 다를 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Refresh failed; using cached rates.</source>
+            <translation>새로고침 실패 · 저장된 환율을 사용합니다.</translation>
+        </message>
+        <message>
+            <source>Reference rates unavailable. Amounts keep their original currency.</source>
+            <translation>참고환율을 사용할 수 없어 원래 통화로 표시합니다.</translation>
+        </message>
+        <message>
+            <source>Refreshing exchange rates…</source>
+            <translation>환율을 새로고침하는 중…</translation>
         </message>
     </context>
     <context>
@@ -19187,6 +19279,10 @@ Country examples: United States, China, Germany, India, Japan, World</source>
             <source>Close / Delete Position</source>
             <translation>포지션 청산 / 삭제</translation>
         </message>
+        <message>
+            <source>%1 (native)</source>
+            <translation>%1 (원 단위)</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::PortfolioCommandBar</name>
@@ -20171,6 +20267,10 @@ the selected period. Use when comparing different currencies.</source>
     <context>
         <name>fincept::screens::PortfolioScreen</name>
         <message>
+            <source>Totals unavailable — quote and cost currencies are mixed or unverified. Aggregate panels are hidden; verified individual quotes remain in the positions table.</source>
+            <translation>합계 표시 불가 — 시세와 취득원가의 통화가 섞여 있거나 확인되지 않았습니다. 합계 패널을 숨기며 확인된 개별 시세는 포지션 표에 표시합니다.</translation>
+        </message>
+        <message>
             <source>Export CSV</source>
             <translation>CSV 내보내기</translation>
         </message>
@@ -20287,6 +20387,30 @@ Expected format:
         <message>
             <source>Unclassified</source>
             <translation>미분류</translation>
+        </message>
+        <message>
+            <source>Native totals — quote and cost currencies are mixed or unverified; aggregate FX is unavailable.</source>
+            <translation>원래 합계 — 시세와 취득원가의 통화가 섞여 있거나 확인되지 않아 합계를 환산할 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Native %1 — daily FX conversion to %2 is unavailable.</source>
+            <translation>원 통화 %1 — 일일 환율로 %2 환산 불가</translation>
+        </message>
+        <message>
+            <source>Current values display %1 · source %2 · daily FX %3.</source>
+            <translation>현재 금액 표시 %1 · 원 통화 %2 · 일일 환율 기준일 %3</translation>
+        </message>
+        <message>
+            <source>Display and source currency: %1.</source>
+            <translation>표시 통화와 원 통화: %1</translation>
+        </message>
+        <message>
+            <source> History stays native because snapshot currencies are unverified. Orders, transactions and detailed analytics retain their source units.</source>
+            <translation> 과거 기록은 당시 통화를 확인할 수 없어 원래 금액을 유지합니다. 주문·거래·상세 분석은 원 단위를 유지합니다.</translation>
+        </message>
+        <message>
+            <source>Native history. Historical snapshots do not record their currency; changing display currency does not convert this chart.</source>
+            <translation>원래 금액의 과거 기록입니다. 과거 스냅샷에는 통화가 저장되지 않아 표시 통화를 바꿔도 이 차트는 환산되지 않습니다.</translation>
         </message>
     </context>
     <context>
@@ -20514,6 +20638,10 @@ Expected format:
         <message>
             <source>Continue with Free Plan</source>
             <translation>무료 요금제로 계속</translation>
+        </message>
+        <message>
+            <source>Charged in USD: %1</source>
+            <translation>실제 USD 청구액: %1</translation>
         </message>
     </context>
     <context>
@@ -21060,6 +21188,10 @@ Please contact support@fincept.in</source>
             <translation>계정 삭제 실패: %1
 
 support@fincept.in으로 문의하세요</translation>
+        </message>
+        <message>
+            <source>Charged in USD: %1</source>
+            <translation>실제 USD 청구액: %1</translation>
         </message>
     </context>
     <context>
@@ -38257,6 +38389,14 @@ to place orders</source>
             <source>Broker account</source>
             <translation>브로커 계좌</translation>
         </message>
+        <message>
+            <source>Avg (native)</source>
+            <translation>평균가 (원 통화)</translation>
+        </message>
+        <message>
+            <source>LTP (native)</source>
+            <translation>현재가 (원 통화)</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::CandleCanvas</name>
@@ -38907,6 +39047,22 @@ Add positions from the Portfolio tab.</source>
             <source>Portfolio</source>
             <translation>포트폴리오</translation>
         </message>
+        <message>
+            <source>Totals unavailable: quotes or source currencies are incomplete or mixed.</source>
+            <translation>합계 표시 불가: 시세 또는 원 통화가 누락되거나 섞여 있습니다.</translation>
+        </message>
+        <message>
+            <source>Native %1; daily FX to %2 unavailable.</source>
+            <translation>원 통화 %1 · 일일 환율로 %2 환산 불가</translation>
+        </message>
+        <message>
+            <source>%1 from %2 · daily FX %3</source>
+            <translation>%2에서 %1 환산 · 일일 환율 기준일 %3</translation>
+        </message>
+        <message>
+            <source>Source: %1</source>
+            <translation>원 통화: %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::QuickTradeWidget</name>
@@ -39019,6 +39175,22 @@ Add positions from the Portfolio tab.</source>
 Order sent to trading engine.</source>
             <translation>%1 %2 %3 @ %4
 트레이딩 엔진으로 주문을 전송했습니다.</translation>
+        </message>
+        <message>
+            <source>PRICE (native)</source>
+            <translation>가격 (원 통화)</translation>
+        </message>
+        <message>
+            <source>PRICE (%1 native)</source>
+            <translation>가격 (%1 원 통화)</translation>
+        </message>
+        <message>
+            <source>Enter the instrument's native price. Display currency does not change order units.</source>
+            <translation>종목의 원 통화 가격을 입력하세요. 표시 통화는 주문 단위를 바꾸지 않습니다.</translation>
+        </message>
+        <message>
+            <source>EST. TOTAL %1 · display %2</source>
+            <translation>예상 합계 %1 · 환산 표시 %2</translation>
         </message>
     </context>
     <context>
@@ -41557,6 +41729,63 @@ to edit properties</source>
         <message>
             <source>Search country…</source>
             <translation>국가 검색…</translation>
+        </message>
+    </context>
+    <context>
+        <name>Currency</name>
+        <message>
+            <source>points</source>
+            <translation>포인트</translation>
+        </message>
+        <message>
+            <source>rate</source>
+            <translation>환율</translation>
+        </message>
+        <message>
+            <source>(native)</source>
+            <translation>(원 단위)</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::EquityValuationTab</name>
+        <message>
+            <source>CALCULATE</source>
+            <translation>계산</translation>
+        </message>
+        <message>
+            <source>currency unavailable</source>
+            <translation>통화 확인 불가</translation>
+        </message>
+        <message>
+            <source> M (%1)</source>
+            <translation> 백만 (%1)</translation>
+        </message>
+        <message>
+            <source>Free cash flow input stays in the reporting currency: %1</source>
+            <translation>잉여현금흐름 입력은 보고 통화(%1)를 유지합니다.</translation>
+        </message>
+        <message>
+            <source>Currency mismatch or unavailable</source>
+            <translation>통화가 다르거나 확인할 수 없음</translation>
+        </message>
+        <message>
+            <source>%1 points</source>
+            <translation>%1 포인트</translation>
+        </message>
+        <message>
+            <source>%1 (native quote)</source>
+            <translation>%1 (원 시세)</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::equity::EquityChartPanel</name>
+        <message>
+            <source>%1 %2 (native)</source>
+            <translation>%1 %2 (원 단위)</translation>
+        </message>
+        <message>
+            <source>currency unavailable</source>
+            <translation>통화 확인 불가</translation>
         </message>
     </context>
 </TS>

@@ -76,6 +76,7 @@ void MarketQuoteStripWidget::build_rows() {
         delete it;
     }
     rows_.clear();
+    quote_cache_.clear();
 
     auto* grid = new QGridLayout();
     grid->setContentsMargins(0, 0, 0, 0);
@@ -143,14 +144,21 @@ void MarketQuoteStripWidget::on_quote(const fincept::services::QuoteData& q) {
     auto it = rows_.find(q.symbol);
     if (it == rows_.end())
         return;
+    quote_cache_.insert(q.symbol, q);
     Row& r = it.value();
-    r.price->setText(QString::number(q.price, 'f', 2));
+    r.price->setText(services::MarketDataService::instance().display_price(q.symbol, q.price));
     const QString sign = q.change_pct >= 0 ? "+" : "";
     r.change->setText(QString("%1%2%").arg(sign).arg(q.change_pct, 0, 'f', 2));
     const QColor col = q.change_pct >= 0 ? ui::colors::POSITIVE() : ui::colors::NEGATIVE();
     r.change->setStyleSheet(QString("color:%1;font-size:11px;font-weight:600;background:transparent;").arg(col.name()));
     received_.insert(q.symbol);
     set_loading_progress(received_.size(), symbols_.size());
+}
+
+void MarketQuoteStripWidget::on_display_currency_changed() {
+    const auto quotes = quote_cache_.values();
+    for (const auto& quote : quotes)
+        on_quote(quote);
 }
 
 QDialog* MarketQuoteStripWidget::make_config_dialog(QWidget* parent) {

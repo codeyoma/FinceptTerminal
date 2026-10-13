@@ -9,6 +9,7 @@
 #include <QWidget>
 
 class QLabel;
+class QPushButton;
 
 namespace fincept::screens {
 
@@ -26,6 +27,7 @@ class GeneralSection : public QWidget {
 
   private:
     void build_ui();
+    void update_rates_status();
 
     /// Re-apply tr() lookups to every widget whose text we keep a handle to.
     /// Called from changeEvent() on QEvent::LanguageChange.
@@ -45,6 +47,8 @@ class GeneralSection : public QWidget {
     QLabel* language_desc_ = nullptr;
     QLabel* currency_label_ = nullptr;
     QLabel* currency_desc_ = nullptr;
+    QLabel* rates_status_ = nullptr;
+    QPushButton* refresh_rates_ = nullptr;
 };
 
 } // namespace fincept::screens

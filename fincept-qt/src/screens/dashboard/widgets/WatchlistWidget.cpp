@@ -180,8 +180,10 @@ void WatchlistWidget::render_from_cache() {
         if (it == row_cache_.constEnd())
             continue;
         const auto& q = it.value();
-        table_->add_row({q.symbol, QString("$%1").arg(q.price, 0, 'f', 2),
-                         QString("%1%2").arg(q.change >= 0 ? "+" : "").arg(q.change, 0, 'f', 2),
+        table_->add_row({q.symbol, services::MarketDataService::instance().display_price(q.symbol, q.price),
+                         QString("%1%2")
+                             .arg(q.change >= 0 ? "+" : "")
+                             .arg(services::MarketDataService::instance().display_price(q.symbol, q.change)),
                          QString("%1%2%").arg(q.change_pct >= 0 ? "+" : "").arg(q.change_pct, 0, 'f', 2)});
         int row = table_->rowCount() - 1;
         table_->set_cell_color(row, 2, ui::change_color(q.change_pct));

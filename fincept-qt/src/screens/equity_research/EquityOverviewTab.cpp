@@ -1,6 +1,8 @@
 // src/screens/equity_research/EquityOverviewTab.cpp
 #include "screens/equity_research/EquityOverviewTab.h"
 
+#include "core/currency/Currency.h"
+#include "screens/equity_research/EquityValuationUnits.h"
 #include "services/equity/EquityResearchService.h"
 #include "ui/theme/Theme.h"
 
@@ -301,6 +303,9 @@ EquityOverviewTab::EquityOverviewTab(QWidget* parent) : QWidget(parent) {
     auto& svc = services::equity::EquityResearchService::instance();
     connect(&svc, &services::equity::EquityResearchService::quote_loaded, this, &EquityOverviewTab::on_quote_loaded);
     connect(&svc, &services::equity::EquityResearchService::info_loaded, this, &EquityOverviewTab::on_info_loaded);
+    // fork addition (codeyoma/krx-quant#142): display conversion never overwrites source data.
+    connect(&currency::CurrencyManager::instance(), &currency::CurrencyManager::display_changed, this,
+            &EquityOverviewTab::retranslateUi);
     connect(&svc, &services::equity::EquityResearchService::historical_loaded, this,
             &EquityOverviewTab::on_historical_loaded);
     // Overview waits on three legs (quote / info / historical) and only hides the
@@ -326,6 +331,11 @@ void EquityOverviewTab::set_symbol(const QString& symbol) {
         return;
     current_symbol_ = symbol;
     info_loaded_ = quote_loaded_ = historical_loaded_ = false;
+    current_currency_.clear();
+    cached_info_ = {};
+    cached_quote_ = {};
+    cached_candles_.clear();
+    rebuild_chart({});
     set_overview_error(this, QString()); // drop the previous symbol's failure
     loading_overlay_->show_loading(tr("LOADING OVERVIEW…"));
 }
@@ -372,6 +382,11 @@ void EquityOverviewTab::build_ui() {
             return;
         set_overview_error(this, QString());
         info_loaded_ = quote_loaded_ = historical_loaded_ = false;
+        current_currency_.clear();
+        cached_info_ = {};
+        cached_quote_ = {};
+        cached_candles_.clear();
+        rebuild_chart({});
         if (loading_overlay_)
             loading_overlay_->show_loading(tr("LOADING OVERVIEW…"));
         services::equity::EquityResearchService::instance().load_symbol(current_symbol_, current_period_);
@@ -507,6 +522,10 @@ QWidget* EquityOverviewTab::build_chart_panel() {
     btn_row->addStretch();
 
     vl->addLayout(btn_row);
+    chart_currency_label_ = new QLabel(p);
+    chart_currency_label_->setObjectName(QStringLiteral("equityChartNativeCurrency"));
+    chart_currency_label_->setWordWrap(true);
+    vl->addWidget(chart_currency_label_);
 
     // Chart widget — prefer KLineChart when WebEngine is available
 #ifdef HAS_QT_WEBENGINE
@@ -672,7 +691,11 @@ void EquityOverviewTab::on_quote_loaded(services::equity::QuoteData q) {
     if (q.symbol != current_symbol_)
         return;
     cached_quote_ = q;
+    if (!q.currency.isEmpty())
+        current_currency_ = q.currency;
     quote_loaded_ = true;
+    if (historical_loaded_)
+        rebuild_chart(cached_candles_);
     if (info_loaded_ && quote_loaded_ && historical_loaded_)
         loading_overlay_->hide_loading();
 
@@ -688,7 +711,7 @@ void EquityOverviewTab::on_info_loaded(services::equity::StockInfo info) {
         return;
     cached_info_ = info;
     info_loaded_ = true;
-    current_currency_ = info.currency;
+    current_currency_ = cached_quote_.currency.isEmpty() ? info.currency : cached_quote_.currency;
     if (info_loaded_ && quote_loaded_ && historical_loaded_)
         loading_overlay_->hide_loading();
 
@@ -710,13 +733,13 @@ void EquityOverviewTab::render_info(const services::equity::StockInfo& info) {
         low_val_->setText(fmt_price(cached_quote_.low));
         prev_close_val_->setText(fmt_price(cached_quote_.prev_close));
     }
-    if (historical_loaded_ && !cached_candles_.isEmpty() && candle_canvas_) {
-        candle_canvas_->set_candles(cached_candles_,
-                                    currency_symbol(current_currency_.isEmpty() ? "USD" : current_currency_));
-    }
+    if (historical_loaded_)
+        rebuild_chart(cached_candles_);
 
     // Valuation
-    mktcap_val_->setText(info.market_cap > 0 ? fmt_large(info.market_cap) : na);
+    mktcap_val_->setText(info.market_cap > 0
+                             ? cur::display_money(info.market_cap, equity::capitalization_currency(info.currency), true)
+                             : na);
     pe_val_->setText(info.pe_ratio > 0 ? QString::number(info.pe_ratio, 'f', 2) : na);
     fwd_pe_val_->setText(info.forward_pe > 0 ? QString::number(info.forward_pe, 'f', 2) : na);
     peg_val_->setText(info.peg_ratio > 0 ? QString::number(info.peg_ratio, 'f', 2) : na);
@@ -786,9 +809,9 @@ void EquityOverviewTab::render_info(const services::equity::StockInfo& info) {
     company_currency_->setText(info.currency.isEmpty() ? na : info.currency);
 
     // Financial Health
-    cash_val_->setText(fmt_large(info.total_cash));
-    debt_val_->setText(fmt_large(info.total_debt));
-    free_cf_val_->setText(fmt_large(info.free_cashflow));
+    cash_val_->setText(cur::display_money(info.total_cash, info.financial_currency, true));
+    debt_val_->setText(cur::display_money(info.total_debt, info.financial_currency, true));
+    free_cf_val_->setText(cur::display_money(info.free_cashflow, info.financial_currency, true));
 }
 
 void EquityOverviewTab::on_historical_loaded(QString symbol, QVector<services::equity::Candle> candles) {
@@ -802,6 +825,15 @@ void EquityOverviewTab::on_historical_loaded(QString symbol, QVector<services::e
 }
 
 void EquityOverviewTab::rebuild_chart(const QVector<services::equity::Candle>& candles) {
+    // fork addition (codeyoma/krx-quant#142): every OHLC value and axis stays in the same native unit.
+    const QString type = equity::resolved_quote_type(cached_quote_.quote_type, cached_info_.quote_type);
+    const QString units = type == QLatin1String("INDEX")       ? tr("points")
+                          : type == QLatin1String("CURRENCY")  ? tr("native quote")
+                          : type == QLatin1String("YIELD")     ? tr("yield (%)")
+                          : !equity::monetary_quote_type(type) ? tr("native quote")
+                          : current_currency_.isEmpty()        ? tr("currency unavailable")
+                                                               : current_currency_;
+    chart_currency_label_->setText(tr("Chart: %1 (native prices)").arg(units));
 #ifdef HAS_QT_WEBENGINE
     if (kline_chart_) {
         QJsonArray arr;
@@ -819,8 +851,7 @@ void EquityOverviewTab::rebuild_chart(const QVector<services::equity::Candle>& c
         return;
     }
 #endif
-    const QString cs = currency_symbol(current_currency_.isEmpty() ? "USD" : current_currency_);
-    candle_canvas_->set_candles(candles, cs);
+    candle_canvas_->set_candles(candles, QString());
 }
 
 // ── Formatters ────────────────────────────────────────────────────────────────
@@ -899,8 +930,16 @@ QString EquityOverviewTab::currency_symbol(const QString& currency_code) {
 QString EquityOverviewTab::fmt_price(double v) const {
     if (v == 0.0)
         return QString::fromUtf8("\xe2\x80\x94");
-    const QString sym = current_currency_.isEmpty() ? "$" : currency_symbol(current_currency_);
-    return QString("%1%2").arg(sym).arg(v, 0, 'f', 2);
+    const QString type = equity::resolved_quote_type(cached_quote_.quote_type, cached_info_.quote_type);
+    if (type == QLatin1String("INDEX"))
+        return tr("%1 points").arg(QString::number(v, 'f', 2));
+    if (type == QLatin1String("CURRENCY"))
+        return tr("%1 (native quote)").arg(QString::number(v, 'f', 4));
+    if (type == QLatin1String("YIELD"))
+        return QString::number(v, 'f', 3) + QLatin1Char('%');
+    if (!equity::monetary_quote_type(type))
+        return tr("%1 (native quote)").arg(QString::number(v, 'f', 4));
+    return cur::display_money(v, current_currency_);
 }
 
 // ── Re-translation ───────────────────────────────────────────────────────────
@@ -920,6 +959,7 @@ void EquityOverviewTab::changeEvent(QEvent* event) {
 }
 
 void EquityOverviewTab::retranslateUi() {
+    rebuild_chart(cached_candles_);
     for (auto it = i18n_labels_.constBegin(); it != i18n_labels_.constEnd(); ++it) {
         it.key()->setText(tr(it.value()));
     }

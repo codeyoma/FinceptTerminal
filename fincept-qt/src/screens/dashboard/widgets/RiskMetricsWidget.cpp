@@ -291,7 +291,9 @@ void RiskMetricsWidget::populate(const QVector<services::QuoteData>& quotes) {
 
         // Hi/Lo as range: H/L
         if (q.high > 0 && q.low > 0) {
-            stock_rows_[i].hi_lo->setText(QString("H%1 L%2").arg(q.high, 0, 'f', 0).arg(q.low, 0, 'f', 0));
+            stock_rows_[i].hi_lo->setText(
+                QString("H%1 L%2").arg(services::MarketDataService::instance().display_price(q.symbol, q.high, 0),
+                                       services::MarketDataService::instance().display_price(q.symbol, q.low, 0)));
         }
     }
 
