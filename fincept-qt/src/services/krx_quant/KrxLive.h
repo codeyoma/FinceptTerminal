@@ -93,6 +93,8 @@ class KrxLive : public QObject {
     void stats_failed(const QString& algorithm, const QString& reason);
     void pinned_changed(); ///< pinned or back to the latest, or its judgements read
     void pinned_failed(const QString& reason);
+    /// The bars before the chart's could not be read; those shown stay (krx-quant #108).
+    void older_failed(const QString& reason);
     void signal_raised(const fincept::krx_quant::Signal& signal);
 
   private:
@@ -120,8 +122,12 @@ class KrxLive : public QObject {
     bool shown_ = false;
     QString selected_;
     QList<krx_quant::Bar> bars_;
-    QList<krx_quant::Bar> older_; ///< read before the day's, as the chart scrolled back
-    bool oldest_ = false;         ///< the engine has nothing before older_
+    QList<krx_quant::Bar> older_;                ///< read before the day's, as the chart scrolled back
+    bool oldest_ = false;                        ///< the engine has nothing before older_
+    double view_from_ = krx_quant::kOlderMargin; ///< where the chart's view last started
+    int view_minutes_ = 1;                       ///< and its minutes
+    /// Back to today's bars only: a symbol or an engine changed, or the engine is lost.
+    void forget_older();
     KrxQuantService::LeaderboardQuery query_;
     QStringList details_; ///< the algorithms whose stats are read
     QDateTime pinned_;

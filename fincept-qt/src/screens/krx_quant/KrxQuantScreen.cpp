@@ -230,6 +230,11 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         chart_failure_->setToolTip(tr("1분봉을 읽지 못했습니다: %1").arg(reason));
         chart_failure_->show();
     });
+    connect(live_, &services::KrxLive::older_failed, this, [this](const QString& reason) {
+        // The bars shown stay; scrolling to the left end again asks again.
+        chart_failure_->setToolTip(tr("지난 1분봉을 읽지 못했습니다: %1").arg(reason));
+        chart_failure_->show();
+    });
     connect(live_, &services::KrxLive::macro_changed, this, [this]() { show_macro(); });
     connect(live_, &services::KrxLive::macro_failed, this, [this]() { show_macro(); });
     connect(live_, &services::KrxLive::leaderboard_changed, leaderboard_, &KrxLeaderboard::show_leaderboard);

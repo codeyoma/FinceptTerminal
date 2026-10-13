@@ -123,11 +123,11 @@ struct OlderRead {
 };
 
 /// What to read once the view of ``minutes`` starts ``view_from`` of its bars (a logical
-/// index, negative past the first bar) from the left end of ``bars`` (1-minute bars): nothing
-/// while it is kOlderMargin bars or more away, else the 1-minute bars before the first:
-/// kOlderBars, or kOlderViewBars of a wider view, at most kMaxOlderBars. With no bars yet,
-/// those before now.
-std::optional<OlderRead> older_read(const QList<Bar>& bars, double view_from, int minutes = 1);
+/// index, negative past the first bar) from its left end, where the 1-minute bar starting at
+/// ``first`` is: nothing while it is kOlderMargin bars or more away, else the 1-minute bars
+/// before it: kOlderBars, or kOlderViewBars of a wider view, at most kMaxOlderBars. With no
+/// bars yet (``first`` invalid), those before now.
+std::optional<OlderRead> older_read(const QDateTime& first, double view_from, int minutes = 1);
 
 /// ``older`` read before ``newer``, as one run of bars oldest first: a bar in both (the
 /// same start) is ``newer``'s.
