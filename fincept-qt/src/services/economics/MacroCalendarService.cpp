@@ -5,6 +5,7 @@
 #include "datahub/DataHub.h"
 #include "datahub/TopicPolicy.h"
 #include "network/http/HttpClient.h"
+#include "services/krx_quant/EngineCalendar.h" // fork addition (codeyoma/krx-quant#150)
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -82,12 +83,17 @@ void MacroCalendarService::refresh(const QStringList& topics) {
     // is attached automatically (same-host auth), matching the other Fincept
     // data services (Geopolitics/Maritime/Forum). Host comes from AppConfig so
     // staging / self-host overrides apply uniformly.
-    const QString url = AppConfig::instance().api_base_url() + QString::fromLatin1(kPath);
+    // Fork addition (codeyoma/krx-quant#150): with the KRX engine's address set, the calendar
+    // comes from the engine's /v1/calendar, which spends no Fincept credits.
+    const QString engine = AppConfig::instance().get(QStringLiteral("krx_quant/base_url")).toString().trimmed();
+    const bool from_engine = !engine.isEmpty();
+    const QString url = from_engine ? krx_quant::calendar_url(engine)
+                                    : AppConfig::instance().api_base_url() + QString::fromLatin1(kPath);
 
     QPointer<MacroCalendarService> self = this;
     HttpClient::instance().get(
         url,
-        [self](Result<QJsonDocument> result) {
+        [self, from_engine](Result<QJsonDocument> result) {
             if (!self)
                 return;
             auto& hub = fincept::datahub::DataHub::instance();
@@ -97,7 +103,8 @@ void MacroCalendarService::refresh(const QStringList& topics) {
                 hub.publish_error(QString::fromLatin1(kTopic), msg);
                 return;
             }
-            const QJsonArray events = parse_events(result.value());
+            const QJsonArray events =
+                from_engine ? krx_quant::calendar_widget_events(result.value()) : parse_events(result.value());
             hub.publish(QString::fromLatin1(kTopic), QVariant::fromValue(events));
         },
         this);

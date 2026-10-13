@@ -66,3 +66,9 @@ fincept_add_test(tst_fx_rates tst_fx_rates.cpp
     "${PROJECT_SOURCE_DIR}/src/core/currency/fx/FxRates.cpp")
 fincept_add_test(tst_portfolio_presentation tst_portfolio_presentation.cpp)
 fincept_add_test(tst_equity_valuation_units tst_equity_valuation_units.cpp)
+
+# src/services/krx_quant/EngineCalendar.{h,cpp} — the dashboard's Economic Calendar read from the KRX
+# engine's /v1/calendar instead of Fincept's credit-charged endpoint (codeyoma/krx-quant#150). Qt Core only.
+fincept_add_test(tst_krx_engine_calendar
+    tst_krx_engine_calendar.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineCalendar.cpp")

@@ -58,6 +58,8 @@ custom/merge-upstream-release.sh [tag]
 - 새 코드는 새 디렉터리에 둔다 (`fincept-qt/src/screens/krx_quant/`, `fincept-qt/src/services/krx_quant/`).
 - 화면 등록과 로컬 CLI LLM(아래) 때문에 고치는 upstream 파일은 아래 목록으로 제한하고, 고칠 때마다 이 표를 갱신한다. 고친 곳에는 `fork addition (codeyoma/krx-quant#N)` 주석을 단다.
 
+> **바뀜** (2026-10-13, codeyoma/krx-quant#PRNUM): 위의 것에 더해, 경제 캘린더(codeyoma/krx-quant#150) 때문에 `fincept-qt/src/services/economics/MacroCalendarService.cpp`도 고친다(아래 표). 이유: 대시보드의 Economic Calendar가 읽는 Fincept 서버 엔드포인트가 크레딧을 썼다. 엔진이 같은 데이터를 모아 두었으니, 엔진 주소가 있으면 거기서 읽도록 갈래를 하나 넣었다.
+
 > **바뀜** (2026-10-13, codeyoma/FinceptTerminal#26): 화면 등록과 로컬 CLI LLM 때문에 고치는 upstream 파일만 → 원화 환산 표시(codeyoma/krx-quant#142) 때문에 고치는 시장·관심종목·대시보드·포트폴리오·주식 리서치·설정 화면과 시세 service도(아래 표). 이유: 출처 통화가 확인된 금액만 화면에서 환산하려면 각 화면이 금액을 그리는 곳에 갈래가 필요했다. upstream 릴리스를 merge 할 때 이 파일들이 충돌할 수 있다.
 
 > **바뀜** (2026-10-12, codeyoma/krx-quant#97): 화면 등록 때문에 고치는 upstream 파일만 → 로컬 CLI LLM provider(codeyoma/krx-quant#96) 때문에 고치는 LLM 파일 9개도. 이유: Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에 로그인된 Claude Code·Codex CLI로 쓰려면 provider 목록, 요청 경로, 설정 화면에 갈래가 하나씩 필요했다. 새 코드는 `src/services/krx_quant/LocalCli*`에 두고 upstream 파일에는 한두 줄짜리 갈래만 넣었다.
@@ -73,7 +75,7 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/src/ui/navigation/ToolBar.cpp` | Navigate → Trading & Portfolio 메뉴에 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/CommandBar.cpp` | 명령 팔레트에 `krx_quant` ("krx"로 찾는다) |
 | `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`), 윈도우 설치 프로그램의 기본 폴더 `CPACK_IFW_TARGET_DIRECTORY`(사용자 폴더, codeyoma/krx-quant#130), 한국어 언어 팩 `translations/fincept_ko_KR.ts`의 컴파일·리소스 포함 |
-| `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`, `tst_krx_korean`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
+| `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`, `tst_krx_korean`, `tst_krx_engine_calendar`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
 | `fincept-qt/src/core/i18n/LanguageManager.cpp` | 공용 언어 목록에 `ko_KR`, 언어 이름에 `한국어`를 추가한다(codeyoma/krx-quant#132). 설정 화면과 로그인 언어 선택이 이 목록을 그대로 쓴다 |
 | `fincept-qt/src/core/currency/CurrencyManager.{h,cpp}`, `Currency.h`, 새 `core/currency/fx/` | KRW 목록, 출처 통화를 요구하는 환산 API, ECB 비인증 조회·캐시·갱신 신호(codeyoma/krx-quant#138, #142). 공용 인프라라 KRX 엔진 service 대신 독립 디렉터리에 둔다 |
 | `fincept-qt/src/screens/settings/GeneralSection.{h,cpp}` | 통화 설명, 환율 출처·기준일·갱신 상태·버튼(#142) |
@@ -96,6 +98,7 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/src/screens/settings/LlmConfigSection_Profiles.cpp` | LLM 프로필의 provider 목록에서 로컬 CLI provider를 뺀다(프로필은 Python 에이전트가 쓰고, Python 에이전트는 CLI를 부르지 못한다) |
 | `fincept-qt/src/services/alpha_arena/ArenaModelRegistry.cpp` | Alpha Arena 모델 목록에서 로컬 CLI provider를 뺀다(Arena는 provider API를 직접 부른다) |
 | `fincept-qt/src/mcp/ProviderToolFormatSelfTest.cpp` | provider별 endpoint 자가 검사에서 로컬 CLI provider를 건너뛴다(endpoint가 없다) |
+| `fincept-qt/src/services/economics/MacroCalendarService.cpp` | KRX 엔진 주소(`krx_quant/base_url`)가 있으면 Economic Calendar를 Fincept 서버 대신 엔진의 `/v1/calendar`에서 읽고, `krx_quant::calendar_widget_events`로 위젯의 형식으로 바꾼다(codeyoma/krx-quant#150) |
 
 > **바뀜** (2026-10-12, krx-quant #94): KRX 테스트 등록을 `fincept-qt/tests/CMakeLists.txt` 끝에 붙였다 → `krx_quant.cmake`로 옮기고 `fincept_add_test()` 정의 뒤에서 include 한다. 이유: upstream도 파일 끝에 테스트를 붙여서, v4.5.0 이후 upstream `main`을 merge 하면 충돌했다. 자동 반영이 멈추지 않게 하려고(krx-quant #93).
 
@@ -295,6 +298,20 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 - **주의.** Claude CLI는 환경 변수 `ANTHROPIC_API_KEY`가 있으면 구독 대신 그 키로 과금될 수 있다.
 - **코드.** `fincept-qt/src/services/krx_quant/LocalCliLlm.{h,cpp}`(provider, 인자, 출력 해석, Codex 모델 캐시), `LocalCliRunner.{h,cpp}`(CLI 찾기, 실행, Settings의 확인). upstream 파일의 갈래는 위 "upstream 파일 수정 원칙" 표에 있다.
 - **테스트.** `tst_krx_local_cli_llm`(Qt Core만): CLI별 인자, 각 CLI 출력의 답·사용량·오류 해석, Codex 모델 캐시, 대역 CLI로 찾기·stdin 전달·시간 초과, Settings의 확인(`--version`)과 실패 문구, 윈도우 npm shim의 node 스크립트 찾기와 `cmd.exe` 명령줄 따옴표, Codex 자체 도구 끄기, 라운드마다 새 빈 폴더, 시간 초과 때 CLI가 띄운 프로세스까지 멈추기.
+
+## 경제 캘린더 (codeyoma/krx-quant#150)
+
+대시보드의 **Economic Calendar** 위젯은 원래 Fincept 서버(`api.fincept.in/macro/upcoming-events?limit=25`)를 읽는다. 이 요청은 Fincept 크레딧을 쓰고, 위젯이 떠 있는 동안 5분마다(DataHub의 TTL), 로그인할 때 한 번, 새로고침을 누를 때마다 나간다.
+
+- **엔진에서 읽기.** KRX 화면에 엔진 주소(`krx_quant/base_url`)를 넣어 두면 `MacroCalendarService`가 같은 주기로 엔진의 `GET /v1/calendar?limit=25`를 읽는다. 엔진은 15분마다 TradingView의 공개 경제 캘린더에서 미국·한국·중국·일본·유로존·독일·영국의 일정을 모은다(krx-quant `docs/design.md` 4.5의 "경제 캘린더", `docs/engine-api.md`의 `/v1/calendar`). Fincept 크레딧은 쓰지 않는다.
+- **엔진 주소가 없으면** 원래대로 Fincept 서버를 읽는다.
+- **보이는 값.** 엔진의 답을 위젯의 필드로 바꾼다(`fincept-qt/src/services/krx_quant/EngineCalendar.{h,cpp}`).
+  - 날짜와 시각은 KST다(원래 출처의 시간대와 다를 수 있다).
+  - 실제(ACT)·예상(FCST)·이전(PREV)은 엔진의 숫자에 단위를 붙인 글자다(`3.7%`, `90.45B`). 아직 모르면 `--`다.
+  - 컨센서스(CONS)는 비운다. 출처의 예상치는 하나뿐이라 FCST에 보인다.
+  - 중요도는 `low`·`medium`·`high`를 1·2·3(LOW·MED·HIGH)으로 보인다.
+  - 툴팁의 분류(Category)는 출처의 분류 코드(`prce` 등)다. 시장 반응(sentiment)과 종목(symbol)은 없다.
+- **테스트.** `tst_krx_engine_calendar`(Qt Core만): 요청 주소, 엔진 답에서 위젯 행으로(KST 시각, 단위 붙인 값, 중요도), 읽을 수 없는 답.
 
 ## 개인 빌드
 
