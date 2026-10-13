@@ -2,6 +2,7 @@
 
 #include "services/krx_quant/EngineData.h"
 
+#include <QDateTime>
 #include <QHash>
 #include <QList>
 #include <QMap>
@@ -73,6 +74,9 @@ class KrxQuantService : public QObject {
     void read_status();
     /// A symbol's 1-minute bars and final consensus over the day: chart_ready or chart_failed.
     void read_chart(const QString& symbol);
+    /// Every prediction of one bar close (krx-quant #107) and the algorithms' statuses now:
+    /// close_ready or close_failed.
+    void read_close(const QString& symbol, const QDateTime& bar_close);
     /// leaderboard_ready or leaderboard_failed. Asked again while one is under way, the
     /// latest query is read once it ends, and the stale answer is dropped; asked for the one
     /// under way, that one answers (a slow engine polled every 5 s still answers).
@@ -90,6 +94,9 @@ class KrxQuantService : public QObject {
     void chart_ready(const QString& symbol, const QList<fincept::krx_quant::Bar>& bars,
                      const QList<fincept::krx_quant::Prediction>& finals);
     void chart_failed(const QString& symbol, const QString& reason);
+    void close_ready(const QString& symbol, const QDateTime& bar_close,
+                     const QList<fincept::krx_quant::Prediction>& predictions, const QMap<QString, QString>& statuses);
+    void close_failed(const QString& symbol, const QDateTime& bar_close, const QString& reason);
     void leaderboard_ready(const fincept::krx_quant::Leaderboard& leaderboard);
     void leaderboard_failed(const QString& reason);
     void stats_ready(const fincept::krx_quant::AlgorithmStats& stats);
@@ -102,7 +109,7 @@ class KrxQuantService : public QObject {
   private:
     /// A step of a read: the answer to one GET, or why it failed.
     using Step = std::function<void(Result<QJsonDocument>)>;
-    enum Kind { kRefresh, kStatus, kChart, kLeaderboard, kMacro, kKinds };
+    enum Kind { kRefresh, kStatus, kChart, kLeaderboard, kMacro, kClose, kKinds };
 
     /// Start a read of ``kind`` unless one is under way; false if skipped.
     bool begin(Kind kind);

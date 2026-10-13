@@ -145,6 +145,55 @@ QList<ChartIcon> chart_icons(const QList<Mark>& marks, const QList<Bar>& bars, c
     return out;
 }
 
+QList<CloseRow> close_rows(const QList<Prediction>& predictions, const QMap<QString, QString>& statuses,
+                           const QString& basis) {
+    std::optional<QStringList> pooled;
+    for (const auto& p : predictions)
+        if (p.algorithm == "consensus-final")
+            pooled = p.pooled;
+    auto rank = [](const Prediction& p) {
+        if (p.algorithm == "consensus-fast")
+            return 0;
+        if (p.algorithm == "consensus-final")
+            return 1;
+        return is_baseline(p.algorithm) ? 3 : 2;
+    };
+    QList<Prediction> sorted = predictions;
+    std::stable_sort(sorted.begin(), sorted.end(), [&rank](const Prediction& a, const Prediction& b) {
+        return rank(a) != rank(b) ? rank(a) < rank(b) : a.algorithm < b.algorithm;
+    });
+    QList<CloseRow> out;
+    for (const auto& p : sorted) {
+        CloseRow row;
+        row.algorithm = p.algorithm;
+        row.name = predictor_label(p.algorithm);
+        row.consensus = is_consensus(p.algorithm);
+        row.baseline = is_baseline(p.algorithm);
+        if (!row.consensus && !row.baseline) {
+            row.status = statuses.contains(p.algorithm) ? standing_label(statuses.value(p.algorithm)) : QString();
+            row.in_consensus = !pooled                         ? QStringLiteral("알 수 없음")
+                               : pooled->contains(p.algorithm) ? QStringLiteral("포함")
+                                                               : QStringLiteral("제외");
+        }
+        row.p_up = p.p_up;
+        row.p_flat = p.p_flat;
+        row.p_down = p.p_down;
+        const Direction leaned = p.status == "ok" ? most_likely(p) : Direction::None;
+        row.direction = p.status == "ok" ? direction_label(leaned) : status_label(p.status);
+        if (p.status != "ok")
+            row.result = QString();
+        else if (!p.outcome)
+            row.result = QStringLiteral("채점 전");
+        else if (const Direction happened = basis == "a" ? p.outcome->class_a : p.outcome->class_b;
+                 happened == Direction::None)
+            row.result = QStringLiteral("채점 불가");
+        else
+            row.result = happened == leaned ? QStringLiteral("✓ 맞음") : QStringLiteral("✗ 틀림");
+        out << row;
+    }
+    return out;
+}
+
 std::pair<double, double> fit_range(int bars) {
     const int last = std::max(0, bars - 1);
     return {static_cast<double>(std::max(0, bars - kFitBars)), last + kRightOffset};

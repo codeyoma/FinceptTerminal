@@ -8,6 +8,7 @@
 // The window shows for those seconds: the chart (Qt WebEngine) draws in a real window only.
 // With QT_QPA_PLATFORM=offscreen no window opens, and the chart's panel stays empty. The
 // theme and font are the app's defaults (Obsidian, Consolas 14px).
+#include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxLeaderboard.h"
 #include "screens/krx_quant/KrxQuantScreen.h"
 #include "screens/krx_quant/KrxStatsWindow.h"
@@ -43,6 +44,16 @@ int main(int argc, char* argv[]) {
     if (auto* leaderboard = screen.findChild<fincept::screens::KrxLeaderboard*>()) {
         for (const auto& predictor : details) // as a double-click on its line asks
             QMetaObject::invokeMethod(leaderboard, "detail_requested", Q_ARG(QString, predictor));
+    }
+
+    // KRX_CAPTURE_PIN=<bar close, ISO 8601>: as a click on that bar close's chart icon, once
+    // the screen has read the engine (krx-quant #107).
+    if (const QDateTime pin = QDateTime::fromString(qEnvironmentVariable("KRX_CAPTURE_PIN"), Qt::ISODate);
+        pin.isValid()) {
+        QTimer::singleShot(seconds * 500, &app, [&screen, pin]() {
+            if (auto* chart = screen.findChild<fincept::screens::KrxChart*>())
+                emit chart->icon_clicked(pin);
+        });
     }
 
     const QString out = QString::fromLocal8Bit(argv[2]);

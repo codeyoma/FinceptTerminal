@@ -206,6 +206,25 @@ void KrxQuantService::read_chart(const QString& symbol) {
     });
 }
 
+void KrxQuantService::read_close(const QString& symbol, const QDateTime& bar_close) {
+    if (!begin(kClose))
+        return;
+    const QString at = QString::fromUtf8(QUrl::toPercentEncoding(bar_close.toString(Qt::ISODate)));
+    get(symbol_path(symbol, "/predictions?bar_close=" + at), [this, symbol, bar_close](Result<QJsonDocument> answer) {
+        auto made = parsed(answer, krx_quant::parse_predictions);
+        if (made.is_err()) {
+            end(kClose);
+            return emit close_failed(symbol, bar_close, why(made.error()));
+        }
+        get("/v1/algorithms", [this, symbol, bar_close, made = made.value()](Result<QJsonDocument> answer) {
+            end(kClose);
+            // Without the statuses the judgements still show, their statuses blank.
+            auto statuses = parsed(answer, krx_quant::parse_statuses);
+            emit close_ready(symbol, bar_close, made, statuses.is_ok() ? statuses.value() : QMap<QString, QString>{});
+        });
+    });
+}
+
 void KrxQuantService::read_leaderboard(const LeaderboardQuery& query) {
     if (busy_[kLeaderboard] && !url_.isEmpty()) {
         // Another is read once the one under way ends; the one under way answers itself.
