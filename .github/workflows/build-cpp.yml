@@ -725,17 +725,31 @@ jobs:
               # every tool-cache Python (3.11 … 3.14); codesign --deep signs only
               # Versions/Current, so the others failed --verify --strict with
               # "embedded framework contains modified or invalid version".
+              # Tcl/Tk's PrivateHeaders are dangling links: rsync cannot stat them
+              # and exits 23 (partial transfer), even with --exclude. That exit is
+              # allowed when those are its only errors; anything else fails the
+              # step (the copy used to hide every error with || cp -R ... || true).
               BUNDLE_PY="${BUNDLE_FRAMEWORKS}/Python.framework"
               mkdir -p "${BUNDLE_PY}/Versions"
-              rsync -a --copy-unsafe-links "${PY_FRAMEWORK}/Versions/${PY_VER}/" "${BUNDLE_PY}/Versions/${PY_VER}/"
+              RSYNC_ERR="${RUNNER_TEMP}/python-framework-rsync.err"
+              rsync -a --copy-unsafe-links \
+                "${PY_FRAMEWORK}/Versions/${PY_VER}/" "${BUNDLE_PY}/Versions/${PY_VER}/" 2>"${RSYNC_ERR}" || {
+                status=$?
+                cat "${RSYNC_ERR}"
+                if [ "${status}" -ne 23 ] || grep -v '/PrivateHeaders: stat: No such file or directory$' "${RSYNC_ERR}" | grep -q .; then
+                  echo "::error::Copying Python.framework failed (rsync exit ${status})"
+                  exit "${status}"
+                fi
+                echo "Skipped the dangling PrivateHeaders links above."
+              }
+              find "${BUNDLE_PY}" -name "PrivateHeaders" -type l \
+                ! -exec test -e {} \; -delete 2>/dev/null || true
               ln -sfn "${PY_VER}" "${BUNDLE_PY}/Versions/Current"
               for item in Python Headers Resources; do
                 if [ -e "${BUNDLE_PY}/Versions/${PY_VER}/${item}" ]; then
                   ln -sfn "Versions/Current/${item}" "${BUNDLE_PY}/${item}"
                 fi
               done
-              find "${BUNDLE_PY}" -name "PrivateHeaders" -type l \
-                ! -exec test -e {} \; -delete 2>/dev/null || true
               ln -sf "../Frameworks/Python.framework/Versions/${PY_VER}/bin/python${PY_VER}" \
                      "${APP_BUNDLE}/Contents/MacOS/python3" 2>/dev/null || true
             else
