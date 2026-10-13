@@ -151,6 +151,58 @@ class TstKrxChartModel : public QObject {
         QVERIFY(!pending[0].signal); // no votes: never emphasised
     }
 
+    void a_bar_close_s_judgements_come_consensus_first_then_models_then_baselines() {
+        auto at = [](const char* algorithm, double up, double flat, double down) {
+            Prediction p;
+            p.algorithm = algorithm;
+            p.status = "ok";
+            p.bar_close = kst("2026-10-12T09:31:00+09:00");
+            p.p_up = up;
+            p.p_flat = flat;
+            p.p_down = down;
+            return p;
+        };
+        auto final = at("consensus-final", 0.5, 0.3, 0.2);
+        final.pooled = QStringList{"gauss", "markov"};
+        final.outcome = Outcome{Direction::Up, Direction::Down, false, {}, 79000.0, 79100.0, 79300.0};
+        auto gauss = at("gauss", 0.2, 0.2, 0.6);
+        gauss.outcome = Outcome{Direction::Up, Direction::Down, false, {}, std::nullopt, std::nullopt, std::nullopt};
+        auto newton = at("newton", 0.6, 0.3, 0.1);
+        Prediction late = at("turing", 0, 0, 0);
+        late.status = "timed_out";
+        late.p_up = late.p_flat = late.p_down = std::nullopt;
+        const QList<Prediction> made{
+            at("baseline-flat", 0, 1, 0), newton, final, gauss, at("consensus-fast", 0.6, 0.3, 0.1), late,
+            at("markov", 0.4, 0.4, 0.2)};
+        const QMap<QString, QString> statuses{{"gauss", "active"}, {"markov", "active"}, {"newton", "probation"}};
+
+        const auto rows = close_rows(made, statuses, "b");
+
+        QStringList order;
+        for (const auto& r : rows)
+            order << r.algorithm;
+        QCOMPARE(order, (QStringList{"consensus-fast", "consensus-final", "gauss", "markov", "newton", "turing",
+                                     "baseline-flat"}));
+        QVERIFY(rows[6].baseline && !rows[2].baseline);
+        // gauss: active, pooled, leaned down, scored down on basis B: right.
+        QCOMPARE(rows[2].status, QStringLiteral("정식"));
+        QCOMPARE(rows[2].in_consensus, QStringLiteral("포함"));
+        QCOMPARE(rows[2].direction, QStringLiteral("하락"));
+        QCOMPARE(rows[2].result, QStringLiteral("✓ 맞음"));
+        QCOMPARE(close_rows(made, statuses, "a")[2].result, QStringLiteral("✗ 틀림")); // up on basis A
+        // markov: up and flat tie, so flat (as scored); newton on probation, not pooled.
+        QCOMPARE(rows[3].direction, QStringLiteral("보합"));
+        QCOMPARE(rows[4].in_consensus, QStringLiteral("제외"));
+        QCOMPARE(rows[4].result, QStringLiteral("채점 전"));
+        QCOMPARE(rows[5].direction, QStringLiteral("시간 초과")); // no forecast: why
+        QCOMPARE(rows[1].in_consensus, QString());                // a consensus itself
+        QCOMPARE(rows[1].result, QStringLiteral("✗ 틀림"));       // up, scored down on B
+        // Without the final consensus's members (an older engine): unknown.
+        QList<Prediction> older = made;
+        older[2].pooled.reset();
+        QCOMPARE(close_rows(older, statuses, "b")[2].in_consensus, QStringLiteral("알 수 없음"));
+    }
+
     void the_view_to_fit_is_the_last_sixty_bars() {
         QCOMPARE(fit_range(200), (std::pair<double, double>{140.0, 199.0 + kRightOffset}));
         QCOMPARE(fit_range(20), (std::pair<double, double>{0.0, 19.0 + kRightOffset}));

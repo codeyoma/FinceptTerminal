@@ -5,6 +5,7 @@
 #include "screens/krx_quant/KrxLeaderboard.h"
 #include "screens/krx_quant/KrxStatsWindow.h"
 #include "screens/krx_quant/KrxTables.h"
+#include "services/krx_quant/ChartModel.h"
 #include "ui/theme/Theme.h"
 #include "ui/widgets/LoadingOverlay.h"
 
@@ -28,6 +29,18 @@ using krx_tables::kNumber;
 
 enum SymbolColumn { kSymbol, kMid, kFinal, kScoring };
 enum PredictionColumn { kPredictor, kDirection, kUp, kFlat, kDown, kTicks, kModel, kPredictionColumns };
+// The table while a bar close is pinned (krx-quant #107).
+enum PinnedColumn {
+    kPinnedName,
+    kPinnedStatus,
+    kPinnedDirection,
+    kPinnedUp,
+    kPinnedFlat,
+    kPinnedDown,
+    kPinnedIn,
+    kPinnedResult,
+    kPinnedColumns
+};
 
 QString krx_percent(const std::optional<double>& p) {
     return p ? QString::number(std::lround(*p * 100.0)) + "%" : QString();
@@ -121,6 +134,10 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     upper->addWidget(krx_panel::panel(chart_header_, chart_));
 
     predictions_header_ = krx_panel::header(tr("예측"));
+    latest_ = new QPushButton(tr("최신으로"));
+    latest_->setToolTip(tr("차트에서 고른 봉 마감 대신 최신 봉 마감의 예측을 따라간다."));
+    latest_->hide();
+    predictions_header_.controls->addWidget(latest_);
     predictions_table_ =
         krx_tables::table({tr("예측"), tr("방향"), tr("상승"), tr("보합"), tr("하락"), tr("기대 틱"), tr("모델")});
     upper->addWidget(krx_panel::panel(predictions_header_, predictions_table_));
@@ -203,6 +220,17 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
             live_->select(symbols_table_->item(rows.first().row(), kSymbol)->text());
     });
     connect(fit, &QPushButton::clicked, chart_, &KrxChart::fit);
+    connect(chart_, &KrxChart::icon_clicked, this, [this](const QDateTime& bar_close) { live_->pin(bar_close); });
+    connect(latest_, &QPushButton::clicked, this, [this]() { live_->pin({}); });
+    connect(live_, &services::KrxLive::pinned_changed, this, [this]() {
+        predictions_header_.title->setToolTip({}); // a failed read's reason, now stale
+        fill_predictions();
+        update_countdowns();
+    });
+    connect(live_, &services::KrxLive::pinned_failed, this, [this](const QString& reason) {
+        predictions_table_->setRowCount(0);
+        predictions_header_.title->setToolTip(tr("그 봉 마감의 예측을 읽지 못했습니다: %1").arg(reason));
+    });
     connect(leaderboard_, &KrxLeaderboard::query_changed, this, [this]() {
         live_->set_leaderboard_query(leaderboard_->query());
         fill_chart(); // the chart's ✓/✗ are on the leaderboard's basis
@@ -440,7 +468,42 @@ void KrxQuantScreen::fill_symbols() {
     update_countdowns();
 }
 
+void KrxQuantScreen::fill_pinned() {
+    // A bar close's judgements (krx-quant #107): the consensuses, the models with their status,
+    // whether the final consensus pooled them and how they did, then the baselines, dimmed.
+    predictions_table_->setColumnCount(kPinnedColumns);
+    predictions_table_->setHorizontalHeaderLabels(
+        {tr("예측"), tr("상태"), tr("방향"), tr("상승"), tr("보합"), tr("하락"), tr("합의"), tr("결과")});
+    predictions_table_->setRowCount(0);
+    for (const auto& r :
+         krx_quant::close_rows(live_->pinned_predictions(), live_->statuses(), leaderboard_->query().basis)) {
+        const int row = predictions_table_->rowCount();
+        predictions_table_->insertRow(row);
+        const QStringList cells{
+            r.name,         r.status, r.direction, krx_percent(r.p_up), krx_percent(r.p_flat), krx_percent(r.p_down),
+            r.in_consensus, r.result};
+        for (int c = 0; c < kPinnedColumns; ++c) {
+            auto* item =
+                cell(cells[c], c >= kPinnedUp && c <= kPinnedDown ? kNumber : Qt::AlignLeft | Qt::AlignVCenter);
+            if (r.baseline)
+                item->setForeground(QColor(ui::colors::TEXT_DIM()));
+            if (r.consensus) {
+                QFont font = item->font();
+                font.setBold(true);
+                item->setFont(font);
+            }
+            predictions_table_->setItem(row, c, item);
+        }
+    }
+}
+
 void KrxQuantScreen::fill_predictions() {
+    latest_->setVisible(live_->pinned().isValid());
+    if (live_->pinned().isValid())
+        return fill_pinned();
+    predictions_table_->setColumnCount(kPredictionColumns);
+    predictions_table_->setHorizontalHeaderLabels(
+        {tr("예측"), tr("방향"), tr("상승"), tr("보합"), tr("하락"), tr("기대 틱"), tr("모델")});
     predictions_table_->setRowCount(0);
     const krx_quant::Latest latest = live_->board().latest(live_->selected());
     for (const auto& p : latest.predictions) {
@@ -513,6 +576,11 @@ void KrxQuantScreen::update_countdowns() {
     }
     const QString& symbol = live_->selected();
     QLabel* panel_title = predictions_header_.title;
+    if (live_->pinned().isValid() && !symbol.isEmpty()) { // pinned: no countdown, its own time
+        panel_title->setText(
+            tr("%1 · %2 봉 마감의 판단").arg(symbol, krx_quant::kst_text(live_->pinned(), "MM-dd HH:mm")));
+        return;
+    }
     if (symbol.isEmpty()) {
         panel_title->setText(tr("예측"));
         return;

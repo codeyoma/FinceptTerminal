@@ -171,7 +171,14 @@ Prediction prediction_of(const QJsonObject& p, const QString& symbol, const QDat
                     time_of(p.value("target_at")),
                     outcome_of(p.value("outcome")),
                     p.value("blocked").toString(),
+                    std::nullopt,
                     std::nullopt};
+    if (const QJsonValue v = p.value("pooled"); v.isArray()) {
+        QStringList names;
+        for (const auto& name : v.toArray())
+            names << name.toString();
+        made.pooled = names;
+    }
     if (const QJsonValue v = p.value("votes"); v.isObject()) {
         const QJsonObject o = v.toObject();
         made.votes = Votes{o.value("up").toInt(), o.value("flat").toInt(), o.value("down").toInt()};
@@ -314,6 +321,20 @@ Result<AlgorithmStats> parse_stats(const QJsonDocument& doc) {
     stats.by_slot = entries_by_key(o.value("by_slot"));
     stats.by_model_version = entries_by_key(o.value("by_model_version"));
     return Result<AlgorithmStats>::ok(stats);
+}
+
+Result<QMap<QString, QString>> parse_statuses(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<QMap<QString, QString>>::err(obj.error());
+    const QJsonValue algorithms = obj.value().value("algorithms");
+    QMap<QString, QString> out;
+    for (const auto& v : algorithms.toArray()) {
+        const QJsonObject a = v.toObject();
+        if (const QString status = a.value("status").toObject().value("status").toString(); !status.isEmpty())
+            out.insert(a.value("name").toString(), status);
+    }
+    return Result<QMap<QString, QString>>::ok(out);
 }
 
 Result<Macro> parse_macro(const QJsonDocument& doc) {

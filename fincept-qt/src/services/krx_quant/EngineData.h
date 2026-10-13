@@ -136,6 +136,8 @@ struct Prediction {
     /// A consensus's members by direction; none for any other prediction, an empty
     /// consensus, one made before the engine counted them, and from an older engine.
     std::optional<Votes> votes;
+    /// A consensus's members, in registration order (krx-quant #107); none as for votes.
+    std::optional<QStringList> pooled;
 };
 
 /// A symbol's predictions of its latest bar close, in the screen's order (in_screen_order).
@@ -256,6 +258,9 @@ Result<QList<Bar>> parse_bars(const QJsonDocument& doc);         ///< GET /v1/sy
 Result<Leaderboard> parse_leaderboard(const QJsonDocument& doc); ///< GET /v1/leaderboard
 Result<AlgorithmStats> parse_stats(const QJsonDocument& doc);    ///< GET /v1/algorithms/{name}/stats
 Result<Macro> parse_macro(const QJsonDocument& doc);             ///< GET /v1/macro
+/// GET /v1/algorithms: each algorithm's lifecycle status now ("probation", "active", …),
+/// by name; one without a status is left out.
+Result<QMap<QString, QString>> parse_statuses(const QJsonDocument& doc);
 /// GET /v1/consensus: its members, the active algorithms.
 Result<QStringList> parse_members(const QJsonDocument& doc);
 

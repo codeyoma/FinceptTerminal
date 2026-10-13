@@ -46,6 +46,14 @@ class KrxLive : public QObject {
     /// window each); a new one's at once.
     void set_details(const QStringList& algorithms);
     void set_alerts(bool on, const krx_quant::SignalRule& rule);
+    /// Show one bar close's judgements of the chosen symbol (a chart icon clicked, krx-quant
+    /// #107) instead of the latest's; an invalid time goes back to the latest.
+    void pin(const QDateTime& bar_close);
+    /// The bar close pinned; invalid while the latest is followed.
+    const QDateTime& pinned() const { return pinned_; }
+    /// Its judgements as last read, and the algorithms' statuses then.
+    const QList<krx_quant::Prediction>& pinned_predictions() const { return pinned_predictions_; }
+    const QMap<QString, QString>& statuses() const { return statuses_; }
 
     const krx_quant::Board& board() const { return board_; }
     /// The engine's status; none while it cannot be read.
@@ -78,6 +86,8 @@ class KrxLive : public QObject {
     void leaderboard_failed(const QString& reason);
     void stats_changed(const fincept::krx_quant::AlgorithmStats& stats); ///< a detail's, on the leaderboard's query
     void stats_failed(const QString& algorithm, const QString& reason);
+    void pinned_changed(); ///< pinned or back to the latest, or its judgements read
+    void pinned_failed(const QString& reason);
     void signal_raised(const fincept::krx_quant::Signal& signal);
 
   private:
@@ -107,6 +117,9 @@ class KrxLive : public QObject {
     QList<krx_quant::Bar> bars_;
     KrxQuantService::LeaderboardQuery query_;
     QStringList details_; ///< the algorithms whose stats are read
+    QDateTime pinned_;
+    QList<krx_quant::Prediction> pinned_predictions_;
+    QMap<QString, QString> statuses_;
     std::optional<krx_quant::EngineStatus> status_;
     std::optional<krx_quant::Macro> macro_;
     QString macro_failure_;

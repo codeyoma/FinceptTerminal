@@ -84,6 +84,7 @@ void KrxQuantService::restart() {
     for (bool& busy : busy_)
         busy = false;
     next_leaderboard_.reset();
+    next_close_.reset();
     stats_reads_.clear();
     if (const QString url = base_url(); url != url_) {
         url_ = url;
@@ -204,6 +205,39 @@ void KrxQuantService::read_chart(const QString& symbol) {
             emit chart_ready(symbol, bars, finals.value());
         });
     });
+}
+
+void KrxQuantService::read_close(const QString& symbol, const QDateTime& bar_close) {
+    if (busy_[kClose] && !url_.isEmpty()) {
+        // Another icon clicked while one is read: the last clicked is read next.
+        next_close_ = std::pair(symbol, bar_close);
+        return;
+    }
+    if (!begin(kClose))
+        return;
+    const QString at = QString::fromUtf8(QUrl::toPercentEncoding(bar_close.toString(Qt::ISODate)));
+    get(symbol_path(symbol, "/predictions?bar_close=" + at), [this, symbol, bar_close](Result<QJsonDocument> answer) {
+        auto made = parsed(answer, krx_quant::parse_predictions);
+        if (made.is_err()) {
+            emit close_failed(symbol, bar_close, why(made.error()));
+            return close_done();
+        }
+        get("/v1/algorithms", [this, symbol, bar_close, made = made.value()](Result<QJsonDocument> answer) {
+            // Without the statuses the judgements still show, their statuses blank.
+            auto statuses = parsed(answer, krx_quant::parse_statuses);
+            emit close_ready(symbol, bar_close, made, statuses.is_ok() ? statuses.value() : QMap<QString, QString>{});
+            close_done();
+        });
+    });
+}
+
+void KrxQuantService::close_done() {
+    end(kClose);
+    if (next_close_) {
+        const auto [symbol, bar_close] = *next_close_;
+        next_close_.reset();
+        read_close(symbol, bar_close);
+    }
 }
 
 void KrxQuantService::read_leaderboard(const LeaderboardQuery& query) {

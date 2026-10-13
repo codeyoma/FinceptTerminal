@@ -64,6 +64,20 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         else
             service_->read_stats(stats.algorithm, query_); // another query was chosen meanwhile
     });
+    connect(service_, &KrxQuantService::close_ready, this,
+            [this](const QString& symbol, const QDateTime& bar_close, const QList<krx_quant::Prediction>& made,
+                   const QMap<QString, QString>& statuses) {
+                if (symbol != selected_ || bar_close != pinned_)
+                    return; // another was chosen meanwhile
+                pinned_predictions_ = made;
+                statuses_ = statuses;
+                emit pinned_changed();
+            });
+    connect(service_, &KrxQuantService::close_failed, this,
+            [this](const QString& symbol, const QDateTime& bar_close, const QString& reason) {
+                if (symbol == selected_ && bar_close == pinned_)
+                    emit pinned_failed(reason);
+            });
     connect(service_, &KrxQuantService::stats_failed, this, [this](const QString& algorithm, const QString& reason) {
         if (details_.contains(algorithm))
             emit stats_failed(algorithm, reason);
@@ -132,6 +146,9 @@ void KrxLive::select(const QString& symbol) {
     if (symbol == selected_)
         return;
     selected_ = symbol;
+    pinned_ = {}; // another symbol: its latest
+    pinned_predictions_.clear();
+    emit pinned_changed();
     bars_.clear();
     emit chart_changed();
     emit predictions_changed();
@@ -149,6 +166,14 @@ void KrxLive::set_details(const QStringList& algorithms) {
     for (const auto& algorithm : details_)
         if (!before.contains(algorithm))
             service_->read_stats(algorithm, query_);
+}
+
+void KrxLive::pin(const QDateTime& bar_close) {
+    pinned_ = bar_close;
+    pinned_predictions_.clear();
+    emit pinned_changed();
+    if (pinned_.isValid() && !selected_.isEmpty())
+        service_->read_close(selected_, pinned_);
 }
 
 void KrxLive::read_details() {
@@ -203,6 +228,8 @@ void KrxLive::read_everything() {
 void KrxLive::read_leaderboard() {
     service_->read_leaderboard(query_);
     read_details();
+    if (pinned_.isValid() && !selected_.isEmpty()) // its outcomes come in as they are scored
+        service_->read_close(selected_, pinned_);
 }
 
 void KrxLive::on_snapshot(const KrxQuantService::Snapshot& snapshot) {

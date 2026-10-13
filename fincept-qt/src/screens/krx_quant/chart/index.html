@@ -141,6 +141,13 @@
   }
   chart.subscribeCrosshairMove(hover);
 
+  // An icon clicked: the screen shows that bar close's judgements (krx-quant #107).
+  let bridge = null;
+  chart.subscribeClick(function (param) {
+    const icon = param && param.hoveredObjectId !== undefined ? iconAt.get(String(param.hoveredObjectId)) : undefined;
+    if (icon && bridge) bridge.clicked(icon.bar_close);
+  });
+
   function theme(t) {
     colors = t;
     document.body.style.background = t.background;
@@ -177,7 +184,7 @@
   area.addEventListener('mouseleave', () => hover(null));
 
   new QWebChannel(qt.webChannelTransport, function (channel) {
-    const bridge = channel.objects.bridge;
+    bridge = channel.objects.bridge;
     bridge.theme_changed.connect(function (json) { theme(JSON.parse(json)); });
     bridge.data_changed.connect(function (json) { show(JSON.parse(json)); });
     bridge.fit_requested.connect(fit);

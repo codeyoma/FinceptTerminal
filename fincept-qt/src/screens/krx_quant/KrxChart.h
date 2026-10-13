@@ -22,9 +22,12 @@ class KrxChartBridge : public QObject {
 
     /// The page listens: it is sent the theme and the data now.
     Q_INVOKABLE void ready();
+    /// An icon was clicked: its bar close (ISO 8601).
+    Q_INVOKABLE void clicked(const QString& bar_close);
 
   signals:
     void page_ready();
+    void icon_clicked(const QString& bar_close);
     void theme_changed(const QString& json);
     void data_changed(const QString& json);
     void fit_requested();
@@ -50,6 +53,11 @@ class KrxChart : public QWidget {
     void fit();
     /// Paint in the theme's colors and the user's font now.
     void restyle();
+
+  signals:
+    /// A final consensus icon was clicked: the table shows that bar close's judgements
+    /// (krx-quant #107).
+    void icon_clicked(const QDateTime& bar_close);
 
   protected:
     void showEvent(QShowEvent* event) override;

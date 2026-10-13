@@ -7,6 +7,7 @@
 #include <QHash>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QTableWidget>
 #include <QTimer>
 #include <QWidget>
@@ -46,6 +47,8 @@ class KrxQuantScreen : public QWidget {
     void show_dot();
     void fill_symbols();
     void fill_predictions();
+    /// The table while a bar close is pinned (a chart icon clicked).
+    void fill_pinned();
     void fill_chart();
     void open_detail(const QString& algorithm);
     void update_countdowns();
@@ -68,6 +71,7 @@ class KrxQuantScreen : public QWidget {
     KrxChart* chart_ = nullptr;
     krx_panel::Header predictions_header_; ///< titled with the bar close and the countdown
     QTableWidget* predictions_table_ = nullptr;
+    QPushButton* latest_ = nullptr; ///< back to the latest bar close, while one is pinned
     KrxLeaderboard* leaderboard_ = nullptr;
     QHash<QString, KrxStatsWindow*> stats_windows_; ///< open, by predictor
     KrxAlerts* alerts_ = nullptr;

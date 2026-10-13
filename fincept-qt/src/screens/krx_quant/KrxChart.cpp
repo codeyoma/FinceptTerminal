@@ -82,6 +82,10 @@ void KrxChartBridge::ready() {
     emit page_ready();
 }
 
+void KrxChartBridge::clicked(const QString& bar_close) {
+    emit icon_clicked(bar_close);
+}
+
 KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
     setMinimumHeight(220);
     auto* layout = new QVBoxLayout(this);
@@ -91,6 +95,10 @@ KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
         emit bridge_->theme_changed(theme_);
         if (!data_.isEmpty())
             emit bridge_->data_changed(data_);
+    });
+    connect(bridge_, &KrxChartBridge::icon_clicked, this, [this](const QString& bar_close) {
+        if (const QDateTime at = QDateTime::fromString(bar_close, Qt::ISODate); at.isValid())
+            emit icon_clicked(at);
     });
     unavailable_ = new QLabel(tr("차트를 열 수 없음"));
     unavailable_->setAlignment(Qt::AlignCenter);
@@ -147,7 +155,8 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
                                  {"hover", QJsonArray::fromStringList(icon.hover)},
                                  {"target", icon.target},
                                  {"target_shown", icon.target_shown},
-                                 {"target_after_last", icon.target_after_last}});
+                                 {"target_after_last", icon.target_after_last},
+                                 {"bar_close", icon.bar_close.toString(Qt::ISODate)}});
     }
     const auto [from, to] = krx_quant::fit_range(static_cast<int>(shown.size()));
     data_ = compact(QJsonObject{

@@ -5,6 +5,7 @@
 
 #include <QDateTime>
 #include <QList>
+#include <QMap>
 #include <QString>
 
 #include <utility>
@@ -62,6 +63,28 @@ QList<ChartIcon> chart_icons(const QList<Mark>& marks, const QList<Bar>& bars, c
 /// probabilities; its members leaning that way of all (krx-quant #106); whether it was a
 /// signal under ``rule``; and, once scored on ``basis``, the mid-point's move and the result.
 QStringList hover_lines(const Mark& mark, const QString& basis, const SignalRule& rule);
+
+/// A row of a bar close's judgements, the prediction table's while an icon is chosen
+/// (krx-quant #107).
+struct CloseRow {
+    QString algorithm;
+    QString name; ///< as the screen names it (predictor_label)
+    bool consensus = false;
+    bool baseline = false;
+    QString status; ///< its lifecycle status in Korean; empty for a consensus or a baseline
+    std::optional<double> p_up;
+    std::optional<double> p_flat;
+    std::optional<double> p_down;
+    QString direction;    ///< its likeliest class (a tie goes flat), or why it made no forecast
+    QString in_consensus; ///< "포함", "제외" or "알 수 없음" for a model; empty for the others
+    QString result;       ///< "✓ 맞음", "✗ 틀림", "채점 전" or "채점 불가" on ``basis``
+};
+
+/// A bar close's judgements (``GET …/predictions?bar_close=``) as the table shows them: the
+/// consensuses (fast, final), the models by name, then the baselines; each model with its
+/// status now (``statuses``, from /v1/algorithms) and whether the final consensus pooled it.
+QList<CloseRow> close_rows(const QList<Prediction>& predictions, const QMap<QString, QString>& statuses,
+                           const QString& basis);
 
 /// The logical range (bar indexes) a fitted chart of ``bars`` bars shows: the last
 /// kFitBars, and kRightOffset free after them.
