@@ -58,6 +58,8 @@ custom/merge-upstream-release.sh [tag]
 - 새 코드는 새 디렉터리에 둔다 (`fincept-qt/src/screens/krx_quant/`, `fincept-qt/src/services/krx_quant/`).
 - 화면 등록과 로컬 CLI LLM(아래) 때문에 고치는 upstream 파일은 아래 목록으로 제한하고, 고칠 때마다 이 표를 갱신한다. 고친 곳에는 `fork addition (codeyoma/krx-quant#N)` 주석을 단다.
 
+> **바뀜** (2026-10-13, codeyoma/FinceptTerminal#26): 화면 등록과 로컬 CLI LLM 때문에 고치는 upstream 파일만 → 원화 환산 표시(codeyoma/krx-quant#142) 때문에 고치는 시장·관심종목·대시보드·포트폴리오·주식 리서치·설정 화면과 시세 service도(아래 표). 이유: 출처 통화가 확인된 금액만 화면에서 환산하려면 각 화면이 금액을 그리는 곳에 갈래가 필요했다. upstream 릴리스를 merge 할 때 이 파일들이 충돌할 수 있다.
+
 > **바뀜** (2026-10-12, codeyoma/krx-quant#97): 화면 등록 때문에 고치는 upstream 파일만 → 로컬 CLI LLM provider(codeyoma/krx-quant#96) 때문에 고치는 LLM 파일 9개도. 이유: Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에 로그인된 Claude Code·Codex CLI로 쓰려면 provider 목록, 요청 경로, 설정 화면에 갈래가 하나씩 필요했다. 새 코드는 `src/services/krx_quant/LocalCli*`에 두고 upstream 파일에는 한두 줄짜리 갈래만 넣었다.
 - Fincept SQLite migration(`src/storage/sqlite/migrations/`)은 쓰지 않는다. 데이터는 엔진이 가진다.
 - 개인 빌드는 공식 버전 업데이트를 끈다. 공식 버전으로 덮어써지는 것을 막기 위해서다. 대신 이 fork의 개인 빌드 Release에서만 업데이트한다(아래 "앱 업데이트").

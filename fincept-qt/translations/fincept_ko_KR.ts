@@ -39189,8 +39189,8 @@ Order sent to trading engine.</source>
             <translation>종목의 원 통화 가격을 입력하세요. 표시 통화는 주문 단위를 바꾸지 않습니다.</translation>
         </message>
         <message>
-            <source>EST. TOTAL %1 (native) · display %2</source>
-            <translation>예상 합계 %1 (원 통화) · 환산 표시 %2</translation>
+            <source>EST. TOTAL %1 · display %2</source>
+            <translation>예상 합계 %1 · 환산 표시 %2</translation>
         </message>
     </context>
     <context>

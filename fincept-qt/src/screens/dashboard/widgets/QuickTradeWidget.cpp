@@ -4,6 +4,7 @@
 #include "datahub/DataHubMetaTypes.h"
 #include "ui/theme/Theme.h"
 
+#include <QCoreApplication>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QMessageBox>
@@ -292,9 +293,12 @@ void QuickTradeWidget::update_estimate() {
     }
     auto& market = services::MarketDataService::instance();
     const double total = qty * price;
-    est_total_->setText(
-        tr("EST. TOTAL %1 (native) · display %2")
-            .arg(market.native_price(current_symbol_, total), market.display_price(current_symbol_, total)));
+    // native_price() already ends with the marker for futures and unknown units: once only.
+    QString native = market.native_price(current_symbol_, total);
+    const QString marker = QCoreApplication::translate("Currency", "(native)");
+    if (!native.endsWith(marker))
+        native += QLatin1Char(' ') + marker;
+    est_total_->setText(tr("EST. TOTAL %1 · display %2").arg(native, market.display_price(current_symbol_, total)));
 }
 
 void QuickTradeWidget::hub_unsubscribe_all() {
