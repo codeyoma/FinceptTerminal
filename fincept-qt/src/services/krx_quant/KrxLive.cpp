@@ -39,6 +39,20 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         else if (!selected_.isEmpty())
             service_->read_chart(selected_); // another was chosen meanwhile
     });
+    connect(
+        service_, &KrxQuantService::older_ready, this,
+        [this](const QString& symbol, const QList<krx_quant::Bar>& bars, const QList<krx_quant::Prediction>& finals) {
+            if (symbol != selected_)
+                return; // another was chosen meanwhile
+            oldest_ = bars.isEmpty();
+            older_ = krx_quant::join_bars(bars, older_);
+            board_.set_history(symbol, finals);
+            emit chart_changed();
+        });
+    connect(service_, &KrxQuantService::older_failed, this, [this](const QString& symbol, const QString& reason) {
+        if (symbol == selected_)
+            emit chart_failed(reason);
+    });
     connect(service_, &KrxQuantService::macro_ready, this, [this](const krx_quant::Macro& macro) {
         macro_ = macro;
         macro_failure_.clear();
@@ -150,6 +164,8 @@ void KrxLive::select(const QString& symbol) {
     pinned_predictions_.clear();
     emit pinned_changed();
     bars_.clear();
+    older_.clear();
+    oldest_ = false;
     emit chart_changed();
     emit predictions_changed();
     if (!symbol.isEmpty())
@@ -166,6 +182,13 @@ void KrxLive::set_details(const QStringList& algorithms) {
     for (const auto& algorithm : details_)
         if (!before.contains(algorithm))
             service_->read_stats(algorithm, query_);
+}
+
+void KrxLive::view_from(double from) {
+    if (selected_.isEmpty() || oldest_)
+        return;
+    if (const auto read = krx_quant::older_read(bars(), from))
+        service_->read_older(selected_, *read);
 }
 
 void KrxLive::pin(const QDateTime& bar_close) {
@@ -287,6 +310,8 @@ void KrxLive::on_failure(const QString& reason) {
     read_errors_.clear();
     board_.forget_predictions(); // old predictions must not pass for current ones
     bars_.clear();
+    older_.clear();
+    oldest_ = false;
     emit predictions_changed();
     emit chart_changed();
     emit status_changed();
@@ -302,6 +327,8 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
     bars_ = bars;
     board_.set_history(symbol, finals);
     emit chart_changed();
+    if (bars_.isEmpty() && older_.isEmpty())
+        view_from(0); // nothing today yet (before the open): the last day's bars
 }
 
 void KrxLive::on_event(const krx_quant::Event& event) {

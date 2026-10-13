@@ -203,6 +203,45 @@ class TstKrxChartModel : public QObject {
         QCOMPARE(close_rows(older, statuses, "b")[2].in_consensus, QStringLiteral("알 수 없음"));
     }
 
+    void the_bars_before_are_read_once_the_view_nears_the_left_end() {
+        const QList<Bar> bars{{kst("2026-10-12T09:00:00+09:00"), 1, 1, 1, 1, 1},
+                              {kst("2026-10-12T09:01:00+09:00"), 1, 1, 1, 1, 1}};
+
+        QVERIFY(!older_read(bars, 30).has_value()); // 30 bars from the end: not yet
+        const auto near = older_read(bars, 29.5);
+        QVERIFY(near.has_value());
+        QCOMPARE(near->before, kst("2026-10-12T09:00:00+09:00")); // before the first bar
+        QCOMPARE(near->limit, 400);
+        // Its own final consensus: the 08:59 bar closes at 09:00, so bar closes up to 09:00.
+        QCOMPARE(near->finals_before, kst("2026-10-12T09:01:00+09:00"));
+        QVERIFY(older_read(bars, -12).has_value()); // scrolled past the first bar
+        // No bars yet (before the open): those before now.
+        const auto empty = older_read({}, 0);
+        QVERIFY(empty.has_value());
+        QVERIFY(!empty->before.isValid() && !empty->finals_before.isValid());
+    }
+
+    void bars_read_before_join_those_shown_once_each_oldest_first() {
+        auto bar = [](const char* start, double close) { return Bar{kst(start), close, close, close, close, 1}; };
+        // Read before: Thursday's last two bars and, overlapping, today's first (as stored).
+        const QList<Bar> older{bar("2026-10-08T15:19:00+09:00", 2), bar("2026-10-12T09:00:00+09:00", 9),
+                               bar("2026-10-08T15:18:00+09:00", 1)};
+        const QList<Bar> shown{bar("2026-10-12T09:00:00+09:00", 3), bar("2026-10-12T09:01:00+09:00", 4)};
+
+        const auto joined = join_bars(older, shown);
+
+        QStringList starts;
+        QList<double> closes;
+        for (const auto& b : joined) {
+            starts << b.start.toString(Qt::ISODate);
+            closes << b.close;
+        }
+        QCOMPARE(starts, (QStringList{"2026-10-08T15:18:00+09:00", "2026-10-08T15:19:00+09:00",
+                                      "2026-10-12T09:00:00+09:00", "2026-10-12T09:01:00+09:00"}));
+        QCOMPARE(closes, (QList<double>{1, 2, 3, 4})); // today's 09:00 as shown, not as read before
+        QCOMPARE(join_bars({}, shown).size(), 2);
+    }
+
     void the_view_to_fit_is_the_last_sixty_bars() {
         QCOMPARE(fit_range(200), (std::pair<double, double>{140.0, 199.0 + kRightOffset}));
         QCOMPARE(fit_range(20), (std::pair<double, double>{0.0, 19.0 + kRightOffset}));
