@@ -124,38 +124,49 @@ SettingsScreen::SettingsScreen(QWidget* parent) : QWidget(parent) {
         scope_header_keys_.append(key);
     };
 
+    // fork addition (codeyoma/krx-quant#132): mark runtime lookup keys so
+    // lupdate keeps their translations when the language catalogs are refreshed.
     // The keyword strings are search aliases only — never displayed, so they
     // stay in English (the filter also matches the translated label text).
-    add_scope_header(QStringLiteral("SHELL"));
-    auto* first = make_btn(QStringLiteral("General"), 14,
+    add_scope_header(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "SHELL")));
+    auto* first = make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "General")), 14,
                            QStringLiteral("language locale currency window close launchpad quit"));
-    make_btn(QStringLiteral("Appearance"), 1, QStringLiteral("theme font size family density ticker chat bubble "
-                                                             "animation typography interface"));
-    make_btn(QStringLiteral("Notifications"), 2,
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "Appearance")), 1,
+             QStringLiteral("theme font size family density ticker chat bubble "
+                            "animation typography interface"));
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "Notifications")), 2,
              QStringLiteral("telegram discord slack email smtp whatsapp twilio pushover ntfy pushbullet gotify "
                             "mattermost teams webhook pagerduty opsgenie sms alerts price news order fill"));
-    make_btn(QStringLiteral("Keybindings"), 10, QStringLiteral("shortcut hotkey keyboard rebind keys"));
-    make_btn(QStringLiteral("Voice"), 13,
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "Keybindings")), 10,
+             QStringLiteral("shortcut hotkey keyboard rebind keys"));
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "Voice")), 13,
              QStringLiteral("speech stt tts deepgram microphone mic clap wake trigger aura pyttsx3"));
-    make_btn(QStringLiteral("Logging"), 7, QStringLiteral("log level debug trace json log file tags diagnostics"));
-    make_btn(QStringLiteral("Developer"), 12, QStringLiteral("datahub inspector agentic experimental devtools"));
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "Logging")), 7,
+             QStringLiteral("log level debug trace json log file tags diagnostics"));
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "Developer")), 12,
+             QStringLiteral("datahub inspector agentic experimental devtools"));
 
-    add_scope_header(QStringLiteral("PROFILE"));
-    make_btn(QStringLiteral("Profiles"), 9, QStringLiteral("account switch multi profile workspace isolation"));
-    make_btn(QStringLiteral("Credentials"), 0,
+    add_scope_header(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "PROFILE")));
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "Profiles")), 9,
+             QStringLiteral("account switch multi profile workspace isolation"));
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "Credentials")), 0,
              QStringLiteral("api key secret token keychain alpha vantage polygon fred binance kraken finnhub "
                             "polymarket tiingo quandl databento newsapi iex"));
-    make_btn(QStringLiteral("Security"), 8,
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "Security")), 8,
              QStringLiteral("pin lock auto-lock timeout inactivity audit log attempts lockout minimize"));
-    make_btn(QStringLiteral("Data Sources"), 4, QStringLiteral("connections connectors websocket rest sql providers"));
-    make_btn(QStringLiteral("LLM Config"), 5,
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "Data Sources")), 4,
+             QStringLiteral("connections connectors websocket rest sql providers"));
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "LLM Config")), 5,
              QStringLiteral("ai model openai anthropic ollama groq provider profile temperature tokens system "
                             "prompt tool rounds mcp tools"));
-    make_btn(QStringLiteral("MCP Servers"), 6, QStringLiteral("model context protocol tools external server"));
-    make_btn(QStringLiteral("Python Env"), 11, QStringLiteral("packages venv pip uv numpy libraries install upgrade"));
-    make_btn(QStringLiteral("Storage & Cache"), 3,
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "MCP Servers")), 6,
+             QStringLiteral("model context protocol tools external server"));
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "Python Env")), 11,
+             QStringLiteral("packages venv pip uv numpy libraries install upgrade"));
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "Storage & Cache")), 3,
              QStringLiteral("disk database sqlite sql console cache clear delete data danger zone workspaces"));
-    make_btn(QStringLiteral("Cloud Sync"), 15, QStringLiteral("backup sync account devices domains credits"));
+    make_btn(QStringLiteral(QT_TRANSLATE_NOOP("fincept::screens::SettingsScreen", "Cloud Sync")), 15,
+             QStringLiteral("backup sync account devices domains credits"));
 
     first->setChecked(true);
     sections_->setCurrentIndex(14);

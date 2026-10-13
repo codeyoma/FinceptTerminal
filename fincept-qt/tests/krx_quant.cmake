@@ -50,3 +50,12 @@ fincept_add_test(tst_krx_local_cli_llm
     tst_krx_local_cli_llm.cpp
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/LocalCliLlm.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/LocalCliRunner.cpp")
+
+# Fork addition (codeyoma/krx-quant#132): test the actual compiled language resource.
+fincept_add_test(tst_krx_korean tst_krx_korean.cpp)
+target_compile_definitions(tst_krx_korean PRIVATE
+    FINCEPT_REFERENCE_CATALOG="${PROJECT_SOURCE_DIR}/translations/fincept_zh_CN.ts")
+qt6_add_resources(tst_krx_korean "krx_korean_i18n"
+    PREFIX "/i18n"
+    BASE "${PROJECT_BINARY_DIR}"
+    FILES ${FINCEPT_QM_FILES})
