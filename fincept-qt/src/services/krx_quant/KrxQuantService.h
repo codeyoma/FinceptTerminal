@@ -124,8 +124,11 @@ class KrxQuantService : public QObject {
 
     int generation_ = 0;
     bool busy_[kKinds] = {};
-    LeaderboardQuery leaderboard_asked_;               ///< the leaderboard under way, or the last
-    std::optional<LeaderboardQuery> next_leaderboard_; ///< asked for while another was under way
+    LeaderboardQuery leaderboard_asked_;                      ///< the leaderboard under way, or the last
+    std::optional<LeaderboardQuery> next_leaderboard_;        ///< asked for while another was under way
+    std::optional<std::pair<QString, QDateTime>> next_close_; ///< a bar close asked for while another was read
+    /// A bar close's read ended: the one asked for meanwhile is read next.
+    void close_done();
     /// An algorithm's stats under way: the query asked, and one asked for meanwhile.
     struct StatsRead {
         LeaderboardQuery asked;

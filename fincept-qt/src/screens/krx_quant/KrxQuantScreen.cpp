@@ -223,6 +223,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(chart_, &KrxChart::icon_clicked, this, [this](const QDateTime& bar_close) { live_->pin(bar_close); });
     connect(latest_, &QPushButton::clicked, this, [this]() { live_->pin({}); });
     connect(live_, &services::KrxLive::pinned_changed, this, [this]() {
+        predictions_header_.title->setToolTip({}); // a failed read's reason, now stale
         fill_predictions();
         update_countdowns();
     });
