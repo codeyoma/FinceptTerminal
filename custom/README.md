@@ -127,7 +127,7 @@ custom/merge-upstream-release.sh [tag]
 
 환율/표시 통화/시세 통화 정보가 바뀌면 원본에서 화면을 다시 그린다. 환산된 값을 원본·주문·저장소로 돌려쓰지 않으며 새 환율이 도착했다고 가격을 재구독하거나 분석을 다시 실행하지 않는다.
 
-> **바뀜** (2026-10-13, codeyoma/krx-quant#142): KRW 옵션은 계산기·분석의 기호만 바꿨다 → 출처 통화가 확인되는 위의 금액 표시에 날짜가 명시된 일일 참고환율을 적용한다. 이유: 기호 교체가 아니라 실제 원화 금액 표시를 요청했다. 원본 시세·주문·저장 값은 유지한다.
+> **바뀜** (2026-10-13, codeyoma/FinceptTerminal#26): KRW 옵션은 계산기·분석의 기호만 바꿨다 → 출처 통화가 확인되는 위의 금액 표시에 날짜가 명시된 일일 참고환율을 적용한다. 이유: 기호 교체가 아니라 실제 원화 금액 표시를 요청했다. 원본 시세·주문·저장 값은 유지한다.
 
 검증: `ctest --test-dir <build> -R 'fx_rates|portfolio_presentation|equity_valuation_units|krx_korean' --output-on-failure`, `python3 fincept-qt/tests/test_market_quote_metadata.py`. 환율 모델은 Qt Core만으로 XML·캐시·교차환산·만료·미지원 통화를 검사한다. 포트폴리오는 원본 불변·혼합/미확인/비금액 단위·overflow를, 가치평가는 가격과 보고 통화의 비교 경계를 검사한다.
 
