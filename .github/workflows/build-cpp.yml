@@ -373,9 +373,17 @@ jobs:
             WDQT="${QT_ROOT_DIR}/../msvc2022_64/bin/windeployqt.exe"
           fi
 
+          # fork addition (codeyoma/krx-quant#136): the x64 host windeployqt deploys
+          # its own (x64) Qt unless it reads the ARM64 kit's qtpaths.
+          WDQT_ARGS=()
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            [ -f "${QT_ROOT_DIR}/bin/qtpaths.bat" ] || { echo "::error::no qtpaths.bat in the ARM64 kit"; ls "${QT_ROOT_DIR}/bin"; exit 1; }
+            WDQT_ARGS+=(--qtpaths "${QT_ROOT_DIR}/bin/qtpaths.bat")
+          fi
+
           if [ -f "$WDQT" ]; then
-            echo "Running windeployqt: $WDQT"
-            "$WDQT" \
+            echo "Running windeployqt: $WDQT ${WDQT_ARGS[*]}"
+            "$WDQT" ${WDQT_ARGS[@]+"${WDQT_ARGS[@]}"} \
               --release \
               --no-translations \
               --compiler-runtime \
@@ -419,6 +427,15 @@ jobs:
               echo "Copied ${ssl_dll}"
             fi
           done
+          # fork addition (codeyoma/krx-quant#136): Qt 6.8.3 does not ship OpenSSL, so
+          # the loop above copied nothing and neither package had it, though the app
+          # links libcrypto. Take the target's DLLs from vcpkg (OPENSSL_ROOT_DIR is the
+          # matrix arch's triplet: libcrypto-3-x64.dll or libcrypto-3-arm64.dll).
+          for ssl_dll in "${OPENSSL_ROOT_DIR}"/bin/libcrypto-3*.dll "${OPENSSL_ROOT_DIR}"/bin/libssl-3*.dll; do
+            [ -f "${ssl_dll}" ] || { echo "::error::OpenSSL DLL not found: ${ssl_dll}"; exit 1; }
+            cp "${ssl_dll}" dist/
+            echo "Copied $(basename "${ssl_dll}") from vcpkg"
+          done
 
           # zlib — the app now links zlib STATICALLY (x64-windows-static-md), so
           # there is no runtime zlib DLL to ship. This loop is a harmless fallback
@@ -439,6 +456,17 @@ jobs:
           # from System32 as a fallback for anything missed.
           # msvcp170 / vcruntime140_2 are the VS2022 v17.x toolset DLLs.
           # ----------------------------------------------------------------
+          # fork addition (codeyoma/krx-quant#136): on ARM64, from Visual Studio's ARM64
+          # redist folder. The runner is x64, so its System32 holds x64 DLLs.
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            VCRT_DIR="$(ls -d "/c/Program Files/Microsoft Visual Studio/"*/*/VC/Redist/MSVC/*/arm64/Microsoft.VC14*.CRT 2>/dev/null | sort -V | tail -1)"
+            [ -n "${VCRT_DIR}" ] || { echo "::error::ARM64 Visual C++ runtime not found"; exit 1; }
+            echo "ARM64 Visual C++ runtime from: ${VCRT_DIR}"
+            for vcrt_dll in "${VCRT_DIR}"/*.dll; do
+              cp "${vcrt_dll}" dist/
+              echo "Copied MSVC runtime $(basename "${vcrt_dll}")"
+            done
+          else
           for vcrt_dll in \
             vcruntime140.dll vcruntime140_1.dll vcruntime140_2.dll \
             msvcp140.dll msvcp140_1.dll msvcp140_2.dll \
@@ -450,6 +478,7 @@ jobs:
               echo "Copied MSVC runtime ${vcrt_dll}"
             fi
           done
+          fi
 
           # ----------------------------------------------------------------
           # Qt Platform Plugin — mandatory, app won't start without it
@@ -628,6 +657,30 @@ jobs:
           # ----------------------------------------------------------------
           cp -r resources dist/resources 2>/dev/null || true
           bash "${GITHUB_WORKSPACE}/.github/scripts/sync_scripts.sh" scripts dist/scripts  # fork addition (codeyoma/krx-quant#136): from the repository root
+
+          # ----------------------------------------------------------------
+          # fork addition (codeyoma/krx-quant#136): the executable and every DLL it
+          # can load are built for the target (PE machine 0x8664 x64, 0xAA64 ARM64).
+          # One of the wrong architecture stops the app from starting, and the ARM64
+          # build is not run in CI. scripts/ and resources/ are left out: programs
+          # there run as their own processes.
+          # ----------------------------------------------------------------
+          case "${{ matrix.arch }}" in
+            arm64) WANT_MACHINE="aa64" ;;
+            *)     WANT_MACHINE="8664" ;;
+          esac
+          WRONG_ARCH=0
+          while IFS= read -r -d '' pe_file; do
+            pe_offset=$(od -An -tu4 -j60 -N4 "${pe_file}" | tr -d ' ')
+            machine=$(od -An -tx2 -j$((pe_offset + 4)) -N2 "${pe_file}" | tr -d ' ')
+            if [ "${machine}" != "${WANT_MACHINE}" ]; then
+              echo "::error::${pe_file} is built for machine 0x${machine}, not 0x${WANT_MACHINE}"
+              WRONG_ARCH=1
+            fi
+          done < <(find dist -path dist/scripts -prune -o -path dist/resources -prune -o \
+                     -type f \( -iname '*.dll' -o -iname '*.exe' \) -print0)
+          [ "${WRONG_ARCH}" -eq 0 ] || exit 1
+          echo "The executable and its DLLs are all built for 0x${WANT_MACHINE}."
 
           # ----------------------------------------------------------------
           # Final diagnostic — list everything that will be zipped
