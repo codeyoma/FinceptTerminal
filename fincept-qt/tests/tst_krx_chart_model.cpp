@@ -204,19 +204,18 @@ class TstKrxChartModel : public QObject {
     }
 
     void the_bars_before_are_read_once_the_view_nears_the_left_end() {
-        const QList<Bar> bars{{kst("2026-10-12T09:00:00+09:00"), 1, 1, 1, 1, 1},
-                              {kst("2026-10-12T09:01:00+09:00"), 1, 1, 1, 1, 1}};
+        const QDateTime first = kst("2026-10-12T09:00:00+09:00"); // the first bar shown
 
-        QVERIFY(!older_read(bars, 30).has_value()); // 30 bars from the end: not yet
-        const auto near = older_read(bars, 29.5);
+        QVERIFY(!older_read(first, 30).has_value()); // 30 bars from the end: not yet
+        const auto near = older_read(first, 29.5);
         QVERIFY(near.has_value());
         QCOMPARE(near->before, kst("2026-10-12T09:00:00+09:00")); // before the first bar
         QCOMPARE(near->limit, 400);
         // Its own final consensus: the 08:59 bar closes at 09:00, so bar closes up to 09:00.
         QCOMPARE(near->finals_before, kst("2026-10-12T09:01:00+09:00"));
-        QVERIFY(older_read(bars, -12).has_value()); // scrolled past the first bar
+        QVERIFY(older_read(first, -12).has_value()); // scrolled past the first bar
         // No bars yet (before the open): those before now.
-        const auto empty = older_read({}, 0);
+        const auto empty = older_read(QDateTime(), 0);
         QVERIFY(empty.has_value());
         QVERIFY(!empty->before.isValid() && !empty->finals_before.isValid());
     }

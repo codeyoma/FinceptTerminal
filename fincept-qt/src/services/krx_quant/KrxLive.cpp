@@ -43,7 +43,7 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         service_, &KrxQuantService::older_ready, this,
         [this](const QString& symbol, const QList<krx_quant::Bar>& bars, const QList<krx_quant::Prediction>& finals) {
             if (symbol != selected_)
-                return; // another was chosen meanwhile
+                return view_from(view_from_); // another was chosen meanwhile: its own, if its view asked
             oldest_ = bars.isEmpty();
             older_ = krx_quant::join_bars(bars, older_);
             board_.set_history(symbol, finals);
@@ -51,7 +51,9 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         });
     connect(service_, &KrxQuantService::older_failed, this, [this](const QString& symbol, const QString& reason) {
         if (symbol == selected_)
-            emit chart_failed(reason);
+            emit older_failed(reason);
+        else
+            view_from(view_from_); // another was chosen meanwhile
     });
     connect(service_, &KrxQuantService::macro_ready, this, [this](const krx_quant::Macro& macro) {
         macro_ = macro;
@@ -135,6 +137,7 @@ void KrxLive::apply_base_url(const QString& url) {
     KrxQuantService::set_base_url(url);
     board_ = {};
     bars_.clear();
+    forget_older(); // the old engine's
     status_.reset();
     macro_.reset(); // the new engine's is read below
     macro_failure_.clear();
@@ -164,8 +167,7 @@ void KrxLive::select(const QString& symbol) {
     pinned_predictions_.clear();
     emit pinned_changed();
     bars_.clear();
-    older_.clear();
-    oldest_ = false;
+    forget_older();
     emit chart_changed();
     emit predictions_changed();
     if (!symbol.isEmpty())
@@ -185,10 +187,21 @@ void KrxLive::set_details(const QStringList& algorithms) {
 }
 
 void KrxLive::view_from(double from) {
+    view_from_ = from;
     if (selected_.isEmpty() || oldest_)
         return;
-    if (const auto read = krx_quant::older_read(bars(), from))
+    // The first bar shown: the earliest read before, else today's first.
+    const QDateTime first = !older_.isEmpty()  ? older_.first().start
+                            : !bars_.isEmpty() ? bars_.first().start
+                                               : QDateTime();
+    if (const auto read = krx_quant::older_read(first, from))
         service_->read_older(selected_, *read);
+}
+
+void KrxLive::forget_older() {
+    older_.clear();
+    oldest_ = false;
+    view_from_ = krx_quant::kOlderMargin;
 }
 
 void KrxLive::pin(const QDateTime& bar_close) {
@@ -310,8 +323,7 @@ void KrxLive::on_failure(const QString& reason) {
     read_errors_.clear();
     board_.forget_predictions(); // old predictions must not pass for current ones
     bars_.clear();
-    older_.clear();
-    oldest_ = false;
+    forget_older();
     emit predictions_changed();
     emit chart_changed();
     emit status_changed();

@@ -75,8 +75,9 @@ class KrxQuantService : public QObject {
     void read_status();
     /// A symbol's 1-minute bars and final consensus over the day: chart_ready or chart_failed.
     void read_chart(const QString& symbol);
-    /// The bars before the chart's and their final consensus (krx-quant #108): older_ready
-    /// or older_failed. Asked again while one is read, it is not read.
+    /// The bars that start before the chart's first one (``read.before``) and their final
+    /// consensus (krx-quant #108): older_ready or older_failed. Asked again while one is
+    /// read, it is not read: KrxLive asks again once that one answers.
     void read_older(const QString& symbol, const krx_quant::OlderRead& read);
     /// Every prediction of one bar close (krx-quant #107) and the algorithms' statuses now:
     /// close_ready or close_failed.

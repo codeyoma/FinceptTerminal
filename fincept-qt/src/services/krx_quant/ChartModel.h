@@ -106,9 +106,10 @@ struct OlderRead {
 };
 
 /// What to read once the view starts ``view_from`` bars (a logical index, negative past the
-/// first bar) from the left end of ``bars``: nothing while it is kOlderMargin bars or more
-/// away, else the kOlderBars bars before the first. With no bars yet, those before now.
-std::optional<OlderRead> older_read(const QList<Bar>& bars, double view_from);
+/// first bar) from its left end, where the bar starting at ``first`` is: nothing while it is
+/// kOlderMargin bars or more away, else the kOlderBars bars before it. With no bars yet
+/// (``first`` invalid), those before now.
+std::optional<OlderRead> older_read(const QDateTime& first, double view_from);
 
 /// ``older`` read before ``newer``, as one run of bars oldest first: a bar in both (the
 /// same start) is ``newer``'s.

@@ -199,12 +199,11 @@ std::pair<double, double> fit_range(int bars) {
     return {static_cast<double>(std::max(0, bars - kFitBars)), last + kRightOffset};
 }
 
-std::optional<OlderRead> older_read(const QList<Bar>& bars, double view_from) {
-    if (bars.isEmpty())
+std::optional<OlderRead> older_read(const QDateTime& first, double view_from) {
+    if (!first.isValid())
         return OlderRead{};
     if (view_from >= kOlderMargin)
         return std::nullopt;
-    const QDateTime first = bars.first().start;
     return OlderRead{first, kOlderBars, first.addSecs(60)};
 }
 
