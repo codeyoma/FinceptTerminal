@@ -51,6 +51,13 @@ inline QString money(double v, bool compact = false, const QString& intrinsic = 
     return sign + sym + QLocale(QLocale::English).toString(a, 'f', 2);
 }
 
+// fork addition (codeyoma/krx-quant#142): only this explicit-source helper applies FX.
+// Existing money() remains nominal formatting for calculator inputs/results.
+inline QString display_money(double value, const QString& source, bool compact = false, int precision = -1) {
+    return fincept::currency::format_display_amount(
+        fincept::currency::CurrencyManager::instance().display_amount(value, source), compact, precision);
+}
+
 /// `tmpl` must contain a single "%1" placeholder for the symbol.
 inline void bindLabel(QLabel* lbl, const QString& tmpl) {
     if (!lbl)

@@ -11,6 +11,7 @@
 #include "ui/theme/Theme.h"
 
 #include <QLabel>
+#include <QPushButton>
 #include <QScrollArea>
 #include <QShowEvent>
 #include <QSignalBlocker>
@@ -138,10 +139,27 @@ void GeneralSection::build_ui() {
         currency_combo_->addItem(QString("%1  %2  (%3)").arg(c.symbol, c.name, c.code), c.code);
     currency_combo_->setStyleSheet(combo_ss());
     auto* currency_row = make_row(tr("Display currency"), currency_combo_,
-                                  tr("Changes the currency symbol on calculators and analytics. Live market "
-                                     "data keeps its own currency — values are not converted."));
+                                  tr("Converts supported monetary displays using dated ECB reference rates. "
+                                     "Orders keep their source units. Calculators use the selected denomination. "
+                                     "Unavailable conversions keep the original currency."));
     capture_row_labels(currency_row, &currency_label_, &currency_desc_);
     vl->addWidget(currency_row);
+
+    // fork addition (codeyoma/krx-quant#142): dated reference-rate provenance and retry.
+    rates_status_ = new QLabel;
+    rates_status_->setObjectName("currency_rates_status");
+    rates_status_->setWordWrap(true);
+    rates_status_->setToolTip(QStringLiteral("https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"));
+    vl->addWidget(rates_status_);
+    refresh_rates_ = new QPushButton(tr("Refresh exchange rates"));
+    refresh_rates_->setObjectName("currency_refresh_rates");
+    vl->addWidget(refresh_rates_, 0, Qt::AlignLeft);
+    auto& currency_manager = currency::CurrencyManager::instance();
+    connect(refresh_rates_, &QPushButton::clicked, &currency_manager, &currency::CurrencyManager::refresh_rates);
+    connect(&currency_manager, &currency::CurrencyManager::rates_status_changed, this,
+            &GeneralSection::update_rates_status);
+    connect(&currency_manager, &currency::CurrencyManager::display_changed, this, &GeneralSection::update_rates_status);
+    update_rates_status();
 
     connect(currency_combo_, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int idx) {
         const QString code = currency_combo_->itemData(idx).toString();
@@ -149,6 +167,7 @@ void GeneralSection::build_ui() {
             return;
         LOG_INFO("Settings", QString("currency → %1").arg(code));
         currency::CurrencyManager::instance().set_currency(code);
+        reload(); // Restore persisted choice if saving failed.
     });
 
     // Accessibility: the row label is a sibling QLabel, not a buddy, so the
@@ -163,7 +182,30 @@ void GeneralSection::build_ui() {
     root->addWidget(scroll);
 }
 
+void GeneralSection::update_rates_status() {
+    const auto& manager = currency::CurrencyManager::instance();
+    QString text;
+    if (manager.rates_usable()) {
+        text = tr("ECB daily reference rates — %1").arg(manager.rates_date().toString(Qt::ISODate));
+        if (manager.rates_cached())
+            text += tr(" (cached)");
+        const auto example = manager.display_amount(100, "USD");
+        if (example.available)
+            text += "\n" + tr("100 USD ≈ %1").arg(currency::format_display_amount(example));
+        text += "\n" + tr("For display estimates only; actual execution and billing rates may differ.");
+        if (!manager.rates_error().isEmpty())
+            text += "\n" + tr("Refresh failed; using cached rates.");
+    } else {
+        text = tr("Reference rates unavailable. Amounts keep their original currency.");
+    }
+    if (manager.refreshing())
+        text += "\n" + tr("Refreshing exchange rates…");
+    rates_status_->setText(text);
+    refresh_rates_->setEnabled(!manager.refreshing());
+}
+
 void GeneralSection::reload() {
+    update_rates_status();
     if (on_close_combo_) {
         const auto r =
             SettingsRepository::instance().get(QString::fromLatin1(kKeyOnClose), QString::fromLatin1(kDefaultOnClose));
@@ -196,6 +238,8 @@ void GeneralSection::changeEvent(QEvent* event) {
 }
 
 void GeneralSection::retranslateUi() {
+    update_rates_status();
+    refresh_rates_->setText(tr("Refresh exchange rates"));
     // Section titles.
     if (window_title_)
         window_title_->setText(tr("WINDOW BEHAVIOUR"));
@@ -231,8 +275,9 @@ void GeneralSection::retranslateUi() {
     if (currency_label_)
         currency_label_->setText(tr("Display currency"));
     if (currency_desc_)
-        currency_desc_->setText(tr("Changes the currency symbol on calculators and analytics. Live market "
-                                   "data keeps its own currency — values are not converted."));
+        currency_desc_->setText(tr("Converts supported monetary displays using dated ECB reference rates. "
+                                   "Orders keep their source units. Calculators use the selected denomination. "
+                                   "Unavailable conversions keep the original currency."));
 }
 
 } // namespace fincept::screens

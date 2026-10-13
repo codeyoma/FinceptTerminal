@@ -19,6 +19,9 @@ struct SearchResult {
 // ── Real-time quote ───────────────────────────────────────────────────────────
 struct QuoteData {
     QString symbol;
+    // fork addition (codeyoma/krx-quant#142): provider units, never display preferences.
+    QString currency;
+    QString quote_type;
     double price = 0.0;
     double change = 0.0;
     double change_pct = 0.0;
@@ -41,6 +44,9 @@ struct StockInfo {
     QString website;
     QString country;
     QString currency;
+    // fork addition (codeyoma/krx-quant#142): statements may use another currency.
+    QString financial_currency;
+    QString quote_type;
     QString exchange;
     int employees = 0;
 

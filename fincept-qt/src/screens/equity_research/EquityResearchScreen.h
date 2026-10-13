@@ -94,6 +94,9 @@ class EquityResearchScreen : public QWidget, public IStatefulScreen, public IGro
     QTimer* refresh_timer_ = nullptr;
     QString current_symbol_;
     QString current_currency_;
+    // fork addition (codeyoma/krx-quant#142): last rendered raw snapshots for FX repaint.
+    services::equity::QuoteData displayed_quote_;
+    services::equity::StockInfo displayed_info_;
     double last_price_ = 0.0; // freshest quote price, seeds the order ticket
     bool hub_broker_active_ = false;
 

@@ -8,6 +8,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 #include "screens/equity_research/EquityResearchScreen.h"
 
+#include "core/currency/Currency.h"
 #include "core/events/EventBus.h"
 #include "core/session/ScreenStateManager.h"
 #include "core/symbol/SymbolContext.h"
@@ -23,6 +24,7 @@
 #include "screens/equity_research/EquitySentimentTab.h"
 #include "screens/equity_research/EquityTechnicalsTab.h"
 #include "screens/equity_research/EquityValuationTab.h"
+#include "screens/equity_research/EquityValuationUnits.h"
 #include "services/backtesting/BacktestingService.h"
 #include "services/equity/EquityResearchService.h"
 #include "trading/AccountManager.h"
@@ -83,6 +85,16 @@ EquityResearchScreen::EquityResearchScreen(QWidget* parent) : QWidget(parent) {
     auto& svc = services::equity::EquityResearchService::instance();
     connect(&svc, &services::equity::EquityResearchService::quote_loaded, this, &EquityResearchScreen::on_quote_loaded);
     connect(&svc, &services::equity::EquityResearchService::info_loaded, this, &EquityResearchScreen::on_info_loaded);
+    // fork addition (codeyoma/krx-quant#142): redraw from source values on preference/rate changes.
+    connect(&currency::CurrencyManager::instance(), &currency::CurrencyManager::display_changed, this, [this]() {
+        if (displayed_info_.symbol == current_symbol_ && displayed_info_.market_cap > 0)
+            mktcap_label_->setText(
+                tr("MKT CAP: %1")
+                    .arg(cur::display_money(displayed_info_.market_cap,
+                                            equity::capitalization_currency(displayed_info_.currency), true)));
+        if (displayed_quote_.symbol == current_symbol_ && !current_symbol_.isEmpty())
+            update_quote_bar(displayed_quote_);
+    });
     // Financials feed the Valuation tab (DCF / scoring models).
     connect(&svc, &services::equity::EquityResearchService::financials_loaded, this,
             &EquityResearchScreen::on_financials_loaded);
@@ -375,13 +387,19 @@ void EquityResearchScreen::on_info_loaded(services::equity::StockInfo info) {
     // Guard: ignore data for a different symbol (can happen if user switches fast)
     if (info.symbol != current_symbol_)
         return;
+    displayed_info_ = info;
     current_currency_ = info.currency;
+    if (displayed_quote_.symbol == current_symbol_)
+        update_quote_bar(displayed_quote_);
+    if (financials_tab_)
+        financials_tab_->set_reporting_currency(info.financial_currency);
 
     // Update the market cap label in the title bar
     if (mktcap_label_) {
         if (info.market_cap > 0) {
-            const QString cs = EquityOverviewTab::currency_symbol(info.currency.isEmpty() ? "USD" : info.currency);
-            mktcap_label_->setText(tr("MKT CAP: %1%2").arg(cs, EquityOverviewTab::fmt_large(info.market_cap)));
+            mktcap_label_->setText(
+                tr("MKT CAP: %1")
+                    .arg(cur::display_money(info.market_cap, equity::capitalization_currency(info.currency), true)));
         } else {
             mktcap_label_->setText(tr("MKT CAP: %1").arg(QStringLiteral("—")));
         }
@@ -408,6 +426,7 @@ void EquityResearchScreen::on_tab_changed(int index) {
     switch (index) {
         case 1:
             financials_tab_->set_symbol(current_symbol_);
+            financials_tab_->set_reporting_currency(displayed_info_.financial_currency);
             svc.fetch_financials(current_symbol_);
             break;
         case 2:
@@ -449,6 +468,11 @@ void EquityResearchScreen::load_symbol(const QString& symbol) {
         return;
     current_symbol_ = symbol;
     last_price_ = 0.0; // stale until the new symbol's quote arrives
+    current_currency_.clear();
+    displayed_quote_ = {};
+    displayed_info_ = {};
+    valuation_tab_->set_symbol(symbol);
+    financials_tab_->set_reporting_currency({});
 
     // Update the text in title bar and quote bar immediately
     symbol_label_->setText(symbol);
@@ -503,19 +527,30 @@ void EquityResearchScreen::update_quote_bar(const services::equity::QuoteData& q
     if (q.price > 0.0)
         last_price_ = q.price;
 
-    const QString cs = EquityOverviewTab::currency_symbol(current_currency_.isEmpty() ? "USD" : current_currency_);
+    // fork addition (codeyoma/krx-quant#142): metadata may arrive after the quote.
+    displayed_quote_ = q;
+    const QString source = q.currency.isEmpty() ? current_currency_ : q.currency;
+    const QString type = equity::resolved_quote_type(q.quote_type, displayed_info_.quote_type);
+    const auto price = [&](double value) {
+        if (type == QLatin1String("INDEX"))
+            return tr("%1 points").arg(QString::number(value, 'f', 2));
+        if (type == QLatin1String("CURRENCY"))
+            return tr("%1 (native quote)").arg(QString::number(value, 'f', 4));
+        if (type == QLatin1String("YIELD"))
+            return QString::number(value, 'f', 3) + QLatin1Char('%');
+        if (!equity::monetary_quote_type(type))
+            return tr("%1 (native quote)").arg(QString::number(value, 'f', 4));
+        return cur::display_money(value, source);
+    };
 
     sym_label_->setText(q.symbol);
-    price_label_->setText(QString("%1%2").arg(cs).arg(q.price, 0, 'f', 2));
+    price_label_->setText(price(q.price));
 
     bool up = q.change_pct >= 0;
     QString arrow = up ? "\xe2\x96\xb2" : "\xe2\x96\xbc"; // ▲ or ▼
     QString chg_color = up ? ui::colors::POSITIVE() : ui::colors::NEGATIVE();
-    change_label_->setText(QString("%1%2  %3%4%")
-                               .arg(up ? "+" : "")
-                               .arg(q.change, 0, 'f', 2)
-                               .arg(arrow)
-                               .arg(qAbs(q.change_pct), 0, 'f', 2));
+    change_label_->setText(
+        QString("%1%2  %3%4%").arg(up ? "+" : "").arg(price(q.change)).arg(arrow).arg(qAbs(q.change_pct), 0, 'f', 2));
     change_label_->setStyleSheet(QString("font-size:13px; font-weight:600; color:%1;").arg(chg_color));
 
     // Format volume: show 1.2B, 450M, 12K instead of raw numbers
@@ -530,7 +565,7 @@ void EquityResearchScreen::update_quote_bar(const services::equity::QuoteData& q
     };
 
     vol_label_->setText(tr("VOL: %1").arg(fmt_vol(q.volume)));
-    hl_label_->setText(tr("H:%1%2  L:%1%3").arg(cs).arg(q.high, 0, 'f', 2).arg(q.low, 0, 'f', 2));
+    hl_label_->setText(tr("H: %1  L: %2").arg(price(q.high), price(q.low)));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -711,6 +746,13 @@ void EquityResearchScreen::retranslateUi() {
         tab_widget_->setTabText(6, tr("Sentiment"));
         tab_widget_->setTabText(7, tr("Valuation"));
     }
+    if (!current_symbol_.isEmpty() && displayed_quote_.symbol == current_symbol_)
+        update_quote_bar(displayed_quote_);
+    if (displayed_info_.market_cap > 0 && displayed_info_.symbol == current_symbol_)
+        mktcap_label_->setText(
+            tr("MKT CAP: %1")
+                .arg(cur::display_money(displayed_info_.market_cap,
+                                        equity::capitalization_currency(displayed_info_.currency), true)));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -789,6 +831,9 @@ void EquityResearchScreen::hub_subscribe_broker_quote() {
         const auto bq = v.value<trading::BrokerQuote>();
         services::equity::QuoteData qd;
         qd.symbol = sym;
+        // BrokerQuote has no instrument denomination. The same fully qualified
+        // research symbol's metadata may provide it; the broker profile cannot.
+        qd.quote_type = QStringLiteral("UNKNOWN");
         qd.price = bq.ltp;
         qd.change = bq.change;
         qd.change_pct = bq.change_pct;

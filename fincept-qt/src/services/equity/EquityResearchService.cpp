@@ -201,8 +201,12 @@ void EquityResearchService::load_quote_only(const QString& symbol) {
         return;
     const QVariant qcv = fincept::CacheManager::instance().get("equity:quote:" + symbol);
     if (!qcv.isNull()) {
-        emit quote_loaded(parse_quote(QJsonDocument::fromJson(qcv.toString().toUtf8()).object()));
-        return;
+        const auto cached = QJsonDocument::fromJson(qcv.toString().toUtf8()).object();
+        // fork addition (codeyoma/krx-quant#142): legacy cache entries predate source units.
+        if (cached.contains("currency") && cached.contains("quote_type")) {
+            emit quote_loaded(parse_quote(cached));
+            return;
+        }
     }
     run_python("yfinance_data.py", {"quote", symbol}, [this, symbol](bool ok, const QString& out) {
         if (!ok) {
@@ -226,8 +230,11 @@ void EquityResearchService::load_info_only(const QString& symbol) {
         return;
     const QVariant icv = fincept::CacheManager::instance().get("equity:info:" + symbol);
     if (!icv.isNull()) {
-        emit info_loaded(parse_info(QJsonDocument::fromJson(icv.toString().toUtf8()).object()));
-        return;
+        const auto cached = QJsonDocument::fromJson(icv.toString().toUtf8()).object();
+        if (cached.contains("financial_currency") && cached.contains("quote_type")) {
+            emit info_loaded(parse_info(cached));
+            return;
+        }
     }
     run_python("yfinance_data.py", {"info", symbol}, [this, symbol](bool ok, const QString& out) {
         if (!ok) {
@@ -653,6 +660,9 @@ void EquityResearchService::ensure_candles(const QString& symbol, const QString&
 QuoteData EquityResearchService::parse_quote(const QJsonObject& o) const {
     QuoteData q;
     q.symbol = o["symbol"].toString();
+    // fork addition (codeyoma/krx-quant#142): retain explicit provider units.
+    q.currency = o["currency"].toString();
+    q.quote_type = o["quote_type"].toString();
     q.price = o["price"].toDouble();
     q.change = o["change"].toDouble();
     q.change_pct = o["change_percent"].toDouble();
@@ -676,6 +686,9 @@ StockInfo EquityResearchService::parse_info(const QJsonObject& o) const {
     s.website = o["website"].toString();
     s.country = o["country"].toString();
     s.currency = o["currency"].toString();
+    // fork addition (codeyoma/krx-quant#142): never substitute quote currency.
+    s.financial_currency = o["financial_currency"].toString();
+    s.quote_type = o["quote_type"].toString();
     s.exchange = o["exchange"].toString();
     s.employees = o["employees"].toInt();
 

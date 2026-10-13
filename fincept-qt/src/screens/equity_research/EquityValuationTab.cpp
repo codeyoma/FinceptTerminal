@@ -1,6 +1,8 @@
 // src/screens/equity_research/EquityValuationTab.cpp
 #include "screens/equity_research/EquityValuationTab.h"
 
+#include "core/currency/Currency.h"
+#include "screens/equity_research/EquityValuationUnits.h"
 #include "services/quantlib/QuantLibClient.h"
 #include "ui/theme/Theme.h"
 
@@ -24,6 +26,9 @@ namespace fincept::screens {
 
 EquityValuationTab::EquityValuationTab(QWidget* parent) : QWidget(parent) {
     build_ui();
+    // fork addition (codeyoma/krx-quant#142): raw calculation inputs never follow display currency.
+    connect(&currency::CurrencyManager::instance(), &currency::CurrencyManager::display_changed, this,
+            &EquityValuationTab::refresh_currency_display);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -280,7 +285,13 @@ void EquityValuationTab::set_symbol(const QString& symbol) {
         return;
     current_symbol_ = symbol;
     financials_loaded_ = false;
+    last_info_ = {};
+    last_financials_ = {};
+    current_price_ = 0.0;
+    current_currency_.clear();
     clear_results();
+    calc_btn_->setEnabled(true);
+    calc_btn_->setText(tr("CALCULATE"));
     if (scoring_note_)
         scoring_note_->setVisible(true);
 }
@@ -292,8 +303,7 @@ void EquityValuationTab::set_stock_info(const services::equity::StockInfo& info)
     pre_fill_dcf_inputs();
 
     // Show current price in results panel immediately
-    if (current_price_val_)
-        current_price_val_->setText(fmt_currency(current_price_));
+    refresh_currency_display();
 }
 
 void EquityValuationTab::set_financials(const services::equity::FinancialsData& data) {
@@ -311,6 +321,10 @@ void EquityValuationTab::pre_fill_dcf_inputs() {
     if (!fcf_input_)
         return;
 
+    const QString units =
+        last_info_.financial_currency.isEmpty() ? tr("currency unavailable") : last_info_.financial_currency;
+    fcf_input_->setSuffix(tr(" M (%1)").arg(units));
+    fcf_input_->setToolTip(tr("Free cash flow input stays in the reporting currency: %1").arg(units));
     double fcf_m = last_info_.free_cashflow / 1e6;
     double growth = last_info_.earnings_growth * 100.0;
     double shares_m = last_info_.shares_outstanding / 1e6;
@@ -354,18 +368,22 @@ void EquityValuationTab::on_calculate_clicked() {
     dcf_body["shares_outstanding"] = shares_input_->value() * 1e6;
 
     QPointer<EquityValuationTab> self = this;
-    services::QuantLibClient::instance().call("analysis/valuation/dcf/fcff", dcf_body, [self](mcp::ToolResult result) {
-        if (!self)
-            return;
-        self->calc_btn_->setEnabled(true);
-        self->calc_btn_->setText(tr("CALCULATE"));
-        if (!result.success) {
-            if (self->intrinsic_val_)
-                self->intrinsic_val_->setText(tr("API error"));
-            return;
-        }
-        self->display_dcf_result(result.data);
-    });
+    const QString calculation_symbol = current_symbol_;
+    const QString calculation_currency = last_info_.financial_currency;
+    services::QuantLibClient::instance().call("analysis/valuation/dcf/fcff", dcf_body,
+                                              [self, calculation_symbol, calculation_currency](mcp::ToolResult result) {
+                                                  if (!self || self->current_symbol_ != calculation_symbol)
+                                                      return;
+                                                  self->calc_btn_->setEnabled(true);
+                                                  self->calc_btn_->setText(tr("CALCULATE"));
+                                                  if (!result.success) {
+                                                      if (self->intrinsic_val_)
+                                                          self->intrinsic_val_->setText(tr("API error"));
+                                                      return;
+                                                  }
+                                                  self->dcf_result_currency_ = calculation_currency;
+                                                  self->display_dcf_result(result.data);
+                                              });
 
     // ── 2. Scoring (only if financials loaded) ─────────────────────
     if (financials_loaded_)
@@ -403,7 +421,8 @@ void EquityValuationTab::run_scoring_models() {
     // liabilities. With an empty balance sheet every input here is 0, and asking
     // the endpoint anyway yields a score that describes nothing — which then
     // rendered as a red "DISTRESS ZONE". Don't ask; say so instead.
-    if (total_assets > 0.0 && total_liabilities > 0.0) {
+    // A market cap in quote units cannot be divided by statements in another currency.
+    if (total_assets > 0.0 && total_liabilities > 0.0 && matching_financial_currency()) {
         QJsonObject altman_body;
         altman_body["working_capital"] = working_capital;
         altman_body["total_assets"] = total_assets;
@@ -489,6 +508,7 @@ void EquityValuationTab::run_scoring_models() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 void EquityValuationTab::run_multiples() {
+    multiples_calculated_ = true;
     // Use already-available StockInfo fields — no extra API call needed
     // for EV/EBITDA, EV/Revenue, P/S. Graham Number needs EPS + book value.
 
@@ -501,7 +521,7 @@ void EquityValuationTab::run_multiples() {
                                                               : QStringLiteral("—"));
 
     if (price_sales_val_) {
-        double ps = (last_info_.total_revenue > 0 && last_info_.market_cap > 0)
+        double ps = (matching_financial_currency() && last_info_.total_revenue > 0 && last_info_.market_cap > 0)
                         ? last_info_.market_cap / last_info_.total_revenue
                         : 0.0;
         price_sales_val_->setText(ps > 0 ? QString("%1x").arg(ps, 0, 'f', 1) : QStringLiteral("—"));
@@ -514,7 +534,7 @@ void EquityValuationTab::run_multiples() {
                          ? last_info_.current_price / last_info_.pe_ratio
                          : 0.0;
         double bv = last_info_.book_value;
-        double graham = (eps > 0 && bv > 0) ? std::sqrt(22.5 * eps * bv) : 0.0;
+        double graham = (matching_financial_currency() && eps > 0 && bv > 0) ? std::sqrt(22.5 * eps * bv) : 0.0;
         graham_val_->setText(graham > 0 ? fmt_currency(graham) : QStringLiteral("—"));
     }
 }
@@ -524,6 +544,7 @@ void EquityValuationTab::run_multiples() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 void EquityValuationTab::display_dcf_result(const QJsonValue& data) {
+    last_dcf_result_ = data;
     auto obj = data.toObject();
     // Try common response key names from QuantLib API
     double intrinsic = obj.value("intrinsic_value_per_share").toDouble(0.0);
@@ -533,12 +554,23 @@ void EquityValuationTab::display_dcf_result(const QJsonValue& data) {
         intrinsic = obj.value("value_per_share").toDouble(0.0);
 
     if (intrinsic_val_)
-        intrinsic_val_->setText(intrinsic > 0 ? fmt_currency(intrinsic) : QStringLiteral("—"));
+        intrinsic_val_->setText(intrinsic > 0 ? cur::display_money(intrinsic, dcf_result_currency_)
+                                              : QStringLiteral("—"));
 
-    if (current_price_ <= 0 || intrinsic <= 0)
+    // fork addition (codeyoma/krx-quant#142): DCF follows the input's reporting currency.
+    // Do not derive a valuation verdict from prices in incomparable or unknown units.
+    if (!equity::same_valuation_currency(current_currency_, dcf_result_currency_)) {
+        margin_val_->setText(tr("Currency mismatch or unavailable"));
+        verdict_badge_->clear();
         return;
-
-    double margin_pct = (intrinsic - current_price_) / current_price_ * 100.0;
+    }
+    const auto margin = equity::valuation_margin(current_price_, current_currency_, intrinsic, dcf_result_currency_);
+    if (!margin) {
+        margin_val_->setText(QStringLiteral("—"));
+        verdict_badge_->clear();
+        return;
+    }
+    const double margin_pct = *margin;
     QString margin_text = QString("%1%2%").arg(margin_pct >= 0 ? "+" : "").arg(margin_pct, 0, 'f', 1);
 
     if (margin_val_) {
@@ -628,6 +660,9 @@ void EquityValuationTab::display_beneish_result(const QJsonValue& data) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 void EquityValuationTab::clear_results() {
+    last_dcf_result_ = QJsonValue();
+    dcf_result_currency_.clear();
+    multiples_calculated_ = false;
     auto reset = [](QLabel* l) {
         if (l)
             l->setText(QStringLiteral("—"));
@@ -663,14 +698,28 @@ void EquityValuationTab::set_badge(QLabel* badge, const QString& text, const QSt
 }
 
 QString EquityValuationTab::fmt_currency(double value) const {
-    QString cs = QStringLiteral("$");
-    if (current_currency_ == QStringLiteral("INR"))
-        cs = QStringLiteral("₹");
-    else if (current_currency_ == QStringLiteral("EUR"))
-        cs = QStringLiteral("€");
-    else if (current_currency_ == QStringLiteral("GBP"))
-        cs = QStringLiteral("£");
-    return QString("%1%2").arg(cs).arg(value, 0, 'f', 2);
+    if (last_info_.quote_type == QLatin1String("INDEX"))
+        return tr("%1 points").arg(QString::number(value, 'f', 2));
+    if (last_info_.quote_type == QLatin1String("CURRENCY"))
+        return tr("%1 (native quote)").arg(QString::number(value, 'f', 4));
+    if (last_info_.quote_type == QLatin1String("YIELD"))
+        return QString::number(value, 'f', 3) + QLatin1Char('%');
+    if (!equity::monetary_quote_type(equity::resolved_quote_type(last_info_.quote_type)))
+        return tr("%1 (native quote)").arg(QString::number(value, 'f', 4));
+    return cur::display_money(value, current_currency_);
+}
+
+bool EquityValuationTab::matching_financial_currency() const {
+    return equity::same_valuation_currency(current_currency_, last_info_.financial_currency);
+}
+
+void EquityValuationTab::refresh_currency_display() {
+    if (current_price_val_ && !last_info_.symbol.isEmpty())
+        current_price_val_->setText(fmt_currency(current_price_));
+    if (!last_dcf_result_.isNull() && !last_dcf_result_.isUndefined())
+        display_dcf_result(last_dcf_result_);
+    if (multiples_calculated_)
+        run_multiples();
 }
 
 double EquityValuationTab::get_stmt_val(const QVector<QPair<QString, QJsonObject>>& stmt, const QString& key,
@@ -690,6 +739,7 @@ void EquityValuationTab::changeEvent(QEvent* e) {
             it.key()->setText(tr(it.value()));
         if (calc_btn_)
             calc_btn_->setText(tr("CALCULATE"));
+        refresh_currency_display();
     }
     QWidget::changeEvent(e);
 }

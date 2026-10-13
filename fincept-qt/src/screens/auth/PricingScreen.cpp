@@ -395,16 +395,20 @@ QWidget* PricingScreen::create_plan_card(const auth::SubscriptionPlan& plan, int
                                  .arg(MF));
         vl->addWidget(price);
     } else {
-        // Plan prices are intrinsically USD (not FX-converted), so pin the symbol
-        // to USD rather than following the global currency preference. Preserve the
-        // whole-number format used for plan prices.
-        auto* price = new QLabel(cur::symbol_for("USD") + QString::number(plan.price_usd, 'f', 0));
+        // fork addition (codeyoma/krx-quant#142): converted estimate, with USD billing shown below.
+        auto* price = new QLabel(cur::display_money(plan.price_usd, "USD"));
+        connect(&currency::CurrencyManager::instance(), &currency::CurrencyManager::display_changed, price,
+                [price, amount = plan.price_usd] { price->setText(cur::display_money(amount, "USD")); });
         price->setAlignment(Qt::AlignCenter);
         price->setStyleSheet(QString("color: %1; font-size: 28px; font-weight: 700; "
                                      "background: transparent; %2")
                                  .arg(ui::colors::AMBER())
                                  .arg(MF));
         vl->addWidget(price);
+        auto* billing = new QLabel(tr("Charged in USD: %1").arg(cur::money(plan.price_usd, false, "USD")));
+        billing->setAlignment(Qt::AlignCenter);
+        billing->setWordWrap(true);
+        vl->addWidget(billing);
 
         auto* period = new QLabel(tr("/ %1 days").arg(plan.validity_days));
         period->setAlignment(Qt::AlignCenter);

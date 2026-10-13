@@ -3,6 +3,7 @@
 #include "core/currency/Currency.h"
 #include "datahub/DataHub.h"
 #include "datahub/DataHubMetaTypes.h"
+#include "screens/portfolio/PortfolioPresentation.h"
 #include "services/portfolio/PortfolioService.h"
 #include "storage/repositories/PortfolioRepository.h"
 #include "ui/theme/Theme.h"
@@ -36,6 +37,9 @@ PortfolioSummaryWidget::PortfolioSummaryWidget(QWidget* parent)
     portfolio_name_lbl_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     portfolio_name_lbl_->hide();
     vl->addWidget(portfolio_name_lbl_);
+    currency_note_ = new QLabel(this);
+    currency_note_->setWordWrap(true);
+    vl->addWidget(currency_note_);
 
     // ── Summary card ──
     summary_card_ = new QWidget(this);
@@ -98,6 +102,12 @@ PortfolioSummaryWidget::PortfolioSummaryWidget(QWidget* parent)
 
     // Manual refresh button on the title bar → reload holdings.
     connect(this, &BaseWidget::refresh_requested, this, [this] { load_holdings(); });
+    connect(&services::MarketDataService::instance(), &services::MarketDataService::display_changed, this, [this] {
+        if (!last_holdings_.isEmpty())
+            render(last_holdings_, last_quotes_);
+        else if (!empty_message_.isEmpty())
+            render_empty(empty_message_);
+    });
 
     // ── Cross-tab sync ─────────────────────────────────────────────────────
     // When the Portfolio screen mutates data (add/sell asset, create/delete
@@ -178,12 +188,13 @@ void PortfolioSummaryWidget::apply_styles() {
         portfolio_name_lbl_->setStyleSheet(
             QString("color: %1; font-size: 10px; font-weight: 600; background: transparent; padding: 0 2px;")
                 .arg(ui::colors::TEXT_SECONDARY()));
-    scroll_area_->setStyleSheet(
-        QString("QScrollArea { border: none; background: transparent; }"
-                "QScrollBar:vertical { width: 4px; background: transparent; }"
-                "QScrollBar::handle:vertical { background: %1; border-radius: 2px; min-height: 20px; }"
-                "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }")
-            .arg(ui::colors::BORDER_MED()));
+    if (currency_note_)
+        scroll_area_->setStyleSheet(
+            QString("QScrollArea { border: none; background: transparent; }"
+                    "QScrollBar:vertical { width: 4px; background: transparent; }"
+                    "QScrollBar::handle:vertical { background: %1; border-radius: 2px; min-height: 20px; }"
+                    "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }")
+                .arg(ui::colors::BORDER_MED()));
 
     // Holdings-row chrome, hoisted (P7). render() draws 5 cells per holding
     // and used to call setStyleSheet on every one of them on every re-render.
@@ -221,6 +232,7 @@ void PortfolioSummaryWidget::load_holdings() {
     refresh_portfolio_cache();
 
     if (portfolio_cache_.isEmpty()) {
+        selected_portfolio_currency_.clear();
         render_empty(tr("No portfolios yet.\nCreate one from the Portfolio tab."));
         return;
     }
@@ -242,9 +254,7 @@ void PortfolioSummaryWidget::load_holdings() {
         emit config_changed(config());
     }
     selected_portfolio_name_ = picked->name;
-    // This tile shows the portfolio's OWN currency (intrinsic) — not the global
-    // preferred currency. Values are not converted; we only use the right symbol.
-    selected_portfolio_currency_ = picked->currency.isEmpty() ? QStringLiteral("USD") : picked->currency;
+    selected_portfolio_currency_ = picked->currency;
     portfolio_name_lbl_->setText(picked->name.toUpper());
     portfolio_name_lbl_->setVisible(true);
 
@@ -268,10 +278,16 @@ void PortfolioSummaryWidget::load_holdings() {
     }
 
     last_holdings_ = holdings;
+    last_quotes_.clear();
+    QStringList symbols;
+    for (const auto& h : holdings)
+        symbols.append(h.symbol);
+    services::MarketDataService::instance().resolve_names(symbols, {});
     hub_resubscribe(holdings);
 }
 
 void PortfolioSummaryWidget::render_empty(const QString& message) {
+    empty_message_ = message;
     set_loading(false);
     last_holdings_.clear();
     last_quotes_.clear();
@@ -291,10 +307,12 @@ void PortfolioSummaryWidget::render_empty(const QString& message) {
     empty->setWordWrap(true);
     list_layout_->addWidget(empty);
     list_layout_->addStretch();
-    const QString sym = cur::symbol_for(selected_portfolio_currency_);
-    total_value_lbl_->setText(sym + QStringLiteral("0"));
-    day_pnl_lbl_->setText(sym + QStringLiteral("0"));
-    total_pnl_lbl_->setText(sym + QStringLiteral("0"));
+    const QString zero = selected_portfolio_currency_.isEmpty() ? QStringLiteral("0")
+                                                                : cur::display_money(0, selected_portfolio_currency_);
+    total_value_lbl_->setText(zero);
+    day_pnl_lbl_->setText(zero);
+    total_pnl_lbl_->setText(zero);
+    currency_note_->clear();
     num_holdings_lbl_->setText(QStringLiteral("0"));
 
     // Reset the colour overrides applied during a populated render so the
@@ -354,9 +372,12 @@ void PortfolioSummaryWidget::render(const QVector<Holding>& holdings, const QVec
     last_holdings_ = holdings;
     last_quotes_ = quotes;
 
-    // Portfolio's own currency symbol (intrinsic — not the global preference,
-    // and values are not converted: symbol-only).
-    const QString sym = cur::symbol_for(selected_portfolio_currency_);
+    auto& market = services::MarketDataService::instance();
+    auto& manager = currency::CurrencyManager::instance();
+    QHash<QString, portfolio::PortfolioQuoteUnit> quote_currencies;
+    portfolio::PortfolioSummary raw;
+    raw.portfolio.currency = selected_portfolio_currency_;
+    bool quotes_complete = true;
 
     QMap<QString, const services::QuoteData*> qmap;
     for (const auto& q : last_quotes_)
@@ -382,6 +403,16 @@ void PortfolioSummaryWidget::render(const QVector<Holding>& holdings, const QVec
         double cost = h.avg_cost * h.shares;
         double pnl = value - cost;
         double day_chg = q ? (q->change * h.shares) : 0;
+        const bool quoted = q && std::isfinite(price) && price > 0;
+        quotes_complete = quotes_complete && quoted;
+        const QString source = market.currency_code(h.symbol);
+        const bool compatible =
+            quoted && market.is_monetary(h.symbol) && !source.isEmpty() && source == selected_portfolio_currency_;
+        if (quoted)
+            quote_currencies.insert(h.symbol, {source, market.is_monetary(h.symbol)});
+        portfolio::HoldingWithQuote raw_holding;
+        raw_holding.symbol = h.symbol;
+        raw.holdings.append(raw_holding);
 
         total_value += value;
         total_cost += cost;
@@ -404,13 +435,14 @@ void PortfolioSummaryWidget::render(const QVector<Holding>& holdings, const QVec
         cell(h.symbol, Qt::AlignLeft, QStringLiteral("psSym"));
         cell(QString::number(h.shares, 'f', h.shares == (int)h.shares ? 0 : 2), Qt::AlignRight,
              QStringLiteral("psShares"));
-        cell(price > 0 ? sym + QString::number(price, 'f', 2) : QStringLiteral("--"), Qt::AlignRight,
+        cell(quoted ? market.display_price(h.symbol, price) : QStringLiteral("--"), Qt::AlignRight,
              QStringLiteral("psNum"));
-        cell(value > 0 ? sym + QString::number(value, 'f', 0) : QStringLiteral("--"), Qt::AlignRight,
+        cell(quoted ? market.display_price(h.symbol, value) : QStringLiteral("--"), Qt::AlignRight,
              QStringLiteral("psNum"));
 
-        QString pnl_str = pnl >= 0 ? QStringLiteral("+") + sym + QString::number(pnl, 'f', 0)
-                                   : QStringLiteral("-") + sym + QString::number(-pnl, 'f', 0);
+        const QString pnl_str = compatible
+                                    ? (pnl >= 0 ? QStringLiteral("+") : QString()) + cur::display_money(pnl, source)
+                                    : QStringLiteral("—");
         cell(pnl_str, Qt::AlignRight, pnl >= 0 ? QStringLiteral("psPnlPos") : QStringLiteral("psPnlNeg"));
 
         list_layout_->addWidget(row);
@@ -418,14 +450,37 @@ void PortfolioSummaryWidget::render(const QVector<Holding>& holdings, const QVec
     }
     list_layout_->addStretch();
 
-    total_value_lbl_->setText(sym + QString::number(total_value, 'f', 0));
+    raw.total_market_value = total_value;
+    raw.total_cost_basis = total_cost;
+    raw.total_unrealized_pnl = total_value - total_cost;
+    raw.total_day_change = day_pnl;
+    const auto unit = manager.display_amount(1.0, selected_portfolio_currency_);
+    const auto presentation = portfolio::present_portfolio(
+        raw, {}, quote_currencies, unit.currency, unit.available ? std::optional<double>(unit.value) : std::nullopt);
+    const bool totals_valid = quotes_complete && presentation.source_verified && std::isfinite(total_value) &&
+                              std::isfinite(total_cost) && std::isfinite(day_pnl);
+    const auto& display = presentation.summary;
+    auto money = [&](double amount) { return cur::display_money(amount, display.portfolio.currency); };
+    total_value_lbl_->setText(totals_valid ? money(display.total_market_value) : QStringLiteral("—"));
     num_holdings_lbl_->setText(QString::number(holdings.size()));
 
-    double total_pnl = total_value - total_cost;
-    QString day_str = day_pnl >= 0 ? QStringLiteral("+") + sym + QString::number(day_pnl, 'f', 0)
-                                   : QStringLiteral("-") + sym + QString::number(-day_pnl, 'f', 0);
-    QString tot_str = total_pnl >= 0 ? QStringLiteral("+") + sym + QString::number(total_pnl, 'f', 0)
-                                     : QStringLiteral("-") + sym + QString::number(-total_pnl, 'f', 0);
+    double total_pnl = display.total_unrealized_pnl;
+    const QString day_str = totals_valid
+                                ? (day_pnl >= 0 ? QStringLiteral("+") : QString()) + money(display.total_day_change)
+                                : QStringLiteral("—");
+    const QString tot_str =
+        totals_valid ? (total_pnl >= 0 ? QStringLiteral("+") : QString()) + money(total_pnl) : QStringLiteral("—");
+    if (!totals_valid)
+        currency_note_->setText(tr("Totals unavailable: quotes or source currencies are incomplete or mixed."));
+    else if (!unit.available || display.portfolio.currency != manager.code())
+        currency_note_->setText(
+            tr("Native %1; daily FX to %2 unavailable.").arg(selected_portfolio_currency_, manager.code()));
+    else if (presentation.converted)
+        currency_note_->setText(
+            tr("%1 from %2 · daily FX %3")
+                .arg(display.portfolio.currency, selected_portfolio_currency_, unit.rate_date.toString(Qt::ISODate)));
+    else
+        currency_note_->setText(tr("Source: %1").arg(selected_portfolio_currency_));
 
     day_pnl_lbl_->setText(day_str);
     day_pnl_lbl_->setStyleSheet(QString("color: %1; font-size: 13px; font-weight: bold; background: transparent;")

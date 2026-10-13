@@ -23,6 +23,10 @@ class QuickTradeWidget : public BaseWidget {
 
   protected:
     void on_theme_changed() override;
+    void on_display_currency_changed() override {
+        if (!last_quote_.symbol.isEmpty())
+            apply_quote(last_quote_);
+    }
     void showEvent(QShowEvent* e) override;
     void hideEvent(QHideEvent* e) override;
     void retranslateUi() override;
@@ -32,6 +36,7 @@ class QuickTradeWidget : public BaseWidget {
     void lookup_symbol();
     void on_side_changed(int idx);
     void submit_order();
+    void update_estimate();
 
     /// Render the current_symbol_ quote card from a QuoteData snapshot.
     void apply_quote(const services::QuoteData& q);
@@ -56,6 +61,7 @@ class QuickTradeWidget : public BaseWidget {
     QLabel* est_total_ = nullptr;
     QPushButton* submit_btn_ = nullptr;
 
+    services::QuoteData last_quote_;
     double current_price_ = 0;
     QString current_symbol_;
 

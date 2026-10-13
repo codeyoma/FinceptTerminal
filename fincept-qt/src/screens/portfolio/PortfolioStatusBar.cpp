@@ -120,6 +120,12 @@ void PortfolioStatusBar::set_portfolio_name(const QString& name) {
     portfolio_label_->setText(name.toUpper());
 }
 
+void PortfolioStatusBar::set_monetary_available(bool available) {
+    monetary_available_ = available;
+    nav_label_->setVisible(available);
+    pnl_label_->setVisible(available);
+}
+
 void PortfolioStatusBar::set_summary(const portfolio::PortfolioSummary& s) {
     last_summary_ = s;
     // Thousands separators, matching PortfolioStatsRibbon. A bare
@@ -129,6 +135,9 @@ void PortfolioStatusBar::set_summary(const portfolio::PortfolioSummary& s) {
 
     set_portfolio_name(s.portfolio.name);
     positions_label_->setText(tr("%1 positions").arg(s.total_positions));
+
+    if (!monetary_available_)
+        return;
 
     nav_label_->setText(tr("NAV %1 %2").arg(s.portfolio.currency, fmt(s.total_market_value)));
 

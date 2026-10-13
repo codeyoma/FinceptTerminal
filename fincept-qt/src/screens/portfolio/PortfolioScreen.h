@@ -101,6 +101,7 @@ class PortfolioScreen : public QWidget, public IStatefulScreen, public IGroupLin
     QWidget* empty_state_ = nullptr;
     QWidget* loading_state_ = nullptr;
     QWidget* main_view_ = nullptr;
+    QWidget* monetary_panels_ = nullptr;
 
     // Main view sub-widgets
     PortfolioHeatmap* heatmap_ = nullptr;
@@ -120,7 +121,9 @@ class PortfolioScreen : public QWidget, public IStatefulScreen, public IGroupLin
     QString selected_symbol_;
     portfolio::PortfolioSummary current_summary_;
     portfolio::ComputedMetrics current_metrics_;
+    QVector<portfolio::PortfolioSnapshot> current_snapshots_;
     bool summary_loaded_ = false;
+    bool monetary_available_ = false;
     bool order_panel_visible_ = false;
     bool show_ffn_ = false;
     std::optional<portfolio::DetailView> active_detail_;
@@ -148,6 +151,7 @@ class PortfolioScreen : public QWidget, public IStatefulScreen, public IGroupLin
     CtaCardLabels empty_import_card_;
     CtaCardLabels empty_demo_card_;
     QLabel* loading_label_ = nullptr;
+    QLabel* currency_note_ = nullptr;
 
     // Symbol-group link (None when unlinked).
     SymbolGroup link_group_ = SymbolGroup::None;

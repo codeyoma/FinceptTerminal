@@ -31,6 +31,10 @@ class StockQuoteWidget : public BaseWidget {
   protected:
     QDialog* make_config_dialog(QWidget* parent) override;
     void on_theme_changed() override;
+    void on_display_currency_changed() override {
+        if (!last_quote_.symbol.isEmpty())
+            populate(last_quote_);
+    }
     void showEvent(QShowEvent* e) override;
     void hideEvent(QHideEvent* e) override;
     void retranslateUi() override;
@@ -46,6 +50,7 @@ class StockQuoteWidget : public BaseWidget {
     void hub_unsubscribe_all();
 
     QString symbol_;
+    services::QuoteData last_quote_;
 
     QLabel* price_label_ = nullptr;
     QLabel* change_label_ = nullptr;

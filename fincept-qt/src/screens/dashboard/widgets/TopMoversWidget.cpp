@@ -145,7 +145,7 @@ void TopMoversWidget::show_tab(bool gainers) {
     int count = std::min(filtered.size(), qsizetype(6));
     for (int i = 0; i < count; ++i) {
         const auto& q = gainers ? filtered[i] : filtered[filtered.size() - 1 - i];
-        table_->add_row({q.symbol, QString("$%1").arg(q.price, 0, 'f', 2),
+        table_->add_row({q.symbol, services::MarketDataService::instance().display_price(q.symbol, q.price),
                          QString("%1%2%").arg(q.change_pct >= 0 ? "+" : "").arg(q.change_pct, 0, 'f', 2)});
         int row = table_->rowCount() - 1;
         table_->set_cell_color(row, 2, ui::change_color(q.change_pct));

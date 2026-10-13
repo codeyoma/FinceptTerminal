@@ -18,6 +18,14 @@ class CandleCanvas : public QWidget {
     explicit CandleCanvas(QWidget* parent = nullptr);
     void set_candles(const QVector<services::HistoryPoint>& candles);
     void clear();
+    void set_symbol(const QString& symbol) {
+        symbol_ = symbol;
+        refresh_display();
+    }
+    void refresh_display() {
+        dirty_ = true;
+        update();
+    }
 
   protected:
     void paintEvent(QPaintEvent*) override;
@@ -27,12 +35,13 @@ class CandleCanvas : public QWidget {
   private:
     void rebuild_cache();
 
+    QString symbol_;
     QVector<services::HistoryPoint> candles_;
     QPixmap cache_;
     bool dirty_ = true;
 
     static constexpr int MAX_VISIBLE = 260;
-    static constexpr int PRICE_AXIS_W = 64;
+    static constexpr int PRICE_AXIS_W = 124;
     static constexpr int TIME_AXIS_H = 20;
 };
 
@@ -55,6 +64,10 @@ class DashboardCandleWidget : public BaseWidget {
     void showEvent(QShowEvent* e) override;
     void hideEvent(QHideEvent* e) override;
     void retranslateUi() override;
+    void on_display_currency_changed() override {
+        if (canvas_)
+            canvas_->refresh_display();
+    }
 
   private:
     QString history_topic() const;

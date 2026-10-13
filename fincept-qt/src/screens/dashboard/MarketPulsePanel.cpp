@@ -86,6 +86,8 @@ static const QStringList kSnapshotSymbols = services::MarketDataService::global_
 // ── Constructor ──────────────────────────────────────────────────────────────
 
 MarketPulsePanel::MarketPulsePanel(QWidget* parent) : QWidget(parent) {
+    connect(&services::MarketDataService::instance(), &services::MarketDataService::display_changed, this,
+            &MarketPulsePanel::rebuild_snapshot_from_cache);
     setMinimumWidth(180);
     setAttribute(Qt::WA_StyledBackground, true);
     setAutoFillBackground(true);
@@ -962,9 +964,7 @@ void MarketPulsePanel::rebuild_movers_from_cache() {
 
 void MarketPulsePanel::rebuild_snapshot_from_cache() {
     auto fmt_price = [](const services::QuoteData& q) -> QString {
-        if (q.price >= 1000)
-            return QString("$%1K").arg(q.price / 1000.0, 0, 'f', 1);
-        return QString("%1").arg(q.price, 0, 'f', 2);
+        return services::MarketDataService::instance().display_price(q.symbol, q.price, -1, true);
     };
     auto fmt_chg = [](const services::QuoteData& q) -> QString {
         return QString("%1%2%").arg(q.change_pct >= 0 ? "+" : "").arg(q.change_pct, 0, 'f', 2);
