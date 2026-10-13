@@ -828,6 +828,19 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(event.value().change.to, QStringLiteral("active"));
     }
 
+    void a_bar_event_brings_the_bar_being_made() {
+        const auto event = parse_event(QStringLiteral(R"({"type": "bar", "at": "2026-10-12T09:30:04+09:00",
+            "symbol": "005930", "bar": {"start": "2026-10-12T09:30:00+09:00", "open": 81200, "high": 81400,
+            "low": 81200, "close": 81300, "volume": 16, "trades": 3}})"));
+        QVERIFY(event.is_ok());
+        QCOMPARE(event.value().type, Event::Type::Bar);
+        QCOMPARE(event.value().symbol, QStringLiteral("005930"));
+        QCOMPARE(event.value().bar.start, QDateTime::fromString("2026-10-12T09:30:00+09:00", Qt::ISODate));
+        QCOMPARE(event.value().bar.high, 81400.0);
+        QCOMPARE(event.value().bar.close, 81300.0);
+        QCOMPARE(event.value().bar.volume, 16.0);
+    }
+
     void an_event_of_a_newer_engine_is_passed_over_not_an_error() {
         const auto event = parse_event(QStringLiteral(R"({"type": "weather", "at": "2026-10-12T09:00:00+09:00"})"));
         QVERIFY(event.is_ok());

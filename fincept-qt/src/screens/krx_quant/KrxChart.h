@@ -33,6 +33,7 @@ class KrxChartBridge : public QObject {
     void view_moved(double from);
     void theme_changed(const QString& json);
     void data_changed(const QString& json);
+    void live_changed(const QString& json);
     void fit_requested();
 };
 
@@ -54,6 +55,9 @@ class KrxChart : public QWidget {
     /// many minutes, and only the 1-minute view has icons.
     void set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
                   const QString& basis = QStringLiteral("b"), const krx_quant::SignalRule& rule = {}, int minutes = 1);
+    /// Only the last bar of ``bars`` moved (the bar being made, krx-quant #110): it alone is
+    /// drawn again, in the view of ``minutes``.
+    void update_live(const QList<krx_quant::Bar>& bars, int minutes);
     /// Show the last 60 bars again.
     void fit();
     /// Paint in the theme's colors and the user's font now.

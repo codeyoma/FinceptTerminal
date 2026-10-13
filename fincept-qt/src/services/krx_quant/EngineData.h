@@ -278,7 +278,7 @@ struct StatusChange {
 /// A message of the engine's stream (GET /v1/stream, WebSocket): what the engine did, as
 /// it did it.
 struct Event {
-    enum class Type { Prediction, Consensus, Outcome, Health, Lifecycle, Other };
+    enum class Type { Prediction, Consensus, Outcome, Health, Lifecycle, Bar, Other };
     Type type = Type::Other;       ///< Other: a type this screen does not know (a newer engine's)
     QDateTime at;                  ///< the engine clock when it was sent
     QString kind;                  ///< a consensus: "fast" or "final"
@@ -288,6 +288,8 @@ struct Event {
     QList<Feed> feeds;             ///< health
     QString algorithm;             ///< lifecycle
     StatusChange change;           ///< lifecycle
+    QString symbol;                ///< bar
+    Bar bar;                       ///< bar: the one-minute bar being made, so far (krx-quant #110)
 };
 
 /// One stream message (JSON text).

@@ -137,6 +137,7 @@ void KrxLive::apply_base_url(const QString& url) {
     KrxQuantService::set_base_url(url);
     board_ = {};
     bars_.clear();
+    live_.reset();
     forget_older(); // the old engine's
     status_.reset();
     macro_.reset(); // the new engine's is read below
@@ -163,6 +164,7 @@ void KrxLive::select(const QString& symbol) {
     if (symbol == selected_)
         return;
     selected_ = symbol;
+    live_.reset();
     pinned_ = {}; // another symbol: its latest
     pinned_predictions_.clear();
     emit pinned_changed();
@@ -248,8 +250,10 @@ void KrxLive::tick() {
     // Without the stream no outcome tells when the leaderboard changed: it is read each tick.
     if (!live || ticks_ % kChartEvery == 0)
         read_leaderboard();
-    if (ticks_ % kChartEvery == 0 && !selected_.isEmpty())
-        service_->read_chart(selected_); // and on each new bar close
+    // With the stream the bar being made comes as it moves and the finished bars on each new
+    // bar close (krx-quant #110); without it they are read here.
+    if (!live && ticks_ % kChartEvery == 0 && !selected_.isEmpty())
+        service_->read_chart(selected_);
     if (ticks_ % kMacroEvery == 0)
         service_->read_macro();
 }
@@ -324,6 +328,7 @@ void KrxLive::on_failure(const QString& reason) {
     read_errors_.clear();
     board_.forget_predictions(); // old predictions must not pass for current ones
     bars_.clear();
+    live_.reset();
     forget_older();
     emit predictions_changed();
     emit chart_changed();
@@ -338,6 +343,8 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
         return;
     }
     bars_ = bars;
+    if (live_)
+        krx_quant::merge_live(bars_, *live_); // the finished bars, then the one being made
     board_.set_history(symbol, finals);
     emit chart_changed();
     if (bars_.isEmpty() && older_.isEmpty())
@@ -357,6 +364,14 @@ void KrxLive::on_event(const krx_quant::Event& event) {
             board_.apply(event);
             leaderboard_soon_.start(); // its status in the leaderboard
             emit predictions_changed();
+            return;
+        case krx_quant::Event::Type::Bar:
+            // The chosen symbol's bar being made (krx-quant #110); another's is not drawn.
+            if (event.symbol == selected_ && !selected_.isEmpty()) {
+                live_ = event.bar;
+                if (krx_quant::merge_live(bars_, event.bar))
+                    emit live_changed();
+            }
             return;
         case krx_quant::Event::Type::Other:
             return;

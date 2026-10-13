@@ -376,7 +376,7 @@ Result<Event> parse_event(const QString& message) {
     static const QMap<QString, Event::Type> types = {
         {"prediction", Event::Type::Prediction}, {"consensus", Event::Type::Consensus},
         {"outcome", Event::Type::Outcome},       {"health", Event::Type::Health},
-        {"lifecycle", Event::Type::Lifecycle},
+        {"lifecycle", Event::Type::Lifecycle},   {"bar", Event::Type::Bar},
     };
     Event event;
     event.type = types.value(o.value("type").toString(), Event::Type::Other);
@@ -394,6 +394,10 @@ Result<Event> parse_event(const QString& message) {
     event.algorithm = o.value("algorithm").toString();
     const QJsonObject change = o.value("change").toObject();
     event.change = {change.value("from").toString(), change.value("to").toString()};
+    event.symbol = o.value("symbol").toString();
+    if (const QJsonObject b = o.value("bar").toObject(); !b.isEmpty())
+        event.bar = {time_of(b.value("start")), b.value("open").toDouble(),  b.value("high").toDouble(),
+                     b.value("low").toDouble(), b.value("close").toDouble(), b.value("volume").toDouble()};
     return Result<Event>::ok(event);
 }
 

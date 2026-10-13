@@ -84,6 +84,8 @@ class KrxLive : public QObject {
     void status_changed();      ///< the status, the failure, the stream's state or the engine clock
     void predictions_changed(); ///< the board: symbols, latest predictions, final consensus, members
     void chart_changed();       ///< the chosen symbol's bars (or none, while they are read)
+    /// Only the chosen symbol's last bar moved: the bar being made (krx-quant #110).
+    void live_changed();
     void chart_failed(const QString& reason);
     void macro_changed(const fincept::krx_quant::Macro& macro);
     void macro_failed(const QString& reason);
@@ -122,6 +124,7 @@ class KrxLive : public QObject {
     bool shown_ = false;
     QString selected_;
     QList<krx_quant::Bar> bars_;
+    std::optional<krx_quant::Bar> live_;         ///< the chosen symbol's bar being made, as last sent
     QList<krx_quant::Bar> older_;                ///< read before the day's, as the chart scrolled back
     bool oldest_ = false;                        ///< the engine has nothing before older_
     double view_from_ = krx_quant::kOlderMargin; ///< where the chart's view last started

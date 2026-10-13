@@ -221,6 +221,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         fill_predictions();
         fill_chart();
     });
+    connect(live_, &services::KrxLive::live_changed, this, [this]() { chart_->update_live(live_->bars(), minutes_); });
     connect(live_, &services::KrxLive::chart_changed, this, [this]() {
         chart_failure_->hide();
         fill_chart();

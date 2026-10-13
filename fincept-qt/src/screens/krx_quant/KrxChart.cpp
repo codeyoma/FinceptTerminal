@@ -171,6 +171,20 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
     emit bridge_->data_changed(data_);
 }
 
+void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
+    const auto last = krx_quant::last_chart_bar(bars, minutes);
+    if (!last)
+        return;
+    const QColor color(last->rising ? ui::colors::POSITIVE() : ui::colors::NEGATIVE());
+    emit bridge_->live_changed(compact(QJsonObject{
+        {"bar", QJsonObject{{"time", last->time},
+                            {"open", last->open},
+                            {"high", last->high},
+                            {"low", last->low},
+                            {"close", last->close}}},
+        {"volume", QJsonObject{{"time", last->time}, {"value", last->volume}, {"color", css(color, 0.5)}}}}));
+}
+
 void KrxChart::fit() {
     emit bridge_->fit_requested();
 }

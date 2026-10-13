@@ -276,6 +276,38 @@ class TstKrxChartModel : public QObject {
                  QStringList{"2026-10-12T09:00:00+09:00"});
     }
 
+    void the_bar_being_made_moves_the_last_bar_and_a_new_minute_follows_it() {
+        auto bar = [](const char* start, double close, double volume) {
+            return Bar{kst(start), 100, std::max(100.0, close), std::min(100.0, close), close, volume};
+        };
+        QList<Bar> bars{bar("2026-10-12T09:30:00+09:00", 101, 10), bar("2026-10-12T09:31:00+09:00", 102, 4)};
+
+        QVERIFY(merge_live(bars, bar("2026-10-12T09:31:00+09:00", 104, 6))); // the same minute, grown
+        QCOMPARE(bars.size(), 2);
+        QCOMPARE(bars.last().close, 104.0);
+        QVERIFY(!merge_live(bars, bar("2026-10-12T09:31:00+09:00", 104, 6))); // unchanged
+        QVERIFY(!merge_live(bars, bar("2026-10-12T09:31:00+09:00", 103, 5))); // sent before what is shown
+        QVERIFY(!merge_live(bars, bar("2026-10-12T09:30:00+09:00", 99, 20))); // an earlier minute
+        QCOMPARE(bars.last().close, 104.0);
+        QVERIFY(merge_live(bars, bar("2026-10-12T09:32:00+09:00", 105, 1))); // a new minute: 09:31 is done
+        QCOMPARE(bars.size(), 3);
+        QCOMPARE(bars[1].close, 104.0);
+        QVERIFY(merge_live(bars = {}, bar("2026-10-12T09:00:00+09:00", 100, 1))); // the day's first
+
+        // In the 5-minute view the bar being made moves its group's bar: 09:30–09:34.
+        QList<Bar> day{bar("2026-10-12T09:29:00+09:00", 90, 7), bar("2026-10-12T09:30:00+09:00", 101, 10),
+                       bar("2026-10-12T09:31:00+09:00", 102, 4)};
+        QVERIFY(merge_live(day, bar("2026-10-12T09:32:00+09:00", 107, 3)));
+        const auto five = last_chart_bar(day, 5);
+        QVERIFY(five.has_value());
+        QCOMPARE(five->time, chart_time(kst("2026-10-12T09:30:00+09:00")));
+        QCOMPARE(five->close, 107.0);
+        QCOMPARE(five->high, 107.0);
+        QCOMPARE(five->volume, 17.0); // 10 + 4 + 3, not 09:29's
+        QCOMPARE(last_chart_bar(day, 1)->close, 107.0);
+        QVERIFY(!last_chart_bar({}, 5).has_value());
+    }
+
     void bars_read_before_join_those_shown_once_each_oldest_first() {
         auto bar = [](const char* start, double close) { return Bar{kst(start), close, close, close, close, 1}; };
         // Read before: Thursday's last two bars and, overlapping, today's first (as stored).
