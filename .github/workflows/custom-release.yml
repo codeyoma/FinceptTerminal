@@ -1356,6 +1356,29 @@ jobs:
           done < <(find "${APP_BUNDLE}" -type f 2>/dev/null)
           echo "  thinned ${THINNED_COUNT} Mach-O(s) to arm64"
 
+      # ── The KRX chart's WebEngine runtime is in the bundle (codeyoma/krx-quant#105) ──
+      # The KRX screen draws its chart in a QWebEngineView. Without the helper process and its
+      # data files the screen says the chart cannot open; without the framework the app cannot
+      # start. The Windows job checks its own (QtWebEngineProcess.exe and the .pak files).
+      - name: Verify the WebEngine runtime in the bundle
+        working-directory: fincept-qt
+        run: |
+          set -euo pipefail
+          CORE="build/${{ env.APP_NAME }}.app/Contents/Frameworks/QtWebEngineCore.framework"
+          for f in \
+            "${CORE}" \
+            "build/${{ env.APP_NAME }}.app/Contents/Frameworks/QtWebEngineWidgets.framework" \
+            "build/${{ env.APP_NAME }}.app/Contents/Frameworks/QtWebChannel.framework" \
+            "${CORE}/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess" \
+            "${CORE}/Resources/qtwebengine_resources.pak" \
+            "${CORE}/Resources/icudtl.dat"; do
+            if [ ! -e "$f" ]; then
+              echo "::error::missing from the bundle: $f (the KRX chart needs Qt WebEngine)"
+              exit 1
+            fi
+            echo "ok: $f"
+          done
+
       # ── Ad-hoc codesign the bundle (no Developer ID, no notarization) ────
       # Every Mach-O on Apple Silicon needs at least an ad-hoc signature, and
       # lipo/install_name_tool above rewrote many of them. Sign leaves first

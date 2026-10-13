@@ -1,6 +1,5 @@
 #include "screens/krx_quant/KrxQuantScreen.h"
 
-#include "core/config/AppConfig.h"
 #include "screens/krx_quant/KrxAlerts.h"
 #include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxLeaderboard.h"
@@ -26,8 +25,6 @@ namespace {
 
 using krx_tables::cell;
 using krx_tables::kNumber;
-
-constexpr auto kChartMinutesKey = "krx_quant/chart_minutes";
 
 enum SymbolColumn { kSymbol, kMid, kFinal, kScoring };
 enum PredictionColumn { kPredictor, kDirection, kUp, kFlat, kDown, kTicks, kModel, kPredictionColumns };
@@ -110,18 +107,17 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     symbols_table_ = krx_tables::table({tr("종목"), tr("기준가"), tr("최종 합의"), tr("채점까지")});
     upper->addWidget(krx_panel::panel(symbols_header_, symbols_table_));
 
-    chart_header_ = krx_panel::header(tr("차트"));
-    chart_header_.controls->addWidget(new QLabel(tr("범위")));
-    window_combo_ = new QComboBox;
-    window_combo_->addItem(tr("30분"), 30);
-    window_combo_->addItem(tr("1시간"), 60);
-    window_combo_->addItem(tr("2시간"), 120);
-    window_combo_->addItem(tr("하루 전체"), 0);
-    window_combo_->setCurrentIndex(
-        std::max(0, window_combo_->findData(AppConfig::instance().get(kChartMinutesKey, 60).toInt())));
-    chart_header_.controls->addWidget(window_combo_);
+    // Lightweight Charts' license asks for its attribution and a link where users see it.
+    chart_header_ = krx_panel::header(
+        tr("차트"), tr("차트: TradingView Lightweight Charts™ · Copyright (c) 2026 TradingView, Inc. · "
+                       "https://www.tradingview.com/"));
+    chart_failure_ = new QLabel(tr("읽지 못함"));
+    chart_failure_->hide();
+    chart_header_.controls->addWidget(chart_failure_);
+    auto* fit = new QPushButton(tr("맞춤"));
+    fit->setToolTip(tr("최근 60봉 보기로 돌아간다. 차트를 두 번 눌러도 된다."));
+    chart_header_.controls->addWidget(fit);
     chart_ = new KrxChart;
-    chart_->set_window(window_combo_->currentData().toInt());
     upper->addWidget(krx_panel::panel(chart_header_, chart_));
 
     predictions_header_ = krx_panel::header(tr("예측"));
@@ -173,12 +169,13 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         fill_chart();
     });
     connect(live_, &services::KrxLive::chart_changed, this, [this]() {
-        chart_->set_empty_text(QString());
+        chart_failure_->hide();
         fill_chart();
     });
     connect(live_, &services::KrxLive::chart_failed, this, [this](const QString& reason) {
         chart_->set_data({}, {});
-        chart_->set_empty_text(tr("1분봉을 읽지 못했습니다: %1").arg(reason));
+        chart_failure_->setToolTip(tr("1분봉을 읽지 못했습니다: %1").arg(reason));
+        chart_failure_->show();
     });
     connect(live_, &services::KrxLive::macro_changed, this, [this]() { show_macro(); });
     connect(live_, &services::KrxLive::macro_failed, this, [this]() { show_macro(); });
@@ -205,11 +202,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         if (!rows.isEmpty())
             live_->select(symbols_table_->item(rows.first().row(), kSymbol)->text());
     });
-    connect(window_combo_, &QComboBox::currentIndexChanged, this, [this]() {
-        const int minutes = window_combo_->currentData().toInt();
-        AppConfig::instance().set(kChartMinutesKey, minutes);
-        chart_->set_window(minutes);
-    });
+    connect(fit, &QPushButton::clicked, chart_, &KrxChart::fit);
     connect(leaderboard_, &KrxLeaderboard::query_changed, this, [this]() {
         live_->set_leaderboard_query(leaderboard_->query());
         fill_chart(); // the chart's ✓/✗ are on the leaderboard's basis
@@ -267,6 +260,9 @@ void KrxQuantScreen::refresh_theme() {
     krx_tables::restyle(predictions_table_);
     leaderboard_->restyle();
     alerts_->restyle();
+    chart_->restyle();
+    chart_failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
+    fill_chart();                              // the volumes' and icons' colors too
     dot_->setProperty("krxColor", QVariant()); // the dot in the new colors
     show_dot();
     fill_symbols(); // the cells' colors are the theme's when they are filled

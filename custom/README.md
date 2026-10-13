@@ -115,7 +115,7 @@ custom/merge-upstream-release.sh [tag]
 - **모양** (codeyoma/krx-quant#103): Fincept의 다른 화면과 같은 부품이다.
   - 패널마다 Portfolio 화면식 머리줄(얇은 바, 주황 표시, 굵은 제목, 오른쪽 조작)이 있다. upstream의 `PortfolioPanelHeader.h`는 고치지 않고, 같은 모양의 helper를 `screens/krx_quant/KrxPanel.h`에 둔다.
   - 표는 Fincept 공용 표(`ui::DataTable`)다. 상세 통계 창의 표도 같다.
-  - 글꼴과 밀도는 Fincept 설정(전역 스타일)을 따른다. 표의 칸 여백은 밀도대로, 줄 높이는 글꼴과 밀도에 맞춘다(DataTable의 고정 26px 대신). 머리줄 제목은 앱 글꼴로, 크기는 설정 크기보다 3px 작다. 테마가 바뀌면(`ThemeManager::theme_changed`) 머리줄, 표, 셀 색을 다시 칠한다.
+  - 글꼴과 밀도는 Fincept 설정(전역 스타일)을 따른다. 표의 칸 여백은 밀도대로, 줄 높이는 글꼴과 밀도에 맞춘다(DataTable의 고정 26px 대신). 칸은 한 줄이고, 넘치는 글은 줄임표로 줄인다(codeyoma/krx-quant#105에서 좁은 창의 줄바꿈을 막았다). 머리줄 제목은 앱 글꼴로, 크기는 설정 크기보다 3px 작다. 테마가 바뀌면(`ThemeManager::theme_changed`) 머리줄, 표, 셀 색을 다시 칠한다.
   - 엔진을 처음 읽는 동안은 Fincept 읽는 중 표시(`ui::LoadingOverlay`)가 본문을 덮는다. 엔진 주소를 바꿔 적용해도 다시 덮는다.
   - 화면 머리줄의 제목 옆 점이 엔진 연결이다. 초록은 정상, 빨강은 엔진이나 일부(종목 예측, 합의 구성원)를 읽지 못함, 회색은 처음 읽는 중이다. 툴팁에 이유, 마지막 갱신 시각, 엔진 시계가 있다.
   - 순위 규칙(날짜, 순위에 오르는 조건, 순서, 운 보정의 뜻, 두 번 누르면 상세 창)은 순위표 제목의 툴팁에, 알림 규칙은 신호 알림 제목의 툴팁에 있다. 순위표를 읽지 못하면 머리줄에 빨간 "읽지 못함"이 나오고 이유는 그 툴팁에 있다.
@@ -130,7 +130,17 @@ custom/merge-upstream-release.sh [tag]
   - KIS는 "마지막 수신 N초 전"(가장 최근에 받은 피드)과 결측 피드 수(엔진이 끊김·멈춤으로 판정한 피드, 목록은 툴팁)로 보인다. 피드마다 조용한 시간은 지연이 아니다. 원래 드문 피드가 있고 장 밖에서는 모두 조용하다. 문제는 엔진이 결측으로 판정한다.
   - 지난밤 학습이 미적용이면 엔진이 준 이유를 한국어로 붙인다(08:00 교체 대기, 07:30 뒤에 확정, 모델 파일 없음, 적용 뒤 바뀜).
 - **종목 목록**: 기준가, 최종 합의(방향과 가장 큰 확률. 상승과 하락이 같은 정수 %이면 "상승=하락"), 채점까지 남은 시간. 고른 종목이 차트와 예측 패널에 나온다. 장 시작 전이나 휴장일에는 지난 거래일의 마지막 예측이 남아 있다. 그 예측은 흐리게, 채점까지 칸은 "지난 거래일"로, 패널 제목은 날짜와 "(지난 거래일)"로 보인다.
-- **차트**: 고른 종목의 오늘 1분봉이다. 범위는 30분·1시간(기본)·2시간·하루 전체이고 QSettings `krx_quant/chart_minutes`에 남는다. 봉 마감마다 최종 합의가 예측한 클래스를 그 봉에 그린다: 상승은 봉 아래 ▲, 하락은 봉 위 ▼, 보합은 –. 채점되면 그 옆에 ✓(맞음)나 ✗(틀림)를, 순위표에서 고른 기준으로 채점할 수 없었으면 ?를 그린다. 예측 클래스는 엔진이 채점하는 것과 같다(가장 큰 확률, 동률이면 보합, 그다음 상승). 4분 구간에 특수 상황이 낀 예측은 흐리게 그린다(통계에서 빠진다). 봉에 마우스를 올리면 가격과 그 예측이 나온다.
+- **차트** (codeyoma/krx-quant#105): 고른 종목의 오늘 1분봉을 TradingView Lightweight Charts™로 그린다. 휠로 줌, 드래그로 스크롤하고, 차트를 두 번 누르거나 머리줄의 **맞춤**을 누르면 최근 60봉 보기로 돌아간다. 처음 그릴 때도 최근 60봉이다. 아래 칸에 거래량 막대(오른 봉은 초록, 내린 봉은 빨강), 오른쪽 가격 축에 현재가 선이 있다. 시각은 KST다.
+  - 봉 마감마다 최종 합의가 예측한 클래스의 아이콘을 예측을 만든 봉(그 봉 마감에 끝난 봉) 위에 둔다: 상승 ▲(초록), 하락 ▼(빨강), 보합 ●(회색). 아이콘 위의 글자가 결과다: ✓ 맞음, ✗ 틀림, ? 아직 채점 전이거나 순위표에서 고른 기준으로 채점할 수 없음. 예측 클래스는 엔진이 채점하는 것과 같다(가장 큰 확률, 동률이면 보합, 그다음 상승). 4분 구간에 특수 상황이 낀 예측은 흐리게 그린다(통계에서 빠진다).
+  - 무엇을 그릴지는 `services/krx_quant/ChartModel`(순수 함수, `tst_krx_chart_model`)이 정하고, 페이지(`screens/krx_quant/chart/index.html`)는 그리기만 한다. 화면과 페이지는 QWebChannel로 주고받는다. 페이지와 라이브러리는 Qt 리소스(`qrc:/krx/chart/`)로 앱에 들어 있어 인터넷 없이 열린다.
+  - 색과 글꼴은 Fincept 테마(오름 초록, 내림 빨강, 바탕·격자·글자)와 설정 글꼴을 따르고, 테마가 바뀌면 다시 칠한다.
+  - 1분봉을 읽지 못하면 머리줄에 빨간 "읽지 못함"이 나오고 이유는 그 툴팁에 있다.
+  - Qt WebEngine 없이 빌드했거나 실행 파일(QtWebEngineProcess)이 빠진 설치본이면 "차트를 열 수 없음"만 보인다.
+  - 출처: 차트에 TradingView 로고는 끄고(`attributionLogo: false`), 차트 머리줄 제목의 툴팁과 아래 "차트 라이브러리" 절에 밝힌다.
+
+  > **삭제됨** (2026-10-13, codeyoma/krx-quant#134): 직접 그린 1분봉 차트(`KrxChart`의 QPainter 그림, 봉 호버 툴팁)와 범위 선택 상자(30분·1시간·2시간·하루 전체, QSettings `krx_quant/chart_minutes`). 이유: 휠 줌·드래그 스크롤·거래량이 없었다(codeyoma/krx-quant#100). 대신: Lightweight Charts 차트와 **맞춤**. 남아 있는 `krx_quant/chart_minutes` 값은 더 읽지 않는다. 아이콘 호버는 codeyoma/krx-quant#106에서 다시 붙는다.
+
+  > **바뀜** (2026-10-13, codeyoma/krx-quant#134): 상승 ▲는 봉 아래, 하락 ▼는 봉 위였다 → 모든 아이콘이 예측을 만든 봉 위에 있고, 보합은 – 대신 ●, 결과 글자는 아이콘 위다. 채점 전에도 ?가 붙는다. 이유: 스펙(codeyoma/krx-quant#100)이 "예측을 만든 봉 위에"로 정했고, Lightweight Charts의 표시(화살표·원과 글자)로 그린다.
 - **예측 패널**: 고른 종목의 최신 봉 마감 예측이다. 최종 합의, 빠른 합의, 알고리즘, 기준 예측 순이고 알고리즘과 기준 예측은 이름순이다. 열은 방향, 상승·보합·하락 확률, 기대 틱, 모델 버전이다. 상승과 하락이 같은 정수 %로 보이면 방향은 비운다. 제목에 봉 마감과 채점까지 남은 시간(엔진 시계 기준)이 나온다.
 - **순위표**: 기간(오늘·5일·20일), 채점 기준(B 표시 시점·A 봉 마감), 종목(전체·종목별), 특수 상황 포함을 고른다. 열은 순위, 상태(수습·정식·벤치·은퇴·복제), 모델 버전, 표본, 정답률, 방향 정밀도, 커버리지, Brier, 중간가 손익(틱), 가장 약한 lift 하한, 운 보정 통과다. 95% 구간은 툴팁에 있다. 중간가 손익 열 제목의 툴팁은 연구용 값이라는 것(스프레드와 체결을 반영하지 않음)을 알린다. 순위가 없는 항목, 기준 예측(흐리게) 순으로 이어진다. 차트의 ✓/✗도 여기서 고른 채점 기준을 따른다.
 
@@ -160,6 +170,10 @@ custom/merge-upstream-release.sh [tag]
   - 알림은 Fincept 알림으로 나간다(`ToastService`: 앱 안 알림과 OS 알림). 소리를 켜면 OS 기본 알림음이 난다. **시험 알림** 버튼으로 OS 알림 권한과 소리를 확인한다.
   - 켜기(기본 켬), 기준값(50–99%, 기본 60%), N(1–20개, 기본 2개), 소리(기본 켬)는 화면에서 바꾸고 QSettings `krx_quant/signal_on`, `krx_quant/signal_probability`, `krx_quant/signal_agree`, `krx_quant/signal_sound`에 남는다.
 
+### 차트 라이브러리
+
+차트는 [TradingView Lightweight Charts™](https://www.tradingview.com/lightweight-charts/) v5.2.1로 그린다. Copyright (c) 2026 TradingView, Inc. https://www.tradingview.com/ . Apache License 2.0이다. 라이선스는 출처 표시와 tradingview.com 링크를 요구한다. 그래서 차트 머리줄 제목의 툴팁과 이 절에 둔다. `fincept-qt/src/screens/krx_quant/chart/`에 npm 패키지의 `lightweight-charts.standalone.production.js`를 고치지 않고 넣었고, `LICENSE`와 `NOTICE`도 같이 둔다(앱의 Qt 리소스에도 들어간다). 판을 올릴 때는 이 세 파일과 이 절, 툴팁의 문구를 함께 바꾼다.
+
 ### 갱신
 
 - 엔진의 스트림(`/v1/stream`, WebSocket)을 따른다. 예측, 합의, 채점, KIS 상태, 알고리즘 상태가 오는 대로 반영한다. 스트림은 연결 뒤의 일만 보내므로, 연결하거나 다시 연결하면 API를 먼저 다시 읽는다. 답과 스트림이 어떤 순서로 오든 더 늦은 봉 마감을 이른 것으로, 채점된 예측을 채점 전 것으로 되돌리지 않는다.
@@ -182,16 +196,20 @@ custom/merge-upstream-release.sh [tag]
 - 엔진 없이 화면을 만들 때는 krx-quant 저장소에서 데모 엔진을 띄우고 주소를 `http://127.0.0.1:8090`으로 바꾼다. 고정된 가상 데이터다.
   - `uv run krx-quant demo-engine`: 10:30에 멈춘 아침이다. 스트림에는 연결할 때의 KIS 상태 하나만 온다.
   - `uv run krx-quant demo-engine --pace 2`: 10:00에 열고 10:30까지 1분을 2초마다 이어 재생하며 스트림을 보낸다. 차트, 패널, 채점이 움직이는 것을 볼 수 있다. 데모 아침의 최종 합의는 50%를 거의 넘지 않아 신호는 나오지 않는다. 알림은 **시험 알림**으로 본다.
-- 테스트(Qt Core만): `cmake -B build -DFINCEPT_BUILD_TESTS=ON … && cmake --build build --target tst_krx_engine_data tst_krx_board tst_krx_signals tst_krx_stats_view tst_krx_app_release && ctest --test-dir build -R krx`.
+- 테스트(Qt Core만): `cmake -B build -DFINCEPT_BUILD_TESTS=ON … && cmake --build build --target tst_krx_engine_data tst_krx_board tst_krx_signals tst_krx_stats_view tst_krx_chart_model tst_krx_app_release && ctest --test-dir build -R krx`.
   - CI는 경고를 오류로 빌드한다(`-Werror`, 환경 변수 `CI`가 있을 때). 로컬에서 같은 조건으로 보려면 `CI=1 cmake -B build …`로 설정한다. 그러지 않으면 구조체에 필드를 더하고 테스트의 초기화 목록을 그대로 두는 것 같은 경고를 놓친다(`custom-v4.5.0-krx.4` 맥 빌드가 이것으로 실패했다).
   - `tst_krx_engine_data`: 엔진 API와 스트림 메시지 해석(상세 통계의 기준별 lift와 그 거래일 단위 값, 보정 곡선, 나눠 본 통계 포함), 한국어 이름, 시각·가격 표기, 머리줄 엔진 점의 상태와 툴팁.
   - `tst_krx_board`: 답과 스트림을 합친 화면 상태(최신 봉 마감, 차트 표시, 합의 구성원, 신호가 볼 예측, 실패와 되감기).
   - `tst_krx_signals`: 신호 규칙, 다시 알리지 않는 규칙, 구성원을 모를 때 미루기.
   - `tst_krx_stats_view`: 순위표와 상세 통계 창이 보이는 문구(비율·평균과 구간, 기준별 lift 줄과 거래일 구간, 시간대, 보정도 곡선과 점, 제외 건수, 조건과 날짜, 순위표 제목 툴팁의 순위 규칙, 열 제목·lift·보정도 툴팁).
+  - `tst_krx_chart_model`: 차트가 그릴 봉(KST를 차트의 UTC로), 아이콘의 방향(▲▼–)·결과(✓/✗/?)·흐림·붙는 봉, 맞춤 범위(최근 60봉).
   - `tst_krx_app_release`: 개인 빌드 태그 해석과 순서, Release 목록에서 업데이트할 빌드·설치 파일·sha256 고르기.
 - 화면 캡처(codeyoma/krx-quant#103): `custom/tools/krx-capture`는 KRX 화면을 엔진에 붙여 PNG로 저장한다. 화면 PR에 데모 엔진 화면을 남길 때 쓴다. 앱 빌드와 따로인 CMake 프로젝트이고, 설정은 임시 폴더의 `krx-capture.ini`에 쓴다. 같은 컴퓨터의 Fincept 설정(엔진 주소, 알림 설정)은 건드리지 않는다.
   - 빌드: `cmake -S custom/tools/krx-capture -B fincept-qt/build/krx-capture -G Ninja -DCMAKE_PREFIX_PATH=<Qt 6.8.3> && cmake --build fincept-qt/build/krx-capture`
-  - 실행: `QT_QPA_PLATFORM=offscreen fincept-qt/build/krx-capture/krx_capture http://127.0.0.1:8090 out.png [초=8] [가로=1600] [세로=1000]`. 창을 띄우지 않고, 그 초만큼 엔진을 읽은 뒤 찍는다. 테마와 글꼴은 앱 기본값(Obsidian, Consolas 14px)이다.
+  - 실행: `fincept-qt/build/krx-capture/krx_capture http://127.0.0.1:8090 out.png [초=8] [가로=1600] [세로=1000] [예측,...]`. 그 초만큼 엔진을 읽은 뒤 찍는다. 예측 이름(`gauss` 등)을 주면 그 상세 통계 창도 열어 `out-<예측>.png`로 찍는다. 테마와 글꼴은 앱 기본값(Obsidian, Consolas 14px)이다.
+  - 창이 그 초 동안 화면에 뜬다. 차트(Qt WebEngine)는 실제 창에서만 그려지기 때문이다. 차트가 필요 없으면 `QT_QPA_PLATFORM=offscreen`을 앞에 붙여 창 없이 찍는다(차트 칸은 빈다). Qt에 WebEngine이 없으면 차트 칸은 "차트를 열 수 없음"이다.
+
+  > **바뀜** (2026-10-13, codeyoma/krx-quant#134): `QT_QPA_PLATFORM=offscreen`으로 창 없이 찍었다 → 실제 창으로 찍는다. 이유: 차트가 Qt WebEngine으로 바뀌어(codeyoma/krx-quant#105) offscreen에서는 그려지지 않는다.
 
 ## 로컬 CLI LLM (codeyoma/krx-quant#96)
 

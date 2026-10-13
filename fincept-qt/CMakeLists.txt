@@ -1468,6 +1468,7 @@ set(SERVICE_SOURCES
     src/services/notifications/providers/SMSProvider.cpp
     # KRX prediction engine reader (fork addition, custom/README.md)
     src/services/krx_quant/Board.cpp
+    src/services/krx_quant/ChartModel.cpp
     src/services/krx_quant/EngineData.cpp
     src/services/krx_quant/KrxLive.cpp
     src/services/krx_quant/KrxQuantService.cpp
@@ -2635,6 +2636,7 @@ set_source_files_properties(
     src/screens/krx_quant/KrxQuantScreen.cpp
     src/screens/krx_quant/KrxStatsWindow.cpp
     src/services/krx_quant/Board.cpp
+    src/services/krx_quant/ChartModel.cpp
     src/services/krx_quant/EngineData.cpp
     src/services/krx_quant/KrxLive.cpp
     src/services/krx_quant/KrxQuantService.cpp
@@ -3367,6 +3369,17 @@ set(FINCEPT_CUSTOM_TAG "" CACHE STRING "The custom-v* tag a personal build is ma
 # Only the updater reads it: a new tag recompiles one file, not the whole app (and its ccache).
 set_property(SOURCE src/services/krx_quant/AppUpdater.cpp APPEND PROPERTY
     COMPILE_DEFINITIONS "FINCEPT_CUSTOM_TAG=\"${FINCEPT_CUSTOM_TAG}\"")
+# The KRX screen's chart page and TradingView Lightweight Charts (codeyoma/krx-quant#105),
+# loaded from qrc:/krx/chart/ so it opens without the internet or a file path.
+qt6_add_resources(FinceptTerminal "krx_chart"
+    PREFIX "/krx/chart"
+    BASE "src/screens/krx_quant/chart"
+    FILES
+        src/screens/krx_quant/chart/index.html
+        src/screens/krx_quant/chart/lightweight-charts.standalone.production.js
+        src/screens/krx_quant/chart/LICENSE
+        src/screens/krx_quant/chart/NOTICE
+)
 qt6_add_resources(FinceptTerminal "krx_app_update"
     PREFIX "/krx"
     BASE "src/services/krx_quant/update"

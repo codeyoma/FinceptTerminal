@@ -1,0 +1,10 @@
+The KRX screen's chart (fork addition, codeyoma/krx-quant#105) is drawn with:
+
+TradingView Lightweight Charts™ v5.2.1
+Copyright (c) 2026 TradingView, Inc. https://www.tradingview.com/
+Licensed under the Apache License 2.0 (LICENSE in this folder).
+
+lightweight-charts.standalone.production.js is the package's file as published on npm
+(lightweight-charts@5.2.1), unchanged. It incorporates parts of tslib
+(https://github.com/Microsoft/tslib, (c) Microsoft Corporation), covered by the BSD Zero
+Clause License.
