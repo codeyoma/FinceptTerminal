@@ -8,6 +8,7 @@
 #include <QMap>
 #include <QString>
 
+#include <array>
 #include <optional>
 #include <utility>
 
@@ -91,24 +92,42 @@ QList<CloseRow> close_rows(const QList<Prediction>& predictions, const QMap<QStr
 /// kFitBars, and kRightOffset free after them.
 std::pair<double, double> fit_range(int bars);
 
-/// Bars to the left end of the view at which the bars before are read (krx-quant #108).
+/// The views the timeframe buttons pick: bars of that many minutes (krx-quant #109). Each
+/// divides a day, so a bar of the view never spans two.
+inline constexpr std::array<int, 9> kMinuteViews{1, 3, 5, 10, 15, 30, 60, 120, 240};
+
+/// 1-minute bars as bars of ``minutes`` (one of kMinuteViews), oldest first: each starts on
+/// the clock in KST (60: 09:00, 10:00…; 240: 08:00, 12:00, 16:00) and holds the 1-minute
+/// bars that start in it: the first's open, the highest high, the lowest low, the last's
+/// close, the volumes summed. Minutes without a bar are skipped; a bar of the view without
+/// any is not there.
+QList<Bar> group_bars(const QList<Bar>& bars, int minutes);
+
+/// Bars of the view to the left end of the view at which the bars before are read (krx-quant #108).
 inline constexpr double kOlderMargin = 30;
-/// Bars read before at a time: more than half a trading day (08:00–20:00, 720 bars).
+/// 1-minute bars read before at a time in the 1-minute view: more than half a trading day
+/// (08:00–20:00, 720 bars).
 inline constexpr int kOlderBars = 400;
+/// Bars of a wider view read before at a time, as 1-minute bars (krx-quant #109)…
+inline constexpr int kOlderViewBars = 100;
+/// …up to the most final consensus predictions the engine gives in one read (a bar's at most one).
+inline constexpr int kMaxOlderBars = 1000;
 
 /// The bars to read before the chart's (krx-quant #108), with their final consensus.
 struct OlderRead {
-    QDateTime before; ///< bars that start before it; invalid: before now (no bars yet)
-    int limit = kOlderBars;
+    QDateTime before;       ///< bars that start before it; invalid: before now (no bars yet)
+    int limit = kOlderBars; ///< 1-minute bars, and final consensus predictions
     /// Final consensus predictions whose bar close is before it: the bars' own, as a bar's
     /// close is its start a minute on. Invalid with ``before``.
     QDateTime finals_before;
 };
 
-/// What to read once the view starts ``view_from`` bars (a logical index, negative past the
-/// first bar) from the left end of ``bars``: nothing while it is kOlderMargin bars or more
-/// away, else the kOlderBars bars before the first. With no bars yet, those before now.
-std::optional<OlderRead> older_read(const QList<Bar>& bars, double view_from);
+/// What to read once the view of ``minutes`` starts ``view_from`` of its bars (a logical
+/// index, negative past the first bar) from the left end of ``bars`` (1-minute bars): nothing
+/// while it is kOlderMargin bars or more away, else the 1-minute bars before the first:
+/// kOlderBars, or kOlderViewBars of a wider view, at most kMaxOlderBars. With no bars yet,
+/// those before now.
+std::optional<OlderRead> older_read(const QList<Bar>& bars, double view_from, int minutes = 1);
 
 /// ``older`` read before ``newer``, as one run of bars oldest first: a bar in both (the
 /// same start) is ``newer``'s.

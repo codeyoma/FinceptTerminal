@@ -184,10 +184,10 @@ void KrxLive::set_details(const QStringList& algorithms) {
             service_->read_stats(algorithm, query_);
 }
 
-void KrxLive::view_from(double from) {
+void KrxLive::view_from(double from, int minutes) {
     if (selected_.isEmpty() || oldest_)
         return;
-    if (const auto read = krx_quant::older_read(bars(), from))
+    if (const auto read = krx_quant::older_read(bars(), from, minutes))
         service_->read_older(selected_, *read);
 }
 

@@ -221,6 +221,62 @@ class TstKrxChartModel : public QObject {
         QVERIFY(!empty->before.isValid() && !empty->finals_before.isValid());
     }
 
+    void a_wider_view_reads_as_many_minutes_as_its_bars_need() {
+        const QList<Bar> bars{{kst("2026-10-12T09:00:00+09:00"), 1, 1, 1, 1, 1}};
+
+        QCOMPARE(older_read(bars, 29, 1)->limit, 400);
+        QCOMPARE(older_read(bars, 29, 3)->limit, 400);   // 100 bars of 3 minutes: fewer than the 1-minute view's
+        QCOMPARE(older_read(bars, 29, 5)->limit, 500);   // 100 bars of 5 minutes
+        QCOMPARE(older_read(bars, 29, 60)->limit, 1000); // at most the engine's most predictions in a read
+        QVERIFY(!older_read(bars, 30, 60).has_value());  // 30 bars of the view from the end: not yet
+        QCOMPARE(older_read({}, 0, 15)->limit, 1000);
+    }
+
+    void minute_bars_group_on_the_clock_within_a_day() {
+        auto bar = [](const char* start, double open, double high, double low, double close, double volume) {
+            return Bar{kst(start), open, high, low, close, volume};
+        };
+        auto starts = [](const QList<Bar>& bars) {
+            QStringList out;
+            for (const auto& b : bars)
+                out << b.start.toOffsetFromUtc(9 * 3600).toString(Qt::ISODate);
+            return out;
+        };
+        // 5 minutes: 09:00–09:04 (09:02 traded nothing) and 09:05–09:09.
+        const QList<Bar> morning{bar("2026-10-12T09:00:00+09:00", 100, 105, 99, 101, 10),
+                                 bar("2026-10-12T09:01:00+09:00", 101, 103, 100, 102, 5),
+                                 bar("2026-10-12T09:03:00+09:00", 102, 108, 101, 107, 7),
+                                 bar("2026-10-12T09:05:00+09:00", 107, 107, 104, 105, 3),
+                                 bar("2026-10-12T09:09:00+09:00", 105, 106, 103, 104, 2)};
+
+        const auto five = group_bars(morning, 5);
+
+        QCOMPARE(starts(five), (QStringList{"2026-10-12T09:00:00+09:00", "2026-10-12T09:05:00+09:00"}));
+        QCOMPARE(five[0].open, 100.0);
+        QCOMPARE(five[0].high, 108.0);
+        QCOMPARE(five[0].low, 99.0);
+        QCOMPARE(five[0].close, 107.0);
+        QCOMPARE(five[0].volume, 22.0);
+        QCOMPARE(five[1].low, 103.0);
+        QCOMPARE(five[1].close, 104.0);
+        QCOMPARE(five[1].volume, 5.0);
+        QCOMPARE(starts(group_bars(morning, 60)), QStringList{"2026-10-12T09:00:00+09:00"});
+        QCOMPARE(group_bars(morning, 1).size(), 5); // as they are
+
+        // 240 minutes start at 08:00, 12:00 and 16:00, and a day's last never takes the next's first.
+        const QList<Bar> days{
+            bar("2026-10-08T19:59:00+09:00", 1, 1, 1, 1, 1), bar("2026-10-09T08:00:00+09:00", 1, 1, 1, 1, 1),
+            bar("2026-10-09T11:59:00+09:00", 1, 1, 1, 1, 1), bar("2026-10-09T12:00:00+09:00", 1, 1, 1, 1, 1),
+            bar("2026-10-09T16:30:00+09:00", 1, 1, 1, 1, 1)};
+        QCOMPARE(starts(group_bars(days, 240)),
+                 (QStringList{"2026-10-08T16:00:00+09:00", "2026-10-09T08:00:00+09:00", "2026-10-09T12:00:00+09:00",
+                              "2026-10-09T16:00:00+09:00"}));
+        QCOMPARE(group_bars(days, 240)[1].volume, 2.0); // 08:00 and 11:59
+        // Bars read in another offset still group on the KST clock.
+        QCOMPARE(starts(group_bars({bar("2026-10-12T00:30:00Z", 1, 1, 1, 1, 1)}, 60)),
+                 QStringList{"2026-10-12T09:00:00+09:00"});
+    }
+
     void bars_read_before_join_those_shown_once_each_oldest_first() {
         auto bar = [](const char* start, double close) { return Bar{kst(start), close, close, close, close, 1}; };
         // Read before: Thursday's last two bars and, overlapping, today's first (as stored).

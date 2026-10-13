@@ -50,9 +50,9 @@ class KrxLive : public QObject {
     /// Show one bar close's judgements of the chosen symbol (a chart icon clicked, krx-quant
     /// #107) instead of the latest's; an invalid time goes back to the latest.
     void pin(const QDateTime& bar_close);
-    /// The chart's view starts ``from`` bars (a logical index) from its left end: near it,
-    /// the bars before are read (krx-quant #108).
-    void view_from(double from);
+    /// The chart's view of ``minutes`` (krx-quant #109) starts ``from`` of its bars (a logical
+    /// index) from its left end: near it, the bars before are read (krx-quant #108).
+    void view_from(double from, int minutes = 1);
     /// The bar close pinned; invalid while the latest is followed.
     const QDateTime& pinned() const { return pinned_; }
     /// Its judgements as last read, and the algorithms' statuses then.

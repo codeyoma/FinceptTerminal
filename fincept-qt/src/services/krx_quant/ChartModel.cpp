@@ -2,6 +2,7 @@
 
 #include <QLocale>
 #include <QSet>
+#include <QTimeZone>
 
 #include <algorithm>
 #include <cmath>
@@ -199,13 +200,37 @@ std::pair<double, double> fit_range(int bars) {
     return {static_cast<double>(std::max(0, bars - kFitBars)), last + kRightOffset};
 }
 
-std::optional<OlderRead> older_read(const QList<Bar>& bars, double view_from) {
+std::optional<OlderRead> older_read(const QList<Bar>& bars, double view_from, int minutes) {
+    const int limit = std::min(std::max(kOlderBars, kOlderViewBars * minutes), kMaxOlderBars);
     if (bars.isEmpty())
-        return OlderRead{};
+        return OlderRead{{}, limit, {}};
     if (view_from >= kOlderMargin)
         return std::nullopt;
     const QDateTime first = bars.first().start;
-    return OlderRead{first, kOlderBars, first.addSecs(60)};
+    return OlderRead{first, limit, first.addSecs(60)};
+}
+
+QList<Bar> group_bars(const QList<Bar>& bars, int minutes) {
+    if (minutes <= 1)
+        return bars;
+    const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+    QList<Bar> out;
+    for (const auto& b : bars) {
+        const QDateTime local = b.start.toTimeZone(kst);
+        const int minute = local.time().hour() * 60 + local.time().minute();
+        const int first = minute - minute % minutes;
+        const QDateTime start(local.date(), QTime(first / 60, first % 60), kst);
+        if (out.isEmpty() || out.last().start != start) {
+            out << Bar{start, b.open, b.high, b.low, b.close, b.volume};
+            continue;
+        }
+        Bar& into = out.last();
+        into.high = std::max(into.high, b.high);
+        into.low = std::min(into.low, b.low);
+        into.close = b.close;
+        into.volume += b.volume;
+    }
+    return out;
 }
 
 QList<Bar> join_bars(const QList<Bar>& older, const QList<Bar>& newer) {

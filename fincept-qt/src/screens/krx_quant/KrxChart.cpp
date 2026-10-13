@@ -136,19 +136,21 @@ void KrxChart::ensure_view() {
 }
 
 void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks, const QString& basis,
-                        const krx_quant::SignalRule& rule) {
+                        const krx_quant::SignalRule& rule, int minutes) {
     QJsonArray candles;
     QJsonArray volumes;
     const QColor up(ui::colors::POSITIVE());
     const QColor down(ui::colors::NEGATIVE());
-    const auto shown = krx_quant::chart_bars(bars);
+    const auto shown = krx_quant::chart_bars(krx_quant::group_bars(bars, minutes));
     for (const auto& b : shown) {
         candles.append(
             QJsonObject{{"time", b.time}, {"open", b.open}, {"high", b.high}, {"low", b.low}, {"close", b.close}});
         volumes.append(QJsonObject{{"time", b.time}, {"value", b.volume}, {"color", css(b.rising ? up : down, 0.5)}});
     }
     QJsonArray icons;
-    for (const auto& icon : krx_quant::chart_icons(marks, bars, basis, rule)) {
+    // Icons, their hover and click are the 1-minute view's: a wider bar holds many bar closes.
+    const auto drawn = minutes == 1 ? krx_quant::chart_icons(marks, bars, basis, rule) : QList<krx_quant::ChartIcon>{};
+    for (const auto& icon : drawn) {
         // A signal is larger and never faint; a special prediction otherwise is.
         const double alpha = icon.signal ? 1.0 : icon.faint ? 0.35 : 0.8;
         icons.append(QJsonObject{{"time", icon.time},

@@ -18,6 +18,7 @@
 #include <QApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QPushButton>
 #include <QTextStream>
 #include <QTimer>
 #ifdef HAS_QT_WEBENGINE
@@ -47,6 +48,14 @@ int main(int argc, char* argv[]) {
     if (auto* leaderboard = screen.findChild<fincept::screens::KrxLeaderboard*>()) {
         for (const auto& predictor : details) // as a double-click on its line asks
             QMetaObject::invokeMethod(leaderboard, "detail_requested", Q_ARG(QString, predictor));
+    }
+
+    // KRX_CAPTURE_VIEW=<minutes>: as a click on the chart's view button (krx-quant #109). The
+    // choice stays in the scratch settings, so the next capture opens on it.
+    if (const int minutes = qEnvironmentVariableIntValue("KRX_CAPTURE_VIEW"); minutes > 0) {
+        for (auto* button : screen.findChildren<QPushButton*>())
+            if (button->isCheckable() && button->text() == QString::number(minutes))
+                button->click();
     }
 
     // KRX_CAPTURE_PIN=<bar close, ISO 8601>: as a click on that bar close's chart icon, once
