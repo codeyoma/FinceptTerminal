@@ -48,7 +48,9 @@ Prediction not_made(const QString& symbol, const QString& algorithm, const char*
 /// ``p`` scored: Direction::None where a basis could not be scored (its mid-point was missing).
 Prediction scored(Prediction p, Direction class_a, Direction class_b, bool special = false) {
     const bool missing = class_a == Direction::None || class_b == Direction::None;
-    p.outcome = Outcome{class_a, class_b, special, missing ? QStringLiteral("missing mid: display") : QString()};
+    p.outcome =
+        Outcome{class_a,      class_b,      special,     missing ? QStringLiteral("missing mid: display") : QString(),
+                std::nullopt, std::nullopt, std::nullopt};
     return p;
 }
 

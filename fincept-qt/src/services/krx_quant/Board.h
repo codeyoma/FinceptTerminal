@@ -20,8 +20,9 @@ struct Mark {
     Direction predicted = Direction::None; ///< the class the engine scores (most_likely)
     double probability = 0;                ///< of that class
     Result result = Result::Pending;
-    bool special = false; ///< a VI, circuit breaker or sidecar touched its 4 minutes: left out of the stats
-    QString unscorable;   ///< why it could not be scored (Unscorable only), e.g. "missing mid: display"
+    bool special = false;  ///< a VI, circuit breaker or sidecar touched its 4 minutes: left out of the stats
+    QString unscorable;    ///< why it could not be scored (Unscorable only), e.g. "missing mid: display"
+    Prediction prediction; ///< the final consensus itself: its probabilities, votes and outcome
 };
 
 /// Each symbol's predictions of its latest bar close and its final consensus over the day.

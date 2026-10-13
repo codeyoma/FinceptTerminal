@@ -99,6 +99,21 @@ struct Outcome {
     Direction class_b = Direction::None;
     bool special = false; ///< a VI, circuit breaker or sidecar touched its 4 minutes
     QString unscorable;   ///< which mid-point was missing, e.g. "missing mid: target"
+    // The mid-points it was scored on: at the bar close (basis A), when shown (B) and four
+    // minutes on; none where missing.
+    std::optional<double> mid_close;
+    std::optional<double> mid_display;
+    std::optional<double> mid_target;
+};
+
+/// How a consensus's members leaned (krx-quant #106): the active algorithms it pooled, by
+/// the class each forecast most likely.
+struct Votes {
+    int up = 0;
+    int flat = 0;
+    int down = 0;
+    int total() const { return up + flat + down; }
+    int of(Direction d) const { return d == Direction::Up ? up : d == Direction::Down ? down : flat; }
 };
 
 struct Prediction {
@@ -118,6 +133,9 @@ struct Prediction {
     /// "no_reference" or "expired" (krx-quant #88). Empty when it is not blocked, for every
     /// other prediction, and from an older engine that does not send the field.
     QString blocked;
+    /// A consensus's members by direction; none for any other prediction, an empty
+    /// consensus, one made before the engine counted them, and from an older engine.
+    std::optional<Votes> votes;
 };
 
 /// A symbol's predictions of its latest bar close, in the screen's order (in_screen_order).

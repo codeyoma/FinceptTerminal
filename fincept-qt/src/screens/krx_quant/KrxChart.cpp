@@ -122,7 +122,8 @@ void KrxChart::ensure_view() {
 #endif
 }
 
-void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks) {
+void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks, const QString& basis,
+                        const krx_quant::SignalRule& rule) {
     QJsonArray candles;
     QJsonArray volumes;
     const QColor up(ui::colors::POSITIVE());
@@ -134,12 +135,19 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
         volumes.append(QJsonObject{{"time", b.time}, {"value", b.volume}, {"color", css(b.rising ? up : down, 0.5)}});
     }
     QJsonArray icons;
-    for (const auto& icon : krx_quant::chart_icons(marks)) {
+    for (const auto& icon : krx_quant::chart_icons(marks, bars, basis, rule)) {
+        // A signal is larger and never faint; a special prediction otherwise is.
+        const double alpha = icon.signal ? 1.0 : icon.faint ? 0.35 : 0.8;
         icons.append(QJsonObject{{"time", icon.time},
                                  {"position", "aboveBar"},
                                  {"shape", shape_of(icon.direction)},
-                                 {"color", css(direction_color(icon.direction), icon.faint ? 0.35 : 1.0)},
-                                 {"text", icon.result}});
+                                 {"color", css(direction_color(icon.direction), alpha)},
+                                 {"size", icon.signal ? 2 : 1},
+                                 {"text", icon.result},
+                                 {"hover", QJsonArray::fromStringList(icon.hover)},
+                                 {"target", icon.target},
+                                 {"target_shown", icon.target_shown},
+                                 {"target_after_last", icon.target_after_last}});
     }
     const auto [from, to] = krx_quant::fit_range(static_cast<int>(shown.size()));
     data_ = compact(QJsonObject{
@@ -163,6 +171,11 @@ void KrxChart::restyle() {
         {"grid", css(QColor(ui::colors::BORDER_DIM()))},
         {"border", css(QColor(ui::colors::BORDER_MED()))},
         {"label", css(QColor(ui::colors::BG_RAISED()))},
+        // The hover box: as Fincept's tooltips (the global style's QToolTip).
+        {"tip_background", css(QColor(ui::colors::BG_SURFACE()))},
+        {"tip_border", css(QColor(ui::colors::BORDER_MED()))},
+        {"tip_text", css(QColor(ui::colors::TEXT_PRIMARY()))},
+        {"link", css(QColor(ui::colors::AMBER()))},
         {"up", css(QColor(ui::colors::POSITIVE()))},
         {"down", css(QColor(ui::colors::NEGATIVE()))},
         {"font", families.join(", ")},

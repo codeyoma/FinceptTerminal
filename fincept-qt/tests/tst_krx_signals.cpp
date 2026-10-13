@@ -77,7 +77,7 @@ class TstKrxSignals : public QObject {
     void too_few_members_agreeing_is_no_signal() {
         const auto consensus = forecast("consensus-final", "09:31", 0.64, 0.26, 0.10);
         QVERIFY(!judge(consensus, two_up_one_down("09:31"), SignalRule{0.6, 3}).has_value());
-        QVERIFY(!judge(consensus, {}, SignalRule{0.6, 1}).has_value()); // nobody pooled
+        QVERIFY(!judge(consensus, QList<Prediction>{}, SignalRule{0.6, 1}).has_value()); // nobody pooled
     }
 
     void a_member_predicts_its_likeliest_class_a_tie_going_to_flat() {
@@ -143,6 +143,20 @@ class TstKrxSignals : public QObject {
         const auto consensus = forecast("consensus-final", "09:31", 0.64, 0.26, 0.10);
         QVERIFY(!alerts.consider(consensus, {}, at("09:31")));
         QVERIFY(alerts.consider(consensus, two_up_one_down("09:31"), at("09:32")));
+    }
+
+    void a_consensus_s_votes_judge_a_signal_as_its_members_would() {
+        // As two up, one down (krx-quant #106): the counts the engine stored with it.
+        auto consensus = forecast("consensus-final", "09:31", 0.64, 0.26, 0.10);
+        const auto signal = judge(consensus, Votes{2, 0, 1}, SignalRule{});
+        QVERIFY(signal.has_value());
+        QCOMPARE(signal->direction, Direction::Up);
+        QCOMPARE(signal->agree, 2);
+        QCOMPARE(signal->members, 3);
+        QVERIFY(!judge(consensus, Votes{2, 0, 1}, SignalRule{0.6, 3}).has_value());
+        QVERIFY(!judge(consensus, Votes{0, 3, 0}, SignalRule{0.6, 1}).has_value()); // nobody up
+        consensus.blocked = "special";
+        QVERIFY(!judge(consensus, Votes{2, 0, 1}, SignalRule{}).has_value());
     }
 
     void a_consensus_the_engine_blocked_is_no_signal() {

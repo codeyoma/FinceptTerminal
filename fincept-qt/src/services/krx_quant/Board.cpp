@@ -134,7 +134,7 @@ QList<Mark> Board::marks(const QString& symbol, const QString& basis) const {
         const Direction predicted = most_likely(p);
         if (p.status != "ok" || predicted == Direction::None)
             continue;
-        Mark mark{p.bar_close, predicted, probability_of(p, predicted), Mark::Result::Pending, false, {}};
+        Mark mark{p.bar_close, predicted, probability_of(p, predicted), Mark::Result::Pending, false, {}, p};
         if (p.outcome) {
             const Direction happened = basis == "a" ? p.outcome->class_a : p.outcome->class_b;
             mark.special = p.outcome->special;

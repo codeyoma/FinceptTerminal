@@ -41,6 +41,9 @@ struct Signal {
 /// of the members must predict that move (their likeliest class, a tie going to flat).
 /// None for a consensus the engine blocked (``Prediction::blocked``).
 std::optional<Signal> judge(const Prediction& consensus, const QList<Prediction>& pooled, const SignalRule& rule);
+/// The same, from how its members leaned as the engine counted them (``Prediction::votes``,
+/// krx-quant #106): for a past consensus, whose members' forecasts are not at hand.
+std::optional<Signal> judge(const Prediction& consensus, const Votes& votes, const SignalRule& rule);
 
 /// Judges each final consensus once and says which to raise.
 class Alerts {

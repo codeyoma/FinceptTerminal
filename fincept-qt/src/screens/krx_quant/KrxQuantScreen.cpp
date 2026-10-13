@@ -208,7 +208,10 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         fill_chart(); // the chart's ✓/✗ are on the leaderboard's basis
     });
     connect(leaderboard_, &KrxLeaderboard::detail_requested, this, &KrxQuantScreen::open_detail);
-    connect(alerts_, &KrxAlerts::changed, this, [this]() { live_->set_alerts(alerts_->is_on(), alerts_->rule()); });
+    connect(alerts_, &KrxAlerts::changed, this, [this]() {
+        live_->set_alerts(alerts_->is_on(), alerts_->rule());
+        fill_chart(); // the signals the chart marks follow the threshold and N
+    });
 
     clock_timer_ = new QTimer(this);
     clock_timer_->setInterval(1000);
@@ -472,7 +475,8 @@ void KrxQuantScreen::fill_chart() {
         chart_->set_data({}, {});
         return;
     }
-    chart_->set_data(live_->bars(), live_->board().marks(symbol, leaderboard_->query().basis));
+    const QString basis = leaderboard_->query().basis;
+    chart_->set_data(live_->bars(), live_->board().marks(symbol, basis), basis, alerts_->rule());
 }
 
 void KrxQuantScreen::open_detail(const QString& algorithm) {
