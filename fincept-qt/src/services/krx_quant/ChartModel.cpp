@@ -249,7 +249,51 @@ bool merge_live(QList<Bar>& bars, const Bar& live) {
     return true;
 }
 
-std::optional<ChartBar> last_chart_bar(const QList<Bar>& bars, int minutes) {
+std::optional<Bar> day_candle(const QList<Bar>& bars, const QString& venue) {
+    if (bars.isEmpty())
+        return std::nullopt;
+    const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(kKstSeconds);
+    const QDate day = bars.last().start.toTimeZone(kst).date();
+    const bool krx = venue == QLatin1String("KRX");
+    std::optional<Bar> candle;
+    for (const auto& b : bars) {
+        const QDateTime local = b.start.toTimeZone(kst);
+        if (local.date() != day)
+            continue;
+        if (krx && (local.time() < QTime(9, 0) || local.time() > QTime(15, 30)))
+            continue; // the regular session's: from the opening auction to the closing one
+        if (!candle) {
+            candle = Bar{QDateTime(day, QTime(0, 0), kst), b.open, b.high, b.low, b.close, b.volume};
+            continue;
+        }
+        candle->high = std::max(candle->high, b.high);
+        candle->low = std::min(candle->low, b.low);
+        candle->close = b.close;
+        candle->volume += b.volume;
+    }
+    return candle;
+}
+
+QList<Bar> day_candles(const QList<Bar>& stored, const QList<Bar>& day_bars, const QString& venue) {
+    const auto today = day_candle(day_bars, venue);
+    if (!today)
+        return stored;
+    return join_bars(stored, {*today});
+}
+
+std::optional<QDateTime> older_candles(const QDateTime& first, double view_from) {
+    if (!first.isValid())
+        return QDateTime();
+    if (view_from >= kOlderMargin)
+        return std::nullopt;
+    return first;
+}
+
+std::optional<ChartBar> last_chart_bar(const QList<Bar>& bars, int minutes, const QString& venue) {
+    if (minutes == kDayView) {
+        const auto candle = day_candle(bars, venue);
+        return candle ? std::optional(chart_bars({*candle}).first()) : std::nullopt;
+    }
     if (bars.isEmpty())
         return std::nullopt;
     // Only the bars of the last one's group: the last group_bars would make of all.

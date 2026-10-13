@@ -52,10 +52,31 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
             emit chart_changed();
         });
     connect(service_, &KrxQuantService::older_failed, this, [this](const QString& symbol, const QString& reason) {
-        if (symbol == selected_)
+        if (symbol != selected_)
+            return view_from(view_from_, view_minutes_); // another was chosen meanwhile
+        if (view_minutes_ != krx_quant::kDayView)        // not since the view changed to days
             emit older_failed(reason);
-        else
-            view_from(view_from_, view_minutes_); // another was chosen meanwhile
+    });
+    connect(service_, &KrxQuantService::candles_ready, this,
+            [this](const QString& symbol, const QDateTime& before, const krx_quant::Candles& read) {
+                if (symbol != selected_)
+                    return set_view(view_minutes_); // another was chosen meanwhile: its own, if in the day view
+                // Over those kept: the latest page replaces its own days and keeps the pages
+                // read before; a page before the first goes in front.
+                candles_ = krx_quant::join_bars(candles_, read.candles);
+                if (!read.venue.isEmpty())
+                    candle_venue_ = read.venue;
+                if (!before.isValid())
+                    candles_day_ = engine_day();
+                if (before.isValid() || candles_.isEmpty())
+                    candles_oldest_ = read.candles.isEmpty();
+                emit chart_changed();
+            });
+    connect(service_, &KrxQuantService::candles_failed, this, [this](const QString& symbol, const QString& reason) {
+        if (symbol != selected_)
+            return set_view(view_minutes_);       // another was chosen meanwhile
+        if (view_minutes_ == krx_quant::kDayView) // not since the view changed to minutes
+            emit older_failed(reason);
     });
     connect(service_, &KrxQuantService::macro_ready, this, [this](const krx_quant::Macro& macro) {
         macro_ = macro;
@@ -193,6 +214,14 @@ void KrxLive::set_details(const QStringList& algorithms) {
 void KrxLive::view_from(double from, int minutes) {
     view_from_ = from;
     view_minutes_ = minutes;
+    if (minutes == krx_quant::kDayView) {
+        if (selected_.isEmpty() || candles_oldest_)
+            return;
+        const QDateTime first = candles_.isEmpty() ? QDateTime() : candles_.first().start;
+        if (const auto before = krx_quant::older_candles(first, from))
+            service_->read_candles(selected_, *before);
+        return;
+    }
     if (selected_.isEmpty() || oldest_)
         return;
     // The first bar shown: the earliest read before, else today's first.
@@ -203,9 +232,28 @@ void KrxLive::view_from(double from, int minutes) {
         service_->read_older(selected_, *read);
 }
 
+void KrxLive::set_view(int minutes) {
+    view_minutes_ = minutes;
+    if (minutes != krx_quant::kDayView || selected_.isEmpty())
+        return;
+    // The latest candles: at first (unless the engine has none), and again on each new
+    // engine day, when the day before's candle is the engine's (stored after its 20:30) and
+    // no longer made of the day's bars.
+    if ((candles_.isEmpty() && !candles_oldest_) || candles_day_ != engine_day())
+        service_->read_candles(selected_, QDateTime());
+}
+
+QDate KrxLive::engine_day() const {
+    return engine_now().toTimeZone(QTimeZone::fromSecondsAheadOfUtc(9 * 3600)).date();
+}
+
 void KrxLive::forget_older() {
     older_.clear();
     oldest_ = false;
+    candles_.clear();
+    candle_venue_.clear();
+    candles_oldest_ = false;
+    candles_day_ = {};
     view_from_ = krx_quant::kOlderMargin;
 }
 
@@ -357,7 +405,9 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
         live_.reset();
     board_.set_history(symbol, finals);
     emit chart_changed();
-    if (bars_.isEmpty() && older_.isEmpty())
+    if (view_minutes_ == krx_quant::kDayView)
+        set_view(view_minutes_); // the day view's candles, unless read (a symbol or an engine changed)
+    else if (bars_.isEmpty() && older_.isEmpty())
         view_from(0, view_minutes_); // nothing today yet (before the open): the last day's bars
 }
 

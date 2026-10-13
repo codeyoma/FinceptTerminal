@@ -280,6 +280,24 @@ Result<QList<Bar>> parse_bars(const QJsonDocument& doc) {
     return Result<QList<Bar>>::ok(out);
 }
 
+Result<Candles> parse_candles(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<Candles>::err(obj.error());
+    const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+    Candles out;
+    out.venue = obj.value().value("venue").toString();
+    for (const auto& v : obj.value().value("candles").toArray()) {
+        const QJsonObject c = v.toObject();
+        const QDate day = QDate::fromString(c.value("date").toString(), Qt::ISODate);
+        if (!day.isValid())
+            continue;
+        out.candles.push_back({QDateTime(day, QTime(0, 0), kst), c.value("open").toDouble(), c.value("high").toDouble(),
+                               c.value("low").toDouble(), c.value("close").toDouble(), c.value("volume").toDouble()});
+    }
+    return Result<Candles>::ok(out);
+}
+
 Result<Leaderboard> parse_leaderboard(const QJsonDocument& doc) {
     const auto obj = object_of(doc);
     if (obj.is_err())

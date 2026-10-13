@@ -141,7 +141,9 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
     QJsonArray volumes;
     const QColor up(ui::colors::POSITIVE());
     const QColor down(ui::colors::NEGATIVE());
-    const auto shown = krx_quant::chart_bars(krx_quant::group_bars(bars, minutes));
+    // The day view's bars are its candles already (krx-quant #111).
+    const bool day = minutes == krx_quant::kDayView;
+    const auto shown = krx_quant::chart_bars(day ? bars : krx_quant::group_bars(bars, minutes));
     for (const auto& b : shown) {
         candles.append(
             QJsonObject{{"time", b.time}, {"open", b.open}, {"high", b.high}, {"low", b.low}, {"close", b.close}});
@@ -166,13 +168,16 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
                                  {"bar_close", icon.bar_close.toString(Qt::ISODate)}});
     }
     const auto [from, to] = krx_quant::fit_range(static_cast<int>(shown.size()));
-    data_ = compact(QJsonObject{
-        {"bars", candles}, {"volumes", volumes}, {"icons", icons}, {"fit", QJsonObject{{"from", from}, {"to", to}}}});
+    data_ = compact(QJsonObject{{"bars", candles},
+                                {"volumes", volumes},
+                                {"icons", icons},
+                                {"fit", QJsonObject{{"from", from}, {"to", to}}},
+                                {"day", day}});
     emit bridge_->data_changed(data_);
 }
 
-void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
-    const auto last = krx_quant::last_chart_bar(bars, minutes);
+void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes, const QString& venue) {
+    const auto last = krx_quant::last_chart_bar(bars, minutes, venue);
     if (!last)
         return;
     const QColor color(last->rising ? ui::colors::POSITIVE() : ui::colors::NEGATIVE());

@@ -254,7 +254,15 @@ Result<QList<SymbolQuote>> parse_symbols(const QJsonDocument& doc); ///< GET /v1
 Result<Latest> parse_latest(const QJsonDocument& doc);              ///< GET /v1/symbols/{symbol}/latest
 /// GET /v1/symbols/{symbol}/predictions: the latest bar closes first.
 Result<QList<Prediction>> parse_predictions(const QJsonDocument& doc);
-Result<QList<Bar>> parse_bars(const QJsonDocument& doc);         ///< GET /v1/symbols/{symbol}/bars, oldest first
+Result<QList<Bar>> parse_bars(const QJsonDocument& doc); ///< GET /v1/symbols/{symbol}/bars, oldest first
+
+/// Day candles the engine stored (krx-quant #111): oldest first, each starting at 00:00 KST of
+/// its day, and the market they come from ("UN" integrated, "KRX"; empty with none stored).
+struct Candles {
+    QString venue;
+    QList<Bar> candles;
+};
+Result<Candles> parse_candles(const QJsonDocument& doc);         ///< GET /v1/symbols/{symbol}/candles?period=day
 Result<Leaderboard> parse_leaderboard(const QJsonDocument& doc); ///< GET /v1/leaderboard
 Result<AlgorithmStats> parse_stats(const QJsonDocument& doc);    ///< GET /v1/algorithms/{name}/stats
 Result<Macro> parse_macro(const QJsonDocument& doc);             ///< GET /v1/macro

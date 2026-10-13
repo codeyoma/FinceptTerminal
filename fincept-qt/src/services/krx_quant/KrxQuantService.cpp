@@ -233,6 +233,21 @@ void KrxQuantService::read_older(const QString& symbol, const krx_quant::OlderRe
     });
 }
 
+void KrxQuantService::read_candles(const QString& symbol, const QDateTime& before) {
+    if (!begin(kCandles))
+        return; // the view moves on: asked again once this one is drawn
+    QString path = QString("/candles?period=day&limit=%1").arg(krx_quant::kCandleRead);
+    if (before.isValid())
+        path += "&before=" + QString::fromUtf8(QUrl::toPercentEncoding(before.toString(Qt::ISODate)));
+    get(symbol_path(symbol, path), [this, symbol, before](Result<QJsonDocument> answer) {
+        end(kCandles);
+        auto candles = parsed(answer, krx_quant::parse_candles);
+        if (candles.is_err())
+            return emit candles_failed(symbol, why(candles.error()));
+        emit candles_ready(symbol, before, candles.value());
+    });
+}
+
 void KrxQuantService::read_close(const QString& symbol, const QDateTime& bar_close) {
     if (busy_[kClose] && !url_.isEmpty()) {
         // Another icon clicked while one is read: the last clicked is read next.
