@@ -57,6 +57,23 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         else
             view_from(view_from_, view_minutes_); // another was chosen meanwhile
     });
+    connect(service_, &KrxQuantService::candles_ready, this,
+            [this](const QString& symbol, const QDateTime& before, const krx_quant::Candles& read) {
+                if (symbol != selected_)
+                    return set_view(view_minutes_); // another was chosen meanwhile: its own, if in the day view
+                // The latest replace any; those before the first shown go in front of them.
+                candles_ = before.isValid() ? krx_quant::join_bars(read.candles, candles_) : read.candles;
+                if (!read.venue.isEmpty())
+                    candle_venue_ = read.venue;
+                candles_oldest_ = read.candles.isEmpty();
+                emit chart_changed();
+            });
+    connect(service_, &KrxQuantService::candles_failed, this, [this](const QString& symbol, const QString& reason) {
+        if (symbol == selected_)
+            emit older_failed(reason);
+        else
+            set_view(view_minutes_); // another was chosen meanwhile
+    });
     connect(service_, &KrxQuantService::macro_ready, this, [this](const krx_quant::Macro& macro) {
         macro_ = macro;
         macro_failure_.clear();
@@ -193,6 +210,14 @@ void KrxLive::set_details(const QStringList& algorithms) {
 void KrxLive::view_from(double from, int minutes) {
     view_from_ = from;
     view_minutes_ = minutes;
+    if (minutes == krx_quant::kDayView) {
+        if (selected_.isEmpty() || candles_oldest_)
+            return;
+        const QDateTime first = candles_.isEmpty() ? QDateTime() : candles_.first().start;
+        if (const auto before = krx_quant::older_candles(first, from))
+            service_->read_candles(selected_, *before);
+        return;
+    }
     if (selected_.isEmpty() || oldest_)
         return;
     // The first bar shown: the earliest read before, else today's first.
@@ -203,9 +228,18 @@ void KrxLive::view_from(double from, int minutes) {
         service_->read_older(selected_, *read);
 }
 
+void KrxLive::set_view(int minutes) {
+    view_minutes_ = minutes;
+    if (minutes == krx_quant::kDayView && candles_.isEmpty())
+        view_from(krx_quant::kOlderMargin, minutes); // the latest
+}
+
 void KrxLive::forget_older() {
     older_.clear();
     oldest_ = false;
+    candles_.clear();
+    candle_venue_.clear();
+    candles_oldest_ = false;
     view_from_ = krx_quant::kOlderMargin;
 }
 
@@ -357,7 +391,9 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
         live_.reset();
     board_.set_history(symbol, finals);
     emit chart_changed();
-    if (bars_.isEmpty() && older_.isEmpty())
+    if (view_minutes_ == krx_quant::kDayView)
+        set_view(view_minutes_); // the day view's candles, unless read (a symbol or an engine changed)
+    else if (bars_.isEmpty() && older_.isEmpty())
         view_from(0, view_minutes_); // nothing today yet (before the open): the last day's bars
 }
 

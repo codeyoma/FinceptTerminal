@@ -135,9 +135,32 @@ std::optional<OlderRead> older_read(const QDateTime& first, double view_from, in
 /// shown (sent before what was read), is dropped. Whether ``bars`` changed.
 bool merge_live(QList<Bar>& bars, const Bar& live);
 
+/// The day view's value among the views (krx-quant #111): a day's minutes, so a view's
+/// value grows with what one of its bars spans. Its bars are the day candles the engine
+/// stored (``GET …/candles?period=day``) and today's, made of the day's 1-minute bars.
+inline constexpr int kDayView = 24 * 60;
+/// Day candles read at a time, first and as the day view scrolls back.
+inline constexpr int kCandleRead = 400;
+
+/// The candle of the last day of ``bars`` (1-minute bars, oldest first), starting at 00:00
+/// KST that day: of all that day's bars, or, with ``venue`` "KRX" (the engine's candles are
+/// the KRX regular session's), of those from 09:00 to 15:30 only. None without any.
+std::optional<Bar> day_candle(const QList<Bar>& bars, const QString& venue);
+
+/// The day view's candles: ``stored`` (the engine's, oldest first), then the candle of
+/// ``day_bars``' day (day_candle), in place of a stored one of that day.
+QList<Bar> day_candles(const QList<Bar>& stored, const QList<Bar>& day_bars, const QString& venue);
+
+/// The candles to read once the day view starts ``view_from`` of them (a logical index,
+/// negative past the first) from its left end, where the first candle starts at ``first``:
+/// those before it, once less than kOlderMargin away; none while further. With no candles
+/// yet (``first`` invalid), the latest: an invalid time, before now.
+std::optional<QDateTime> older_candles(const QDateTime& first, double view_from);
+
 /// The last bar of the ``minutes`` view of ``bars`` (1-minute bars) as the chart draws it, to
-/// move it as it is made; none without bars.
-std::optional<ChartBar> last_chart_bar(const QList<Bar>& bars, int minutes);
+/// move it as it is made; none without bars. The day view's is day_candle's, on ``venue``.
+std::optional<ChartBar> last_chart_bar(const QList<Bar>& bars, int minutes,
+                                       const QString& venue = QStringLiteral("UN"));
 
 /// ``older`` read before ``newer``, as one run of bars oldest first: a bar in both (the
 /// same start) is ``newer``'s.

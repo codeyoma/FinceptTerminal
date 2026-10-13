@@ -53,6 +53,9 @@ class KrxLive : public QObject {
     /// The chart's view of ``minutes`` (krx-quant #109) starts ``from`` of its bars (a logical
     /// index) from its left end: near it, the bars before are read (krx-quant #108).
     void view_from(double from, int minutes = 1);
+    /// The chart shows the view of ``minutes``: the day view (krx_quant::kDayView, krx-quant
+    /// #111) reads the engine's day candles if it has none yet.
+    void set_view(int minutes);
     /// The bar close pinned; invalid while the latest is followed.
     const QDateTime& pinned() const { return pinned_; }
     /// Its judgements as last read, and the algorithms' statuses then.
@@ -70,6 +73,13 @@ class KrxLive : public QObject {
     /// The chosen symbol's bars: the day's, after those read before as the chart scrolled
     /// back (krx-quant #108).
     QList<krx_quant::Bar> bars() const { return krx_quant::join_bars(older_, bars_); }
+    /// The day's 1-minute bars alone, with the one being made.
+    const QList<krx_quant::Bar>& day_bars() const { return bars_; }
+    /// The day view's candles (krx-quant #111): those the engine stored, read as the view
+    /// scrolled back, then today's made of the day's bars on the engine's market.
+    QList<krx_quant::Bar> day_candles() const { return krx_quant::day_candles(candles_, bars_, candle_venue_); }
+    /// The market of the engine's day candles: "UN" (integrated) or "KRX"; empty before any.
+    const QString& candle_venue() const { return candle_venue_; }
     /// Why the engine could not be read; empty once it can.
     const QString& failure() const { return failure_; }
     /// The stream's state in Korean ("스트림 연결됨", why it is down and when it is tried again).
@@ -129,6 +139,9 @@ class KrxLive : public QObject {
     bool oldest_ = false;                        ///< the engine has nothing before older_
     double view_from_ = krx_quant::kOlderMargin; ///< where the chart's view last started
     int view_minutes_ = 1;                       ///< and its minutes
+    QList<krx_quant::Bar> candles_;              ///< the engine's day candles read so far, oldest first
+    QString candle_venue_;                       ///< their market
+    bool candles_oldest_ = false;                ///< the engine has nothing before candles_
     /// Back to today's bars only: a symbol or an engine changed, or the engine is lost.
     void forget_older();
     KrxQuantService::LeaderboardQuery query_;

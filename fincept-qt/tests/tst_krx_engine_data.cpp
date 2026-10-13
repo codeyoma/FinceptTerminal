@@ -520,6 +520,24 @@ class TstKrxEngineData : public QObject {
         QVERIFY(parse_bars(json(R"({"error": "unknown symbol 999999"})")).is_err());
     }
 
+    void day_candles_start_at_midnight_in_kst_with_their_market() {
+        const auto read = parse_candles(json(R"({"symbol": "005930", "period": "day", "venue": "KRX", "candles": [
+            {"date": "2026-10-07", "open": 80000, "high": 81000, "low": 79500, "close": 80900, "volume": 1200},
+            {"date": "2026-10-08", "open": 80900, "high": 81700, "low": 80500, "close": 81250, "volume": 900}]})"));
+        QVERIFY(read.is_ok());
+        QCOMPARE(read.value().venue, QStringLiteral("KRX"));
+        QCOMPARE(read.value().candles.size(), 2);
+        const auto& last = read.value().candles[1];
+        QCOMPARE(last.start, QDateTime::fromString("2026-10-08T00:00:00+09:00", Qt::ISODate));
+        QCOMPARE((QList<double>{last.open, last.high, last.low, last.close, last.volume}),
+                 (QList<double>{80900, 81700, 80500, 81250, 900}));
+
+        const auto none = parse_candles(json(R"({"symbol": "005930", "period": "day", "venue": null, "candles": []})"));
+        QVERIFY(none.is_ok());
+        QVERIFY(none.value().venue.isEmpty() && none.value().candles.isEmpty());
+        QVERIFY(parse_candles(json(R"({"error": "period must be one of day, got 'week'"})")).is_err());
+    }
+
     void the_leaderboard_keeps_its_query_and_three_lists() {
         const auto board = parse_leaderboard(json(kLeaderboard));
         QVERIFY(board.is_ok());
