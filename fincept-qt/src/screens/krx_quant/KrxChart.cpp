@@ -86,6 +86,10 @@ void KrxChartBridge::clicked(const QString& bar_close) {
     emit icon_clicked(bar_close);
 }
 
+void KrxChartBridge::moved(double from) {
+    emit view_moved(from);
+}
+
 KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
     setMinimumHeight(220);
     auto* layout = new QVBoxLayout(this);
@@ -100,6 +104,7 @@ KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
         if (const QDateTime at = QDateTime::fromString(bar_close, Qt::ISODate); at.isValid())
             emit icon_clicked(at);
     });
+    connect(bridge_, &KrxChartBridge::view_moved, this, &KrxChart::view_moved);
     unavailable_ = new QLabel(tr("차트를 열 수 없음"));
     unavailable_->setAlignment(Qt::AlignCenter);
     unavailable_->setToolTip(tr("이 빌드에 Qt WebEngine이 없거나 그 실행 파일이 빠졌다."));

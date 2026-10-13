@@ -20,6 +20,9 @@
 #include <QFileInfo>
 #include <QTextStream>
 #include <QTimer>
+#ifdef HAS_QT_WEBENGINE
+#    include <QWebEngineView>
+#endif
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {
@@ -55,6 +58,24 @@ int main(int argc, char* argv[]) {
                 emit chart->icon_clicked(pin);
         });
     }
+
+#ifdef HAS_QT_WEBENGINE
+    // KRX_CAPTURE_BACK=<wheel turns>: as wheeling the chart back that many times, a turn every
+    // half second from a quarter of the wait, so earlier days are read and shown (krx-quant #108).
+    if (const int turns = qEnvironmentVariableIntValue("KRX_CAPTURE_BACK"); turns > 0) {
+        for (int turn = 0; turn < turns; ++turn) {
+            QTimer::singleShot(seconds * 250 + turn * 500, &app, [&screen]() {
+                auto* chart = screen.findChild<fincept::screens::KrxChart*>();
+                auto* view = chart ? chart->findChild<QWebEngineView*>() : nullptr;
+                if (view)
+                    view->page()->runJavaScript(
+                        "document.elementFromPoint(innerWidth / 2, innerHeight / 3).dispatchEvent(new WheelEvent("
+                        "'wheel', {deltaX: -400, bubbles: true, cancelable: true, clientX: innerWidth / 2, "
+                        "clientY: innerHeight / 3}));");
+            });
+        }
+    }
+#endif
 
     const QString out = QString::fromLocal8Bit(argv[2]);
     int status = 0;

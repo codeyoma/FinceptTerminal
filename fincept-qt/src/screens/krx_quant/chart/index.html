@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!--
-  The KRX screen's chart (fork addition, codeyoma/krx-quant#105, #106), drawn with TradingView
+  The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#108), drawn with TradingView
   Lightweight Charts (NOTICE). It only draws what the screen sends over the web channel:
   the bars and their volumes, the final consensus's icons with their hover lines and the
   bars they aim at, the theme, and when to fit.
@@ -33,7 +33,9 @@
   const chart = L.createChart(area, {
     autoSize: true,
     layout: { attributionLogo: false }, // the attribution is on the panel title and in the README
-    timeScale: { timeVisible: true, secondsVisible: false, rightOffset: 6 }, // the latest target's slot shows
+    // The latest target's slot shows on the right; on the left the view stops at the first bar
+    // read, where the bars before are read (krx-quant #108).
+    timeScale: { timeVisible: true, secondsVisible: false, rightOffset: 6, fixLeftEdge: true },
   });
   const candles = chart.addSeries(L.CandlestickSeries, {
     priceLineVisible: true,
@@ -140,6 +142,12 @@
     drawLink(icon);
   }
   chart.subscribeCrosshairMove(hover);
+
+  // The view moved: near its left end the screen reads the bars before (krx-quant #108).
+  // The chart keeps the view on the same bars when they come in before the first.
+  chart.timeScale().subscribeVisibleLogicalRangeChange(function (range) {
+    if (range && bars.length && bridge) bridge.moved(range.from);
+  });
 
   // An icon clicked: the screen shows that bar close's judgements (krx-quant #107).
   let bridge = null;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "services/krx_quant/Board.h"
+#include "services/krx_quant/ChartModel.h"
 #include "services/krx_quant/KrxQuantService.h"
 #include "services/krx_quant/KrxStream.h"
 #include "services/krx_quant/Signals.h"
@@ -49,6 +50,9 @@ class KrxLive : public QObject {
     /// Show one bar close's judgements of the chosen symbol (a chart icon clicked, krx-quant
     /// #107) instead of the latest's; an invalid time goes back to the latest.
     void pin(const QDateTime& bar_close);
+    /// The chart's view starts ``from`` bars (a logical index) from its left end: near it,
+    /// the bars before are read (krx-quant #108).
+    void view_from(double from);
     /// The bar close pinned; invalid while the latest is followed.
     const QDateTime& pinned() const { return pinned_; }
     /// Its judgements as last read, and the algorithms' statuses then.
@@ -63,8 +67,9 @@ class KrxLive : public QObject {
     /// Why the macro row's last read failed; empty once one works.
     const QString& macro_failure() const { return macro_failure_; }
     const QString& selected() const { return selected_; }
-    /// The chosen symbol's bars of the day.
-    const QList<krx_quant::Bar>& bars() const { return bars_; }
+    /// The chosen symbol's bars: the day's, after those read before as the chart scrolled
+    /// back (krx-quant #108).
+    QList<krx_quant::Bar> bars() const { return krx_quant::join_bars(older_, bars_); }
     /// Why the engine could not be read; empty once it can.
     const QString& failure() const { return failure_; }
     /// The stream's state in Korean ("스트림 연결됨", why it is down and when it is tried again).
@@ -88,6 +93,8 @@ class KrxLive : public QObject {
     void stats_failed(const QString& algorithm, const QString& reason);
     void pinned_changed(); ///< pinned or back to the latest, or its judgements read
     void pinned_failed(const QString& reason);
+    /// The bars before the chart's could not be read; those shown stay (krx-quant #108).
+    void older_failed(const QString& reason);
     void signal_raised(const fincept::krx_quant::Signal& signal);
 
   private:
@@ -115,6 +122,11 @@ class KrxLive : public QObject {
     bool shown_ = false;
     QString selected_;
     QList<krx_quant::Bar> bars_;
+    QList<krx_quant::Bar> older_;                ///< read before the day's, as the chart scrolled back
+    bool oldest_ = false;                        ///< the engine has nothing before older_
+    double view_from_ = krx_quant::kOlderMargin; ///< where the chart's view last started
+    /// Back to today's bars only: a symbol or an engine changed, or the engine is lost.
+    void forget_older();
     KrxQuantService::LeaderboardQuery query_;
     QStringList details_; ///< the algorithms whose stats are read
     QDateTime pinned_;

@@ -24,10 +24,13 @@ class KrxChartBridge : public QObject {
     Q_INVOKABLE void ready();
     /// An icon was clicked: its bar close (ISO 8601).
     Q_INVOKABLE void clicked(const QString& bar_close);
+    /// The view moved: it starts ``from`` bars (a logical index) from the left end.
+    Q_INVOKABLE void moved(double from);
 
   signals:
     void page_ready();
     void icon_clicked(const QString& bar_close);
+    void view_moved(double from);
     void theme_changed(const QString& json);
     void data_changed(const QString& json);
     void fit_requested();
@@ -58,6 +61,9 @@ class KrxChart : public QWidget {
     /// A final consensus icon was clicked: the table shows that bar close's judgements
     /// (krx-quant #107).
     void icon_clicked(const QDateTime& bar_close);
+    /// The view was scrolled or zoomed: it starts ``from`` bars (a logical index, negative
+    /// past the first bar) from the left end; near it, the bars before are read (krx-quant #108).
+    void view_moved(double from);
 
   protected:
     void showEvent(QShowEvent* event) override;

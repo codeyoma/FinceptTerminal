@@ -207,6 +207,32 @@ void KrxQuantService::read_chart(const QString& symbol) {
     });
 }
 
+void KrxQuantService::read_older(const QString& symbol, const krx_quant::OlderRead& read) {
+    if (!begin(kOlder))
+        return; // the view moves on: asked again once this one is drawn
+    auto before = [](const QDateTime& at) {
+        return at.isValid() ? "&before=" + QString::fromUtf8(QUrl::toPercentEncoding(at.toString(Qt::ISODate)))
+                            : QString();
+    };
+    const QString bars_path = QString("/bars?limit=%1").arg(read.limit) + before(read.before);
+    const QString finals_path =
+        QString("/predictions?algorithm=consensus-final&limit=%1").arg(read.limit) + before(read.finals_before);
+    get(symbol_path(symbol, bars_path), [this, symbol, finals_path](Result<QJsonDocument> answer) {
+        auto bars = parsed(answer, krx_quant::parse_bars);
+        if (bars.is_err()) {
+            end(kOlder);
+            return emit older_failed(symbol, why(bars.error()));
+        }
+        get(symbol_path(symbol, finals_path), [this, symbol, bars = bars.value()](Result<QJsonDocument> answer) {
+            end(kOlder);
+            auto finals = parsed(answer, krx_quant::parse_predictions);
+            if (finals.is_err())
+                return emit older_failed(symbol, why(finals.error()));
+            emit older_ready(symbol, bars, finals.value());
+        });
+    });
+}
+
 void KrxQuantService::read_close(const QString& symbol, const QDateTime& bar_close) {
     if (busy_[kClose] && !url_.isEmpty()) {
         // Another icon clicked while one is read: the last clicked is read next.

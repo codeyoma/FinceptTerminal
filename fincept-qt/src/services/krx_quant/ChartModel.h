@@ -8,6 +8,7 @@
 #include <QMap>
 #include <QString>
 
+#include <optional>
 #include <utility>
 
 /// What the KRX screen's chart draws, worked out here so that its page only draws
@@ -89,5 +90,29 @@ QList<CloseRow> close_rows(const QList<Prediction>& predictions, const QMap<QStr
 /// The logical range (bar indexes) a fitted chart of ``bars`` bars shows: the last
 /// kFitBars, and kRightOffset free after them.
 std::pair<double, double> fit_range(int bars);
+
+/// Bars to the left end of the view at which the bars before are read (krx-quant #108).
+inline constexpr double kOlderMargin = 30;
+/// Bars read before at a time: more than half a trading day (08:00–20:00, 720 bars).
+inline constexpr int kOlderBars = 400;
+
+/// The bars to read before the chart's (krx-quant #108), with their final consensus.
+struct OlderRead {
+    QDateTime before; ///< bars that start before it; invalid: before now (no bars yet)
+    int limit = kOlderBars;
+    /// Final consensus predictions whose bar close is before it: the bars' own, as a bar's
+    /// close is its start a minute on. Invalid with ``before``.
+    QDateTime finals_before;
+};
+
+/// What to read once the view starts ``view_from`` bars (a logical index, negative past the
+/// first bar) from its left end, where the bar starting at ``first`` is: nothing while it is
+/// kOlderMargin bars or more away, else the kOlderBars bars before it. With no bars yet
+/// (``first`` invalid), those before now.
+std::optional<OlderRead> older_read(const QDateTime& first, double view_from);
+
+/// ``older`` read before ``newer``, as one run of bars oldest first: a bar in both (the
+/// same start) is ``newer``'s.
+QList<Bar> join_bars(const QList<Bar>& older, const QList<Bar>& newer);
 
 } // namespace fincept::krx_quant

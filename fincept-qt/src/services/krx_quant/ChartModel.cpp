@@ -199,4 +199,21 @@ std::pair<double, double> fit_range(int bars) {
     return {static_cast<double>(std::max(0, bars - kFitBars)), last + kRightOffset};
 }
 
+std::optional<OlderRead> older_read(const QDateTime& first, double view_from) {
+    if (!first.isValid())
+        return OlderRead{};
+    if (view_from >= kOlderMargin)
+        return std::nullopt;
+    return OlderRead{first, kOlderBars, first.addSecs(60)};
+}
+
+QList<Bar> join_bars(const QList<Bar>& older, const QList<Bar>& newer) {
+    QMap<QDateTime, Bar> by_start;
+    for (const auto& b : older)
+        by_start.insert(b.start, b);
+    for (const auto& b : newer)
+        by_start.insert(b.start, b);
+    return by_start.values();
+}
+
 } // namespace fincept::krx_quant

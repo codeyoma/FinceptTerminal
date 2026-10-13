@@ -1,5 +1,6 @@
 #pragma once
 
+#include "services/krx_quant/ChartModel.h"
 #include "services/krx_quant/EngineData.h"
 
 #include <QDateTime>
@@ -74,6 +75,10 @@ class KrxQuantService : public QObject {
     void read_status();
     /// A symbol's 1-minute bars and final consensus over the day: chart_ready or chart_failed.
     void read_chart(const QString& symbol);
+    /// The bars that start before the chart's first one (``read.before``) and their final
+    /// consensus (krx-quant #108): older_ready or older_failed. Asked again while one is
+    /// read, it is not read: KrxLive asks again once that one answers.
+    void read_older(const QString& symbol, const krx_quant::OlderRead& read);
     /// Every prediction of one bar close (krx-quant #107) and the algorithms' statuses now:
     /// close_ready or close_failed.
     void read_close(const QString& symbol, const QDateTime& bar_close);
@@ -94,6 +99,9 @@ class KrxQuantService : public QObject {
     void chart_ready(const QString& symbol, const QList<fincept::krx_quant::Bar>& bars,
                      const QList<fincept::krx_quant::Prediction>& finals);
     void chart_failed(const QString& symbol, const QString& reason);
+    void older_ready(const QString& symbol, const QList<fincept::krx_quant::Bar>& bars,
+                     const QList<fincept::krx_quant::Prediction>& finals);
+    void older_failed(const QString& symbol, const QString& reason);
     void close_ready(const QString& symbol, const QDateTime& bar_close,
                      const QList<fincept::krx_quant::Prediction>& predictions, const QMap<QString, QString>& statuses);
     void close_failed(const QString& symbol, const QDateTime& bar_close, const QString& reason);
@@ -109,7 +117,7 @@ class KrxQuantService : public QObject {
   private:
     /// A step of a read: the answer to one GET, or why it failed.
     using Step = std::function<void(Result<QJsonDocument>)>;
-    enum Kind { kRefresh, kStatus, kChart, kLeaderboard, kMacro, kClose, kKinds };
+    enum Kind { kRefresh, kStatus, kChart, kLeaderboard, kMacro, kClose, kOlder, kKinds };
 
     /// Start a read of ``kind`` unless one is under way; false if skipped.
     bool begin(Kind kind);
