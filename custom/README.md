@@ -87,7 +87,7 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/src/screens/settings/LlmConfigSection_Profiles.cpp` | LLM 프로필의 provider 목록에서 로컬 CLI provider를 뺀다(프로필은 Python 에이전트가 쓰고, Python 에이전트는 CLI를 부르지 못한다) |
 | `fincept-qt/src/services/alpha_arena/ArenaModelRegistry.cpp` | Alpha Arena 모델 목록에서 로컬 CLI provider를 뺀다(Arena는 provider API를 직접 부른다) |
 | `fincept-qt/src/mcp/ProviderToolFormatSelfTest.cpp` | provider별 endpoint 자가 검사에서 로컬 CLI provider를 건너뛴다(endpoint가 없다) |
-| `.github/workflows/build-cpp.yml` | 수동 전체 플랫폼 빌드를 다시 통과시킨다(codeyoma/krx-quant#136): Windows ARM64는 qtwebengine 없는 Qt 모듈 목록(Qt 6.8.3에 그 대상의 qtwebengine이 없다)과 `arm64-windows` vcpkg triplet, macOS x64는 교차 컴파일 대신 Intel runner(`macos-15-intel`, 같은 아키텍처의 Homebrew OpenSSL, self-test도 돈다), 패키징의 `sync_scripts.sh`는 저장소 루트 경로(`${GITHUB_WORKSPACE}`), macOS Universal 작업은 그 스크립트를 sparse checkout, Linux 기본 아이콘을 만들 때 Pillow 설치. 개인 배포 `custom-release.yml`은 그대로다 |
+| `.github/workflows/build-cpp.yml` | 수동 전체 플랫폼 빌드를 다시 통과시킨다(codeyoma/krx-quant#136): Windows ARM64는 qtwebengine 없는 Qt 모듈 목록(Qt 6.8.3에 그 대상의 qtwebengine이 없다)과 `arm64-windows` vcpkg triplet, macOS x64는 교차 컴파일 대신 Intel runner(`macos-15-intel`, 같은 아키텍처의 Homebrew OpenSSL, self-test도 돈다), 패키징의 `sync_scripts.sh`는 저장소 루트 경로(`${GITHUB_WORKSPACE}`), macOS Universal 작업은 그 스크립트를 sparse checkout, Linux 기본 아이콘을 만들 때 Pillow 설치, macOS 앱에는 실행에 쓰는 Python 버전 하나만 넣는다(runner의 `Python.framework`에는 여러 버전이 있고, 서명은 `Current`만 되어 검증이 실패했다). 개인 배포 `custom-release.yml`은 그대로다 |
 
 > **바뀜** (2026-10-12, krx-quant #94): KRX 테스트 등록을 `fincept-qt/tests/CMakeLists.txt` 끝에 붙였다 → `krx_quant.cmake`로 옮기고 `fincept_add_test()` 정의 뒤에서 include 한다. 이유: upstream도 파일 끝에 테스트를 붙여서, v4.5.0 이후 upstream `main`을 merge 하면 충돌했다. 자동 반영이 멈추지 않게 하려고(krx-quant #93).
 
