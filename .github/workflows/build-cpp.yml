@@ -813,6 +813,9 @@ jobs:
           if [ -f "resources/icons/app_icon_256.png" ]; then
             cp resources/icons/app_icon_256.png "${ICON_DEST}"
           else
+            # fork addition (codeyoma/krx-quant#136): the setup-python interpreter
+            # on PATH has no Pillow (the runner's system Python did).
+            python3 -m pip install --quiet Pillow
             python3 -c 'import sys; from PIL import Image, ImageDraw, ImageFont; img=Image.new("RGBA",(256,256),(26,26,46,255)); d=ImageDraw.Draw(img); f=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",96) if __import__("os").path.exists("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf") else ImageFont.load_default(); d.text((128,128),"FT",fill=(255,255,255,255),font=f,anchor="mm"); img.save(sys.argv[1],"PNG")' "${ICON_DEST}"
           fi
           # Verify the file is a valid PNG before handing it to linuxdeploy.

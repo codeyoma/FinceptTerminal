@@ -339,11 +339,20 @@ endif()
 # ── GCC / Clang warning flags ────────────────────────────────────────────────
 # Mirror MSVC /W4 + /permissive- behavior on Unix compilers.
 # -Werror only in CI so local iteration isn't blocked.
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+# fork addition (codeyoma/krx-quant#136): not under clang-cl (MSVC is set, the ID is
+# Clang), which takes the MSVC flags above: there -Wall means -Weverything, and the
+# Windows ARM64 build failed on every C++98-compat note.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
     add_compile_options(-Wall -Wextra -Wpedantic)
     if(DEFINED ENV{CI})
         add_compile_options(-Werror)
     endif()
+endif()
+# fork addition (codeyoma/krx-quant#136): clang-cl warns that a unity source's
+# CMAKE_UNITY_CONFIG_<CONFIG> define differs from the precompiled header's, which
+# /WX made an error. The define only names the unity batch's configuration.
+if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-Wno-clang-cl-pch)
 endif()
 
 # Suppress Windows min/max macros that break std::min/std::max in unity batches

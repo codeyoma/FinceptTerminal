@@ -72,7 +72,7 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/src/app/DockScreenRouter.cpp` | `krx_quant` 탭 제목 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/ToolBar.cpp` | Navigate → Trading & Portfolio 메뉴에 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/CommandBar.cpp` | 명령 팔레트에 `krx_quant` ("krx"로 찾는다) |
-| `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`), 윈도우 설치 프로그램의 기본 폴더 `CPACK_IFW_TARGET_DIRECTORY`(사용자 폴더, codeyoma/krx-quant#130), 한국어 언어 팩 `translations/fincept_ko_KR.ts`의 컴파일·리소스 포함 |
+| `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`), 윈도우 설치 프로그램의 기본 폴더 `CPACK_IFW_TARGET_DIRECTORY`(사용자 폴더, codeyoma/krx-quant#130), 한국어 언어 팩 `translations/fincept_ko_KR.ts`의 컴파일·리소스 포함, clang-cl(Windows ARM64)에서 GCC/Clang 경고 묶음을 빼고 `-Wno-clang-cl-pch`(codeyoma/krx-quant#136) |
 | `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`, `tst_krx_korean`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
 | `fincept-qt/src/core/i18n/LanguageManager.cpp` | 공용 언어 목록에 `ko_KR`, 언어 이름에 `한국어`를 추가한다(codeyoma/krx-quant#132). 설정 화면과 로그인 언어 선택이 이 목록을 그대로 쓴다 |
 | `fincept-qt/src/core/currency/CurrencyManager.cpp` | 기존 표시 통화 목록에 `KRW`·`₩`·`South Korean Won`을 추가한다(codeyoma/krx-quant#138). 설정 화면과 표시 기호 helper가 같은 목록을 쓴다 |
@@ -87,7 +87,7 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/src/screens/settings/LlmConfigSection_Profiles.cpp` | LLM 프로필의 provider 목록에서 로컬 CLI provider를 뺀다(프로필은 Python 에이전트가 쓰고, Python 에이전트는 CLI를 부르지 못한다) |
 | `fincept-qt/src/services/alpha_arena/ArenaModelRegistry.cpp` | Alpha Arena 모델 목록에서 로컬 CLI provider를 뺀다(Arena는 provider API를 직접 부른다) |
 | `fincept-qt/src/mcp/ProviderToolFormatSelfTest.cpp` | provider별 endpoint 자가 검사에서 로컬 CLI provider를 건너뛴다(endpoint가 없다) |
-| `.github/workflows/build-cpp.yml` | 수동 전체 플랫폼 빌드를 다시 통과시킨다(codeyoma/krx-quant#136): Windows ARM64는 qtwebengine 없는 Qt 모듈 목록(Qt 6.8.3에 그 대상의 qtwebengine이 없다)과 `arm64-windows` vcpkg triplet, macOS x64는 교차 컴파일 대신 Intel runner(`macos-15-intel`, 같은 아키텍처의 Homebrew OpenSSL, self-test도 돈다), 패키징의 `sync_scripts.sh`는 저장소 루트 경로(`${GITHUB_WORKSPACE}`), macOS Universal 작업은 그 스크립트를 sparse checkout. 개인 배포 `custom-release.yml`은 그대로다 |
+| `.github/workflows/build-cpp.yml` | 수동 전체 플랫폼 빌드를 다시 통과시킨다(codeyoma/krx-quant#136): Windows ARM64는 qtwebengine 없는 Qt 모듈 목록(Qt 6.8.3에 그 대상의 qtwebengine이 없다)과 `arm64-windows` vcpkg triplet, macOS x64는 교차 컴파일 대신 Intel runner(`macos-15-intel`, 같은 아키텍처의 Homebrew OpenSSL, self-test도 돈다), 패키징의 `sync_scripts.sh`는 저장소 루트 경로(`${GITHUB_WORKSPACE}`), macOS Universal 작업은 그 스크립트를 sparse checkout, Linux 기본 아이콘을 만들 때 Pillow 설치. 개인 배포 `custom-release.yml`은 그대로다 |
 
 > **바뀜** (2026-10-12, krx-quant #94): KRX 테스트 등록을 `fincept-qt/tests/CMakeLists.txt` 끝에 붙였다 → `krx_quant.cmake`로 옮기고 `fincept_add_test()` 정의 뒤에서 include 한다. 이유: upstream도 파일 끝에 테스트를 붙여서, v4.5.0 이후 upstream `main`을 merge 하면 충돌했다. 자동 반영이 멈추지 않게 하려고(krx-quant #93).
 
