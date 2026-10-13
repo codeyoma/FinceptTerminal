@@ -25,7 +25,6 @@ namespace fincept::krx_quant::cli_llm {
 namespace {
 
 constexpr int kStartTimeoutMs = 15000;
-constexpr int kLoginShellTimeoutMs = 3000;
 constexpr int kProbeTimeoutMs = 20000;
 
 QString install_hint(const QString& provider) {
@@ -35,6 +34,8 @@ QString install_hint(const QString& provider) {
 }
 
 #ifndef Q_OS_WIN
+constexpr int kLoginShellTimeoutMs = 3000;
+
 /// The login shell's PATH: where Homebrew, npm and the CLI installers put their programs.
 QStringList login_shell_path() {
     QString shell = qEnvironmentVariable("SHELL");

@@ -35,6 +35,11 @@ jobs:
             artifact: FinceptTerminal-Windows-arm64
             exe: FinceptTerminal.exe
             qt_arch: win64_msvc2022_arm64_cross_compiled
+            # fork addition (codeyoma/krx-quant#136): Qt 6.8.3 has no qtwebengine for
+            # this target (`aqt list-qt windows desktop --modules 6.8.3
+            # win64_msvc2022_arm64_cross_compiled`); CMake builds without it
+            # (WebEngine is optional there).
+            qt_modules: "qtcharts qtwebsockets qtmultimedia qtwebchannel qtpositioning qtserialport"
             cmake_extra: "-A ARM64"
 
           # ---- Linux x64 ----
@@ -61,16 +66,8 @@ jobs:
             qt_arch: clang_64
             cmake_extra: "-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0"
 
-          # ---- macOS x64 (Intel) ----
-          # Cross-compiled on ARM64 runner. CMakeLists.txt auto-disables GGML_NATIVE
-          # and GGML_METAL when CMAKE_OSX_ARCHITECTURES != host processor.
-          - os: macos-15
-            arch: x64
-            platform: macOS
-            artifact: FinceptTerminal-macOS-x64
-            exe: FinceptTerminal
-            qt_arch: clang_64
-            cmake_extra: "-DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0"
+          # fork addition (codeyoma/krx-quant#136): no macOS x64 (Intel) target.
+          # This build does not support Intel Macs; macOS is Apple Silicon only.
 
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.platform }} ${{ matrix.arch }}
@@ -144,9 +141,12 @@ jobs:
           VCPKG_ROOT="${VCPKG_INSTALLATION_ROOT:-C:/vcpkg}"
           VCPKG_ROOT="${VCPKG_ROOT//\\//}"   # backslashes -> forward slashes (the v4.1.0 bug)
           echo "Using vcpkg at: $VCPKG_ROOT"
-          "$VCPKG_ROOT/vcpkg" install openssl:x64-windows zlib:x64-windows-static-md --no-print-usage
-          OPENSSL_DIR="$VCPKG_ROOT/installed/x64-windows"
-          ZLIB_DIR="$VCPKG_ROOT/installed/x64-windows-static-md"
+          # fork addition (codeyoma/krx-quant#136): the target's triplet (x64 or
+          # arm64), not always x64: an ARM64 build cannot link x64 OpenSSL/zlib.
+          TRIPLET="${{ matrix.arch }}-windows"
+          "$VCPKG_ROOT/vcpkg" install "openssl:$TRIPLET" "zlib:$TRIPLET-static-md" --no-print-usage
+          OPENSSL_DIR="$VCPKG_ROOT/installed/$TRIPLET"
+          ZLIB_DIR="$VCPKG_ROOT/installed/$TRIPLET-static-md"
           echo "OPENSSL_ROOT_DIR=$OPENSSL_DIR" >> "$GITHUB_ENV"
           echo "ZLIB_ROOT=$ZLIB_DIR" >> "$GITHUB_ENV"
           echo "OpenSSL installed at: $OPENSSL_DIR ; static zlib at: $ZLIB_DIR"
@@ -173,7 +173,7 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           arch: ${{ matrix.qt_arch }}
-          modules: ${{ env.QT_MODULES }}
+          modules: ${{ matrix.qt_modules || env.QT_MODULES }}
           cache: true
           cache-key-prefix: qt-${{ matrix.platform }}-${{ matrix.arch }}
 
@@ -185,7 +185,7 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           arch: win64_msvc2022_64
-          modules: ${{ env.QT_MODULES }}
+          modules: ${{ matrix.qt_modules || env.QT_MODULES }}
           cache: true
           set-env: false
           dir: "${{ runner.temp }}/qt-host"
@@ -351,6 +351,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
+          # fork addition (codeyoma/krx-quant#136): the PE machine a DLL or EXE is built
+          # for, in hex: 8664 x64, aa64 ARM64.
+          pe_machine() {
+            local pe_offset
+            pe_offset=$(od -An -tu4 -j60 -N4 "$1" | tr -d ' ')
+            od -An -tx2 -j$((pe_offset + 4)) -N2 "$1" | tr -d ' '
+          }
+          case "${{ matrix.arch }}" in
+            arm64) WANT_MACHINE="aa64" ;;
+            *)     WANT_MACHINE="8664" ;;
+          esac
 
           # Copy main executable
           cp build/Release/${{ matrix.exe }} dist/
@@ -373,9 +384,17 @@ jobs:
             WDQT="${QT_ROOT_DIR}/../msvc2022_64/bin/windeployqt.exe"
           fi
 
+          # fork addition (codeyoma/krx-quant#136): the x64 host windeployqt deploys
+          # its own (x64) Qt unless it reads the ARM64 kit's qtpaths.
+          WDQT_ARGS=()
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            [ -f "${QT_ROOT_DIR}/bin/qtpaths.bat" ] || { echo "::error::no qtpaths.bat in the ARM64 kit"; ls "${QT_ROOT_DIR}/bin"; exit 1; }
+            WDQT_ARGS+=(--qtpaths "${QT_ROOT_DIR}/bin/qtpaths.bat")
+          fi
+
           if [ -f "$WDQT" ]; then
-            echo "Running windeployqt: $WDQT"
-            "$WDQT" \
+            echo "Running windeployqt: $WDQT ${WDQT_ARGS[*]}"
+            "$WDQT" ${WDQT_ARGS[@]+"${WDQT_ARGS[@]}"} \
               --release \
               --no-translations \
               --compiler-runtime \
@@ -419,6 +438,15 @@ jobs:
               echo "Copied ${ssl_dll}"
             fi
           done
+          # fork addition (codeyoma/krx-quant#136): Qt 6.8.3 does not ship OpenSSL, so
+          # the loop above copied nothing and neither package had it, though the app
+          # links libcrypto. Take the target's DLLs from vcpkg (OPENSSL_ROOT_DIR is the
+          # matrix arch's triplet: libcrypto-3-x64.dll or libcrypto-3-arm64.dll).
+          for ssl_dll in "${OPENSSL_ROOT_DIR}"/bin/libcrypto-3*.dll "${OPENSSL_ROOT_DIR}"/bin/libssl-3*.dll; do
+            [ -f "${ssl_dll}" ] || { echo "::error::OpenSSL DLL not found: ${ssl_dll}"; exit 1; }
+            cp "${ssl_dll}" dist/
+            echo "Copied $(basename "${ssl_dll}") from vcpkg"
+          done
 
           # zlib — the app now links zlib STATICALLY (x64-windows-static-md), so
           # there is no runtime zlib DLL to ship. This loop is a harmless fallback
@@ -439,6 +467,23 @@ jobs:
           # from System32 as a fallback for anything missed.
           # msvcp170 / vcruntime140_2 are the VS2022 v17.x toolset DLLs.
           # ----------------------------------------------------------------
+          # fork addition (codeyoma/krx-quant#136): on ARM64, from Visual Studio's ARM64
+          # redist folder. The runner is x64, so its System32 holds x64 DLLs.
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            VCRT_DIR="$(ls -d "/c/Program Files/Microsoft Visual Studio/"*/*/VC/Redist/MSVC/*/arm64/Microsoft.VC14*.CRT 2>/dev/null | sort -V | tail -1)"
+            [ -n "${VCRT_DIR}" ] || { echo "::error::ARM64 Visual C++ runtime not found"; exit 1; }
+            echo "ARM64 Visual C++ runtime from: ${VCRT_DIR}"
+            for vcrt_dll in "${VCRT_DIR}"/*.dll; do
+              # The folder also holds ARM64EC DLLs (vcruntime140_1.dll, x64 exception
+              # handling) that a native ARM64 app never loads.
+              if [ "$(pe_machine "${vcrt_dll}")" != "${WANT_MACHINE}" ]; then
+                echo "Skipped $(basename "${vcrt_dll}"): not native ARM64"
+                continue
+              fi
+              cp "${vcrt_dll}" dist/
+              echo "Copied MSVC runtime $(basename "${vcrt_dll}")"
+            done
+          else
           for vcrt_dll in \
             vcruntime140.dll vcruntime140_1.dll vcruntime140_2.dll \
             msvcp140.dll msvcp140_1.dll msvcp140_2.dll \
@@ -450,6 +495,7 @@ jobs:
               echo "Copied MSVC runtime ${vcrt_dll}"
             fi
           done
+          fi
 
           # ----------------------------------------------------------------
           # Qt Platform Plugin — mandatory, app won't start without it
@@ -627,7 +673,26 @@ jobs:
           # Copy app resources and Python analytics scripts
           # ----------------------------------------------------------------
           cp -r resources dist/resources 2>/dev/null || true
-          bash .github/scripts/sync_scripts.sh scripts dist/scripts
+          bash "${GITHUB_WORKSPACE}/.github/scripts/sync_scripts.sh" scripts dist/scripts  # fork addition (codeyoma/krx-quant#136): from the repository root
+
+          # ----------------------------------------------------------------
+          # fork addition (codeyoma/krx-quant#136): the executable and every DLL it
+          # can load are built for the target (PE machine 0x8664 x64, 0xAA64 ARM64).
+          # One of the wrong architecture stops the app from starting, and the ARM64
+          # build is not run in CI. scripts/ and resources/ are left out: programs
+          # there run as their own processes.
+          # ----------------------------------------------------------------
+          WRONG_ARCH=0
+          while IFS= read -r -d '' pe_file; do
+            machine=$(pe_machine "${pe_file}")
+            if [ "${machine}" != "${WANT_MACHINE}" ]; then
+              echo "::error::${pe_file} is built for machine 0x${machine}, not 0x${WANT_MACHINE}"
+              WRONG_ARCH=1
+            fi
+          done < <(find dist -path dist/scripts -prune -o -path dist/resources -prune -o \
+                     -type f \( -iname '*.dll' -o -iname '*.exe' \) -print0)
+          [ "${WRONG_ARCH}" -eq 0 ] || exit 1
+          echo "The executable and its DLLs are all built for 0x${WANT_MACHINE}."
 
           # ----------------------------------------------------------------
           # Final diagnostic — list everything that will be zipped
@@ -692,26 +757,52 @@ jobs:
           # ── Stage resources INSIDE the bundle (not as siblings) ───────────
           mkdir -p "${APP_BUNDLE}/Contents/Resources"
           cp -r resources "${APP_BUNDLE}/Contents/Resources/" 2>/dev/null || true
-          bash .github/scripts/sync_scripts.sh scripts "${APP_BUNDLE}/Contents/Resources/scripts"
+          bash "${GITHUB_WORKSPACE}/.github/scripts/sync_scripts.sh" scripts "${APP_BUNDLE}/Contents/Resources/scripts"  # fork addition (codeyoma/krx-quant#136)
 
           # ── Embed Python.framework (tag builds only — skip on push) ───────
           if [ "$IS_TAG" = "true" ]; then
+            PY_VER="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
             PY_FRAMEWORK=""
             for candidate in \
               "/Library/Frameworks/Python.framework" \
               "$(brew --prefix python@3.12 2>/dev/null)/Frameworks/Python.framework" \
               "$(brew --prefix python3 2>/dev/null)/Frameworks/Python.framework"; do
-              [ -d "${candidate}/Versions" ] && { PY_FRAMEWORK="${candidate}"; break; }
+              [ -d "${candidate}/Versions/${PY_VER}" ] && { PY_FRAMEWORK="${candidate}"; break; }
             done
             BUNDLE_FRAMEWORKS="${APP_BUNDLE}/Contents/Frameworks"
             mkdir -p "${BUNDLE_FRAMEWORKS}"
             if [ -n "${PY_FRAMEWORK}" ]; then
-              echo "Embedding Python.framework from: ${PY_FRAMEWORK}"
-              rsync -a --copy-unsafe-links "${PY_FRAMEWORK}/" "${BUNDLE_FRAMEWORKS}/Python.framework/" 2>/dev/null || \
-                cp -R "${PY_FRAMEWORK}" "${BUNDLE_FRAMEWORKS}/" 2>/dev/null || true
-              find "${BUNDLE_FRAMEWORKS}/Python.framework" -name "PrivateHeaders" -type l \
+              echo "Embedding Python ${PY_VER} from: ${PY_FRAMEWORK}"
+              # fork addition (codeyoma/krx-quant#136): copy only the version the
+              # bundle runs. The runner's /Library/Frameworks/Python.framework holds
+              # every tool-cache Python (3.11 … 3.14); codesign --deep signs only
+              # Versions/Current, so the others failed --verify --strict with
+              # "embedded framework contains modified or invalid version".
+              # Tcl/Tk's PrivateHeaders are dangling links: rsync cannot stat them
+              # and exits 23 (partial transfer), even with --exclude. That exit is
+              # allowed when those are its only errors; anything else fails the
+              # step (the copy used to hide every error with || cp -R ... || true).
+              BUNDLE_PY="${BUNDLE_FRAMEWORKS}/Python.framework"
+              mkdir -p "${BUNDLE_PY}/Versions"
+              RSYNC_ERR="${RUNNER_TEMP}/python-framework-rsync.err"
+              rsync -a --copy-unsafe-links \
+                "${PY_FRAMEWORK}/Versions/${PY_VER}/" "${BUNDLE_PY}/Versions/${PY_VER}/" 2>"${RSYNC_ERR}" || {
+                status=$?
+                cat "${RSYNC_ERR}"
+                if [ "${status}" -ne 23 ] || grep -v '/PrivateHeaders: stat: No such file or directory$' "${RSYNC_ERR}" | grep -q .; then
+                  echo "::error::Copying Python.framework failed (rsync exit ${status})"
+                  exit "${status}"
+                fi
+                echo "Skipped the dangling PrivateHeaders links above."
+              }
+              find "${BUNDLE_PY}" -name "PrivateHeaders" -type l \
                 ! -exec test -e {} \; -delete 2>/dev/null || true
-              PY_VER="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+              ln -sfn "${PY_VER}" "${BUNDLE_PY}/Versions/Current"
+              for item in Python Headers Resources; do
+                if [ -e "${BUNDLE_PY}/Versions/${PY_VER}/${item}" ]; then
+                  ln -sfn "Versions/Current/${item}" "${BUNDLE_PY}/${item}"
+                fi
+              done
               ln -sf "../Frameworks/Python.framework/Versions/${PY_VER}/bin/python${PY_VER}" \
                      "${APP_BUNDLE}/Contents/MacOS/python3" 2>/dev/null || true
             else
@@ -779,7 +870,7 @@ jobs:
 
           # Copy resources and scripts inside AppDir
           cp -r resources AppDir/usr/bin/resources 2>/dev/null || true
-          bash .github/scripts/sync_scripts.sh scripts AppDir/usr/bin/scripts
+          bash "${GITHUB_WORKSPACE}/.github/scripts/sync_scripts.sh" scripts AppDir/usr/bin/scripts  # fork addition (codeyoma/krx-quant#136)
 
           # Desktop entry (required by linuxdeploy)
           cat > AppDir/usr/share/applications/fincept-terminal.desktop <<'EOF'
@@ -801,6 +892,9 @@ jobs:
           if [ -f "resources/icons/app_icon_256.png" ]; then
             cp resources/icons/app_icon_256.png "${ICON_DEST}"
           else
+            # fork addition (codeyoma/krx-quant#136): the setup-python interpreter
+            # on PATH has no Pillow (the runner's system Python did).
+            python3 -m pip install --quiet Pillow
             python3 -c 'import sys; from PIL import Image, ImageDraw, ImageFont; img=Image.new("RGBA",(256,256),(26,26,46,255)); d=ImageDraw.Draw(img); f=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",96) if __import__("os").path.exists("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf") else ImageFont.load_default(); d.text((128,128),"FT",fill=(255,255,255,255),font=f,anchor="mm"); img.save(sys.argv[1],"PNG")' "${ICON_DEST}"
           fi
           # Verify the file is a valid PNG before handing it to linuxdeploy.
@@ -922,88 +1016,15 @@ jobs:
           path: ${{ runner.os == 'macOS' && 'fincept-qt/dist.tar.gz' || 'fincept-qt/dist/' }}
           retention-days: 30
 
-  # ---- macOS Universal Binary ----
-  macos-universal:
-    needs: build
-    runs-on: macos-15
-    name: macOS Universal
-    # Only run if ALL build matrix jobs succeeded (not just "didn't fail")
-    if: "!cancelled() && needs.build.result == 'success'"
-
-    steps:
-      - name: Download macOS arm64
-        uses: actions/download-artifact@v4
-        with:
-          name: FinceptTerminal-macOS-arm64
-          path: arm64-dl
-
-      - name: Download macOS x64
-        uses: actions/download-artifact@v4
-        with:
-          name: FinceptTerminal-macOS-x64
-          path: x64-dl
-
-      - name: Extract macOS artifacts
-        run: |
-          # Artifacts were uploaded as dist.tar.gz to preserve execute permissions
-          mkdir -p arm64 x64
-          tar -xzf arm64-dl/dist.tar.gz -C arm64
-          tar -xzf x64-dl/dist.tar.gz  -C x64
-
-      - name: Create Universal Binary
-        run: |
-          # Locate the binary — may be inside a .app bundle or at the top level
-          find_bin() {
-            local base="$1"
-            if [ -f "$base/FinceptTerminal" ]; then
-              echo "$base/FinceptTerminal"
-            elif [ -f "$base/FinceptTerminal.app/Contents/MacOS/FinceptTerminal" ]; then
-              echo "$base/FinceptTerminal.app/Contents/MacOS/FinceptTerminal"
-            else
-              echo "::error::Cannot find FinceptTerminal binary under $base" >&2
-              find "$base" -type f | head -20 >&2
-              exit 1
-            fi
-          }
-          ARM64_BIN=$(find_bin arm64)
-          X64_BIN=$(find_bin x64)
-          echo "arm64 binary: $ARM64_BIN"
-          echo "x64   binary: $X64_BIN"
-
-          # Verify the two binaries are actually different architectures before lipo
-          ARM64_ARCH=$(lipo -archs "$ARM64_BIN")
-          X64_ARCH=$(lipo -archs "$X64_BIN")
-          echo "arm64 artifact arch: $ARM64_ARCH"
-          echo "x64   artifact arch: $X64_ARCH"
-          if [ "$ARM64_ARCH" = "$X64_ARCH" ]; then
-            echo "::error::Both binaries report the same architecture ($ARM64_ARCH) — cannot create universal binary" >&2
-            exit 1
-          fi
-
-          mkdir -p dist
-          lipo -create "$ARM64_BIN" "$X64_BIN" -output dist/FinceptTerminal
-          chmod +x dist/FinceptTerminal
-          cp -r arm64/resources dist/resources 2>/dev/null || true
-          bash .github/scripts/sync_scripts.sh arm64/scripts dist/scripts
-          file dist/FinceptTerminal
-          lipo -info dist/FinceptTerminal
-          ls -lh dist/FinceptTerminal
-          # Tar to preserve execute permissions
-          tar -czf dist.tar.gz -C dist .
-
-      - name: Upload Universal artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: FinceptTerminal-macOS-universal
-          path: dist.tar.gz
-          retention-days: 30
+  # fork addition (codeyoma/krx-quant#136): no macOS Universal job. It merged the
+  # arm64 and x64 builds, and there is no x64 build (no Intel Macs).
 
   # ---- Release ----
   release:
-    needs: [build, macos-universal]
+    needs: [build]  # fork addition (codeyoma/krx-quant#136): no macos-universal job
     runs-on: ubuntu-latest
     name: Create Release
-    if: "!cancelled() && needs.build.result == 'success' && needs.macos-universal.result == 'success' && startsWith(github.ref, 'refs/tags/')"
+    if: "!cancelled() && needs.build.result == 'success' && startsWith(github.ref, 'refs/tags/')"
     permissions:
       contents: write
 
@@ -1060,17 +1081,13 @@ jobs:
             - `FinceptTerminal-Linux-x86_64.AppImage.zsync` — Delta update file (used by auto-updater)
 
             **macOS**
-            - `FinceptTerminal-macOS-universal.tar.gz` — macOS Universal (ARM64 + Intel)
             - `FinceptTerminal-macOS-arm64.tar.gz` — macOS Apple Silicon
-            - `FinceptTerminal-macOS-x64.tar.gz` — macOS Intel
           files: |
             FinceptTerminal-Windows-x64.zip
             FinceptTerminal-Windows-arm64.zip
             FinceptTerminal-Linux-x86_64.AppImage
             FinceptTerminal-Linux-x86_64.AppImage.zsync
             FinceptTerminal-macOS-arm64.tar.gz
-            FinceptTerminal-macOS-x64.tar.gz
-            FinceptTerminal-macOS-universal.tar.gz
           fail_on_unmatched_files: false
           draft: false
           prerelease: false
