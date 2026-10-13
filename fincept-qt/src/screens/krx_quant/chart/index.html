@@ -65,6 +65,8 @@
   // first (KrxLive::select), and its first bars are fitted again.
   let shown = false;
   function show(data) {
+    // Day candles (krx-quant #111) are dated: the axis and the crosshair show no time.
+    chart.applyOptions({ timeScale: { timeVisible: !data.day } });
     bars = data.bars;
     barAt = new Map(bars.map((b, i) => [b.time, i]));
     iconAt = new Map(data.icons.map((i) => [String(i.time), i]));

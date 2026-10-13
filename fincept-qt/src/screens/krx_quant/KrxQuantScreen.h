@@ -72,7 +72,7 @@ class KrxQuantScreen : public QWidget {
     QLabel* chart_failure_ = nullptr; ///< on the chart's header, while the bars cannot be read
     KrxChart* chart_ = nullptr;
     QWidget* chart_views_ = nullptr;       ///< the row of view buttons above the chart
-    QList<QPushButton*> view_buttons_;     ///< in kMinuteViews' order
+    QList<QPushButton*> view_buttons_;     ///< the minute views', then the day view's (property "view")
     int minutes_ = 1;                      ///< the chart's view
     krx_panel::Header predictions_header_; ///< titled with the bar close and the countdown
     QTableWidget* predictions_table_ = nullptr;

@@ -137,11 +137,11 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     chart_ = new KrxChart;
     // The view's buttons in a row above the chart (krx-quant #109), as Fincept's portfolio
     // chart has its periods: checkable, the chosen one filled amber. The choice is kept.
+    // The minute views, then the day view (krx-quant #111).
+    QList<int> chart_views(krx_quant::kMinuteViews.begin(), krx_quant::kMinuteViews.end());
+    chart_views << krx_quant::kDayView;
     const int kept = AppConfig::instance().get(kChartViewKey, 1).toInt();
-    minutes_ =
-        std::find(krx_quant::kMinuteViews.begin(), krx_quant::kMinuteViews.end(), kept) != krx_quant::kMinuteViews.end()
-            ? kept
-            : 1;
+    minutes_ = chart_views.contains(kept) ? kept : 1;
     chart_views_ = new QWidget;
     // Its width never widens the chart's panel: the buttons past a narrow panel are cut off.
     chart_views_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
@@ -149,13 +149,19 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     views->setContentsMargins(6, 3, 6, 3);
     views->setSpacing(2);
     views->addWidget(new QLabel(tr("분")));
-    for (const int minutes : krx_quant::kMinuteViews) {
-        auto* button = new QPushButton(QString::number(minutes)); // after the row's "분"
+    for (const int minutes : chart_views) {
+        const bool day = minutes == krx_quant::kDayView;
+        if (day)
+            views->addSpacing(6); // apart from the minutes
+        // The minute views by their number, after the row's "분".
+        auto* button = new QPushButton(day ? tr("일") : QString::number(minutes));
         button->setCheckable(true);
         button->setChecked(minutes == minutes_);
         button->setFocusPolicy(Qt::NoFocus);
-        button->setToolTip(minutes == 1 ? tr("1분봉과 최종 합의 아이콘")
-                                        : tr("1분봉을 %1분씩 묶은 봉. 아이콘은 1분 보기에만 있다.").arg(minutes));
+        button->setToolTip(day            ? tr("일봉. 오늘 봉은 오늘의 1분봉으로 만든다.")
+                           : minutes == 1 ? tr("1분봉과 최종 합의 아이콘")
+                                          : tr("1분봉을 %1분씩 묶은 봉. 아이콘은 1분 보기에만 있다.").arg(minutes));
+        button->setProperty("view", minutes);
         connect(button, &QPushButton::clicked, this, [this, minutes]() { set_view(minutes); });
         view_buttons_ << button;
         views->addWidget(button);
@@ -221,7 +227,11 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         fill_predictions();
         fill_chart();
     });
-    connect(live_, &services::KrxLive::live_changed, this, [this]() { chart_->update_live(live_->bars(), minutes_); });
+    connect(live_, &services::KrxLive::live_changed, this, [this]() {
+        // The day view's last candle is today's, made of the day's bars (krx-quant #111).
+        const bool day = minutes_ == krx_quant::kDayView;
+        chart_->update_live(day ? live_->day_bars() : live_->bars(), minutes_, live_->candle_venue());
+    });
     connect(live_, &services::KrxLive::chart_changed, this, [this]() {
         chart_failure_->hide();
         fill_chart();
@@ -233,7 +243,9 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     });
     connect(live_, &services::KrxLive::older_failed, this, [this](const QString& reason) {
         // The bars shown stay; scrolling to the left end again asks again.
-        chart_failure_->setToolTip(tr("지난 1분봉을 읽지 못했습니다: %1").arg(reason));
+        chart_failure_->setToolTip(minutes_ == krx_quant::kDayView
+                                       ? tr("일봉을 읽지 못했습니다: %1").arg(reason)
+                                       : tr("지난 1분봉을 읽지 못했습니다: %1").arg(reason));
         chart_failure_->show();
     });
     connect(live_, &services::KrxLive::macro_changed, this, [this]() { show_macro(); });
@@ -264,6 +276,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(fit, &QPushButton::clicked, chart_, &KrxChart::fit);
     connect(chart_, &KrxChart::icon_clicked, this, [this](const QDateTime& bar_close) { live_->pin(bar_close); });
     connect(chart_, &KrxChart::view_moved, this, [this](double from) { live_->view_from(from, minutes_); });
+    live_->set_view(minutes_); // the view kept from before
     connect(latest_, &QPushButton::clicked, this, [this]() { live_->pin({}); });
     connect(live_, &services::KrxLive::pinned_changed, this, [this]() {
         predictions_header_.title->setToolTip({}); // a failed read's reason, now stale
@@ -585,15 +598,18 @@ void KrxQuantScreen::fill_predictions() {
 void KrxQuantScreen::set_view(int minutes) {
     minutes_ = minutes;
     AppConfig::instance().set(kChartViewKey, minutes);
-    for (int i = 0; i < view_buttons_.size(); ++i)
-        view_buttons_[i]->setChecked(krx_quant::kMinuteViews[static_cast<size_t>(i)] == minutes);
+    for (auto* button : view_buttons_)
+        button->setChecked(button->property("view").toInt() == minutes);
+    live_->set_view(minutes);
     fill_chart();
     chart_->fit(); // the last 60 bars of the new view
 }
 
 void KrxQuantScreen::fill_chart() {
     const QString& symbol = live_->selected();
+    const bool day = minutes_ == krx_quant::kDayView;
     chart_header_.title->setText(symbol.isEmpty() ? tr("차트")
+                                 : day            ? tr("%1 · 일봉").arg(symbol)
                                  : minutes_ == 1  ? tr("%1 · 1분봉과 최종 합의").arg(symbol)
                                                   : tr("%1 · %2분봉").arg(symbol).arg(minutes_));
     if (symbol.isEmpty()) {
@@ -601,7 +617,8 @@ void KrxQuantScreen::fill_chart() {
         return;
     }
     const QString basis = leaderboard_->query().basis;
-    chart_->set_data(live_->bars(), live_->board().marks(symbol, basis), basis, alerts_->rule(), minutes_);
+    chart_->set_data(day ? live_->day_candles() : live_->bars(), live_->board().marks(symbol, basis), basis,
+                     alerts_->rule(), minutes_);
 }
 
 void KrxQuantScreen::open_detail(const QString& algorithm) {

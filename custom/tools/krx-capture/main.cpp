@@ -50,11 +50,12 @@ int main(int argc, char* argv[]) {
             QMetaObject::invokeMethod(leaderboard, "detail_requested", Q_ARG(QString, predictor));
     }
 
-    // KRX_CAPTURE_VIEW=<minutes>: as a click on the chart's view button (krx-quant #109). The
-    // choice stays in the scratch settings, so the next capture opens on it.
+    // KRX_CAPTURE_VIEW=<minutes>: as a click on the chart's view button (krx-quant #109); 1440
+    // is the day view's ("일", krx-quant #111). The choice stays in the scratch settings, so
+    // the next capture opens on it.
     if (const int minutes = qEnvironmentVariableIntValue("KRX_CAPTURE_VIEW"); minutes > 0) {
         for (auto* button : screen.findChildren<QPushButton*>())
-            if (button->isCheckable() && button->text() == QString::number(minutes))
+            if (button->isCheckable() && button->property("view").toInt() == minutes)
                 button->click();
     }
 

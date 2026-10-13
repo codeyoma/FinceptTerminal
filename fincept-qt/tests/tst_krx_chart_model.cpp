@@ -329,6 +329,77 @@ class TstKrxChartModel : public QObject {
         QCOMPARE(join_bars({}, shown).size(), 2);
     }
 
+    void today_s_day_candle_is_made_of_the_day_s_bars_on_the_engine_s_market() {
+        auto bar = [](const char* start, double open, double high, double low, double close, double volume) {
+            return Bar{kst(start), open, high, low, close, volume};
+        };
+        // Integrated bars from NXT's pre-market to after the KRX close; the first is the
+        // day before's, read as the chart scrolled back.
+        const QList<Bar> bars{bar("2026-10-08T19:59:00+09:00", 70, 70, 70, 70, 9),
+                              bar("2026-10-12T08:00:00+09:00", 100, 104, 99, 101, 5),
+                              bar("2026-10-12T09:00:00+09:00", 102, 108, 101, 107, 20),
+                              bar("2026-10-12T15:30:00+09:00", 106, 106, 103, 105, 30),
+                              bar("2026-10-12T17:10:00+09:00", 105, 105, 96, 97, 2)};
+
+        const auto integrated = day_candle(bars, "UN");
+        QVERIFY(integrated.has_value());
+        QCOMPARE(integrated->start, kst("2026-10-12T00:00:00+09:00"));
+        QCOMPARE((QList<double>{integrated->open, integrated->high, integrated->low, integrated->close}),
+                 (QList<double>{100, 108, 96, 97}));
+        QCOMPARE(integrated->volume, 57.0); // the day's, not the 8th's
+
+        // The engine's candles are KRX's: 09:00 (the opening auction) to 15:30 (the closing one).
+        const auto krx = day_candle(bars, "KRX");
+        QCOMPARE((QList<double>{krx->open, krx->high, krx->low, krx->close, krx->volume}),
+                 (QList<double>{102, 108, 101, 105, 50}));
+        QVERIFY(!day_candle({}, "UN").has_value());
+        QVERIFY(!day_candle({bars[1]}, "KRX").has_value()); // before KRX opens: none yet
+    }
+
+    void the_day_view_is_the_stored_candles_then_today_s() {
+        auto candle = [](const char* day, double close) { return Bar{kst(day), close, close, close, close, 1}; };
+        const QList<Bar> stored{candle("2026-10-07T00:00:00+09:00", 1), candle("2026-10-08T00:00:00+09:00", 2)};
+        const QList<Bar> today{{kst("2026-10-12T09:00:00+09:00"), 3, 4, 3, 4, 10},
+                               {kst("2026-10-12T09:01:00+09:00"), 4, 5, 4, 5, 10}};
+
+        auto starts = [](const QList<Bar>& bars) {
+            QStringList out;
+            for (const auto& b : bars)
+                out << b.start.toString(Qt::ISODate);
+            return out;
+        };
+        const auto shown = day_candles(stored, today, "UN");
+        QCOMPARE(starts(shown),
+                 (QStringList{"2026-10-07T00:00:00+09:00", "2026-10-08T00:00:00+09:00", "2026-10-12T00:00:00+09:00"}));
+        QCOMPARE(shown.last().close, 5.0);
+        QCOMPARE(shown.last().volume, 20.0);
+        QCOMPARE(starts(day_candles(stored, {}, "UN")), starts(stored)); // before the open: none of today
+
+        // A candle the engine stored for today too (after 20:30) gives way to the day's bars.
+        const auto again = day_candles({stored[1], candle("2026-10-12T00:00:00+09:00", 9)}, today, "UN");
+        QCOMPARE(again.size(), 2);
+        QCOMPARE(again.last().close, 5.0);
+
+        // The bar being made moves today's candle.
+        QList<Bar> moving = today;
+        QVERIFY(merge_live(moving, {kst("2026-10-12T09:02:00+09:00"), 5, 9, 5, 8, 1}));
+        const auto last = last_chart_bar(moving, kDayView, "UN");
+        QVERIFY(last.has_value());
+        QCOMPARE(last->time, chart_time(kst("2026-10-12T00:00:00+09:00")));
+        QCOMPARE(last->high, 9.0);
+        QCOMPARE(last->close, 8.0);
+        QCOMPARE(last->volume, 21.0);
+    }
+
+    void the_candles_before_are_read_once_the_day_view_nears_the_left_end() {
+        const QDateTime first = kst("2026-03-02T00:00:00+09:00"); // the first candle shown
+        QVERIFY(!older_candles(first, kOlderMargin).has_value());
+        QCOMPARE(older_candles(first, kOlderMargin - 1), first);
+        QCOMPARE(older_candles(first, -5), first);
+        const auto latest = older_candles({}, 100); // none shown yet: the latest
+        QVERIFY(latest.has_value() && !latest->isValid());
+    }
+
     void the_view_to_fit_is_the_last_sixty_bars() {
         QCOMPARE(fit_range(200), (std::pair<double, double>{140.0, 199.0 + kRightOffset}));
         QCOMPARE(fit_range(20), (std::pair<double, double>{0.0, 19.0 + kRightOffset}));
