@@ -243,7 +243,7 @@ void KrxQuantService::read_candles(const QString& symbol, const QString& period,
         end(kCandles);
         auto candles = parsed(answer, krx_quant::parse_candles);
         if (candles.is_err())
-            return emit candles_failed(symbol, why(candles.error()));
+            return emit candles_failed(symbol, period, why(candles.error()));
         emit candles_ready(symbol, period, before, candles.value());
     });
 }

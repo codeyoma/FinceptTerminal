@@ -79,12 +79,17 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
             }
             set_view(view_minutes_); // what else the view needs (one read at a time), or another symbol's
         });
-    connect(service_, &KrxQuantService::candles_failed, this, [this](const QString& symbol, const QString& reason) {
-        if (symbol != selected_)
-            return set_view(view_minutes_);        // another was chosen meanwhile
-        if (krx_quant::candle_view(view_minutes_)) // not since the view changed to minutes
-            emit older_failed(reason);
-    });
+    connect(service_, &KrxQuantService::candles_failed, this,
+            [this](const QString& symbol, const QString& period, const QString& reason) {
+                // The failure is the view's own when it reads that period: its own, or the days
+                // a longer view is made of. Shown then, and asked again on the chart's next read
+                // (at once would ask again and again).
+                const bool own = krx_quant::candle_view(view_minutes_) &&
+                                 (period == krx_quant::candle_period(view_minutes_) || period == QLatin1String("day"));
+                if (symbol == selected_ && own)
+                    return emit older_failed(reason);
+                set_view(view_minutes_); // another symbol or view was chosen meanwhile: its reads, waiting till now
+            });
     connect(service_, &KrxQuantService::macro_ready, this, [this](const krx_quant::Macro& macro) {
         macro_ = macro;
         macro_failure_.clear();

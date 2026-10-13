@@ -162,11 +162,13 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         button->setCheckable(true);
         button->setChecked(minutes == minutes_);
         button->setFocusPolicy(Qt::NoFocus);
-        button->setToolTip(minutes == krx_quant::kDayView ? tr("일봉. 오늘 봉은 오늘의 1분봉으로 만든다.")
-                           : candles ? tr("%1봉(주는 월요일 시작). 지금 봉은 일봉과 오늘의 1분봉으로 만든다.")
-                                           .arg(candle_names.value(minutes))
-                           : minutes == 1 ? tr("1분봉과 최종 합의 아이콘")
-                                          : tr("1분봉을 %1분씩 묶은 봉. 아이콘은 1분 보기에만 있다.").arg(minutes));
+        button->setToolTip(
+            minutes == krx_quant::kDayView ? tr("일봉. 오늘 봉은 오늘의 1분봉으로 만든다.")
+            : minutes == krx_quant::kWeekView ? tr("주봉(월요일 시작). 이번 주 봉은 일봉과 오늘의 1분봉으로 만든다.")
+            : minutes == krx_quant::kMonthView ? tr("월봉(1일 시작). 이번 달 봉은 일봉과 오늘의 1분봉으로 만든다.")
+            : minutes == krx_quant::kYearView ? tr("년봉(1월 1일 시작). 올해 봉은 일봉과 오늘의 1분봉으로 만든다.")
+            : minutes == 1 ? tr("1분봉과 최종 합의 아이콘")
+                           : tr("1분봉을 %1분씩 묶은 봉. 아이콘은 1분 보기에만 있다.").arg(minutes));
         button->setProperty("view", minutes);
         connect(button, &QPushButton::clicked, this, [this, minutes]() { set_view(minutes); });
         view_buttons_ << button;

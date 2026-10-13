@@ -109,7 +109,7 @@ class KrxQuantService : public QObject {
     void older_failed(const QString& symbol, const QString& reason);
     void candles_ready(const QString& symbol, const QString& period, const QDateTime& before,
                        const fincept::krx_quant::Candles& candles);
-    void candles_failed(const QString& symbol, const QString& reason);
+    void candles_failed(const QString& symbol, const QString& period, const QString& reason);
     void close_ready(const QString& symbol, const QDateTime& bar_close,
                      const QList<fincept::krx_quant::Prediction>& predictions, const QMap<QString, QString>& statuses);
     void close_failed(const QString& symbol, const QDateTime& bar_close, const QString& reason);

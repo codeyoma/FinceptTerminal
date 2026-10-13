@@ -142,8 +142,8 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
     const QColor up(ui::colors::POSITIVE());
     const QColor down(ui::colors::NEGATIVE());
     // A candle view's bars are its candles already (krx-quant #111, #112).
-    const bool day = krx_quant::candle_view(minutes);
-    const auto shown = krx_quant::chart_bars(day ? bars : krx_quant::group_bars(bars, minutes));
+    const bool dated = krx_quant::candle_view(minutes); // the axis shows dates only
+    const auto shown = krx_quant::chart_bars(dated ? bars : krx_quant::group_bars(bars, minutes));
     for (const auto& b : shown) {
         candles.append(
             QJsonObject{{"time", b.time}, {"open", b.open}, {"high", b.high}, {"low", b.low}, {"close", b.close}});
@@ -172,7 +172,7 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
                                 {"volumes", volumes},
                                 {"icons", icons},
                                 {"fit", QJsonObject{{"from", from}, {"to", to}}},
-                                {"day", day}});
+                                {"day", dated}});
     emit bridge_->data_changed(data_);
 }
 
