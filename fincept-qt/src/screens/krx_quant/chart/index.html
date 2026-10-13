@@ -3,26 +3,37 @@
 <head>
 <meta charset="utf-8">
 <!--
-  The KRX screen's chart (fork addition, codeyoma/krx-quant#105), drawn with TradingView
+  The KRX screen's chart (fork addition, codeyoma/krx-quant#105, #106), drawn with TradingView
   Lightweight Charts (NOTICE). It only draws what the screen sends over the web channel:
-  the bars and their volumes, the final consensus's icons, the theme, and when to fit.
+  the bars and their volumes, the final consensus's icons with their hover lines and the
+  bars they aim at, the theme, and when to fit.
 -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #080808; }
-  #chart { position: absolute; inset: 0; }
+  #chart, #links { position: absolute; inset: 0; }
+  #links { pointer-events: none; z-index: 60; width: 100%; height: 100%; } /* above the chart's own canvases (z-index up to 50) */
+  #tip {
+    position: absolute; display: none; pointer-events: none; white-space: pre;
+    padding: 4px 8px; border: 1px solid; z-index: 61;
+  }
 </style>
 <script src="lightweight-charts.standalone.production.js"></script>
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
 </head>
 <body>
 <div id="chart"></div>
+<canvas id="links"></canvas>
+<div id="tip"></div>
 <script>
 (function () {
   const L = LightweightCharts;
-  const chart = L.createChart(document.getElementById('chart'), {
+  const area = document.getElementById('chart');
+  const links = document.getElementById('links');
+  const tip = document.getElementById('tip');
+  const chart = L.createChart(area, {
     autoSize: true,
     layout: { attributionLogo: false }, // the attribution is on the panel title and in the README
-    timeScale: { timeVisible: true, secondsVisible: false, rightOffset: 3 },
+    timeScale: { timeVisible: true, secondsVisible: false, rightOffset: 6 }, // the latest target's slot shows
   });
   const candles = chart.addSeries(L.CandlestickSeries, {
     priceLineVisible: true,
@@ -43,24 +54,101 @@
     if (fitRange) chart.timeScale().setVisibleLogicalRange(fitRange);
   }
 
+  let bars = [];        // as drawn, oldest first
+  let barAt = new Map(); // time -> index in bars
+  let iconAt = new Map(); // time -> icon
+  let colors = { tip_background: '#111', tip_border: '#333', tip_text: '#e5e5e5', link: '#f59e0b' };
+
   // Fitted since the chart last emptied: another symbol is chosen by emptying the chart
   // first (KrxLive::select), and its first bars are fitted again.
   let shown = false;
   function show(data) {
-    candles.setData(data.bars);
+    bars = data.bars;
+    barAt = new Map(bars.map((b, i) => [b.time, i]));
+    iconAt = new Map(data.icons.map((i) => [String(i.time), i]));
+    candles.setData(bars);
     volumes.setData(data.volumes);
-    icons.setMarkers(data.icons);
+    icons.setMarkers(data.icons.map((i) => ({
+      id: String(i.time), time: i.time, position: i.position, shape: i.shape, color: i.color, size: i.size,
+      text: i.text,
+    })));
     fitRange = data.fit;
-    if (!data.bars.length) {
+    if (!bars.length) {
       shown = false;
     } else if (!shown) { // the first bars: the last ones in view
       shown = true;
       fit();
     }
+    hover(null);
   }
 
+  // The hovered icon's link: from its bar's top to the bar it aims at, or to a dotted slot
+  // on the right while that bar is not there yet.
+  function drawLink(icon) {
+    const ratio = window.devicePixelRatio || 1;
+    links.width = area.clientWidth * ratio;
+    links.height = area.clientHeight * ratio;
+    const g = links.getContext('2d');
+    g.setTransform(ratio, 0, 0, ratio, 0, 0);
+    g.clearRect(0, 0, area.clientWidth, area.clientHeight);
+    if (!icon) return;
+    const scale = chart.timeScale();
+    const from = bars[barAt.get(icon.time)];
+    const x1 = scale.timeToCoordinate(icon.time);
+    if (!from || x1 === null) return;
+    const y1 = candles.priceToCoordinate(from.high);
+    let x2 = null, y2 = null, slot = false;
+    if (icon.target_shown) {
+      const to = bars[barAt.get(icon.target)];
+      x2 = scale.timeToCoordinate(icon.target);
+      y2 = to ? candles.priceToCoordinate(to.close) : null;
+    } else if (icon.target_after_last > 0 && bars.length) {
+      x2 = scale.logicalToCoordinate(bars.length - 1 + icon.target_after_last);
+      y2 = candles.priceToCoordinate(bars[bars.length - 1].close);
+      slot = true;
+    }
+    if (x2 === null || y2 === null || y1 === null) return;
+    g.strokeStyle = colors.link;
+    g.lineWidth = 1.5;
+    g.setLineDash(slot ? [4, 3] : []);
+    g.beginPath();
+    g.moveTo(x1, y1 - 4);
+    g.lineTo(x2, y2);
+    g.stroke();
+    if (slot) { // where the target bar will be
+      const half = Math.max(3, scale.options().barSpacing / 2);
+      g.strokeRect(x2 - half, y2 - 14, 2 * half, 28);
+    }
+  }
+
+  function hover(param) {
+    // Only over an icon itself, not anywhere over its bar (the volume pane included).
+    const icon = param && param.hoveredObjectId !== undefined ? iconAt.get(String(param.hoveredObjectId)) : undefined;
+    if (!icon || !param.point) {
+      tip.style.display = 'none';
+      drawLink(null);
+      return;
+    }
+    tip.textContent = icon.hover.join('\n');
+    tip.style.display = 'block';
+    // At the foot of the price pane, on the side away from the pointer: the icons sit over
+    // the bars, so it covers neither the hovered icon nor its link.
+    const right = param.point.x < area.clientWidth / 2;
+    const foot = chart.panes()[0].getHeight();
+    tip.style.top = Math.max(6, foot - tip.offsetHeight - 6) + 'px';
+    tip.style.left = right ? Math.max(6, area.clientWidth - tip.offsetWidth - 70) + 'px' : '6px';
+    drawLink(icon);
+  }
+  chart.subscribeCrosshairMove(hover);
+
   function theme(t) {
+    colors = t;
     document.body.style.background = t.background;
+    tip.style.background = t.tip_background;
+    tip.style.borderColor = t.tip_border;
+    tip.style.color = t.tip_text;
+    tip.style.fontFamily = t.font;
+    tip.style.fontSize = (t.size + 1) + 'px';
     chart.applyOptions({
       layout: {
         background: { type: 'solid', color: t.background },
@@ -85,7 +173,8 @@
     });
   }
 
-  document.getElementById('chart').addEventListener('dblclick', fit);
+  area.addEventListener('dblclick', fit);
+  area.addEventListener('mouseleave', () => hover(null));
 
   new QWebChannel(qt.webChannelTransport, function (channel) {
     const bridge = channel.objects.bridge;

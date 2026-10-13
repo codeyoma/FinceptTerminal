@@ -16,34 +16,45 @@ QString Signal::text() const {
         .arg(bar_close.toTimeZone(kst).toString("HH:mm"), target_at.toTimeZone(kst).toString("HH:mm"));
 }
 
-std::optional<Signal> judge(const Prediction& consensus, const QList<Prediction>& pooled, const SignalRule& rule) {
-    // A consensus the engine says not to act on (a VI or breaker, no reference price, too
-    // late) is no signal, as for its Telegram signals.
+namespace {
+
+/// The move a consensus is sure enough of under ``rule``, and how sure; none if neither, or
+/// if the engine says not to act on it (a VI or breaker, no reference price, too late), as
+/// for its Telegram signals.
+std::optional<std::pair<Direction, double>> sure_move(const Prediction& consensus, const SignalRule& rule) {
     if (consensus.status != "ok" || !consensus.p_up || !consensus.p_down || !consensus.blocked.isEmpty())
         return std::nullopt;
-    Direction direction = Direction::None;
-    double probability = 0;
-    if (*consensus.p_up >= rule.min_probability) {
-        direction = Direction::Up;
-        probability = *consensus.p_up;
-    } else if (*consensus.p_down >= rule.min_probability) {
-        direction = Direction::Down;
-        probability = *consensus.p_down;
-    } else {
-        return std::nullopt;
-    }
-    int agree = 0;
-    for (const auto& member : pooled)
-        agree += most_likely(member) == direction;
+    if (*consensus.p_up >= rule.min_probability)
+        return std::pair{Direction::Up, *consensus.p_up};
+    if (*consensus.p_down >= rule.min_probability)
+        return std::pair{Direction::Down, *consensus.p_down};
+    return std::nullopt;
+}
+
+std::optional<Signal> signal_if(const Prediction& consensus, std::pair<Direction, double> move, int agree, int members,
+                                const SignalRule& rule) {
     if (agree < rule.min_agree)
         return std::nullopt;
-    return Signal{consensus.symbol,
-                  consensus.bar_close,
-                  consensus.target_at,
-                  direction,
-                  probability,
-                  agree,
-                  static_cast<int>(pooled.size())};
+    return Signal{consensus.symbol, consensus.bar_close, consensus.target_at, move.first, move.second, agree, members};
+}
+
+} // namespace
+
+std::optional<Signal> judge(const Prediction& consensus, const QList<Prediction>& pooled, const SignalRule& rule) {
+    const auto move = sure_move(consensus, rule);
+    if (!move)
+        return std::nullopt;
+    int agree = 0;
+    for (const auto& member : pooled)
+        agree += most_likely(member) == move->first;
+    return signal_if(consensus, *move, agree, static_cast<int>(pooled.size()), rule);
+}
+
+std::optional<Signal> judge(const Prediction& consensus, const Votes& votes, const SignalRule& rule) {
+    const auto move = sure_move(consensus, rule);
+    if (!move)
+        return std::nullopt;
+    return signal_if(consensus, *move, votes.of(move->first), votes.total(), rule);
 }
 
 std::optional<Signal> Alerts::consider(const Prediction& consensus, const QList<Prediction>& pooled,

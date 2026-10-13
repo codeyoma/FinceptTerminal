@@ -1,6 +1,7 @@
 #pragma once
 
 #include "services/krx_quant/Board.h"
+#include "services/krx_quant/Signals.h"
 
 #include <QList>
 #include <QObject>
@@ -40,7 +41,11 @@ class KrxChart : public QWidget {
   public:
     explicit KrxChart(QWidget* parent = nullptr);
 
-    void set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks);
+    /// The bars and the final consensus's marks, scored on ``basis`` (the leaderboard's) and
+    /// judged as signals under ``rule`` (the alerts'): hovering an icon shows its five lines
+    /// and links its bar to the one it aims at (krx-quant #106).
+    void set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
+                  const QString& basis = QStringLiteral("b"), const krx_quant::SignalRule& rule = {});
     /// Show the last 60 bars again.
     void fit();
     /// Paint in the theme's colors and the user's font now.

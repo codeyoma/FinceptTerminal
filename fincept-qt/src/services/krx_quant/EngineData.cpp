@@ -54,8 +54,9 @@ std::optional<Outcome> outcome_of(const QJsonValue& v) {
     if (!v.isObject())
         return std::nullopt;
     const QJsonObject o = v.toObject();
-    return Outcome{class_of(o.value("class_a")), class_of(o.value("class_b")), o.value("special").toBool(),
-                   o.value("unscorable").toString()};
+    return Outcome{class_of(o.value("class_a")),     class_of(o.value("class_b")), o.value("special").toBool(),
+                   o.value("unscorable").toString(), number(o.value("mid_close")), number(o.value("mid_display")),
+                   number(o.value("mid_target"))};
 }
 
 /// The feeds of a KIS status (``/v1/status``'s ``kis``, a health event's).
@@ -169,7 +170,12 @@ Prediction prediction_of(const QJsonObject& p, const QString& symbol, const QDat
                     p.contains("bar_close") ? time_of(p.value("bar_close")) : bar_close,
                     time_of(p.value("target_at")),
                     outcome_of(p.value("outcome")),
-                    p.value("blocked").toString()};
+                    p.value("blocked").toString(),
+                    std::nullopt};
+    if (const QJsonValue v = p.value("votes"); v.isObject()) {
+        const QJsonObject o = v.toObject();
+        made.votes = Votes{o.value("up").toInt(), o.value("flat").toInt(), o.value("down").toInt()};
+    }
     if (made.status == "ok") {
         made.p_up = number(p.value("p_up"));
         made.p_flat = number(p.value("p_flat"));

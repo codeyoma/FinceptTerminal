@@ -34,6 +34,7 @@ fincept_add_test(tst_krx_stats_view
 fincept_add_test(tst_krx_chart_model
     tst_krx_chart_model.cpp
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
 
