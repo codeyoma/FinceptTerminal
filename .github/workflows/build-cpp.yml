@@ -351,6 +351,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
+          # fork addition (codeyoma/krx-quant#136): the PE machine a DLL or EXE is built
+          # for, in hex: 8664 x64, aa64 ARM64.
+          pe_machine() {
+            local pe_offset
+            pe_offset=$(od -An -tu4 -j60 -N4 "$1" | tr -d ' ')
+            od -An -tx2 -j$((pe_offset + 4)) -N2 "$1" | tr -d ' '
+          }
+          case "${{ matrix.arch }}" in
+            arm64) WANT_MACHINE="aa64" ;;
+            *)     WANT_MACHINE="8664" ;;
+          esac
 
           # Copy main executable
           cp build/Release/${{ matrix.exe }} dist/
@@ -463,6 +474,12 @@ jobs:
             [ -n "${VCRT_DIR}" ] || { echo "::error::ARM64 Visual C++ runtime not found"; exit 1; }
             echo "ARM64 Visual C++ runtime from: ${VCRT_DIR}"
             for vcrt_dll in "${VCRT_DIR}"/*.dll; do
+              # The folder also holds ARM64EC DLLs (vcruntime140_1.dll, x64 exception
+              # handling) that a native ARM64 app never loads.
+              if [ "$(pe_machine "${vcrt_dll}")" != "${WANT_MACHINE}" ]; then
+                echo "Skipped $(basename "${vcrt_dll}"): not native ARM64"
+                continue
+              fi
               cp "${vcrt_dll}" dist/
               echo "Copied MSVC runtime $(basename "${vcrt_dll}")"
             done
@@ -665,14 +682,9 @@ jobs:
           # build is not run in CI. scripts/ and resources/ are left out: programs
           # there run as their own processes.
           # ----------------------------------------------------------------
-          case "${{ matrix.arch }}" in
-            arm64) WANT_MACHINE="aa64" ;;
-            *)     WANT_MACHINE="8664" ;;
-          esac
           WRONG_ARCH=0
           while IFS= read -r -d '' pe_file; do
-            pe_offset=$(od -An -tu4 -j60 -N4 "${pe_file}" | tr -d ' ')
-            machine=$(od -An -tx2 -j$((pe_offset + 4)) -N2 "${pe_file}" | tr -d ' ')
+            machine=$(pe_machine "${pe_file}")
             if [ "${machine}" != "${WANT_MACHINE}" ]; then
               echo "::error::${pe_file} is built for machine 0x${machine}, not 0x${WANT_MACHINE}"
               WRONG_ARCH=1
