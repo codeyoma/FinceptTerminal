@@ -386,6 +386,36 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(dot.tip, QStringLiteral("엔진을 읽지 못함: 연결 거부\n") + clocks);
     }
 
+    void a_consensus_says_how_its_members_leaned() {
+        const auto read = parse_predictions(json(R"({"symbol": "005930", "predictions": [
+          {"algorithm": "consensus-final", "model_version": "condorcet-equal",
+           "bar_close": "2026-10-08T09:31:00+09:00", "displayed_at": "2026-10-08T09:31:03+09:00",
+           "target_at": "2026-10-08T09:35:00+09:00", "status": "ok", "blocked": null,
+           "votes": {"up": 2, "flat": 1, "down": 0},
+           "p_up": 0.7, "p_flat": 0.2, "p_down": 0.1, "expected_ticks": 1.0, "outcome": null},
+          {"algorithm": "gauss", "model_version": "gauss-default",
+           "bar_close": "2026-10-08T09:31:00+09:00", "displayed_at": "2026-10-08T09:31:03+09:00",
+           "target_at": "2026-10-08T09:35:00+09:00", "status": "ok", "blocked": null, "votes": null,
+           "p_up": 0.7, "p_flat": 0.2, "p_down": 0.1, "expected_ticks": 1.0, "outcome": null}]})"));
+        QVERIFY(read.is_ok());
+        QCOMPARE(read.value().size(), 2);
+        QVERIFY(read.value()[0].votes.has_value());
+        QCOMPARE(read.value()[0].votes->up, 2);
+        QCOMPARE(read.value()[0].votes->flat, 1);
+        QCOMPARE(read.value()[0].votes->total(), 3);
+        QVERIFY(!read.value()[1].votes.has_value());
+    }
+
+    void an_outcome_keeps_its_mid_points() {
+        const auto history = parse_predictions(json(kHistory));
+        QVERIFY(history.is_ok());
+        QCOMPARE(history.value().size(), 3);
+        const auto& first = *history.value()[0].outcome;
+        QCOMPARE(first.mid_close, std::optional<double>(81250.0));
+        QCOMPARE(first.mid_target, std::optional<double>(81550.0));
+        QVERIFY(!history.value()[1].outcome->mid_display.has_value()); // null in the answer
+    }
+
     void a_final_consensus_says_why_it_is_not_to_be_acted_on() {
         const auto read = parse_predictions(json(R"({"symbol": "005930", "predictions": [
           {"algorithm": "consensus-final", "model_version": "condorcet-equal",

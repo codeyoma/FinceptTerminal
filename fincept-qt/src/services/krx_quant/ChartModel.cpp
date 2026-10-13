@@ -1,6 +1,10 @@
 #include "services/krx_quant/ChartModel.h"
 
+#include <QLocale>
+#include <QSet>
+
 #include <algorithm>
+#include <cmath>
 
 namespace fincept::krx_quant {
 
@@ -44,18 +48,98 @@ QList<ChartBar> chart_bars(const QList<Bar>& bars) {
     return out;
 }
 
-QList<ChartIcon> chart_icons(const QList<Mark>& marks) {
+namespace {
+
+QString percent(const std::optional<double>& p) {
+    return p ? QString::number(std::lround(*p * 100)) + "%" : QStringLiteral("—");
+}
+
+QString blocked_label(const QString& why) {
+    if (why == "special")
+        return QStringLiteral("특수 상황");
+    if (why == "no_reference")
+        return QStringLiteral("기준가 없음");
+    if (why == "expired")
+        return QStringLiteral("목표 시각 지남");
+    return why;
+}
+
+QString signal_line(const Mark& m, const SignalRule& rule) {
+    const Prediction& p = m.prediction;
+    if (!p.blocked.isEmpty())
+        return QStringLiteral("신호 아님 (엔진이 막음: %1)").arg(blocked_label(p.blocked));
+    if (!p.votes)
+        return QStringLiteral("신호 알 수 없음");
+    const auto signal = judge(p, *p.votes, rule);
+    if (!signal)
+        return QStringLiteral("신호 아님");
+    return QStringLiteral("%1 신호 (%2 ≥ %3, 같은 방향 %4 ≥ %5)")
+        .arg(direction_label(signal->direction), percent(signal->probability), percent(rule.min_probability))
+        .arg(signal->agree)
+        .arg(rule.min_agree);
+}
+
+QString result_line(const Mark& m, const QString& basis) {
+    if (m.result == Mark::Result::Pending)
+        return QStringLiteral("채점 전");
+    if (m.result == Mark::Result::Unscorable)
+        return m.unscorable.isEmpty() ? QStringLiteral("채점 불가")
+                                      : QStringLiteral("채점 불가 (%1)").arg(m.unscorable);
+    const auto& o = m.prediction.outcome;
+    const std::optional<double> start = !o ? std::nullopt : basis == "a" ? o->mid_close : o->mid_display;
+    const QString verdict = m.result == Mark::Result::Hit ? QStringLiteral("✓ 맞음") : QStringLiteral("✗ 틀림");
+    if (!start || !o->mid_target)
+        return verdict;
+    const double move = *o->mid_target - *start;
+    const QString won = QLocale(QLocale::Korean).toString(std::abs(move), 'f', 0);
+    return QStringLiteral("실제 %1%2원 · %3").arg(move > 0 ? "+" : move < 0 ? "-" : "±", won, verdict);
+}
+
+} // namespace
+
+/// When a prediction is scored: its own target time, or four minutes on for one without.
+static QDateTime target_of(const Mark& m) {
+    return m.prediction.target_at.isValid() ? m.prediction.target_at : m.bar_close.addSecs(240);
+}
+
+QStringList hover_lines(const Mark& m, const QString& basis, const SignalRule& rule) {
+    const Prediction& p = m.prediction;
+    const QString members = p.votes
+                                ? QStringLiteral("같은 방향 %1/%2").arg(p.votes->of(m.predicted)).arg(p.votes->total())
+                                : QStringLiteral("같은 방향 모델 수 알 수 없음");
+    return {QStringLiteral("%1 봉 → %2 목표").arg(kst_text(m.bar_close, "HH:mm"), kst_text(target_of(m), "HH:mm")),
+            QStringLiteral("합의 %1 · 상승 %2 · 보합 %3 · 하락 %4")
+                .arg(direction_label(m.predicted), percent(p.p_up), percent(p.p_flat), percent(p.p_down)),
+            members, signal_line(m, rule), result_line(m, basis)};
+}
+
+QList<ChartIcon> chart_icons(const QList<Mark>& marks, const QList<Bar>& bars, const QString& basis,
+                             const SignalRule& rule) {
+    QSet<qint64> drawn;
+    for (const auto& b : bars)
+        drawn.insert(chart_time(b.start));
+    const qint64 last = bars.isEmpty() ? 0 : chart_time(bars.last().start);
     QList<ChartIcon> out;
     for (const auto& m : marks) {
         if (m.predicted == Direction::None)
             continue;
-        // The bar that closed at the bar close started a minute before.
-        out << ChartIcon{chart_time(m.bar_close.addSecs(-60)),
-                         m.bar_close,
-                         m.predicted,
-                         arrow_of(m.predicted),
-                         result_of(m.result),
-                         m.special};
+        ChartIcon icon;
+        // The bar that closed at the bar close started a minute before; the one it aims at
+        // closes four minutes later.
+        icon.time = chart_time(m.bar_close.addSecs(-60));
+        icon.bar_close = m.bar_close;
+        icon.direction = m.predicted;
+        icon.arrow = arrow_of(m.predicted);
+        icon.result = result_of(m.result);
+        icon.faint = m.special;
+        icon.hover = hover_lines(m, basis, rule);
+        icon.target = chart_time(target_of(m).addSecs(-60)); // the bar closing then
+        icon.target_shown = drawn.contains(icon.target);
+        icon.target_after_last =
+            icon.target_shown || bars.isEmpty() ? 0 : static_cast<int>(std::max<qint64>(0, (icon.target - last) / 60));
+        const Prediction& p = m.prediction;
+        icon.signal = p.votes && judge(p, *p.votes, rule).has_value();
+        out << icon;
     }
     std::sort(out.begin(), out.end(), [](const ChartIcon& a, const ChartIcon& b) { return a.time < b.time; });
     return out;
