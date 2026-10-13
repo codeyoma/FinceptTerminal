@@ -232,6 +232,34 @@ QList<Bar> group_bars(const QList<Bar>& bars, int minutes) {
     return out;
 }
 
+bool merge_live(QList<Bar>& bars, const Bar& live) {
+    if (!live.start.isValid())
+        return false;
+    if (bars.isEmpty() || live.start > bars.last().start) {
+        bars << live;
+        return true;
+    }
+    Bar& last = bars.last();
+    if (live.start != last.start || live.volume < last.volume)
+        return false; // older than what is shown
+    if (live.open == last.open && live.high == last.high && live.low == last.low && live.close == last.close &&
+        live.volume == last.volume)
+        return false;
+    last = live;
+    return true;
+}
+
+std::optional<ChartBar> last_chart_bar(const QList<Bar>& bars, int minutes) {
+    if (bars.isEmpty())
+        return std::nullopt;
+    // Only the bars of the last one's group: the last group_bars would make of all.
+    const QDateTime first = group_bars({bars.last()}, minutes).first().start;
+    qsizetype from = bars.size() - 1;
+    while (from > 0 && bars[from - 1].start >= first)
+        --from;
+    return chart_bars(group_bars(bars.mid(from), minutes)).last();
+}
+
 QList<Bar> join_bars(const QList<Bar>& older, const QList<Bar>& newer) {
     QMap<QDateTime, Bar> by_start;
     for (const auto& b : older)

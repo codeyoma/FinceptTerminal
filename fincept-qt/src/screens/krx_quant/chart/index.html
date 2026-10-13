@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!--
-  The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#109), drawn with TradingView
+  The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110), drawn with TradingView
   Lightweight Charts (NOTICE). It only draws what the screen sends over the web channel:
   the bars and their volumes, the final consensus's icons with their hover lines and the
   bars they aim at, the theme, and when to fit.
@@ -82,6 +82,20 @@
       fit();
     }
     hover(null);
+  }
+
+  // The bar being made moved (krx-quant #110): only the last bar is drawn again, or a new
+  // one follows it. One older than the last drawn is not drawn.
+  function live(data) {
+    if (!bars.length || data.bar.time < bars[bars.length - 1].time) return;
+    candles.update(data.bar);
+    volumes.update(data.volume);
+    if (data.bar.time === bars[bars.length - 1].time) {
+      bars[bars.length - 1] = data.bar;
+    } else {
+      barAt.set(data.bar.time, bars.length);
+      bars.push(data.bar);
+    }
   }
 
   // The hovered icon's link: from its bar's top to the bar it aims at, or to a dotted slot
@@ -195,6 +209,7 @@
     bridge = channel.objects.bridge;
     bridge.theme_changed.connect(function (json) { theme(JSON.parse(json)); });
     bridge.data_changed.connect(function (json) { show(JSON.parse(json)); });
+    bridge.live_changed.connect(function (json) { live(JSON.parse(json)); });
     bridge.fit_requested.connect(fit);
     bridge.ready();
   });

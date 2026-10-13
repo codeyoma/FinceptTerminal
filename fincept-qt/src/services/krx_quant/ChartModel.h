@@ -129,6 +129,16 @@ struct OlderRead {
 /// bars yet (``first`` invalid), those before now.
 std::optional<OlderRead> older_read(const QDateTime& first, double view_from, int minutes = 1);
 
+/// The bar being made (a stream "bar", krx-quant #110) on ``bars``, the day's 1-minute bars
+/// oldest first: the same minute as the last bar, grown, replaces it; a later minute follows
+/// it (the last one is complete then). An earlier minute, or the same minute smaller than
+/// shown (sent before what was read), is dropped. Whether ``bars`` changed.
+bool merge_live(QList<Bar>& bars, const Bar& live);
+
+/// The last bar of the ``minutes`` view of ``bars`` (1-minute bars) as the chart draws it, to
+/// move it as it is made; none without bars.
+std::optional<ChartBar> last_chart_bar(const QList<Bar>& bars, int minutes);
+
 /// ``older`` read before ``newer``, as one run of bars oldest first: a bar in both (the
 /// same start) is ``newer``'s.
 QList<Bar> join_bars(const QList<Bar>& older, const QList<Bar>& newer);
