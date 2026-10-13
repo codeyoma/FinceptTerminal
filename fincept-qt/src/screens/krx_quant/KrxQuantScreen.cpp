@@ -1,5 +1,6 @@
 #include "screens/krx_quant/KrxQuantScreen.h"
 
+#include "core/config/AppConfig.h"
 #include "screens/krx_quant/KrxAlerts.h"
 #include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxLeaderboard.h"
@@ -28,6 +29,9 @@ using krx_tables::cell;
 using krx_tables::kNumber;
 
 enum SymbolColumn { kSymbol, kMid, kFinal, kScoring };
+// The chart's view, in minutes (krx-quant #109). Not "krx_quant/chart_minutes": that was the
+// range box's until #134 and is no longer read.
+constexpr auto kChartViewKey = "krx_quant/chart_view_minutes";
 enum PredictionColumn { kPredictor, kDirection, kUp, kFlat, kDown, kTicks, kModel, kPredictionColumns };
 // The table while a bar close is pinned (krx-quant #107).
 enum PinnedColumn {
@@ -131,7 +135,39 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     fit->setToolTip(tr("최근 60봉 보기로 돌아간다. 차트를 두 번 눌러도 된다."));
     chart_header_.controls->addWidget(fit);
     chart_ = new KrxChart;
-    upper->addWidget(krx_panel::panel(chart_header_, chart_));
+    // The view's buttons in a row above the chart (krx-quant #109), as Fincept's portfolio
+    // chart has its periods: checkable, the chosen one filled amber. The choice is kept.
+    const int kept = AppConfig::instance().get(kChartViewKey, 1).toInt();
+    minutes_ =
+        std::find(krx_quant::kMinuteViews.begin(), krx_quant::kMinuteViews.end(), kept) != krx_quant::kMinuteViews.end()
+            ? kept
+            : 1;
+    chart_views_ = new QWidget;
+    // Its width never widens the chart's panel: the buttons past a narrow panel are cut off.
+    chart_views_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+    auto* views = new QHBoxLayout(chart_views_);
+    views->setContentsMargins(6, 3, 6, 3);
+    views->setSpacing(2);
+    views->addWidget(new QLabel(tr("분")));
+    for (const int minutes : krx_quant::kMinuteViews) {
+        auto* button = new QPushButton(QString::number(minutes)); // after the row's "분"
+        button->setCheckable(true);
+        button->setChecked(minutes == minutes_);
+        button->setFocusPolicy(Qt::NoFocus);
+        button->setToolTip(minutes == 1 ? tr("1분봉과 최종 합의 아이콘")
+                                        : tr("1분봉을 %1분씩 묶은 봉. 아이콘은 1분 보기에만 있다.").arg(minutes));
+        connect(button, &QPushButton::clicked, this, [this, minutes]() { set_view(minutes); });
+        view_buttons_ << button;
+        views->addWidget(button);
+    }
+    views->addStretch();
+    auto* chart_body = new QWidget;
+    auto* chart_column = new QVBoxLayout(chart_body);
+    chart_column->setContentsMargins(0, 0, 0, 0);
+    chart_column->setSpacing(0);
+    chart_column->addWidget(chart_views_);
+    chart_column->addWidget(chart_, 1);
+    upper->addWidget(krx_panel::panel(chart_header_, chart_body));
 
     predictions_header_ = krx_panel::header(tr("예측"));
     latest_ = new QPushButton(tr("최신으로"));
@@ -226,7 +262,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     });
     connect(fit, &QPushButton::clicked, chart_, &KrxChart::fit);
     connect(chart_, &KrxChart::icon_clicked, this, [this](const QDateTime& bar_close) { live_->pin(bar_close); });
-    connect(chart_, &KrxChart::view_moved, live_, &services::KrxLive::view_from);
+    connect(chart_, &KrxChart::view_moved, this, [this](double from) { live_->view_from(from, minutes_); });
     connect(latest_, &QPushButton::clicked, this, [this]() { live_->pin({}); });
     connect(live_, &services::KrxLive::pinned_changed, this, [this]() {
         predictions_header_.title->setToolTip({}); // a failed read's reason, now stale
@@ -299,6 +335,14 @@ void KrxQuantScreen::refresh_theme() {
     alerts_->restyle();
     chart_->restyle();
     chart_failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
+    chart_views_->setStyleSheet(
+        QString("QLabel{color:%1;padding-right:4px;}"
+                "QPushButton{background:transparent;color:%1;border:1px solid transparent;padding:2px 6px;"
+                "font-weight:700;}"
+                "QPushButton:checked{color:%4;background:%2;border:1px solid %2;}"
+                "QPushButton:hover:!checked{color:%3;border-color:%5;}")
+            .arg(ui::colors::TEXT_TERTIARY(), ui::colors::AMBER(), ui::colors::TEXT_PRIMARY(), ui::colors::BG_BASE(),
+                 ui::colors::BORDER_MED()));
     fill_chart();                              // the volumes' and icons' colors too
     dot_->setProperty("krxColor", QVariant()); // the dot in the new colors
     show_dot();
@@ -537,15 +581,26 @@ void KrxQuantScreen::fill_predictions() {
     update_countdowns();
 }
 
+void KrxQuantScreen::set_view(int minutes) {
+    minutes_ = minutes;
+    AppConfig::instance().set(kChartViewKey, minutes);
+    for (int i = 0; i < view_buttons_.size(); ++i)
+        view_buttons_[i]->setChecked(krx_quant::kMinuteViews[static_cast<size_t>(i)] == minutes);
+    fill_chart();
+    chart_->fit(); // the last 60 bars of the new view
+}
+
 void KrxQuantScreen::fill_chart() {
     const QString& symbol = live_->selected();
-    chart_header_.title->setText(symbol.isEmpty() ? tr("차트") : tr("%1 · 1분봉과 최종 합의").arg(symbol));
+    chart_header_.title->setText(symbol.isEmpty() ? tr("차트")
+                                 : minutes_ == 1  ? tr("%1 · 1분봉과 최종 합의").arg(symbol)
+                                                  : tr("%1 · %2분봉").arg(symbol).arg(minutes_));
     if (symbol.isEmpty()) {
         chart_->set_data({}, {});
         return;
     }
     const QString basis = leaderboard_->query().basis;
-    chart_->set_data(live_->bars(), live_->board().marks(symbol, basis), basis, alerts_->rule());
+    chart_->set_data(live_->bars(), live_->board().marks(symbol, basis), basis, alerts_->rule(), minutes_);
 }
 
 void KrxQuantScreen::open_detail(const QString& algorithm) {

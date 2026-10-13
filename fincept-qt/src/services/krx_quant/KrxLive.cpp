@@ -43,7 +43,7 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         service_, &KrxQuantService::older_ready, this,
         [this](const QString& symbol, const QList<krx_quant::Bar>& bars, const QList<krx_quant::Prediction>& finals) {
             if (symbol != selected_)
-                return view_from(view_from_); // another was chosen meanwhile: its own, if its view asked
+                return view_from(view_from_, view_minutes_); // another was chosen meanwhile: its own, if its view asked
             oldest_ = bars.isEmpty();
             older_ = krx_quant::join_bars(bars, older_);
             board_.set_history(symbol, finals);
@@ -53,7 +53,7 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         if (symbol == selected_)
             emit older_failed(reason);
         else
-            view_from(view_from_); // another was chosen meanwhile
+            view_from(view_from_, view_minutes_); // another was chosen meanwhile
     });
     connect(service_, &KrxQuantService::macro_ready, this, [this](const krx_quant::Macro& macro) {
         macro_ = macro;
@@ -186,15 +186,16 @@ void KrxLive::set_details(const QStringList& algorithms) {
             service_->read_stats(algorithm, query_);
 }
 
-void KrxLive::view_from(double from) {
+void KrxLive::view_from(double from, int minutes) {
     view_from_ = from;
+    view_minutes_ = minutes;
     if (selected_.isEmpty() || oldest_)
         return;
     // The first bar shown: the earliest read before, else today's first.
     const QDateTime first = !older_.isEmpty()  ? older_.first().start
                             : !bars_.isEmpty() ? bars_.first().start
                                                : QDateTime();
-    if (const auto read = krx_quant::older_read(first, from))
+    if (const auto read = krx_quant::older_read(first, from, minutes))
         service_->read_older(selected_, *read);
 }
 
@@ -340,7 +341,7 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
     board_.set_history(symbol, finals);
     emit chart_changed();
     if (bars_.isEmpty() && older_.isEmpty())
-        view_from(0); // nothing today yet (before the open): the last day's bars
+        view_from(0, view_minutes_); // nothing today yet (before the open): the last day's bars
 }
 
 void KrxLive::on_event(const krx_quant::Event& event) {
