@@ -1489,6 +1489,7 @@ set(SERVICE_SOURCES
     src/services/krx_quant/AppRelease.cpp
     src/services/krx_quant/AppUpdater.cpp
     src/services/krx_quant/LocalCliLlm.cpp
+    src/services/krx_quant/EngineCalendar.cpp
     src/services/krx_quant/LocalCliRunner.cpp
 )
 
@@ -2658,6 +2659,7 @@ set_source_files_properties(
     src/services/krx_quant/AppRelease.cpp
     src/services/krx_quant/AppUpdater.cpp
     src/services/krx_quant/LocalCliLlm.cpp
+    src/services/krx_quant/EngineCalendar.cpp
     src/services/krx_quant/LocalCliRunner.cpp
     PROPERTIES SKIP_UNITY_BUILD_INCLUSION TRUE
 )
