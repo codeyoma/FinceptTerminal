@@ -35,6 +35,11 @@ jobs:
             artifact: FinceptTerminal-Windows-arm64
             exe: FinceptTerminal.exe
             qt_arch: win64_msvc2022_arm64_cross_compiled
+            # fork addition (codeyoma/krx-quant#136): Qt 6.8.3 has no qtwebengine for
+            # this target (`aqt list-qt windows desktop --modules 6.8.3
+            # win64_msvc2022_arm64_cross_compiled`); CMake builds without it
+            # (WebEngine is optional there).
+            qt_modules: "qtcharts qtwebsockets qtmultimedia qtwebchannel qtpositioning qtserialport"
             cmake_extra: "-A ARM64"
 
           # ---- Linux x64 ----
@@ -62,9 +67,12 @@ jobs:
             cmake_extra: "-DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0"
 
           # ---- macOS x64 (Intel) ----
-          # Cross-compiled on ARM64 runner. CMakeLists.txt auto-disables GGML_NATIVE
-          # and GGML_METAL when CMAKE_OSX_ARCHITECTURES != host processor.
-          - os: macos-15
+          # fork addition (codeyoma/krx-quant#136): built on an Intel runner, not
+          # cross-compiled on ARM64. Cross-compiled, it linked the runner's ARM64
+          # Homebrew OpenSSL into the x86_64 app ("Undefined symbols for
+          # architecture x86_64"); here Homebrew's OpenSSL is x86_64 too, and the
+          # binary runs, so its self-tests run as well.
+          - os: macos-15-intel
             arch: x64
             platform: macOS
             artifact: FinceptTerminal-macOS-x64
@@ -144,9 +152,12 @@ jobs:
           VCPKG_ROOT="${VCPKG_INSTALLATION_ROOT:-C:/vcpkg}"
           VCPKG_ROOT="${VCPKG_ROOT//\\//}"   # backslashes -> forward slashes (the v4.1.0 bug)
           echo "Using vcpkg at: $VCPKG_ROOT"
-          "$VCPKG_ROOT/vcpkg" install openssl:x64-windows zlib:x64-windows-static-md --no-print-usage
-          OPENSSL_DIR="$VCPKG_ROOT/installed/x64-windows"
-          ZLIB_DIR="$VCPKG_ROOT/installed/x64-windows-static-md"
+          # fork addition (codeyoma/krx-quant#136): the target's triplet (x64 or
+          # arm64), not always x64: an ARM64 build cannot link x64 OpenSSL/zlib.
+          TRIPLET="${{ matrix.arch }}-windows"
+          "$VCPKG_ROOT/vcpkg" install "openssl:$TRIPLET" "zlib:$TRIPLET-static-md" --no-print-usage
+          OPENSSL_DIR="$VCPKG_ROOT/installed/$TRIPLET"
+          ZLIB_DIR="$VCPKG_ROOT/installed/$TRIPLET-static-md"
           echo "OPENSSL_ROOT_DIR=$OPENSSL_DIR" >> "$GITHUB_ENV"
           echo "ZLIB_ROOT=$ZLIB_DIR" >> "$GITHUB_ENV"
           echo "OpenSSL installed at: $OPENSSL_DIR ; static zlib at: $ZLIB_DIR"
@@ -173,7 +184,7 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           arch: ${{ matrix.qt_arch }}
-          modules: ${{ env.QT_MODULES }}
+          modules: ${{ matrix.qt_modules || env.QT_MODULES }}
           cache: true
           cache-key-prefix: qt-${{ matrix.platform }}-${{ matrix.arch }}
 
@@ -185,7 +196,7 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           arch: win64_msvc2022_64
-          modules: ${{ env.QT_MODULES }}
+          modules: ${{ matrix.qt_modules || env.QT_MODULES }}
           cache: true
           set-env: false
           dir: "${{ runner.temp }}/qt-host"
@@ -317,9 +328,10 @@ jobs:
       # Exercise each of the freshly built binary's --selftest-* checks under Qt's
       # offscreen platform (no display / GPU needed). A non-zero exit fails the
       # job. Runs the build-tree binary (not the packaged AppImage / .app) so it
-      # needs no FUSE mount or codesigning. Skipped on cross-compiled targets
-      # (Windows arm64, macOS x64) whose binaries can't execute on the host
-      # runner's architecture. timeout-minutes bounds any unexpected hang.
+      # needs no FUSE mount or codesigning. Skipped on the cross-compiled target
+      # (Windows arm64) whose binary can't execute on the host runner's
+      # architecture; macOS x64 is built on an Intel runner since
+      # codeyoma/krx-quant#136 and runs. timeout-minutes bounds any unexpected hang.
       #
       # The flag list used to be spelled out here and DRIFTED: main.cpp
       # dispatches 10 --selftest-* flags, this loop listed 9, so
@@ -327,7 +339,7 @@ jobs:
       # .github/scripts/ci_app_checks.sh, which prefers `--selftest-list` from
       # the binary itself and is shared with release.yml and build-pr.yml.
       - name: Run self-tests (headless)
-        if: "!(matrix.platform == 'Windows' && matrix.arch == 'arm64') && !(matrix.platform == 'macOS' && matrix.arch == 'x64')"
+        if: "!(matrix.platform == 'Windows' && matrix.arch == 'arm64')"
         shell: bash
         working-directory: fincept-qt
         timeout-minutes: 25
@@ -627,7 +639,7 @@ jobs:
           # Copy app resources and Python analytics scripts
           # ----------------------------------------------------------------
           cp -r resources dist/resources 2>/dev/null || true
-          bash .github/scripts/sync_scripts.sh scripts dist/scripts
+          bash "${GITHUB_WORKSPACE}/.github/scripts/sync_scripts.sh" scripts dist/scripts  # fork addition (codeyoma/krx-quant#136): from the repository root
 
           # ----------------------------------------------------------------
           # Final diagnostic — list everything that will be zipped
@@ -692,7 +704,7 @@ jobs:
           # ── Stage resources INSIDE the bundle (not as siblings) ───────────
           mkdir -p "${APP_BUNDLE}/Contents/Resources"
           cp -r resources "${APP_BUNDLE}/Contents/Resources/" 2>/dev/null || true
-          bash .github/scripts/sync_scripts.sh scripts "${APP_BUNDLE}/Contents/Resources/scripts"
+          bash "${GITHUB_WORKSPACE}/.github/scripts/sync_scripts.sh" scripts "${APP_BUNDLE}/Contents/Resources/scripts"  # fork addition (codeyoma/krx-quant#136)
 
           # ── Embed Python.framework (tag builds only — skip on push) ───────
           if [ "$IS_TAG" = "true" ]; then
@@ -779,7 +791,7 @@ jobs:
 
           # Copy resources and scripts inside AppDir
           cp -r resources AppDir/usr/bin/resources 2>/dev/null || true
-          bash .github/scripts/sync_scripts.sh scripts AppDir/usr/bin/scripts
+          bash "${GITHUB_WORKSPACE}/.github/scripts/sync_scripts.sh" scripts AppDir/usr/bin/scripts  # fork addition (codeyoma/krx-quant#136)
 
           # Desktop entry (required by linuxdeploy)
           cat > AppDir/usr/share/applications/fincept-terminal.desktop <<'EOF'
@@ -931,6 +943,14 @@ jobs:
     if: "!cancelled() && needs.build.result == 'success'"
 
     steps:
+      # fork addition (codeyoma/krx-quant#136): the job had no checkout, so the
+      # sync script it calls below was not there.
+      - name: Checkout the CI scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+          submodules: false
+
       - name: Download macOS arm64
         uses: actions/download-artifact@v4
         with:
@@ -984,7 +1004,7 @@ jobs:
           lipo -create "$ARM64_BIN" "$X64_BIN" -output dist/FinceptTerminal
           chmod +x dist/FinceptTerminal
           cp -r arm64/resources dist/resources 2>/dev/null || true
-          bash .github/scripts/sync_scripts.sh arm64/scripts dist/scripts
+          bash "${GITHUB_WORKSPACE}/.github/scripts/sync_scripts.sh" arm64/scripts dist/scripts  # fork addition (codeyoma/krx-quant#136)
           file dist/FinceptTerminal
           lipo -info dist/FinceptTerminal
           ls -lh dist/FinceptTerminal
