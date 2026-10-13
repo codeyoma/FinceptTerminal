@@ -51,7 +51,10 @@ QString temp_path(const QString& name) {
     return QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation)).filePath(name);
 }
 
+#if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
 /// The helper script from the app's resources, written where it can run after the app quits.
+/// Only the platforms that run one (start_helper): elsewhere it would be an unused function,
+/// an error under -Werror (codeyoma/krx-quant#136).
 QString write_helper(const QString& name) {
     const QString path = temp_path(name);
     QFile::remove(path);
@@ -60,6 +63,7 @@ QString write_helper(const QString& name) {
     QFile::setPermissions(path, QFile::permissions(path) | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
     return path;
 }
+#endif
 
 } // namespace
 

@@ -58,6 +58,8 @@ custom/merge-upstream-release.sh [tag]
 - 새 코드는 새 디렉터리에 둔다 (`fincept-qt/src/screens/krx_quant/`, `fincept-qt/src/services/krx_quant/`).
 - 화면 등록과 로컬 CLI LLM(아래) 때문에 고치는 upstream 파일은 아래 목록으로 제한하고, 고칠 때마다 이 표를 갱신한다. 고친 곳에는 `fork addition (codeyoma/krx-quant#N)` 주석을 단다.
 
+> **바뀜** (2026-10-13, codeyoma/krx-quant#136): 화면 등록과 로컬 CLI LLM 때문에 고치는 upstream 파일만 → 수동 전체 플랫폼 빌드(`build-cpp.yml`) 수리도. 이유: 한국어 팩(codeyoma/krx-quant#132)을 검증하다 다섯 대상이 모두 실패하는 것을 찾았다. 고친 곳마다 `fork addition` 주석을 달았다.
+
 > **바뀜** (2026-10-13, codeyoma/FinceptTerminal#26): 화면 등록과 로컬 CLI LLM 때문에 고치는 upstream 파일만 → 원화 환산 표시(codeyoma/krx-quant#142) 때문에 고치는 시장·관심종목·대시보드·포트폴리오·주식 리서치·설정 화면과 시세 service도(아래 표). 이유: 출처 통화가 확인된 금액만 화면에서 환산하려면 각 화면이 금액을 그리는 곳에 갈래가 필요했다. upstream 릴리스를 merge 할 때 이 파일들이 충돌할 수 있다.
 
 > **바뀜** (2026-10-12, codeyoma/krx-quant#97): 화면 등록 때문에 고치는 upstream 파일만 → 로컬 CLI LLM provider(codeyoma/krx-quant#96) 때문에 고치는 LLM 파일 9개도. 이유: Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에 로그인된 Claude Code·Codex CLI로 쓰려면 provider 목록, 요청 경로, 설정 화면에 갈래가 하나씩 필요했다. 새 코드는 `src/services/krx_quant/LocalCli*`에 두고 upstream 파일에는 한두 줄짜리 갈래만 넣었다.
@@ -72,7 +74,7 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/src/app/DockScreenRouter.cpp` | `krx_quant` 탭 제목 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/ToolBar.cpp` | Navigate → Trading & Portfolio 메뉴에 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/CommandBar.cpp` | 명령 팔레트에 `krx_quant` ("krx"로 찾는다) |
-| `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`), 윈도우 설치 프로그램의 기본 폴더 `CPACK_IFW_TARGET_DIRECTORY`(사용자 폴더, codeyoma/krx-quant#130), 한국어 언어 팩 `translations/fincept_ko_KR.ts`의 컴파일·리소스 포함 |
+| `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`), 윈도우 설치 프로그램의 기본 폴더 `CPACK_IFW_TARGET_DIRECTORY`(사용자 폴더, codeyoma/krx-quant#130), 한국어 언어 팩 `translations/fincept_ko_KR.ts`의 컴파일·리소스 포함, clang-cl(Windows ARM64)에서 GCC/Clang 경고 묶음을 빼고 `-Wno-clang-cl-pch`(codeyoma/krx-quant#136) |
 | `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`, `tst_krx_korean`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
 | `fincept-qt/src/core/i18n/LanguageManager.cpp` | 공용 언어 목록에 `ko_KR`, 언어 이름에 `한국어`를 추가한다(codeyoma/krx-quant#132). 설정 화면과 로그인 언어 선택이 이 목록을 그대로 쓴다 |
 | `fincept-qt/src/core/currency/CurrencyManager.{h,cpp}`, `Currency.h`, 새 `core/currency/fx/` | KRW 목록, 출처 통화를 요구하는 환산 API, ECB 비인증 조회·캐시·갱신 신호(codeyoma/krx-quant#138, #142). 공용 인프라라 KRX 엔진 service 대신 독립 디렉터리에 둔다 |
@@ -96,6 +98,9 @@ custom/merge-upstream-release.sh [tag]
 | `fincept-qt/src/screens/settings/LlmConfigSection_Profiles.cpp` | LLM 프로필의 provider 목록에서 로컬 CLI provider를 뺀다(프로필은 Python 에이전트가 쓰고, Python 에이전트는 CLI를 부르지 못한다) |
 | `fincept-qt/src/services/alpha_arena/ArenaModelRegistry.cpp` | Alpha Arena 모델 목록에서 로컬 CLI provider를 뺀다(Arena는 provider API를 직접 부른다) |
 | `fincept-qt/src/mcp/ProviderToolFormatSelfTest.cpp` | provider별 endpoint 자가 검사에서 로컬 CLI provider를 건너뛴다(endpoint가 없다) |
+| `.github/workflows/build-cpp.yml` | 수동 전체 플랫폼 빌드를 다시 통과시킨다(codeyoma/krx-quant#136): Windows ARM64는 qtwebengine 없는 Qt 모듈 목록(Qt 6.8.3에 그 대상의 qtwebengine이 없다)과 `arm64-windows` vcpkg triplet, ARM64 패키지는 ARM64 키트를 읽는 `windeployqt --qtpaths`와 Visual Studio ARM64 redist의 런타임(전에는 x64 runner의 System32에서 x64 DLL을 넣었다), Windows 패키지 둘 다 vcpkg의 OpenSSL DLL(Qt에 없어서 전에는 빠졌다)과 실행 파일·DLL의 아키텍처 검사, macOS x64(Intel)와 macOS Universal 작업은 뺐다(아래 삭제됨), 패키징의 `sync_scripts.sh`는 저장소 루트 경로(`${GITHUB_WORKSPACE}`), Linux 기본 아이콘을 만들 때 Pillow 설치, macOS 앱에는 실행에 쓰는 Python 버전 하나만 넣는다(runner의 `Python.framework`에는 여러 버전이 있고, 서명은 `Current`만 되어 검증이 실패했다). 개인 배포 `custom-release.yml`은 그대로다 |
+
+> **삭제됨** (2026-10-13, codeyoma/krx-quant#136): `build-cpp.yml`의 macOS x64(Intel) 대상과 그 결과를 arm64와 합치던 macOS Universal 작업, 릴리스 목록의 두 파일. 이유: Intel Mac은 지원하지 않기로 했다(사용자 결정). 교차 컴파일한 x64 앱은 ARM64 Homebrew OpenSSL을 링크해 실패했고, Intel runner로 고치면 빌드가 가장 오래 걸렸다. 대신: macOS는 Apple Silicon(arm64)만 빌드한다.
 
 > **바뀜** (2026-10-12, krx-quant #94): KRX 테스트 등록을 `fincept-qt/tests/CMakeLists.txt` 끝에 붙였다 → `krx_quant.cmake`로 옮기고 `fincept_add_test()` 정의 뒤에서 include 한다. 이유: upstream도 파일 끝에 테스트를 붙여서, v4.5.0 이후 upstream `main`을 merge 하면 충돌했다. 자동 반영이 멈추지 않게 하려고(krx-quant #93).
 
