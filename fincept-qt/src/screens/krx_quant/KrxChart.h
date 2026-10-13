@@ -52,14 +52,14 @@ class KrxChart : public QWidget {
     /// judged as signals under ``rule`` (the alerts'): hovering an icon shows its five lines
     /// and links its bar to the one it aims at (krx-quant #106).
     /// ``minutes`` is the view (krx-quant #109): the 1-minute bars are drawn as bars of that
-    /// many minutes, and only the 1-minute view has icons. In the day view
-    /// (krx_quant::kDayView, krx-quant #111) ``bars`` are day candles, drawn as they are.
+    /// many minutes, and only the 1-minute view has icons. In a candle view
+    /// (krx_quant::candle_view: day, week, month, year; krx-quant #111, #112) ``bars`` are
+    /// its candles, drawn as they are, with dates only on the axis.
     void set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
                   const QString& basis = QStringLiteral("b"), const krx_quant::SignalRule& rule = {}, int minutes = 1);
-    /// Only the last bar of ``bars`` (the day's 1-minute bars in the day view) moved (the bar
-    /// being made, krx-quant #110): it alone is drawn again, in the view of ``minutes``; the
-    /// day view's on the market ``venue`` of its candles.
-    void update_live(const QList<krx_quant::Bar>& bars, int minutes, const QString& venue = QStringLiteral("UN"));
+    /// Only the last bar of ``bars`` moved (the bar being made, krx-quant #110): it alone is
+    /// drawn again, in the view of ``minutes``. A candle view's ``bars`` are its candles.
+    void update_live(const QList<krx_quant::Bar>& bars, int minutes);
     /// Show the last 60 bars again.
     void fit();
     /// Paint in the theme's colors and the user's font now.

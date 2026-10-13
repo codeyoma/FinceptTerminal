@@ -139,8 +139,32 @@ bool merge_live(QList<Bar>& bars, const Bar& live);
 /// value grows with what one of its bars spans. Its bars are the day candles the engine
 /// stored (``GET …/candles?period=day``) and today's, made of the day's 1-minute bars.
 inline constexpr int kDayView = 24 * 60;
-/// Day candles read at a time, first and as the day view scrolls back.
+/// The week, month and year views (krx-quant #112), likewise about their minutes. Their
+/// bars are the finished candles the engine stored, then this period's (and any the engine
+/// has not stored yet) made of the day view's candles.
+inline constexpr int kWeekView = 7 * kDayView;
+inline constexpr int kMonthView = 31 * kDayView;
+inline constexpr int kYearView = 366 * kDayView;
+/// Candles read at a time, first and as a candle view scrolls back.
 inline constexpr int kCandleRead = 400;
+
+/// Whether ``view`` draws candles (the day view or a longer one), not 1-minute bars.
+inline constexpr bool candle_view(int view) {
+    return view >= kDayView;
+}
+
+/// The engine's period of a candle view: "day", "week", "month" or "year".
+QString candle_period(int view);
+
+/// The day the candle of ``view`` holding ``day`` starts: the day, its week's Monday, its
+/// month's 1st or its year's 1 January.
+QDate period_start(const QDate& day, int view);
+
+/// The week, month or year ``view``'s candles: ``stored`` (the engine's, of finished
+/// periods, oldest first), then those made of ``days`` (the day view's candles, today's
+/// included) for the periods after the last stored one: this period's, and one the engine
+/// has not stored yet. Each starts at 00:00 KST of its period's first day.
+QList<Bar> period_candles(const QList<Bar>& stored, const QList<Bar>& days, int view);
 
 /// The candle of the last day of ``bars`` (1-minute bars, oldest first), starting at 00:00
 /// KST that day: of all that day's bars, or, with ``venue`` "KRX" (the engine's candles are
@@ -151,16 +175,15 @@ std::optional<Bar> day_candle(const QList<Bar>& bars, const QString& venue);
 /// ``day_bars``' day (day_candle), in place of a stored one of that day.
 QList<Bar> day_candles(const QList<Bar>& stored, const QList<Bar>& day_bars, const QString& venue);
 
-/// The candles to read once the day view starts ``view_from`` of them (a logical index,
+/// The candles to read once a candle view starts ``view_from`` of them (a logical index,
 /// negative past the first) from its left end, where the first candle starts at ``first``:
 /// those before it, once less than kOlderMargin away; none while further. With no candles
 /// yet (``first`` invalid), the latest: an invalid time, before now.
 std::optional<QDateTime> older_candles(const QDateTime& first, double view_from);
 
 /// The last bar of the ``minutes`` view of ``bars`` (1-minute bars) as the chart draws it, to
-/// move it as it is made; none without bars. The day view's is day_candle's, on ``venue``.
-std::optional<ChartBar> last_chart_bar(const QList<Bar>& bars, int minutes,
-                                       const QString& venue = QStringLiteral("UN"));
+/// move it as it is made; none without bars. A candle view's last candle is its own list's.
+std::optional<ChartBar> last_chart_bar(const QList<Bar>& bars, int minutes);
 
 /// ``older`` read before ``newer``, as one run of bars oldest first: a bar in both (the
 /// same start) is ``newer``'s.

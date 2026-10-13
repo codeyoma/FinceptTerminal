@@ -383,12 +383,63 @@ class TstKrxChartModel : public QObject {
         // The bar being made moves today's candle.
         QList<Bar> moving = today;
         QVERIFY(merge_live(moving, {kst("2026-10-12T09:02:00+09:00"), 5, 9, 5, 8, 1}));
-        const auto last = last_chart_bar(moving, kDayView, "UN");
-        QVERIFY(last.has_value());
-        QCOMPARE(last->time, chart_time(kst("2026-10-12T00:00:00+09:00")));
-        QCOMPARE(last->high, 9.0);
-        QCOMPARE(last->close, 8.0);
-        QCOMPARE(last->volume, 21.0);
+        const Bar last = day_candles(stored, moving, "UN").last();
+        QCOMPARE(last.start, kst("2026-10-12T00:00:00+09:00"));
+        QCOMPARE((QList<double>{last.high, last.close, last.volume}), (QList<double>{9, 8, 21}));
+    }
+
+    void a_week_starts_on_monday_a_month_on_the_1st_a_year_on_1_january() {
+        QCOMPARE(period_start(QDate(2026, 10, 14), kWeekView), QDate(2026, 10, 12)); // a Wednesday
+        QCOMPARE(period_start(QDate(2026, 10, 12), kWeekView), QDate(2026, 10, 12)); // a Monday
+        QCOMPARE(period_start(QDate(2026, 10, 18), kWeekView), QDate(2026, 10, 12)); // a Sunday
+        QCOMPARE(period_start(QDate(2026, 1, 2), kWeekView), QDate(2025, 12, 29));   // across the year
+        QCOMPARE(period_start(QDate(2026, 10, 14), kMonthView), QDate(2026, 10, 1));
+        QCOMPARE(period_start(QDate(2026, 10, 14), kYearView), QDate(2026, 1, 1));
+        QCOMPARE(period_start(QDate(2026, 10, 14), kDayView), QDate(2026, 10, 14));
+        QCOMPARE(candle_period(kWeekView), QStringLiteral("week"));
+        QCOMPARE(candle_period(kYearView), QStringLiteral("year"));
+        QVERIFY(candle_view(kDayView) && candle_view(kYearView) && !candle_view(240));
+    }
+
+    void this_week_month_and_year_are_made_of_the_days_after_the_engine_s_last() {
+        auto candle = [](const char* start, double open, double high, double low, double close, double volume) {
+            return Bar{kst(start), open, high, low, close, volume};
+        };
+        // The engine's weeks end with 21 September's; then the days of the week of the 29th
+        // (30 September to 2 October: across the month) and of this week, today's last.
+        const QList<Bar> weeks{candle("2026-09-14T00:00:00+09:00", 1, 1, 1, 1, 1),
+                               candle("2026-09-21T00:00:00+09:00", 2, 2, 2, 2, 1)};
+        const QList<Bar> days{candle("2026-09-21T00:00:00+09:00", 9, 9, 9, 9, 9), // stored already: left out
+                              candle("2026-09-30T00:00:00+09:00", 10, 12, 9, 11, 5),
+                              candle("2026-10-02T00:00:00+09:00", 11, 15, 10, 14, 7),
+                              candle("2026-10-05T00:00:00+09:00", 14, 16, 13, 15, 3),
+                              candle("2026-10-06T00:00:00+09:00", 15, 15, 8, 9, 4)};
+
+        auto starts = [](const QList<Bar>& bars) {
+            QStringList out;
+            for (const auto& b : bars)
+                out << b.start.toString(Qt::ISODate);
+            return out;
+        };
+        const auto shown = period_candles(weeks, days, kWeekView);
+        QCOMPARE(starts(shown), (QStringList{"2026-09-14T00:00:00+09:00", "2026-09-21T00:00:00+09:00",
+                                             "2026-09-28T00:00:00+09:00", "2026-10-05T00:00:00+09:00"}));
+        const Bar& across = shown[2]; // not stored by the engine yet: made of its days
+        QCOMPARE((QList<double>{across.open, across.high, across.low, across.close, across.volume}),
+                 (QList<double>{10, 15, 9, 14, 12}));
+        const Bar& now = shown.last(); // this week, today's candle included
+        QCOMPARE((QList<double>{now.open, now.high, now.low, now.close, now.volume}), (QList<double>{14, 16, 8, 9, 7}));
+
+        // Months: September's from the days (the engine stored up to August), then October's.
+        const auto months = period_candles({candle("2026-08-01T00:00:00+09:00", 1, 1, 1, 1, 1)}, days, kMonthView);
+        QCOMPARE(starts(months),
+                 (QStringList{"2026-08-01T00:00:00+09:00", "2026-09-01T00:00:00+09:00", "2026-10-01T00:00:00+09:00"}));
+        QCOMPARE(months[1].close, 11.0);
+        QCOMPARE(months[2].open, 11.0);
+        // A year with nothing stored: all of it from the days read.
+        const auto years = period_candles({}, days, kYearView);
+        QCOMPARE(starts(years), QStringList{"2026-01-01T00:00:00+09:00"});
+        QCOMPARE(years[0].volume, 28.0);
     }
 
     void the_candles_before_are_read_once_the_day_view_nears_the_left_end() {

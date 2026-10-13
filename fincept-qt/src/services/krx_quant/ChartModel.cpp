@@ -289,11 +289,55 @@ std::optional<QDateTime> older_candles(const QDateTime& first, double view_from)
     return first;
 }
 
-std::optional<ChartBar> last_chart_bar(const QList<Bar>& bars, int minutes, const QString& venue) {
-    if (minutes == kDayView) {
-        const auto candle = day_candle(bars, venue);
-        return candle ? std::optional(chart_bars({*candle}).first()) : std::nullopt;
+QString candle_period(int view) {
+    switch (view) {
+        case kWeekView:
+            return QStringLiteral("week");
+        case kMonthView:
+            return QStringLiteral("month");
+        case kYearView:
+            return QStringLiteral("year");
+        default:
+            return QStringLiteral("day");
     }
+}
+
+QDate period_start(const QDate& day, int view) {
+    switch (view) {
+        case kWeekView:
+            return day.addDays(1 - day.dayOfWeek()); // Monday is day 1
+        case kMonthView:
+            return QDate(day.year(), day.month(), 1);
+        case kYearView:
+            return QDate(day.year(), 1, 1);
+        default:
+            return day;
+    }
+}
+
+QList<Bar> period_candles(const QList<Bar>& stored, const QList<Bar>& days, int view) {
+    const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(kKstSeconds);
+    QList<Bar> out = stored;
+    const QDate stored_until = stored.isEmpty() ? QDate() : stored.last().start.toTimeZone(kst).date();
+    for (const auto& d : days) {
+        const QDate start = period_start(d.start.toTimeZone(kst).date(), view);
+        if (stored_until.isValid() && start <= stored_until)
+            continue; // the engine's
+        const QDateTime at(start, QTime(0, 0), kst);
+        if (out.isEmpty() || out.last().start != at) {
+            out << Bar{at, d.open, d.high, d.low, d.close, d.volume};
+            continue;
+        }
+        Bar& into = out.last();
+        into.high = std::max(into.high, d.high);
+        into.low = std::min(into.low, d.low);
+        into.close = d.close;
+        into.volume += d.volume;
+    }
+    return out;
+}
+
+std::optional<ChartBar> last_chart_bar(const QList<Bar>& bars, int minutes) {
     if (bars.isEmpty())
         return std::nullopt;
     // Only the bars of the last one's group: the last group_bars would make of all.
