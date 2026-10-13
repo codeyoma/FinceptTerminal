@@ -104,9 +104,12 @@ custom/merge-upstream-release.sh [tag]
 - **설정 경로:** Settings → General → Interface language → **한국어**. 한국어로 바꾼 뒤에는 설정 → 일반 → 인터페이스 언어다. 선택 즉시 적용되고, 같은 곳에서 English로 되돌릴 수 있다.
 - **저장:** 기존 `LanguageManager`가 SQLite settings의 `general.language`에 `ko_KR`를 저장한다. 다음 실행에도 유지된다. 저장된 언어가 없는 첫 실행은 기존 운영체제 언어 감지를 따르므로 한국어 환경에서는 한국어를 고른다. 이미 고른 다른 언어를 덮어쓰지 않는다.
 - **팩:** `fincept-qt/translations/fincept_ko_KR.ts`. 현재 내부 공통 팩의 382개 컨텍스트, 9,608개 항목을 기준으로 번역하고, 최신 설정·탐색의 누락 문구와 동적으로 읽는 설정 메뉴도 더했다. 이전 내부 한국어 팩의 맞는 표현을 참고했다. 제품명·티커·코드·수식·치환자는 유지한다. 원문에 새 문구가 생겨 팩에 아직 없거나 `tr()`로 연결되지 않은 문구는 기존 영어 fallback을 따른다.
+- **용어·문체:** 국내 증권사 HTS/MTS와 KRX·DART 표기를 따른다(PER·PBR, 평가손익, 평균단가, 매입금액, 평가금액, 계좌/계정 구별, 증권사, 모의투자/실전투자, 가상자산, 샤프지수, 최대낙폭(MDD) 등). 문장은 합니다체, 안내는 `~하세요`. 새 문구를 번역하거나 기존 번역을 고칠 때는 [`korean-glossary.md`](korean-glossary.md)를 따른다.
+  > **바뀜** (2026-10-13, #PR_FORK): Codex 초벌 번역의 용어·문체 → 업계 표기 기준으로 약 1,200개 항목 정리. 이유: 일반 번역어(P/E 비율, 미실현 손익, 취득 원가, 브로커, 모의 거래, 암호화폐 등)와 번역투가 국내 금융 화면과 달랐다.
+  > **바뀜** (2026-10-13, #PR_FORK): 환산하지 않은 시세 표시 `(원 단위)`·`(원 통화)` → `(거래 통화)`, 금액은 `원래 통화`. 이유: 원화(KRW) 표시 통화가 생긴 뒤 `원`이 원화로 읽혔다.
 - **빌드:** 다른 언어와 동일하게 `lrelease`가 `.qm`을 만들고 `:/i18n/fincept_ko_KR.qm`에 포함한다. 외부 번역 API, 다운로드, 추가 설정은 필요 없다. 기존 팩은 자동으로 다시 쓰지 않는다.
 - **갱신:** 설정 메뉴는 문자열을 저장했다가 동적으로 `tr()`에 넘긴다. 이 메뉴와 범위 제목 18개에는 실제 런타임 문맥의 `QT_TRANSLATE_NOOP` 표시를 넣어, 수동 `update_translations`의 `-no-obsolete` 갱신에서도 한국어 번역이 남게 한다. 새 동적 메뉴를 더할 때도 같은 표시가 필요하다.
-- **검증:** `FINCEPT_BUILD_TESTS=ON`으로 설정한 빌드에서 `cmake --build <build> --target tst_krx_korean` 뒤 `ctest --test-dir <build> -R krx_korean --output-on-failure`. 앱과 같은 경로의 실제 컴파일된 리소스, 설정 메뉴 문맥, 공통 팩 전체 키·Qt 치환자, 복수형, 영어 fallback을 검사한다.
+- **검증:** `FINCEPT_BUILD_TESTS=ON`으로 설정한 빌드에서 `cmake --build <build> --target tst_krx_korean` 뒤 `ctest --test-dir <build> -R krx_korean --output-on-failure`. 앱과 같은 경로의 실제 컴파일된 리소스, 설정 메뉴 문맥, 공통 팩 전체 키·Qt 치환자, 복수형, 영어 fallback, 용어 기준의 대표 금융 용어(PER, 평가손익, 평균단가, 계좌, 모의투자 등)를 검사한다.
 
 ## 원화 표시 통화 (codeyoma/krx-quant#138, #142)
 

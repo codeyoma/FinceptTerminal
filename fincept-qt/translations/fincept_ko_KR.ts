@@ -13,7 +13,7 @@
         </message>
         <message>
             <source>SEND</source>
-            <translation>전송</translation>
+            <translation>보내기</translation>
         </message>
         <message>
             <source>OTHER</source>
@@ -180,7 +180,7 @@
         </message>
         <message>
             <source>Unable to open file for writing.</source>
-            <translation>쓰기용으로 파일을 열 수 없습니다.</translation>
+            <translation>파일을 쓰기 모드로 열 수 없습니다.</translation>
         </message>
     </context>
     <context>
@@ -370,7 +370,7 @@
         </message>
         <message>
             <source>Reverted.</source>
-            <translation>거래가 되돌려졌습니다.</translation>
+            <translation>트랜잭션이 되돌려졌습니다.</translation>
         </message>
         <message>
             <source>Confirmed: %1…</source>
@@ -478,11 +478,11 @@
         </message>
         <message>
             <source>Equal weight per constituent (1/N)</source>
-            <translation>구성 종목별 동일 가중치 (1/N)</translation>
+            <translation>구성 종목 동일 비중 (1/N)</translation>
         </message>
         <message>
             <source>Market cap variant adjusted for float</source>
-            <translation>유동주식 수를 반영한 시가총액 방식</translation>
+            <translation>유통주식수를 반영한 시가총액 방식</translation>
         </message>
         <message>
             <source>Weighted by fundamental score</source>
@@ -506,7 +506,7 @@
         </message>
         <message>
             <source>Market cap with weight cap limit</source>
-            <translation>가중치 상한을 적용한 시가총액 방식</translation>
+            <translation>비중 상한을 적용한 시가총액 방식</translation>
         </message>
         <message>
             <source>You</source>
@@ -721,7 +721,7 @@ Ensure required fields (URL, host, or API key) are filled in.</source>
         <name>QuantModulePanel</name>
         <message>
             <source>Tickers (comma-separated, &gt;= 2). Returns fetched via Yahoo Finance.</source>
-            <translation>티커(쉼표로 구분, &gt;= 2). Yahoo Finance에서 수익률을 가져옵니다.</translation>
+            <translation>종목코드(쉼표로 구분, 2개 이상). 수익률은 Yahoo Finance에서 가져옵니다.</translation>
         </message>
         <message>
             <source>Asset</source>
@@ -833,7 +833,7 @@ Ensure required fields (URL, host, or API key) are filled in.</source>
         </message>
         <message>
             <source>Toggle continuous voice conversation (auto-listen + auto-speak)</source>
-            <translation>연속 음성 대화 전환 (자동 듣기 + 자동 말하기)</translation>
+            <translation>연속 음성 대화 켜기/끄기 (자동 듣기 + 자동 말하기)</translation>
         </message>
         <message>
             <source>Clear</source>
@@ -883,7 +883,7 @@ For long-form chats use the AI Chat tab.</source>
         </message>
         <message>
             <source>AI chat is not configured. Open **Settings → LLM Config** and add an API key or pick the Fincept provider.</source>
-            <translation>AI 채팅이 설정되지 않았습니다. **설정 → LLM 설정**을 열고 API 키를 추가하거나 Fincept 제공업체를 선택하세요.</translation>
+            <translation>AI 채팅이 설정되지 않았습니다. **설정 → LLM 설정**을 열고 API 키를 추가하거나 Fincept 공급자를 선택하세요.</translation>
         </message>
         <message>
             <source>Error: %1</source>
@@ -914,7 +914,7 @@ For long-form chats use the AI Chat tab.</source>
         </message>
         <message>
             <source>Crypto Trading</source>
-            <translation>암호화폐 거래</translation>
+            <translation>가상자산 거래</translation>
         </message>
         <message>
             <source>Equity Trading</source>
@@ -1090,7 +1090,7 @@ For long-form chats use the AI Chat tab.</source>
         </message>
         <message>
             <source>Privacy</source>
-            <translation>개인정보 보호</translation>
+            <translation>개인정보처리방침</translation>
         </message>
         <message>
             <source>Trademarks</source>
@@ -1234,7 +1234,7 @@ For long-form chats use the AI Chat tab.</source>
         </message>
         <message>
             <source>Create schedule</source>
-            <translation>일정 생성</translation>
+            <translation>예약 추가</translation>
         </message>
         <message>
             <source>Pause</source>
@@ -1326,7 +1326,7 @@ For long-form chats use the AI Chat tab.</source>
         </message>
         <message>
             <source>No schedules yet.</source>
-            <translation>아직 일정이 없습니다.</translation>
+            <translation>아직 예약된 쿼리가 없습니다.</translation>
         </message>
         <message>
             <source>%1 task(s)</source>
@@ -1384,7 +1384,7 @@ For long-form chats use the AI Chat tab.</source>
         </message>
         <message>
             <source>Delete "%1"?</source>
-            <translation>"%1"을(를) 삭제할까요?</translation>
+            <translation>"%1"을(를) 삭제하시겠습니까?</translation>
         </message>
         <message>
             <source>Clear Memory</source>
@@ -1392,11 +1392,11 @@ For long-form chats use the AI Chat tab.</source>
         </message>
         <message>
             <source>Delete ALL memory entries?</source>
-            <translation>모든 메모리 항목을 삭제할까요?</translation>
+            <translation>모든 메모리 항목을 삭제하시겠습니까?</translation>
         </message>
         <message>
             <source>New Schedule</source>
-            <translation>새 일정</translation>
+            <translation>새 예약 쿼리</translation>
         </message>
         <message>
             <source>Query:</source>
@@ -1508,7 +1508,7 @@ Result:
         </message>
         <message>
             <source>Remove "%1"?</source>
-            <translation>"%1"을(를) 제거할까요?</translation>
+            <translation>"%1"을(를) 제거하시겠습니까?</translation>
         </message>
         <message>
             <source>New Monitor</source>
@@ -1528,7 +1528,7 @@ Result:
         </message>
         <message>
             <source>What should the agent analyze?:</source>
-            <translation>에이전트가 무엇을 분석해야 하나요?:</translation>
+            <translation>에이전트가 분석할 내용:</translation>
         </message>
         <message>
             <source>Interval</source>
@@ -1540,11 +1540,11 @@ Result:
         </message>
         <message>
             <source>Symbol</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>Symbol:</source>
-            <translation>종목 코드:</translation>
+            <translation>종목코드:</translation>
         </message>
         <message>
             <source>Indicator</source>
@@ -1576,7 +1576,7 @@ Result:
         </message>
         <message>
             <source>Delete?</source>
-            <translation>삭제할까요?</translation>
+            <translation>삭제하시겠습니까?</translation>
         </message>
     </context>
     <context>
@@ -1613,7 +1613,7 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>Portfolio risk analysis</source>
-            <translation>포트폴리오 위험 분석</translation>
+            <translation>포트폴리오 리스크 분석</translation>
         </message>
         <message>
             <source>Key indicators this week</source>
@@ -1677,11 +1677,11 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>%1 credits</source>
-            <translation>크레딧 %1개</translation>
+            <translation>%1 크레딧</translation>
         </message>
         <message>
             <source>0 credits</source>
-            <translation>크레딧 0개</translation>
+            <translation>0 크레딧</translation>
         </message>
         <message>
             <source>Optimize failed: %1</source>
@@ -1782,7 +1782,7 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>Delete "%1"?</source>
-            <translation>"%1"을(를) 삭제할까요?</translation>
+            <translation>"%1"을(를) 삭제하시겠습니까?</translation>
         </message>
         <message>
             <source>Rename Conversation</source>
@@ -1821,7 +1821,7 @@ Markets, equities, portfolio, macro insights.</source>
         <name>fincept::relmap::RelationshipGraphScene</name>
         <message>
             <source>Peers (%1/%2)</source>
-            <translation>동종 기업 (%1/%2)</translation>
+            <translation>동종업체 (%1/%2)</translation>
         </message>
         <message>
             <source>Holders (%1/%2)</source>
@@ -1833,7 +1833,7 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>PT $%1</source>
-            <translation>목표가 $%1</translation>
+            <translation>목표주가 $%1</translation>
         </message>
         <message>
             <source>Analysts (%1)</source>
@@ -1849,11 +1849,11 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>P/E</source>
-            <translation>P/E</translation>
+            <translation>PER</translation>
         </message>
         <message>
             <source>%1  fwd %2</source>
-            <translation>%1  예상 %2</translation>
+            <translation>%1  선행 %2</translation>
         </message>
         <message>
             <source>Margins</source>
@@ -1885,7 +1885,7 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>Risk %1/10  Audit %2</source>
-            <translation>위험 %1/10  감사 %2</translation>
+            <translation>리스크 %1/10  감사 %2</translation>
         </message>
         <message>
             <source>Metrics</source>
@@ -1897,7 +1897,7 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>Supply (%1)</source>
-            <translation>공급 (%1)</translation>
+            <translation>공급망 (%1)</translation>
         </message>
     </context>
     <context>
@@ -2094,7 +2094,7 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>Account:</source>
-            <translation>계정:</translation>
+            <translation>계좌:</translation>
         </message>
         <message>
             <source>Show:</source>
@@ -2162,7 +2162,7 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>Account</source>
-            <translation>계정</translation>
+            <translation>계좌</translation>
         </message>
         <message>
             <source>Type</source>
@@ -2170,11 +2170,11 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>Symbol</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>Side</source>
-            <translation>매매 구분</translation>
+            <translation>매매구분</translation>
         </message>
         <message>
             <source>Qty</source>
@@ -2198,7 +2198,7 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>Execute ALL pending orders now?</source>
-            <translation>대기 중인 모든 주문을 지금 실행할까요?</translation>
+            <translation>대기 중인 모든 주문을 지금 실행하시겠습니까?</translation>
         </message>
         <message>
             <source>Reject All</source>
@@ -2206,7 +2206,7 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>Select a specific account to reject all its pending orders.</source>
-            <translation>대기 중인 주문을 모두 거부할 계정을 선택하세요.</translation>
+            <translation>대기 중인 주문을 모두 거부할 계좌를 선택하세요.</translation>
         </message>
         <message>
             <source>Rejection reason:</source>
@@ -2218,7 +2218,7 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>All Accounts</source>
-            <translation>모든 계정</translation>
+            <translation>모든 계좌</translation>
         </message>
         <message>
             <source>Approve</source>
@@ -2245,7 +2245,7 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>SEND</source>
-            <translation>전송</translation>
+            <translation>보내기</translation>
         </message>
         <message>
             <source>RECEIVE</source>
@@ -2277,7 +2277,7 @@ Markets, equities, portfolio, macro insights.</source>
         </message>
         <message>
             <source>TIMESTAMP</source>
-            <translation>타임스탬프</translation>
+            <translation>일시</translation>
         </message>
         <message>
             <source>EVENT</source>
@@ -2369,7 +2369,7 @@ ADB 데이터는 무료이며 API 키가 필요하지 않습니다</translation>
         </message>
         <message>
             <source>Type a ticker or company name to search</source>
-            <translation>티커나 회사명을 입력하여 검색</translation>
+            <translation>종목코드 또는 회사명으로 검색</translation>
         </message>
         <message>
             <source>e.g. AAPL, Apple, Reliance…</source>
@@ -2377,7 +2377,7 @@ ADB 데이터는 무료이며 API 키가 필요하지 않습니다</translation>
         </message>
         <message>
             <source>Symbol:</source>
-            <translation>종목 코드:</translation>
+            <translation>종목코드:</translation>
         </message>
         <message>
             <source>e.g. 10</source>
@@ -2420,7 +2420,7 @@ ADB 데이터는 무료이며 API 키가 필요하지 않습니다</translation>
         </message>
         <message>
             <source>Symbol:</source>
-            <translation>종목 코드:</translation>
+            <translation>종목코드:</translation>
         </message>
         <message>
             <source>e.g. 0.88</source>
@@ -2428,7 +2428,7 @@ ADB 데이터는 무료이며 API 키가 필요하지 않습니다</translation>
         </message>
         <message>
             <source>Amount/share:</source>
-            <translation>주당 금액:</translation>
+            <translation>주당 배당금:</translation>
         </message>
         <message>
             <source>Ex-div date:</source>
@@ -2452,7 +2452,7 @@ ADB 데이터는 무료이며 API 키가 필요하지 않습니다</translation>
         </message>
         <message>
             <source>Required!</source>
-            <translation>필수!</translation>
+            <translation>필수 항목입니다!</translation>
         </message>
     </context>
     <context>
@@ -2570,7 +2570,7 @@ ADB 데이터는 무료이며 API 키가 필요하지 않습니다</translation>
         </message>
         <message>
             <source>RISK</source>
-            <translation>위험</translation>
+            <translation>리스크</translation>
         </message>
         <message>
             <source>How can I help you?</source>
@@ -2628,15 +2628,15 @@ Select an agent above, or use Auto-Route to let the system decide.</source>
         </message>
         <message>
             <source>Analyze my portfolio '%1' — give key metrics and recommendations.</source>
-            <translation>내 포트폴리오 '%1'을(를) 분석하고 주요 지표와 권장 사항을 알려 줘.</translation>
+            <translation>내 포트폴리오 '%1'을(를) 분석하고 주요 지표와 권장 사항을 알려 주세요.</translation>
         </message>
         <message>
             <source>Suggest rebalancing for portfolio '%1' to optimize risk-return.</source>
-            <translation>포트폴리오 '%1'의 위험 대비 수익을 최적화할 리밸런싱 방안을 제안해 줘.</translation>
+            <translation>포트폴리오 '%1'의 위험 대비 수익을 최적화할 리밸런싱 방안을 제안해 주세요.</translation>
         </message>
         <message>
             <source>Perform risk analysis on portfolio '%1' — VaR, drawdown, stress test.</source>
-            <translation>포트폴리오 '%1'에 대해 VaR, 낙폭, 스트레스 테스트를 포함한 위험 분석을 수행해 줘.</translation>
+            <translation>포트폴리오 '%1'에 대해 VaR, 낙폭, 스트레스 테스트를 포함한 리스크 분석을 수행해 주세요.</translation>
         </message>
         <message>
             <source>No LLM configured</source>
@@ -2648,11 +2648,11 @@ Select an agent above, or use Auto-Route to let the system decide.</source>
         </message>
         <message>
             <source>No LLM provider configured — go to Settings &gt; LLM Configuration</source>
-            <translation>설정된 LLM 제공업체가 없습니다 — 설정 &gt; LLM 설정으로 이동하세요</translation>
+            <translation>설정된 LLM 공급자가 없습니다 — 설정 &gt; LLM 설정으로 이동하세요</translation>
         </message>
         <message>
             <source>No LLM provider configured. Go to Settings &gt; LLM Configuration to set one up.</source>
-            <translation>설정된 LLM 제공업체가 없습니다. 설정 &gt; LLM 설정에서 제공업체를 설정하세요.</translation>
+            <translation>설정된 LLM 공급자가 없습니다. 설정 &gt; LLM 설정에서 공급자를 설정하세요.</translation>
         </message>
         <message>
             <source>Portfolio context: %1</source>
@@ -2802,7 +2802,7 @@ Select an agent above, or use Auto-Route to let the system decide.</source>
         </message>
         <message>
             <source>Select a task to view details</source>
-            <translation>작업을 선택하여 상세 정보 보기</translation>
+            <translation>작업을 선택하면 상세 정보가 표시됩니다</translation>
         </message>
         <message>
             <source>tokens</source>
@@ -3089,7 +3089,7 @@ Select an agent above, or use Auto-Route to let the system decide.</source>
         </message>
         <message>
             <source>No provider configured — go to Settings &gt; LLM Config</source>
-            <translation>설정된 제공업체가 없습니다 — 설정 &gt; LLM 설정으로 이동하세요</translation>
+            <translation>설정된 공급자가 없습니다 — 설정 &gt; LLM 설정으로 이동하세요</translation>
         </message>
         <message>
             <source>Config saved</source>
@@ -3128,7 +3128,7 @@ Select an agent above, or use Auto-Route to let the system decide.</source>
         </message>
         <message>
             <source>Active LLM Provider</source>
-            <translation>사용 중인 LLM 제공업체</translation>
+            <translation>사용 중인 LLM 공급자</translation>
         </message>
         <message>
             <source>Active Model — change in Settings &gt; LLM Configuration</source>
@@ -3160,7 +3160,7 @@ Select an agent above, or use Auto-Route to let the system decide.</source>
         </message>
         <message>
             <source>No provider</source>
-            <translation>제공업체 없음</translation>
+            <translation>공급자 없음</translation>
         </message>
         <message>
             <source>No model</source>
@@ -3190,7 +3190,7 @@ Conversations are saved automatically.</source>
         </message>
         <message>
             <source>Show me today's top market movers</source>
-            <translation>오늘 시장에서 가장 크게 움직인 종목을 보여 줘</translation>
+            <translation>오늘의 급등락 종목을 보여 주세요</translation>
         </message>
         <message>
             <source>News</source>
@@ -3198,7 +3198,7 @@ Conversations are saved automatically.</source>
         </message>
         <message>
             <source>Summarize the latest financial news</source>
-            <translation>최신 금융 뉴스를 요약해 줘</translation>
+            <translation>최신 금융 뉴스를 요약해 주세요</translation>
         </message>
         <message>
             <source>Portfolio</source>
@@ -3206,7 +3206,7 @@ Conversations are saved automatically.</source>
         </message>
         <message>
             <source>Analyze my portfolio performance</source>
-            <translation>내 포트폴리오 성과를 분석해 줘</translation>
+            <translation>내 포트폴리오 성과를 분석해 주세요</translation>
         </message>
         <message>
             <source>Analytics</source>
@@ -3214,7 +3214,7 @@ Conversations are saved automatically.</source>
         </message>
         <message>
             <source>Calculate valuation for AAPL</source>
-            <translation>AAPL의 가치를 평가해 줘</translation>
+            <translation>AAPL의 가치평가를 해 주세요</translation>
         </message>
         <message>
             <source>Economics</source>
@@ -3270,7 +3270,7 @@ Conversations are saved automatically.</source>
         </message>
         <message>
             <source>No LLM provider configured. Go to Settings &gt; LLM Configuration to set up a provider.</source>
-            <translation>설정된 LLM 제공업체가 없습니다. 설정 &gt; LLM 설정에서 제공업체를 설정하세요.</translation>
+            <translation>설정된 LLM 공급자가 없습니다. 설정 &gt; LLM 설정에서 공급자를 설정하세요.</translation>
         </message>
         <message>
             <source>[File attached — see context]</source>
@@ -3306,7 +3306,7 @@ Conversations are saved automatically.</source>
         </message>
         <message>
             <source>%1k tokens</source>
-            <translation>토큰 %1k개</translation>
+            <translation>토큰 %1k</translation>
         </message>
         <message>
             <source>Fincept LLM</source>
@@ -3333,7 +3333,7 @@ Change in Settings &gt; LLM Configuration</source>
 Model: %2
 
 Change in Settings &gt; LLM Configuration</source>
-            <translation>제공업체: %1
+            <translation>공급자: %1
 모델: %2
 
 설정 &gt; LLM 설정에서 변경</translation>
@@ -3396,7 +3396,7 @@ to load available endpoints</source>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>START</source>
@@ -3408,7 +3408,7 @@ to load available endpoints</source>
         </message>
         <message>
             <source>PERIOD</source>
-            <translation>기간</translation>
+            <translation>주기</translation>
         </message>
         <message>
             <source>EXECUTE</source>
@@ -3460,7 +3460,7 @@ to load available endpoints</source>
         </message>
         <message>
             <source>%1 records</source>
-            <translation>레코드 %1개</translation>
+            <translation>%1건</translation>
         </message>
         <message>
             <source>%1 (cached)</source>
@@ -3480,7 +3480,7 @@ to load available endpoints</source>
         </message>
         <message>
             <source>Showing %1 of %2 records</source>
-            <translation>레코드 %2개 중 %1개 표시</translation>
+            <translation>전체 %2건 중 %1건 표시</translation>
         </message>
         <message>
             <source>Error</source>
@@ -3507,15 +3507,15 @@ to load available endpoints</source>
         </message>
         <message>
             <source>Symbol:</source>
-            <translation>종목 코드:</translation>
+            <translation>종목코드:</translation>
         </message>
         <message>
             <source>Paper</source>
-            <translation>모의 거래</translation>
+            <translation>모의투자</translation>
         </message>
         <message>
             <source>Live</source>
-            <translation>실거래</translation>
+            <translation>실전투자</translation>
         </message>
         <message>
             <source>Mode:</source>
@@ -3535,7 +3535,7 @@ to load available endpoints</source>
         </message>
         <message>
             <source>Account:</source>
-            <translation>계정:</translation>
+            <translation>계좌:</translation>
         </message>
         <message>
             <source>Exchange:</source>
@@ -3547,7 +3547,7 @@ to load available endpoints</source>
         </message>
         <message>
             <source>Timeframe:</source>
-            <translation>시간 프레임:</translation>
+            <translation>주기:</translation>
         </message>
         <message>
             <source>Quantity:</source>
@@ -3563,7 +3563,7 @@ to load available endpoints</source>
         </message>
         <message>
             <source>Max Daily Loss:</source>
-            <translation>최대 일일 손실:</translation>
+            <translation>일일 최대 손실:</translation>
         </message>
         <message>
             <source>DEPLOY</source>
@@ -3571,7 +3571,7 @@ to load available endpoints</source>
         </message>
         <message>
             <source>No connected accounts</source>
-            <translation>연결된 계정 없음</translation>
+            <translation>연결된 계좌 없음</translation>
         </message>
         <message>
             <source>Validation</source>
@@ -3579,26 +3579,26 @@ to load available endpoints</source>
         </message>
         <message>
             <source>Symbol is required.</source>
-            <translation>종목 코드는 필수입니다.</translation>
+            <translation>종목코드를 입력하세요.</translation>
         </message>
         <message>
             <source>Quantity must be &gt; 0.</source>
-            <translation>수량은 &gt; 0이어야 합니다.</translation>
+            <translation>수량은 0보다 커야 합니다.</translation>
         </message>
         <message>
             <source>Select a connected broker account for live mode.</source>
-            <translation>실거래 모드에서 사용할 연결된 증권사 계정을 선택하세요.</translation>
+            <translation>실전투자 모드에서 사용할 연결된 증권사 계좌를 선택하세요.</translation>
         </message>
         <message>
             <source>Account credentials expired. Re-authenticate in Equity Trading.</source>
-            <translation>계정 인증 정보가 만료되었습니다. 주식 거래에서 다시 인증하세요.</translation>
+            <translation>계좌 인증 정보가 만료되었습니다. 주식 거래에서 다시 인증하세요.</translation>
         </message>
     </context>
     <context>
         <name>fincept::screens::AlgoTradingScreen</name>
         <message>
             <source>%1 LIVE</source>
-            <translation>%1 실거래</translation>
+            <translation>실전투자 %1</translation>
         </message>
         <message>
             <source>ALGO TRADING</source>
@@ -3641,7 +3641,7 @@ to load available endpoints</source>
         </message>
         <message>
             <source>PYTHON ANALYTICS ENGINE</source>
-            <translation>PYTHON 분석 엔진</translation>
+            <translation>Python 분석 엔진</translation>
         </message>
         <message>
             <source>ASSET CLASSES</source>
@@ -3708,11 +3708,11 @@ to load available endpoints</source>
         </message>
         <message>
             <source>POSITIONS</source>
-            <translation>포지션</translation>
+            <translation>보유종목</translation>
         </message>
         <message>
             <source>MARKET VALUE</source>
-            <translation>시장 가치</translation>
+            <translation>평가금액</translation>
         </message>
         <message>
             <source>P&amp;L</source>
@@ -3732,11 +3732,11 @@ to load available endpoints</source>
         </message>
         <message>
             <source>POS</source>
-            <translation>포지션</translation>
+            <translation>종목 수</translation>
         </message>
         <message>
             <source>MKT VAL</source>
-            <translation>시장 가치</translation>
+            <translation>평가금액</translation>
         </message>
         <message>
             <source>WT</source>
@@ -3744,11 +3744,11 @@ to load available endpoints</source>
         </message>
         <message>
             <source>P&amp;L%</source>
-            <translation>손익률%</translation>
+            <translation>수익률</translation>
         </message>
         <message>
             <source>HOLDINGS CORRELATION MATRIX</source>
-            <translation>보유 종목 상관관계 행렬</translation>
+            <translation>보유종목 상관관계 행렬</translation>
         </message>
         <message>
             <source>%1
@@ -3778,7 +3778,7 @@ sectors</source>
         </message>
         <message>
             <source>%1 positions</source>
-            <translation>포지션 %1개</translation>
+            <translation>%1종목</translation>
         </message>
         <message>
             <source>HHI CONCENTRATION</source>
@@ -3810,11 +3810,11 @@ sectors</source>
         </message>
         <message>
             <source>Need 2+ holdings for correlation analysis</source>
-            <translation>상관관계 분석에는 보유 종목이 2개 이상 필요합니다</translation>
+            <translation>상관관계 분석에는 보유종목이 2개 이상 필요합니다</translation>
         </message>
         <message>
             <source>Top-10 holdings by weight. Pearson correlation of daily returns over the trailing 30 trading days (from real price history).</source>
-            <translation>비중 상위 10개 보유 종목. 최근 30거래일의 일별 수익률에 대한 피어슨 상관계수입니다 (실제 과거 가격 기준).</translation>
+            <translation>비중 상위 10개 보유종목. 최근 30거래일의 일별 수익률에 대한 피어슨 상관계수입니다 (실제 과거 가격 기준).</translation>
         </message>
         <message>
             <source>Computing correlations from price history…</source>
@@ -3901,7 +3901,7 @@ sectors</source>
         </message>
         <message>
             <source>Content density</source>
-            <translation>화면 밀도</translation>
+            <translation>콘텐츠 밀도</translation>
         </message>
         <message>
             <source>Show AI chat bubble</source>
@@ -3940,7 +3940,7 @@ sectors</source>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>e.g. 000001</source>
@@ -3996,7 +3996,7 @@ sectors</source>
         </message>
         <message>
             <source>%1 records</source>
-            <translation>레코드 %1개</translation>
+            <translation>%1건</translation>
         </message>
         <message>
             <source>%1 (cached)</source>
@@ -4016,7 +4016,7 @@ sectors</source>
         </message>
         <message>
             <source>Showing %1 of %2</source>
-            <translation>%2개 중 %1개 표시</translation>
+            <translation>전체 %2건 중 %1건 표시</translation>
         </message>
         <message>
             <source>Error</source>
@@ -4062,9 +4062,9 @@ sectors</source>
 
 Supported providers: VectorBT, Backtesting.py, FastTrade, Zipline, BT, Fincept
 Commands: Backtest, Optimize, Walk-Forward, Indicators, ML Labels, CV Splits, Returns</source>
-            <translation>제공업체, 명령, 전략을 선택한 후 실행을 누르세요.
+            <translation>공급자, 명령, 전략을 선택한 후 실행을 누르세요.
 
-지원 제공업체: VectorBT, Backtesting.py, FastTrade, Zipline, BT, Fincept
+지원 공급자: VectorBT, Backtesting.py, FastTrade, Zipline, BT, Fincept
 명령: 백테스트, 최적화, 워크포워드, 지표, ML 레이블, 교차 검증 분할, 수익률</translation>
         </message>
         <message>
@@ -4105,7 +4105,7 @@ Commands: Backtest, Optimize, Walk-Forward, Indicators, ML Labels, CV Splits, Re
         </message>
         <message>
             <source>SYMBOLS</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>START</source>
@@ -4117,7 +4117,7 @@ Commands: Backtest, Optimize, Walk-Forward, Indicators, ML Labels, CV Splits, Re
         </message>
         <message>
             <source>INTERVAL</source>
-            <translation>간격</translation>
+            <translation>주기</translation>
         </message>
         <message>
             <source>EXECUTION</source>
@@ -4133,7 +4133,7 @@ Commands: Backtest, Optimize, Walk-Forward, Indicators, ML Labels, CV Splits, Re
         </message>
         <message>
             <source>RISK-FREE RATE (%)</source>
-            <translation>무위험 수익률 (%)</translation>
+            <translation>무위험이자율 (%)</translation>
         </message>
         <message>
             <source>ADVANCED</source>
@@ -4161,7 +4161,7 @@ Commands: Backtest, Optimize, Walk-Forward, Indicators, ML Labels, CV Splits, Re
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>None</source>
@@ -4173,7 +4173,7 @@ Commands: Backtest, Optimize, Walk-Forward, Indicators, ML Labels, CV Splits, Re
         </message>
         <message>
             <source>PROVIDERS:</source>
-            <translation>제공업체:</translation>
+            <translation>공급자:</translation>
         </message>
         <message>
             <source>STRATEGIES:</source>
@@ -4197,15 +4197,15 @@ Commands: Backtest, Optimize, Walk-Forward, Indicators, ML Labels, CV Splits, Re
         </message>
         <message>
             <source>SIZE (%)</source>
-            <translation>규모 (%)</translation>
+            <translation>투자 비중 (%)</translation>
         </message>
         <message>
             <source>SIZE (%1)</source>
-            <translation>규모 (%1)</translation>
+            <translation>투자 금액 (%1)</translation>
         </message>
         <message>
             <source>RISK PER TRADE (%)</source>
-            <translation>거래당 위험 (%)</translation>
+            <translation>거래당 리스크 (%)</translation>
         </message>
         <message>
             <source>TARGET (%)</source>
@@ -4445,11 +4445,11 @@ Commands: Backtest, Optimize, Walk-Forward, Indicators, ML Labels, CV Splits, Re
         </message>
         <message>
             <source>Command '%1' is not supported by provider '%2'</source>
-            <translation>제공업체 '%2'은(는) 명령 '%1'을(를) 지원하지 않습니다</translation>
+            <translation>공급자 '%2'은(는) 명령 '%1'을(를) 지원하지 않습니다</translation>
         </message>
         <message>
             <source>Please enter at least one symbol (e.g. SPY, AAPL)</source>
-            <translation>종목 코드를 하나 이상 입력하세요 (예: SPY, AAPL)</translation>
+            <translation>종목코드를 하나 이상 입력하세요 (예: SPY, AAPL)</translation>
         </message>
         <message>
             <source>EXECUTING...</source>
@@ -4699,7 +4699,7 @@ Get a free key at: data.bls.gov/registrationEngine/</source>
         </message>
         <message>
             <source>Select a preset or enter a series ID</source>
-            <translation>프리셋을 선택하거나 시계열 ID 입력</translation>
+            <translation>프리셋을 선택하거나 시계열 ID를 입력하세요</translation>
         </message>
         <message>
             <source>Fetching BLS series %1…</source>
@@ -4749,11 +4749,11 @@ BLS_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>UP</source>
-            <translation>위</translation>
+            <translation>위로</translation>
         </message>
         <message>
             <source>DN</source>
-            <translation>아래</translation>
+            <translation>아래로</translation>
         </message>
         <message>
             <source>DEL</source>
@@ -4965,7 +4965,7 @@ CFTC 데이터는 무료이며 API 키가 필요하지 않습니다</translation
         <name>fincept::screens::CodeEditorScreen</name>
         <message>
             <source>PYTHON NOTEBOOK</source>
-            <translation>PYTHON 노트북</translation>
+            <translation>Python 노트북</translation>
         </message>
         <message>
             <source>NEW</source>
@@ -5208,8 +5208,8 @@ It will be available in a future update.</source>
         <message>
             <source>Are you sure you want to delete "%1"?
 This will remove all holdings and transactions.</source>
-            <translation>"%1"을(를) 삭제할까요?
-모든 보유 종목과 거래 내역이 삭제됩니다.</translation>
+            <translation>"%1"을(를) 삭제하시겠습니까?
+보유종목과 거래 내역이 모두 삭제됩니다.</translation>
         </message>
         <message>
             <source>CANCEL</source>
@@ -5341,7 +5341,7 @@ This will remove all holdings and transactions.</source>
         </message>
         <message>
             <source>EMAIL SUPPORT</source>
-            <translation>이메일 지원</translation>
+            <translation>이메일 문의</translation>
         </message>
         <message>
             <source>Response within 4-6 hours</source>
@@ -5349,7 +5349,7 @@ This will remove all holdings and transactions.</source>
         </message>
         <message>
             <source>PHONE SUPPORT</source>
-            <translation>전화 지원</translation>
+            <translation>전화 문의</translation>
         </message>
         <message>
             <source>Mon-Fri, 9AM-6PM EST</source>
@@ -5357,7 +5357,7 @@ This will remove all holdings and transactions.</source>
         </message>
         <message>
             <source>SUPPORT HOURS</source>
-            <translation>지원 시간</translation>
+            <translation>상담 시간</translation>
         </message>
         <message>
             <source>Mon-Fri 9AM-6PM EST</source>
@@ -5413,7 +5413,7 @@ This will remove all holdings and transactions.</source>
         </message>
         <message>
             <source>Data not loading or showing stale</source>
-            <translation>데이터가 불러와지지 않거나 오래된 데이터가 표시되는 경우</translation>
+            <translation>데이터를 불러오지 못하거나 오래된 데이터가 표시되는 경우</translation>
         </message>
         <message>
             <source>Check your internet connection. Try refreshing the screen or restarting the terminal.</source>
@@ -5542,7 +5542,7 @@ This will remove all holdings and transactions.</source>
             <source>Delete "%1"?
 
 This cannot be undone.</source>
-            <translation>"%1"을(를) 삭제할까요?
+            <translation>"%1"을(를) 삭제하시겠습니까?
 
 이 작업은 되돌릴 수 없습니다.</translation>
         </message>
@@ -5611,7 +5611,7 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>No provider — Settings &gt; LLM Config</source>
-            <translation>제공업체 없음 — 설정 &gt; LLM 설정</translation>
+            <translation>공급자 없음 — 설정 &gt; LLM 설정</translation>
         </message>
         <message>
             <source>LOAD</source>
@@ -5671,7 +5671,7 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>Brief description of what this agent does...</source>
-            <translation>이 에이전트가 하는 일에 대한 간단한 설명...</translation>
+            <translation>에이전트가 하는 일을 간단히 설명하세요...</translation>
         </message>
         <message>
             <source>LLM profile for this agent. Configure profiles in Settings &gt; LLM Config.</source>
@@ -5905,7 +5905,7 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>Store API keys securely in the OS keychain. Keys are never written to disk in plain text.</source>
-            <translation>API 키를 OS 키체인에 안전하게 저장합니다. 키는 디스크에 일반 텍스트로 저장되지 않습니다.</translation>
+            <translation>API 키를 OS 키체인에 안전하게 저장합니다. 키는 디스크에 평문으로 저장되지 않습니다.</translation>
         </message>
         <message>
             <source>Not set</source>
@@ -5921,7 +5921,7 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>Cleared</source>
-            <translation>지워짐</translation>
+            <translation>삭제됨</translation>
         </message>
         <message>
             <source>•••••••• (saved)</source>
@@ -5951,7 +5951,7 @@ This cannot be undone.</source>
             <source>Remove the stored %1 key from the OS keychain?
 
 You will need to paste it again to restore access.</source>
-            <translation>OS 키체인에 저장된 %1 키를 삭제할까요?
+            <translation>OS 키체인에 저장된 %1 키를 삭제하시겠습니까?
 
 다시 사용하려면 키를 다시 붙여 넣어야 합니다.</translation>
         </message>
@@ -5964,7 +5964,7 @@ You will need to paste it again to restore access.</source>
         </message>
         <message>
             <source>Connect a Solana wallet to view your $FNCPT balance, SOL holdings, and live USD valuation. Your private keys never leave your wallet.</source>
-            <translation>Solana 지갑을 연결하여 $FNCPT 잔액, SOL 보유량, 실시간 USD 평가액을 확인하세요. 개인 키는 지갑 밖으로 나가지 않습니다.</translation>
+            <translation>Solana 지갑을 연결하면 $FNCPT 잔고, SOL 보유량, 실시간 USD 평가금액을 확인할 수 있습니다. 개인 키는 지갑 밖으로 나가지 않습니다.</translation>
         </message>
         <message>
             <source>· public address read-only
@@ -6010,7 +6010,7 @@ You will need to paste it again to restore access.</source>
         </message>
         <message>
             <source>CRYPTO CENTER</source>
-            <translation>암호화폐 센터</translation>
+            <translation>가상자산 센터</translation>
         </message>
         <message>
             <source>● DISCONNECTED</source>
@@ -6061,11 +6061,11 @@ You will need to paste it again to restore access.</source>
         </message>
         <message>
             <source>PAPER</source>
-            <translation>모의 거래</translation>
+            <translation>모의투자</translation>
         </message>
         <message>
             <source>LIVE</source>
-            <translation>라이브</translation>
+            <translation>실전투자</translation>
         </message>
         <message>
             <source>OFFLINE</source>
@@ -6108,7 +6108,7 @@ You will need to paste it again to restore access.</source>
         </message>
         <message>
             <source>CONSTITUENTS (from portfolio holdings)</source>
-            <translation>구성 종목 (포트폴리오 보유 종목)</translation>
+            <translation>구성 종목 (포트폴리오 보유종목)</translation>
         </message>
         <message>
             <source>INCLUDE</source>
@@ -6116,7 +6116,7 @@ You will need to paste it again to restore access.</source>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>PRICE</source>
@@ -6128,7 +6128,7 @@ You will need to paste it again to restore access.</source>
         </message>
         <message>
             <source>MKT VALUE</source>
-            <translation>시장 가치</translation>
+            <translation>평가금액</translation>
         </message>
         <message>
             <source>MY CUSTOM INDICES</source>
@@ -6144,7 +6144,7 @@ You will need to paste it again to restore access.</source>
         </message>
         <message>
             <source>METHOD</source>
-            <translation>방법</translation>
+            <translation>방식</translation>
         </message>
         <message>
             <source>BASE</source>
@@ -6156,7 +6156,7 @@ You will need to paste it again to restore access.</source>
         </message>
         <message>
             <source>CHANGE</source>
-            <translation>변동</translation>
+            <translation>등락</translation>
         </message>
         <message>
             <source>CREATED</source>
@@ -6174,7 +6174,7 @@ Go to CREATE INDEX tab to build one from your portfolio.</source>
         </message>
         <message>
             <source>Select an index from MY INDICES to see its performance.</source>
-            <translation>내 지수에서 지수를 선택하여 성과를 확인하세요.</translation>
+            <translation>내 지수 탭에서 지수를 선택하면 성과가 표시됩니다.</translation>
         </message>
         <message>
             <source>Base value must be positive.</source>
@@ -6301,11 +6301,11 @@ Click  + ADD SLOT  in the left panel to begin</source>
         </message>
         <message>
             <source>%1 providers</source>
-            <translation>제공업체 %1개</translation>
+            <translation>공급자 %1개</translation>
         </message>
         <message>
             <source>Loaded %1 providers</source>
-            <translation>제공업체 %1개 불러옴</translation>
+            <translation>공급자 %1개 불러옴</translation>
         </message>
         <message>
             <source>Loaded %1 series</source>
@@ -6321,7 +6321,7 @@ Click  + ADD SLOT  in the left panel to begin</source>
         </message>
         <message>
             <source>Fetching providers...</source>
-            <translation>제공업체 가져오는 중...</translation>
+            <translation>공급자 가져오는 중...</translation>
         </message>
         <message>
             <source>Refreshing series data...</source>
@@ -6361,11 +6361,11 @@ Click  + ADD SLOT  in the left panel to begin</source>
         </message>
         <message>
             <source>No data loaded — click a series first</source>
-            <translation>불러온 데이터 없음 — 먼저 시계열을 누르세요</translation>
+            <translation>불러온 데이터 없음 — 먼저 시계열을 선택하세요</translation>
         </message>
         <message>
             <source>Series already in view</source>
-            <translation>시계열이 이미 보기에 있습니다</translation>
+            <translation>이미 추가된 시계열입니다</translation>
         </message>
         <message>
             <source>Added: %1</source>
@@ -6400,7 +6400,7 @@ Click  + ADD SLOT  in the left panel to begin</source>
         </message>
         <message>
             <source>PROVIDERS</source>
-            <translation>제공업체</translation>
+            <translation>공급자</translation>
         </message>
         <message>
             <source>DATASETS</source>
@@ -6416,11 +6416,11 @@ Click  + ADD SLOT  in the left panel to begin</source>
         </message>
         <message>
             <source>Search providers, datasets...</source>
-            <translation>제공업체, 데이터셋 검색...</translation>
+            <translation>공급자, 데이터셋 검색...</translation>
         </message>
         <message>
             <source>Filter providers...</source>
-            <translation>제공업체 필터...</translation>
+            <translation>공급자 필터...</translation>
         </message>
         <message>
             <source>Search series...</source>
@@ -6444,7 +6444,7 @@ Click  + ADD SLOT  in the left panel to begin</source>
         </message>
         <message>
             <source>%1  LOADING PROVIDERS...</source>
-            <translation>%1  제공업체 불러오는 중...</translation>
+            <translation>%1  공급자 불러오는 중...</translation>
         </message>
         <message>
             <source>%1  LOADING DATASETS...</source>
@@ -6472,7 +6472,7 @@ Click  + ADD SLOT  in the left panel to begin</source>
         </message>
         <message>
             <source>%1 providers</source>
-            <translation>제공업체 %1개</translation>
+            <translation>공급자 %1개</translation>
         </message>
         <message>
             <source>LOADING...</source>
@@ -6538,11 +6538,11 @@ Click  + ADD SLOT  in the left panel to begin</source>
         <name>fincept::screens::DashboardTemplates</name>
         <message>
             <source>Portfolio Manager</source>
-            <translation>포트폴리오 관리자</translation>
+            <translation>포트폴리오 매니저</translation>
         </message>
         <message>
             <source>Holdings, performance, risk and watchlist</source>
-            <translation>보유 종목, 성과, 위험 및 관심종목</translation>
+            <translation>보유종목, 성과, 리스크 및 관심종목</translation>
         </message>
         <message>
             <source>Hedge Fund</source>
@@ -6550,15 +6550,15 @@ Click  + ADD SLOT  in the left panel to begin</source>
         </message>
         <message>
             <source>Sector heatmap, screener, risk and macro</source>
-            <translation>업종 히트맵, 스크리너, 위험 및 거시경제</translation>
+            <translation>업종 히트맵, 스크리너, 리스크 및 거시경제</translation>
         </message>
         <message>
             <source>Crypto Trader</source>
-            <translation>암호화폐 트레이더</translation>
+            <translation>가상자산 트레이더</translation>
         </message>
         <message>
             <source>Crypto prices, quick trade, sentiment and movers</source>
-            <translation>암호화폐 가격, 빠른 거래, 시장 심리 및 급등락 종목</translation>
+            <translation>가상자산 시세, 빠른 주문, 시장 심리 및 급등락 종목</translation>
         </message>
         <message>
             <source>Equity Trader</source>
@@ -7004,7 +7004,7 @@ Click CREATE to build your first data mapping.</source>
         </message>
         <message>
             <source>Select a template to view details</source>
-            <translation>템플릿을 선택하여 상세 정보 보기</translation>
+            <translation>템플릿을 선택하면 상세 정보가 표시됩니다</translation>
         </message>
         <message>
             <source>Enter a URL first</source>
@@ -7084,7 +7084,7 @@ PARSER: %11
 TAGS: %12</source>
             <translation>이름: %1
 
-제공업체: %2
+공급자: %2
 스키마: %3
 검증됨: %4
 
@@ -7115,7 +7115,7 @@ API 상세:
         </message>
         <message>
             <source>TOTAL</source>
-            <translation>합계</translation>
+            <translation>전체</translation>
         </message>
         <message>
             <source>ACTIVE</source>
@@ -7127,7 +7127,7 @@ API 상세:
         </message>
         <message>
             <source>PROVIDERS</source>
-            <translation>제공업체</translation>
+            <translation>공급자</translation>
         </message>
         <message>
             <source>CONNECTIONS</source>
@@ -7135,7 +7135,7 @@ API 상세:
         </message>
         <message>
             <source>SOURCE</source>
-            <translation>출처</translation>
+            <translation>소스</translation>
         </message>
         <message>
             <source>TYPE</source>
@@ -7193,19 +7193,19 @@ API 상세:
             <source>Delete connection "%1"?
 
 This cannot be undone.</source>
-            <translation>연결 "%1"을(를) 삭제할까요?
+            <translation>연결 "%1"을(를) 삭제하시겠습니까?
 
 이 작업은 되돌릴 수 없습니다.</translation>
         </message>
         <message>
             <source>Disable all data source connections?</source>
-            <translation>모든 데이터 소스 연결을 비활성화할까요?</translation>
+            <translation>모든 데이터 소스 연결을 비활성화하시겠습니까?</translation>
         </message>
         <message>
             <source>Permanently delete ALL data source connections?
 
 This cannot be undone. You can re-add them from the full Data Sources screen.</source>
-            <translation>모든 데이터 소스 연결을 영구 삭제할까요?
+            <translation>모든 데이터 소스 연결을 영구 삭제하시겠습니까?
 
 이 작업은 되돌릴 수 없습니다. 데이터 소스 전체 화면에서 다시 추가할 수 있습니다.</translation>
         </message>
@@ -7222,7 +7222,7 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>LTP</source>
-            <translation>최종 체결가</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>WIN RATE</source>
@@ -7238,11 +7238,11 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>TRADES</source>
-            <translation>거래</translation>
+            <translation>거래 횟수</translation>
         </message>
         <message>
             <source>MAX DD</source>
-            <translation>최대 낙폭</translation>
+            <translation>최대낙폭</translation>
         </message>
         <message>
             <source>STOP</source>
@@ -7262,7 +7262,7 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>TOTAL TRADES</source>
-            <translation>총 거래 수</translation>
+            <translation>총 거래 횟수</translation>
         </message>
         <message>
             <source>AVG WIN RATE</source>
@@ -7274,7 +7274,7 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>Select a deployment to view curve</source>
-            <translation>배포를 선택하여 곡선 보기</translation>
+            <translation>배포를 선택하면 자산 곡선이 표시됩니다</translation>
         </message>
         <message>
             <source>REFRESH</source>
@@ -7313,11 +7313,11 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>PROFESSIONAL VALUATION ENGINE</source>
-            <translation>전문 가치 평가 엔진</translation>
+            <translation>전문가용 가치평가 엔진</translation>
         </message>
         <message>
             <source>PYTHON ACTIVE</source>
-            <translation>PYTHON 활성</translation>
+            <translation>Python 활성</translation>
         </message>
         <message>
             <source>BONDS</source>
@@ -7409,7 +7409,7 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>TIME TO EXPIRY (years)</source>
-            <translation>만기까지 기간 (년)</translation>
+            <translation>잔존만기 (년)</translation>
         </message>
         <message>
             <source>VOLATILITY (%)</source>
@@ -7417,7 +7417,7 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>RISK-FREE RATE (%)</source>
-            <translation>무위험 수익률 (%)</translation>
+            <translation>무위험이자율 (%)</translation>
         </message>
         <message>
             <source>DIVIDEND YIELD (%)</source>
@@ -7485,7 +7485,7 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>FREQUENCY</source>
-            <translation>빈도</translation>
+            <translation>지급 주기</translation>
         </message>
         <message>
             <source>DISCOUNT RATE (%)</source>
@@ -7529,7 +7529,7 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>PYTHON ENGINE</source>
-            <translation>PYTHON 엔진</translation>
+            <translation>Python 엔진</translation>
         </message>
         <message>
             <source>RESULTS</source>
@@ -7581,7 +7581,7 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>RHO</source>
-            <translation>로</translation>
+            <translation>로(Rho)</translation>
         </message>
         <message>
             <source>PRICE PER UNIT</source>
@@ -7593,27 +7593,27 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>FIXED LEG PV</source>
-            <translation>고정금리 부문 현재가치</translation>
+            <translation>고정 레그 현재가치</translation>
         </message>
         <message>
             <source>FLOATING LEG PV</source>
-            <translation>변동금리 부문 현재가치</translation>
+            <translation>변동 레그 현재가치</translation>
         </message>
         <message>
             <source>PAR SWAP RATE</source>
-            <translation>파 스왑 금리</translation>
+            <translation>Par 스왑 금리</translation>
         </message>
         <message>
             <source>UPFRONT VALUE</source>
-            <translation>선급금 가치</translation>
+            <translation>업프론트 금액</translation>
         </message>
         <message>
             <source>PREMIUM LEG PV</source>
-            <translation>프리미엄 부문 현재가치</translation>
+            <translation>프리미엄 레그 현재가치</translation>
         </message>
         <message>
             <source>PROTECTION LEG PV</source>
-            <translation>보장 부문 현재가치</translation>
+            <translation>보장 레그 현재가치</translation>
         </message>
         <message>
             <source>BREAKEVEN SPREAD</source>
@@ -7621,7 +7621,7 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>HAZARD RATE</source>
-            <translation>위험률</translation>
+            <translation>해저드율</translation>
         </message>
         <message>
             <source>SURVIVAL PROB</source>
@@ -7715,11 +7715,11 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>Crypto Trading</source>
-            <translation>암호화폐 거래</translation>
+            <translation>가상자산 거래</translation>
         </message>
         <message>
             <source>Paper Trading</source>
-            <translation>모의 거래</translation>
+            <translation>모의투자</translation>
         </message>
         <message>
             <source>Algo Trading</source>
@@ -7871,7 +7871,7 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>FINCEPT TERMINAL  —  DOCUMENTATION</source>
-            <translation>FINCEPT TERMINAL  —  문서</translation>
+            <translation>Fincept Terminal  —  문서</translation>
         </message>
         <message>
             <source>v4.0.0  |  Native C++ Financial Intelligence Terminal</source>
@@ -7879,7 +7879,7 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         </message>
         <message>
             <source>WHAT IS FINCEPT TERMINAL?</source>
-            <translation>FINCEPT TERMINAL이란?</translation>
+            <translation>Fincept Terminal이란?</translation>
         </message>
         <message>
             <source>Fincept Terminal is a professional-grade desktop financial intelligence platform built in native C++ with Qt6. It provides institutional-quality market data, trading capabilities, quantitative research tools, and AI-powered analytics — all in a single unified terminal interface.
@@ -7907,23 +7907,23 @@ With 45+ integrated screens, real-time WebSocket feeds, embedded Python analytic
 ■  Report builder with drag-and-drop components
 ■  Backtesting with 6 providers and 50+ strategies
 ■  Algorithmic trading with strategy builder and scanner</source>
-            <translation>■  주식, 암호화폐, 외환, 원자재의 실시간 시장 데이터
-■  여러 거래소의 암호화폐 거래 (Kraken, HyperLiquid, Binance 등)
-■  주문 매칭을 시뮬레이션하는 모의 거래 엔진
+            <translation>■  주식, 가상자산, 외환, 원자재의 실시간 시장 데이터
+■  여러 거래소의 가상자산 거래 (Kraken, HyperLiquid, Binance 등)
+■  주문 매칭을 시뮬레이션하는 모의투자 엔진
 ■  Python 분석 스크립트 100개 이상 (주식, 포트폴리오, 파생상품)
 ■  모듈 18개로 구성된 QuantLib 퀀트 분석 도구 모음 (엔드포인트 590개 이상)
 ■  ML 모델, 팩터 발굴, HFT, RL 거래를 제공하는 AI 퀀트 랩
 ■  여러 AI 에이전트 프레임워크 (지정학, 경제, 헤지펀드)
 ■  워크플로 자동화를 위한 시각적 노드 편집기
-■  DBnomics를 통한 데이터 제공업체 100개 이상, 데이터셋 500K개 이상 이용
-■  파생상품, 채권, 신용, 위험 서피스 분석
+■  DBnomics로 데이터 공급자 100개 이상, 데이터셋 50만 개 이상 이용
+■  파생상품, 채권, 신용, 리스크 서피스 분석
 ■  드래그 앤 드롭 구성 요소를 제공하는 보고서 작성기
-■  제공업체 6개와 전략 50개 이상의 백테스트
+■  공급자 6개와 전략 50개 이상을 지원하는 백테스트
 ■  전략 빌더와 스캐너를 갖춘 알고리즘 거래</translation>
         </message>
         <message>
             <source>WHO IS THIS FOR?</source>
-            <translation>누구를 위한 도구인가요?</translation>
+            <translation>이용 대상</translation>
         </message>
         <message>
             <source>■  Retail traders seeking institutional-quality tools
@@ -7938,7 +7938,7 @@ With 45+ integrated screens, real-time WebSocket feeds, embedded Python analytic
 ■  포트폴리오 매니저와 금융 분석가
 ■  시장과 분석을 배우는 금융 전공 학생
 ■  알고리즘 거래 개발자
-■  여러 거래소에 접속해야 하는 암호화폐 트레이더
+■  여러 거래소에 접속해야 하는 가상자산 트레이더
 ■  글로벌 데이터셋을 다루는 경제 연구자</translation>
         </message>
         <message>
@@ -7952,12 +7952,12 @@ With 45+ integrated screens, real-time WebSocket feeds, embedded Python analytic
 ■  Key Features — detailed capabilities
 ■  Real-World Usage — practical applications
 ■  Skill Levels — Beginner through Pro guidance</source>
-            <translation>왼쪽 사이드바에서 범주별로 문서를 탐색하세요. 각 절은 터미널 기능을 다음 내용으로 설명합니다:
+            <translation>왼쪽 사이드바에서 범주별로 문서를 탐색하세요. 각 항목은 터미널 기능 하나를 다음 내용으로 설명합니다:
 
 ■  개요 — 기능의 역할
 ■  주요 기능 — 상세한 기능 설명
 ■  실제 활용 — 실무 적용 사례
-■  숙련도 — 초급부터 전문가까지의 안내</translation>
+■  숙련도 — 초급부터 전문가까지 수준별 안내</translation>
         </message>
         <message>
             <source>Your first steps with Fincept Terminal</source>
@@ -7999,11 +7999,11 @@ Use the Navigate menu (in toolbar) to access 30+ additional screens organized by
             <translation>터미널은 네 가지 주요 영역으로 구성됩니다:
 
 도구 모음 (상단) — 파일, 탐색, 보기, 도움말 메뉴 및 세션 정보
-탭 표시줄 — 대시보드, 시장, 암호화폐, 포트폴리오 등 기본 탭 14개
+탭 표시줄 — 대시보드, 시장, 가상자산, 포트폴리오 등 기본 탭 14개
 콘텐츠 영역 — 현재 화면이 표시되는 영역
 상태 표시줄 (하단) — 버전, 시장 지표, 연결 상태
 
-도구 모음의 탐색 메뉴에서 시장 및 데이터, 거래, 리서치, 도구 등의 범주로 분류된 추가 화면 30개 이상에 접근할 수 있습니다.</translation>
+도구 모음의 탐색 메뉴에서 시장 및 데이터, 거래, 리서치, 도구 등의 범주로 분류된 추가 화면 30개 이상을 열 수 있습니다.</translation>
         </message>
         <message>
             <source>KEYBOARD SHORTCUTS</source>
@@ -8031,11 +8031,11 @@ Ctrl+P — 스크린샷 촬영 (홈 디렉터리에 저장)</translation>
 ■  ENTERPRISE — Everything + API access, priority support
 
 Manage your plan from Settings or the Pricing screen.</source>
-            <translation>Fincept Terminal은 단계별 이용 권한을 제공합니다:
+            <translation>Fincept Terminal은 플랜별로 이용 범위가 다릅니다:
 
-■  FREE — 기본 시장 데이터, 제한된 화면, 모의 거래
-■  PRO — 전체 시장 데이터, 모든 화면, 실거래, AI 채팅
-■  ENTERPRISE — 모든 기능 및 API 액세스, 우선 지원
+■  FREE — 기본 시장 데이터, 제한된 화면, 모의투자
+■  PRO — 전체 시장 데이터, 모든 화면, 실전투자, AI 채팅
+■  ENTERPRISE — 모든 기능, API 이용, 우선 지원
 
 설정이나 요금 화면에서 플랜을 관리하세요.</translation>
         </message>
@@ -8045,7 +8045,7 @@ Manage your plan from Settings or the Pricing screen.</source>
         </message>
         <message>
             <source>Configure broker connections, set up paper trading, explore analytics</source>
-            <translation>증권사 연결과 모의 거래를 설정하고 분석 기능을 살펴보세요</translation>
+            <translation>증권사 연결과 모의투자를 설정하고 분석 기능을 살펴보세요</translation>
         </message>
         <message>
             <source>Deploy algo strategies, use QuantLib suite, build custom workflows</source>
@@ -8101,7 +8101,7 @@ Refresh All — Refresh all active data feeds</source>
 ■  Trading &amp; Portfolio — Equity Trading, Derivatives, Watchlist
 ■  Research — Equity Research, M&amp;A, Geopolitics, Surface Analytics
 ■  Tools — Report Builder, Node Editor, Code Editor, Excel, Notes</source>
-            <translation>하위 메뉴로 분류된 화면 30개 이상에 접근합니다:
+            <translation>하위 메뉴별로 정리된 화면 30개 이상을 열 수 있습니다:
 ■  시장 및 데이터 — 스크리너, 경제, DBnomics, AkShare, 정부 데이터
 ■  거래 및 포트폴리오 — 주식 거래, 파생상품, 관심종목
 ■  리서치 — 주식 리서치, M&amp;A, 지정학, 서피스 분석
@@ -8117,7 +8117,7 @@ Focus Mode (F10) — Hide chrome for maximum content area
 Refresh (F5) — Reload current screen
 Screenshot (Ctrl+P) — Capture to file</source>
             <translation>전체 화면 (F11) — 모니터 공간 전체 사용
-집중 모드 (F10) — UI 장식을 숨겨 콘텐츠 영역 확대
+집중 모드 (F10) — 주변 UI를 숨겨 콘텐츠 영역 최대화
 새로고침 (F5) — 현재 화면 다시 불러오기
 스크린샷 (Ctrl+P) — 화면을 파일로 저장</translation>
         </message>
@@ -8159,23 +8159,23 @@ Screenshot (Ctrl+P) — Capture to file</source>
 ■  Crypto — Top cryptocurrency prices
 ■  Commodities — Gold, oil, silver, natural gas
 ■  Portfolio Summary — Holdings overview with allocation</source>
-            <translation>■  주식 시세 — 모든 종목의 실시간 가격, 변동, 거래량
-■  관심종목 — 추적 종목의 실시간 업데이트
-■  급등락 종목 — 해당 세션의 최대 상승 및 하락 종목
+            <translation>■  주식 시세 — 원하는 종목의 실시간 현재가, 등락, 거래량
+■  관심종목 — 등록한 종목의 실시간 시세
+■  급등락 종목 — 당일 상승률·하락률 상위 종목
 ■  시장 심리 — 강세/약세 지표와 공포/탐욕 지수
 ■  뉴스 — 심리 태그가 표시된 최신 헤드라인
 ■  경제 일정 — 예정된 경제 이벤트와 발표
 ■  업종 히트맵 — 업종별 성과를 시각화한 지도
 ■  성과 — 포트폴리오 수익률 추적
-■  위험 지표 — VaR, 샤프, 베타, 낙폭 지표
-■  스크리너 — 필터를 갖춘 간편 주식 스크리너
+■  리스크 지표 — VaR, 샤프지수, 베타, 낙폭
+■  스크리너 — 필터로 빠르게 찾는 종목 스크리너
 ■  시세표 — 여러 종목 비교표
-■  빠른 거래 — 클릭 한 번으로 거래 입력
+■  빠른 주문 — 클릭 한 번으로 주문 입력
 ■  지수 — 주요 지수 추적 (S&amp;P 500, NASDAQ, DOW)
 ■  외환 — 통화쌍 환율
-■  암호화폐 — 주요 암호화폐 가격
+■  가상자산 — 주요 가상자산 시세
 ■  원자재 — 금, 원유, 은, 천연가스
-■  포트폴리오 요약 — 자산 배분을 포함한 보유 종목 개요</translation>
+■  포트폴리오 요약 — 자산배분을 포함한 보유종목 개요</translation>
         </message>
         <message>
             <source>REAL-WORLD USAGE</source>
@@ -8187,8 +8187,8 @@ Screenshot (Ctrl+P) — Capture to file</source>
 ■  Portfolio management: Use portfolio summary + risk metrics + performance
 ■  Sector rotation: Combine sector heatmap + top movers + indices</source>
             <translation>■  아침 점검: 급등락 종목 확인, 밤사이 뉴스 검토, 경제 일정 확인
-■  적극적 거래: 주식 시세와 빠른 거래 위젯 고정, 관심종목 모니터링
-■  포트폴리오 관리: 포트폴리오 요약 + 위험 지표 + 성과 사용
+■  적극적 거래: 주식 시세와 빠른 주문 위젯 고정, 관심종목 모니터링
+■  포트폴리오 관리: 포트폴리오 요약 + 리스크 지표 + 성과 사용
 ■  업종 순환매: 업종 히트맵 + 급등락 종목 + 지수 결합</translation>
         </message>
         <message>
@@ -8201,7 +8201,7 @@ Screenshot (Ctrl+P) — Capture to file</source>
         </message>
         <message>
             <source>Build specialized layouts for different strategies (day trading vs swing). Use risk metrics + performance together.</source>
-            <translation>전략별로 특화된 레이아웃을 만드세요 (데이 트레이딩과 스윙 등). 위험 지표와 성과를 함께 활용하세요.</translation>
+            <translation>전략별로 특화된 레이아웃을 만드세요 (데이 트레이딩과 스윙 등). 리스크 지표와 성과를 함께 활용하세요.</translation>
         </message>
         <message>
             <source>Create multi-monitor layouts. Combine dashboard with algo trading feeds. Use economic calendar for event-driven setups.</source>
@@ -8217,7 +8217,7 @@ Screenshot (Ctrl+P) — Capture to file</source>
         </message>
         <message>
             <source>The Markets screen provides a comprehensive view of global markets organized by region. It displays indices, equities, forex, commodities, and crypto in panel-based layouts with configurable auto-refresh (default: 10 minutes).</source>
-            <translation>시장 화면은 지역별로 구성된 글로벌 시장의 종합적인 현황을 제공합니다. 지수, 주식, 외환, 원자재, 암호화폐를 패널 형태로 표시하며 자동 새로고침 간격을 설정할 수 있습니다 (기본값: 10분).</translation>
+            <translation>시장 화면은 지역별로 구성된 글로벌 시장의 종합적인 현황을 제공합니다. 지수, 주식, 외환, 원자재, 가상자산을 패널 형태로 표시하며 자동 새로고침 간격을 설정할 수 있습니다 (기본값: 10분).</translation>
         </message>
         <message>
             <source>KEY FEATURES</source>
@@ -8232,10 +8232,10 @@ Screenshot (Ctrl+P) — Capture to file</source>
 ■  Click any instrument to navigate to detailed view</source>
             <translation>■  지역별 패널 — 미국, 유럽, 아시아, 글로벌
 ■  간격을 설정할 수 있는 자동 새로고침
-■  가격, 변동, 등락률을 색상으로 구분 (초록/빨강)
-■  시장 운영 시간과 세션 상태 표시
-■  이름, 가격, 변동 또는 거래량순 정렬
-■  상품을 클릭하여 상세 보기로 이동</translation>
+■  현재가, 전일대비, 등락률을 색상으로 구분 (초록/빨강)
+■  거래시간과 장 운영 상태 표시
+■  종목명, 현재가, 전일대비, 거래량순 정렬
+■  종목을 클릭하여 상세 보기로 이동</translation>
         </message>
         <message>
             <source>■  Pre-market: Scan global indices to gauge overnight sentiment
@@ -8284,7 +8284,7 @@ Screenshot (Ctrl+P) — Capture to file</source>
 ■  Keyword monitors — set alerts for specific topics
 ■  Deviation detection — flags unusual coverage patterns
 ■  Full article reader with clean formatting</source>
-            <translation>■  범주 필터 — 전체, 시장, 경제, 기술, 암호화폐, 지정학
+            <translation>■  범주 필터 — 전체, 시장, 경제, 기술, 가상자산, 지정학
 ■  기간 선택 — 1H, 4H, 24H, 7D, 30D
 ■  최신순, 관련도순 또는 심리 점수순 정렬
 ■  뉴스 클러스터링 — 관련 기사 묶기
@@ -8319,11 +8319,11 @@ PRO: Combine news sentiment with quantitative signals for alpha generation</sour
         </message>
         <message>
             <source>Track your favorite instruments with live quotes</source>
-            <translation>실시간 시세로 관심 있는 상품 추적</translation>
+            <translation>관심 있는 종목을 실시간 시세로 추적</translation>
         </message>
         <message>
             <source>The Watchlist screen lets you create and manage multiple watchlists, each with live price quotes, change indicators, and quick access to detailed analysis.</source>
-            <translation>관심종목 화면에서는 여러 관심종목 목록을 만들고 관리할 수 있습니다. 각 목록은 실시간 시세, 변동 지표, 상세 분석으로의 빠른 이동을 제공합니다.</translation>
+            <translation>관심종목 화면에서는 여러 관심종목 목록을 만들고 관리할 수 있습니다. 각 목록에서 실시간 시세와 등락을 확인하고 상세 분석으로 바로 이동할 수 있습니다.</translation>
         </message>
         <message>
             <source>■  Multiple named watchlists (Favorites, Day Trades, Swing, etc.)
@@ -8333,7 +8333,7 @@ PRO: Combine news sentiment with quantitative signals for alpha generation</sour
 ■  Click to navigate to detailed chart/analysis
 ■  Persistent storage — watchlists saved between sessions</source>
             <translation>■  이름을 지정한 여러 관심종목 목록 (즐겨찾기, 데이 트레이딩, 스윙 등)
-■  실시간 가격, 변동, 등락률, 거래량
+■  현재가, 전일대비, 등락률, 거래량
 ■  간편한 종목 추가/제거
 ■  색상으로 구분한 성과 (초록/빨강)
 ■  클릭하여 상세 차트/분석으로 이동
@@ -8361,15 +8361,15 @@ PRO: Dynamic watchlists driven by screener output and quantitative filters</sour
         </message>
         <message>
             <source>CRYPTO TRADING</source>
-            <translation>암호화폐 거래</translation>
+            <translation>가상자산 거래</translation>
         </message>
         <message>
             <source>Multi-exchange crypto trading terminal</source>
-            <translation>여러 거래소를 지원하는 암호화폐 거래 터미널</translation>
+            <translation>여러 거래소를 지원하는 가상자산 거래 터미널</translation>
         </message>
         <message>
             <source>A full-featured crypto trading terminal supporting 10+ exchanges with real-time WebSocket feeds. Features OHLC charts, order book depth, order entry with market/limit/stop orders, watchlist, and a paper trading engine for risk-free practice.</source>
-            <translation>실시간 WebSocket 피드와 거래소 10개 이상을 지원하는 완전한 기능의 암호화폐 거래 터미널입니다. OHLC 차트, 호가 깊이, 시장가/지정가/스톱 주문 입력, 관심종목, 자금 손실 위험 없이 연습할 수 있는 모의 거래 엔진을 제공합니다.</translation>
+            <translation>거래소 10개 이상과 실시간 WebSocket 피드를 지원하는 종합 가상자산 거래 터미널입니다. OHLC 차트, 호가잔량, 시장가/지정가/스톱 주문 입력, 관심종목, 자금 손실 위험 없이 연습할 수 있는 모의투자 엔진을 제공합니다.</translation>
         </message>
         <message>
             <source>SUPPORTED EXCHANGES</source>
@@ -8383,7 +8383,7 @@ Each exchange supports: spot trading, real-time orderbook, OHLC candles, ticker 
             <translation>Kraken  |  Binance  |  Bybit  |  OKX  |  Coinbase  |  Bitget
 Gate  |  KuCoin  |  MEXC  |  HTX
 
-각 거래소는 현물 거래, 실시간 호가창, OHLC 캔들, 시세 데이터, WebSocket을 통한 거래 내역을 지원합니다.</translation>
+각 거래소는 WebSocket 기반의 현물 거래, 실시간 호가창, OHLC 캔들, 시세 데이터, 체결내역을 지원합니다.</translation>
         </message>
         <message>
             <source>PANELS</source>
@@ -8397,17 +8397,17 @@ Gate  |  KuCoin  |  MEXC  |  HTX
 ■  Order Entry — Market, Limit, Stop-Limit with SL/TP
 ■  Order Book — Live bid/ask depth visualization
 ■  Bottom Panel — Open orders, order history, positions, balances</source>
-            <translation>■  명령 표시줄 — 거래소 선택, 종목 입력, 모의/실거래 전환, API 설정
+            <translation>■  명령 표시줄 — 거래소 선택, 심볼 입력, 모의투자/실전투자 전환, API 설정
 ■  시세 표시줄 — 실시간 가격, 24시간 변동, 고가/저가, 거래량
-■  관심종목 — 기본 통화쌍 8개 이상의 실시간 가격
-■  OHLC 차트 — 여러 시간 프레임을 지원하는 캔들 차트
+■  관심종목 — 기본 거래쌍 8개 이상의 실시간 시세
+■  OHLC 차트 — 여러 주기를 지원하는 캔들 차트
 ■  주문 입력 — SL/TP를 지원하는 시장가, 지정가, 스톱 지정가
-■  호가창 — 실시간 매수/매도 호가 깊이 시각화
-■  하단 패널 — 미체결 주문, 주문 내역, 포지션, 잔액</translation>
+■  호가창 — 실시간 매수/매도 호가잔량 시각화
+■  하단 패널 — 미체결 주문, 주문 내역, 포지션, 잔고</translation>
         </message>
         <message>
             <source>PAPER TRADING</source>
-            <translation>모의 거래</translation>
+            <translation>모의투자</translation>
         </message>
         <message>
             <source>Built-in paper trading engine with:
@@ -8416,16 +8416,16 @@ Gate  |  KuCoin  |  MEXC  |  HTX
 ■  P&amp;L tracking per position
 ■  Order history persistence
 ■  Switch between Paper and Live mode with one click</source>
-            <translation>내장 모의 거래 엔진의 기능:
+            <translation>내장 모의투자 엔진의 기능:
 ■  현실적인 체결을 반영한 주문 매칭 시뮬레이션
 ■  가상 포트폴리오 추적 (기본 $100,000 USDT)
 ■  포지션별 손익 추적
 ■  주문 내역 저장
-■  클릭 한 번으로 모의 거래와 실거래 모드 전환</translation>
+■  클릭 한 번으로 모의투자와 실전투자 모드 전환</translation>
         </message>
         <message>
             <source>Start in Paper mode. Pick BTC/USDT, place a small market buy, watch it fill. Learn the order book.</source>
-            <translation>모의 거래 모드로 시작하세요. BTC/USDT를 선택하고 소액 시장가 매수 주문을 낸 후 체결을 확인하세요. 호가창을 익히세요.</translation>
+            <translation>모의투자 모드로 시작하세요. BTC/USDT를 선택하고 소액 시장가 매수 주문을 낸 후 체결을 확인하세요. 호가창을 익히세요.</translation>
         </message>
         <message>
             <source>Try limit orders at support levels. Use stop-loss. Track P&amp;L across multiple positions.</source>
@@ -8433,7 +8433,7 @@ Gate  |  KuCoin  |  MEXC  |  HTX
         </message>
         <message>
             <source>Switch to Live mode with API keys. Use multiple exchanges. Implement SL/TP strategies.</source>
-            <translation>API 키를 설정하여 실거래 모드로 전환하세요. 여러 거래소를 이용하고 SL/TP 전략을 적용하세요.</translation>
+            <translation>API 키를 설정하여 실전투자 모드로 전환하세요. 여러 거래소를 이용하고 SL/TP 전략을 적용하세요.</translation>
         </message>
         <message>
             <source>Run simultaneous positions across exchanges. Use order flow data for scalping. Combine with algo strategies.</source>
@@ -8441,11 +8441,11 @@ Gate  |  KuCoin  |  MEXC  |  HTX
         </message>
         <message>
             <source>Risk-free simulated trading engine</source>
-            <translation>자금 손실 위험 없는 모의 거래 엔진</translation>
+            <translation>자금 손실 위험 없는 모의투자 엔진</translation>
         </message>
         <message>
             <source>The paper trading engine simulates real market execution with a virtual portfolio. Available in Crypto Trading screen via the Paper/Live toggle. Your paper portfolio starts with $100,000 USDT and supports all order types.</source>
-            <translation>모의 거래 엔진은 가상 포트폴리오로 실제 시장 체결을 시뮬레이션합니다. 암호화폐 거래 화면의 모의/실거래 전환으로 사용할 수 있습니다. 모의 포트폴리오는 $100,000 USDT로 시작하며 모든 주문 유형을 지원합니다.</translation>
+            <translation>모의투자 엔진은 가상 포트폴리오로 실제 시장 체결을 시뮬레이션합니다. 가상자산 거래 화면에서 모의투자/실전투자를 전환해 사용할 수 있습니다. 모의 포트폴리오는 $100,000 USDT로 시작하며 모든 주문 유형을 지원합니다.</translation>
         </message>
         <message>
             <source>■  Realistic order matching with market simulation
@@ -8460,7 +8460,7 @@ Gate  |  KuCoin  |  MEXC  |  HTX
 ■  손절 및 익절 지원
 ■  포지션별 손익 추적
 ■  타임스탬프를 포함한 전체 주문 내역
-■  포트폴리오 잔액 및 순자산 추적
+■  포트폴리오 잔고 및 순자산 추적
 ■  상태 저장 — 다음 세션에서도 이어서 사용</translation>
         </message>
         <message>
@@ -8470,7 +8470,7 @@ Gate  |  KuCoin  |  MEXC  |  HTX
 ■  Backtesting comparison: Compare paper results with backtest predictions</source>
             <translation>■  전략 테스트: 자금을 위험에 노출하지 않고 새 전략 검증
 ■  학습: 주문 유형, 시장 구조, 손익 계산 이해
-■  자신감 형성: 실거래 전 모의 거래 손익 추적
+■  자신감 형성: 실전투자 전 모의투자 손익 추적
 ■  백테스트 비교: 모의 결과와 백테스트 예측 비교</translation>
         </message>
         <message>
@@ -8480,8 +8480,8 @@ ADVANCED: Develop a consistent paper trading journal and strategy
 PRO: Use paper trading for A/B testing new strategies before live deployment</source>
             <translation>초급: 시장가 주문 제출, 체결 이해, 기본 손익 추적
 중급: 주요 가격대의 지정가 주문과 손절 활용
-고급: 일관된 모의 거래 일지와 전략 개발
-전문가: 실거래 배포 전 모의 거래로 새 전략 A/B 테스트</translation>
+고급: 일관된 모의투자 일지와 전략 개발
+전문가: 실전 배포 전 모의투자로 새 전략 A/B 테스트</translation>
         </message>
         <message>
             <source>ALGO TRADING</source>
@@ -8502,11 +8502,11 @@ PRO: Use paper trading for A/B testing new strategies before live deployment</so
 ■  Strategy Library — 50+ pre-built strategies as templates
 ■  Risk Management — Max drawdown, position limits, daily loss limits
 ■  Real-time monitoring with P&amp;L and trade logs</source>
-            <translation>■  전략 빌더 — 진입/청산 규칙, 포지션 규모, 위험 한도 설정
+            <translation>■  전략 빌더 — 진입/청산 규칙, 포지션 규모, 리스크 한도 설정
 ■  시장 스캐너 — 전략 조건에 맞는 시장 탐색
-■  배포 대시보드 — 실거래 전략 성과 모니터링
-■  전략 라이브러리 — 사전 구축 전략 50개 이상을 템플릿으로 제공
-■  위험 관리 — 최대 낙폭, 포지션 한도, 일일 손실 한도
+■  배포 대시보드 — 실전 운용 중인 전략의 성과 모니터링
+■  전략 라이브러리 — 템플릿으로 쓸 수 있는 기본 전략 50개 이상
+■  리스크 관리 — 최대낙폭(MDD), 포지션 한도, 일일 손실 한도
 ■  손익 및 거래 로그를 통한 실시간 모니터링</translation>
         </message>
         <message>
@@ -8514,7 +8514,7 @@ PRO: Use paper trading for A/B testing new strategies before live deployment</so
 ■  Mean reversion: Detect overbought/oversold conditions
 ■  Pairs trading: Monitor spread and auto-execute when divergence detected
 ■  Market making: Automated bid/ask placement with spread capture</source>
-            <translation>■  모멘텀 전략: 돌파 탐색, 자동 진입 배포
+            <translation>■  모멘텀 전략: 돌파 신호 탐색, 자동 진입 전략 배포
 ■  평균회귀: 과매수/과매도 상태 탐지
 ■  페어 트레이딩: 스프레드를 모니터링하고 괴리 발생 시 자동 실행
 ■  시장 조성: 매수/매도 호가를 자동 제출하여 스프레드 수취</translation>
@@ -8524,10 +8524,10 @@ PRO: Use paper trading for A/B testing new strategies before live deployment</so
 INTERMEDIATE: Modify strategy parameters, run scanner on your watchlist
 ADVANCED: Build custom strategies, combine multiple signals, set risk limits
 PRO: Deploy multi-strategy portfolios, optimize parameters, run live with real capital</source>
-            <translation>초급: 사전 구축 전략 탐색, 진입/청산 논리 이해
+            <translation>초급: 기본 제공 전략 탐색, 진입/청산 논리 이해
 중급: 전략 매개변수 수정, 관심종목 스캔
-고급: 사용자 지정 전략 구축, 여러 신호 결합, 위험 한도 설정
-전문가: 다중 전략 포트폴리오 배포, 매개변수 최적화, 실제 자금으로 실거래</translation>
+고급: 사용자 지정 전략 구축, 여러 신호 결합, 리스크 한도 설정
+전문가: 다중 전략 포트폴리오 배포, 매개변수 최적화, 실제 자금으로 실전 운용</translation>
         </message>
         <message>
             <source>BACKTESTING</source>
@@ -8535,15 +8535,15 @@ PRO: Deploy multi-strategy portfolios, optimize parameters, run live with real c
         </message>
         <message>
             <source>Historical strategy testing with 6 providers and 50+ strategies</source>
-            <translation>제공업체 6개와 전략 50개 이상을 이용한 과거 데이터 전략 테스트</translation>
+            <translation>공급자 6개와 전략 50개 이상으로 과거 데이터 기반 전략 테스트</translation>
         </message>
         <message>
             <source>The Backtesting screen lets you test trading strategies against historical data using multiple backtesting providers. Supports 9 commands, 50+ built-in strategies, and detailed performance analytics.</source>
-            <translation>백테스트 화면에서는 여러 백테스트 제공업체를 통해 과거 데이터로 거래 전략을 테스트할 수 있습니다. 명령 9개, 내장 전략 50개 이상, 상세한 성과 분석을 지원합니다.</translation>
+            <translation>백테스트 화면에서는 여러 백테스트 공급자를 이용해 과거 데이터로 거래 전략을 테스트할 수 있습니다. 명령 9개, 내장 전략 50개 이상, 상세한 성과 분석을 지원합니다.</translation>
         </message>
         <message>
             <source>PROVIDERS</source>
-            <translation>제공업체</translation>
+            <translation>공급자</translation>
         </message>
         <message>
             <source>■  Backtrader — Python-based, full-featured backtesting engine
@@ -8552,7 +8552,7 @@ PRO: Deploy multi-strategy portfolios, optimize parameters, run live with real c
 ■  QuantConnect (Lean) — Cloud-based institutional backtesting
 ■  Custom Python — Write your own backtesting scripts
 ■  Built-in Engine — Simple built-in for quick tests</source>
-            <translation>■  Backtrader — Python 기반의 완전한 기능을 갖춘 백테스트 엔진
+            <translation>■  Backtrader — Python 기반의 종합 백테스트 엔진
 ■  Zipline — Quantopian의 백테스트 라이브러리
 ■  VectorBT — 고성능 벡터화 백테스트
 ■  QuantConnect (Lean) — 클라우드 기반 기관용 백테스트
@@ -8569,10 +8569,10 @@ PRO: Deploy multi-strategy portfolios, optimize parameters, run live with real c
 ■  Win Rate, Profit Factor, Average Win/Loss
 ■  Trade count, Average holding period
 ■  Equity curve, Drawdown chart, Trade distribution</source>
-            <translation>■  총수익률, CAGR, 최대 낙폭
-■  샤프 비율, 소르티노 비율, 칼마 비율
-■  승률, 이익 계수, 평균 이익/손실
-■  거래 수, 평균 보유 기간
+            <translation>■  총수익률, CAGR, 최대낙폭(MDD)
+■  샤프지수, 소르티노지수, 칼마지수
+■  승률, 프로핏 팩터, 평균 수익/손실
+■  거래 횟수, 평균 보유 기간
 ■  자산 곡선, 낙폭 차트, 거래 분포</translation>
         </message>
         <message>
@@ -8580,7 +8580,7 @@ PRO: Deploy multi-strategy portfolios, optimize parameters, run live with real c
 INTERMEDIATE: Compare multiple strategies, optimize parameters, test on different assets
 ADVANCED: Build multi-asset strategies, walk-forward optimization, Monte Carlo simulation
 PRO: Custom backtesting engines, survivorship bias correction, transaction cost modeling</source>
-            <translation>초급: SPY에 사전 구축 SMA 교차 전략을 실행하고 성과 보고서 읽기
+            <translation>초급: SPY에 기본 제공 SMA 교차 전략을 실행하고 성과 보고서 읽기
 중급: 여러 전략 비교, 매개변수 최적화, 다른 자산에서 테스트
 고급: 다중 자산 전략 구축, 워크포워드 최적화, 몬테카를로 시뮬레이션
 전문가: 맞춤형 백테스트 엔진, 생존 편향 보정, 거래 비용 모델링</translation>
@@ -8595,7 +8595,7 @@ PRO: Custom backtesting engines, survivorship bias correction, transaction cost 
         </message>
         <message>
             <source>The Equity Research screen provides institutional-grade fundamental analysis tools including financial statements, valuation models, peer comparison, and analyst estimates.</source>
-            <translation>주식 리서치 화면은 재무제표, 가치 평가 모델, 동종 기업 비교, 애널리스트 추정치를 포함한 기관 수준의 펀더멘털 분석 도구를 제공합니다.</translation>
+            <translation>주식 리서치 화면은 재무제표, 가치평가 모델, 동종업체 비교, 애널리스트 추정치를 포함한 기관 수준의 펀더멘털 분석 도구를 제공합니다.</translation>
         </message>
         <message>
             <source>■  Financial statements — Income, Balance Sheet, Cash Flow (quarterly/annual)
@@ -8605,9 +8605,9 @@ PRO: Custom backtesting engines, survivorship bias correction, transaction cost 
 ■  Technical overlays — Combine fundamental with technical analysis
 ■  Export to report builder for presentation-ready output</source>
             <translation>■  재무제표 — 손익계산서, 재무상태표, 현금흐름표 (분기/연간)
-■  가치 평가 모델 — DCF, 비교 기업 분석, 유사 거래 분석
-■  동종 기업 비교 — 경쟁사 간 지표 비교
-■  애널리스트 추정치 — EPS, 매출, 목표가 컨센서스
+■  가치평가 모델 — DCF, 비교 기업 분석, 유사 거래 분석
+■  동종업체 비교 — 경쟁사 간 지표 비교
+■  애널리스트 추정치 — EPS, 매출액, 목표주가 컨센서스
 ■  기술적 분석 결합 — 펀더멘털 분석과 기술적 분석 결합
 ■  보고서 작성기로 내보내 발표용 결과물 생성</translation>
         </message>
@@ -8618,17 +8618,17 @@ PRO: Custom backtesting engines, survivorship bias correction, transaction cost 
 ■  Valuation-driven investment thesis development</source>
             <translation>■  새 포지션 투자 전 실사
 ■  분기 실적 분석 및 추정치와 비교
-■  동종 기업 비교를 통한 업종 분석
-■  가치 평가에 기반한 투자 논리 개발</translation>
+■  동종업체 비교를 통한 업종 분석
+■  밸류에이션 기반 투자 논리 수립</translation>
         </message>
         <message>
             <source>BEGINNER: Look up basic financials (revenue, earnings, P/E ratio) for a stock
 INTERMEDIATE: Compare peers, analyze quarterly trends, read cash flow statements
 ADVANCED: Build DCF models, identify valuation discrepancies, create investment theses
 PRO: Multi-factor screening + fundamental overlay, integrate with algo trading signals</source>
-            <translation>초급: 종목의 기본 재무 지표 확인 (매출, 이익, P/E 비율)
-중급: 동종 기업 비교, 분기 추세 분석, 현금흐름표 읽기
-고급: DCF 모델 구축, 가치 평가 차이 발견, 투자 논리 수립
+            <translation>초급: 종목의 기본 재무 지표 확인 (매출액, 이익, PER)
+중급: 동종업체 비교, 분기 추세 분석, 현금흐름표 읽기
+고급: DCF 모델 구축, 밸류에이션 괴리 발견, 투자 논리 수립
 전문가: 다중 팩터 스크리닝과 펀더멘털 분석 결합, 알고리즘 거래 신호 연계</translation>
         </message>
         <message>
@@ -8671,7 +8671,7 @@ MACRO (4): GDP growth, inflation, rates, employment</source>
 
 원자재 (5): 선도 곡선, 변동성 서피스, 캘린더 스프레드, 크랙 스프레드, 베이시스
 
-위험 (4): 상관관계, 공분산, VaR, 스트레스 테스트
+리스크 (4): 상관관계, 공분산, VaR, 스트레스 테스트
 
 거시경제 (4): GDP 성장률, 인플레이션, 금리, 고용</translation>
         </message>
@@ -8682,17 +8682,17 @@ MACRO (4): GDP growth, inflation, rates, employment</source>
 ■  Relative value: Compare surfaces across maturities and strikes</source>
             <translation>■  옵션 거래: 변동성 서피스로 가격이 왜곡된 옵션 분석
 ■  채권: 수익률 곡선 형태로 경기 침체 신호 모니터링
-■  위험 관리: 상관관계 및 VaR 서피스로 포트폴리오 위험 분석
-■  상대 가치: 만기와 행사가별 서피스 비교</translation>
+■  리스크 관리: 상관관계 및 VaR 서피스로 포트폴리오 리스크 분석
+■  상대 가치: 만기와 행사가격별 서피스 비교</translation>
         </message>
         <message>
             <source>BEGINNER: View pre-built surfaces, understand 3D visualization axes
 INTERMEDIATE: Compare surface snapshots over time, identify trends
 ADVANCED: Use surface analytics for options trading edge, relative value
 PRO: Real-time surface monitoring, custom Databento feeds, surface arbitrage</source>
-            <translation>초급: 사전 구축 서피스 보기, 3D 시각화 축 이해
+            <translation>초급: 기본 제공 서피스 보기, 3D 시각화 축 이해
 중급: 시간에 따른 서피스 스냅샷 비교, 추세 파악
-고급: 옵션 거래 우위와 상대 가치 분석에 서피스 활용
+고급: 옵션 매매 우위 확보와 상대 가치 분석에 서피스 활용
 전문가: 실시간 서피스 모니터링, 사용자 지정 Databento 피드, 서피스 차익거래</translation>
         </message>
         <message>
@@ -8730,8 +8730,8 @@ PRO: Real-time surface monitoring, custom Databento feeds, surface arbitrage</so
 ■  Treasury: Swap valuation for interest rate risk management</source>
             <translation>■  옵션 트레이더: 옵션 가격 평가, 그릭스 계산, 가격 왜곡 탐색
 ■  채권: 채권 가격 평가, 수익률 민감도 분석, 듀레이션 매칭
-■  위험 관리: CVA 계산, 신용 헤지를 위한 CDS 가격 평가
-■  자금 관리: 금리 위험 관리를 위한 스왑 가치 평가</translation>
+■  리스크 관리: CVA 계산, 신용 헤지를 위한 CDS 가격 평가
+■  자금 관리: 금리 리스크 관리를 위한 스왑 가치평가</translation>
         </message>
         <message>
             <source>BEGINNER: Price a simple call option with Black-Scholes, understand Greeks
@@ -8753,7 +8753,7 @@ PRO: Custom pricing models, volatility surface calibration, Greeks hedging</sour
         </message>
         <message>
             <source>The Portfolio screen supports multiple portfolios with holdings tracking, performance analytics, sector heatmap, historical chart, blotter, and an AI agent panel for intelligent portfolio insights.</source>
-            <translation>포트폴리오 화면은 여러 포트폴리오의 보유 종목 추적, 성과 분석, 업종 히트맵, 과거 차트, 거래 원장, 지능형 포트폴리오 인사이트를 제공하는 AI 에이전트 패널을 지원합니다.</translation>
+            <translation>포트폴리오 화면은 여러 포트폴리오의 보유종목 추적, 성과 분석, 업종 히트맵, 과거 차트, 거래 원장, 지능형 포트폴리오 인사이트를 제공하는 AI 에이전트 패널을 지원합니다.</translation>
         </message>
         <message>
             <source>■  Multiple named portfolios with separate tracking
@@ -8764,7 +8764,7 @@ PRO: Custom pricing models, volatility surface calibration, Greeks hedging</sour
 ■  FFN analytics — Advanced factor analysis
 ■  AI Agent — Natural language portfolio insights</source>
             <translation>■  이름을 지정한 여러 포트폴리오 개별 추적
-■  보유 종목 표 — 종목 코드, 수량, 취득 원가, 시장 가치, 손익
+■  보유종목 표 — 종목코드, 수량, 매입금액, 평가금액, 손익
 ■  업종 히트맵 — 업종별 배분 시각화
 ■  성과 차트 — 포트폴리오 수익률 시계열
 ■  거래 원장 — 전체 거래 내역
@@ -8778,7 +8778,7 @@ PRO: Custom pricing models, volatility surface calibration, Greeks hedging</sour
 ■  Use AI agent to ask questions about your portfolio performance</source>
             <translation>■  실제 증권 계좌의 포지션과 실시간 손익 추적
 ■  여러 포트폴리오 전략을 나란히 비교
-■  업종 배분의 이탈을 모니터링하고 리밸런싱
+■  업종 비중 변화를 모니터링하고 리밸런싱
 ■  AI 에이전트에 포트폴리오 성과 질문</translation>
         </message>
         <message>
@@ -8786,10 +8786,10 @@ PRO: Custom pricing models, volatility surface calibration, Greeks hedging</sour
 INTERMEDIATE: Use sector heatmap for diversification, review trade blotter
 ADVANCED: Multiple portfolios for different strategies, FFN analytics
 PRO: AI agent for portfolio optimization, factor exposure analysis, risk budgeting</source>
-            <translation>초급: 포트폴리오 생성, 보유 종목 추가, 기본 손익 추적
+            <translation>초급: 포트폴리오 생성, 보유종목 추가, 기본 손익 추적
 중급: 업종 히트맵으로 분산투자 점검, 거래 원장 검토
 고급: 전략별 다중 포트폴리오 운용, FFN 분석
-전문가: AI 에이전트를 통한 포트폴리오 최적화, 팩터 노출 분석, 위험 예산 배분</translation>
+전문가: AI 에이전트를 통한 포트폴리오 최적화, 팩터 익스포저 분석, 리스크 예산 배분</translation>
         </message>
         <message>
             <source>M&amp;A ANALYTICS</source>
@@ -8809,9 +8809,9 @@ PRO: AI agent for portfolio optimization, factor exposure analysis, risk budgeti
 ■  Comparable transactions — Find similar deals for valuation
 ■  Premium analysis — Analyze deal premiums by sector
 ■  Timeline tracking — Monitor deal progress and regulatory approvals</source>
-            <translation>■  거래 화면 — 최근 및 과거 M&amp;A 거래 탐색
+            <translation>■  거래 검색 — 최근 및 과거 M&amp;A 거래 탐색
 ■  EPS 증가/희석 분석 — 인수가 EPS에 미치는 영향 모델링
-■  유사 거래 — 가치 평가를 위한 유사 거래 검색
+■  유사 거래 — 가치평가를 위한 유사 거래 검색
 ■  프리미엄 분석 — 업종별 거래 프리미엄 분석
 ■  일정 추적 — 거래 진행 상황과 규제 승인 모니터링</translation>
         </message>
@@ -8822,8 +8822,8 @@ PRO: AI agent for portfolio optimization, factor exposure analysis, risk budgeti
 ■  Risk assessment: Track regulatory risk for pending deals</source>
             <translation>■  투자은행: 잠재적 인수 대상 모델링
 ■  이벤트 기반 거래: 합병 차익거래 기회 분석
-■  실사: 가치 평가를 위한 유사 거래 조사
-■  위험 평가: 진행 중인 거래의 규제 위험 추적</translation>
+■  실사: 가치평가를 위한 유사 거래 조사
+■  리스크 평가: 진행 중인 거래의 규제 리스크 추적</translation>
         </message>
         <message>
             <source>BEGINNER: Browse recent deals, understand deal structure basics
@@ -8864,14 +8864,14 @@ EXECUTION: Smart order routing, execution quality analysis
 And 9 more covering derivatives, crypto, macro, and cross-asset</source>
             <translation>예측: ML 가격 예측, 시계열 예측
 팩터: 팩터 발굴, 알파 창출, 스마트 베타
-위험: ML 위험 모델, 꼬리 위험, 국면 탐지
+리스크: ML 리스크 모델, 꼬리 위험, 국면 탐지
 HFT: 고빈도 신호, 미시구조 분석
 RL 거래: 거래용 강화학습 에이전트
 NLP: 심리 분석, 뉴스 파싱, 실적 발표 컨퍼런스콜 분석
 대체 데이터: 위성, 소셜 미디어, 웹 스크래핑
 포트폴리오: ML 포트폴리오 최적화, 동적 배분
 체결: 스마트 주문 라우팅, 체결 품질 분석
-그 외 파생상품, 암호화폐, 거시경제, 자산 간 분석을 다루는 모듈 9개</translation>
+그 외 파생상품, 가상자산, 거시경제, 자산 간 분석을 다루는 모듈 9개</translation>
         </message>
         <message>
             <source>■  Quant research: Discover new alpha factors from alternative data
@@ -8880,7 +8880,7 @@ NLP: 심리 분석, 뉴스 파싱, 실적 발표 컨퍼런스콜 분석
 ■  Strategy development: RL agents that learn optimal trading policies</source>
             <translation>■  퀀트 리서치: 대체 데이터에서 새로운 알파 팩터 발굴
 ■  ML 모델: 과거 시장 데이터로 예측 모델 학습
-■  위험 관리: 동적 헤지를 위한 국면 탐지
+■  리스크 관리: 동적 헤지를 위한 국면 탐지
 ■  전략 개발: 최적 거래 정책을 학습하는 RL 에이전트</translation>
         </message>
         <message>
@@ -8888,14 +8888,14 @@ NLP: 심리 분석, 뉴스 파싱, 실적 발표 컨퍼런스콜 분석
 INTERMEDIATE: Train basic ML models, test factor strategies on historical data
 ADVANCED: Custom factor research, multi-model ensembles, walk-forward validation
 PRO: Production RL trading agents, HFT signal research, custom model deployment</source>
-            <translation>초급: 사전 구축 모듈 탐색, 샘플 데이터로 예측 시연 실행
+            <translation>초급: 기본 제공 모듈 탐색, 샘플 데이터로 예측 시연 실행
 중급: 기본 ML 모델 학습, 과거 데이터로 팩터 전략 테스트
 고급: 맞춤형 팩터 리서치, 다중 모델 앙상블, 워크포워드 검증
 전문가: 실운용 RL 거래 에이전트, HFT 신호 연구, 맞춤형 모델 배포</translation>
         </message>
         <message>
             <source>QUANTLIB SUITE</source>
-            <translation>QUANTLIB 도구 모음</translation>
+            <translation>QuantLib 도구 모음</translation>
         </message>
         <message>
             <source>18 quantitative analysis modules with 590+ endpoints</source>
@@ -8903,7 +8903,7 @@ PRO: Production RL trading agents, HFT signal research, custom model deployment<
         </message>
         <message>
             <source>The QuantLib Suite provides access to 590+ quantitative analysis endpoints organized into 18 modules. Powered by a REST API backend, it covers everything from basic statistics to complex derivative pricing and risk modeling.</source>
-            <translation>QuantLib 도구 모음은 18개 모듈로 구성된 퀀트 분석 엔드포인트 590개 이상을 제공합니다. REST API 백엔드를 기반으로 기초 통계부터 복잡한 파생상품 가격 평가와 위험 모델링까지 지원합니다.</translation>
+            <translation>QuantLib 도구 모음은 18개 모듈로 구성된 퀀트 분석 엔드포인트 590개 이상을 제공합니다. REST API 백엔드를 기반으로 기초 통계부터 복잡한 파생상품 가격 평가와 리스크 모델링까지 지원합니다.</translation>
         </message>
         <message>
             <source>■  Core — Fundamental quantitative operations
@@ -8936,7 +8936,7 @@ PRO: Production RL trading agents, HFT signal research, custom model deployment<
 ■  포트폴리오 — 포트폴리오 최적화, 효율적 투자선
 ■  가격 평가 — 이색 옵션 가격 평가, 구조화 상품
 ■  규제 — Basel III/IV, FRTB, CVA/DVA/FVA
-■  위험 — VaR, CVaR, 스트레스 테스트, 시나리오 분석
+■  리스크 — VaR, CVaR, 스트레스 테스트, 시나리오 분석
 ■  일정 — 날짜 계산, 일수 계산 규칙, 롤 규칙
 ■  솔버 — 근 찾기, 최적화, 보정
 ■  통계 — 분포, 회귀, 시계열
@@ -8949,9 +8949,9 @@ PRO: Production RL trading agents, HFT signal research, custom model deployment<
 ■  Portfolio manager: Optimize allocation, efficient frontier analysis
 ■  Fixed income: Yield curve construction, swap valuation</source>
             <translation>■  퀀트 분석가: 복잡한 파생상품 가격 평가, 모델 보정
-■  위험 관리자: VaR, 스트레스 테스트, 규제 계산 수행
+■  리스크 매니저: VaR, 스트레스 테스트, 규제 계산 수행
 ■  포트폴리오 매니저: 배분 최적화, 효율적 투자선 분석
-■  채권: 수익률 곡선 구축, 스왑 가치 평가</translation>
+■  채권: 수익률 곡선 구축, 스왑 가치평가</translation>
         </message>
         <message>
             <source>BEGINNER: Use the Statistics module for basic data analysis
@@ -8985,7 +8985,7 @@ PRO: Custom model development, multi-curve pricing, XVA calculations</source>
 ■  금융 분석 및 해석
 ■  거래 전략 코드 생성
 ■  포트폴리오 인사이트 및 제안
-■  LLM 제공업체와 모델 설정</translation>
+■  LLM 공급자와 모델 설정</translation>
         </message>
         <message>
             <source>■  Quick analysis: "What's driving NVDA today?"
@@ -8993,9 +8993,9 @@ PRO: Custom model development, multi-curve pricing, XVA calculations</source>
 ■  Learning: "Explain how VaR is calculated"
 ■  Data queries: "Compare AAPL and MSFT P/E ratios over 5 years"</source>
             <translation>■  빠른 분석: "오늘 NVDA를 움직이는 요인은?"
-■  전략 지원: "암호화폐 평균회귀 전략을 작성해 줘"
+■  전략 지원: "가상자산 평균회귀 전략을 작성해 줘"
 ■  학습: "VaR 계산 방법을 설명해 줘"
-■  데이터 조회: "5년간 AAPL과 MSFT의 P/E 비율을 비교해 줘"</translation>
+■  데이터 조회: "5년간 AAPL과 MSFT의 PER을 비교해 줘"</translation>
         </message>
         <message>
             <source>BEGINNER: Ask basic market questions, get explanations of financial concepts
@@ -9017,7 +9017,7 @@ PRO: Multi-agent workflows, MCP server integration, automated research pipelines
         </message>
         <message>
             <source>The Agent Studio (Agent Config) provides an 8-view interface for creating, managing, and orchestrating AI agents with specialized financial capabilities.</source>
-            <translation>에이전트 스튜디오(에이전트 설정)는 금융 전문 기능을 갖춘 AI 에이전트를 생성, 관리, 조율하는 8개 보기의 인터페이스를 제공합니다.</translation>
+            <translation>에이전트 스튜디오(에이전트 설정)는 금융 전문 기능을 갖춘 AI 에이전트를 만들고 관리하고 조율하는 인터페이스로, 8개 보기로 구성됩니다.</translation>
         </message>
         <message>
             <source>VIEWS (8)</source>
@@ -9088,7 +9088,7 @@ PRO: Custom MCP server integration, multi-agent orchestration, automated researc
 ■  Community insights and discussion
 ■  Historical performance tracking</source>
             <translation>■  실시간 순위가 표시되는 전략 순위표
-■  성과 지표 비교 (샤프, 수익률, 낙폭)
+■  성과 지표 비교 (샤프지수, 수익률, 낙폭)
 ■  전략 제출 및 백테스트
 ■  커뮤니티 인사이트 및 토론
 ■  과거 성과 추적</translation>
@@ -9110,20 +9110,20 @@ ADVANCED: Optimize strategies for ranking, study factor exposures
 PRO: Multi-strategy submission, alpha decay analysis, ensemble approaches</source>
             <translation>초급: 순위표 탐색, 상위 전략 연구
 중급: 첫 전략 제출, 성과 지표 분석
-고급: 순위 개선을 위한 전략 최적화, 팩터 노출 연구
+고급: 순위 개선을 위한 전략 최적화, 팩터 익스포저 연구
 전문가: 다중 전략 제출, 알파 감쇠 분석, 앙상블 접근법</translation>
         </message>
         <message>
             <source>DBNOMICS</source>
-            <translation>DBNOMICS</translation>
+            <translation>DBnomics</translation>
         </message>
         <message>
             <source>Access 100+ data providers with 500K+ economic datasets</source>
-            <translation>제공업체 100개 이상과 경제 데이터셋 500K개 이상 이용</translation>
+            <translation>공급자 100개 이상, 경제 데이터셋 50만 개 이상 이용</translation>
         </message>
         <message>
             <source>DBnomics provides access to the world's largest open economic database. Browse 100+ data providers (IMF, World Bank, OECD, ECB, Fed, etc.) with 500K+ datasets covering macroeconomics, finance, demographics, and trade.</source>
-            <translation>DBnomics는 세계 최대 공개 경제 데이터베이스에 대한 접근을 제공합니다. IMF, 세계은행, OECD, ECB, Fed 등 제공업체 100개 이상이 제공하는 거시경제, 금융, 인구, 무역 분야의 데이터셋 500K개 이상을 탐색하세요.</translation>
+            <translation>DBnomics에서는 세계 최대의 공개 경제 데이터베이스를 이용할 수 있습니다. IMF, 세계은행, OECD, ECB, Fed 등 공급자 100개 이상이 제공하는 거시경제, 금융, 인구, 무역 분야의 데이터셋 50만 개 이상을 탐색하세요.</translation>
         </message>
         <message>
             <source>■  Provider browser — 100+ statistical agencies and central banks
@@ -9133,8 +9133,8 @@ PRO: Multi-strategy submission, alpha decay analysis, ensemble approaches</sourc
 ■  Comparison view — 2x2 chart grid comparing multiple series
 ■  CSV export — Download any series for external analysis
 ■  Loading animations and progressive data loading</source>
-            <translation>■  제공업체 탐색기 — 통계 기관 및 중앙은행 100개 이상
-■  데이터셋 검색 — 데이터셋 500K개 이상 전체 텍스트 검색
+            <translation>■  공급자 탐색기 — 통계 기관 및 중앙은행 100개 이상
+■  데이터셋 검색 — 데이터셋 50만 개 이상 전체 텍스트 검색
 ■  시계열 탐색기 — 메타데이터와 함께 개별 시계열 탐색
 ■  단일 보기 — 시계열 하나의 상세 차트 및 데이터 표
 ■  비교 보기 — 여러 시계열을 비교하는 2x2 차트 그리드
@@ -9156,7 +9156,7 @@ PRO: Multi-strategy submission, alpha decay analysis, ensemble approaches</sourc
 INTERMEDIATE: Compare series across countries, export data for analysis
 ADVANCED: Build macro dashboards, track leading indicators
 PRO: Integrate DBnomics data into quantitative macro trading models</source>
-            <translation>초급: 제공업체 탐색, 미국 GDP나 인플레이션 데이터 조회
+            <translation>초급: 공급자 탐색, 미국 GDP나 인플레이션 데이터 조회
 중급: 국가 간 시계열 비교, 분석용 데이터 내보내기
 고급: 거시경제 대시보드 구축, 선행지표 추적
 전문가: 정량 거시경제 거래 모델에 DBnomics 데이터 통합</translation>
@@ -9191,9 +9191,9 @@ PRO: Integrate DBnomics data into quantitative macro trading models</source>
 ■  FX trading: Track rate differentials for carry trades
 ■  Asset allocation: Shift sectors based on economic cycle</source>
             <translation>■  거시경제 거래: 금리 결정 전 포지션 설정
-■  위험 관리: 경기 침체 지표 모니터링
+■  리스크 관리: 경기 침체 지표 모니터링
 ■  외환 거래: 캐리 트레이드용 금리 차 추적
-■  자산 배분: 경기 순환에 따른 업종 비중 조정</translation>
+■  자산배분: 경기 순환에 따른 업종 비중 조정</translation>
         </message>
         <message>
             <source>BEGINNER: Check upcoming economic events, understand key indicators
@@ -9207,7 +9207,7 @@ PRO: Multi-factor macro models, economic surprise index trading</source>
         </message>
         <message>
             <source>AKSHARE DATA</source>
-            <translation>AKSHARE 데이터</translation>
+            <translation>AkShare 데이터</translation>
         </message>
         <message>
             <source>Chinese and Asian market data via AkShare</source>
@@ -9215,7 +9215,7 @@ PRO: Multi-factor macro models, economic surprise index trading</source>
         </message>
         <message>
             <source>AkShare provides access to Chinese financial market data including A-shares, Hong Kong stocks, Chinese futures, and macro data from Chinese statistical agencies.</source>
-            <translation>AkShare는 A주, 홍콩 주식, 중국 선물, 중국 통계 기관의 거시경제 데이터 등 중국 금융 시장 데이터에 대한 접근을 제공합니다.</translation>
+            <translation>AkShare에서는 A주, 홍콩 주식, 중국 선물, 중국 통계 기관의 거시경제 데이터 등 중국 금융시장 데이터를 이용할 수 있습니다.</translation>
         </message>
         <message>
             <source>■  A-Share market data — SSE, SZSE listed companies
@@ -9259,7 +9259,7 @@ PRO: Cross-market arbitrage between A-shares, H-shares, and ADRs</source>
         </message>
         <message>
             <source>Access official government data from statistical agencies worldwide including census data, economic surveys, trade statistics, and regulatory filings.</source>
-            <translation>인구조사, 경제 조사, 무역 통계, 규제 공시 등 전 세계 통계 기관의 공식 정부 데이터에 접근하세요.</translation>
+            <translation>인구조사, 경제 조사, 무역 통계, 규제 공시 등 전 세계 통계 기관의 공식 정부 데이터를 이용할 수 있습니다.</translation>
         </message>
         <message>
             <source>■  Multi-country government data sources
@@ -9278,7 +9278,7 @@ PRO: Cross-market arbitrage between A-shares, H-shares, and ADRs</source>
 ■  Policy analysis: Track government spending and fiscal policy
 ■  Demographics: Population and labor force trends
 ■  Trade analysis: Import/export flows by country and sector</source>
-            <translation>■  리서치: 경제 데이터의 1차 출처 이용
+            <translation>■  리서치: 1차 출처의 경제 데이터 활용
 ■  정책 분석: 정부 지출과 재정정책 추적
 ■  인구통계: 인구와 노동력 추세
 ■  무역 분석: 국가 및 업종별 수출입 흐름</translation>
@@ -9303,7 +9303,7 @@ PRO: Automated policy tracking, fiscal surprise detection</source>
         </message>
         <message>
             <source>The Geopolitics screen provides a comprehensive view of global geopolitical events with conflict monitoring, humanitarian data (HDX), trade flow analysis, and entity relationship mapping for understanding geopolitical dynamics.</source>
-            <translation>지정학 화면은 분쟁 모니터링, 인도주의 데이터(HDX), 무역 흐름 분석, 개체 관계도를 통해 글로벌 지정학 이벤트의 종합적인 현황을 제공하여 지정학적 역학을 이해하도록 돕습니다.</translation>
+            <translation>지정학 화면은 분쟁 모니터링, 인도주의 데이터(HDX), 무역 흐름 분석, 개체 관계도로 전 세계 지정학 이벤트를 종합적으로 보여 주어 지정학적 역학을 이해하도록 돕습니다.</translation>
         </message>
         <message>
             <source>■  Conflict monitor — Active global conflicts with severity tracking
@@ -9316,7 +9316,7 @@ PRO: Automated policy tracking, fiscal surprise detection</source>
 ■  HDX 통합 — 위기 데이터용 Humanitarian Data Exchange
 ■  무역 분석 — 제재, 관세, 무역 흐름 차질
 ■  관계도 — 개체 간 관계와 영향력 네트워크
-■  위험 점수 — 국가별 지정학 위험 평가
+■  리스크 점수 — 국가별 지정학적 리스크 평가
 ■  AI 에이전트 — 지정학 전문 분석 에이전트</translation>
         </message>
         <message>
@@ -9324,9 +9324,9 @@ PRO: Automated policy tracking, fiscal surprise detection</source>
 ■  Commodity trading: Track supply disruptions from conflicts
 ■  FX trading: Geopolitical risk premium in currency pricing
 ■  ESG investing: Humanitarian impact assessment</source>
-            <translation>■  위험 관리: 포트폴리오의 지정학 위험 모니터링
+            <translation>■  리스크 관리: 포트폴리오의 지정학적 리스크 모니터링
 ■  원자재 거래: 분쟁으로 인한 공급 차질 추적
-■  외환 거래: 통화 가격에 반영된 지정학 위험 프리미엄
+■  외환 거래: 통화 가격에 반영된 지정학적 리스크 프리미엄
 ■  ESG 투자: 인도주의적 영향 평가</translation>
         </message>
         <message>
@@ -9334,9 +9334,9 @@ PRO: Automated policy tracking, fiscal surprise detection</source>
 INTERMEDIATE: Correlate geopolitical events with market movements
 ADVANCED: Build geopolitical risk models, trade around events
 PRO: Multi-factor geopolitical alpha, automated event-driven trading</source>
-            <translation>초급: 분쟁 대시보드 모니터링, 위험 점수 이해
+            <translation>초급: 분쟁 대시보드 모니터링, 리스크 점수 이해
 중급: 지정학 이벤트와 시장 움직임의 상관관계 분석
-고급: 지정학 위험 모델 구축, 이벤트 전후 거래
+고급: 지정학적 리스크 모델 구축, 이벤트 전후 거래
 전문가: 다중 팩터 지정학 알파, 자동 이벤트 기반 거래</translation>
         </message>
         <message>
@@ -9361,7 +9361,7 @@ PRO: Multi-factor geopolitical alpha, automated event-driven trading</source>
 ■  항만 분석 — 처리량, 혼잡도, 대기 시간
 ■  무역 흐름 — 항로별 원자재 운송량
 ■  공급망 지표 — 운송비 지수
-■  지정학 정보 결합 — 요충지 위험 평가</translation>
+■  지정학 정보 결합 — 요충지 리스크 평가</translation>
         </message>
         <message>
             <source>■  Commodity trading: Track oil tanker movements for supply signals
@@ -9371,7 +9371,7 @@ PRO: Multi-factor geopolitical alpha, automated event-driven trading</source>
             <translation>■  원자재 거래: 유조선 이동으로 공급 신호 추적
 ■  공급망: 항만 혼잡도로 인플레이션 신호 모니터링
 ■  해운주: 발틱운임지수와 운임 분석
-■  지정학 위험: 요충지 모니터링 (수에즈, 호르무즈 해협)</translation>
+■  지정학적 리스크: 요충지 모니터링 (수에즈, 호르무즈 해협)</translation>
         </message>
         <message>
             <source>BEGINNER: Browse shipping routes, understand trade flow basics
@@ -9385,7 +9385,7 @@ PRO: Satellite-verified shipping data for alternative data alpha</source>
         </message>
         <message>
             <source>POLYMARKET</source>
-            <translation>POLYMARKET</translation>
+            <translation>Polymarket</translation>
         </message>
         <message>
             <source>Prediction markets and event probability trading</source>
@@ -9393,7 +9393,7 @@ PRO: Satellite-verified shipping data for alternative data alpha</source>
         </message>
         <message>
             <source>The Polymarket screen provides access to prediction market data, allowing you to track event probabilities and trade on real-world outcomes.</source>
-            <translation>Polymarket 화면은 예측 시장 데이터에 대한 접근을 제공하여 이벤트 확률을 추적하고 실제 사건의 결과를 거래할 수 있게 합니다.</translation>
+            <translation>Polymarket 화면에서는 예측 시장 데이터로 이벤트 확률을 추적하고 실제 사건의 결과를 두고 거래할 수 있습니다.</translation>
         </message>
         <message>
             <source>■  Event browser — Political, economic, sports, crypto events
@@ -9401,7 +9401,7 @@ PRO: Satellite-verified shipping data for alternative data alpha</source>
 ■  Volume and liquidity data
 ■  Category filtering and search
 ■  Correlation with traditional markets</source>
-            <translation>■  이벤트 탐색기 — 정치, 경제, 스포츠, 암호화폐 이벤트
+            <translation>■  이벤트 탐색기 — 정치, 경제, 스포츠, 가상자산 이벤트
 ■  확률 차트 — 과거 확률 변동
 ■  거래량 및 유동성 데이터
 ■  범주 필터 및 검색
@@ -9413,7 +9413,7 @@ PRO: Satellite-verified shipping data for alternative data alpha</source>
 ■  Sentiment gauge: Market-implied probabilities as sentiment
 ■  Research: Compare prediction market accuracy with polls</source>
             <translation>■  선거 거래: 정치 이벤트 확률 추적
-■  헤지: 예측 시장으로 이벤트 위험 헤지
+■  헤지: 예측 시장으로 이벤트 리스크 헤지
 ■  심리 지표: 시장 내재 확률을 심리 지표로 활용
 ■  리서치: 예측 시장의 정확도와 여론조사 비교</translation>
         </message>
@@ -9445,7 +9445,7 @@ PRO: Build prediction market-enhanced trading models</source>
 ■  Real estate market data (REITs, cap rates)
 ■  Commodity index tracking
 ■  Correlation analysis with traditional assets</source>
-            <translation>■  PE/VC 거래 흐름 및 펀드 성과
+            <translation>■  PE/VC 딜 현황 및 펀드 성과
 ■  헤지펀드 전략 추적
 ■  부동산 시장 데이터 (REITs, 자본환원율)
 ■  원자재 지수 추적
@@ -9481,7 +9481,7 @@ PRO: Private market deal analysis, hedge fund replication, liquid alternatives</
         </message>
         <message>
             <source>The Report Builder lets you create professional financial reports with a drag-and-drop interface. Combine charts, tables, text, and data from any terminal screen into presentation-ready documents.</source>
-            <translation>보고서 작성기는 드래그 앤 드롭 인터페이스로 전문적인 금융 보고서를 만들 수 있게 합니다. 터미널 화면의 차트, 표, 텍스트, 데이터를 결합하여 발표에 사용할 문서를 만드세요.</translation>
+            <translation>보고서 작성기에서는 드래그 앤 드롭 인터페이스로 전문적인 금융 보고서를 만들 수 있습니다. 터미널 화면의 차트, 표, 텍스트, 데이터를 결합하여 발표에 사용할 문서를 만드세요.</translation>
         </message>
         <message>
             <source>■  Component toolbar — Charts, tables, text blocks, images, headers
@@ -9504,7 +9504,7 @@ PRO: Private market deal analysis, hedge fund replication, liquid alternatives</
 ■  Research reports: Published equity research format</source>
             <translation>■  고객 보고서: 자문 고객용 주간 시장 요약
 ■  투자 메모: 체계적인 투자 논리 문서
-■  위험 보고서: 규정 준수용 포트폴리오 위험 지표
+■  리스크 보고서: 컴플라이언스용 포트폴리오 리스크 지표
 ■  리서치 보고서: 발간용 주식 리서치 형식</translation>
         </message>
         <message>
@@ -9548,7 +9548,7 @@ PRO: Branded client deliverables, automated report pipelines</source>
 ■  Data pipelines: Fetch → filter → analyze → report
 ■  Trading automation: Signal → validation → order → monitor
 ■  Research workflows: Data collection → processing → visualization</source>
-            <translation>■  알림 시스템: 가격이 이동평균 교차 → 알림 전송
+            <translation>■  알림 시스템: 가격의 이동평균선 교차 → 알림 전송
 ■  데이터 파이프라인: 가져오기 → 필터 → 분석 → 보고서
 ■  거래 자동화: 신호 → 검증 → 주문 → 모니터링
 ■  리서치 워크플로: 데이터 수집 → 처리 → 시각화</translation>
@@ -9560,7 +9560,7 @@ ADVANCED: Complex trading workflows with risk checks
 PRO: Production automation pipelines, multi-feed aggregation</source>
             <translation>초급: 데이터 소스를 간단한 알림 노드에 연결
 중급: 조건 분기를 포함한 다단계 워크플로
-고급: 위험 검사를 포함한 복잡한 거래 워크플로
+고급: 리스크 점검을 포함한 복잡한 거래 워크플로
 전문가: 실운용 자동화 파이프라인, 다중 피드 집계</translation>
         </message>
         <message>
@@ -9671,7 +9671,7 @@ PRO: Automated model updates with live data feeds</source>
 ■  Timestamp tracking for each note</source>
             <translation>■  서식 있는 텍스트 편집
 ■  여러 노트 정리
-■  세션 간 저장 유지
+■  세션이 바뀌어도 저장 내용 유지
 ■  모든 노트 검색
 ■  노트별 타임스탬프 추적</translation>
         </message>
@@ -9705,7 +9705,7 @@ PRO: Integrated research workflow with notes linked to positions</source>
         </message>
         <message>
             <source>The MCP Servers screen manages Model Context Protocol servers that extend AI agent capabilities with external tool access and data sources.</source>
-            <translation>MCP 서버 화면은 외부 도구와 데이터 소스에 대한 접근으로 AI 에이전트 기능을 확장하는 Model Context Protocol 서버를 관리합니다.</translation>
+            <translation>MCP 서버 화면에서는 외부 도구와 데이터 소스를 연결해 AI 에이전트의 기능을 확장하는 Model Context Protocol 서버를 관리합니다.</translation>
         </message>
         <message>
             <source>■  Server registration and management
@@ -9804,7 +9804,7 @@ PRO: Complex multi-source data pipelines with validation</source>
 ■  Keyboard shortcut customization</source>
             <translation>■  표시 환경설정 — 테마, 글꼴 크기, 레이아웃 옵션
 ■  데이터 설정 — API 키, 새로고침 간격, 캐시 설정
-■  LLM 설정 — 모델 제공업체, API 키, 매개변수
+■  LLM 설정 — 모델 공급자, API 키, 매개변수
 ■  MCP 서버 — 서버 관리 및 설정
 ■  알림 환경설정
 ■  키보드 단축키 조정</translation>
@@ -9821,9 +9821,9 @@ PRO: Complex multi-source data pipelines with validation</source>
 ■  MCP — Server endpoints and tool access
 ■  Notifications — Alert channels and thresholds</source>
             <translation>■  일반 — 언어, 시간대, 표시 밀도
-■  거래 — 기본 거래소, 주문 확인, 위험 한도
-■  데이터 — 시장 데이터 제공업체의 API 키
-■  AI — LLM 제공업체, 모델 선택, temperature
+■  거래 — 기본 거래소, 주문 확인, 리스크 한도
+■  데이터 — 시장 데이터 공급자의 API 키
+■  AI — LLM 공급자, 모델 선택, temperature
 ■  MCP — 서버 엔드포인트와 도구 접근
 ■  알림 — 알림 채널과 임계값</translation>
         </message>
@@ -9833,7 +9833,7 @@ INTERMEDIATE: Configure API keys for data providers and LLM
 ADVANCED: Fine-tune LLM parameters, set up MCP servers
 PRO: Full infrastructure configuration, custom integrations</source>
             <translation>초급: 시간대와 선호 시장 설정
-중급: 데이터 제공업체와 LLM의 API 키 설정
+중급: 데이터 공급자와 LLM의 API 키 설정
 고급: LLM 매개변수 세부 조정, MCP 서버 설정
 전문가: 전체 인프라 구성, 맞춤형 연동</translation>
         </message>
@@ -9900,7 +9900,7 @@ Source: European Central Bank SDMX 2.1 API</source>
         </message>
         <message>
             <source>No observations returned for %1</source>
-            <translation>%1에 대해 반환된 관측값 없음</translation>
+            <translation>%1의 관측값이 없습니다</translation>
         </message>
     </context>
     <context>
@@ -9925,7 +9925,7 @@ Source: EconDB — macroeconomic data, no API key required</source>
         </message>
         <message>
             <source>No observations returned</source>
-            <translation>반환된 관측값 없음</translation>
+            <translation>관측값이 없습니다</translation>
         </message>
     </context>
     <context>
@@ -9976,7 +9976,7 @@ Source: EconDB — macroeconomic data, no API key required</source>
         </message>
         <message>
             <source>No data returned for this selection</source>
-            <translation>선택한 조건에서 반환된 데이터 없음</translation>
+            <translation>선택한 조건에 맞는 데이터가 없습니다</translation>
         </message>
         <message>
             <source>%1 records</source>
@@ -10055,11 +10055,11 @@ Source: Forex Factory — global economic calendar (no API key required)</source
         </message>
         <message>
             <source>Per-holding contribution to portfolio value, P&amp;L, and risk</source>
-            <translation>포트폴리오 가치, 손익, 위험에 대한 보유 종목별 기여도</translation>
+            <translation>보유종목별 포트폴리오 가치·손익·리스크 기여도</translation>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>SECTOR</source>
@@ -10071,11 +10071,11 @@ Source: Forex Factory — global economic calendar (no API key required)</source
         </message>
         <message>
             <source>COST BASIS</source>
-            <translation>취득 원가</translation>
+            <translation>매입금액</translation>
         </message>
         <message>
             <source>MARKET VALUE</source>
-            <translation>시장 가치</translation>
+            <translation>평가금액</translation>
         </message>
         <message>
             <source>P&amp;L</source>
@@ -10083,7 +10083,7 @@ Source: Forex Factory — global economic calendar (no API key required)</source
         </message>
         <message>
             <source>P&amp;L %</source>
-            <translation>손익률 %</translation>
+            <translation>수익률</translation>
         </message>
         <message>
             <source>PORTFOLIO FACTOR SENSITIVITY</source>
@@ -10111,11 +10111,11 @@ Source: Forex Factory — global economic calendar (no API key required)</source
         </message>
         <message>
             <source>Positive</source>
-            <translation>양수</translation>
+            <translation>긍정적</translation>
         </message>
         <message>
             <source>Negative</source>
-            <translation>음수</translation>
+            <translation>부정적</translation>
         </message>
         <message>
             <source>Interest Rates (+1%)</source>
@@ -10193,7 +10193,7 @@ It is stored encrypted and shared with all FRED-backed features.</source>
         </message>
         <message>
             <source>Live levels from the U.S. Federal Reserve (FRED). Your factor exposures below show how the portfolio reacts to moves in each.</source>
-            <translation>미국 연방준비제도(FRED)의 실시간 수치입니다. 아래 팩터 노출은 각 지표의 변화에 포트폴리오가 어떻게 반응하는지 보여 줍니다.</translation>
+            <translation>미국 연방준비제도(FRED)의 실시간 수치입니다. 아래 팩터 익스포저는 각 지표의 변화에 포트폴리오가 어떻게 반응하는지 보여 줍니다.</translation>
         </message>
     </context>
     <context>
@@ -10293,7 +10293,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>No data returned for this selection</source>
-            <translation>선택한 조건에서 반환된 데이터 없음</translation>
+            <translation>선택한 조건에 맞는 데이터가 없습니다</translation>
         </message>
     </context>
     <context>
@@ -10344,7 +10344,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>TOTAL REVENUE</source>
-            <translation>총매출</translation>
+            <translation>매출액</translation>
         </message>
         <message>
             <source>REVENUE/SHARE</source>
@@ -10364,11 +10364,11 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>P/E RATIO</source>
-            <translation>P/E 비율</translation>
+            <translation>PER</translation>
         </message>
         <message>
             <source>PEG RATIO</source>
-            <translation>PEG 비율</translation>
+            <translation>PEG</translation>
         </message>
         <message>
             <source>ROE</source>
@@ -10392,7 +10392,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>%1 (native quote)</source>
-            <translation>%1 (원 시세)</translation>
+            <translation>%1 (거래 통화 시세)</translation>
         </message>
     </context>
     <context>
@@ -10419,7 +10419,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Metric</source>
-            <translation>지표</translation>
+            <translation>항목</translation>
         </message>
         <message>
             <source>%1 YoY</source>
@@ -10471,7 +10471,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Equity</source>
-            <translation>자기자본</translation>
+            <translation>자본</translation>
         </message>
         <message>
             <source>Investing</source>
@@ -10499,7 +10499,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>TOTAL REVENUE</source>
-            <translation>총매출</translation>
+            <translation>매출액</translation>
         </message>
         <message>
             <source>GROSS PROFIT</source>
@@ -10511,7 +10511,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>NET INCOME</source>
-            <translation>순이익</translation>
+            <translation>당기순이익</translation>
         </message>
         <message>
             <source>GROSS MARGIN</source>
@@ -10591,15 +10591,15 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>TOTAL ASSETS</source>
-            <translation>총자산</translation>
+            <translation>자산총계</translation>
         </message>
         <message>
             <source>TOTAL LIABILITIES</source>
-            <translation>총부채</translation>
+            <translation>부채총계</translation>
         </message>
         <message>
             <source>STOCKHOLDERS EQUITY</source>
-            <translation>주주자본</translation>
+            <translation>자본총계</translation>
         </message>
         <message>
             <source>TOTAL DEBT</source>
@@ -10639,7 +10639,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Debt / Equity</source>
-            <translation>차입금 / 자기자본</translation>
+            <translation>부채비율</translation>
         </message>
         <message>
             <source>Debt / Assets</source>
@@ -10757,7 +10757,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>TODAY'S TRADING</source>
-            <translation>오늘의 거래</translation>
+            <translation>당일 시세</translation>
         </message>
         <message>
             <source>OPEN</source>
@@ -10781,7 +10781,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>VALUATION</source>
-            <translation>가치 평가</translation>
+            <translation>밸류에이션</translation>
         </message>
         <message>
             <source>MARKET CAP</source>
@@ -10789,19 +10789,19 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>P/E RATIO</source>
-            <translation>P/E 비율</translation>
+            <translation>PER</translation>
         </message>
         <message>
             <source>FWD P/E</source>
-            <translation>예상 P/E</translation>
+            <translation>선행 PER</translation>
         </message>
         <message>
             <source>PEG RATIO</source>
-            <translation>PEG 비율</translation>
+            <translation>PEG</translation>
         </message>
         <message>
             <source>P/B RATIO</source>
-            <translation>P/B 비율</translation>
+            <translation>PBR</translation>
         </message>
         <message>
             <source>DIV YIELD</source>
@@ -10817,11 +10817,11 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>SHARES OUT</source>
-            <translation>발행주식 수</translation>
+            <translation>발행주식수</translation>
         </message>
         <message>
             <source>FLOAT</source>
-            <translation>유동주식 수</translation>
+            <translation>유통주식수</translation>
         </message>
         <message>
             <source>INSIDERS</source>
@@ -10833,7 +10833,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>SHORT %</source>
-            <translation>공매도 비중 %</translation>
+            <translation>공매도 비중</translation>
         </message>
         <message>
             <source>PERIOD</source>
@@ -10841,7 +10841,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>ANALYST TARGETS</source>
-            <translation>애널리스트 목표가</translation>
+            <translation>목표주가</translation>
         </message>
         <message>
             <source>MEAN</source>
@@ -10893,7 +10893,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>EARNINGS</source>
-            <translation>실적</translation>
+            <translation>이익</translation>
         </message>
         <message>
             <source>COMPANY OVERVIEW</source>
@@ -10945,7 +10945,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>HOLD</source>
-            <translation>보유</translation>
+            <translation>중립</translation>
         </message>
         <message>
             <source>SELL</source>
@@ -10961,7 +10961,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>native quote</source>
-            <translation>원 시세</translation>
+            <translation>거래 통화 시세</translation>
         </message>
         <message>
             <source>yield (%)</source>
@@ -10973,7 +10973,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Chart: %1 (native prices)</source>
-            <translation>차트: %1 (원래 가격)</translation>
+            <translation>차트: %1 (거래 통화 가격)</translation>
         </message>
         <message>
             <source>%1 points</source>
@@ -10981,18 +10981,18 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>%1 (native quote)</source>
-            <translation>%1 (원 시세)</translation>
+            <translation>%1 (거래 통화 시세)</translation>
         </message>
     </context>
     <context>
         <name>fincept::screens::EquityPeersTab</name>
         <message>
             <source>LOADING PEERS…</source>
-            <translation>동종 기업 불러오는 중…</translation>
+            <translation>동종업체 불러오는 중…</translation>
         </message>
         <message>
             <source>PEERS (comma-separated):</source>
-            <translation>동종 기업 (쉼표로 구분):</translation>
+            <translation>동종업체 (쉼표로 구분):</translation>
         </message>
         <message>
             <source>LOAD</source>
@@ -11000,7 +11000,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Loading peer data…</source>
-            <translation>동종 기업 데이터 불러오는 중…</translation>
+            <translation>동종업체 데이터 불러오는 중…</translation>
         </message>
         <message>
             <source>Positive / Good</source>
@@ -11016,31 +11016,31 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Symbol / Info</source>
-            <translation>종목 코드 / 정보</translation>
+            <translation>종목코드 / 정보</translation>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>PRICE</source>
-            <translation>가격</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>P/E</source>
-            <translation>P/E</translation>
+            <translation>PER</translation>
         </message>
         <message>
             <source>FWD P/E</source>
-            <translation>예상 P/E</translation>
+            <translation>선행 PER</translation>
         </message>
         <message>
             <source>P/B</source>
-            <translation>P/B</translation>
+            <translation>PBR</translation>
         </message>
         <message>
             <source>P/S</source>
-            <translation>P/S</translation>
+            <translation>PSR</translation>
         </message>
         <message>
             <source>PEG</source>
@@ -11072,7 +11072,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>D/E</source>
-            <translation>D/E</translation>
+            <translation>부채비율</translation>
         </message>
         <message>
             <source>DIV YIELD</source>
@@ -11103,7 +11103,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Drag to broadcast this symbol to any panel</source>
-            <translation>드래그하여 이 종목 코드를 원하는 패널에 전달</translation>
+            <translation>드래그하여 이 종목을 원하는 패널로 전달</translation>
         </message>
         <message>
             <source>Use /stock, /fund, /index... in command bar to search</source>
@@ -11135,7 +11135,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Peers</source>
-            <translation>동종 기업</translation>
+            <translation>동종업체</translation>
         </message>
         <message>
             <source>News</source>
@@ -11155,7 +11155,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>%1 (native quote)</source>
-            <translation>%1 (원 시세)</translation>
+            <translation>%1 (거래 통화 시세)</translation>
         </message>
         <message>
             <source>H: %1  L: %2</source>
@@ -11206,7 +11206,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>BULLISH %</source>
-            <translation>강세 비율 %</translation>
+            <translation>강세 비율</translation>
         </message>
         <message>
             <source>COVERAGE</source>
@@ -11234,7 +11234,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>No snapshot available.</source>
-            <translation>사용 가능한 스냅샷이 없습니다.</translation>
+            <translation>스냅샷이 없습니다.</translation>
         </message>
         <message>
             <source>%1 sources live</source>
@@ -11242,7 +11242,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Optional alternative data</source>
-            <translation>선택적 대체 데이터</translation>
+            <translation>대체 데이터 (선택 사항)</translation>
         </message>
         <message>
             <source>No market sentiment snapshot is available for this symbol.</source>
@@ -11269,7 +11269,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>50+ indicators across 6 categories — powered by TALIpp incremental engine</source>
-            <translation>범주 6개의 지표 50개 이상 — TALIpp 증분 계산 엔진 기반</translation>
+            <translation>6개 범주, 50개 이상의 지표 — TALIpp 증분 계산 엔진 기반</translation>
         </message>
         <message>
             <source>No symbol loaded. Search for a symbol first.</source>
@@ -11297,7 +11297,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>No data returned for %1</source>
-            <translation>%1에 대해 반환된 데이터 없음</translation>
+            <translation>%1의 데이터가 없습니다</translation>
         </message>
     </context>
     <context>
@@ -11444,7 +11444,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Very strong trend — trade with the trend</source>
-            <translation>매우 강한 추세 — 추세에 따라 거래</translation>
+            <translation>매우 강한 추세 — 추세 추종 매매</translation>
         </message>
         <message>
             <source>Trending — directional move in play</source>
@@ -11560,7 +11560,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Signal line — crossover with MACD triggers trade</source>
-            <translation>시그널선 — MACD와 교차 시 거래 신호 발생</translation>
+            <translation>시그널선 — MACD와 교차 시 매매 신호 발생</translation>
         </message>
         <message>
             <source>Bollinger midline (20-SMA) — dynamic support/resistance</source>
@@ -11632,7 +11632,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>HOLD</source>
-            <translation>보유</translation>
+            <translation>중립</translation>
         </message>
         <message>
             <source>INDICATOR</source>
@@ -11655,27 +11655,27 @@ EIA_API_KEY 환경 변수를 설정하세요.
         <name>fincept::screens::EquityTradingScreen</name>
         <message>
             <source>NO ACCOUNT</source>
-            <translation>계정 없음</translation>
+            <translation>계좌 없음</translation>
         </message>
         <message>
             <source>○ NO ACCOUNTS</source>
-            <translation>○ 계정 없음</translation>
+            <translation>○ 계좌 없음</translation>
         </message>
         <message>
             <source>ACCOUNTS</source>
-            <translation>계정</translation>
+            <translation>계좌</translation>
         </message>
         <message>
             <source>PAPER</source>
-            <translation>모의 거래</translation>
+            <translation>모의투자</translation>
         </message>
         <message>
             <source>LIVE</source>
-            <translation>실거래</translation>
+            <translation>실전투자</translation>
         </message>
         <message>
             <source>⚠ TOKEN EXPIRED — click ACCOUNTS</source>
-            <translation>⚠ 토큰 만료 — 계정을 누르세요</translation>
+            <translation>⚠ 토큰 만료 — 계좌를 누르세요</translation>
         </message>
         <message>
             <source>● %1/%2 CONNECTED</source>
@@ -11691,15 +11691,15 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>No account selected — add one via ACCOUNTS</source>
-            <translation>선택한 계정 없음 — 계정에서 추가하세요</translation>
+            <translation>선택한 계좌 없음 — 계좌에서 추가하세요</translation>
         </message>
         <message>
             <source>No paper portfolio for this account</source>
-            <translation>이 계정의 모의 포트폴리오 없음</translation>
+            <translation>이 계좌의 모의 포트폴리오 없음</translation>
         </message>
         <message>
             <source>Price not available yet — wait for quotes to load</source>
-            <translation>가격이 아직 없습니다 — 시세가 불러와질 때까지 기다리세요</translation>
+            <translation>아직 가격 정보가 없습니다 — 시세를 불러올 때까지 기다리세요</translation>
         </message>
         <message>
             <source>No price available for fill</source>
@@ -11731,11 +11731,11 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Cancelled %1 order(s)%2</source>
-            <translation>주문 %1개 취소됨%2</translation>
+            <translation>주문 %1건 취소됨%2</translation>
         </message>
         <message>
             <source>, %1 failed</source>
-            <translation>, %1개 실패</translation>
+            <translation>, %1건 실패</translation>
         </message>
         <message>
             <source>Closed %1 position(s)%2</source>
@@ -11751,27 +11751,27 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Import Holdings</source>
-            <translation>보유 종목 가져오기</translation>
+            <translation>보유종목 가져오기</translation>
         </message>
         <message>
             <source>No account selected.</source>
-            <translation>선택한 계정이 없습니다.</translation>
+            <translation>선택한 계좌가 없습니다.</translation>
         </message>
         <message>
             <source>%1 Holdings</source>
-            <translation>%1 보유 종목</translation>
+            <translation>%1 보유종목</translation>
         </message>
         <message>
             <source>%1 - Holdings</source>
-            <translation>%1 - 보유 종목</translation>
+            <translation>%1 - 보유종목</translation>
         </message>
         <message>
             <source>Import holdings into portfolio</source>
-            <translation>보유 종목을 포트폴리오로 가져오기</translation>
+            <translation>보유종목을 포트폴리오로 가져오기</translation>
         </message>
         <message>
             <source>Importing &lt;b&gt;%1&lt;/b&gt; holdings from &lt;b&gt;%2&lt;/b&gt;. Tickers are auto-mapped to Yahoo Finance format (NSE→.NS, BSE→.BO). Edit the &lt;i&gt;Yahoo Ticker&lt;/i&gt; column if any symbol needs a manual override.</source>
-            <translation>&lt;b&gt;%2&lt;/b&gt;에서 보유 종목 &lt;b&gt;%1&lt;/b&gt;개를 가져옵니다. 티커는 Yahoo Finance 형식으로 자동 매핑됩니다 (NSE→.NS, BSE→.BO). 수동 조정이 필요한 종목은 &lt;i&gt;Yahoo 티커&lt;/i&gt; 열을 편집하세요.</translation>
+            <translation>&lt;b&gt;%2&lt;/b&gt;에서 보유종목 &lt;b&gt;%1&lt;/b&gt;개를 가져옵니다. 티커는 Yahoo Finance 형식으로 자동 매핑됩니다 (NSE→.NS, BSE→.BO). 수동 조정이 필요한 종목은 &lt;i&gt;Yahoo 티커&lt;/i&gt; 열을 편집하세요.</translation>
         </message>
         <message>
             <source>Create a new portfolio</source>
@@ -11803,7 +11803,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Broker Symbol</source>
-            <translation>증권사 종목 코드</translation>
+            <translation>증권사 종목코드</translation>
         </message>
         <message>
             <source>Exchange</source>
@@ -11819,7 +11819,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Avg Price</source>
-            <translation>평균 가격</translation>
+            <translation>평균단가</translation>
         </message>
         <message>
             <source>Select all</source>
@@ -11847,7 +11847,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Imported %1 holdings into portfolio "%2".</source>
-            <translation>보유 종목 %1개를 포트폴리오 "%2"(으)로 가져왔습니다.</translation>
+            <translation>보유종목 %1개를 포트폴리오 "%2"(으)로 가져왔습니다.</translation>
         </message>
         <message>
             <source>Select a portfolio first.</source>
@@ -11855,7 +11855,7 @@ EIA_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>Imported %1 holdings.</source>
-            <translation>보유 종목 %1개를 가져왔습니다.</translation>
+            <translation>보유종목 %1개를 가져왔습니다.</translation>
         </message>
         <message>
             <source>Failed to queue strategy</source>
@@ -11892,14 +11892,14 @@ Source: Eurostat — EU statistical office</source>
         </message>
         <message>
             <source>No data returned for this selection</source>
-            <translation>선택한 조건에서 반환된 데이터 없음</translation>
+            <translation>선택한 조건에 맞는 데이터가 없습니다</translation>
         </message>
     </context>
     <context>
         <name>fincept::screens::ExcelScreen</name>
         <message>
             <source>EXCEL SPREADSHEET</source>
-            <translation>EXCEL 스프레드시트</translation>
+            <translation>Excel 스프레드시트</translation>
         </message>
         <message>
             <source>IMPORT</source>
@@ -12004,7 +12004,7 @@ CSV 내보내기는 도구 모음에서 사용할 수 있습니다.</translation
         <message>
             <source>Could not open file for writing:
 %1</source>
-            <translation>쓰기용으로 파일을 열 수 없습니다:
+            <translation>파일을 쓰기 모드로 열 수 없습니다:
 %1</translation>
         </message>
         <message>
@@ -12060,7 +12060,7 @@ API 키가 필요하지 않습니다</translation>
         </message>
         <message>
             <source>No data returned</source>
-            <translation>반환된 데이터 없음</translation>
+            <translation>데이터가 없습니다</translation>
         </message>
     </context>
     <context>
@@ -12123,7 +12123,7 @@ API 키가 필요하지 않습니다</translation>
         </message>
         <message>
             <source>Save File As</source>
-            <translation>다른 이름으로 파일 저장</translation>
+            <translation>다른 이름으로 저장</translation>
         </message>
         <message>
             <source>Download Failed</source>
@@ -12185,7 +12185,7 @@ from any screen. You can also upload files manually using the button above.</sou
         </message>
         <message>
             <source>TIPS</source>
-            <translation>도움말</translation>
+            <translation>사용 팁</translation>
         </message>
         <message>
             <source>Use the filter chips above to narrow files by source screen.</source>
@@ -12301,7 +12301,7 @@ API 키가 필요하지 않습니다</translation>
         </message>
         <message>
             <source>No data returned</source>
-            <translation>반환된 데이터 없음</translation>
+            <translation>데이터가 없습니다</translation>
         </message>
     </context>
     <context>
@@ -12584,7 +12584,7 @@ API 키가 필요하지 않습니다</translation>
         </message>
         <message>
             <source>PUBLISH POST</source>
-            <translation>게시글 게시</translation>
+            <translation>게시글 등록</translation>
         </message>
         <message>
             <source>EDIT PROFILE</source>
@@ -12747,7 +12747,7 @@ FRED_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>No data returned — check FRED_API_KEY is set</source>
-            <translation>반환된 데이터 없음 — FRED_API_KEY 설정을 확인하세요</translation>
+            <translation>데이터 없음 — FRED_API_KEY 설정을 확인하세요</translation>
         </message>
     </context>
     <context>
@@ -12853,7 +12853,7 @@ fred.stlouisfed.org/docs/api/api_key.html</translation>
         </message>
         <message>
             <source>Converts supported monetary displays using dated ECB reference rates. Orders keep their source units. Calculators use the selected denomination. Unavailable conversions keep the original currency.</source>
-            <translation>지원되는 금액 표시에 기준일이 명시된 ECB 참고환율을 적용합니다. 주문은 원 단위를 유지하며 계산기는 선택한 통화 단위를 사용합니다. 환산할 수 없으면 원래 통화로 표시합니다.</translation>
+            <translation>지원되는 금액 표시에 기준일이 명시된 ECB 참고환율을 적용합니다. 주문은 원래 단위를 유지하며 계산기는 선택한 통화 단위를 사용합니다. 환산할 수 없으면 원래 통화로 표시합니다.</translation>
         </message>
         <message>
             <source>Refresh exchange rates</source>
@@ -12904,7 +12904,7 @@ fred.stlouisfed.org/docs/api/api_key.html</translation>
         </message>
         <message>
             <source>TRADE</source>
-            <translation>거래</translation>
+            <translation>무역</translation>
         </message>
         <message>
             <source>FILTERS</source>
@@ -13006,12 +13006,12 @@ API 전체 이벤트: %3</translation>
 Sources: BOE, RBA, Bank of Canada, Riksbank, SNB, Norges Bank
 No API key required for any source</source>
             <translation>중앙은행과 시계열을 선택한 다음 가져오기를 클릭하세요
-출처: BOE, RBA, 캐나다 은행, 스웨덴 중앙은행, SNB, 노르웨이 중앙은행
-모든 출처에서 API 키가 필요하지 않습니다</translation>
+출처: BOE, RBA, 캐나다 중앙은행, 스웨덴 중앙은행, SNB, 노르웨이 중앙은행
+어느 출처도 API 키가 필요하지 않습니다</translation>
         </message>
         <message>
             <source>BANK</source>
-            <translation>은행</translation>
+            <translation>중앙은행</translation>
         </message>
         <message>
             <source>SERIES</source>
@@ -13023,7 +13023,7 @@ No API key required for any source</source>
         </message>
         <message>
             <source>No data returned</source>
-            <translation>반환된 데이터 없음</translation>
+            <translation>데이터가 없습니다</translation>
         </message>
     </context>
     <context>
@@ -13503,7 +13503,7 @@ No API key required for any source</source>
         </message>
         <message>
             <source>CATEGORY</source>
-            <translation>범주</translation>
+            <translation>카테고리</translation>
         </message>
         <message>
             <source>TITLE</source>
@@ -13890,7 +13890,7 @@ The selector shows all CKAN portals covered by the universal provider.</source>
         </message>
         <message>
             <source>RATE %</source>
-            <translation>금리 %</translation>
+            <translation>표면금리 %</translation>
         </message>
         <message>
             <source>MATURITY</source>
@@ -13938,7 +13938,7 @@ The selector shows all CKAN portals covered by the universal provider.</source>
         </message>
         <message>
             <source>TOTAL SECURITIES</source>
-            <translation>전체 증권 수</translation>
+            <translation>전체 종목 수</translation>
         </message>
         <message>
             <source>MIN RATE</source>
@@ -14299,11 +14299,11 @@ The selector shows all CKAN portals covered by the universal provider.</source>
         </message>
         <message>
             <source>How do I connect a broker?</source>
-            <translation>브로커는 어떻게 연결하나요?</translation>
+            <translation>증권사는 어떻게 연결하나요?</translation>
         </message>
         <message>
             <source>Navigate to Settings → Brokers, select your broker from the list, and enter your API key and secret. Fincept supports 18+ brokers including Zerodha, Angel One, Upstox, Interactive Brokers, and more.</source>
-            <translation>설정 → 브로커로 이동하여 목록에서 브로커를 선택하고 API 키와 시크릿을 입력하세요. Fincept는 Zerodha, Angel One, Upstox, Interactive Brokers 등 18개 이상의 브로커를 지원합니다.</translation>
+            <translation>설정 → 증권사로 이동하여 목록에서 증권사를 선택하고 API 키와 시크릿을 입력하세요. Fincept는 Zerodha, Angel One, Upstox, Interactive Brokers 등 18개 이상의 증권사를 지원합니다.</translation>
         </message>
         <message>
             <source>Why does Python install at first launch?</source>
@@ -14367,7 +14367,7 @@ The selector shows all CKAN portals covered by the universal provider.</source>
         </message>
         <message>
             <source>Add a broker or enable free data feeds in Data Sources.</source>
-            <translation>데이터 소스에서 브로커를 추가하거나 무료 데이터 피드를 활성화하세요.</translation>
+            <translation>데이터 소스에서 증권사를 추가하거나 무료 데이터 피드를 활성화하세요.</translation>
         </message>
         <message>
             <source>Explore the terminal</source>
@@ -14383,7 +14383,7 @@ The selector shows all CKAN portals covered by the universal provider.</source>
         </message>
         <message>
             <source>Email Support</source>
-            <translation>이메일 지원</translation>
+            <translation>이메일 문의</translation>
         </message>
         <message>
             <source>Discord Server</source>
@@ -14438,7 +14438,7 @@ The selector shows all CKAN portals covered by the universal provider.</source>
         </message>
         <message>
             <source>UPDATED</source>
-            <translation>업데이트됨</translation>
+            <translation>업데이트 시각</translation>
         </message>
         <message>
             <source>○ IDLE</source>
@@ -14493,7 +14493,7 @@ The selector shows all CKAN portals covered by the universal provider.</source>
         </message>
         <message>
             <source>Balance fetch failed: %1</source>
-            <translation>잔액 조회 실패: %1</translation>
+            <translation>잔고 조회 실패: %1</translation>
         </message>
         <message>
             <source>WALLET</source>
@@ -14545,7 +14545,7 @@ PHASE 2   SWAP &amp; FEE DISCOUNT     IN PROGRESS    buy $FNCPT via PumpPortal, 
 PHASE 3   STAKING &amp; TIERS         UPCOMING       lock $FNCPT for bronze / silver / gold tiers
 PHASE 4   PREDICTION MARKETS      UPCOMING       earnings, fed, weather — settled in $FNCPT
 PHASE 5   BUYBACK &amp; BURN          UPCOMING       terminal revenue auto-buys &amp; burns $FNCPT</source>
-            <translation>1단계   지갑 및 잔액           출시 완료       Solana 지갑 연결, $FNCPT + SOL 조회
+            <translation>1단계   지갑 및 잔고           출시 완료       Solana 지갑 연결, $FNCPT + SOL 조회
 2단계   스왑 및 수수료 할인     진행 중         PumpPortal에서 $FNCPT 매수, 수수료 할인
 3단계   스테이킹 및 등급        예정            $FNCPT를 예치하여 브론즈 / 실버 / 골드 등급 획득
 4단계   예측 시장              예정            실적, 연준, 날씨 — $FNCPT로 정산
@@ -14600,7 +14600,7 @@ All countries: ALL</source>
         </message>
         <message>
             <source>No data returned — try a different country code or year range</source>
-            <translation>반환된 데이터 없음 — 다른 국가 코드 또는 연도 범위를 사용해 보세요</translation>
+            <translation>데이터 없음 — 다른 국가 코드나 연도 범위로 시도해 보세요</translation>
         </message>
     </context>
     <context>
@@ -14754,11 +14754,11 @@ You can now import it using the BROWSE button.</source>
         </message>
         <message>
             <source>Reset All to Defaults</source>
-            <translation>모두 기본값으로 재설정</translation>
+            <translation>모두 기본값으로 초기화</translation>
         </message>
         <message>
             <source>Reset</source>
-            <translation>재설정</translation>
+            <translation>초기화</translation>
         </message>
         <message>
             <source>Search keyboard actions</source>
@@ -14776,7 +14776,7 @@ You can now import it using the BROWSE button.</source>
             <source>Reset every keyboard shortcut to its default?
 
 All of your custom bindings will be lost.</source>
-            <translation>모든 키보드 단축키를 기본값으로 초기화할까요?
+            <translation>모든 키보드 단축키를 기본값으로 초기화하시겠습니까?
 
 사용자 지정 단축키가 모두 사라집니다.</translation>
         </message>
@@ -14856,7 +14856,7 @@ All of your custom bindings will be lost.</source>
         <name>fincept::screens::LlmConfigSection</name>
         <message>
             <source>LLM CONFIGURATION</source>
-            <translation>LLM 구성</translation>
+            <translation>LLM 설정</translation>
         </message>
         <message>
             <source>PROFILES</source>
@@ -14868,7 +14868,7 @@ All of your custom bindings will be lost.</source>
         </message>
         <message>
             <source>PROVIDERS</source>
-            <translation>제공업체</translation>
+            <translation>공급자</translation>
         </message>
         <message>
             <source>Providers</source>
@@ -15200,7 +15200,7 @@ Range 1-200. Raise for long workflows (e.g. populating multi-section reports).</
             <source>Delete this LLM profile?
 
 This cannot be undone.</source>
-            <translation>이 LLM 프로필을 삭제할까요?
+            <translation>이 LLM 프로필을 삭제하시겠습니까?
 
 이 작업은 되돌릴 수 없습니다.</translation>
         </message>
@@ -15208,7 +15208,7 @@ This cannot be undone.</source>
             <source>Delete the LLM profile "%1"?
 
 Agents assigned to it fall back to the default profile. This cannot be undone.</source>
-            <translation>LLM 프로필 "%1"을(를) 삭제할까요?
+            <translation>LLM 프로필 "%1"을(를) 삭제하시겠습니까?
 
 이 프로필을 사용하는 에이전트는 기본 프로필로 돌아갑니다. 이 작업은 되돌릴 수 없습니다.</translation>
         </message>
@@ -15321,7 +15321,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>Incorrect PIN</source>
-            <translation>잘못된 PIN</translation>
+            <translation>PIN이 올바르지 않습니다</translation>
         </message>
         <message numerus="yes">
             <source>%n ATTEMPT(S) REMAINING</source>
@@ -15338,7 +15338,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         <name>fincept::screens::LoggingSection</name>
         <message>
             <source>LOGGING</source>
-            <translation>로깅</translation>
+            <translation>로그</translation>
         </message>
         <message>
             <source>Global Log Level</source>
@@ -15429,7 +15429,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>SHOW</source>
-            <translation>표시</translation>
+            <translation>보기</translation>
         </message>
         <message>
             <source>HIDE</source>
@@ -15453,7 +15453,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>SIGN UP</source>
-            <translation>가입</translation>
+            <translation>회원가입</translation>
         </message>
         <message>
             <source>TWO-FACTOR AUTH</source>
@@ -15615,7 +15615,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>Shares Outstanding</source>
-            <translation>발행주식 수</translation>
+            <translation>발행주식수</translation>
         </message>
         <message>
             <source>Market Cap</source>
@@ -15623,7 +15623,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>Total Debt</source>
-            <translation>총부채</translation>
+            <translation>총차입금</translation>
         </message>
         <message>
             <source>Cost of Debt</source>
@@ -15855,7 +15855,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>Deal Value</source>
-            <translation>거래 가치</translation>
+            <translation>거래 금액</translation>
         </message>
         <message>
             <source>Premium</source>
@@ -15967,7 +15967,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>Purchase Price</source>
-            <translation>매입 가격</translation>
+            <translation>인수 가격</translation>
         </message>
         <message>
             <source>ANALYZE PAYMENT STRUCTURE</source>
@@ -16199,7 +16199,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>Investment</source>
-            <translation>투자</translation>
+            <translation>투자금액</translation>
         </message>
         <message>
             <source>CALCULATE VC METHOD</source>
@@ -16303,7 +16303,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>Runs all 5 methods with current inputs and returns a consensus range.</source>
-            <translation>현재 입력값으로 5가지 방법을 모두 실행하고 종합 평가 범위를 반환합니다.</translation>
+            <translation>현재 입력값으로 5가지 방법을 모두 실행하고 종합 평가 범위를 산출합니다.</translation>
         </message>
         <message>
             <source>RUN ALL METHODS</source>
@@ -16483,7 +16483,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>Total Assets</source>
-            <translation>총자산</translation>
+            <translation>자산총계</translation>
         </message>
         <message>
             <source>ROE</source>
@@ -16878,7 +16878,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>Source</source>
-            <translation>소스</translation>
+            <translation>출처</translation>
         </message>
         <message>
             <source>SELECTED ROUTE</source>
@@ -16886,7 +16886,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>CLASSIFIED — AUTHORIZED PERSONNEL ONLY</source>
-            <translation>기밀 — 승인된 직원만 접근 가능</translation>
+            <translation>기밀 — 인가자 외 열람 금지</translation>
         </message>
         <message>
             <source>SOURCE:</source>
@@ -16894,11 +16894,11 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>RECORDS:</source>
-            <translation>기록:</translation>
+            <translation>건수:</translation>
         </message>
         <message>
             <source>REFRESH:</source>
-            <translation>새로 고침:</translation>
+            <translation>새로고침:</translation>
         </message>
         <message>
             <source>5 MIN</source>
@@ -17097,7 +17097,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>CHG%</source>
-            <translation>등락률%</translation>
+            <translation>등락률</translation>
         </message>
         <message>
             <source>HIGH</source>
@@ -17223,7 +17223,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>MARKET BREADTH</source>
-            <translation>시장 폭</translation>
+            <translation>등락 종목 현황</translation>
         </message>
         <message>
             <source>TOP GAINERS</source>
@@ -17239,7 +17239,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>MARKET HOURS</source>
-            <translation>시장 운영 시간</translation>
+            <translation>거래시간</translation>
         </message>
         <message>
             <source>NYSE/NASDAQ</source>
@@ -17282,7 +17282,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>[F5] REFRESH</source>
-            <translation>[F5] 새로 고침</translation>
+            <translation>[F5] 새로고침</translation>
         </message>
         <message>
             <source>[F9] AUTO: ON</source>
@@ -17294,31 +17294,31 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>5M</source>
-            <translation>5M</translation>
+            <translation>5분</translation>
         </message>
         <message>
             <source>10M</source>
-            <translation>10M</translation>
+            <translation>10분</translation>
         </message>
         <message>
             <source>15M</source>
-            <translation>15M</translation>
+            <translation>15분</translation>
         </message>
         <message>
             <source>30M</source>
-            <translation>30M</translation>
+            <translation>30분</translation>
         </message>
         <message>
             <source>1H</source>
-            <translation>1H</translation>
+            <translation>1시간</translation>
         </message>
         <message>
             <source>4H</source>
-            <translation>4H</translation>
+            <translation>4시간</translation>
         </message>
         <message>
             <source>1D</source>
-            <translation>1D</translation>
+            <translation>1일</translation>
         </message>
         <message>
             <source>[+] PANEL</source>
@@ -17354,15 +17354,15 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>NYSE: PRE-MKT</source>
-            <translation>NYSE: 장전</translation>
+            <translation>NYSE: 프리마켓</translation>
         </message>
         <message>
             <source>NYSE: OPEN</source>
-            <translation>NYSE: 개장</translation>
+            <translation>NYSE: 장중</translation>
         </message>
         <message>
             <source>NYSE: AFTER-HRS</source>
-            <translation>NYSE: 시간외</translation>
+            <translation>NYSE: 애프터마켓</translation>
         </message>
         <message>
             <source>NY %1</source>
@@ -17409,7 +17409,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>↺  REFRESH</source>
-            <translation>↺  새로 고침</translation>
+            <translation>↺  새로고침</translation>
         </message>
         <message>
             <source>  CATEGORY</source>
@@ -17453,7 +17453,7 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         </message>
         <message>
             <source>CATEGORY</source>
-            <translation>범주</translation>
+            <translation>카테고리</translation>
         </message>
         <message>
             <source>DESCRIPTION</source>
@@ -17543,7 +17543,7 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>Command</source>
-            <translation>명령</translation>
+            <translation>명령어</translation>
         </message>
         <message>
             <source>Arguments</source>
@@ -17559,7 +17559,7 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>Category</source>
-            <translation>범주</translation>
+            <translation>카테고리</translation>
         </message>
         <message>
             <source>Auto-start on launch</source>
@@ -17676,7 +17676,7 @@ Use MARKETPLACE to add one, or click ADD CUSTOM MCP SERVER below.</source>
         </message>
         <message>
             <source>Category</source>
-            <translation>범주</translation>
+            <translation>카테고리</translation>
         </message>
         <message>
             <source>Description</source>
@@ -17716,7 +17716,7 @@ Use MARKETPLACE to add one, or click ADD CUSTOM MCP SERVER below.</source>
         </message>
         <message>
             <source>Command</source>
-            <translation>명령</translation>
+            <translation>명령어</translation>
         </message>
         <message>
             <source>Arguments</source>
@@ -17732,7 +17732,7 @@ Use MARKETPLACE to add one, or click ADD CUSTOM MCP SERVER below.</source>
         </message>
         <message>
             <source>Name and Command are required</source>
-            <translation>이름과 명령어가 필요합니다</translation>
+            <translation>이름과 명령어는 필수입니다</translation>
         </message>
         <message>
             <source>Failed to save server: </source>
@@ -17821,7 +17821,7 @@ Click '+ Add' to add one.</source>
         <name>fincept::screens::NewsCommandBar</name>
         <message>
             <source>Auto-refresh interval</source>
-            <translation>자동 새로 고침 간격</translation>
+            <translation>자동 새로고침 간격</translation>
         </message>
         <message>
             <source>MANUAL</source>
@@ -17857,7 +17857,7 @@ Click '+ Add' to add one.</source>
         </message>
         <message>
             <source>Toggle intelligence drawer</source>
-            <translation>인텔리전스 서랍 열기/닫기</translation>
+            <translation>인텔리전스 패널 열기/닫기</translation>
         </message>
         <message>
             <source>Search...</source>
@@ -18016,7 +18016,7 @@ Click '+ Add' to add one.</source>
         </message>
         <message>
             <source>RISK SIGNALS</source>
-            <translation>위험 신호</translation>
+            <translation>리스크 신호</translation>
         </message>
         <message>
             <source>TOPICS</source>
@@ -18044,7 +18044,7 @@ Click '+ Add' to add one.</source>
         </message>
         <message>
             <source>Impact: %1  •  Threat: %2 (%3, %4% conf)</source>
-            <translation>영향: %1  •  위협: %2 (%3, %4% 신뢰도)</translation>
+            <translation>영향: %1  •  위협: %2 (%3, 신뢰도 %4%)</translation>
         </message>
         <message>
             <source>Impact: %1</source>
@@ -18185,7 +18185,7 @@ Click '+ Add' to add one.</source>
         </message>
         <message>
             <source>Check your network connection and click Refresh to retry.</source>
-            <translation>네트워크 연결을 확인한 후 새로 고침을 클릭하여 다시 시도하세요.</translation>
+            <translation>네트워크 연결을 확인한 후 새로고침을 클릭하여 다시 시도하세요.</translation>
         </message>
         <message>
             <source>FLASH</source>
@@ -18446,7 +18446,7 @@ Click '+ Add' to add one.</source>
         </message>
         <message>
             <source>Monitor Keyword Matches</source>
-            <translation>모니터 키워드 일치</translation>
+            <translation>키워드 모니터 일치</translation>
         </message>
         <message>
             <source>Notify when a news monitor watch list gets new matches.</source>
@@ -18474,7 +18474,7 @@ Click '+ Add' to add one.</source>
         </message>
         <message>
             <source>Could not read this provider's saved settings — saving is disabled so the blank fields cannot overwrite them. Reopen Settings to retry.</source>
-            <translation>이 제공업체의 저장된 설정을 읽지 못했습니다. 빈 입력란이 기존 설정을 덮어쓰지 않도록 저장을 비활성화했습니다. 설정을 다시 열어 재시도하세요.</translation>
+            <translation>이 공급자의 저장된 설정을 읽지 못했습니다. 빈 입력란이 기존 설정을 덮어쓰지 않도록 저장을 비활성화했습니다. 설정을 다시 열어 다시 시도하세요.</translation>
         </message>
     </context>
     <context>
@@ -18505,7 +18505,7 @@ Click '+ Add' to add one.</source>
         </message>
         <message>
             <source>FREQ</source>
-            <translation>빈도</translation>
+            <translation>주기</translation>
         </message>
         <message>
             <source>Fetching OECD data…</source>
@@ -18564,7 +18564,7 @@ Click '+ Add' to add one.</source>
         </message>
         <message>
             <source>Open Settings (gear icon) to tune theme, hotkeys, telemetry opt-in, and broker credentials. Hotkeys are rebindable — every action in the registry can be assigned a key.</source>
-            <translation>설정(톱니바퀴 아이콘)에서 테마, 단축키, 원격 분석 참여 여부, 브로커 인증 정보를 조정하세요. 단축키는 변경할 수 있으며, 등록된 모든 작업에 키를 할당할 수 있습니다.</translation>
+            <translation>설정(톱니바퀴 아이콘)에서 테마, 단축키, 원격 분석 참여 여부, 증권사 인증 정보를 조정하세요. 단축키는 변경할 수 있으며, 등록된 모든 작업에 키를 할당할 수 있습니다.</translation>
         </message>
         <message>
             <source>Tip: F11 toggles fullscreen on the focused window.</source>
@@ -18584,7 +18584,7 @@ Click '+ Add' to add one.</source>
         </message>
         <message>
             <source>Got it!</source>
-            <translation>확인했습니다!</translation>
+            <translation>확인</translation>
         </message>
         <message>
             <source>Step %1 of %2</source>
@@ -18611,7 +18611,7 @@ api.beta.ons.gov.uk 제공 데이터 — GDP, CPI, 노동시장, 주택</transla
         </message>
         <message>
             <source>No data returned</source>
-            <translation>반환된 데이터 없음</translation>
+            <translation>데이터가 없습니다</translation>
         </message>
     </context>
     <context>
@@ -18654,7 +18654,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>No data returned — try a different country or year range</source>
-            <translation>반환된 데이터 없음 — 다른 국가 또는 연도 범위를 사용해 보세요</translation>
+            <translation>데이터가 없습니다 — 다른 국가나 연도 범위로 다시 시도하세요</translation>
         </message>
     </context>
     <context>
@@ -18665,11 +18665,11 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>  RISK METRICS</source>
-            <translation>  위험 지표</translation>
+            <translation>  리스크 지표</translation>
         </message>
         <message>
             <source>SHARPE RATIO</source>
-            <translation>샤프 비율</translation>
+            <translation>샤프지수</translation>
         </message>
         <message>
             <source>Risk-adjusted return (annualised)</source>
@@ -18677,7 +18677,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>SORTINO RATIO</source>
-            <translation>소르티노 비율</translation>
+            <translation>소르티노지수</translation>
         </message>
         <message>
             <source>Downside risk-adjusted return</source>
@@ -18705,7 +18705,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>MAX DRAWDOWN</source>
-            <translation>최대 낙폭</translation>
+            <translation>최대낙폭(MDD)</translation>
         </message>
         <message>
             <source>Peak-to-trough from snapshots</source>
@@ -18713,7 +18713,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>VALUE AT RISK (95%)</source>
-            <translation>위험가치 (95%)</translation>
+            <translation>VaR (95%)</translation>
         </message>
         <message>
             <source>CONDITIONAL VaR</source>
@@ -18721,7 +18721,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>Expected shortfall (95%)</source>
-            <translation>기대손실 (95%)</translation>
+            <translation>기대손실(ES, 95%)</translation>
         </message>
         <message>
             <source>Jensen's alpha vs benchmark (CAPM)</source>
@@ -18733,7 +18733,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>⚠ Using a default 4% risk-free rate for Sharpe/Sortino. Add a free FRED API key in Settings → API Credentials for the live Treasury yield.</source>
-            <translation>⚠ 샤프/소르티노 비율에 기본 무위험이자율 4%를 사용합니다. 실시간 국채 수익률을 사용하려면 설정 → API 인증 정보에서 무료 FRED API 키를 추가하세요.</translation>
+            <translation>⚠ 샤프지수/소르티노지수 계산에 기본 무위험이자율 4%를 사용합니다. 실시간 국채 수익률을 사용하려면 설정 → API 인증 정보에서 무료 FRED API 키를 추가하세요.</translation>
         </message>
         <message>
             <source>N/A</source>
@@ -18784,7 +18784,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>COMPLETED</source>
-            <translation>완료됨</translation>
+            <translation>완료</translation>
         </message>
         <message>
             <source>ERROR</source>
@@ -18856,7 +18856,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>Risk Assessment Plan</source>
-            <translation>위험 평가 계획</translation>
+            <translation>리스크 평가 계획</translation>
         </message>
         <message>
             <source>Sector Rotation Plan</source>
@@ -18892,7 +18892,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>UP</source>
-            <translation>위</translation>
+            <translation>위로</translation>
         </message>
         <message>
             <source>DOWN</source>
@@ -18983,7 +18983,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>⚠ Shortfall of %1 %2. Consider increasing monthly savings by %1 %3 to close the gap.</source>
-            <translation>⚠ %1 %2 부족합니다. 부족분을 메우려면 월 저축액을 %1 %3 늘리는 것을 고려하세요.</translation>
+            <translation>⚠ %1 %2 부족합니다. 부족분을 메우려면 월 저축액을 %1 %3 늘려 보세요.</translation>
         </message>
         <message>
             <source>⚙  OPTIMIZE PORTFOLIO FOR THIS GOAL</source>
@@ -19011,7 +19011,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>% Portfolio Allocated:</source>
-            <translation>포트폴리오 할당 비율 %:</translation>
+            <translation>포트폴리오 배분 비율 %:</translation>
         </message>
         <message>
             <source>ADD / UPDATE GOAL</source>
@@ -19043,7 +19043,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>TARGET</source>
-            <translation>대상 기업</translation>
+            <translation>목표 금액</translation>
         </message>
         <message>
             <source>FUNDED NOW</source>
@@ -19103,7 +19103,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>⚠ Short of %1. At %2 %3/month you reach %2 %4 (%5%). Save %2 %6/month to hit the %2 %7 target in %8 years.</source>
-            <translation>⚠ %1 목표에 부족합니다. 월 %2 %3이면 %2 %4 (%5%)에 도달합니다. %8년 안에 목표 %2 %7에 도달하려면 월 %2 %6을(를) 저축하세요.</translation>
+            <translation>⚠ %1 목표에 미달합니다. 월 %2 %3이면 %2 %4 (%5%)에 도달합니다. %8년 안에 목표 %2 %7에 도달하려면 월 %2 %6을(를) 저축하세요.</translation>
         </message>
         <message>
             <source>Monte Carlo: &lt;b&gt;&lt;span style='color:%1'&gt;%2%% chance&lt;/span&gt;&lt;/b&gt; of reaching %3 %4 — likely %3 %5 – %3 %6.</source>
@@ -19135,7 +19135,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>Stress: a %1%% drawdown (your historical max) near retirement would cut the projection to %2 %3 — %4%% of target.</source>
-            <translation>스트레스: 은퇴 시점 부근에 %1%% 낙폭(과거 최대 낙폭)이 발생하면 예상 자산은 %2 %3으로 감소합니다 — 목표의 %4%%입니다.</translation>
+            <translation>스트레스: 은퇴 시점 부근에 %1%% 낙폭(과거 최대낙폭)이 발생하면 예상 자산은 %2 %3으로 감소합니다 — 목표의 %4%%입니다.</translation>
         </message>
     </context>
     <context>
@@ -19174,11 +19174,11 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>Series: %1</source>
-            <translation>시계열: %1</translation>
+            <translation>시리즈: %1</translation>
         </message>
         <message>
             <source>Frequency: %1</source>
-            <translation>빈도: %1</translation>
+            <translation>주기: %1</translation>
         </message>
         <message>
             <source>Fees: %1</source>
@@ -19189,7 +19189,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         <name>fincept::screens::PortfolioBlotter</name>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>QTY</source>
@@ -19201,15 +19201,15 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>AVG COST</source>
-            <translation>평균 매입가</translation>
+            <translation>평균단가</translation>
         </message>
         <message>
             <source>MKT VAL</source>
-            <translation>시장 가치</translation>
+            <translation>평가금액</translation>
         </message>
         <message>
             <source>COST BASIS</source>
-            <translation>취득 원가</translation>
+            <translation>매입금액</translation>
         </message>
         <message>
             <source>P&amp;L</source>
@@ -19217,11 +19217,11 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>P&amp;L%</source>
-            <translation>손익률%</translation>
+            <translation>수익률</translation>
         </message>
         <message>
             <source>CHG%</source>
-            <translation>등락률%</translation>
+            <translation>등락률</translation>
         </message>
         <message>
             <source>TREND</source>
@@ -19281,7 +19281,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>%1 (native)</source>
-            <translation>%1 (원 단위)</translation>
+            <translation>%1 (원래 통화)</translation>
         </message>
     </context>
     <context>
@@ -19292,7 +19292,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>PERF/RISK</source>
-            <translation>성과/위험</translation>
+            <translation>성과/리스크</translation>
         </message>
         <message>
             <source>OPTIMIZE</source>
@@ -19312,7 +19312,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>RISK</source>
-            <translation>위험</translation>
+            <translation>리스크</translation>
         </message>
         <message>
             <source>PLANNING</source>
@@ -19324,11 +19324,11 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>Refresh portfolio data</source>
-            <translation>포트폴리오 데이터 새로 고침</translation>
+            <translation>포트폴리오 데이터 새로고침</translation>
         </message>
         <message>
             <source>Auto-refresh interval</source>
-            <translation>자동 새로 고침 간격</translation>
+            <translation>자동 새로고침 간격</translation>
         </message>
         <message>
             <source>SELECT PORTFOLIO ▾</source>
@@ -19348,7 +19348,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>More actions</source>
-            <translation>추가 작업</translation>
+            <translation>더보기</translation>
         </message>
         <message>
             <source>Export CSV</source>
@@ -19411,7 +19411,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>PERFORMANCE &amp; RISK</source>
-            <translation>성과 및 위험</translation>
+            <translation>성과 및 리스크</translation>
         </message>
         <message>
             <source>PORTFOLIO OPTIMIZATION</source>
@@ -19431,7 +19431,7 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         </message>
         <message>
             <source>RISK MANAGEMENT</source>
-            <translation>위험 관리</translation>
+            <translation>리스크 관리</translation>
         </message>
         <message>
             <source>FINANCIAL PLANNING</source>
@@ -19514,7 +19514,7 @@ FFN 분석을 실행하여 최적 비중을 계산하세요
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>CURRENT</source>
@@ -19550,11 +19550,11 @@ FFN 분석을 실행하여 최적 비중을 계산하세요
         </message>
         <message>
             <source>SHARPE</source>
-            <translation>샤프</translation>
+            <translation>샤프지수</translation>
         </message>
         <message>
             <source>MAX DRAWDOWN</source>
-            <translation>최대 낙폭</translation>
+            <translation>최대낙폭</translation>
         </message>
         <message>
             <source>OPTIMISATION</source>
@@ -19565,18 +19565,18 @@ FFN 분석을 실행하여 최적 비중을 계산하세요
 
 Run FFN Analysis to compare holdings
 on a common base of 100.</source>
-            <translation>기준화 가격 차트
+            <translation>지수화 가격 차트
 
-FFN 분석을 실행하여 보유 종목을
+FFN 분석을 실행하여 보유종목을
 공통 기준값 100으로 비교하세요.</translation>
         </message>
         <message>
             <source>Rebased Performance (Base = 100)</source>
-            <translation>기준화 성과 (기준 = 100)</translation>
+            <translation>지수화 성과 (기준 = 100)</translation>
         </message>
         <message>
             <source>REBASED</source>
-            <translation>기준화</translation>
+            <translation>지수화</translation>
         </message>
         <message>
             <source>DRAWDOWN ANALYSIS
@@ -19585,7 +19585,7 @@ Run FFN Analysis to visualise historical
 drawdowns for each holding.</source>
             <translation>낙폭 분석
 
-FFN 분석을 실행하여 각 보유 종목의
+FFN 분석을 실행하여 각 보유종목의
 과거 낙폭을 시각화하세요.</translation>
         </message>
         <message>
@@ -19603,7 +19603,7 @@ Add more holdings and run FFN Analysis
 to track 60-day rolling correlations.</source>
             <translation>이동 상관관계
 
-보유 종목을 추가하고 FFN 분석을 실행하여
+보유종목을 추가하고 FFN 분석을 실행하여
 60일 이동 상관관계를 추적하세요.</translation>
         </message>
         <message>
@@ -19624,11 +19624,11 @@ to track 60-day rolling correlations.</source>
         </message>
         <message>
             <source>Sharpe Ratio</source>
-            <translation>샤프 비율</translation>
+            <translation>샤프지수</translation>
         </message>
         <message>
             <source>Max Drawdown</source>
-            <translation>최대 낙폭</translation>
+            <translation>최대낙폭(MDD)</translation>
         </message>
         <message>
             <source>Best Day (any)</source>
@@ -19656,7 +19656,7 @@ to track 60-day rolling correlations.</source>
         </message>
         <message>
             <source>Total Return (cost)</source>
-            <translation>총수익률 (원가 기준)</translation>
+            <translation>총수익률 (매입금액 기준)</translation>
         </message>
         <message>
             <source>Win Rate</source>
@@ -19668,15 +19668,15 @@ to track 60-day rolling correlations.</source>
         </message>
         <message>
             <source>Total Value</source>
-            <translation>총가치</translation>
+            <translation>총평가금액</translation>
         </message>
         <message>
             <source>Cost Basis</source>
-            <translation>취득원가</translation>
+            <translation>매입금액</translation>
         </message>
         <message>
             <source>Total Return (unrealized)</source>
-            <translation>총수익률 (미실현)</translation>
+            <translation>총수익률 (평가손익 기준)</translation>
         </message>
         <message>
             <source>Annualized Volatility (est.)</source>
@@ -19684,7 +19684,7 @@ to track 60-day rolling correlations.</source>
         </message>
         <message>
             <source>Sharpe Ratio (est.)</source>
-            <translation>샤프 비율 (추정)</translation>
+            <translation>샤프지수 (추정)</translation>
         </message>
         <message>
             <source>FFN Deep Metrics</source>
@@ -19741,14 +19741,14 @@ to track 60-day rolling correlations.</source>
         </message>
         <message>
             <source>TOP MOVERS</source>
-            <translation>등락 상위 종목</translation>
+            <translation>급등락 종목</translation>
         </message>
     </context>
     <context>
         <name>fincept::screens::PortfolioInsightsPanel</name>
         <message>
             <source>Last run %1  •  %2ms</source>
-            <translation>마지막 실행 %1  •  %2ms</translation>
+            <translation>최근 실행 %1  •  %2ms</translation>
         </message>
         <message>
             <source>RE-RUN %1 ANALYSIS</source>
@@ -19774,7 +19774,7 @@ to track 60-day rolling correlations.</source>
             <source>Agent completed but returned no content.
 
 Check the agent's LLM profile in Agent Config → Agents, and make sure an API key is set in Settings → LLM Configuration.</source>
-            <translation>에이전트가 완료되었지만 내용을 반환하지 않았습니다.
+            <translation>에이전트 실행은 끝났지만 응답 내용이 없습니다.
 
 에이전트 구성 → 에이전트에서 에이전트의 LLM 프로필을 확인하고, 설정 → LLM 구성에서 API 키가 설정되어 있는지 확인하세요.</translation>
         </message>
@@ -19820,7 +19820,7 @@ Check the agent's LLM profile in Agent Config → Agents, and make sure an API k
         </message>
         <message>
             <source>RISK</source>
-            <translation>위험</translation>
+            <translation>리스크</translation>
         </message>
         <message>
             <source>REBALANCE</source>
@@ -19843,8 +19843,8 @@ REBALANCE — target weights with rationale.
 OPPS — undervalued positions and gaps.</source>
             <translation>분석 유형을 선택하고 실행을 누르세요.
 
-전체 — 보유 종목 및 배분에 대한 종합 검토.
-위험 — 집중도, 상관관계, 하방 시나리오.
+전체 — 보유종목 및 배분에 대한 종합 검토.
+리스크 — 집중도, 상관관계, 하방 시나리오.
 리밸런싱 — 근거를 포함한 목표 비중.
 기회 — 저평가 포지션 및 부족한 구성.</translation>
         </message>
@@ -19953,7 +19953,7 @@ Open Settings → LLM Configuration, add a provider with an API key, then try ag
         </message>
         <message>
             <source>RISK</source>
-            <translation>위험</translation>
+            <translation>리스크</translation>
         </message>
         <message>
             <source>STRESS</source>
@@ -19973,7 +19973,7 @@ Open Settings → LLM Configuration, add a provider with an API key, then try ag
         </message>
         <message>
             <source>RISK MODEL:</source>
-            <translation>위험 모델:</translation>
+            <translation>리스크 모델:</translation>
         </message>
         <message>
             <source>▶ RUN OPTIMIZATION</source>
@@ -19981,7 +19981,7 @@ Open Settings → LLM Configuration, add a provider with an API key, then try ag
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>CURRENT WT%</source>
@@ -19997,7 +19997,7 @@ Open Settings → LLM Configuration, add a provider with an API key, then try ag
         </message>
         <message>
             <source>ACTION</source>
-            <translation>작업</translation>
+            <translation>조정</translation>
         </message>
         <message>
             <source>EFFICIENT FRONTIER</source>
@@ -20013,7 +20013,7 @@ Open Settings → LLM Configuration, add a provider with an API key, then try ag
         </message>
         <message>
             <source>VALUE</source>
-            <translation>값</translation>
+            <translation>평가금액</translation>
         </message>
         <message>
             <source>VS EQUAL WT</source>
@@ -20043,7 +20043,7 @@ All 5 strategies will be compared automatically.</source>
         </message>
         <message>
             <source>SHARPE</source>
-            <translation>샤프</translation>
+            <translation>샤프지수</translation>
         </message>
         <message>
             <source>DESCRIPTION</source>
@@ -20069,11 +20069,11 @@ against historical data to evaluate out-of-sample performance.</source>
         </message>
         <message>
             <source>RISK DECOMPOSITION</source>
-            <translation>위험 분해</translation>
+            <translation>리스크 분해</translation>
         </message>
         <message>
             <source>BLACK-LITTERMAN MODEL</source>
-            <translation>블랙–리터만 모델</translation>
+            <translation>블랙-리터만 모델</translation>
         </message>
         <message>
             <source>Running optimization…</source>
@@ -20116,7 +20116,7 @@ historical performance, or open the full Backtesting terminal.</source>
         <message>
             <source>Marginal risk contribution decomposes total portfolio volatility across holdings.
 Run optimization on the OPTIMIZE tab to compute it from the covariance matrix.</source>
-            <translation>한계 위험 기여도는 전체 포트폴리오 변동성을 보유 종목별로 분해합니다.
+            <translation>한계 리스크 기여도는 전체 포트폴리오 변동성을 보유종목별로 분해합니다.
 공분산 행렬에서 계산하려면 최적화 탭에서 최적화를 실행하세요.</translation>
         </message>
         <message>
@@ -20125,11 +20125,11 @@ Run optimization on the OPTIMIZE tab to compute it from the covariance matrix.</
         </message>
         <message>
             <source>MARGINAL RISK</source>
-            <translation>한계 위험</translation>
+            <translation>한계 리스크</translation>
         </message>
         <message>
             <source>RISK CONTRIB</source>
-            <translation>위험 기여도</translation>
+            <translation>리스크 기여도</translation>
         </message>
         <message>
             <source>STRESS SCENARIOS</source>
@@ -20155,11 +20155,11 @@ Select a portfolio to see estimated impact per scenario.</source>
         </message>
         <message>
             <source>Market-implied equilibrium returns (π = δ·Σ·w_market) shown below. Select 'B-L Model' as the METHOD on the OPTIMIZE tab to also compute B-L weights.</source>
-            <translation>시장 내재 균형수익률(π = δ·Σ·w_market)이 아래에 표시됩니다. B-L 비중도 계산하려면 최적화 탭의 방법에서 'B-L 모델'을 선택하세요.</translation>
+            <translation>시장 내재 균형수익률(π = δ·Σ·w_market)이 아래에 표시됩니다. B-L 비중도 계산하려면 최적화 탭의 방식에서 'B-L 모델'을 선택하세요.</translation>
         </message>
         <message>
             <source>Run optimization on the OPTIMIZE tab to compute market-implied returns and Black-Litterman weights.</source>
-            <translation>시장 내재 수익률과 블랙–리터만 비중을 계산하려면 최적화 탭에서 최적화를 실행하세요.</translation>
+            <translation>시장 내재 수익률과 블랙-리터만 비중을 계산하려면 최적화 탭에서 최적화를 실행하세요.</translation>
         </message>
         <message>
             <source>IMPLIED RETURN</source>
@@ -20202,7 +20202,7 @@ Select a portfolio to see estimated impact per scenario.</source>
         </message>
         <message>
             <source>MKT VAL</source>
-            <translation>시장 가치</translation>
+            <translation>평가금액</translation>
         </message>
         <message>
             <source>OPEN BUY ORDER</source>
@@ -20233,11 +20233,11 @@ in your portfolio</source>
             <source>Indexed view: rebase portfolio and benchmark to 100 at the start of
 the selected period. Use when comparing different currencies.</source>
             <translation>지수화 보기: 선택한 기간 시작 시점의 포트폴리오와 벤치마크를
-100으로 기준화합니다. 통화가 다른 경우 비교에 사용하세요.</translation>
+100 기준으로 환산합니다. 통화가 다른 경우 비교에 사용하세요.</translation>
         </message>
         <message>
             <source>Total cost basis — the dashed horizontal line on the chart.</source>
-            <translation>총취득원가 — 차트의 가로 점선입니다.</translation>
+            <translation>총매입금액 — 차트의 가로 점선입니다.</translation>
         </message>
         <message>
             <source>Needs intraday data — daily snapshots only.</source>
@@ -20261,14 +20261,14 @@ the selected period. Use when comparing different currencies.</source>
         </message>
         <message>
             <source>COST %1 %2</source>
-            <translation>원가 %1 %2</translation>
+            <translation>매입금액 %1 %2</translation>
         </message>
     </context>
     <context>
         <name>fincept::screens::PortfolioScreen</name>
         <message>
             <source>Totals unavailable — quote and cost currencies are mixed or unverified. Aggregate panels are hidden; verified individual quotes remain in the positions table.</source>
-            <translation>합계 표시 불가 — 시세와 취득원가의 통화가 섞여 있거나 확인되지 않았습니다. 합계 패널을 숨기며 확인된 개별 시세는 포지션 표에 표시합니다.</translation>
+            <translation>합계 표시 불가 — 시세와 매입금액의 통화가 섞여 있거나 확인되지 않았습니다. 합계 패널을 숨기며 확인된 개별 시세는 포지션 표에 표시합니다.</translation>
         </message>
         <message>
             <source>Export CSV</source>
@@ -20342,7 +20342,7 @@ Expected format:
         </message>
         <message>
             <source>Start a fresh portfolio. Name it, pick a currency, and add holdings one at a time.</source>
-            <translation>새 포트폴리오를 시작하세요. 이름과 통화를 선택한 후 보유 종목을 하나씩 추가하세요.</translation>
+            <translation>새 포트폴리오를 시작하세요. 이름과 통화를 선택한 후 보유종목을 하나씩 추가하세요.</translation>
         </message>
         <message>
             <source>IMPORT JSON</source>
@@ -20390,23 +20390,23 @@ Expected format:
         </message>
         <message>
             <source>Native totals — quote and cost currencies are mixed or unverified; aggregate FX is unavailable.</source>
-            <translation>원래 합계 — 시세와 취득원가의 통화가 섞여 있거나 확인되지 않아 합계를 환산할 수 없습니다.</translation>
+            <translation>원래 통화 합계 — 시세와 매입금액의 통화가 섞여 있거나 확인되지 않아 합계를 환산할 수 없습니다.</translation>
         </message>
         <message>
             <source>Native %1 — daily FX conversion to %2 is unavailable.</source>
-            <translation>원 통화 %1 — 일일 환율로 %2 환산 불가</translation>
+            <translation>%1 기준 표시 — %2 환산용 일별 환율이 없습니다.</translation>
         </message>
         <message>
             <source>Current values display %1 · source %2 · daily FX %3.</source>
-            <translation>현재 금액 표시 %1 · 원 통화 %2 · 일일 환율 기준일 %3</translation>
+            <translation>현재 금액 표시 %1 · 원래 통화 %2 · 일일 환율 기준일 %3</translation>
         </message>
         <message>
             <source>Display and source currency: %1.</source>
-            <translation>표시 통화와 원 통화: %1</translation>
+            <translation>표시 통화와 원래 통화: %1</translation>
         </message>
         <message>
             <source> History stays native because snapshot currencies are unverified. Orders, transactions and detailed analytics retain their source units.</source>
-            <translation> 과거 기록은 당시 통화를 확인할 수 없어 원래 금액을 유지합니다. 주문·거래·상세 분석은 원 단위를 유지합니다.</translation>
+            <translation> 과거 기록은 당시 통화를 확인할 수 없어 원래 금액을 유지합니다. 주문·거래·상세 분석은 원래 통화 단위를 유지합니다.</translation>
         </message>
         <message>
             <source>Native history. Historical snapshots do not record their currency; changing display currency does not convert this chart.</source>
@@ -20429,7 +20429,7 @@ Expected format:
         </message>
         <message>
             <source>Need 2+ holdings for correlation</source>
-            <translation>상관관계 계산에는 보유 종목이 2개 이상 필요합니다</translation>
+            <translation>상관관계 계산에는 보유종목이 2개 이상 필요합니다</translation>
         </message>
         <message>
             <source>Unclassified</source>
@@ -20440,11 +20440,11 @@ Expected format:
         <name>fincept::screens::PortfolioStatsRibbon</name>
         <message>
             <source>PORTFOLIO VALUE</source>
-            <translation>포트폴리오 가치</translation>
+            <translation>포트폴리오 평가금액</translation>
         </message>
         <message>
             <source>UNREALIZED P&amp;L</source>
-            <translation>미실현 손익</translation>
+            <translation>평가손익</translation>
         </message>
         <message>
             <source>TODAY</source>
@@ -20452,11 +20452,11 @@ Expected format:
         </message>
         <message>
             <source>RISK &amp; POSITIONING</source>
-            <translation>위험 및 포지션 구성</translation>
+            <translation>리스크 및 포지션 구성</translation>
         </message>
         <message>
             <source>SHARPE</source>
-            <translation>샤프</translation>
+            <translation>샤프지수</translation>
         </message>
         <message>
             <source>CONC</source>
@@ -20476,7 +20476,7 @@ Expected format:
         </message>
         <message>
             <source>RISK</source>
-            <translation>위험</translation>
+            <translation>리스크</translation>
         </message>
         <message>
             <source>▲ %1 positions</source>
@@ -20526,7 +20526,7 @@ Expected format:
         </message>
         <message>
             <source>Symbol</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>Type</source>
@@ -20546,7 +20546,7 @@ Expected format:
         </message>
         <message>
             <source>Notes</source>
-            <translation>노트</translation>
+            <translation>메모</translation>
         </message>
         <message>
             <source>%1 transactions</source>
@@ -20605,7 +20605,7 @@ Expected format:
         </message>
         <message>
             <source>FREE TIER</source>
-            <translation>무료 등급</translation>
+            <translation>무료 요금제</translation>
         </message>
         <message>
             <source>CONTINUE FREE</source>
@@ -20736,7 +20736,7 @@ Expected format:
         </message>
         <message>
             <source>Protect accounts, detect fraud, enforce terms of service, and ensure platform integrity</source>
-            <translation>계정 보호, 사기 탐지, 서비스 약관 집행, 플랫폼 무결성 보장</translation>
+            <translation>계정 보호, 사기 탐지, 이용약관 집행, 플랫폼 무결성 보장</translation>
         </message>
         <message>
             <source>COMMUNICATION</source>
@@ -20852,7 +20852,7 @@ Expected format:
         </message>
         <message>
             <source>Terms of Service</source>
-            <translation>서비스 약관</translation>
+            <translation>이용약관</translation>
         </message>
         <message>
             <source>Contact Us</source>
@@ -20923,7 +20923,7 @@ Expected format:
         </message>
         <message>
             <source>PLAN</source>
-            <translation>계획</translation>
+            <translation>요금제</translation>
         </message>
         <message>
             <source>QUICK ACTIONS</source>
@@ -20951,7 +20951,7 @@ Expected format:
         </message>
         <message>
             <source>TOTAL REQUESTS</source>
-            <translation>총요청 수</translation>
+            <translation>총 요청 수</translation>
         </message>
         <message>
             <source>CREDITS USED</source>
@@ -21031,7 +21031,7 @@ Expected format:
         </message>
         <message>
             <source>TIMESTAMP</source>
-            <translation>타임스탬프</translation>
+            <translation>일시</translation>
         </message>
         <message>
             <source>IP ADDRESS</source>
@@ -21234,7 +21234,7 @@ Launch the terminal with  --profile &lt;name&gt;  to open a specific profile.
 Different profiles can run simultaneously — useful for separate trading accounts.</source>
             <translation>각 프로필에는 독립된 데이터베이스, 인증 정보, 로그, 작업 공간이 있습니다.
 특정 프로필을 열려면  --profile &lt;name&gt;  옵션으로 터미널을 실행하세요.
-여러 프로필을 동시에 실행할 수 있어 거래 계정을 분리하는 데 유용합니다.</translation>
+여러 프로필을 동시에 실행할 수 있어 거래 계좌를 분리하는 데 유용합니다.</translation>
         </message>
         <message>
             <source>Creating a profile sets up a fresh data directory. The app will restart with the new profile active.</source>
@@ -21252,7 +21252,7 @@ Different profiles can run simultaneously — useful for separate trading accoun
             <source>Switch to profile "%1"?
 
 Fincept Terminal will restart. Unsaved work in the current session may be lost.</source>
-            <translation>"%1" 프로필로 전환할까요?
+            <translation>"%1" 프로필로 전환하시겠습니까?
 
 Fincept Terminal이 다시 시작됩니다. 현재 세션에서 저장하지 않은 작업은 사라질 수 있습니다.</translation>
         </message>
@@ -21288,7 +21288,7 @@ Fincept Terminal이 다시 시작됩니다. 현재 세션에서 저장하지 않
             <source>Create profile "%1" and switch to it?
 
 Fincept Terminal will restart. Unsaved work in the current session may be lost.</source>
-            <translation>"%1" 프로필을 만들고 전환할까요?
+            <translation>"%1" 프로필을 만들고 전환하시겠습니까?
 
 Fincept Terminal이 다시 시작됩니다. 현재 세션에서 저장하지 않은 작업은 사라질 수 있습니다.</translation>
         </message>
@@ -21377,7 +21377,7 @@ editing data to re-render.</source>
         </message>
         <message>
             <source>e.g. Key Risk, Note, Important</source>
-            <translation>예: 주요 위험, 참고, 중요</translation>
+            <translation>예: 주요 리스크, 참고, 중요</translation>
         </message>
         <message>
             <source>Label:</source>
@@ -21393,7 +21393,7 @@ editing data to re-render.</source>
         </message>
         <message>
             <source>Change %:</source>
-            <translation>등락률 %:</translation>
+            <translation>등락률(%):</translation>
         </message>
         <message>
             <source>e.g. +2.34 or -1.10</source>
@@ -21407,7 +21407,7 @@ editing data to re-render.</source>
             <source>Tip: re-select after editing
 data to refresh sparkline.</source>
             <translation>팁: 데이터 편집 후 다시 선택하면
-스파크라인이 새로 고쳐집니다.</translation>
+스파크라인이 갱신됩니다.</translation>
         </message>
         <message>
             <source>Image File:</source>
@@ -21498,7 +21498,7 @@ Heading components.</source>
         <name>fincept::screens::PythonEnvSection</name>
         <message>
             <source>PYTHON ENVIRONMENTS</source>
-            <translation>PYTHON 환경</translation>
+            <translation>Python 환경</translation>
         </message>
         <message>
             <source>Inspect and manage packages installed in both Python environments. Trading (venv-numpy1) contains NumPy 1.x-dependent libraries. Analytics (venv-numpy2) contains NumPy 2.x / ML / AI libraries.</source>
@@ -21530,7 +21530,7 @@ Heading components.</source>
         </message>
         <message>
             <source>Install Missing</source>
-            <translation>누락된 패키지 설치</translation>
+            <translation>미설치 패키지 설치</translation>
         </message>
         <message>
             <source>Upgrade All</source>
@@ -21574,7 +21574,7 @@ Heading components.</source>
         </message>
         <message>
             <source>MISSING</source>
-            <translation>누락</translation>
+            <translation>미설치</translation>
         </message>
         <message>
             <source>OK</source>
@@ -21590,7 +21590,7 @@ Heading components.</source>
         </message>
         <message>
             <source>%1 packages — %2 missing</source>
-            <translation>패키지 %1개 — 누락 %2개</translation>
+            <translation>패키지 %1개 — 미설치 %2개</translation>
         </message>
         <message>
             <source>Starting...</source>
@@ -21602,11 +21602,11 @@ Heading components.</source>
         </message>
         <message>
             <source>Install complete — refreshing...</source>
-            <translation>설치 완료 — 새로 고치는 중...</translation>
+            <translation>설치 완료 — 새로고침 중...</translation>
         </message>
         <message>
             <source>Install finished with errors (exit %1)</source>
-            <translation>오류와 함께 설치가 종료되었습니다 (종료 코드 %1)</translation>
+            <translation>설치 중 오류가 발생했습니다 (종료 코드 %1)</translation>
         </message>
         <message>
             <source>Select %1</source>
@@ -21617,7 +21617,7 @@ Heading components.</source>
         <name>fincept::screens::QuantLibScreen</name>
         <message>
             <source>QUANTLIB SUITE</source>
-            <translation>QUANTLIB 도구 모음</translation>
+            <translation>QuantLib 도구 모음</translation>
         </message>
         <message>
             <source>18 MODULES | 590+ QUANTITATIVE ENDPOINTS</source>
@@ -21808,15 +21808,15 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>BID VOLUME</source>
-            <translation>매수호가 잔량</translation>
+            <translation>매수잔량</translation>
         </message>
         <message>
             <source>ASK VOLUME</source>
-            <translation>매도호가 잔량</translation>
+            <translation>매도잔량</translation>
         </message>
         <message>
             <source>Bid Size</source>
-            <translation>매수호가 수량</translation>
+            <translation>매수잔량</translation>
         </message>
         <message>
             <source>Bid Px</source>
@@ -21828,7 +21828,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Ask Size</source>
-            <translation>매도호가 수량</translation>
+            <translation>매도잔량</translation>
         </message>
         <message>
             <source>MARKET MAKING</source>
@@ -21844,7 +21844,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>QUOTED SPREAD</source>
-            <translation>제시 스프레드</translation>
+            <translation>호가 스프레드</translation>
         </message>
         <message>
             <source>EDGE PER SIDE</source>
@@ -21852,11 +21852,11 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>BID SIZE</source>
-            <translation>매수호가 수량</translation>
+            <translation>매수잔량</translation>
         </message>
         <message>
             <source>ASK SIZE</source>
-            <translation>매도호가 수량</translation>
+            <translation>매도잔량</translation>
         </message>
         <message>
             <source>INVENTORY</source>
@@ -21888,7 +21888,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>ACTION</source>
-            <translation>작업</translation>
+            <translation>조치</translation>
         </message>
         <message>
             <source>CLASS</source>
@@ -21912,19 +21912,19 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>AVG TRADE</source>
-            <translation>평균 거래 규모</translation>
+            <translation>평균 체결 규모</translation>
         </message>
         <message>
             <source>MAX TRADE</source>
-            <translation>최대 거래 규모</translation>
+            <translation>최대 체결 규모</translation>
         </message>
         <message>
             <source>SIZE CONC.</source>
-            <translation>거래 규모 집중도</translation>
+            <translation>체결 규모 집중도</translation>
         </message>
         <message>
             <source>TRADE COUNT</source>
-            <translation>거래 건수</translation>
+            <translation>체결 건수</translation>
         </message>
         <message>
             <source>SLIPPAGE ESTIMATE</source>
@@ -21932,7 +21932,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>SIDE</source>
-            <translation>매매 방향</translation>
+            <translation>매매구분</translation>
         </message>
         <message>
             <source>QUANTITY</source>
@@ -21948,7 +21948,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>AVG PRICE</source>
-            <translation>평균 가격</translation>
+            <translation>평균 체결가</translation>
         </message>
         <message>
             <source>SLIPPAGE</source>
@@ -21988,7 +21988,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Full snapshot: %1 trades</source>
-            <translation>전체 스냅샷: 거래 %1건</translation>
+            <translation>전체 스냅샷: 체결 %1건</translation>
         </message>
         <message>
             <source>RETRAIN START: %1  |  %2 windows</source>
@@ -22052,7 +22052,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>MISSING</source>
-            <translation>누락</translation>
+            <translation>미설치</translation>
         </message>
         <message>
             <source>Model ID</source>
@@ -22060,7 +22060,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Frequency</source>
-            <translation>빈도</translation>
+            <translation>주기</translation>
         </message>
         <message>
             <source>Window</source>
@@ -22068,7 +22068,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Step</source>
-            <translation>단계</translation>
+            <translation>이동 간격</translation>
         </message>
         <message>
             <source>Last Status</source>
@@ -22084,11 +22084,11 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>FREQUENCY</source>
-            <translation>빈도</translation>
+            <translation>주기</translation>
         </message>
         <message>
             <source>WINDOW</source>
-            <translation>윈도</translation>
+            <translation>구간</translation>
         </message>
         <message>
             <source>HORIZON</source>
@@ -22096,7 +22096,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>STEP</source>
-            <translation>단계</translation>
+            <translation>이동 간격</translation>
         </message>
         <message>
             <source>NEXT RUN</source>
@@ -22280,7 +22280,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>OBSERVATIONS</source>
-            <translation>관측 수</translation>
+            <translation>관측치 수</translation>
         </message>
         <message>
             <source>SKEWNESS</source>
@@ -22312,11 +22312,11 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>L/S SHARPE</source>
-            <translation>롱/숏 샤프</translation>
+            <translation>롱숏 샤프지수</translation>
         </message>
         <message>
             <source>L/S MEAN RET</source>
-            <translation>롱/숏 평균 수익률</translation>
+            <translation>롱숏 평균 수익률</translation>
         </message>
         <message>
             <source>MONOTONICITY</source>
@@ -22336,7 +22336,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Sharpe</source>
-            <translation>샤프</translation>
+            <translation>샤프지수</translation>
         </message>
         <message>
             <source>Win Rate</source>
@@ -22344,7 +22344,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>L/S Sharpe=%1  spread=%2%</source>
-            <translation>롱/숏 샤프=%1  스프레드=%2%</translation>
+            <translation>롱숏 샤프지수=%1  스프레드=%2%</translation>
         </message>
         <message>
             <source>VOLATILITY</source>
@@ -22352,7 +22352,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>MAX DRAWDOWN</source>
-            <translation>최대 낙폭</translation>
+            <translation>최대낙폭(MDD)</translation>
         </message>
         <message>
             <source>BETA</source>
@@ -22440,7 +22440,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>OBS</source>
-            <translation>관측 수</translation>
+            <translation>관측치 수</translation>
         </message>
         <message>
             <source>%1: %2/100 (%3)</source>
@@ -22464,19 +22464,19 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>SHARPE</source>
-            <translation>샤프</translation>
+            <translation>샤프지수</translation>
         </message>
         <message>
             <source>MAX DD</source>
-            <translation>최대 낙폭</translation>
+            <translation>최대낙폭</translation>
         </message>
         <message>
             <source>SORTINO</source>
-            <translation>소르티노</translation>
+            <translation>소르티노지수</translation>
         </message>
         <message>
             <source>CALMAR</source>
-            <translation>칼마</translation>
+            <translation>칼마지수</translation>
         </message>
         <message>
             <source>INFO RATIO</source>
@@ -22500,7 +22500,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Annual %1%  Sharpe %2  MaxDD %3%</source>
-            <translation>연간 %1%  샤프 %2  최대낙폭 %3%</translation>
+            <translation>연간 %1%  샤프지수 %2  최대낙폭 %3%</translation>
         </message>
         <message>
             <source>STRATEGY ID</source>
@@ -22524,15 +22524,15 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>EXP. VOL</source>
-            <translation>예상 변동성</translation>
+            <translation>기대 변동성</translation>
         </message>
         <message>
             <source>RISK-FREE</source>
-            <translation>무위험</translation>
+            <translation>무위험이자율</translation>
         </message>
         <message>
             <source>TARGET RISK</source>
-            <translation>목표 위험</translation>
+            <translation>목표 리스크</translation>
         </message>
         <message>
             <source>REBALANCE</source>
@@ -22602,7 +22602,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Category</source>
-            <translation>범주</translation>
+            <translation>카테고리</translation>
         </message>
         <message>
             <source>Available</source>
@@ -22654,7 +22654,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Trained %1 epochs  final loss=%2</source>
-            <translation>%1 에포크 학습 완료  최종 손실=%2</translation>
+            <translation>에포크 %1회 학습 완료  최종 손실=%2</translation>
         </message>
         <message>
             <source>PREDICTIONS</source>
@@ -22682,7 +22682,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Instruments</source>
-            <translation>금융상품</translation>
+            <translation>종목</translation>
         </message>
         <message>
             <source>Start Date</source>
@@ -22738,7 +22738,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>SHARPE RATIO</source>
-            <translation>샤프 비율</translation>
+            <translation>샤프지수</translation>
         </message>
         <message>
             <source>Excellent</source>
@@ -22754,7 +22754,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Calmar: %1</source>
-            <translation>칼마: %1</translation>
+            <translation>칼마지수: %1</translation>
         </message>
         <message>
             <source>CAPITAL</source>
@@ -22774,7 +22774,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>EXECUTION COSTS</source>
-            <translation>체결 비용</translation>
+            <translation>거래 비용</translation>
         </message>
         <message>
             <source>Commission</source>
@@ -22794,7 +22794,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Done — %1% return  |  Sharpe %2</source>
-            <translation>완료 — 수익률 %1%  |  샤프 %2</translation>
+            <translation>완료 — 수익률 %1%  |  샤프지수 %2</translation>
         </message>
         <message>
             <source>DATA INPUT</source>
@@ -22810,11 +22810,11 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Period (ticker only)</source>
-            <translation>기간 (종목코드만 해당)</translation>
+            <translation>기간 (종목코드 입력 시)</translation>
         </message>
         <message>
             <source>Interval (ticker only)</source>
-            <translation>간격 (종목코드만 해당)</translation>
+            <translation>주기 (종목코드 입력 시)</translation>
         </message>
         <message>
             <source>Analysis Type</source>
@@ -22846,7 +22846,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Horizon (steps)</source>
-            <translation>예측 기간 (단계)</translation>
+            <translation>예측 기간 (시점 수)</translation>
         </message>
         <message>
             <source>Method</source>
@@ -22854,7 +22854,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Train Size</source>
-            <translation>학습 크기</translation>
+            <translation>학습 데이터 비율</translation>
         </message>
         <message>
             <source>comma-separated: ridge,lasso,random_forest,svr,knn</source>
@@ -22906,7 +22906,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Sample Sizes</source>
-            <translation>표본 크기</translation>
+            <translation>표본 크기 목록</translation>
         </message>
         <message>
             <source>Samples per size</source>
@@ -22926,7 +22926,7 @@ e.g. {"ticker":"AAPL"}</source>
         </message>
         <message>
             <source>Simulations</source>
-            <translation>시뮬레이션 수</translation>
+            <translation>시뮬레이션 횟수</translation>
         </message>
         <message>
             <source>Data Type</source>
@@ -23008,7 +23008,7 @@ e.g. {"ticker":"AAPL"}</source>
             <source>Describe your analysis task...
 e.g. "Conduct a full investment analysis of NVDA: research fundamentals, assess risks, and give a buy/sell/hold recommendation with price target"</source>
             <translation>분석 작업을 설명하세요...
-예: "NVDA에 대한 종합 투자 분석을 수행하세요. 펀더멘털을 조사하고, 위험을 평가하고, 목표가와 함께 매수/매도/보유 의견을 제시하세요"</translation>
+예: "NVDA를 종합적으로 분석하세요. 펀더멘털을 조사하고 리스크를 평가한 다음, 목표주가와 함께 매수/매도/중립 투자의견을 제시하세요"</translation>
         </message>
         <message>
             <source>Task</source>
@@ -23078,9 +23078,9 @@ e.g. "Conduct a full investment analysis of NVDA: research fundamentals, assess 
             <source>Start/stop the Fincept MCP tool server
 Gives RD-Agent loops access to market data,
 financial news and economics tools.</source>
-            <translation>Fincept MCP 도구 서버 시작/중지
-RD-Agent 루프가 시장 데이터,
-금융 뉴스 및 경제 도구에 접근할 수 있게 합니다.</translation>
+            <translation>Fincept MCP 도구 서버를 시작/중지합니다.
+RD-Agent 루프에서 시장 데이터,
+금융 뉴스, 경제 도구를 사용할 수 있습니다.</translation>
         </message>
         <message>
             <source>Starting MCP tool server...</source>
@@ -23092,13 +23092,13 @@ RD-Agent 루프가 시장 데이터,
         </message>
         <message>
             <source>Autonomous alpha factor discovery via FactorRDLoop. The agent proposes, codes, runs and evaluates factors iteratively until the target IC is reached.</source>
-            <translation>FactorRDLoop를 통한 자율 알파 팩터 발굴입니다. 에이전트는 목표 IC에 도달할 때까지 팩터 제안, 코딩, 실행, 평가를 반복합니다.</translation>
+            <translation>FactorRDLoop로 알파 팩터를 자율 발굴합니다. 에이전트가 목표 IC에 도달할 때까지 팩터를 제안, 코딩, 실행, 평가하는 과정을 반복합니다.</translation>
         </message>
         <message>
             <source>Describe the factor hypothesis...
 e.g. "Discover momentum-based alpha factors for US equities"</source>
             <translation>팩터 가설을 설명하세요...
-예: "미국 주식용 모멘텀 기반 알파 팩터를 발굴하세요"</translation>
+예: "미국 주식의 모멘텀 기반 알파 팩터를 발굴하세요"</translation>
         </message>
         <message>
             <source>Task Description</source>
@@ -23138,7 +23138,7 @@ e.g. "Discover momentum-based alpha factors for US equities"</source>
         </message>
         <message>
             <source>ML model hyperparameter optimization via ModelRDLoop. Supports LightGBM, XGBoost, LSTM, GRU, Transformer and TCN. Optimizes for Sharpe, IC, max drawdown, or win rate.</source>
-            <translation>ModelRDLoop를 통한 ML 모델 하이퍼파라미터 최적화입니다. LightGBM, XGBoost, LSTM, GRU, Transformer, TCN을 지원합니다. 샤프 비율, IC, 최대 낙폭 또는 승률을 최적화합니다.</translation>
+            <translation>ModelRDLoop로 ML 모델 하이퍼파라미터를 최적화합니다. LightGBM, XGBoost, LSTM, GRU, Transformer, TCN을 지원합니다. 샤프지수, IC, 최대낙폭 또는 승률을 기준으로 최적화합니다.</translation>
         </message>
         <message>
             <source>Optimize For</source>
@@ -23164,7 +23164,7 @@ e.g. "Discover momentum-based alpha factors for US equities"</source>
             <source>Research goal...
 e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
             <translation>연구 목표...
-예: "미국 중형주를 위한 퀀트 주식 전략을 만드세요"</translation>
+예: "미국 중형주 대상 퀀트 주식 전략을 만드세요"</translation>
         </message>
         <message>
             <source>Research Goal</source>
@@ -23196,7 +23196,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>completed</source>
-            <translation>완료됨</translation>
+            <translation>완료</translation>
         </message>
         <message>
             <source>stopped</source>
@@ -23296,7 +23296,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Fetching %1 from yfinance and computing metrics...</source>
-            <translation>yfinance에서 %1 가져오기 및 지표 계산 중...</translation>
+            <translation>yfinance에서 %1 데이터를 가져와 지표 계산 중...</translation>
         </message>
         <message>
             <source>Portfolio Metrics</source>
@@ -23304,7 +23304,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Computes the full covariance matrix, correlation matrix, and per-asset moments (mean, vol, skew, kurtosis). Asset count is capped — keep it under 12 for readability.</source>
-            <translation>전체 공분산 행렬, 상관행렬, 자산별 적률(평균, 변동성, 왜도, 첨도)을 계산합니다. 자산 수에 상한이 있습니다 — 가독성을 위해 12개 미만을 유지하세요.</translation>
+            <translation>전체 공분산 행렬, 상관관계 행렬, 자산별 적률(평균, 변동성, 왜도, 첨도)을 계산합니다. 자산 수에는 상한이 있으니 보기 쉽도록 12개 미만으로 유지하세요.</translation>
         </message>
         <message>
             <source>COMPUTE COV + CORR + MOMENTS</source>
@@ -23316,7 +23316,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Fetching %1 and computing covariance...</source>
-            <translation>%1 가져오기 및 공분산 계산 중...</translation>
+            <translation>%1 데이터를 가져와 공분산 계산 중...</translation>
         </message>
         <message>
             <source>Covariance</source>
@@ -23332,7 +23332,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Long Only</source>
-            <translation>매수 전용</translation>
+            <translation>롱 온리</translation>
         </message>
         <message>
             <source>none</source>
@@ -23352,7 +23352,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Fetching %1 and solving %2...</source>
-            <translation>%1 가져오기 및 %2 풀이 중...</translation>
+            <translation>%1 데이터를 가져와 %2 문제를 푸는 중...</translation>
         </message>
         <message>
             <source>MV Optimize</source>
@@ -23376,7 +23376,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Fetching %1 and tracing %2-point frontier...</source>
-            <translation>%1 가져오기 및 %2개 포인트의 투자선 계산 중...</translation>
+            <translation>%1 데이터를 가져와 %2개 포인트의 효율적 투자선 계산 중...</translation>
         </message>
         <message>
             <source>Efficient Frontier</source>
@@ -23384,15 +23384,15 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source> obs</source>
-            <translation> 관측값</translation>
+            <translation> 관측치</translation>
         </message>
         <message>
             <source>Half-Life (observations)</source>
-            <translation>반감기 (관측 수)</translation>
+            <translation>반감기 (관측치 수)</translation>
         </message>
         <message>
             <source>Builds exponentially-decayed scenario weights so recent observations dominate. ESS (Kish effective sample size) tells you how much of the history you're effectively using.</source>
-            <translation>최근 관측값에 더 큰 비중을 두는 지수감쇠 시나리오 가중치를 만듭니다. ESS(Kish 유효 표본 크기)는 과거 데이터 중 실질적으로 사용되는 양을 나타냅니다.</translation>
+            <translation>최근 관측치에 더 큰 비중을 두는 지수감쇠 시나리오 가중치를 만듭니다. ESS(Kish 유효 표본 크기)는 과거 데이터 중 실질적으로 사용되는 양을 나타냅니다.</translation>
         </message>
         <message>
             <source>COMPUTE DECAY WEIGHTS</source>
@@ -23428,7 +23428,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>  |  %1 OBS</source>
-            <translation>  |  관측값 %1개</translation>
+            <translation>  |  관측치 %1개</translation>
         </message>
         <message>
             <source>OPTIMIZATION</source>
@@ -23460,7 +23460,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>ALPHA (CVaR)</source>
-            <translation>알파 (CVaR)</translation>
+            <translation>α (CVaR)</translation>
         </message>
         <message>
             <source>DAILY RETURN</source>
@@ -23496,7 +23496,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Sharpe %1  |  Ann. Ret %2%  |  Ann. Vol %3%  |  HHI %4</source>
-            <translation>샤프 %1  |  연수익률 %2%  |  연변동성 %3%  |  HHI %4</translation>
+            <translation>샤프지수 %1  |  연수익률 %2%  |  연변동성 %3%  |  HHI %4</translation>
         </message>
         <message>
             <source>AVG OFF-DIAG ρ</source>
@@ -23516,15 +23516,15 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>CORRELATION MATRIX</source>
-            <translation>상관행렬</translation>
+            <translation>상관관계 행렬</translation>
         </message>
         <message>
             <source>%1 assets  |  %2 obs  |  avg ρ = %3</source>
-            <translation>자산 %1개  |  관측값 %2개  |  평균 ρ = %3</translation>
+            <translation>자산 %1개  |  관측치 %2개  |  평균 ρ = %3</translation>
         </message>
         <message>
             <source>OBJECTIVE: %1   |   LONG-ONLY: %2</source>
-            <translation>목적함수: %1   |   매수 전용: %2</translation>
+            <translation>목적함수: %1   |   롱 온리: %2</translation>
         </message>
         <message>
             <source>CVaR @ α</source>
@@ -23544,19 +23544,19 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>%1 — Sharpe %2  |  Ann. Ret %3%  |  Ann. Vol %4%</source>
-            <translation>%1 — 샤프 %2  |  연수익률 %3%  |  연변동성 %4%</translation>
+            <translation>%1 — 샤프지수 %2  |  연수익률 %3%  |  연변동성 %4%</translation>
         </message>
         <message>
             <source>FRONTIER: %1 POINTS  |  ASSETS: %2  |  LONG-ONLY: %3</source>
-            <translation>투자선: 포인트 %1개  |  자산: %2개  |  매수 전용: %3</translation>
+            <translation>투자선: 포인트 %1개  |  자산: %2개  |  롱 온리: %3</translation>
         </message>
         <message>
             <source>BEST SHARPE</source>
-            <translation>최고 샤프</translation>
+            <translation>최고 샤프지수</translation>
         </message>
         <message>
             <source>MAX SHARPE @</source>
-            <translation>최대 샤프 위치</translation>
+            <translation>최대 샤프지수 위치</translation>
         </message>
         <message>
             <source>Point #%1</source>
@@ -23584,11 +23584,11 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>MAX-SHARPE PORTFOLIO WEIGHTS  (★ Point #%1)</source>
-            <translation>최대 샤프 포트폴리오 비중  (★ 포인트 #%1)</translation>
+            <translation>최대 샤프지수 포트폴리오 비중  (★ 포인트 #%1)</translation>
         </message>
         <message>
             <source>%1 frontier points  |  best Sharpe %2 @ point %3</source>
-            <translation>투자선 포인트 %1개  |  최고 샤프 %2 @ 포인트 %3</translation>
+            <translation>투자선 포인트 %1개  |  최고 샤프지수 %2 @ 포인트 %3</translation>
         </message>
         <message>
             <source>HALF-LIFE</source>
@@ -23596,7 +23596,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>%1 obs</source>
-            <translation>관측값 %1개</translation>
+            <translation>관측치 %1개</translation>
         </message>
         <message>
             <source>EFFECTIVE SAMPLE</source>
@@ -23628,7 +23628,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Half-life %1 obs  |  ESS %2 (%3%%)  |  last/first %4×</source>
-            <translation>반감기 관측값 %1개  |  ESS %2 (%3%%)  |  마지막/첫 가중치 %4×</translation>
+            <translation>반감기 관측치 %1개  |  ESS %2 (%3%%)  |  마지막/첫 가중치 %4×</translation>
         </message>
         <message>
             <source>LOAD SAMPLE</source>
@@ -23636,7 +23636,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Series values (&gt;= 30). Bootstrap residual ensemble forecasts the next H steps with quantile bands.</source>
-            <translation>시계열 값 (&gt;= 30). 잔차 부트스트랩 앙상블로 다음 H단계를 분위수 구간과 함께 예측합니다.</translation>
+            <translation>시계열 값 (&gt;= 30). 잔차 부트스트랩 앙상블로 향후 H개 시점을 분위수 구간과 함께 예측합니다.</translation>
         </message>
         <message>
             <source>Series Values</source>
@@ -23644,7 +23644,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>200-pt synthetic series with seasonality</source>
-            <translation>계절성이 있는 200개 포인트의 합성 시계열</translation>
+            <translation>계절성이 있는 200개 관측치의 합성 시계열</translation>
         </message>
         <message>
             <source>Forecast Horizon</source>
@@ -23668,11 +23668,11 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Need at least 30 obs; you provided %1.</source>
-            <translation>관측값이 최소 30개 필요합니다. 입력한 개수는 %1개입니다.</translation>
+            <translation>관측치가 최소 30개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Bootstrapping %1 paths over %2 steps...</source>
-            <translation>%2단계에 걸쳐 경로 %1개 부트스트래핑 중...</translation>
+            <translation>%2개 시점에 대해 경로 %1개 부트스트래핑 중...</translation>
         </message>
         <message>
             <source>Probabilistic Forecast</source>
@@ -23684,7 +23684,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>200-pt synthetic series</source>
-            <translation>200개 포인트의 합성 시계열</translation>
+            <translation>200개 관측치의 합성 시계열</translation>
         </message>
         <message>
             <source>Quantiles in (0, 1) — e.g. 0.05, 0.5, 0.95</source>
@@ -23736,7 +23736,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>CALCULATE RISK METRICS</source>
-            <translation>위험 지표 계산</translation>
+            <translation>리스크 지표 계산</translation>
         </message>
         <message>
             <source>Daily Returns: '%1' is not a number. Use comma-, space-, or newline-separated decimals (e.g. 0.01, -0.02, 0.005).</source>
@@ -23748,11 +23748,11 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Calculating risk metrics on %1 observations...</source>
-            <translation>관측값 %1개의 위험 지표 계산 중...</translation>
+            <translation>관측치 %1개로 리스크 지표 계산 중...</translation>
         </message>
         <message>
             <source>Risk Metrics</source>
-            <translation>위험 지표</translation>
+            <translation>리스크 지표</translation>
         </message>
         <message>
             <source>Portfolio daily returns (decimals, same length as benchmark)</source>
@@ -23792,7 +23792,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Need at least 5 observations for both portfolio and benchmark returns.</source>
-            <translation>포트폴리오와 벤치마크 수익률 모두 관측값이 최소 5개 필요합니다.</translation>
+            <translation>포트폴리오와 벤치마크 수익률 모두 관측치가 최소 5개 필요합니다.</translation>
         </message>
         <message>
             <source>Portfolio (%1) and benchmark (%2) must have the same length.</source>
@@ -23800,11 +23800,11 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Analyzing portfolio vs benchmark on %1 observations...</source>
-            <translation>관측값 %1개로 포트폴리오와 벤치마크 비교 분석 중...</translation>
+            <translation>관측치 %1개로 포트폴리오와 벤치마크 비교 분석 중...</translation>
         </message>
         <message>
             <source>Spot Price ($)</source>
-            <translation>현물 가격 ($)</translation>
+            <translation>기초자산 가격 ($)</translation>
         </message>
         <message>
             <source>Strike Price ($)</source>
@@ -23856,11 +23856,11 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>VaR needs at least 30 observations for a stable estimate; you provided %1.</source>
-            <translation>안정적인 VaR 추정에는 관측값이 최소 30개 필요합니다. 입력한 개수는 %1개입니다.</translation>
+            <translation>안정적인 VaR 추정에는 관측치가 최소 30개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Computing parametric, historical, MC and CVaR on %1 observations...</source>
-            <translation>관측값 %1개로 모수적 VaR, 역사적 VaR, MC, CVaR 계산 중...</translation>
+            <translation>관측치 %1개로 모수적 VaR, 역사적 VaR, MC, CVaR 계산 중...</translation>
         </message>
         <message>
             <source>Portfolio Value ($)</source>
@@ -23888,7 +23888,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>At least one allocation must be greater than zero.</source>
-            <translation>하나 이상의 배분이 0보다 커야 합니다.</translation>
+            <translation>배분 중 하나 이상은 0보다 커야 합니다.</translation>
         </message>
         <message>
             <source>Running 9 historical crisis scenarios...</source>
@@ -23920,7 +23920,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Fetching %1 history from yfinance and running %2 backtest...</source>
-            <translation>yfinance에서 %1 이력 가져오기 및 %2 백테스트 실행 중...</translation>
+            <translation>yfinance에서 %1 가격 이력을 가져와 %2 백테스트 실행 중...</translation>
         </message>
         <message>
             <source>Backtest</source>
@@ -23936,7 +23936,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Inserts 100 synthetic observations (mean ~50, sd ~5)</source>
-            <translation>합성 관측값 100개 삽입 (평균 ~50, 표준편차 ~5)</translation>
+            <translation>합성 관측치 100개 삽입 (평균 ~50, 표준편차 ~5)</translation>
         </message>
         <message>
             <source>CALCULATE STATISTICS</source>
@@ -23968,11 +23968,11 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>DAILY RISK</source>
-            <translation>일간 위험</translation>
+            <translation>일간 리스크</translation>
         </message>
         <message>
             <source>DOWNSIDE RISK</source>
-            <translation>하방위험</translation>
+            <translation>하방 리스크</translation>
         </message>
         <message>
             <source>VaR 99%</source>
@@ -23992,7 +23992,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Sharpe %1  |  MaxDD %2  |  Vol %3</source>
-            <translation>샤프 %1  |  최대낙폭 %2  |  변동성 %3</translation>
+            <translation>샤프지수 %1  |  최대낙폭 %2  |  변동성 %3</translation>
         </message>
         <message>
             <source>HIT RATE</source>
@@ -24004,7 +24004,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>ANNUAL RISK</source>
-            <translation>연간 위험</translation>
+            <translation>연간 리스크</translation>
         </message>
         <message>
             <source>JENSEN ALPHA</source>
@@ -24020,7 +24020,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>TREYNOR</source>
-            <translation>트레이너</translation>
+            <translation>트레이너지수</translation>
         </message>
         <message>
             <source>MODIGLIANI</source>
@@ -24032,19 +24032,19 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>ITM</source>
-            <translation>ITM</translation>
+            <translation>내가격</translation>
         </message>
         <message>
             <source>OTM</source>
-            <translation>OTM</translation>
+            <translation>외가격</translation>
         </message>
         <message>
             <source>ATM</source>
-            <translation>ATM</translation>
+            <translation>등가격</translation>
         </message>
         <message>
             <source>%1  |  Spot %2  →  Strike %3  |  %4 (%5)  |  Vol %6%  |  T %7y</source>
-            <translation>%1  |  현물 %2  →  행사가 %3  |  %4 (%5)  |  변동성 %6%  |  T %7y</translation>
+            <translation>%1  |  기초자산 %2  →  행사가 %3  |  %4 (%5)  |  변동성 %6%  |  T %7y</translation>
         </message>
         <message>
             <source>DELTA</source>
@@ -24064,7 +24064,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>RHO</source>
-            <translation>로</translation>
+            <translation>로(Rho)</translation>
         </message>
         <message>
             <source>VANNA</source>
@@ -24100,7 +24100,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Position %1  |  Confidence %2%  |  1-day horizon</source>
-            <translation>포지션 %1  |  신뢰수준 %2%  |  1일 예측 기간</translation>
+            <translation>포지션 %1  |  신뢰수준 %2%  |  보유 기간 1일</translation>
         </message>
         <message>
             <source>PARAMETRIC VaR</source>
@@ -24144,7 +24144,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Notes</source>
-            <translation>노트</translation>
+            <translation>비고</translation>
         </message>
         <message>
             <source>Parametric (Variance-Covariance)</source>
@@ -24172,7 +24172,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Stress test returned no scenarios.</source>
-            <translation>스트레스 테스트가 시나리오를 반환하지 않았습니다.</translation>
+            <translation>스트레스 테스트 결과 시나리오가 없습니다.</translation>
         </message>
         <message>
             <source>WORST CASE PnL</source>
@@ -24204,7 +24204,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>PnL %</source>
-            <translation>손익 %</translation>
+            <translation>수익률</translation>
         </message>
         <message>
             <source>Shocked Value</source>
@@ -24224,7 +24224,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>TRADES</source>
-            <translation>거래</translation>
+            <translation>거래 횟수</translation>
         </message>
         <message>
             <source>DAYS</source>
@@ -24248,7 +24248,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>%1 on %2: %3 over %4 trades  (Sharpe %5)</source>
-            <translation>%2의 %1: 거래 %4건의 수익률 %3  (샤프 %5)</translation>
+            <translation>%2 %1: 거래 %4회, 수익률 %3  (샤프지수 %5)</translation>
         </message>
         <message>
             <source>STD DEV</source>
@@ -24288,7 +24288,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>심볼</translation>
         </message>
         <message>
             <source>e.g. BTC/USDT, ETH/USDT</source>
@@ -24296,7 +24296,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>DEPTH</source>
-            <translation>깊이</translation>
+            <translation>호가 단계</translation>
         </message>
         <message>
             <source>LATENCY —</source>
@@ -24328,7 +24328,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Size</source>
-            <translation>수량</translation>
+            <translation>잔량</translation>
         </message>
         <message>
             <source>Cumulative</source>
@@ -24376,7 +24376,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>QUOTED SPREAD BPS</source>
-            <translation>제시 스프레드 BPS</translation>
+            <translation>호가 스프레드 BPS</translation>
         </message>
         <message>
             <source>EDGE/SIDE BPS</source>
@@ -24388,7 +24388,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Trade History</source>
-            <translation>거래 이력</translation>
+            <translation>체결내역 건수</translation>
         </message>
         <message>
             <source>DETECT TOXIC FLOW</source>
@@ -24396,7 +24396,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Fetching trades + analyzing flow...</source>
-            <translation>거래 가져오기 + 흐름 분석 중...</translation>
+            <translation>체결내역 가져오기 + 흐름 분석 중...</translation>
         </message>
         <message>
             <source>PIN SCORE (0-100)</source>
@@ -24428,11 +24428,11 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Walks the live order book level-by-level to compute actual fill price and slippage for a given order size.</source>
-            <translation>실시간 호가창을 가격 단계별로 순차 탐색하여 주어진 주문 수량의 실제 체결 가격과 슬리피지를 계산합니다.</translation>
+            <translation>실시간 호가창을 호가 단계별로 따라가며 지정한 주문 수량의 실제 체결가와 슬리피지를 계산합니다.</translation>
         </message>
         <message>
             <source>Side</source>
-            <translation>매매 구분</translation>
+            <translation>매매구분</translation>
         </message>
         <message>
             <source>ESTIMATE SLIPPAGE</source>
@@ -24472,7 +24472,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Fetches live order book + trades, computes book metrics, market making quotes, toxic flow, and slippage in one call</source>
-            <translation>한 번의 호출로 실시간 호가창과 거래를 가져오고 호가창 지표, 시장조성 호가, 독성 주문 흐름, 슬리피지를 계산합니다</translation>
+            <translation>실시간 호가창과 체결내역을 한 번에 가져와 호가창 지표, 시장조성 호가, 독성 주문 흐름, 슬리피지를 계산합니다</translation>
         </message>
         <message>
             <source>Running full microstructure analysis...</source>
@@ -24480,7 +24480,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Instruments (comma-separated, e.g. aapl,msft,goog)</source>
-            <translation>금융상품 (쉼표로 구분, 예: aapl,msft,goog)</translation>
+            <translation>종목 (쉼표로 구분, 예: aapl,msft,goog)</translation>
         </message>
         <message>
             <source>Fields (e.g. $close,$open,$high,$low,$volume)</source>
@@ -24512,7 +24512,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Instruments (comma-separated)</source>
-            <translation>금융상품 (쉼표로 구분)</translation>
+            <translation>종목 (쉼표로 구분)</translation>
         </message>
         <message>
             <source>RUN FACTOR ANALYSIS</source>
@@ -24548,7 +24548,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>LIST ALL MODELS</source>
-            <translation>모든 모델 나열</translation>
+            <translation>전체 모델 목록</translation>
         </message>
         <message>
             <source>Models</source>
@@ -24616,7 +24616,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>LIST AVAILABLE MODELS</source>
-            <translation>사용 가능한 모델 나열</translation>
+            <translation>사용 가능한 모델 목록</translation>
         </message>
         <message>
             <source>Model IDs (comma-separated, e.g. lightgbm,xgboost,random_forest)</source>
@@ -24692,11 +24692,11 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Schedules are persisted in ~/.fincept/rolling_schedules.json. Click Refresh to load the latest state.</source>
-            <translation>일정은 ~/.fincept/rolling_schedules.json에 저장됩니다. 최신 상태를 불러오려면 새로 고침을 클릭하세요.</translation>
+            <translation>일정은 ~/.fincept/rolling_schedules.json에 저장됩니다. 최신 상태를 불러오려면 새로고침을 클릭하세요.</translation>
         </message>
         <message>
             <source>REFRESH SCHEDULES</source>
-            <translation>일정 새로 고침</translation>
+            <translation>일정 새로고침</translation>
         </message>
         <message>
             <source>Loading schedules...</source>
@@ -24780,7 +24780,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Idle</source>
-            <translation>대기</translation>
+            <translation>대기 중</translation>
         </message>
         <message>
             <source>Training progress will stream here...</source>
@@ -24940,11 +24940,11 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>MAX SHARPE</source>
-            <translation>최대 샤프</translation>
+            <translation>최대 샤프지수</translation>
         </message>
         <message>
             <source>Max Sharpe</source>
-            <translation>최대 샤프</translation>
+            <translation>최대 샤프지수</translation>
         </message>
         <message>
             <source>EFFICIENT FRONTIER</source>
@@ -25092,7 +25092,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>Target Risk</source>
-            <translation>목표 위험</translation>
+            <translation>목표 리스크</translation>
         </message>
         <message>
             <source>Rebalance</source>
@@ -25100,11 +25100,11 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>CREATE RISK PARITY STRATEGY</source>
-            <translation>위험균형 전략 생성</translation>
+            <translation>리스크 패리티 전략 생성</translation>
         </message>
         <message>
             <source>Risk Parity</source>
-            <translation>위험균형</translation>
+            <translation>리스크 패리티</translation>
         </message>
         <message>
             <source>Portfolio returns (comma-separated)</source>
@@ -25124,7 +25124,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>LIST ALL PROCESSORS</source>
-            <translation>모든 처리기 나열</translation>
+            <translation>전체 처리기 목록</translation>
         </message>
         <message>
             <source>Browse</source>
@@ -25172,7 +25172,7 @@ e.g. "Build a quantitative equity strategy for mid-cap US stocks"</source>
         </message>
         <message>
             <source>step 0 / — · reward — · loss —</source>
-            <translation>단계 0 / — · 보상 — · 손실 —</translation>
+            <translation>스텝 0 / — · 보상 — · 손실 —</translation>
         </message>
         <message>
             <source>Training RL Agent...</source>
@@ -25212,9 +25212,9 @@ Estimated time: %2
 
 Use Task Monitor → REFRESH to track progress.</source>
             <translation>작업 시작됨: %1
-예상 시간: %2
+예상 소요 시간: %2
 
-작업 모니터 → 새로 고침에서 진행 상황을 추적하세요.</translation>
+진행 상황은 작업 모니터 → 새로고침에서 확인하세요.</translation>
         </message>
         <message>
             <source>%1 task(s)</source>
@@ -25257,7 +25257,7 @@ Elapsed:    %6</source>
 
 </source>
             <translation>[%1] %2
-  IC: %3  샤프: %4
+  IC: %3  샤프지수: %4
   %5
 
 </translation>
@@ -25283,7 +25283,7 @@ Elapsed:    %6</source>
   Sharpe: %3  IC: %4
 </source>
             <translation>[%1] %2
-  샤프: %3  IC: %4
+  샤프지수: %3  IC: %4
 </translation>
         </message>
         <message>
@@ -25292,7 +25292,7 @@ Elapsed:    %6</source>
         </message>
         <message>
             <source>MCP server failed</source>
-            <translation>MCP 서버 실패</translation>
+            <translation>MCP 서버 오류</translation>
         </message>
         <message>
             <source>MCP server failed to start:
@@ -25321,8 +25321,8 @@ to give RD-Agent loops access to these tools.</source>
 사용 가능한 도구:
   %2
 
-RD-Agent 루프에서 이 도구를 사용하려면 팩터/모델/퀀트 연구 매개변수의
-'enable_mcp: true'를 활성화하세요.</translation>
+RD-Agent 루프에서 이 도구를 사용하려면 팩터/모델/퀀트 연구 매개변수에
+'enable_mcp: true'를 설정하세요.</translation>
         </message>
         <message>
             <source>MCP server available: %1
@@ -25346,7 +25346,7 @@ pydantic-ai MCP: %2
         </message>
         <message>
             <source>MCP not installed</source>
-            <translation>MCP가 설치되지 않음</translation>
+            <translation>MCP 미설치</translation>
         </message>
         <message>
             <source>LATENCY  %1 ms</source>
@@ -25420,11 +25420,11 @@ pydantic-ai MCP: %2
             <source>
 Done — %1 windows in %2s  |  Experiment: %3</source>
             <translation>
-완료 — %2초 동안 구간 %1개  |  실험: %3</translation>
+완료 — 구간 %1개, %2초 소요  |  실험: %3</translation>
         </message>
         <message>
             <source>Retrain complete — %1 windows in %2s</source>
-            <translation>재학습 완료 — %2초 동안 구간 %1개</translation>
+            <translation>재학습 완료 — 구간 %1개, %2초 소요</translation>
         </message>
         <message>
             <source>Failed</source>
@@ -25439,7 +25439,7 @@ Error: %1</source>
         <message>
             <source>No schedules configured yet.
 Use the Create Schedule tab to add one.</source>
-            <translation>아직 구성된 일정이 없습니다.
+            <translation>등록된 일정이 없습니다.
 일정 생성 탭에서 추가하세요.</translation>
         </message>
         <message>
@@ -25452,7 +25452,7 @@ Use the Create Schedule tab to add one.</source>
         </message>
         <message>
             <source>Freq: %1  |  Window: %2 days  |  Next: %3  |  Last: %4</source>
-            <translation>빈도: %1  |  구간: %2일  |  다음: %3  |  최근: %4</translation>
+            <translation>주기: %1  |  구간: %2일  |  다음: %3  |  최근: %4</translation>
         </message>
         <message>
             <source>Run Now</source>
@@ -25482,11 +25482,11 @@ Built-in LightGBM+Alpha158 template generated at:
             <source>Schedule created: %1
 Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
             <translation>일정 생성됨: %1
-빈도: %2  |  구간: %3일  |  다음: %4%5</translation>
+주기: %2  |  구간: %3일  |  다음: %4%5</translation>
         </message>
         <message>
             <source>Schedule created — switch to Schedules tab to view</source>
-            <translation>일정 생성됨 — 일정 탭으로 전환하여 확인하세요</translation>
+            <translation>일정 생성됨 — 일정 탭에서 확인하세요</translation>
         </message>
         <message>
             <source>Preview: %1 rolling windows  (step=%2, horizon=%3)</source>
@@ -25510,11 +25510,11 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>200-pt synthetic series: trend + 30-pt seasonal cycle + noise</source>
-            <translation>200개 포인트의 합성 시계열: 추세 + 30개 포인트의 계절 주기 + 잡음</translation>
+            <translation>200개 관측치의 합성 시계열: 추세 + 주기 30의 계절 성분 + 잡음</translation>
         </message>
         <message>
             <source>Forecast Horizon (steps)</source>
-            <translation>예측 기간 (단계)</translation>
+            <translation>예측 기간 (시점 수)</translation>
         </message>
         <message>
             <source>Lag Window (ML models)</source>
@@ -25534,11 +25534,11 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>Need at least 30 observations; you provided %1. Click LOAD SAMPLE for 200.</source>
-            <translation>관측값이 최소 30개 필요합니다. 입력한 개수는 %1개입니다. 샘플 불러오기를 클릭하면 200개가 입력됩니다.</translation>
+            <translation>관측치가 최소 30개 필요합니다. 입력한 개수는 %1개입니다. 샘플 불러오기를 클릭하면 200개가 입력됩니다.</translation>
         </message>
         <message>
             <source>Fitting %1 on %2 obs and projecting %3 steps...</source>
-            <translation>관측값 %2개로 %1 적합 및 %3단계 예측 중...</translation>
+            <translation>관측치 %2개로 %1 적합 후 %3개 시점 예측 중...</translation>
         </message>
         <message>
             <source>Forecast</source>
@@ -25550,7 +25550,7 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>200-pt series — paste in your own outliers to test detection</source>
-            <translation>200개 포인트의 시계열 — 직접 이상치를 붙여넣어 탐지 기능을 테스트하세요</translation>
+            <translation>200개 관측치의 시계열 — 직접 이상치를 붙여넣어 탐지 기능을 테스트하세요</translation>
         </message>
         <message>
             <source>Detection Method</source>
@@ -25574,11 +25574,11 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>Need at least 20 observations; you provided %1.</source>
-            <translation>관측값이 최소 20개 필요합니다. 입력한 개수는 %1개입니다.</translation>
+            <translation>관측치가 최소 20개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Scanning %1 obs with %2...</source>
-            <translation>%2로 관측값 %1개 스캔 중...</translation>
+            <translation>%2로 관측치 %1개 검사 중...</translation>
         </message>
         <message>
             <source>Anomalies</source>
@@ -25590,7 +25590,7 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>200-pt series with embedded period-30 seasonality</source>
-            <translation>주기 30의 계절성이 포함된 200개 포인트의 시계열</translation>
+            <translation>주기 30의 계절성이 포함된 200개 관측치의 시계열</translation>
         </message>
         <message>
             <source>auto</source>
@@ -25610,11 +25610,11 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>Need at least 24 observations; you provided %1.</source>
-            <translation>관측값이 최소 24개 필요합니다. 입력한 개수는 %1개입니다.</translation>
+            <translation>관측치가 최소 24개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Running STL decomposition on %1 obs...</source>
-            <translation>관측값 %1개에 STL 분해 실행 중...</translation>
+            <translation>관측치 %1개로 STL 분해 실행 중...</translation>
         </message>
         <message>
             <source>Seasonality</source>
@@ -25630,7 +25630,7 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>100-pt synthetic 'actual' series (level ~50)</source>
-            <translation>100개 포인트의 합성 '실제' 시계열 (수준 ~50)</translation>
+            <translation>100개 관측치의 합성 '실제' 시계열 (수준 ~50)</translation>
         </message>
         <message>
             <source>Predicted values (same length as actual)</source>
@@ -25642,7 +25642,7 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>100-pt synthetic 'predicted' series (similar shape, mild noise)</source>
-            <translation>100개 포인트의 합성 '예측' 시계열 (유사한 형태, 약한 잡음)</translation>
+            <translation>100개 관측치의 합성 '예측' 시계열 (유사한 형태, 약한 잡음)</translation>
         </message>
         <message>
             <source>CALCULATE METRICS</source>
@@ -25658,7 +25658,7 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>Need at least 2 observations in both actual and predicted.</source>
-            <translation>실제값과 예측값 모두 관측값이 최소 2개 필요합니다.</translation>
+            <translation>실제값과 예측값 모두 관측치가 최소 2개 필요합니다.</translation>
         </message>
         <message>
             <source>Actual (%1) and Predicted (%2) must have the same length.</source>
@@ -25694,7 +25694,7 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>Need at least 30 observations; you provided %1.</source>
-            <translation>관측값이 최소 30개 필요합니다. 입력한 개수는 %1개입니다.</translation>
+            <translation>관측치가 최소 30개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Building %1 prediction intervals...</source>
@@ -25710,7 +25710,7 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>150-pt random walk with drift — should require d=1</source>
-            <translation>드리프트가 있는 150개 포인트의 랜덤 워크 — d=1이 필요할 것으로 예상</translation>
+            <translation>드리프트가 있는 150개 관측치의 랜덤 워크 — d=1이 필요할 것으로 예상</translation>
         </message>
         <message>
             <source>Max Differencing Order to Test</source>
@@ -25750,7 +25750,7 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>MODEL %1  |  HORIZON %2 STEPS  |  LAGS %3</source>
-            <translation>모델 %1  |  예측 기간 %2단계  |  시차 %3</translation>
+            <translation>모델 %1  |  예측 기간 %2개 시점  |  시차 %3</translation>
         </message>
         <message>
             <source>IN-SAMPLE R²</source>
@@ -25846,7 +25846,7 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>%1: %2 anomalies in %3 obs (%4%)</source>
-            <translation>%1: 관측값 %3개 중 이상치 %2개 (%4%)</translation>
+            <translation>%1: 관측치 %3개 중 이상치 %2개 (%4%)</translation>
         </message>
         <message>
             <source>PERIOD %1%2  |  STL DECOMPOSITION</source>
@@ -25858,7 +25858,7 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>PERIOD</source>
-            <translation>기간</translation>
+            <translation>주기</translation>
         </message>
         <message>
             <source>TREND STRENGTH</source>
@@ -25874,11 +25874,11 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>Strong seasonal cycle, weak trend.</source>
-            <translation>강한 계절 주기, 약한 추세.</translation>
+            <translation>계절 주기가 강하고 추세는 약합니다.</translation>
         </message>
         <message>
             <source>Strong trend, weak/no seasonality.</source>
-            <translation>강한 추세, 약하거나 없는 계절성.</translation>
+            <translation>추세가 강하고 계절성은 약하거나 없습니다.</translation>
         </message>
         <message>
             <source>Weak structure — series is close to noise around its mean.</source>
@@ -25890,7 +25890,7 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>Seasonal</source>
-            <translation>계절</translation>
+            <translation>계절성</translation>
         </message>
         <message>
             <source>Residual</source>
@@ -25982,7 +25982,7 @@ Freq: %2  |  Window: %3 days  |  Next: %4%5</source>
         </message>
         <message>
             <source>%1 intervals @ %2%  |  mean width %3</source>
-            <translation>신뢰수준 %2%의 %1 구간  |  평균 폭 %3</translation>
+            <translation>구간 %1개 (신뢰수준 %2%)  |  평균 폭 %3</translation>
         </message>
         <message>
             <source>RECOMMENDED DIFFERENCING ORDER:  d = %1   (tested 0..%2)</source>
@@ -26034,7 +26034,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Regressor x (single column, same length as y). For multi-feature use the JSON 2D form.</source>
-            <translation>설명변수 x (단일 열, y와 같은 길이). 여러 특성을 사용하려면 2차원 JSON 형식을 사용하세요.</translation>
+            <translation>설명변수 x (단일 열, y와 같은 길이). 설명변수가 여러 개면 2차원 JSON 형식을 사용하세요.</translation>
         </message>
         <message>
             <source>x (Regressor)</source>
@@ -26062,7 +26062,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>OLS needs at least 10 observations; you provided %1.</source>
-            <translation>OLS에는 관측치가 10개 이상 필요합니다. 입력된 수: %1개.</translation>
+            <translation>OLS에는 관측치가 최소 10개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>y (%1) and x (%2) must have the same length.</source>
@@ -26098,11 +26098,11 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>ARIMA needs at least 30 observations; you provided %1.</source>
-            <translation>ARIMA에는 관측치가 30개 이상 필요합니다. 입력된 수: %1개.</translation>
+            <translation>ARIMA에는 관측치가 최소 30개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Fitting ARIMA(%1,%2,%3) on %4 obs and projecting %5 steps...</source>
-            <translation>관측치 %4개에 ARIMA(%1,%2,%3) 적합 및 %5단계 예측 중...</translation>
+            <translation>관측치 %4개로 ARIMA(%1,%2,%3) 적합 후 %5개 시점 예측 중...</translation>
         </message>
         <message>
             <source>ARIMA</source>
@@ -26138,7 +26138,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Stationarity tests need at least 30 observations; you provided %1.</source>
-            <translation>정상성 검정에는 관측치가 30개 이상 필요합니다. 입력된 수: %1개.</translation>
+            <translation>정상성 검정에는 관측치가 최소 30개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Running ADF + KPSS at d=%1...</source>
@@ -26158,7 +26158,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>ACF/PACF needs at least 20 observations; you provided %1.</source>
-            <translation>ACF/PACF에는 관측치가 20개 이상 필요합니다. 입력된 수: %1개.</translation>
+            <translation>ACF/PACF에는 관측치가 최소 20개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Computing ACF + PACF up to lag %1...</source>
@@ -26206,7 +26206,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Granger test needs at least 30 observations in both series.</source>
-            <translation>Granger 검정에는 두 시계열 모두 관측치가 30개 이상 필요합니다.</translation>
+            <translation>Granger 검정에는 두 시계열 모두 관측치가 최소 30개 필요합니다.</translation>
         </message>
         <message>
             <source>Testing Granger causality up to lag %1...</source>
@@ -26226,7 +26226,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Need at least 8 values; you provided %1.</source>
-            <translation>값이 8개 이상 필요합니다. 입력된 수: %1개.</translation>
+            <translation>값이 최소 8개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Computing descriptive statistics + normality on %1 values...</source>
@@ -26238,7 +26238,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>OPS</source>
-            <translation>작업</translation>
+            <translation>연산</translation>
         </message>
         <message>
             <source>Statsmodels backend ready</source>
@@ -26246,7 +26246,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>OLS  |  %1 OBS  |  %2 FEATURES%3</source>
-            <translation>OLS  |  관측치 %1개  |  특성 %2개%3</translation>
+            <translation>OLS  |  관측치 %1개  |  설명변수 %2개%3</translation>
         </message>
         <message>
             <source>  +  CONSTANT</source>
@@ -26294,7 +26294,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>HOMOSCEDASTIC</source>
-            <translation>등분산</translation>
+            <translation>등분산성</translation>
         </message>
         <message>
             <source>Term</source>
@@ -26330,7 +26330,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>ARIMA(%1,%2,%3)  |  HORIZON %4 STEPS  |  %5 OBS</source>
-            <translation>ARIMA(%1,%2,%3)  |  예측 기간 %4단계  |  관측치 %5개</translation>
+            <translation>ARIMA(%1,%2,%3)  |  예측 기간 %4개 시점  |  관측치 %5개</translation>
         </message>
         <message>
             <source>HQIC</source>
@@ -26518,7 +26518,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>KURTOSIS (excess)</source>
-            <translation>첨도(초과)</translation>
+            <translation>초과첨도</translation>
         </message>
         <message>
             <source>NORMALITY  (H₀: data is normally distributed; p &gt; 0.05 ⇒ cannot reject normal)</source>
@@ -26546,7 +26546,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Numeric values (&gt;= 30). Fits normal, student-t, lognormal (positive only), skewnormal.</source>
-            <translation>숫자 값 (&gt;= 30개). 정규분포, Student-t, 로그정규분포(양수만), 왜정규분포에 적합합니다.</translation>
+            <translation>숫자 값 (&gt;= 30개). 정규분포, Student-t, 로그정규분포(양수만), 왜정규분포를 적합합니다.</translation>
         </message>
         <message>
             <source>Fits 4 candidate distributions and ranks them by AIC + BIC. KS test reports whether each fit can be rejected at the 5% level — useful for picking the right tail model.</source>
@@ -26558,11 +26558,11 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Need at least 30 values; you provided %1.</source>
-            <translation>값이 30개 이상 필요합니다. 입력된 수: %1개.</translation>
+            <translation>값이 최소 30개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Fitting 4 distributions to %1 values...</source>
-            <translation>값 %1개에 4개 분포 적합 중...</translation>
+            <translation>값 %1개로 분포 4개 적합 중...</translation>
         </message>
         <message>
             <source>Distribution Fit</source>
@@ -26642,7 +26642,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Need at least 5 actuals; you provided %1.</source>
-            <translation>실제값이 5개 이상 필요합니다. 입력된 수: %1개.</translation>
+            <translation>실제값이 최소 5개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Actuals (%1) and point (%2) must have the same length.</source>
@@ -26666,7 +26666,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Evaluating forecast on %1 obs...</source>
-            <translation>관측치 %1개에 대한 예측 평가 중...</translation>
+            <translation>관측치 %1개로 예측 평가 중...</translation>
         </message>
         <message>
             <source>Evaluate Forecast</source>
@@ -26698,7 +26698,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Repeating last %1 obs forward over %2 steps...</source>
-            <translation>마지막 관측치 %1개를 %2단계에 걸쳐 반복 중...</translation>
+            <translation>마지막 관측치 %1개를 향후 %2개 시점에 반복 적용 중...</translation>
         </message>
         <message>
             <source>Seasonal Naive</source>
@@ -26710,7 +26710,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>HORIZON %1 STEPS  |  %2 BOOTSTRAP PATHS  |  LAGS %3</source>
-            <translation>예측 기간 %1단계  |  부트스트랩 경로 %2개  |  시차 %3</translation>
+            <translation>예측 기간 %1개 시점  |  부트스트랩 경로 %2개  |  시차 %3</translation>
         </message>
         <message>
             <source>FIRST P50</source>
@@ -26766,7 +26766,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>HORIZON %1 STEPS  |  %2 QUANTILES  |  %3 BOOTSTRAP PATHS</source>
-            <translation>예측 기간 %1단계  |  분위수 %2개  |  부트스트랩 경로 %3개</translation>
+            <translation>예측 기간 %1개 시점  |  분위수 %2개  |  부트스트랩 경로 %3개</translation>
         </message>
         <message>
             <source>PER-QUANTILE SUMMARY</source>
@@ -26790,15 +26790,15 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>FORECAST BY STEP</source>
-            <translation>단계별 예측</translation>
+            <translation>시점별 예측</translation>
         </message>
         <message>
             <source>%1 quantiles over %2 steps</source>
-            <translation>%2단계의 분위수 %1개</translation>
+            <translation>%2개 시점, 분위수 %1개</translation>
         </message>
         <message>
             <source>BEST BY AIC: %1   |   BEST BY BIC: %2</source>
-            <translation>최적 AIC: %1   |   최적 BIC: %2</translation>
+            <translation>AIC 기준 최적: %1   |   BIC 기준 최적: %2</translation>
         </message>
         <message>
             <source>STD</source>
@@ -26826,7 +26826,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Best fit: %1 (AIC) / %2 (BIC)</source>
-            <translation>최적 적합: %1 (AIC) / %2 (BIC)</translation>
+            <translation>최적 적합: %1 (AIC 기준) / %2 (BIC 기준)</translation>
         </message>
         <message>
             <source>MASE</source>
@@ -26834,11 +26834,11 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>COVERAGE</source>
-            <translation>커버리지</translation>
+            <translation>포함률</translation>
         </message>
         <message>
             <source>TARGET</source>
-            <translation>대상 기업</translation>
+            <translation>목표 포함률</translation>
         </message>
         <message>
             <source>AVG WIDTH</source>
@@ -26870,11 +26870,11 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>METHOD: %1   |   HORIZON %2 STEPS</source>
-            <translation>방법: %1   |   예측 기간 %2단계</translation>
+            <translation>방법: %1   |   예측 기간 %2개 시점</translation>
         </message>
         <message>
             <source>SEASON</source>
-            <translation>계절</translation>
+            <translation>계절 길이</translation>
         </message>
         <message>
             <source>%1 — last %2 → forecast %3</source>
@@ -26922,15 +26922,15 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>FCST POINTS</source>
-            <translation>예측 관측치 수</translation>
+            <translation>예측 시점 수</translation>
         </message>
         <message>
             <source>%1 forecast (%2 steps)  MAE=%3</source>
-            <translation>%1 예측(%2단계)  MAE=%3</translation>
+            <translation>%1 예측(%2개 시점)  MAE=%3</translation>
         </message>
         <message>
             <source>PROBLEM</source>
-            <translation>문제</translation>
+            <translation>문제 유형</translation>
         </message>
         <message>
             <source>BEST ALGORITHM</source>
@@ -26938,7 +26938,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>FEATURES</source>
-            <translation>기능</translation>
+            <translation>특성 수</translation>
         </message>
         <message>
             <source>TRAIN / TEST</source>
@@ -26970,7 +26970,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>SAMPLES</source>
-            <translation>표본</translation>
+            <translation>표본 수</translation>
         </message>
         <message>
             <source>METHODS</source>
@@ -26978,7 +26978,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>DATA SCALED</source>
-            <translation>데이터 스케일 조정됨</translation>
+            <translation>데이터 스케일링</translation>
         </message>
         <message>
             <source>PCA</source>
@@ -26986,7 +26986,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>COMPONENTS</source>
-            <translation>주성분</translation>
+            <translation>주성분 수</translation>
         </message>
         <message>
             <source>FOR 95% VAR</source>
@@ -27034,7 +27034,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Inertia</source>
-            <translation>관성</translation>
+            <translation>군집 내 제곱합</translation>
         </message>
         <message>
             <source>HIERARCHICAL k</source>
@@ -27046,7 +27046,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Unsupervised: %1 method(s) on %2×%3</source>
-            <translation>비지도학습: %2×%3에 %1개 방법 적용</translation>
+            <translation>비지도학습: %2×%3 데이터에 방법 %1개 적용</translation>
         </message>
         <message>
             <source>CV FOLDS</source>
@@ -27054,7 +27054,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>MEAN CV ± σ</source>
-            <translation>평균 교차검증 ± σ</translation>
+            <translation>교차검증 평균 ± σ</translation>
         </message>
         <message>
             <source>FINAL TRAIN</source>
@@ -27122,7 +27122,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>BIAS-CORRECTED</source>
-            <translation>편향 보정됨</translation>
+            <translation>편향 보정 추정값</translation>
         </message>
         <message>
             <source>STD ERROR</source>
@@ -27130,11 +27130,11 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>PERMUTATION</source>
-            <translation>순열</translation>
+            <translation>순열 검정</translation>
         </message>
         <message>
             <source>RESAMPLES</source>
-            <translation>재표본</translation>
+            <translation>재표본 수</translation>
         </message>
         <message>
             <source>ORIGINAL</source>
@@ -27146,7 +27146,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>POPULATION</source>
-            <translation>인구</translation>
+            <translation>모집단</translation>
         </message>
         <message>
             <source>SAMPLE SIZE</source>
@@ -27342,7 +27342,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>IC analysis needs at least 10 predictions; you provided %1.</source>
-            <translation>IC 분석에는 예측값이 10개 이상 필요합니다. 입력된 수: %1개.</translation>
+            <translation>IC 분석에는 예측값이 최소 10개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Predictions (%1) and returns (%2) must have the same length.</source>
@@ -27378,7 +27378,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Chart title (e.g. Strategy vs S&amp;P 500)</source>
-            <translation>차트 제목(예: 전략 대비 S&amp;P 500)</translation>
+            <translation>차트 제목(예: 전략 vs S&amp;P 500)</translation>
         </message>
         <message>
             <source>Cumulative Returns</source>
@@ -27394,7 +27394,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Need at least 5 returns; you provided %1.</source>
-            <translation>수익률이 5개 이상 필요합니다. 입력된 수: %1개.</translation>
+            <translation>수익률이 최소 5개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Benchmark: '%1' is not numeric.</source>
@@ -27422,15 +27422,15 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Computes max drawdown with peak/trough/recovery markers, daily VaR + CVaR at 5% and 1%, and rolling annualized volatility.</source>
-            <translation>고점·저점·회복 표시가 포함된 최대 낙폭, 5% 및 1% 일간 VaR + CVaR, 이동 연율화 변동성을 계산합니다.</translation>
+            <translation>고점·저점·회복 시점을 표시한 최대낙폭, 5%·1% 일간 VaR와 CVaR, 이동 연율화 변동성을 계산합니다.</translation>
         </message>
         <message>
             <source>BUILD RISK REPORT</source>
-            <translation>위험 보고서 생성</translation>
+            <translation>리스크 보고서 생성</translation>
         </message>
         <message>
             <source>Risk report needs at least 30 obs; you provided %1.</source>
-            <translation>위험 보고서에는 관측치가 30개 이상 필요합니다. 입력된 수: %1개.</translation>
+            <translation>리스크 보고서에는 관측치가 최소 30개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Computing drawdown + rolling vol on %1 obs...</source>
@@ -27438,7 +27438,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Risk Report</source>
-            <translation>위험 보고서</translation>
+            <translation>리스크 보고서</translation>
         </message>
         <message>
             <source>Model predictions (decimals, &gt;= 20 values)</source>
@@ -27470,7 +27470,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Model evaluation needs at least 20 obs; you provided %1.</source>
-            <translation>모델 평가에는 관측치가 20개 이상 필요합니다. 입력된 수: %1개.</translation>
+            <translation>모델 평가에는 관측치가 최소 20개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Evaluating %1 on %2 obs...</source>
@@ -27506,7 +27506,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Sorts observations into N buckets by signal strength and reports realized return per bucket. A monotone Q1→Q5 progression indicates a clean factor; non-monotone hints at noise.</source>
-            <translation>신호 강도에 따라 관측치를 N개 구간으로 나누고 구간별 실현 수익률을 보고합니다. Q1→Q5가 단조롭게 변하면 명확한 팩터를 뜻하며, 단조롭지 않으면 잡음 가능성을 시사합니다.</translation>
+            <translation>신호 강도에 따라 관측치를 N개 구간으로 나누고 구간별 실현 수익률을 보여줍니다. Q1→Q5가 단조롭게 변하면 깨끗한 팩터이고, 단조롭지 않으면 잡음이 섞였을 가능성이 있습니다.</translation>
         </message>
         <message>
             <source>ANALYZE FACTOR QUANTILES</source>
@@ -27518,7 +27518,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Quantile analysis needs at least 20 obs; you provided %1.</source>
-            <translation>분위수 분석에는 관측치가 20개 이상 필요합니다. 입력된 수: %1개.</translation>
+            <translation>분위수 분석에는 관측치가 최소 20개 필요합니다. 입력한 개수는 %1개입니다.</translation>
         </message>
         <message>
             <source>Factor (%1) and returns (%2) must have the same length.</source>
@@ -27534,11 +27534,11 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Quant Reporting backend ready</source>
-            <translation>퀀트 보고 백엔드 준비됨</translation>
+            <translation>퀀트 리포팅 백엔드 준비됨</translation>
         </message>
         <message>
             <source>METHOD: %1   |   ROLLING WINDOW: %2   |   %3 ROLLING POINTS</source>
-            <translation>방법: %1   |   이동 구간: %2   |   이동 관측점 %3개</translation>
+            <translation>방법: %1   |   이동 구간: %2   |   이동 계산 시점 %3개</translation>
         </message>
         <message>
             <source>PEARSON IC</source>
@@ -27626,7 +27626,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>%1: total %2%  Sharpe %3  MaxDD %4%</source>
-            <translation>%1: 총수익률 %2%  Sharpe %3  최대 낙폭 %4%</translation>
+            <translation>%1: 총수익률 %2%  샤프지수 %3  최대낙폭 %4%</translation>
         </message>
         <message>
             <source>ROLLING WINDOW: %1 DAYS</source>
@@ -27694,7 +27694,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>MaxDD %1%  Cur %2%  Vol %3%  Recovered: %4</source>
-            <translation>최대 낙폭 %1%  현재 %2%  변동성 %3%  회복: %4</translation>
+            <translation>최대낙폭 %1%  현재 %2%  변동성 %3%  회복: %4</translation>
         </message>
         <message>
             <source>MODEL: %1   |   %2 QUANTILES   |   %3</source>
@@ -27742,7 +27742,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>L/S SHARPE (ANN)</source>
-            <translation>롱숏 Sharpe(연율)</translation>
+            <translation>롱숏 샤프지수(연율화)</translation>
         </message>
         <message>
             <source>Pred Mean</source>
@@ -27770,7 +27770,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Spread %1 bps  Sharpe %2  → %3</source>
-            <translation>스프레드 %1 bps  Sharpe %2  → %3</translation>
+            <translation>스프레드 %1 bps  샤프지수 %2  → %3</translation>
         </message>
         <message>
             <source>%1 predictions</source>
@@ -27862,7 +27862,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>EF: %1 portfolios  best Sharpe=%2</source>
-            <translation>효율적 투자선: 포트폴리오 %1개  최고 Sharpe=%2</translation>
+            <translation>효율적 투자선: 포트폴리오 %1개  최고 샤프지수=%2</translation>
         </message>
         <message>
             <source>EXP. VOLATILITY</source>
@@ -27870,11 +27870,11 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>VIEWS</source>
-            <translation>조회수</translation>
+            <translation>견해 수</translation>
         </message>
         <message>
             <source>EQUILIBRIUM</source>
-            <translation>균형</translation>
+            <translation>균형 수익률</translation>
         </message>
         <message>
             <source>%1 assets</source>
@@ -27882,7 +27882,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>POSTERIOR</source>
-            <translation>사후</translation>
+            <translation>사후 수익률</translation>
         </message>
         <message>
             <source>%1: %2 assets, vol=%3%</source>
@@ -27894,7 +27894,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>TIMESTEPS</source>
-            <translation>시간 단계</translation>
+            <translation>타임스텝</translation>
         </message>
         <message>
             <source>MESSAGE</source>
@@ -27902,7 +27902,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Trained %1 — %2 steps</source>
-            <translation>%1 학습됨 — %2단계</translation>
+            <translation>%1 학습 완료 — %2스텝</translation>
         </message>
         <message>
             <source>EPISODES</source>
@@ -27926,7 +27926,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>%1 steps</source>
-            <translation>%1단계</translation>
+            <translation>%1스텝</translation>
         </message>
         <message>
             <source>REWARD STD</source>
@@ -27950,7 +27950,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Eval %1 eps  reward=%2  return=%3%</source>
-            <translation>에피소드 %1개 평가  보상=%2  수익률=%3%</translation>
+            <translation>에피소드 %1회 평가  보상=%2  수익률=%3%</translation>
         </message>
         <message>
             <source>RIVER</source>
@@ -27966,7 +27966,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Samples</source>
-            <translation>표본</translation>
+            <translation>표본 수</translation>
         </message>
         <message>
             <source>Last Updated</source>
@@ -28014,7 +28014,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>ERROR</source>
-            <translation>오류</translation>
+            <translation>오차</translation>
         </message>
         <message>
             <source>ABS ERROR</source>
@@ -28086,7 +28086,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>RANKED</source>
-            <translation>순위 산정됨</translation>
+            <translation>순위 산정 모델 수</translation>
         </message>
         <message>
             <source>F1</source>
@@ -28178,7 +28178,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>PRESENT</source>
-            <translation>존재함</translation>
+            <translation>있음</translation>
         </message>
         <message>
             <source>Instruments (%1): %2</source>
@@ -28198,7 +28198,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Symbol</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>%1 instrument(s)  market=%2</source>
@@ -28210,7 +28210,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>FIRST</source>
-            <translation>처음</translation>
+            <translation>첫 날짜</translation>
         </message>
         <message>
             <source>LAST</source>
@@ -28274,7 +28274,7 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>MODELS MISSING</source>
-            <translation>누락된 모델</translation>
+            <translation>미설치 모델</translation>
         </message>
         <message>
             <source>MODELS TOTAL</source>
@@ -28521,11 +28521,11 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
         </message>
         <message>
             <source>Run QuantStats Analysis for rolling metrics</source>
-            <translation>이동 구간 지표를 보려면 QuantStats 분석을 실행하세요</translation>
+            <translation>롤링 지표를 보려면 QuantStats 분석을 실행하세요</translation>
         </message>
         <message>
             <source>ROLLING</source>
-            <translation>이동</translation>
+            <translation>롤링</translation>
         </message>
         <message>
             <source>MONTE CARLO SIMULATION</source>
@@ -28579,11 +28579,11 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Unrealized P&amp;L %</source>
-            <translation>미실현 손익 %</translation>
+            <translation>평가손익률</translation>
         </message>
         <message>
             <source>Day Change %</source>
-            <translation>당일 등락률 %</translation>
+            <translation>당일 등락률</translation>
         </message>
         <message>
             <source>Total Positions</source>
@@ -28599,7 +28599,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>RISK</source>
-            <translation>위험</translation>
+            <translation>리스크</translation>
         </message>
         <message>
             <source>Annualized Volatility</source>
@@ -28607,7 +28607,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Max Drawdown</source>
-            <translation>최대 낙폭</translation>
+            <translation>최대낙폭(MDD)</translation>
         </message>
         <message>
             <source>VaR 95% (Daily)</source>
@@ -28627,19 +28627,19 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Sharpe Ratio</source>
-            <translation>샤프 비율</translation>
+            <translation>샤프지수</translation>
         </message>
         <message>
             <source>Sortino Ratio</source>
-            <translation>Sortino 비율</translation>
+            <translation>소르티노지수</translation>
         </message>
         <message>
             <source>Calmar Ratio</source>
-            <translation>Calmar 비율</translation>
+            <translation>칼마지수</translation>
         </message>
         <message>
             <source>Profit Factor</source>
-            <translation>수익 팩터</translation>
+            <translation>프로핏 팩터</translation>
         </message>
         <message>
             <source>DISTRIBUTION</source>
@@ -28687,7 +28687,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>LOSS RATE</source>
-            <translation>손실 비율</translation>
+            <translation>손실일 비율</translation>
         </message>
         <message>
             <source>WIN DAYS</source>
@@ -28715,15 +28715,15 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>DRAWDOWN &amp; RISK METRICS</source>
-            <translation>낙폭 및 위험 지표</translation>
+            <translation>낙폭 및 리스크 지표</translation>
         </message>
         <message>
             <source>MAX DRAWDOWN</source>
-            <translation>최대 낙폭</translation>
+            <translation>최대낙폭(MDD)</translation>
         </message>
         <message>
             <source>RISK METRIC</source>
-            <translation>위험 지표</translation>
+            <translation>리스크 지표</translation>
         </message>
         <message>
             <source>RISK-ADJUSTED RATIOS &amp; WIN/LOSS BREAKDOWN</source>
@@ -28763,7 +28763,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>EXP MAX DRAWDOWN</source>
-            <translation>예상 최대 낙폭</translation>
+            <translation>예상 최대낙폭</translation>
         </message>
         <message>
             <source>Cumulative Return (%)</source>
@@ -28775,7 +28775,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Fetching 1-year price history...</source>
-            <translation>1년 가격 이력 가져오는 중...</translation>
+            <translation>1년 시세 데이터 가져오는 중...</translation>
         </message>
         <message>
             <source>QuantStats: %1</source>
@@ -28818,7 +28818,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>CODE</source>
-            <translation>코드</translation>
+            <translation>국가번호</translation>
         </message>
         <message>
             <source>PHONE</source>
@@ -28834,11 +28834,11 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>First</source>
-            <translation>처음</translation>
+            <translation>이름</translation>
         </message>
         <message>
             <source>Last</source>
-            <translation>마지막</translation>
+            <translation>성</translation>
         </message>
         <message>
             <source>user@domain.com</source>
@@ -28906,11 +28906,11 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>All fields are required</source>
-            <translation>모든 필드는 필수입니다</translation>
+            <translation>모든 항목을 입력하세요</translation>
         </message>
         <message>
             <source>Country code is required (e.g. +1, +91)</source>
-            <translation>국가 코드가 필요합니다(예: +1, +91)</translation>
+            <translation>국가번호를 입력하세요(예: +1, +91)</translation>
         </message>
         <message>
             <source>Passwords do not match</source>
@@ -28922,7 +28922,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Username must be 3-50 characters</source>
-            <translation>사용자 이름은 3-50자여야 합니다</translation>
+            <translation>사용자 이름은 3~50자여야 합니다</translation>
         </message>
         <message>
             <source>Enter the verification code</source>
@@ -28937,7 +28937,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Search assets (AAPL, Tesla, RELIANCE...)</source>
-            <translation>자산 검색(AAPL, Tesla, RELIANCE...)</translation>
+            <translation>종목 검색(AAPL, Tesla, RELIANCE...)</translation>
         </message>
         <message>
             <source>ANALYZE</source>
@@ -28981,7 +28981,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Peers</source>
-            <translation>동종 기업</translation>
+            <translation>동종업체</translation>
         </message>
         <message>
             <source>Institutional</source>
@@ -28989,7 +28989,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Mutual Funds</source>
-            <translation>뮤추얼 펀드</translation>
+            <translation>펀드</translation>
         </message>
         <message>
             <source>Insiders</source>
@@ -29049,7 +29049,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Industry</source>
-            <translation>업종</translation>
+            <translation>세부 업종</translation>
         </message>
         <message>
             <source>Mkt Cap</source>
@@ -29057,11 +29057,11 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Price</source>
-            <translation>가격</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>P/E</source>
-            <translation>P/E</translation>
+            <translation>PER</translation>
         </message>
         <message>
             <source>ROE</source>
@@ -29069,7 +29069,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Growth</source>
-            <translation>성장</translation>
+            <translation>매출성장률</translation>
         </message>
         <message>
             <source>Margins</source>
@@ -29085,11 +29085,11 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>%1 ITEMS | %2 PEERS | %3 HOLDERS</source>
-            <translation>항목 %1개 | 동종 기업 %2개 | 보유자 %3명</translation>
+            <translation>항목 %1개 | 동종업체 %2개 | 보유자 %3명</translation>
         </message>
         <message>
             <source>QUALITY: %1%</source>
-            <translation>품질: %1%</translation>
+            <translation>데이터 품질: %1%</translation>
         </message>
     </context>
     <context>
@@ -29100,7 +29100,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>NODES: %1  |  CONFLICTS: %2  |  ORGANIZATIONS: %3</source>
-            <translation>노드: %1  |  분쟁: %2  |  조직: %3</translation>
+            <translation>노드: %1  |  분쟁: %2  |  국제기구: %3</translation>
         </message>
         <message>
             <source>ACTIVE CONFLICTS</source>
@@ -29112,7 +29112,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>ORGANIZATIONS</source>
-            <translation>기관</translation>
+            <translation>국제기구</translation>
         </message>
         <message>
             <source>datasets</source>
@@ -29205,7 +29205,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Executive summary, thesis, opportunity, risks, recommendation.</source>
-            <translation>핵심 요약, 투자 논지, 기회, 위험, 권고.</translation>
+            <translation>핵심 요약, 투자 논지, 기회, 리스크, 투자의견.</translation>
         </message>
         <message>
             <source>Retail Investor</source>
@@ -29213,15 +29213,15 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Company overview, financials, valuation, thesis, and risks.</source>
-            <translation>기업 개요, 재무, 가치평가, 투자 논지, 위험.</translation>
+            <translation>기업 개요, 재무, 밸류에이션, 투자 논지, 리스크.</translation>
         </message>
         <message>
             <source>Holdings, performance, allocation pie, risk metrics, notes.</source>
-            <translation>보유 내역, 성과, 자산 배분 원형 차트, 위험 지표, 메모.</translation>
+            <translation>보유종목, 성과, 자산배분 원형 차트, 리스크 지표, 메모.</translation>
         </message>
         <message>
             <source>Tracked tickers with price, change, target, and notes columns.</source>
-            <translation>가격, 등락, 목표가, 메모 열이 있는 추적 종목 목록.</translation>
+            <translation>현재가, 등락, 목표주가, 메모 열이 있는 관심종목 목록.</translation>
         </message>
         <message>
             <source>Dividend stocks table, yield chart, income projection, calendar.</source>
@@ -29237,15 +29237,15 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Trade log table, P&amp;L chart, win rate stats, lessons learned.</source>
-            <translation>거래 기록표, 손익 차트, 승률 통계, 교훈.</translation>
+            <translation>매매일지 표, 손익 차트, 승률 통계, 교훈.</translation>
         </message>
         <message>
             <source>Price chart placeholder, indicators table, S/R levels, setup.</source>
-            <translation>가격 차트 자리, 지표 표, 지지/저항 수준, 매매 설정.</translation>
+            <translation>가격 차트 자리, 지표 표, 지지선/저항선, 매매 설정.</translation>
         </message>
         <message>
             <source>Macro events, key levels, planned trades, risk per trade.</source>
-            <translation>거시 이벤트, 주요 가격 수준, 예정 거래, 거래당 위험.</translation>
+            <translation>거시 이벤트, 주요 가격대, 매매 계획, 거래당 리스크.</translation>
         </message>
         <message>
             <source>Institutional / Analyst</source>
@@ -29261,11 +29261,11 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Deal overview, rationale, comparables, synergies, valuation.</source>
-            <translation>거래 개요, 근거, 비교거래, 시너지, 가치평가.</translation>
+            <translation>거래 개요, 근거, 비교거래, 시너지, 밸류에이션.</translation>
         </message>
         <message>
             <source>Sector overview, sub-industries, key players, trends, risks.</source>
-            <translation>업종 개요, 세부 산업, 주요 기업, 추세, 위험.</translation>
+            <translation>업종 개요, 세부 산업, 주요 기업, 추세, 리스크.</translation>
         </message>
         <message>
             <source>Economist / Macro</source>
@@ -29277,7 +29277,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Political, economic, financial, market risk tables and charts.</source>
-            <translation>정치·경제·금융·시장 위험 표와 차트.</translation>
+            <translation>정치·경제·금융·시장 리스크 표와 차트.</translation>
         </message>
         <message>
             <source>Rate decisions, forward guidance, balance sheet, implications.</source>
@@ -29285,7 +29285,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Crypto / Digital Assets</source>
-            <translation>암호화폐 / 디지털 자산</translation>
+            <translation>가상자산 / 디지털 자산</translation>
         </message>
         <message>
             <source>Project overview, tokenomics, on-chain metrics, price chart.</source>
@@ -29293,11 +29293,11 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Protocol overview, TVL, revenue, risks, token valuation.</source>
-            <translation>프로토콜 개요, TVL, 수익, 위험, 토큰 가치평가.</translation>
+            <translation>프로토콜 개요, TVL, 수익, 리스크, 토큰 가치평가.</translation>
         </message>
         <message>
             <source>Holdings, allocation, cost basis table, P&amp;L, risk exposure.</source>
-            <translation>보유 내역, 자산 배분, 취득원가 표, 손익, 위험 노출.</translation>
+            <translation>보유 자산, 자산배분, 매입금액 표, 손익, 리스크 익스포저.</translation>
         </message>
         <message>
             <source>Fixed Income</source>
@@ -29305,7 +29305,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Issuer overview, credit profile, yield analysis, recommendation.</source>
-            <translation>발행사 개요, 신용 현황, 수익률 분석, 권고.</translation>
+            <translation>발행사 개요, 신용 현황, 수익률 분석, 투자의견.</translation>
         </message>
         <message>
             <source>Curve chart, spread table, duration/convexity, macro drivers.</source>
@@ -29313,7 +29313,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Quant / Risk</source>
-            <translation>퀀트 / 위험</translation>
+            <translation>퀀트 / 리스크</translation>
         </message>
         <message>
             <source>Strategy description, backtest results, stats, drawdown chart.</source>
@@ -29321,7 +29321,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>VaR, CVaR, stress tests, correlation matrix, recommendations.</source>
-            <translation>VaR, CVaR, 스트레스 테스트, 상관행렬, 권장 사항.</translation>
+            <translation>VaR, CVaR, 스트레스 테스트, 상관관계 행렬, 권장 사항.</translation>
         </message>
         <message>
             <source>Corporate / Business</source>
@@ -29472,7 +29472,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>TYPE</source>
@@ -29484,7 +29484,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>PRICE</source>
-            <translation>가격</translation>
+            <translation>단가</translation>
         </message>
         <message>
             <source>TOTAL</source>
@@ -29492,7 +29492,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>NOTES</source>
-            <translation>노트</translation>
+            <translation>메모</translation>
         </message>
         <message>
             <source>TRANSACTIONS</source>
@@ -29536,15 +29536,15 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>TOTAL VALUE</source>
-            <translation>총 가치</translation>
+            <translation>총 평가금액</translation>
         </message>
         <message>
             <source>COST BASIS</source>
-            <translation>취득 원가</translation>
+            <translation>매입금액</translation>
         </message>
         <message>
             <source>UNREALIZED P&amp;L</source>
-            <translation>미실현 손익</translation>
+            <translation>평가손익</translation>
         </message>
         <message>
             <source>POSITIONS</source>
@@ -29560,23 +29560,23 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>HOLDINGS BREAKDOWN</source>
-            <translation>보유 내역 상세</translation>
+            <translation>보유종목 상세</translation>
         </message>
         <message>
             <source>AVG COST</source>
-            <translation>평균 매입가</translation>
+            <translation>평균단가</translation>
         </message>
         <message>
             <source>CURRENT</source>
-            <translation>현재</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>OUTPERFORM</source>
-            <translation>초과 성과</translation>
+            <translation>성과 우수</translation>
         </message>
         <message>
             <source>UNDERPERFORM</source>
-            <translation>저조한 성과</translation>
+            <translation>성과 부진</translation>
         </message>
         <message>
             <source>NEUTRAL</source>
@@ -29658,7 +29658,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>RISK OVERVIEW</source>
-            <translation>위험 개요</translation>
+            <translation>리스크 개요</translation>
         </message>
         <message>
             <source>PORTFOLIO STRESS TESTING</source>
@@ -29678,7 +29678,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>EQUITY SHOCK</source>
-            <translation>주식 충격</translation>
+            <translation>주가 충격</translation>
         </message>
         <message>
             <source>PORTFOLIO IMPACT</source>
@@ -29694,11 +29694,11 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>RISK CONTRIBUTION BY HOLDING</source>
-            <translation>보유 종목별 위험 기여도</translation>
+            <translation>보유종목별 리스크 기여도</translation>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>WEIGHT</source>
@@ -29710,7 +29710,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>RISK CONTRIB</source>
-            <translation>위험 기여도</translation>
+            <translation>리스크 기여도</translation>
         </message>
         <message>
             <source>VAR CONTRIB</source>
@@ -29722,19 +29722,19 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>RISK CONTRIBUTION</source>
-            <translation>위험 기여도</translation>
+            <translation>리스크 기여도</translation>
         </message>
         <message>
             <source>PORTFOLIO RISK OVERVIEW</source>
-            <translation>포트폴리오 위험 개요</translation>
+            <translation>포트폴리오 리스크 개요</translation>
         </message>
         <message>
             <source>PORTFOLIO VALUE</source>
-            <translation>포트폴리오 가치</translation>
+            <translation>포트폴리오 평가금액</translation>
         </message>
         <message>
             <source>Total market value</source>
-            <translation>총 시장가치</translation>
+            <translation>총 평가금액</translation>
         </message>
         <message>
             <source>ANNUALIZED VOLATILITY</source>
@@ -29746,7 +29746,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>VALUE AT RISK (95%)</source>
-            <translation>위험가치 (95%)</translation>
+            <translation>VaR (95%)</translation>
         </message>
         <message>
             <source>1-day parametric</source>
@@ -29758,11 +29758,11 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Expected shortfall</source>
-            <translation>기대손실</translation>
+            <translation>기대손실(ES)</translation>
         </message>
         <message>
             <source>TOP HOLDING CONC.</source>
-            <translation>최대 보유 종목 집중도</translation>
+            <translation>최대 보유종목 집중도</translation>
         </message>
         <message>
             <source>Largest position</source>
@@ -29791,7 +29791,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         <message numerus="yes">
             <source>%n holdings</source>
             <translation>
-                <numerusform>보유 종목 %n개</numerusform>
+                <numerusform>보유종목 %n개</numerusform>
             </translation>
         </message>
         <message>
@@ -29855,7 +29855,7 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         </message>
         <message>
             <source>Category</source>
-            <translation>범주</translation>
+            <translation>카테고리</translation>
         </message>
         <message>
             <source>Region</source>
@@ -29959,7 +29959,7 @@ Save the feed anyway?</source>
         </message>
         <message>
             <source>The last URL test didn't return valid RSS. Save anyway?</source>
-            <translation>마지막 URL 테스트에서 유효한 RSS를 반환하지 않았습니다. 그래도 저장하시겠습니까?</translation>
+            <translation>최근 URL 테스트 결과가 유효한 RSS가 아닙니다. 그래도 저장하시겠습니까?</translation>
         </message>
     </context>
     <context>
@@ -29974,7 +29974,7 @@ Save the feed anyway?</source>
         </message>
         <message>
             <source>On</source>
-            <translation>켜짐</translation>
+            <translation>사용</translation>
         </message>
         <message>
             <source>Type</source>
@@ -29994,7 +29994,7 @@ Save the feed anyway?</source>
         </message>
         <message>
             <source>Category</source>
-            <translation>범주</translation>
+            <translation>카테고리</translation>
         </message>
         <message>
             <source>Region</source>
@@ -30161,7 +30161,7 @@ Save the feed anyway?</source>
         </message>
         <message>
             <source>TIMEFRAME</source>
-            <translation>시간 주기</translation>
+            <translation>주기</translation>
         </message>
         <message>
             <source>LOOKBACK (DAYS)</source>
@@ -30173,11 +30173,11 @@ Save the feed anyway?</source>
         </message>
         <message>
             <source>Auto (Broker → YFinance)</source>
-            <translation>자동(브로커 → YFinance)</translation>
+            <translation>자동(증권사 → YFinance)</translation>
         </message>
         <message>
             <source>Broker Only</source>
-            <translation>브로커만</translation>
+            <translation>증권사만</translation>
         </message>
         <message>
             <source>YFinance Only</source>
@@ -30185,7 +30185,7 @@ Save the feed anyway?</source>
         </message>
         <message>
             <source>BROKER ACCOUNT</source>
-            <translation>브로커 계좌</translation>
+            <translation>증권사 계좌</translation>
         </message>
         <message>
             <source>None (use YFinance fallback)</source>
@@ -30201,7 +30201,7 @@ Save the feed anyway?</source>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>SIGNAL</source>
@@ -30256,11 +30256,11 @@ Save the feed anyway?</source>
         </message>
         <message>
             <source>MAP HOLDINGS TO SECTORS</source>
-            <translation>보유 종목을 업종에 매핑</translation>
+            <translation>보유종목 업종 지정</translation>
         </message>
         <message>
             <source>Assign each holding to a sector for allocation analysis.</source>
-            <translation>자산 배분 분석을 위해 각 보유 종목에 업종을 지정하세요.</translation>
+            <translation>자산배분 분석을 위해 보유종목마다 업종을 지정하세요.</translation>
         </message>
         <message>
             <source>CANCEL</source>
@@ -30431,7 +30431,7 @@ Save the feed anyway?</source>
         </message>
         <message>
             <source>Off by default. With this off, AI chat and agents can read your terminal but cannot change anything — no file writes, no spreadsheet, note, watchlist or portfolio edits, no dashboard or workspace changes, no script execution. Turning it on lets them act for you; you can turn it back off at any time. Live trading orders and access to your saved credentials stay blocked either way. Applies immediately — no need to press Save.</source>
-            <translation>기본값은 꺼짐입니다. 꺼져 있으면 AI 채팅과 에이전트가 터미널의 내용을 읽을 수 있지만 변경할 수는 없습니다. 파일 쓰기, 스프레드시트·메모·관심종목·포트폴리오 편집, 대시보드·작업 공간 변경, 스크립트 실행이 모두 차단됩니다. 켜면 AI가 대신 작업할 수 있으며 언제든 다시 끌 수 있습니다. 실제 거래 주문과 저장된 인증 정보 접근은 이 설정과 관계없이 계속 차단됩니다. 즉시 적용되므로 저장을 누를 필요가 없습니다.</translation>
+            <translation>기본값은 꺼짐입니다. 꺼져 있으면 AI 채팅과 에이전트가 터미널의 내용을 읽을 수 있지만 변경할 수는 없습니다. 파일 쓰기, 스프레드시트·메모·관심종목·포트폴리오 편집, 대시보드·작업 공간 변경, 스크립트 실행이 모두 차단됩니다. 켜면 AI가 대신 작업할 수 있으며 언제든 다시 끌 수 있습니다. 실전투자 주문과 저장된 인증 정보 접근은 이 설정과 관계없이 계속 차단됩니다. 즉시 적용되므로 저장을 누를 필요가 없습니다.</translation>
         </message>
         <message>
             <source>Saved — but auto-lock stays off until you set a PIN.</source>
@@ -30588,7 +30588,7 @@ Save the feed anyway?</source>
         <name>fincept::screens::SettingsTab</name>
         <message>
             <source>POLL refreshes balances on a TTL via the configured RPC. STREAM opens a WebSocket account subscription — requires Helius or a private RPC.</source>
-            <translation>POLL은 설정된 RPC를 통해 TTL 주기로 잔액을 갱신합니다. STREAM은 WebSocket 계정 구독을 엽니다. Helius 또는 비공개 RPC가 필요합니다.</translation>
+            <translation>폴링은 설정된 RPC를 통해 TTL 주기로 잔고를 갱신합니다. 스트리밍은 WebSocket 계정 구독을 엽니다. Helius 또는 비공개 RPC가 필요합니다.</translation>
         </message>
         <message>
             <source>Paste a Helius API key for reliable account-subscribe streaming and parsed transaction history. Stored in SecureStorage; never transmitted off-machine except in RPC requests to api.helius.xyz.</source>
@@ -30612,11 +30612,11 @@ Save the feed anyway?</source>
         </message>
         <message>
             <source>Pump.fun-launched wallets accumulate airdropped junk over time. By default the holdings panel hides tokens that aren't in Jupiter's verified-tagged list. Toggle this on to see every SPL token account in the wallet.</source>
-            <translation>Pump.fun에서 생성된 지갑에는 시간이 지나면서 불필요한 에어드롭 토큰이 쌓입니다. 보유 내역 패널은 기본적으로 Jupiter의 검증 태그 목록에 없는 토큰을 숨깁니다. 지갑의 모든 SPL 토큰 계정을 보려면 이 옵션을 켜세요.</translation>
+            <translation>Pump.fun에서 생성된 지갑에는 시간이 지나면서 불필요한 에어드롭 토큰이 쌓입니다. 보유 자산 패널은 기본적으로 Jupiter의 검증 태그 목록에 없는 토큰을 숨깁니다. 지갑의 모든 SPL 토큰 계정을 보려면 이 옵션을 켜세요.</translation>
         </message>
         <message>
             <source>Show unverified tokens in the holdings panel</source>
-            <translation>보유 내역 패널에 미검증 토큰 표시</translation>
+            <translation>보유 자산 패널에 미검증 토큰 표시</translation>
         </message>
         <message>
             <source>Stored — input is hidden. Type to replace.</source>
@@ -30644,7 +30644,7 @@ Save the feed anyway?</source>
         </message>
         <message>
             <source>BALANCE REFRESH</source>
-            <translation>잔액 갱신</translation>
+            <translation>잔고 갱신</translation>
         </message>
         <message>
             <source>Mirrored on HOME</source>
@@ -30680,7 +30680,7 @@ Save the feed anyway?</source>
         </message>
         <message>
             <source>affects holdings</source>
-            <translation>보유 내역에 적용</translation>
+            <translation>보유 자산에 적용</translation>
         </message>
     </context>
     <context>
@@ -30709,7 +30709,7 @@ This only happens the first time — future launches are instant.</source>
         </message>
         <message>
             <source>Create Isolated Workspaces</source>
-            <translation>격리된 작업공간 생성</translation>
+            <translation>격리된 작업 공간 생성</translation>
         </message>
         <message>
             <source>Two sandboxed environments to keep library versions conflict-free</source>
@@ -30737,15 +30737,15 @@ This only happens the first time — future launches are instant.</source>
         </message>
         <message>
             <source>Getting your workspace ready</source>
-            <translation>작업공간 준비 중</translation>
+            <translation>작업 공간 준비 중</translation>
         </message>
         <message>
             <source>Your workspace is fully configured</source>
-            <translation>작업공간 설정이 완료되었습니다</translation>
+            <translation>작업 공간 설정이 완료되었습니다</translation>
         </message>
         <message>
             <source>Finishing your workspace setup</source>
-            <translation>작업공간 설정 마무리 중</translation>
+            <translation>작업 공간 설정 마무리 중</translation>
         </message>
         <message>
             <source>BEGIN SETUP</source>
@@ -30831,11 +30831,11 @@ You can wait or skip and continue with limited functionality.</source>
         </message>
         <message>
             <source>Trading workspace</source>
-            <translation>트레이딩 작업공간</translation>
+            <translation>트레이딩 작업 공간</translation>
         </message>
         <message>
             <source>Analytics workspace</source>
-            <translation>분석 작업공간</translation>
+            <translation>분석 작업 공간</translation>
         </message>
         <message>
             <source>trading library list</source>
@@ -30948,7 +30948,7 @@ API 키 불필요 — 안정성을 위해 벡터 ID로 데이터를 가져옵니
         </message>
         <message>
             <source>WORKSPACES</source>
-            <translation>작업공간</translation>
+            <translation>작업 공간</translation>
         </message>
         <message>
             <source>TOTAL</source>
@@ -30960,11 +30960,11 @@ API 키 불필요 — 안정성을 위해 벡터 ID로 데이터를 가져옵니
         </message>
         <message>
             <source>DATA CATEGORIES</source>
-            <translation>데이터 범주</translation>
+            <translation>데이터 카테고리</translation>
         </message>
         <message>
             <source>CATEGORY</source>
-            <translation>범주</translation>
+            <translation>카테고리</translation>
         </message>
         <message>
             <source>ENTRIES</source>
@@ -31032,16 +31032,16 @@ Current log data will be lost.</source>
         </message>
         <message>
             <source>Workspace Files (.fwsp)</source>
-            <translation>작업공간 파일 (.fwsp)</translation>
+            <translation>작업 공간 파일 (.fwsp)</translation>
         </message>
         <message>
             <source>Delete Workspaces</source>
-            <translation>작업공간 삭제</translation>
+            <translation>작업 공간 삭제</translation>
         </message>
         <message>
             <source>Delete all saved workspace files?
 This cannot be undone.</source>
-            <translation>저장된 모든 작업공간 파일을 삭제하시겠습니까?
+            <translation>저장된 모든 작업 공간 파일을 삭제하시겠습니까?
 이 작업은 되돌릴 수 없습니다.</translation>
         </message>
         <message>
@@ -31108,7 +31108,7 @@ Continue?</source>
         </message>
         <message>
             <source>OK — %1 row(s) affected</source>
-            <translation>성공 — %1개 행에 적용됨</translation>
+            <translation>성공 — 행 %1개 적용됨</translation>
         </message>
         <message>
             <source>OK — no columns returned</source>
@@ -31116,7 +31116,7 @@ Continue?</source>
         </message>
         <message>
             <source>OK — %1 row(s) returned%2</source>
-            <translation>성공 — %1개 행 반환됨%2</translation>
+            <translation>성공 — 행 %1개 반환됨%2</translation>
         </message>
         <message>
             <source> (limited to 100)</source>
@@ -31173,13 +31173,13 @@ This action CANNOT be undone.</source>
             <translation>경고: 모든 데이터가 영구 삭제됩니다:
 
   채팅 이력, 메모, 보고서, 관심종목
-  포트폴리오, 거래 내역, 모의 거래
+  포트폴리오, 거래 내역, 모의투자 내역
   워크플로, 대시보드 레이아웃
   뉴스 기사, RSS 피드, 모니터
   데이터 소스, MCP 서버
   에이전트 설정, LLM 설정 및 프로필
   앱 설정, 인증 정보, 키-값 저장소
-  모든 캐시, 로그 파일, 작업공간, UI 상태
+  모든 캐시, 로그 파일, 작업 공간, UI 상태
 
 OS 키체인의 인증 정보는 영향을 받지 않습니다.
 이 작업은 되돌릴 수 없습니다.</translation>
@@ -31227,7 +31227,7 @@ Are you absolutely sure?</source>
         </message>
         <message>
             <source>Capital</source>
-            <translation>자본금</translation>
+            <translation>초기 자본</translation>
         </message>
         <message>
             <source>Start</source>
@@ -31294,7 +31294,7 @@ Are you absolutely sure?</source>
         </message>
         <message>
             <source>All Categories</source>
-            <translation>모든 범주</translation>
+            <translation>전체 카테고리</translation>
         </message>
         <message>
             <source>SORT:</source>
@@ -31310,7 +31310,7 @@ Are you absolutely sure?</source>
         </message>
         <message>
             <source>Category</source>
-            <translation>범주</translation>
+            <translation>카테고리</translation>
         </message>
         <message>
             <source>%1 strategies</source>
@@ -31326,7 +31326,7 @@ Are you absolutely sure?</source>
         </message>
         <message>
             <source>CATEGORY</source>
-            <translation>범주</translation>
+            <translation>카테고리</translation>
         </message>
         <message>
             <source>ID</source>
@@ -31382,7 +31382,7 @@ Are you absolutely sure?</source>
         </message>
         <message>
             <source>Symbol</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>Start</source>
@@ -31402,7 +31402,7 @@ Are you absolutely sure?</source>
         </message>
         <message>
             <source>Delete "%1"?</source>
-            <translation>"%1"을(를) 삭제할까요?</translation>
+            <translation>"%1"을(를) 삭제하시겠습니까?</translation>
         </message>
     </context>
     <context>
@@ -31413,7 +31413,7 @@ Are you absolutely sure?</source>
         </message>
         <message>
             <source>or create a new support request</source>
-            <translation>또는 새 지원 요청을 만드세요</translation>
+            <translation>또는 새 문의를 작성하세요</translation>
         </message>
         <message>
             <source>＋  Create New Ticket</source>
@@ -31441,7 +31441,7 @@ Are you absolutely sure?</source>
         </message>
         <message>
             <source>Category</source>
-            <translation>범주</translation>
+            <translation>유형</translation>
         </message>
         <message>
             <source>Technical</source>
@@ -31553,7 +31553,7 @@ Are you absolutely sure?</source>
         </message>
         <message>
             <source>Reply</source>
-            <translation>답글</translation>
+            <translation>답변</translation>
         </message>
         <message>
             <source>Ctrl+Enter to send</source>
@@ -31565,7 +31565,7 @@ Are you absolutely sure?</source>
         </message>
         <message>
             <source>Send Reply →</source>
-            <translation>답장 보내기 →</translation>
+            <translation>답변 보내기 →</translation>
         </message>
         <message>
             <source>Updating…</source>
@@ -31577,7 +31577,7 @@ Are you absolutely sure?</source>
         </message>
         <message>
             <source>Welcome to Fincept Support</source>
-            <translation>Fincept 지원에 오신 것을 환영합니다</translation>
+            <translation>Fincept 고객 지원에 오신 것을 환영합니다</translation>
         </message>
         <message>
             <source>No tickets yet</source>
@@ -31619,7 +31619,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>No messages yet — be the first to reply.</source>
-            <translation>아직 메시지가 없습니다. 첫 답장을 작성해 보세요.</translation>
+            <translation>아직 메시지가 없습니다. 첫 답변을 작성해 보세요.</translation>
         </message>
         <message>
             <source>Submitting…</source>
@@ -31651,7 +31651,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>Support</source>
-            <translation>지원</translation>
+            <translation>고객 지원</translation>
         </message>
         <message>
             <source>Tickets</source>
@@ -31695,7 +31695,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>Total</source>
-            <translation>합계</translation>
+            <translation>전체</translation>
         </message>
         <message>
             <source>Done</source>
@@ -31750,11 +31750,11 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>CONFIGURED LLM PROVIDERS</source>
-            <translation>설정된 LLM 제공업체</translation>
+            <translation>설정된 LLM 공급자</translation>
         </message>
         <message>
             <source>Loading LLM providers...</source>
-            <translation>LLM 제공업체 불러오는 중...</translation>
+            <translation>LLM 공급자 불러오는 중...</translation>
         </message>
         <message>
             <source>AVAILABLE TOOLS</source>
@@ -31766,11 +31766,11 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>Failed to load LLM providers.</source>
-            <translation>LLM 제공업체를 불러오지 못했습니다.</translation>
+            <translation>LLM 공급자를 불러오지 못했습니다.</translation>
         </message>
         <message>
             <source>No LLM providers configured. Go to Settings → LLM to add one.</source>
-            <translation>설정된 LLM 제공업체가 없습니다. 설정 → LLM에서 추가하세요.</translation>
+            <translation>설정된 LLM 공급자가 없습니다. 설정 → LLM에서 추가하세요.</translation>
         </message>
         <message>
             <source>KEY SET</source>
@@ -31885,7 +31885,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>No provider — go to Settings &gt; LLM Config</source>
-            <translation>제공업체 없음 — 설정 &gt; LLM 설정으로 이동하세요</translation>
+            <translation>공급자 없음 — 설정 &gt; LLM 설정으로 이동하세요</translation>
         </message>
         <message>
             <source>RUNNING...</source>
@@ -31939,7 +31939,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>By accessing or using Fincept Terminal ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the Service.</source>
-            <translation>Fincept Terminal("서비스")에 접근하거나 이를 사용하면 본 서비스 이용약관에 구속되는 데 동의하는 것으로 간주합니다. 본 약관에 동의하지 않으면 서비스를 사용하지 마세요.</translation>
+            <translation>Fincept Terminal("서비스")에 접근하거나 이를 사용하면 본 서비스 이용약관에 동의한 것으로 간주합니다. 본 약관에 동의하지 않으면 서비스를 사용하지 마세요.</translation>
         </message>
         <message>
             <source>DESCRIPTION OF SERVICE</source>
@@ -32054,7 +32054,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>OK</source>
-            <translation>정상</translation>
+            <translation>확인</translation>
         </message>
         <message>
             <source>Edit Symbols...</source>
@@ -32149,7 +32149,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>USED BY</source>
-            <translation>사용 주체</translation>
+            <translation>사용처</translation>
         </message>
         <message>
             <source>No agents or teams use this tool yet.</source>
@@ -32232,7 +32232,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>% of GDP</source>
-            <translation>GDP 대비 %</translation>
+            <translation>%(GDP 대비)</translation>
         </message>
         <message>
             <source>TRADE VOLUME</source>
@@ -32252,7 +32252,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>% of consumption</source>
-            <translation>소비 대비 %</translation>
+            <translation>%(소비 대비)</translation>
         </message>
         <message>
             <source>TRADED GOODS SHARE</source>
@@ -32308,15 +32308,15 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>Developed Economy</source>
-            <translation>선진 경제</translation>
+            <translation>선진국</translation>
         </message>
         <message>
             <source>Developing Economy</source>
-            <translation>개발도상 경제</translation>
+            <translation>개발도상국</translation>
         </message>
         <message>
             <source>Middle Income</source>
-            <translation>중소득</translation>
+            <translation>중소득국</translation>
         </message>
         <message>
             <source>DEVELOPMENT LEVEL</source>
@@ -32368,7 +32368,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>B USD</source>
-            <translation>십억 USD</translation>
+            <translation>B USD</translation>
         </message>
         <message>
             <source>TRADE CREATION ESTIMATE</source>
@@ -32416,7 +32416,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>% reduction</source>
-            <translation>인하율 %</translation>
+            <translation>% 인하</translation>
         </message>
         <message>
             <source>TARIFF REDUCTION</source>
@@ -32479,7 +32479,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>Total Trade</source>
-            <translation>총무역</translation>
+            <translation>총교역액</translation>
         </message>
         <message>
             <source>Imports</source>
@@ -32519,7 +32519,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>Total Trade ($M)</source>
-            <translation>총무역 ($M)</translation>
+            <translation>총교역액 ($M)</translation>
         </message>
         <message>
             <source>Table</source>
@@ -32535,7 +32535,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>Notes</source>
-            <translation>노트</translation>
+            <translation>메모</translation>
         </message>
     </context>
     <context>
@@ -32642,7 +32642,7 @@ Create a real ticket and our team will respond within 24 hours.</source>
         </message>
         <message>
             <source>Crypto data from exchange APIs (Kraken, HyperLiquid, etc.)</source>
-            <translation>거래소 API의 암호화폐 데이터(Kraken, HyperLiquid 등)</translation>
+            <translation>거래소 API의 가상자산 데이터(Kraken, HyperLiquid 등)</translation>
         </message>
         <message>
             <source>REPORTING INFRINGEMENT</source>
@@ -32728,7 +32728,7 @@ TRADING_ECONOMICS_API_KEY 환경 변수를 설정하세요.
         </message>
         <message>
             <source>All Commodities</source>
-            <translation>모든 상품</translation>
+            <translation>전체 품목</translation>
         </message>
         <message>
             <source>Total (all)</source>
@@ -32755,7 +32755,7 @@ TRADING_ECONOMICS_API_KEY 환경 변수를 설정하세요.
         <name>fincept::screens::UnescoPanel</name>
         <message>
             <source>THEME</source>
-            <translation>테마</translation>
+            <translation>주제</translation>
         </message>
         <message>
             <source>Education</source>
@@ -32840,7 +32840,7 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Pick a provider for each direction independently. Free options work out of the box; Deepgram requires an API key but offers higher accuracy (STT) and natural-sounding voices (TTS).</source>
-            <translation>각 방향의 제공업체를 개별적으로 선택하세요. 무료 옵션은 바로 사용할 수 있습니다. Deepgram은 API 키가 필요하지만 더 높은 인식 정확도(STT)와 자연스러운 음성(TTS)을 제공합니다.</translation>
+            <translation>각 방향의 공급자를 개별적으로 선택하세요. 무료 옵션은 바로 사용할 수 있습니다. Deepgram은 API 키가 필요하지만 더 높은 인식 정확도(STT)와 자연스러운 음성(TTS)을 제공합니다.</translation>
         </message>
         <message>
             <source>Google (free, default)</source>
@@ -33134,7 +33134,7 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>NAME</source>
@@ -33142,15 +33142,15 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>PRICE</source>
-            <translation>가격</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>CHANGE</source>
-            <translation>변동</translation>
+            <translation>전일대비</translation>
         </message>
         <message>
             <source>CHG %</source>
-            <translation>등락률 %</translation>
+            <translation>등락률</translation>
         </message>
         <message>
             <source>HIGH</source>
@@ -33253,11 +33253,11 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Crypto Markets</source>
-            <translation>암호화폐 시장</translation>
+            <translation>가상자산 시장</translation>
         </message>
         <message>
             <source>Top cryptocurrencies — BTC, ETH, BNB, SOL</source>
-            <translation>주요 암호화폐 — BTC, ETH, BNB, SOL</translation>
+            <translation>주요 가상자산 — BTC, ETH, BNB, SOL</translation>
         </message>
         <message>
             <source>Commodities</source>
@@ -33281,7 +33281,7 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Biggest gainers and losers today</source>
-            <translation>오늘의 최대 상승 및 하락 종목</translation>
+            <translation>당일 상승률·하락률 상위 종목</translation>
         </message>
         <message>
             <source>Market Sentiment</source>
@@ -33313,7 +33313,7 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Stock Screener</source>
-            <translation>주식 스크리너</translation>
+            <translation>종목 스크리너</translation>
         </message>
         <message>
             <source>Filter stocks by fundamentals and technicals</source>
@@ -33321,7 +33321,7 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Economic Calendar</source>
-            <translation>경제 캘린더</translation>
+            <translation>경제 일정</translation>
         </message>
         <message>
             <source>Upcoming macro events and releases</source>
@@ -33337,7 +33337,7 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Your saved symbols with live prices</source>
-            <translation>저장한 종목의 실시간 가격</translation>
+            <translation>저장한 종목의 실시간 시세</translation>
         </message>
         <message>
             <source>Performance</source>
@@ -33357,11 +33357,11 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Risk Metrics</source>
-            <translation>위험 지표</translation>
+            <translation>리스크 지표</translation>
         </message>
         <message>
             <source>Volatility, beta, drawdown, Sharpe ratio</source>
-            <translation>변동성, 베타, 낙폭, Sharpe 비율</translation>
+            <translation>변동성, 베타, 낙폭, 샤프지수</translation>
         </message>
         <message>
             <source>Quick Trade</source>
@@ -33373,7 +33373,7 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Fast order entry for crypto and equities</source>
-            <translation>암호화폐 및 주식 주문 빠른 입력</translation>
+            <translation>가상자산 및 주식 빠른 주문 입력</translation>
         </message>
         <message>
             <source>Open Positions</source>
@@ -33381,7 +33381,7 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Live open positions for a broker account — pick via gear icon</source>
-            <translation>브로커 계좌의 실시간 미청산 포지션 — 톱니바퀴 아이콘으로 선택</translation>
+            <translation>증권사 계좌의 실시간 미청산 포지션 — 톱니바퀴 아이콘으로 선택</translation>
         </message>
         <message>
             <source>Working Orders</source>
@@ -33389,7 +33389,7 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Pending/working orders for a broker account — click × to cancel</source>
-            <translation>브로커 계좌의 대기/미체결 주문 — ×를 클릭하여 취소</translation>
+            <translation>증권사 계좌의 대기/미체결 주문 — ×를 클릭하여 취소</translation>
         </message>
         <message>
             <source>Margin Usage</source>
@@ -33397,23 +33397,23 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Broker account funds — available, used margin, total, usage %</source>
-            <translation>브로커 계좌 자금 — 가용, 사용 증거금, 총액, 사용률 %</translation>
+            <translation>증권사 계좌 자금 — 가용, 사용 증거금, 총액, 사용률 %</translation>
         </message>
         <message>
             <source>Today P&amp;L</source>
-            <translation>오늘 손익</translation>
+            <translation>당일 손익</translation>
         </message>
         <message>
             <source>Aggregate broker account P&amp;L — total, day, realized, open positions</source>
-            <translation>브로커 계좌 합산 손익 — 전체, 당일, 실현, 미청산 포지션</translation>
+            <translation>증권사 계좌 합산 손익 — 전체, 당일, 실현, 미청산 포지션</translation>
         </message>
         <message>
             <source>Holdings</source>
-            <translation>보유 내역</translation>
+            <translation>보유종목</translation>
         </message>
         <message>
             <source>Long-term broker holdings — avg cost, LTP, P&amp;L %</source>
-            <translation>브로커 장기 보유 내역 — 평균 원가, 최근 체결가, 손익 %</translation>
+            <translation>증권사 장기 보유종목 — 평균단가, 현재가, 수익률</translation>
         </message>
         <message>
             <source>Live TV / Streams</source>
@@ -33445,7 +33445,7 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Crypto Ticker</source>
-            <translation>암호화폐 티커</translation>
+            <translation>가상자산 티커</translation>
         </message>
         <message>
             <source>Live Kraken / HyperLiquid ticker strip — configurable pair list</source>
@@ -33457,7 +33457,7 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Live prediction-market prices — configurable asset list</source>
-            <translation>실시간 예측시장 가격 — 자산 목록 설정 가능</translation>
+            <translation>실시간 예측 시장 가격 — 자산 목록 설정 가능</translation>
         </message>
         <message>
             <source>Agent Errors</source>
@@ -33477,11 +33477,11 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Trade Tape</source>
-            <translation>체결 내역</translation>
+            <translation>체결내역</translation>
         </message>
         <message>
             <source>Live trade prints for a crypto pair — ws:&lt;exchange&gt;:trades:&lt;pair&gt;</source>
-            <translation>암호화폐 거래쌍의 실시간 체결 내역 — ws:&lt;exchange&gt;:trades:&lt;pair&gt;</translation>
+            <translation>가상자산 거래쌍의 실시간 체결내역 — ws:&lt;exchange&gt;:trades:&lt;pair&gt;</translation>
         </message>
         <message>
             <source>News — Category</source>
@@ -33521,7 +33521,7 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>Notes</source>
-            <translation>노트</translation>
+            <translation>메모</translation>
         </message>
         <message>
             <source>Recent / favorite financial notes — click to open Notes screen</source>
@@ -33552,11 +33552,11 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>QUERY</source>
-            <translation>쿼리</translation>
+            <translation>질의</translation>
         </message>
         <message>
             <source>OUTPUT</source>
@@ -33616,7 +33616,7 @@ Try a different country code or check the indicator is available</source>
         </message>
         <message>
             <source>No provider — Settings &gt; LLM Config</source>
-            <translation>제공업체 없음 — 설정 &gt; LLM 설정</translation>
+            <translation>공급자 없음 — 설정 &gt; LLM 설정</translation>
         </message>
         <message>
             <source>%1  —  PARAMETERS</source>
@@ -33856,7 +33856,7 @@ WTO_API_KEY가 올바르게 설정되었는지도 확인하세요</translation>
         </message>
         <message>
             <source>Action for agent %1?</source>
-            <translation>에이전트 %1에 대한 작업을 선택하시겠습니까?</translation>
+            <translation>에이전트 %1에 어떤 작업을 하시겠습니까?</translation>
         </message>
         <message>
             <source>Select at least one instrument.</source>
@@ -33874,15 +33874,15 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>Create a competition first, then engage live mode.</source>
-            <translation>먼저 대회를 만든 다음 실거래 모드를 활성화하세요.</translation>
+            <translation>먼저 대회를 만든 다음 실전투자 모드를 활성화하세요.</translation>
         </message>
         <message>
             <source>Live mode is not available in this build — the Hyperliquid signer (secp256k1 + keccak256) failed to initialise. Check the build log.</source>
-            <translation>이 빌드에서는 실거래 모드를 사용할 수 없습니다. Hyperliquid 서명기(secp256k1 + keccak256)를 초기화하지 못했습니다. 빌드 로그를 확인하세요.</translation>
+            <translation>이 빌드에서는 실전투자 모드를 사용할 수 없습니다. Hyperliquid 서명기(secp256k1 + keccak256)를 초기화하지 못했습니다. 빌드 로그를 확인하세요.</translation>
         </message>
         <message>
             <source>Live mode is unavailable in your jurisdiction.</source>
-            <translation>거주 또는 소재 관할지역에서는 실거래 모드를 사용할 수 없습니다.</translation>
+            <translation>현재 관할지역에서는 실전투자 모드를 사용할 수 없습니다.</translation>
         </message>
         <message>
             <source>Alpha Arena — Crash Recovery</source>
@@ -33890,11 +33890,11 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>The previous session left %1 competition(s) running. Open the competition picker to Resume / Halt / Reconcile.</source>
-            <translation>이전 세션에서 대회 %1개가 실행 상태로 남았습니다. 대회 선택기를 열어 재개 / 중지 / 정합성 확인을 수행하세요.</translation>
+            <translation>이전 세션에서 대회 %1개가 실행 상태로 남았습니다. 대회 선택 창을 열어 재개 / 중지 / 정합성 확인을 하세요.</translation>
         </message>
         <message>
             <source>⚠ LIVE MODE — orders are sent to Hyperliquid with real funds. Past performance ≠ future results. Not financial advice.</source>
-            <translation>⚠ 실거래 모드 — 실제 자금으로 Hyperliquid에 주문을 전송합니다. 과거 성과 ≠ 미래 결과. 투자 조언이 아닙니다.</translation>
+            <translation>⚠ 실전투자 모드 — 실제 자금으로 Hyperliquid에 주문을 전송합니다. 과거 성과 ≠ 미래 결과. 투자 조언이 아닙니다.</translation>
         </message>
         <message>
             <source>ALPHA ARENA</source>
@@ -33902,7 +33902,7 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>PAPER</source>
-            <translation>모의 거래</translation>
+            <translation>모의투자</translation>
         </message>
         <message>
             <source>IDLE</source>
@@ -33918,7 +33918,7 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>LIVE MODE…</source>
-            <translation>실거래 모드…</translation>
+            <translation>실전투자 모드…</translation>
         </message>
         <message>
             <source>KILL ALL</source>
@@ -33958,15 +33958,15 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>Venue</source>
-            <translation>거래 장소</translation>
+            <translation>거래소</translation>
         </message>
         <message>
             <source>Paper</source>
-            <translation>모의 거래</translation>
+            <translation>모의투자</translation>
         </message>
         <message>
             <source>Hyperliquid (live)</source>
-            <translation>Hyperliquid(실거래)</translation>
+            <translation>Hyperliquid(실전투자)</translation>
         </message>
         <message>
             <source>US Equities (Season 2 — Coming)</source>
@@ -33982,7 +33982,7 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>Instruments</source>
-            <translation>금융상품</translation>
+            <translation>종목</translation>
         </message>
         <message>
             <source>Models</source>
@@ -34010,7 +34010,7 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>RISK</source>
-            <translation>위험</translation>
+            <translation>리스크</translation>
         </message>
         <message>
             <source>AUDIT</source>
@@ -34018,7 +34018,7 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>HYPERLIQUID • LIVE</source>
-            <translation>HYPERLIQUID • 실거래</translation>
+            <translation>HYPERLIQUID • 실전투자</translation>
         </message>
     </context>
     <context>
@@ -34067,11 +34067,11 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>SHARPE</source>
-            <translation>샤프</translation>
+            <translation>샤프지수</translation>
         </message>
         <message>
             <source>MAX DD</source>
-            <translation>최대 낙폭</translation>
+            <translation>최대낙폭</translation>
         </message>
         <message>
             <source>FEES</source>
@@ -34086,11 +34086,11 @@ This cannot be undone.</source>
         <name>fincept::screens::alpha_arena::LiveModeGateDialog</name>
         <message>
             <source>Alpha Arena — Live Mode</source>
-            <translation>Alpha Arena — 실거래 모드</translation>
+            <translation>Alpha Arena — 실전투자 모드</translation>
         </message>
         <message>
             <source>&lt;b&gt;You are about to enable live trading.&lt;/b&gt;&lt;br&gt;Orders below will be sent to Hyperliquid using a real agent wallet and may incur real losses. There is &lt;b&gt;no undo&lt;/b&gt;.&lt;br&gt;&lt;br&gt;Read every line of the next four prompts carefully.</source>
-            <translation>&lt;b&gt;실거래를 활성화하려고 합니다.&lt;/b&gt;&lt;br&gt;아래 주문은 실제 에이전트 지갑을 사용하여 Hyperliquid로 전송되며 실제 손실이 발생할 수 있습니다. &lt;b&gt;되돌릴 수 없습니다&lt;/b&gt;.&lt;br&gt;&lt;br&gt;다음 네 안내문의 모든 내용을 주의 깊게 읽으세요.</translation>
+            <translation>&lt;b&gt;실전투자를 활성화하려고 합니다.&lt;/b&gt;&lt;br&gt;아래 주문은 실제 에이전트 지갑을 사용하여 Hyperliquid로 전송되며 실제 손실이 발생할 수 있습니다. &lt;b&gt;되돌릴 수 없습니다&lt;/b&gt;.&lt;br&gt;&lt;br&gt;다음 네 안내문의 모든 내용을 주의 깊게 읽으세요.</translation>
         </message>
         <message>
             <source>Type the phrase &lt;b&gt;exactly&lt;/b&gt;: %1</source>
@@ -34114,7 +34114,7 @@ This cannot be undone.</source>
         </message>
         <message>
             <source>ENABLE LIVE MODE</source>
-            <translation>실거래 모드 활성화</translation>
+            <translation>실전투자 모드 활성화</translation>
         </message>
         <message>
             <source>phrase</source>
@@ -34166,7 +34166,7 @@ Parse error: %3</source>
             <translation>파싱된 작업:
 %1
 
-위험 판정:
+리스크 판정:
 %2
 
 파싱 오류: %3</translation>
@@ -34200,11 +34200,11 @@ Parse error: %3</source>
         </message>
         <message>
             <source>MARK</source>
-            <translation>기준가</translation>
+            <translation>마크 가격</translation>
         </message>
         <message>
             <source>uPnL</source>
-            <translation>미실현 손익</translation>
+            <translation>평가손익</translation>
         </message>
         <message>
             <source>LEV</source>
@@ -34219,7 +34219,7 @@ Parse error: %3</source>
         <name>fincept::screens::alpha_arena::RiskPanel</name>
         <message>
             <source>RISK &amp; TELEMETRY</source>
-            <translation>위험 및 원격 측정</translation>
+            <translation>리스크 및 원격 측정</translation>
         </message>
         <message>
             <source>Awaiting first tick…</source>
@@ -34239,11 +34239,11 @@ Parse error: %3</source>
         </message>
         <message>
             <source>RISK REJECTS</source>
-            <translation>위험 기준 거부</translation>
+            <translation>리스크 거부</translation>
         </message>
         <message>
             <source>MAX DD</source>
-            <translation>최대 낙폭</translation>
+            <translation>최대낙폭</translation>
         </message>
         <message>
             <source>AVG LEV</source>
@@ -34254,11 +34254,11 @@ Parse error: %3</source>
         <name>fincept::screens::crypto::CryptoBottomPanel</name>
         <message>
             <source>T&amp;S</source>
-            <translation>T&amp;S</translation>
+            <translation>체결</translation>
         </message>
         <message>
             <source>DEPTH</source>
-            <translation>깊이</translation>
+            <translation>호가 깊이</translation>
         </message>
         <message>
             <source>POSITIONS</source>
@@ -34274,7 +34274,7 @@ Parse error: %3</source>
         </message>
         <message>
             <source>MY TRADES</source>
-            <translation>내 거래</translation>
+            <translation>내 체결</translation>
         </message>
         <message>
             <source>FEES</source>
@@ -34290,11 +34290,11 @@ Parse error: %3</source>
         </message>
         <message>
             <source>Symbol</source>
-            <translation>종목 코드</translation>
+            <translation>심볼</translation>
         </message>
         <message>
             <source>Side</source>
-            <translation>매매 구분</translation>
+            <translation>매매구분</translation>
         </message>
         <message>
             <source>Qty</source>
@@ -34306,7 +34306,7 @@ Parse error: %3</source>
         </message>
         <message>
             <source>Mark</source>
-            <translation>기준가</translation>
+            <translation>마크 가격</translation>
         </message>
         <message>
             <source>P&amp;L</source>
@@ -34338,11 +34338,11 @@ Parse error: %3</source>
         </message>
         <message>
             <source>Amount</source>
-            <translation>금액</translation>
+            <translation>수량</translation>
         </message>
         <message>
             <source>Cost</source>
-            <translation>비용</translation>
+            <translation>체결금액</translation>
         </message>
         <message>
             <source>Ccy</source>
@@ -34362,7 +34362,7 @@ Parse error: %3</source>
         </message>
         <message>
             <source>No active orders.</source>
-            <translation>활성 주문이 없습니다.</translation>
+            <translation>미체결 주문이 없습니다.</translation>
         </message>
         <message>
             <source>No trade history yet.</source>
@@ -34371,8 +34371,8 @@ Parse error: %3</source>
         <message>
             <source>No exchange-side fills.
 Connect an API key in LIVE mode to populate.</source>
-            <translation>거래소 체결 내역이 없습니다.
-불러오려면 실거래 모드에서 API 키를 연결하세요.</translation>
+            <translation>거래소 체결내역이 없습니다.
+불러오려면 실전투자 모드에서 API 키를 연결하세요.</translation>
         </message>
         <message>
             <source>No fee schedule loaded.</source>
@@ -34388,15 +34388,15 @@ Connect an API key in LIVE mode to populate.</source>
         </message>
         <message>
             <source>FUNDING RATE</source>
-            <translation>펀딩 비율</translation>
+            <translation>펀딩비</translation>
         </message>
         <message>
             <source>MARK PRICE</source>
-            <translation>기준 가격</translation>
+            <translation>마크 가격</translation>
         </message>
         <message>
             <source>INDEX PRICE</source>
-            <translation>지수 가격</translation>
+            <translation>인덱스 가격</translation>
         </message>
         <message>
             <source>OPEN INTEREST</source>
@@ -34420,7 +34420,7 @@ Connect an API key in LIVE mode to populate.</source>
         </message>
         <message>
             <source>TOTAL TRADES</source>
-            <translation>총 거래 수</translation>
+            <translation>총 거래 횟수</translation>
         </message>
         <message>
             <source>BEST TRADE</source>
@@ -34450,7 +34450,7 @@ Are you sure?</source>
             <source>This will cancel ALL pending orders.
 
 Are you sure?</source>
-            <translation>모든 대기 주문을 취소합니다.
+            <translation>모든 미체결 주문을 취소합니다.
 
 계속하시겠습니까?</translation>
         </message>
@@ -34479,7 +34479,7 @@ Are you sure?</source>
         <message>
             <source>Enter your exchange API credentials for live trading.
 Keys are stored locally in encrypted secure storage.</source>
-            <translation>실거래를 위한 거래소 API 인증 정보를 입력하세요.
+            <translation>실전투자에 사용할 거래소 API 인증 정보를 입력하세요.
 키는 로컬의 암호화된 보안 저장소에 저장됩니다.</translation>
         </message>
         <message>
@@ -34500,7 +34500,7 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>PASSPHRASE (OKX/KUCOIN/BITGET/COINBASE)</source>
-            <translation>암호문(OKX/KUCOIN/BITGET/COINBASE)</translation>
+            <translation>패스프레이즈(OKX/KUCOIN/BITGET/COINBASE)</translation>
         </message>
         <message>
             <source>Optional</source>
@@ -34622,11 +34622,11 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>RISE%</source>
-            <translation>상승률%</translation>
+            <translation>상승률</translation>
         </message>
         <message>
             <source>ACTION</source>
-            <translation>작업</translation>
+            <translation>판단</translation>
         </message>
         <message>
             <source>IMBALANCE</source>
@@ -34638,7 +34638,7 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>HOLD</source>
-            <translation>보유</translation>
+            <translation>관망</translation>
         </message>
         <message>
             <source>STRONG BUY</source>
@@ -34662,11 +34662,11 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>BUY PRESSURE</source>
-            <translation>매수 압력</translation>
+            <translation>매수세</translation>
         </message>
         <message>
             <source>SELL PRESSURE</source>
-            <translation>매도 압력</translation>
+            <translation>매도세</translation>
         </message>
     </context>
     <context>
@@ -34677,19 +34677,19 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>PAPER</source>
-            <translation>모의 거래</translation>
+            <translation>모의투자</translation>
         </message>
         <message>
             <source>BALANCE</source>
-            <translation>잔액</translation>
+            <translation>잔고</translation>
         </message>
         <message>
             <source>MARK</source>
-            <translation>기준가</translation>
+            <translation>마크 가격</translation>
         </message>
         <message>
             <source>AVAIL</source>
-            <translation>가용</translation>
+            <translation>주문가능</translation>
         </message>
         <message>
             <source>BUY</source>
@@ -34745,7 +34745,7 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>% OF BALANCE</source>
-            <translation>잔액 대비 %</translation>
+            <translation>잔고 대비 %</translation>
         </message>
         <message>
             <source>▾  Advanced  (SL / TP)</source>
@@ -34785,7 +34785,7 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>Reduce only</source>
-            <translation>포지션 축소만</translation>
+            <translation>포지션 축소 전용</translation>
         </message>
         <message>
             <source>BUY  %1</source>
@@ -34797,7 +34797,7 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>Enter a quantity to preview</source>
-            <translation>미리보려면 수량을 입력하세요</translation>
+            <translation>미리 보려면 수량을 입력하세요</translation>
         </message>
         <message>
             <source>SELL  %1</source>
@@ -34805,7 +34805,7 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>LIVE</source>
-            <translation>실거래</translation>
+            <translation>실전투자</translation>
         </message>
         <message>
             <source>⚠ Enter a valid quantity</source>
@@ -34821,7 +34821,7 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>⚠ Insufficient balance for this order</source>
-            <translation>⚠ 이 주문에 필요한 잔액이 부족합니다</translation>
+            <translation>⚠ 이 주문에 필요한 잔고가 부족합니다</translation>
         </message>
     </context>
     <context>
@@ -34843,11 +34843,11 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>Symbol</source>
-            <translation>종목 코드</translation>
+            <translation>심볼</translation>
         </message>
         <message>
             <source>Price</source>
-            <translation>가격</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>%</source>
@@ -34910,7 +34910,7 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>TOP PROVIDERS</source>
-            <translation>주요 제공업체</translation>
+            <translation>주요 공급자</translation>
         </message>
         <message>
             <source>CONNECTORS</source>
@@ -34934,7 +34934,7 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>INSPECTOR</source>
-            <translation>검사기</translation>
+            <translation>상세 정보</translation>
         </message>
         <message>
             <source>TESTABLE</source>
@@ -34974,7 +34974,7 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>TEST</source>
-            <translation>검정</translation>
+            <translation>테스트</translation>
         </message>
         <message>
             <source>+ ADD</source>
@@ -35014,7 +35014,7 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>UPDATED</source>
-            <translation>업데이트됨</translation>
+            <translation>업데이트 시각</translation>
         </message>
         <message>
             <source>Select a connector</source>
@@ -35118,7 +35118,7 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>N</source>
-            <translation>N</translation>
+            <translation>아니요</translation>
         </message>
         <message>
             <source>OFF</source>
@@ -35153,7 +35153,7 @@ Keys are stored locally in encrypted secure storage.</source>
         <name>fincept::screens::devtools::DataHubInspector</name>
         <message>
             <source>Topic</source>
-            <translation>주제</translation>
+            <translation>토픽</translation>
         </message>
         <message>
             <source>Subs</source>
@@ -35185,18 +35185,18 @@ Keys are stored locally in encrypted secure storage.</source>
         </message>
         <message>
             <source>idle</source>
-            <translation>유휴</translation>
+            <translation>대기</translation>
         </message>
     </context>
     <context>
         <name>fincept::screens::equity::AccountManagementDialog</name>
         <message>
             <source>Manage Broker Accounts</source>
-            <translation>브로커 계좌 관리</translation>
+            <translation>증권사 계좌 관리</translation>
         </message>
         <message>
             <source>ACCOUNTS</source>
-            <translation>계정</translation>
+            <translation>계좌</translation>
         </message>
         <message>
             <source>Account name...</source>
@@ -35566,15 +35566,15 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>ACCOUNT TYPE</source>
-            <translation>계정 유형</translation>
+            <translation>계좌 유형</translation>
         </message>
         <message>
             <source>Demo</source>
-            <translation>데모</translation>
+            <translation>모의투자</translation>
         </message>
         <message>
             <source>Live</source>
-            <translation>실거래</translation>
+            <translation>실전투자</translation>
         </message>
         <message>
             <source>All fields are required.</source>
@@ -35625,7 +35625,7 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>[LIVE]</source>
-            <translation>[실거래]</translation>
+            <translation>[실전]</translation>
         </message>
         <message>
             <source>[PAPER]</source>
@@ -35653,15 +35653,15 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>All %1 orders placed successfully</source>
-            <translation>주문 %1개 모두 성공</translation>
+            <translation>주문 %1건을 모두 제출했습니다</translation>
         </message>
         <message>
             <source>All %1 orders failed</source>
-            <translation>주문 %1개 모두 실패</translation>
+            <translation>주문 %1건 모두 실패</translation>
         </message>
         <message>
             <source>%1 succeeded, %2 failed</source>
-            <translation>%1개 성공, %2개 실패</translation>
+            <translation>%1건 성공, %2건 실패</translation>
         </message>
         <message>
             <source>DONE</source>
@@ -35669,11 +35669,11 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>%1 order(s) queued for approval</source>
-            <translation>주문 %1개 승인 대기열에 추가됨</translation>
+            <translation>주문 %1건이 승인 대기열에 추가됨</translation>
         </message>
         <message>
             <source>Placing %1 order(s); %2 queued for approval...</source>
-            <translation>주문 %1개 제출 중, %2개 승인 대기 중...</translation>
+            <translation>주문 %1건 제출 중, %2건 승인 대기 중...</translation>
         </message>
     </context>
     <context>
@@ -35684,7 +35684,7 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>HOLDINGS</source>
-            <translation>보유 자산</translation>
+            <translation>보유종목</translation>
         </message>
         <message>
             <source>ORDERS</source>
@@ -35700,11 +35700,11 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>TIME &amp; SALES</source>
-            <translation>시간별 체결 내역</translation>
+            <translation>시간대별 체결</translation>
         </message>
         <message>
             <source>AUCTIONS</source>
-            <translation>입찰</translation>
+            <translation>동시호가</translation>
         </message>
         <message>
             <source>CALENDAR</source>
@@ -35712,15 +35712,15 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>Symbol</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>Opened</source>
-            <translation>개시됨</translation>
+            <translation>진입 시각</translation>
         </message>
         <message>
             <source>Side</source>
-            <translation>매매 구분</translation>
+            <translation>매매구분</translation>
         </message>
         <message>
             <source>Qty</source>
@@ -35728,11 +35728,11 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>Avg Price</source>
-            <translation>평균 가격</translation>
+            <translation>평균단가</translation>
         </message>
         <message>
             <source>LTP</source>
-            <translation>최종 체결가</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>P&amp;L</source>
@@ -35740,15 +35740,15 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>P&amp;L %</source>
-            <translation>손익률 %</translation>
+            <translation>수익률</translation>
         </message>
         <message>
             <source>Invested</source>
-            <translation>투자금</translation>
+            <translation>매입금액</translation>
         </message>
         <message>
             <source>Current</source>
-            <translation>현재</translation>
+            <translation>평가금액</translation>
         </message>
         <message>
             <source>Order ID</source>
@@ -35792,23 +35792,23 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>Tape</source>
-            <translation>체결 내역</translation>
+            <translation>테이프</translation>
         </message>
         <message>
             <source>Open (ET)</source>
-            <translation>개장(ET)</translation>
+            <translation>장 시작(ET)</translation>
         </message>
         <message>
             <source>Close (ET)</source>
-            <translation>폐장(ET)</translation>
+            <translation>장 마감(ET)</translation>
         </message>
         <message>
             <source>Pre-Market</source>
-            <translation>장전 거래</translation>
+            <translation>프리마켓</translation>
         </message>
         <message>
             <source>After-Hours</source>
-            <translation>장후 거래</translation>
+            <translation>애프터마켓</translation>
         </message>
         <message>
             <source>SQUARE OFF ALL</source>
@@ -35824,11 +35824,11 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>INVESTED</source>
-            <translation>투자금</translation>
+            <translation>매입금액</translation>
         </message>
         <message>
             <source>CURRENT</source>
-            <translation>현재</translation>
+            <translation>평가금액</translation>
         </message>
         <message>
             <source>TOTAL P&amp;L</source>
@@ -35836,11 +35836,11 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>RETURN %</source>
-            <translation>수익률 %</translation>
+            <translation>수익률</translation>
         </message>
         <message>
             <source>Available Balance</source>
-            <translation>가용 잔액</translation>
+            <translation>주문가능금액</translation>
         </message>
         <message>
             <source>Used Margin</source>
@@ -35848,7 +35848,7 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>Total Balance</source>
-            <translation>총 잔액</translation>
+            <translation>총 잔고</translation>
         </message>
         <message>
             <source>Collateral</source>
@@ -35864,7 +35864,7 @@ This action cannot be undone.</source>
         </message>
         <message>
             <source>Total Trades</source>
-            <translation>총 거래 수</translation>
+            <translation>총 거래 횟수</translation>
         </message>
         <message>
             <source>Largest Win</source>
@@ -35894,7 +35894,7 @@ Are you sure?</source>
             <source>This will cancel ALL pending orders.
 
 Are you sure?</source>
-            <translation>모든 대기 주문을 취소합니다.
+            <translation>모든 미체결 주문을 취소합니다.
 
 계속하시겠습니까?</translation>
         </message>
@@ -35904,7 +35904,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>EDIT</source>
-            <translation>편집</translation>
+            <translation>정정</translation>
         </message>
         <message>
             <source>Modify Order</source>
@@ -35928,11 +35928,11 @@ Are you sure?</source>
         </message>
         <message>
             <source>OPEN</source>
-            <translation>개장</translation>
+            <translation>시가</translation>
         </message>
         <message>
             <source>CLOSE</source>
-            <translation>마감</translation>
+            <translation>종가</translation>
         </message>
         <message>
             <source>● MARKET --</source>
@@ -35940,19 +35940,19 @@ Are you sure?</source>
         </message>
         <message>
             <source>● MARKET OPEN</source>
-            <translation>● 개장 중</translation>
+            <translation>● 장중</translation>
         </message>
         <message>
             <source>● MARKET CLOSED</source>
-            <translation>● 폐장</translation>
+            <translation>● 장 마감</translation>
         </message>
         <message>
             <source>Closes %1</source>
-            <translation>%1 폐장</translation>
+            <translation>%1 장 마감</translation>
         </message>
         <message>
             <source>Opens %1</source>
-            <translation>%1 개장</translation>
+            <translation>%1 장 시작</translation>
         </message>
     </context>
     <context>
@@ -35966,7 +35966,7 @@ Are you sure?</source>
         <name>fincept::screens::equity::EquityOrderBook</name>
         <message>
             <source>MARKET DEPTH</source>
-            <translation>시장 호가 깊이</translation>
+            <translation>호가잔량</translation>
         </message>
         <message>
             <source>Spread: --</source>
@@ -35978,7 +35978,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>No depth data</source>
-            <translation>호가 깊이 데이터 없음</translation>
+            <translation>호가잔량 데이터 없음</translation>
         </message>
         <message>
             <source>PRICE</source>
@@ -35990,7 +35990,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>ORDERS</source>
-            <translation>주문</translation>
+            <translation>건수</translation>
         </message>
     </context>
     <context>
@@ -36001,7 +36001,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>PAPER</source>
-            <translation>모의 거래</translation>
+            <translation>모의투자</translation>
         </message>
         <message>
             <source>BUY</source>
@@ -36141,7 +36141,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>LOT SIZE</source>
-            <translation>계약 단위</translation>
+            <translation>계약단위</translation>
         </message>
         <message>
             <source>WIDTH (strangle / condor / spreads)</source>
@@ -36201,7 +36201,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>LIVE</source>
-            <translation>실거래</translation>
+            <translation>실전투자</translation>
         </message>
         <message>
             <source>Est: %1%2</source>
@@ -36236,15 +36236,15 @@ Are you sure?</source>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>LTP</source>
-            <translation>최종 체결가</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>CHG%</source>
-            <translation>등락률%</translation>
+            <translation>등락률</translation>
         </message>
     </context>
     <context>
@@ -36306,7 +36306,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>Days from today for the dashed target-day P/L curve. 0 = T+0.</source>
-            <translation>점선으로 표시되는 목표일 손익곡선의 오늘부터 경과 일수입니다. 0 = T+0.</translation>
+            <translation>점선 목표일 손익 곡선을 오늘로부터 며칠 뒤로 그릴지 지정합니다. 0 = T+0.</translation>
         </message>
         <message>
             <source>PCR</source>
@@ -36350,12 +36350,12 @@ Are you sure?</source>
         </message>
         <message>
             <source>Placed %1 paper orders for %2 (%3).</source>
-            <translation>%2 (%3)에 모의 주문 %1개 제출됨.</translation>
+            <translation>%2(%3) 모의 주문 %1건을 제출했습니다.</translation>
         </message>
         <message>
             <source>Placed %1 of %2 paper orders. %3 failed:
 %4</source>
-            <translation>모의 주문 %2개 중 %1개 제출됨. %3개 실패:
+            <translation>모의 주문 %2건 중 %1건 제출됨. %3건 실패:
 %4</translation>
         </message>
         <message>
@@ -36411,7 +36411,7 @@ Are you sure?</source>
         <name>fincept::screens::fno::ChainSubTab</name>
         <message>
             <source>Connect a broker to load F&amp;O data.</source>
-            <translation>선물·옵션 데이터를 불러오려면 브로커를 연결하세요.</translation>
+            <translation>선물·옵션 데이터를 불러오려면 증권사를 연결하세요.</translation>
         </message>
         <message>
             <source>Failed to load %1 instruments: %2</source>
@@ -36419,11 +36419,11 @@ Are you sure?</source>
         </message>
         <message>
             <source>No broker accounts or data sources configured.</source>
-            <translation>설정된 브로커 계좌 또는 데이터 소스가 없습니다.</translation>
+            <translation>설정된 증권사 계좌 또는 데이터 소스가 없습니다.</translation>
         </message>
         <message>
             <source>Select a broker.</source>
-            <translation>브로커를 선택하세요.</translation>
+            <translation>증권사를 선택하세요.</translation>
         </message>
         <message>
             <source>Databento selected — enter your API key in Settings &gt; Credentials to load US options data.</source>
@@ -36443,7 +36443,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>Downloading %1 instruments from broker...</source>
-            <translation>브로커에서 %1 종목 다운로드 중...</translation>
+            <translation>증권사에서 %1 종목 다운로드 중...</translation>
         </message>
         <message>
             <source>No NFO instruments cached for %1.</source>
@@ -36463,7 +36463,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>Pick a broker, underlying, and expiry.</source>
-            <translation>브로커, 기초자산, 만기를 선택하세요.</translation>
+            <translation>증권사, 기초자산, 만기를 선택하세요.</translation>
         </message>
         <message>
             <source>Chain unavailable: %1</source>
@@ -36474,14 +36474,14 @@ Are you sure?</source>
         <name>fincept::screens::fno::FiiDiiChart</name>
         <message>
             <source>Daily Net Flows (₹ Cr)</source>
-            <translation>일간 순유입 (₹ Cr)</translation>
+            <translation>일별 순매수 (₹ Cr)</translation>
         </message>
     </context>
     <context>
         <name>fincept::screens::fno::FiiDiiSubTab</name>
         <message>
             <source>FII / DII flows — fetching…</source>
-            <translation>FII / DII 자금 흐름 — 가져오는 중…</translation>
+            <translation>FII / DII 수급 — 가져오는 중…</translation>
         </message>
         <message>
             <source>REFRESH</source>
@@ -36517,19 +36517,19 @@ Are you sure?</source>
         </message>
         <message>
             <source>FII / DII flows — error: %1</source>
-            <translation>FII / DII 자금 흐름 — 오류: %1</translation>
+            <translation>FII / DII 수급 — 오류: %1</translation>
         </message>
         <message>
             <source>FII / DII flows — refreshing…</source>
-            <translation>FII / DII 자금 흐름 — 갱신 중…</translation>
+            <translation>FII / DII 수급 — 갱신 중…</translation>
         </message>
         <message>
             <source>FII / DII flows — no data yet. Try refreshing after 6 PM IST.</source>
-            <translation>FII / DII 자금 흐름 — 아직 데이터가 없습니다. IST 오후 6시 이후 새로고침하세요.</translation>
+            <translation>FII / DII 수급 — 아직 데이터가 없습니다. IST 오후 6시 이후 새로고침하세요.</translation>
         </message>
         <message>
             <source>FII / DII flows — last update: %1   ·   %2 days cached</source>
-            <translation>FII / DII 자금 흐름 — 최근 업데이트: %1   ·   %2일 캐시됨</translation>
+            <translation>FII / DII 수급 — 최근 업데이트: %1   ·   %2일 캐시됨</translation>
         </message>
     </context>
     <context>
@@ -36540,7 +36540,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>Broker:</source>
-            <translation>브로커:</translation>
+            <translation>증권사:</translation>
         </message>
         <message>
             <source>Underlying:</source>
@@ -36556,7 +36556,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>Day Change</source>
-            <translation>당일 등락</translation>
+            <translation>전일대비</translation>
         </message>
         <message>
             <source>ATM</source>
@@ -36639,7 +36639,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>Institutional flows (Phase 8)</source>
-            <translation>기관 자금 흐름(8단계)</translation>
+            <translation>기관 수급(8단계)</translation>
         </message>
         <message>
             <source>Chain screener (Phase 9)</source>
@@ -36677,7 +36677,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>On</source>
-            <translation>켜짐</translation>
+            <translation>사용</translation>
         </message>
         <message>
             <source>B/S</source>
@@ -36705,7 +36705,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>LTP</source>
-            <translation>최종 체결가</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>Delta</source>
@@ -36788,19 +36788,19 @@ Are you sure?</source>
         <name>fincept::screens::fno::OIBuildupModel</name>
         <message>
             <source>Long Build-up</source>
-            <translation>매수 포지션 증가</translation>
+            <translation>롱 포지션 증가</translation>
         </message>
         <message>
             <source>Short Build-up</source>
-            <translation>매도 포지션 증가</translation>
+            <translation>숏 포지션 증가</translation>
         </message>
         <message>
             <source>Short Covering</source>
-            <translation>매도 포지션 청산</translation>
+            <translation>숏 커버링</translation>
         </message>
         <message>
             <source>Long Unwinding</source>
-            <translation>매수 포지션 청산</translation>
+            <translation>롱 청산</translation>
         </message>
         <message>
             <source>Strike</source>
@@ -36846,7 +36846,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>Chg OI</source>
-            <translation>미결제약정 변화</translation>
+            <translation>미결제약정 증감</translation>
         </message>
         <message>
             <source>Volume</source>
@@ -36858,7 +36858,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>LTP</source>
-            <translation>최종 체결가</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>Strike</source>
@@ -36873,7 +36873,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>%1  —  paper trade preview</source>
-            <translation>%1  —  모의 거래 미리보기</translation>
+            <translation>%1  —  모의 주문 미리보기</translation>
         </message>
         <message>
             <source>%1   ·   Expiry %2   ·   Spot %3</source>
@@ -36881,7 +36881,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>Symbol</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>B/S</source>
@@ -36933,7 +36933,7 @@ Are you sure?</source>
         </message>
         <message>
             <source>Broker %1 not registered</source>
-            <translation>브로커 %1이(가) 등록되지 않았습니다</translation>
+            <translation>증권사 %1이(가) 등록되지 않았습니다</translation>
         </message>
         <message>
             <source>no active legs</source>
@@ -37056,7 +37056,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>Withdraw</source>
-            <translation>인출</translation>
+            <translation>출금</translation>
         </message>
         <message>
             <source>Available after %1</source>
@@ -37072,7 +37072,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>Withdraw flow lands with the Anchor program.</source>
-            <translation>인출 기능은 Anchor 프로그램과 함께 제공될 예정입니다.</translation>
+            <translation>출금 기능은 Anchor 프로그램과 함께 제공될 예정입니다.</translation>
         </message>
         <message>
             <source>ACTIVE LOCKS</source>
@@ -37092,7 +37092,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>DURATION</source>
-            <translation>잠금 기간</translation>
+            <translation>락업 기간</translation>
         </message>
         <message>
             <source>UNLOCKS</source>
@@ -37100,7 +37100,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>WEIGHT</source>
-            <translation>비중</translation>
+            <translation>가중치</translation>
         </message>
         <message>
             <source>YIELD (LIFETIME)</source>
@@ -37123,15 +37123,15 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>subs %1 · pred-mkt %2 · misc %3</source>
-            <translation>구독 %1 · 예측시장 %2 · 기타 %3</translation>
+            <translation>구독 %1 · 예측 시장 %2 · 기타 %3</translation>
         </message>
         <message>
             <source>Treasury feed error: %1</source>
-            <translation>재무 피드 오류: %1</translation>
+            <translation>트레저리 피드 오류: %1</translation>
         </message>
         <message>
             <source>Demo signature — connect a treasury endpoint for a real burn tx.</source>
-            <translation>데모 서명 — 실제 소각 트랜잭션을 보려면 재무 엔드포인트를 연결하세요.</translation>
+            <translation>데모 서명 — 실제 소각 트랜잭션을 보려면 트레저리 엔드포인트를 연결하세요.</translation>
         </message>
         <message>
             <source>BUYBACK &amp; BURN</source>
@@ -37163,7 +37163,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>TREASURY TOPUP (25%)</source>
-            <translation>재무 준비금 추가 (25%)</translation>
+            <translation>트레저리 충당 (25%)</translation>
         </message>
         <message>
             <source>$FNCPT BOUGHT</source>
@@ -37222,7 +37222,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>THRESHOLD</source>
-            <translation>임계값</translation>
+            <translation>기준 수량</translation>
         </message>
         <message>
             <source>APPLIED TO</source>
@@ -37273,15 +37273,15 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>BALANCE</source>
-            <translation>잔액</translation>
+            <translation>잔고</translation>
         </message>
         <message>
             <source>PRICE</source>
-            <translation>가격</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>USD VALUE</source>
-            <translation>USD 가치</translation>
+            <translation>USD 평가금액</translation>
         </message>
         <message>
             <source>% OF PORT</source>
@@ -37296,11 +37296,11 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>Available: —</source>
-            <translation>가용: —</translation>
+            <translation>사용 가능: —</translation>
         </message>
         <message>
             <source>Choose an amount and duration.</source>
-            <translation>금액과 기간을 선택하세요.</translation>
+            <translation>수량과 기간을 선택하세요.</translation>
         </message>
         <message>
             <source>LOCK</source>
@@ -37312,7 +37312,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>Available: %1 $FNCPT</source>
-            <translation>가용: %1 $FNCPT</translation>
+            <translation>사용 가능: %1 $FNCPT</translation>
         </message>
         <message>
             <source>%1 / week (USDC) — %2% weekly real yield at %3 stake</source>
@@ -37332,7 +37332,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>Amount exceeds available $FNCPT.</source>
-            <translation>금액이 가용 $FNCPT를 초과합니다.</translation>
+            <translation>수량이 사용 가능한 $FNCPT를 초과합니다.</translation>
         </message>
         <message>
             <source>Building lock transaction…</source>
@@ -37348,7 +37348,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>Locked $FNCPT cannot be withdrawn before the unlock date. If you need liquidity sooner, do not lock.</source>
-            <translation>락업한 $FNCPT는 해제일 전에 인출할 수 없습니다. 그 전에 유동성이 필요하다면 락업하지 마세요.</translation>
+            <translation>락업한 $FNCPT는 해제일 전에 출금할 수 없습니다. 그 전에 유동성이 필요하다면 락업하지 마세요.</translation>
         </message>
         <message>
             <source>Awaiting wallet signature…</source>
@@ -37380,7 +37380,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>DURATION</source>
-            <translation>잠금 기간</translation>
+            <translation>락업 기간</translation>
         </message>
         <message>
             <source>3 MO</source>
@@ -37404,7 +37404,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>WEIGHT</source>
-            <translation>비중</translation>
+            <translation>가중치</translation>
         </message>
         <message>
             <source>EST. YIELD</source>
@@ -37443,7 +37443,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>Demo dataset. Set `fincept.markets_endpoint` in SecureStorage and deploy the fincept_market Anchor program for live trading.</source>
-            <translation>데모 데이터 세트입니다. 실거래를 사용하려면 SecureStorage의 `fincept.markets_endpoint`를 설정하고 fincept_market Anchor 프로그램을 배포하세요.</translation>
+            <translation>데모 데이터 세트입니다. 실전투자를 하려면 SecureStorage의 `fincept.markets_endpoint`를 설정하고 fincept_market Anchor 프로그램을 배포하세요.</translation>
         </message>
         <message>
             <source>FinceptInternalAdapter not registered</source>
@@ -37497,7 +37497,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>Balance: —</source>
-            <translation>잔액: —</translation>
+            <translation>잔고: —</translation>
         </message>
         <message>
             <source>Quotes refresh as you type.</source>
@@ -37517,11 +37517,11 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>Balance: 0 %1</source>
-            <translation>잔액: 0 %1</translation>
+            <translation>잔고: 0 %1</translation>
         </message>
         <message>
             <source>Balance: %1 %2</source>
-            <translation>잔액: %1 %2</translation>
+            <translation>잔고: %1 %2</translation>
         </message>
         <message>
             <source>Waiting for spot prices…</source>
@@ -37561,7 +37561,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>FROM</source>
-            <translation>시작</translation>
+            <translation>보낼 토큰</translation>
         </message>
         <message>
             <source>YOU RECEIVE (EST.)</source>
@@ -37569,7 +37569,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>TO</source>
-            <translation>종료</translation>
+            <translation>받을 토큰</translation>
         </message>
         <message>
             <source>ROUTE</source>
@@ -37577,7 +37577,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>PRICE IMPACT</source>
-            <translation>가격 충격</translation>
+            <translation>가격 영향</translation>
         </message>
         <message>
             <source>MAX SLIPPAGE</source>
@@ -37608,7 +37608,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>Next: lock %1 to reach the next tier.</source>
-            <translation>다음: 다음 등급에 도달하려면 %1을(를) 락업하세요.</translation>
+            <translation>다음 등급에 도달하려면 %1을(를) 락업하세요.</translation>
         </message>
         <message>
             <source>All Fincept Terminal features unlocked.</source>
@@ -37663,11 +37663,11 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>Treasury feed error: %1</source>
-            <translation>재무 피드 오류: %1</translation>
+            <translation>트레저리 피드 오류: %1</translation>
         </message>
         <message>
             <source>TREASURY</source>
-            <translation>재무 준비금</translation>
+            <translation>트레저리</translation>
         </message>
         <message>
             <source>LIVE</source>
@@ -37691,7 +37691,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>MULTI-SIG</source>
-            <translation>다중 서명</translation>
+            <translation>멀티시그</translation>
         </message>
         <message>
             <source>DEMO</source>
@@ -37710,7 +37710,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>SIDE</source>
-            <translation>매매 방향</translation>
+            <translation>매매구분</translation>
         </message>
         <message>
             <source>PRICE</source>
@@ -37718,7 +37718,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>SIZE</source>
-            <translation>크기</translation>
+            <translation>수량</translation>
         </message>
     </context>
     <context>
@@ -37744,7 +37744,7 @@ Target P/L: %3</source>
         <name>fincept::screens::polymarket::PolymarketCommandBar</name>
         <message>
             <source>Switch prediction market exchange</source>
-            <translation>예측시장 거래소 전환</translation>
+            <translation>예측 시장 거래소 전환</translation>
         </message>
         <message>
             <source>CONNECT</source>
@@ -37800,7 +37800,7 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>Account</source>
-            <translation>계정</translation>
+            <translation>계좌</translation>
         </message>
     </context>
     <context>
@@ -37827,11 +37827,11 @@ Target P/L: %3</source>
         </message>
         <message>
             <source>TRADE</source>
-            <translation>거래</translation>
+            <translation>주문</translation>
         </message>
         <message>
             <source>TRADES</source>
-            <translation>거래</translation>
+            <translation>체결내역</translation>
         </message>
         <message>
             <source>HOLDERS</source>
@@ -37889,7 +37889,7 @@ to place orders</source>
         </message>
         <message>
             <source>AVAILABLE</source>
-            <translation>사용 가능</translation>
+            <translation>주문가능금액</translation>
         </message>
         <message>
             <source>POSITION</source>
@@ -37913,7 +37913,7 @@ to place orders</source>
         </message>
         <message>
             <source>SIZE</source>
-            <translation>크기</translation>
+            <translation>수량</translation>
         </message>
         <message>
             <source>ORDER TYPE</source>
@@ -37929,7 +37929,7 @@ to place orders</source>
         </message>
         <message>
             <source>Invalid size — must be &gt; 0</source>
-            <translation>잘못된 수량 — &gt; 0이어야 합니다</translation>
+            <translation>잘못된 수량 — 0보다 커야 합니다</translation>
         </message>
         <message>
             <source>Submitting…</source>
@@ -37957,7 +37957,7 @@ to place orders</source>
         </message>
         <message>
             <source>AVG PRICE</source>
-            <translation>평균 가격</translation>
+            <translation>평균단가</translation>
         </message>
         <message>
             <source>No comments yet</source>
@@ -37996,7 +37996,7 @@ to place orders</source>
         </message>
         <message>
             <source>TRADES</source>
-            <translation>거래</translation>
+            <translation>거래 횟수</translation>
         </message>
     </context>
     <context>
@@ -38045,7 +38045,7 @@ to place orders</source>
         </message>
         <message>
             <source>SIZE</source>
-            <translation>크기</translation>
+            <translation>잔량</translation>
         </message>
         <message>
             <source>TOTAL</source>
@@ -38064,11 +38064,11 @@ to place orders</source>
         <name>fincept::screens::polymarket::PolymarketPriceChart</name>
         <message>
             <source>INTERVAL</source>
-            <translation>간격</translation>
+            <translation>주기</translation>
         </message>
         <message>
             <source>1H</source>
-            <translation>1H</translation>
+            <translation>1시간</translation>
         </message>
         <message>
             <source>6H</source>
@@ -38076,7 +38076,7 @@ to place orders</source>
         </message>
         <message>
             <source>1D</source>
-            <translation>1D</translation>
+            <translation>1일</translation>
         </message>
         <message>
             <source>1W</source>
@@ -38118,7 +38118,7 @@ to place orders</source>
         <name>fincept::screens::polymarket::PredictionAccountDialog</name>
         <message>
             <source>Prediction Markets — Connect Account</source>
-            <translation>예측시장 — 계좌 연결</translation>
+            <translation>예측 시장 — 계좌 연결</translation>
         </message>
         <message>
             <source>Close</source>
@@ -38210,7 +38210,7 @@ to place orders</source>
         </message>
         <message>
             <source>Use demo (paper trading) environment</source>
-            <translation>데모(모의 거래) 환경 사용</translation>
+            <translation>데모(모의투자) 환경 사용</translation>
         </message>
         <message>
             <source>Kalshi</source>
@@ -38355,11 +38355,11 @@ to place orders</source>
         <name>fincept::screens::widgets::BrokerHoldingsWidget</name>
         <message>
             <source>HOLDINGS</source>
-            <translation>보유 자산</translation>
+            <translation>보유종목</translation>
         </message>
         <message>
             <source>Symbol</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>Qty</source>
@@ -38367,15 +38367,15 @@ to place orders</source>
         </message>
         <message>
             <source>Avg</source>
-            <translation>평균</translation>
+            <translation>평균단가</translation>
         </message>
         <message>
             <source>LTP</source>
-            <translation>최종 체결가</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>P&amp;L %</source>
-            <translation>손익률 %</translation>
+            <translation>수익률</translation>
         </message>
         <message>
             <source>No active account — click gear to configure</source>
@@ -38383,19 +38383,19 @@ to place orders</source>
         </message>
         <message>
             <source>Configure — Holdings</source>
-            <translation>설정 — 보유 내역</translation>
+            <translation>설정 — 보유종목</translation>
         </message>
         <message>
             <source>Broker account</source>
-            <translation>브로커 계좌</translation>
+            <translation>증권사 계좌</translation>
         </message>
         <message>
             <source>Avg (native)</source>
-            <translation>평균가 (원 통화)</translation>
+            <translation>평균단가 (거래 통화)</translation>
         </message>
         <message>
             <source>LTP (native)</source>
-            <translation>현재가 (원 통화)</translation>
+            <translation>현재가 (거래 통화)</translation>
         </message>
     </context>
     <context>
@@ -38409,11 +38409,11 @@ to place orders</source>
         <name>fincept::screens::widgets::CryptoTickerWidget</name>
         <message>
             <source>CRYPTO TICKER</source>
-            <translation>암호화폐 티커</translation>
+            <translation>가상자산 티커</translation>
         </message>
         <message>
             <source>Configure — Crypto Ticker</source>
-            <translation>설정 — 암호화폐 티커</translation>
+            <translation>설정 — 가상자산 티커</translation>
         </message>
         <message>
             <source>Exchange</source>
@@ -38444,14 +38444,14 @@ to place orders</source>
         </message>
         <message>
             <source>Symbol</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
     </context>
     <context>
         <name>fincept::screens::widgets::EconomicCalendarWidget</name>
         <message>
             <source>ECONOMIC CALENDAR</source>
-            <translation>경제 캘린더</translation>
+            <translation>경제 일정</translation>
         </message>
         <message>
             <source>EVENT</source>
@@ -38487,7 +38487,7 @@ to place orders</source>
         </message>
         <message>
             <source>IMP</source>
-            <translation>가져오기</translation>
+            <translation>중요도</translation>
         </message>
         <message>
             <source>Loading...</source>
@@ -38495,7 +38495,7 @@ to place orders</source>
         </message>
         <message>
             <source>No events available</source>
-            <translation>사용 가능한 이벤트 없음</translation>
+            <translation>이벤트 없음</translation>
         </message>
         <message>
             <source>Failed to load calendar</source>
@@ -38550,7 +38550,7 @@ to place orders</source>
         </message>
         <message>
             <source>No events available</source>
-            <translation>사용 가능한 이벤트 없음</translation>
+            <translation>이벤트 없음</translation>
         </message>
         <message>
             <source>Configure — Geopolitics Events</source>
@@ -38612,7 +38612,7 @@ to place orders</source>
         </message>
         <message>
             <source>Broker account</source>
-            <translation>브로커 계좌</translation>
+            <translation>증권사 계좌</translation>
         </message>
     </context>
     <context>
@@ -38752,7 +38752,7 @@ to place orders</source>
         </message>
         <message>
             <source>Category</source>
-            <translation>범주</translation>
+            <translation>카테고리</translation>
         </message>
         <message>
             <source>Max rows</source>
@@ -38767,14 +38767,14 @@ to place orders</source>
         </message>
         <message>
             <source>No news available.</source>
-            <translation>사용 가능한 뉴스가 없습니다.</translation>
+            <translation>뉴스가 없습니다.</translation>
         </message>
     </context>
     <context>
         <name>fincept::screens::widgets::NotesWidget</name>
         <message>
             <source>NOTES</source>
-            <translation>노트</translation>
+            <translation>메모</translation>
         </message>
         <message>
             <source>NOTES — FAVORITES</source>
@@ -38829,7 +38829,7 @@ to place orders</source>
         </message>
         <message>
             <source>Symbol</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>Qty</source>
@@ -38837,11 +38837,11 @@ to place orders</source>
         </message>
         <message>
             <source>Avg</source>
-            <translation>평균</translation>
+            <translation>평균단가</translation>
         </message>
         <message>
             <source>LTP</source>
-            <translation>최종 체결가</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>P&amp;L</source>
@@ -38857,7 +38857,7 @@ to place orders</source>
         </message>
         <message>
             <source>Broker account</source>
-            <translation>브로커 계좌</translation>
+            <translation>증권사 계좌</translation>
         </message>
     </context>
     <context>
@@ -38868,11 +38868,11 @@ to place orders</source>
         </message>
         <message>
             <source>Symbol</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>Side</source>
-            <translation>매매 구분</translation>
+            <translation>매매구분</translation>
         </message>
         <message>
             <source>Qty</source>
@@ -38912,7 +38912,7 @@ to place orders</source>
         </message>
         <message>
             <source>Broker account</source>
-            <translation>브로커 계좌</translation>
+            <translation>증권사 계좌</translation>
         </message>
     </context>
     <context>
@@ -38989,7 +38989,7 @@ to place orders</source>
         </message>
         <message>
             <source>TOTAL VALUE</source>
-            <translation>총 가치</translation>
+            <translation>총 평가금액</translation>
         </message>
         <message>
             <source>DAY P&amp;L</source>
@@ -39001,7 +39001,7 @@ to place orders</source>
         </message>
         <message>
             <source>HOLDINGS</source>
-            <translation>보유 자산</translation>
+            <translation>보유종목</translation>
         </message>
         <message>
             <source>SYM</source>
@@ -39009,15 +39009,15 @@ to place orders</source>
         </message>
         <message>
             <source>SHARES</source>
-            <translation>주식 수</translation>
+            <translation>수량</translation>
         </message>
         <message>
             <source>PRICE</source>
-            <translation>가격</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>VALUE</source>
-            <translation>값</translation>
+            <translation>평가금액</translation>
         </message>
         <message>
             <source>P&amp;L</source>
@@ -39032,7 +39032,7 @@ Create one from the Portfolio tab.</source>
         <message>
             <source>'%1' has no holdings.
 Add positions from the Portfolio tab.</source>
-            <translation>'%1'에 보유 자산이 없습니다.
+            <translation>'%1'에 보유종목이 없습니다.
 포트폴리오 탭에서 포지션을 추가하세요.</translation>
         </message>
         <message>
@@ -39049,11 +39049,11 @@ Add positions from the Portfolio tab.</source>
         </message>
         <message>
             <source>Totals unavailable: quotes or source currencies are incomplete or mixed.</source>
-            <translation>합계 표시 불가: 시세 또는 원 통화가 누락되거나 섞여 있습니다.</translation>
+            <translation>합계 표시 불가: 시세 또는 거래 통화가 누락되거나 섞여 있습니다.</translation>
         </message>
         <message>
             <source>Native %1; daily FX to %2 unavailable.</source>
-            <translation>원 통화 %1 · 일일 환율로 %2 환산 불가</translation>
+            <translation>%1 기준 표시 · %2 환산용 일별 환율 없음</translation>
         </message>
         <message>
             <source>%1 from %2 · daily FX %3</source>
@@ -39061,7 +39061,7 @@ Add positions from the Portfolio tab.</source>
         </message>
         <message>
             <source>Source: %1</source>
-            <translation>원 통화: %1</translation>
+            <translation>원래 통화: %1</translation>
         </message>
     </context>
     <context>
@@ -39178,30 +39178,30 @@ Order sent to trading engine.</source>
         </message>
         <message>
             <source>PRICE (native)</source>
-            <translation>가격 (원 통화)</translation>
+            <translation>가격 (거래 통화)</translation>
         </message>
         <message>
             <source>PRICE (%1 native)</source>
-            <translation>가격 (%1 원 통화)</translation>
+            <translation>가격 (%1 거래 통화)</translation>
         </message>
         <message>
             <source>Enter the instrument's native price. Display currency does not change order units.</source>
-            <translation>종목의 원 통화 가격을 입력하세요. 표시 통화는 주문 단위를 바꾸지 않습니다.</translation>
+            <translation>종목의 거래 통화 가격을 입력하세요. 표시 통화를 바꿔도 주문 단위는 바뀌지 않습니다.</translation>
         </message>
         <message>
             <source>EST. TOTAL %1 · display %2</source>
-            <translation>예상 합계 %1 · 환산 표시 %2</translation>
+            <translation>예상 총액 %1 · 환산 표시 %2</translation>
         </message>
     </context>
     <context>
         <name>fincept::screens::widgets::QuoteTableWidget</name>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>PRICE</source>
-            <translation>가격</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>CHG</source>
@@ -39209,7 +39209,7 @@ Order sent to trading engine.</source>
         </message>
         <message>
             <source>CHG%</source>
-            <translation>등락률%</translation>
+            <translation>등락률</translation>
         </message>
         <message>
             <source>COMMODITIES</source>
@@ -39217,7 +39217,7 @@ Order sent to trading engine.</source>
         </message>
         <message>
             <source>CRYPTOCURRENCY</source>
-            <translation>암호화폐</translation>
+            <translation>가상자산</translation>
         </message>
         <message>
             <source>FOREX - MAJOR PAIRS</source>
@@ -39243,7 +39243,7 @@ Order sent to trading engine.</source>
         <name>fincept::screens::widgets::RiskMetricsWidget</name>
         <message>
             <source>RISK METRICS</source>
-            <translation>위험 지표</translation>
+            <translation>리스크 지표</translation>
         </message>
         <message>
             <source>VIX FEAR GAUGE</source>
@@ -39275,7 +39275,7 @@ Order sent to trading engine.</source>
         </message>
         <message>
             <source>NORMAL</source>
-            <translation>정상</translation>
+            <translation>보통</translation>
         </message>
         <message>
             <source>ELEVATED</source>
@@ -39302,11 +39302,11 @@ Order sent to trading engine.</source>
         </message>
         <message>
             <source>% CHANGE ↑</source>
-            <translation>등락률 % ↑</translation>
+            <translation>등락률 ↑</translation>
         </message>
         <message>
             <source>% CHANGE ↓</source>
-            <translation>등락률 % ↓</translation>
+            <translation>등락률 ↓</translation>
         </message>
         <message>
             <source>VOLUME ↓</source>
@@ -39326,15 +39326,15 @@ Order sent to trading engine.</source>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>PRICE</source>
-            <translation>가격</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>CHG%</source>
-            <translation>등락률%</translation>
+            <translation>등락률</translation>
         </message>
         <message>
             <source>VOLUME</source>
@@ -39349,7 +39349,7 @@ Order sent to trading engine.</source>
         <name>fincept::screens::widgets::SectorHeatmapWidget</name>
         <message>
             <source>Technology</source>
-            <translation>기술</translation>
+            <translation>정보기술</translation>
         </message>
         <message>
             <source>Healthcare</source>
@@ -39357,7 +39357,7 @@ Order sent to trading engine.</source>
         </message>
         <message>
             <source>Financials</source>
-            <translation>재무</translation>
+            <translation>금융</translation>
         </message>
         <message>
             <source>Energy</source>
@@ -39450,7 +39450,7 @@ Order sent to trading engine.</source>
         <name>fincept::screens::widgets::TodayPnLWidget</name>
         <message>
             <source>TODAY P&amp;L</source>
-            <translation>오늘 손익</translation>
+            <translation>당일 손익</translation>
         </message>
         <message>
             <source>Day</source>
@@ -39470,18 +39470,18 @@ Order sent to trading engine.</source>
         </message>
         <message>
             <source>Configure — Today P&amp;L</source>
-            <translation>설정 — 오늘 손익</translation>
+            <translation>설정 — 당일 손익</translation>
         </message>
         <message>
             <source>Broker account</source>
-            <translation>브로커 계좌</translation>
+            <translation>증권사 계좌</translation>
         </message>
     </context>
     <context>
         <name>fincept::screens::widgets::TopMoversWidget</name>
         <message>
             <source>TOP MOVERS</source>
-            <translation>등락 상위 종목</translation>
+            <translation>급등락 종목</translation>
         </message>
         <message>
             <source>GAINERS</source>
@@ -39493,22 +39493,22 @@ Order sent to trading engine.</source>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>PRICE</source>
-            <translation>가격</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>CHG%</source>
-            <translation>등락률%</translation>
+            <translation>등락률</translation>
         </message>
     </context>
     <context>
         <name>fincept::screens::widgets::TradeTapeWidget</name>
         <message>
             <source>TRADES</source>
-            <translation>거래</translation>
+            <translation>체결</translation>
         </message>
         <message>
             <source>Time</source>
@@ -39524,7 +39524,7 @@ Order sent to trading engine.</source>
         </message>
         <message>
             <source>Configure — Trades</source>
-            <translation>설정 — 거래</translation>
+            <translation>설정 — 체결</translation>
         </message>
         <message>
             <source>Exchange</source>
@@ -39589,7 +39589,7 @@ Build with Qt6 Multimedia for inline playback.</source>
         </message>
         <message>
             <source>yt-dlp not found. Bundle yt-dlp.exe next to FinceptTerminal.exe.</source>
-            <translation>yt-dlp를 찾을 수 없습니다. FinceptTerminal.exe와 같은 위치에 yt-dlp.exe를 포함하세요.</translation>
+            <translation>yt-dlp를 찾을 수 없습니다. FinceptTerminal.exe와 같은 폴더에 yt-dlp.exe를 넣으세요.</translation>
         </message>
         <message>
             <source>yt-dlp error: %1</source>
@@ -39628,11 +39628,11 @@ Build with Qt6 Multimedia for inline playback.</source>
         </message>
         <message>
             <source>SYMBOL</source>
-            <translation>종목 코드</translation>
+            <translation>종목코드</translation>
         </message>
         <message>
             <source>PRICE</source>
-            <translation>가격</translation>
+            <translation>현재가</translation>
         </message>
         <message>
             <source>CHG</source>
@@ -39640,7 +39640,7 @@ Build with Qt6 Multimedia for inline playback.</source>
         </message>
         <message>
             <source>CHG%</source>
-            <translation>등락률%</translation>
+            <translation>등락률</translation>
         </message>
     </context>
     <context>
@@ -39709,7 +39709,7 @@ Build with Qt6 Multimedia for inline playback.</source>
         </message>
         <message>
             <source>manual only</source>
-            <translation>수동만</translation>
+            <translation>수동으로만</translation>
         </message>
         <message>
             <source>Auto-refresh</source>
@@ -39866,7 +39866,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>DATA PROVIDERS</source>
-            <translation>데이터 제공업체</translation>
+            <translation>데이터 공급자</translation>
         </message>
         <message>
             <source>FETCH</source>
@@ -40083,7 +40083,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Crypto Trading</source>
-            <translation>암호화폐 거래</translation>
+            <translation>가상자산 거래</translation>
         </message>
         <message>
             <source>AI Chat</source>
@@ -40091,7 +40091,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Notes</source>
-            <translation>노트</translation>
+            <translation>메모</translation>
         </message>
         <message>
             <source>Profile</source>
@@ -40243,7 +40243,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Search stocks by symbol or company name</source>
-            <translation>종목 코드 또는 회사 이름으로 주식 검색</translation>
+            <translation>종목코드 또는 회사명으로 주식 검색</translation>
         </message>
         <message>
             <source>Fund</source>
@@ -40251,7 +40251,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Search mutual funds and ETFs</source>
-            <translation>뮤추얼 펀드 및 ETF 검색</translation>
+            <translation>펀드 및 ETF 검색</translation>
         </message>
         <message>
             <source>DR</source>
@@ -40263,7 +40263,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Index</source>
-            <translation>인덱스</translation>
+            <translation>지수</translation>
         </message>
         <message>
             <source>Search market indices</source>
@@ -40279,11 +40279,11 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Crypto</source>
-            <translation>암호화폐</translation>
+            <translation>가상자산</translation>
         </message>
         <message>
             <source>Search cryptocurrencies</source>
-            <translation>암호화폐 검색</translation>
+            <translation>가상자산 검색</translation>
         </message>
         <message>
             <source>Futures</source>
@@ -40358,7 +40358,7 @@ X-API-Key: xyz</translation>
         <name>fincept::ui::IndicatorParamDialog</name>
         <message>
             <source>Indicator Parameters</source>
-            <translation>지표 매개변수</translation>
+            <translation>보조지표 매개변수</translation>
         </message>
         <message>
             <source>Period:</source>
@@ -40386,14 +40386,14 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Fibonacci</source>
-            <translation>Fibonacci</translation>
+            <translation>피보나치</translation>
         </message>
     </context>
     <context>
         <name>fincept::ui::IndicatorPicker</name>
         <message>
             <source>+ Indicator</source>
-            <translation>+ 지표</translation>
+            <translation>+ 보조지표</translation>
         </message>
     </context>
     <context>
@@ -40455,7 +40455,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Help: type any verb (e.g. 'layout switch') or a ticker (AAPL).</source>
-            <translation>도움말: 동사(예: 'layout switch') 또는 종목 코드(AAPL)를 입력하세요.</translation>
+            <translation>도움말: 명령어(예: 'layout switch') 또는 종목코드(AAPL)를 입력하세요.</translation>
         </message>
         <message>
             <source>Published %1 to group A</source>
@@ -40647,11 +40647,11 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Crypto</source>
-            <translation>암호화폐</translation>
+            <translation>가상자산</translation>
         </message>
         <message>
             <source>Crypto Center</source>
-            <translation>암호화폐 센터</translation>
+            <translation>가상자산 센터</translation>
         </message>
         <message>
             <source>Research &amp; Intelligence</source>
@@ -40715,7 +40715,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Notes</source>
-            <translation>노트</translation>
+            <translation>메모</translation>
         </message>
         <message>
             <source>Forum</source>
@@ -40775,7 +40775,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Crypto Trading</source>
-            <translation>암호화폐 거래</translation>
+            <translation>가상자산 거래</translation>
         </message>
         <message>
             <source>Algo Trading</source>
@@ -40791,7 +40791,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Save Workspace</source>
-            <translation>작업공간 저장</translation>
+            <translation>작업 공간 저장</translation>
         </message>
         <message>
             <source>Trading</source>
@@ -40831,7 +40831,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Quant Lab</source>
-            <translation>퀀트 연구실</translation>
+            <translation>퀀트 랩</translation>
         </message>
         <message>
             <source>Tools View</source>
@@ -40918,19 +40918,19 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>SHARPE</source>
-            <translation>샤프</translation>
+            <translation>샤프지수</translation>
         </message>
         <message>
             <source>SORTINO</source>
-            <translation>소르티노</translation>
+            <translation>소르티노지수</translation>
         </message>
         <message>
             <source>MAX DRAWDOWN</source>
-            <translation>최대 낙폭</translation>
+            <translation>최대낙폭</translation>
         </message>
         <message>
             <source>CALMAR</source>
-            <translation>칼마</translation>
+            <translation>칼마지수</translation>
         </message>
         <message>
             <source>WIN RATE</source>
@@ -40938,11 +40938,11 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>PROFIT FACTOR</source>
-            <translation>수익 팩터</translation>
+            <translation>프로핏 팩터</translation>
         </message>
         <message>
             <source>TRADES</source>
-            <translation>거래</translation>
+            <translation>거래 횟수</translation>
         </message>
         <message>
             <source>EXPECTANCY</source>
@@ -40970,7 +40970,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>MONTHLY RETURNS %</source>
-            <translation>월간 수익률 %</translation>
+            <translation>월별 수익률</translation>
         </message>
         <message>
             <source>#</source>
@@ -40978,11 +40978,11 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Entry</source>
-            <translation>진입가</translation>
+            <translation>진입 시점</translation>
         </message>
         <message>
             <source>Exit</source>
-            <translation>청산</translation>
+            <translation>청산 시점</translation>
         </message>
         <message>
             <source>Entry $</source>
@@ -41002,7 +41002,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>P&amp;L %</source>
-            <translation>손익률 %</translation>
+            <translation>수익률</translation>
         </message>
         <message>
             <source>Bars</source>
@@ -41038,7 +41038,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Return / MaxDD</source>
-            <translation>수익률 / 최대 낙폭</translation>
+            <translation>수익률 / MDD</translation>
         </message>
         <message>
             <source>Above average</source>
@@ -41225,7 +41225,7 @@ X-API-Key: xyz</translation>
         <name>fincept::ui::algo::RiskManagementPanel</name>
         <message>
             <source>RISK MANAGEMENT</source>
-            <translation>위험 관리</translation>
+            <translation>리스크 관리</translation>
         </message>
         <message>
             <source>Stop Loss %</source>
@@ -41237,7 +41237,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Trailing Stop %</source>
-            <translation>추적 손절 %</translation>
+            <translation>트레일링 스톱 %</translation>
         </message>
         <message>
             <source>Capital Alloc %</source>
@@ -41490,7 +41490,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>3. Multi-Indicator Scanner — RSI + MACD + Bollinger on a stock</source>
-            <translation>3. 다중 지표 검색기 — 종목의 RSI + MACD + 볼린저 밴드</translation>
+            <translation>3. 다중 지표 스캐너 — 종목의 RSI + MACD + 볼린저 밴드</translation>
         </message>
         <message>
             <source>4. Sector Correlation — Compare correlations across sector ETFs</source>
@@ -41502,11 +41502,11 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>6. Price Alert Trading — Auto-trade when price crosses threshold</source>
-            <translation>6. 가격 알림 거래 — 가격이 임계값을 돌파하면 자동 거래</translation>
+            <translation>6. 가격 알림 매매 — 가격이 임계값을 돌파하면 자동 매매</translation>
         </message>
         <message>
             <source>7. Mean Reversion Strategy — Buy oversold / sell overbought with risk checks</source>
-            <translation>7. 평균 회귀 전략 — 위험 확인과 함께 과매도 매수 / 과매수 매도</translation>
+            <translation>7. 평균 회귀 전략 — 리스크 점검 후 과매도 매수 / 과매수 매도</translation>
         </message>
         <message>
             <source>8. Portfolio Rebalancer — Check drift → optimize → place orders</source>
@@ -41514,7 +41514,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>9. Daily Risk Monitor — Positions → VaR → loss limit → alert</source>
-            <translation>9. 일일 위험 모니터 — 포지션 → VaR → 손실 한도 → 알림</translation>
+            <translation>9. 일일 리스크 모니터 — 포지션 → VaR → 손실 한도 → 알림</translation>
         </message>
         <message>
             <source>10. Pre-Trade Compliance — Full validation before order execution</source>
@@ -41721,7 +41721,7 @@ to edit properties</source>
         <name>fincept::screens::PendingOrdersPanel</name>
         <message>
             <source>PENDING ORDERS</source>
-            <translation>대기 주문</translation>
+            <translation>승인 대기 주문</translation>
         </message>
     </context>
     <context>
@@ -41743,7 +41743,7 @@ to edit properties</source>
         </message>
         <message>
             <source>(native)</source>
-            <translation>(원 단위)</translation>
+            <translation>(거래 통화)</translation>
         </message>
     </context>
     <context>
@@ -41762,7 +41762,7 @@ to edit properties</source>
         </message>
         <message>
             <source>Free cash flow input stays in the reporting currency: %1</source>
-            <translation>잉여현금흐름 입력은 보고 통화(%1)를 유지합니다.</translation>
+            <translation>잉여현금흐름은 보고 통화(%1)로 입력합니다.</translation>
         </message>
         <message>
             <source>Currency mismatch or unavailable</source>
@@ -41774,14 +41774,14 @@ to edit properties</source>
         </message>
         <message>
             <source>%1 (native quote)</source>
-            <translation>%1 (원 시세)</translation>
+            <translation>%1 (거래 통화 시세)</translation>
         </message>
     </context>
     <context>
         <name>fincept::screens::equity::EquityChartPanel</name>
         <message>
             <source>%1 %2 (native)</source>
-            <translation>%1 %2 (원 단위)</translation>
+            <translation>%1 %2 (거래 통화)</translation>
         </message>
         <message>
             <source>currency unavailable</source>
