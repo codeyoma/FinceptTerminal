@@ -228,6 +228,51 @@ class TstKrxStatsView : public QObject {
         e.lift_low = -0.03;
         QCOMPARE(weakest_lift_text(e), QStringLiteral("-0.030"));
     }
+
+    void the_about_section_says_what_the_engine_says_about_the_algorithm() {
+        AlgorithmInfo info;
+        info.name = "alpha";
+        info.card = AlgorithmCard{"A. Person", "테스트 성격", "로직 글", {"f1"}, "학습 글"};
+        info.features = {"f1", "f2"};
+        info.training_days = 20;
+        info.model_version = "alpha-1";
+        info.params = {{"a", "3"}, {"b", "0.25"}};
+        info.trained = "2026-09-01..2026-10-01, 100 samples, log loss 0.7";
+        info.trained_until = "2026-10-01";
+        info.status = "probation";
+        info.since = QDateTime::fromString("2026-10-10T15:09:52+09:00", Qt::ISODate);
+        info.history = {
+            {QDateTime::fromString("2026-10-10T15:09:52+09:00", Qt::ISODate), {}, "probation", "registered"},
+            {QDateTime::fromString("2026-10-23T15:40:00+09:00", Qt::ISODate), "probation", "active", ""}};
+
+        const auto rows = about_rows(info);
+
+        QStringList labels;
+        for (const auto& row : rows)
+            labels << row.first;
+        QCOMPARE(labels, (QStringList{"성격", "예측 로직", "고유 피처", "입력 피처", "학습 방법", "학습 기간", "모델",
+                                      "학습 결과", "파라미터", "상태", "상태 이력"}));
+        QCOMPARE(rows[0].second, QStringLiteral("테스트 성격 (A. Person)"));
+        QCOMPARE(rows[5].second, QStringLiteral("최근 20거래일"));
+        QCOMPARE(rows[7].second,
+                 QStringLiteral("2026-09-01..2026-10-01, 100 samples, log loss 0.7 · 2026-10-01까지의 데이터"));
+        QCOMPARE(rows[8].second, QStringLiteral("a = 3, b = 0.25"));
+        QCOMPARE(rows[9].second, QStringLiteral("수습 · 2026-10-10 15:09부터"));
+        QCOMPARE(rows[10].second, QStringLiteral("10-10 15:09 수습 (registered)\n10-23 15:40 수습 → 정식"));
+    }
+
+    void a_model_not_trained_yet_says_so_and_a_predictor_without_a_card_says_the_engine_gives_none() {
+        AlgorithmInfo info;
+        info.name = "beta";
+        info.model_version = "beta-default";
+        const auto rows = about_rows(info);
+        QCOMPARE(rows.size(), 2);
+        QCOMPARE(rows[1].second, QStringLiteral("학습 기록 없음 (기본값)"));
+
+        const auto none = about_rows(std::nullopt);
+        QCOMPARE(none.size(), 1);
+        QCOMPARE(none[0].second, QStringLiteral("엔진이 아직 설명을 주지 않음"));
+    }
 };
 
 QTEST_GUILESS_MAIN(TstKrxStatsView)

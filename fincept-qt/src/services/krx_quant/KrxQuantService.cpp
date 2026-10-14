@@ -271,6 +271,18 @@ void KrxQuantService::read_predictions(const QString& symbol, const QDateTime& b
     });
 }
 
+void KrxQuantService::read_algorithms() {
+    if (!begin(kAlgorithms))
+        return;
+    get("/v1/algorithms", [this](Result<QJsonDocument> answer) {
+        end(kAlgorithms);
+        auto algorithms = parsed(answer, krx_quant::parse_algorithms);
+        if (algorithms.is_err())
+            return emit algorithms_failed(why(algorithms.error()));
+        emit algorithms_ready(algorithms.value());
+    });
+}
+
 void KrxQuantService::read_candles(const QString& symbol, const QString& period, const QDateTime& before) {
     if (!begin(kCandles))
         return; // the view moves on: asked again once this one is drawn

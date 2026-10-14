@@ -432,6 +432,40 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!read.value().contains("newton")); // none known
     }
 
+    void the_algorithms_say_what_they_are_and_how_they_learn() {
+        // Made-up text: the fork holds none of the engine's own (krx-quant #163).
+        const auto read = parse_algorithms(json(R"({"algorithms": [
+          {"name": "alpha",
+           "card": {"scientist": "A. Person", "character": "테스트 성격", "logic": "로직 글",
+                    "unique_features": ["f1"], "training": "학습 글"},
+           "features": ["f1", "f2"], "training_days": 20,
+           "model": {"version": "alpha-1", "params": {"b": 0.25, "a": 3, "mode": "x", "list": [1, 2]},
+                     "trained": "2026-09-01..2026-10-01, 100 samples, log loss 0.7", "trained_until": "2026-10-01"},
+           "status": {"status": "probation", "since": "2026-10-10T15:09:52+09:00",
+                      "history": [{"at": "2026-10-10T15:09:52+09:00", "from": null, "to": "probation",
+                                   "reason": "registered"}]}},
+          {"name": "beta", "model": {"version": "beta-default", "params": {}, "trained": null, "trained_until": null}}]})"));
+        QVERIFY(read.is_ok());
+        const AlgorithmInfo alpha = read.value().value("alpha");
+        QCOMPARE(alpha.card->character, QStringLiteral("테스트 성격"));
+        QCOMPARE(alpha.card->unique_features, QStringList{"f1"});
+        QCOMPARE(alpha.features, (QStringList{"f1", "f2"}));
+        QCOMPARE(alpha.training_days, std::optional<int>(20));
+        QCOMPARE(alpha.model_version, QStringLiteral("alpha-1"));
+        // By name; a number with up to six significant digits, anything else as compact JSON.
+        QCOMPARE(alpha.params,
+                 (QList<QPair<QString, QString>>{{"a", "3"}, {"b", "0.25"}, {"list", "[1,2]"}, {"mode", "x"}}));
+        QCOMPARE(alpha.trained_until, QStringLiteral("2026-10-01"));
+        QCOMPARE(alpha.status, QStringLiteral("probation"));
+        QCOMPARE(alpha.history.size(), 1);
+        QCOMPARE(alpha.history[0].from, QString()); // first registered
+        QCOMPARE(alpha.history[0].reason, QStringLiteral("registered"));
+        const AlgorithmInfo beta = read.value().value("beta");
+        QVERIFY(!beta.card.has_value()); // none given
+        QVERIFY(beta.trained.isEmpty());
+        QVERIFY(!beta.training_days.has_value());
+    }
+
     void an_outcome_keeps_its_mid_points() {
         const auto history = parse_predictions(json(kHistory));
         QVERIFY(history.is_ok());

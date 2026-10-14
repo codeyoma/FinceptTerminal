@@ -6,6 +6,7 @@
 #include <QJsonDocument>
 #include <QList>
 #include <QMap>
+#include <QPair>
 #include <QString>
 
 #include <optional>
@@ -269,6 +270,43 @@ Result<Macro> parse_macro(const QJsonDocument& doc);             ///< GET /v1/ma
 /// GET /v1/algorithms: each algorithm's lifecycle status now ("probation", "active", …),
 /// by name; one without a status is left out.
 Result<QMap<QString, QString>> parse_statuses(const QJsonDocument& doc);
+
+/// What an algorithm is, as the engine describes it (GET /v1/algorithms, its card): the
+/// text is the engine's, in Korean, read at run time (the fork holds none of it).
+struct AlgorithmCard {
+    QString scientist;
+    QString character; ///< its thesis in a few words, e.g. "추세 추종"
+    QString logic;     ///< how it forecasts
+    QStringList unique_features;
+    QString training; ///< how it learns
+};
+
+/// A change of an algorithm's lifecycle status, as the engine recorded it.
+struct StatusRecord {
+    QDateTime at;
+    QString from; ///< empty when it was first registered
+    QString to;
+    QString reason;
+};
+
+/// One algorithm of GET /v1/algorithms (krx-quant #163): its card, inputs, the model it
+/// runs now and its status with the history. Empty where the engine leaves a value out.
+struct AlgorithmInfo {
+    QString name;
+    std::optional<AlgorithmCard> card;
+    QStringList features;
+    std::optional<int> training_days;
+    QString model_version;
+    QList<QPair<QString, QString>> params; ///< name, value as text, by name
+    QString trained;                       ///< e.g. "2026-09-08..2026-10-08, 22560 samples, log loss 0.61"
+    QString trained_until;                 ///< "YYYY-MM-DD"
+    QString status;
+    QDateTime since;
+    QList<StatusRecord> history; ///< oldest first
+};
+
+/// Every algorithm of GET /v1/algorithms, by name.
+Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc);
 /// GET /v1/consensus: its members, the active algorithms.
 Result<QStringList> parse_members(const QJsonDocument& doc);
 

@@ -96,4 +96,10 @@ QString calibration_tip(const AlgorithmStats& stats);
 /// The query the stats answer, in Korean: period · scoring basis · symbol · special situations.
 QString query_text(const AlgorithmStats& stats);
 
+/// The "학습·예측 방식" section of a predictor's detail window (krx-quant #163): labelled
+/// lines of what the engine says about the algorithm (its card, inputs, model, status and
+/// history); one line saying the engine gives none for a predictor without (a baseline, a
+/// consensus).
+QList<QPair<QString, QString>> about_rows(const std::optional<AlgorithmInfo>& info);
+
 } // namespace fincept::krx_quant

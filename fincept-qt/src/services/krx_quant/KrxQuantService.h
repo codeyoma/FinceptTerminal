@@ -104,6 +104,10 @@ class KrxQuantService : public QObject {
     /// again while that algorithm's are under way, likewise.
     void read_stats(const QString& algorithm, const LeaderboardQuery& query);
     void read_macro(); ///< macro_ready or macro_failed
+    /// What the engine says about each algorithm (GET /v1/algorithms: card, inputs, model,
+    /// status history; krx-quant #163): algorithms_ready or algorithms_failed. Asked again
+    /// while one is read, it is not read.
+    void read_algorithms();
 
   signals:
     void snapshot_ready(const fincept::services::KrxQuantService::Snapshot& snapshot);
@@ -130,13 +134,27 @@ class KrxQuantService : public QObject {
     void stats_failed(const QString& algorithm, const QString& reason);
     void macro_ready(const fincept::krx_quant::Macro& macro);
     void macro_failed(const QString& reason);
+    void algorithms_ready(const QMap<QString, fincept::krx_quant::AlgorithmInfo>& algorithms);
+    void algorithms_failed(const QString& reason);
     /// The address this service reads changed (also when another panel set it).
     void base_url_changed(const QString& url);
 
   private:
     /// A step of a read: the answer to one GET, or why it failed.
     using Step = std::function<void(Result<QJsonDocument>)>;
-    enum Kind { kRefresh, kStatus, kChart, kLeaderboard, kMacro, kClose, kOlder, kCandles, kPredictions, kKinds };
+    enum Kind {
+        kRefresh,
+        kStatus,
+        kChart,
+        kLeaderboard,
+        kMacro,
+        kClose,
+        kOlder,
+        kCandles,
+        kPredictions,
+        kAlgorithms,
+        kKinds
+    };
 
     /// Start a read of ``kind`` unless one is under way; false if skipped.
     bool begin(Kind kind);
