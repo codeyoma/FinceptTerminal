@@ -50,10 +50,12 @@ jobs:
           echo "::error::The SYNC_TOKEN secret is missing (fine-grained PAT on this repository: Contents and Workflows read/write). A tag pushed with GITHUB_TOKEN would start no build."
           exit 1
 
-      - name: Checkout the pushed commit
+      # custom's head as the run starts, not when it was asked for: a run waiting
+      # behind another would otherwise tag an older commit.
+      - name: Checkout custom's head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: custom
           fetch-depth: 0
           token: ${{ secrets.SYNC_TOKEN }}
 

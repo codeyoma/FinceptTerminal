@@ -22,6 +22,7 @@ on:
 permissions:
   contents: write
   issues: write
+  actions: read   # gh run list: is a trial build of the release running
 
 concurrency:
   group: custom-upstream-watch
@@ -107,6 +108,14 @@ jobs:
           if [ -n "$open" ]; then
             echo "Waiting for issue #$open to be finished by hand."
             echo "go=false" >> "$GITHUB_OUTPUT"
+          elif [ "$busy" != "0" ]; then
+            echo "The trial build of upstream-merge/$LATEST is still running."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$waiting" ] && [ "$(gh api "repos/$GH_REPO/compare/custom...upstream-merge/$LATEST" --jq .behind_by 2>/dev/null || echo 0)" != "0" ]; then
+            # custom moved on after the merge: the trial build could no longer land it.
+            # Merge again on the new custom, and ask again.
+            gh issue close "$waiting" --comment "\`custom\` moved on after the merge; merging $LATEST again on its new head."
+            echo "go=true" >> "$GITHUB_OUTPUT"
           elif [ -n "$waiting" ]; then
             echo "upstream-merge/$LATEST waits for its trial build, started by hand (issue #$waiting)."
             echo "go=false" >> "$GITHUB_OUTPUT"
@@ -114,9 +123,6 @@ jobs:
             # Personal builds are tagged custom-vX.Y.Z-krx.N, the only shape the
             # app updates from (AppRelease.h).
             gh issue create --title "$title" --body "Upstream published $LATEST, which is not vX.Y.Z. Personal builds are tagged \`custom-vX.Y.Z-krx.N\`, the only shape the app updates from (\`fincept-qt/src/services/krx_quant/AppRelease.h\`), so the automatic merge stops here. Merge it by hand with \`custom/merge-upstream-release.sh $LATEST\` and pick a tag the app can read. This issue closes itself once \`custom/UPSTREAM_BASE\` says $LATEST."
-            echo "go=false" >> "$GITHUB_OUTPUT"
-          elif [ "$busy" != "0" ]; then
-            echo "The trial build of upstream-merge/$LATEST is still running."
             echo "go=false" >> "$GITHUB_OUTPUT"
           else
             echo "go=true" >> "$GITHUB_OUTPUT"
