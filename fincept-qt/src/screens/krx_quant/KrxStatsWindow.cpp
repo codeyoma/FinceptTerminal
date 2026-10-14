@@ -6,9 +6,11 @@
 
 #include <QCloseEvent>
 #include <QEvent>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QScrollArea>
 #include <QSplitter>
 #include <QToolTip>
 #include <QVBoxLayout>
@@ -220,6 +222,23 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
     header_.controls->addWidget(query_);
     layout->addWidget(header_.bar);
 
+    // What the algorithm is and how it learns and forecasts (krx-quant #163): the engine's own
+    // words, read at run time. Above the stats, in a pane of its own the user can resize.
+    about_header_ = krx_panel::header(
+        tr("학습·예측 방식"),
+        tr("엔진이 알려 주는 이 알고리즘의 성격, 예측 로직, 입력, 학습 방법과 지금 모델이다. 학습 결과의 "
+           "손실은 학습 데이터로 잰 값이라 다른 알고리즘이나 검증 손실과 견줄 수 없다."));
+    about_ = new QLabel;
+    about_->setWordWrap(true);
+    about_->setTextFormat(Qt::RichText);
+    about_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    about_->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    about_->setContentsMargins(12, 6, 12, 6);
+    auto* about_scroll = new QScrollArea;
+    about_scroll->setWidget(about_);
+    about_scroll->setWidgetResizable(true);
+    about_scroll->setFrameShape(QFrame::NoFrame);
+
     body_ = new QWidget;
     auto* body = new QVBoxLayout(body_);
     body->setContentsMargins(0, 0, 0, 0);
@@ -258,7 +277,13 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
     split->setStretchFactor(0, 2);
     split->setStretchFactor(1, 3);
     body->addWidget(split, 1);
-    layout->addWidget(body_, 1);
+    auto* outer = new QSplitter(Qt::Vertical);
+    outer->addWidget(krx_panel::panel(about_header_, about_scroll));
+    outer->addWidget(body_);
+    outer->setStretchFactor(0, 2);
+    outer->setStretchFactor(1, 3);
+    outer->setSizes({300, 460}); // the section's text shows at first; drag the divider for more of either
+    layout->addWidget(outer, 1);
 
     loading_ = new ui::LoadingOverlay(body_);
     body_->installEventFilter(this); // the overlay keeps the body's size
@@ -269,6 +294,7 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
 void KrxStatsWindow::open(const QString& algorithm) {
     if (algorithm != algorithm_ || !isVisible()) {
         algorithm_ = algorithm;
+        about_->clear(); // the stats' failure leaves the algorithm's description as read
         clear();
         loading_->show_loading(tr("읽는 중…"));
     }
@@ -290,6 +316,14 @@ void KrxStatsWindow::clear() {
     lift_header_.title->setToolTip(QString());
     calibration_header_.title->setToolTip(QString());
     calibration_->set_series({});
+}
+
+void KrxStatsWindow::show_about(const std::optional<krx_quant::AlgorithmInfo>& info, const QString& failure) {
+    QStringList lines;
+    for (const auto& [label, text] : krx_quant::about_rows(info, failure))
+        lines << QStringLiteral("<b>%1</b>&nbsp;&nbsp;%2")
+                     .arg(label.toHtmlEscaped(), text.toHtmlEscaped().replace('\n', QStringLiteral("<br>")));
+    about_->setText(lines.join(QStringLiteral("<br>")));
 }
 
 void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats) {
@@ -338,8 +372,9 @@ void KrxStatsWindow::show_failure(const QString& reason) {
 void KrxStatsWindow::restyle() {
     setStyleSheet(QString("#krxStatsWindow{background:%1;}#krxStatsWindow QLabel{background:transparent;}")
                       .arg(ui::colors::BG_BASE()));
-    for (const auto* header : {&header_, &lift_header_, &calibration_header_, &breakdown_header_})
+    for (const auto* header : {&header_, &about_header_, &lift_header_, &calibration_header_, &breakdown_header_})
         header->restyle();
+    about_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
     failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
     for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_})
         krx_tables::restyle(table);

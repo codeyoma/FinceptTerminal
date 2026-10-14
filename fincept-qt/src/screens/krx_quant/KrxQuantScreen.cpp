@@ -284,6 +284,10 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         if (auto* window = stats_windows_.value(algorithm))
             window->show_failure(reason);
     });
+    connect(live_, &services::KrxLive::algorithms_changed, this, [this]() {
+        for (auto it = stats_windows_.cbegin(); it != stats_windows_.cend(); ++it)
+            it.value()->show_about(about_of(it.key()), live_->algorithms_failure());
+    });
     connect(live_, &services::KrxLive::signal_raised, alerts_, &KrxAlerts::raise);
     connect(live_, &services::KrxLive::base_url_changed, this, [this](const QString& url) {
         if (!url_edit_->hasFocus()) // not while the address is being typed here
@@ -684,6 +688,13 @@ void KrxQuantScreen::show_score() {
     chart_score_->show();
 }
 
+std::optional<krx_quant::AlgorithmInfo> KrxQuantScreen::about_of(const QString& algorithm) const {
+    const auto& algorithms = live_->algorithms();
+    if (const auto it = algorithms.constFind(algorithm); it != algorithms.cend())
+        return *it;
+    return std::nullopt;
+}
+
 void KrxQuantScreen::open_detail(const QString& algorithm) {
     if (algorithm.isEmpty())
         return;
@@ -698,6 +709,7 @@ void KrxQuantScreen::open_detail(const QString& algorithm) {
         });
     }
     window->open(algorithm);
+    window->show_about(about_of(algorithm), live_->algorithms_failure()); // as last read; read again with its stats
     live_->set_details(stats_windows_.keys());
 }
 

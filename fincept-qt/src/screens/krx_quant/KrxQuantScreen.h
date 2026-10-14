@@ -12,6 +12,7 @@
 #include <QTimer>
 #include <QWidget>
 
+#include <optional>
 #include <utility>
 
 namespace fincept::ui {
@@ -57,6 +58,9 @@ class KrxQuantScreen : public QWidget {
     /// Show the chart as bars of ``minutes`` (krx-quant #109), and keep the choice.
     void set_view(int minutes);
     void open_detail(const QString& algorithm);
+    /// What the engine says about ``algorithm`` (krx-quant #163); none for a baseline or a
+    /// consensus, or before it answered.
+    std::optional<krx_quant::AlgorithmInfo> about_of(const QString& algorithm) const;
     void update_countdowns();
     /// Paint in the theme's colors and font now (Fincept's theme, font or density changed).
     void refresh_theme();
