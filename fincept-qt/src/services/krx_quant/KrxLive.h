@@ -55,6 +55,11 @@ class KrxLive : public QObject {
     const QStringList& selection() const { return selection_; }
     /// The predictors' statuses now, from the last leaderboard read: the hover's.
     const QMap<QString, QString>& standings() const { return standings_; }
+    /// What the engine says about each algorithm (krx-quant #163), read with the detail
+    /// windows' stats; empty before the first answer, or for a baseline or consensus.
+    const QMap<QString, krx_quant::AlgorithmInfo>& algorithms() const { return algorithms_; }
+    /// Why the last read of them failed (they are dropped then, not left stale); empty once one works.
+    const QString& algorithms_failure() const { return algorithms_failure_; }
     /// Show one bar close's judgements of the chosen symbol (a chart icon clicked, krx-quant
     /// #107) instead of the latest's; an invalid time goes back to the latest.
     void pin(const QDateTime& bar_close);
@@ -117,6 +122,7 @@ class KrxLive : public QObject {
     void leaderboard_failed(const QString& reason);
     void stats_changed(const fincept::krx_quant::AlgorithmStats& stats); ///< a detail's, on the leaderboard's query
     void stats_failed(const QString& algorithm, const QString& reason);
+    void algorithms_changed(); ///< what the engine says about the algorithms (krx-quant #163)
     void pinned_changed(); ///< pinned or back to the latest, or its judgements read
     void pinned_failed(const QString& reason);
     /// The bars before the chart's could not be read; those shown stay (krx-quant #108).
@@ -189,6 +195,8 @@ class KrxLive : public QObject {
     QString macro_failure_;
     QStringList selection_;            ///< the models selected for the chart
     QMap<QString, QString> standings_; ///< the predictors' statuses, from the leaderboard
+    QMap<QString, krx_quant::AlgorithmInfo> algorithms_; ///< the engine's cards, models and statuses
+    QString algorithms_failure_;                         ///< why their last read failed
     /// The earliest bar close from which on every predictor's predictions were read; invalid:
     /// none (krx-quant #159).
     QDateTime full_from_;

@@ -373,6 +373,64 @@ Result<QMap<QString, QString>> parse_statuses(const QJsonDocument& doc) {
     return Result<QMap<QString, QString>>::ok(out);
 }
 
+namespace {
+
+/// A model parameter's value as text: a number with up to six significant digits, a text
+/// as it is, anything else as compact JSON.
+QString param_text(const QJsonValue& v) {
+    if (v.isDouble())
+        return QString::number(v.toDouble(), 'g', 6);
+    if (v.isString())
+        return v.toString();
+    if (v.isBool())
+        return v.toBool() ? QStringLiteral("true") : QStringLiteral("false");
+    if (v.isNull() || v.isUndefined())
+        return QStringLiteral("—");
+    const QJsonDocument doc = v.isArray() ? QJsonDocument(v.toArray()) : QJsonDocument(v.toObject());
+    return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+}
+
+} // namespace
+
+Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<QMap<QString, AlgorithmInfo>>::err(obj.error());
+    QMap<QString, AlgorithmInfo> out;
+    for (const auto& v : obj.value().value("algorithms").toArray()) {
+        const QJsonObject a = v.toObject();
+        AlgorithmInfo info;
+        info.name = a.value("name").toString();
+        if (info.name.isEmpty())
+            continue;
+        if (const QJsonObject card = a.value("card").toObject(); !card.isEmpty())
+            info.card = AlgorithmCard{card.value("scientist").toString(), card.value("character").toString(),
+                                      card.value("logic").toString(), strings_of(card.value("unique_features")),
+                                      card.value("training").toString()};
+        info.features = strings_of(a.value("features"));
+        if (a.value("training_days").isDouble())
+            info.training_days = a.value("training_days").toInt();
+        const QJsonObject model = a.value("model").toObject();
+        info.model_version = model.value("version").toString();
+        const QJsonObject params = model.value("params").toObject();
+        for (auto it = params.constBegin(); it != params.constEnd(); ++it)
+            info.params << QPair<QString, QString>(it.key(), param_text(it.value()));
+        info.trained = model.value("trained").toString();
+        info.trained_until = model.value("trained_until").toString();
+        const QJsonObject status = a.value("status").toObject();
+        info.status = status.value("status").toString();
+        info.since = QDateTime::fromString(status.value("since").toString(), Qt::ISODate);
+        for (const auto& h : status.value("history").toArray()) {
+            const QJsonObject record = h.toObject();
+            info.history << StatusRecord{QDateTime::fromString(record.value("at").toString(), Qt::ISODate),
+                                         record.value("from").toString(), record.value("to").toString(),
+                                         record.value("reason").toString()};
+        }
+        out.insert(info.name, info);
+    }
+    return Result<QMap<QString, AlgorithmInfo>>::ok(out);
+}
+
 Result<Macro> parse_macro(const QJsonDocument& doc) {
     const auto obj = object_of(doc);
     if (obj.is_err())

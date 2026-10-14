@@ -117,19 +117,18 @@
   // minutes on, lightly filled; the touch targets across it, once its label is in; where each
   // was first reached. A window not over yet runs dotted into the free space on the right.
   function xOf(time) {
-    // A moment's x: within its minute's bar, or past the last bar drawn.
-    const scale = chart.timeScale();
-    const start = time - (time % 60);
-    const spacing = scale.options().barSpacing;
-    const at = barAt.get(start);
-    if (at !== undefined) {
-      const x = scale.timeToCoordinate(start);
-      return x === null ? null : x + ((time % 60) / 60 - 0.5) * spacing;
+    // A moment's x on the logical bars: within its minute's bar; in minutes without a bar
+    // (the chart skips minutes without trades), at the edge where the next bar starts; past
+    // the last bar, on the free space at a bar a minute.
+    if (!bars.length || time < bars[0].time) return null;
+    const last = bars.length - 1;
+    let lo = 0, hi = last; // the last bar starting at or before ``time``
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (bars[mid].time <= time) lo = mid; else hi = mid - 1;
     }
-    if (!bars.length) return null;
-    const last = bars[bars.length - 1].time;
-    if (start <= last) return null;
-    return scale.logicalToCoordinate(bars.length - 1 + (time - last) / 60 - 0.5);
+    const into = time - bars[lo].time;
+    return chart.timeScale().logicalToCoordinate(lo - 0.5 + (lo === last ? into : Math.min(into, 60)) / 60);
   }
 
   function drawWindow(box) {
@@ -148,6 +147,12 @@
     g.fillStyle = colors.link;
     g.fillRect(x1, 0, x2 - x1, foot);
     g.globalAlpha = 1;
+    if (open) { // its end still to come: the window's edges dotted, targets or not
+      g.strokeStyle = colors.link;
+      g.lineWidth = 1;
+      g.setLineDash([4, 3]);
+      g.strokeRect(x1, 0, x2 - x1, foot);
+    }
     g.lineWidth = 1.5;
     g.setLineDash(open ? [4, 3] : []);
     for (const [price, color] of [[box.upper, colors.up], [box.lower, colors.down]]) {

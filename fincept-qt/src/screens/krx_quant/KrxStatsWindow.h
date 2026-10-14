@@ -9,6 +9,8 @@
 #include <QTableWidget>
 #include <QWidget>
 
+#include <optional>
+
 namespace fincept::ui {
 class LoadingOverlay;
 }
@@ -52,6 +54,10 @@ class KrxStatsWindow : public QWidget {
     void open(const QString& algorithm);
     void show_stats(const krx_quant::AlgorithmStats& stats);
     void show_failure(const QString& reason);
+    /// What the engine says about the algorithm (krx-quant #163): the "학습·예측 방식" section;
+    /// none for a baseline or a consensus, or before the engine answers; ``failure``: why the
+    /// engine's descriptions could not be read (none shown then, not a stale one).
+    void show_about(const std::optional<krx_quant::AlgorithmInfo>& info, const QString& failure = {});
 
   signals:
     void closed();
@@ -71,6 +77,8 @@ class KrxStatsWindow : public QWidget {
     QLabel* failure_ = nullptr;
     QWidget* body_ = nullptr;
     ui::LoadingOverlay* loading_ = nullptr;
+    krx_panel::Header about_header_;  ///< "학습·예측 방식": the training loss's meaning on its tooltip
+    QLabel* about_ = nullptr;         ///< the section's labelled lines
     QLabel* excluded_ = nullptr;      ///< what the stats left out
     QTableWidget* overall_ = nullptr; ///< one line: the leaderboard's
     krx_panel::Header lift_header_;   ///< what lift is on its tooltip

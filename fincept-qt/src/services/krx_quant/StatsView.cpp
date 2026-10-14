@@ -211,4 +211,58 @@ QString query_text(const AlgorithmStats& stats) {
         .join(QStringLiteral(" · "));
 }
 
+QList<QPair<QString, QString>> about_rows(const std::optional<AlgorithmInfo>& info, const QString& failure) {
+    using Row = QPair<QString, QString>;
+    if (!failure.isEmpty())
+        return {Row(QStringLiteral("설명"), QStringLiteral("엔진에서 설명을 읽지 못했습니다: %1").arg(failure))};
+    if (!info)
+        return {Row(QStringLiteral("설명"), QStringLiteral("엔진이 아직 설명을 주지 않음"))};
+    QList<Row> rows;
+    if (const auto& card = info->card) {
+        rows << Row(QStringLiteral("성격"), card->scientist.isEmpty()
+                                                ? card->character
+                                                : QStringLiteral("%1 (%2)").arg(card->character, card->scientist));
+        rows << Row(QStringLiteral("예측 로직"), card->logic);
+        if (!card->unique_features.isEmpty())
+            rows << Row(QStringLiteral("고유 피처"), card->unique_features.join(", "));
+    }
+    if (!info->features.isEmpty())
+        rows << Row(QStringLiteral("입력 피처"), info->features.join(", "));
+    if (info->card && !info->card->training.isEmpty())
+        rows << Row(QStringLiteral("학습 방법"), info->card->training);
+    if (info->training_days)
+        rows << Row(QStringLiteral("학습 기간"), QStringLiteral("최근 %1거래일").arg(*info->training_days));
+    if (!info->model_version.isEmpty())
+        rows << Row(QStringLiteral("모델"), info->model_version);
+    QString trained = info->trained.isEmpty() ? QStringLiteral("학습 기록 없음 (기본값)") : info->trained;
+    if (!info->trained_until.isEmpty())
+        trained += QStringLiteral(" · %1까지의 데이터").arg(info->trained_until);
+    rows << Row(QStringLiteral("학습 결과"), trained);
+    if (!info->params.isEmpty()) {
+        QStringList params;
+        for (const auto& [name, value] : info->params)
+            params << QStringLiteral("%1 = %2").arg(name, value);
+        rows << Row(QStringLiteral("파라미터"), params.join(", "));
+    }
+    if (!info->status.isEmpty()) {
+        QString status = standing_label(info->status);
+        if (info->since.isValid())
+            status += QStringLiteral(" · %1부터").arg(kst_text(info->since, "yyyy-MM-dd HH:mm"));
+        rows << Row(QStringLiteral("상태"), status);
+    }
+    if (!info->history.isEmpty()) {
+        QStringList lines;
+        for (const auto& h : info->history) {
+            const QString change = h.from.isEmpty()
+                                       ? standing_label(h.to)
+                                       : QStringLiteral("%1 → %2").arg(standing_label(h.from), standing_label(h.to));
+            lines << (h.reason.isEmpty()
+                          ? QStringLiteral("%1 %2").arg(kst_text(h.at, "MM-dd HH:mm"), change)
+                          : QStringLiteral("%1 %2 (%3)").arg(kst_text(h.at, "MM-dd HH:mm"), change, h.reason));
+        }
+        rows << Row(QStringLiteral("상태 이력"), lines.join("\n"));
+    }
+    return rows;
+}
+
 } // namespace fincept::krx_quant

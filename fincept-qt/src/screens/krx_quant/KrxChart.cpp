@@ -192,10 +192,11 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
                             {"lines", QJsonArray::fromStringList(h.lines)},
                             {"from", h.window_from},
                             {"to", h.window_to}};
-            if (h.upper && h.lower) { // the touch targets, once the label is in (krx-quant #167)
+            // The touch targets, once the label is in (krx-quant #167), each as it is.
+            if (h.upper)
                 box.insert("upper", *h.upper);
+            if (h.lower)
                 box.insert("lower", *h.lower);
-            }
             for (const auto& [key, point] :
                  {std::pair{"upper_reached", h.upper_reached}, std::pair{"lower_reached", h.lower_reached}})
                 if (point)
