@@ -8,6 +8,7 @@
 // The window shows for those seconds: the chart (Qt WebEngine) draws in a real window only.
 // With QT_QPA_PLATFORM=offscreen no window opens, and the chart's panel stays empty. The
 // theme and font are the app's defaults (Obsidian, Consolas 14px).
+#include "core/config/AppConfig.h"
 #include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxLeaderboard.h"
 #include "screens/krx_quant/KrxQuantScreen.h"
@@ -41,6 +42,10 @@ int main(int argc, char* argv[]) {
     theme.apply_typography_and_density("Consolas", 14, "Default");
     theme.apply_theme("Obsidian");
     fincept::services::KrxQuantService::set_base_url(QString::fromLocal8Bit(argv[1]));
+    // KRX_CAPTURE_SELECTION=<predictor,...>: the models ticked on the leaderboard for the
+    // chart (krx-quant #159); empty clears them. Unset, the scratch settings' last one stays.
+    if (qEnvironmentVariableIsSet("KRX_CAPTURE_SELECTION"))
+        fincept::AppConfig::instance().set("krx_quant/chart_selection", qEnvironmentVariable("KRX_CAPTURE_SELECTION"));
 
     fincept::screens::KrxQuantScreen screen;
     screen.resize(width, height);
@@ -84,6 +89,25 @@ int main(int argc, char* argv[]) {
                         "clientY: innerHeight / 3}));");
             });
         }
+    }
+    // KRX_CAPTURE_HOVER=<0–1>: as the pointer resting that far across the chart, a third of
+    // the way down, from 0.8 of the wait: the hovered bar's box shows (krx-quant #159).
+    if (const QString at = qEnvironmentVariable("KRX_CAPTURE_HOVER"); !at.isEmpty()) {
+        QTimer::singleShot(seconds * 800, &app, [&screen, across = at.toDouble()]() {
+            auto* chart = screen.findChild<fincept::screens::KrxChart*>();
+            auto* view = chart ? chart->findChild<QWebEngineView*>() : nullptr;
+            if (view)
+                view->page()->runJavaScript(
+                    QStringLiteral(
+                        "(function(){const x = innerWidth * %1, y = innerHeight / 3;"
+                        "const at = document.elementFromPoint(x, y);"
+                        "const event = (type, bubbles) => new MouseEvent(type, {clientX: x, clientY: y, "
+                        "  pageX: x, pageY: y, bubbles: bubbles, view: window});"
+                        "for (let e = at; e; e = e.parentElement) e.dispatchEvent(event('mouseenter', false));"
+                        "at.dispatchEvent(event('mousemove', true));"
+                        "})();")
+                        .arg(across));
+        });
     }
 #endif
 

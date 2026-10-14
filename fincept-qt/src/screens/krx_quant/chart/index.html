@@ -3,18 +3,19 @@
 <head>
 <meta charset="utf-8">
 <!--
-  The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110), drawn with TradingView
-  Lightweight Charts (NOTICE). It only draws what the screen sends over the web channel:
-  the bars and their volumes, the final consensus's icons with their hover lines and the
-  bars they aim at, the theme, and when to fit.
+  The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159), drawn with
+  TradingView Lightweight Charts (NOTICE). It only draws what the screen sends over the web
+  channel: the bars and their volumes, the consensus icons, each bar's hover box and the bar
+  it aims at, the theme, and when to fit. It tells the screen where its view is.
 -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #080808; }
   #chart, #links { position: absolute; inset: 0; }
   #links { pointer-events: none; z-index: 60; width: 100%; height: 100%; } /* above the chart's own canvases (z-index up to 50) */
   #tip {
-    position: absolute; display: none; pointer-events: none; white-space: pre;
+    position: absolute; display: none; pointer-events: none; white-space: pre-wrap;
     padding: 4px 8px; border: 1px solid; z-index: 61;
+    max-width: calc(100% - 30px); box-sizing: border-box; /* a long line wraps inside the chart */
   }
 </style>
 <script src="lightweight-charts.standalone.production.js"></script>
@@ -59,6 +60,8 @@
   let bars = [];        // as drawn, oldest first
   let barAt = new Map(); // time -> index in bars
   let iconAt = new Map(); // time -> icon
+  let hoverAt = new Map(); // time -> hover box (krx-quant #159)
+  let hovered = null;      // the bar hovered: {time, x}, kept while the data is sent again
   let colors = { tip_background: '#111', tip_border: '#333', tip_text: '#e5e5e5', link: '#f59e0b' };
 
   // Fitted since the chart last emptied: another symbol is chosen by emptying the chart
@@ -83,7 +86,15 @@
       shown = true;
       fit();
     }
-    hover(null);
+    redraw(); // the box hovered stays, over what was sent now
+  }
+
+  // Hover boxes set and dropped (krx-quant #159): only those changed come.
+  function boxes(data) {
+    if (data.reset) hoverAt = new Map();
+    for (const box of data.set) hoverAt.set(box.time, box);
+    for (const time of data.drop) hoverAt.delete(time);
+    redraw();
   }
 
   // The bar being made moved (krx-quant #110): only the last bar is drawn again, or a new
@@ -100,28 +111,31 @@
     }
   }
 
-  // The hovered icon's link: from its bar's top to the bar it aims at, or to a dotted slot
-  // on the right while that bar is not there yet.
-  function drawLink(icon) {
+  // The hovered bar's link: from its top to where its target was reached, else to the bar
+  // it aims at, or to a dotted slot on the right while that bar is not there yet.
+  function drawLink(box) {
     const ratio = window.devicePixelRatio || 1;
     links.width = area.clientWidth * ratio;
     links.height = area.clientHeight * ratio;
     const g = links.getContext('2d');
     g.setTransform(ratio, 0, 0, ratio, 0, 0);
     g.clearRect(0, 0, area.clientWidth, area.clientHeight);
-    if (!icon) return;
+    if (!box) return;
     const scale = chart.timeScale();
-    const from = bars[barAt.get(icon.time)];
-    const x1 = scale.timeToCoordinate(icon.time);
+    const from = bars[barAt.get(box.time)];
+    const x1 = scale.timeToCoordinate(box.time);
     if (!from || x1 === null) return;
     const y1 = candles.priceToCoordinate(from.high);
     let x2 = null, y2 = null, slot = false;
-    if (icon.target_shown) {
-      const to = bars[barAt.get(icon.target)];
-      x2 = scale.timeToCoordinate(icon.target);
+    if (box.hit_time !== undefined && box.hit_price !== undefined) {
+      x2 = scale.timeToCoordinate(box.hit_time - (box.hit_time % 60)); // the bar it was reached in
+      y2 = candles.priceToCoordinate(box.hit_price);
+    } else if (box.target_shown) {
+      const to = bars[barAt.get(box.target)];
+      x2 = scale.timeToCoordinate(box.target);
       y2 = to ? candles.priceToCoordinate(to.close) : null;
-    } else if (icon.target_after_last > 0 && bars.length) {
-      x2 = scale.logicalToCoordinate(bars.length - 1 + icon.target_after_last);
+    } else if (box.target_after_last > 0 && bars.length) {
+      x2 = scale.logicalToCoordinate(bars.length - 1 + box.target_after_last);
       y2 = candles.priceToCoordinate(bars[bars.length - 1].close);
       slot = true;
     }
@@ -139,23 +153,34 @@
     }
   }
 
+  function hide() {
+    tip.style.display = 'none';
+    drawLink(null);
+  }
+
+  // The box of the bar under the pointer, anywhere on its column (krx-quant #159).
   function hover(param) {
-    // Only over an icon itself, not anywhere over its bar (the volume pane included).
-    const icon = param && param.hoveredObjectId !== undefined ? iconAt.get(String(param.hoveredObjectId)) : undefined;
-    if (!icon || !param.point) {
-      tip.style.display = 'none';
-      drawLink(null);
-      return;
+    if (!param || !param.point || param.time === undefined) {
+      hovered = null;
+      return hide();
     }
-    tip.textContent = icon.hover.join('\n');
+    hovered = { time: param.time, x: param.point.x };
+    redraw();
+  }
+
+  function redraw() {
+    const box = hovered ? hoverAt.get(hovered.time) : undefined;
+    if (!box) return hide();
+    tip.textContent = box.lines.join('\n');
     tip.style.display = 'block';
-    // At the foot of the price pane, on the side away from the pointer: the icons sit over
-    // the bars, so it covers neither the hovered icon nor its link.
-    const right = param.point.x < area.clientWidth / 2;
+    // At the foot of the price pane, on the side away from the pointer: it covers neither
+    // the bar hovered nor its link. Kept inside the chart when it is tall.
+    const right = hovered.x < area.clientWidth / 2;
     const foot = chart.panes()[0].getHeight();
-    tip.style.top = Math.max(6, foot - tip.offsetHeight - 6) + 'px';
+    const top = Math.min(foot - tip.offsetHeight - 6, area.clientHeight - tip.offsetHeight - 6);
+    tip.style.top = Math.max(6, top) + 'px';
     tip.style.left = right ? Math.max(6, area.clientWidth - tip.offsetWidth - 70) + 'px' : '6px';
-    drawLink(icon);
+    drawLink(box);
   }
   chart.subscribeCrosshairMove(hover);
 
@@ -163,6 +188,10 @@
   // The chart keeps the view on the same bars when they come in before the first.
   chart.timeScale().subscribeVisibleLogicalRangeChange(function (range) {
     if (range && bars.length && bridge) bridge.moved(range.from);
+  });
+  // The bars in view, by time: the score over them (krx-quant #159).
+  chart.timeScale().subscribeVisibleTimeRangeChange(function (range) {
+    if (range && bridge) bridge.range(range.from, range.to);
   });
 
   // An icon clicked: the screen shows that bar close's judgements (krx-quant #107).
@@ -206,11 +235,13 @@
 
   area.addEventListener('dblclick', fit);
   area.addEventListener('mouseleave', () => hover(null));
+  window.addEventListener('resize', redraw);
 
   new QWebChannel(qt.webChannelTransport, function (channel) {
     bridge = channel.objects.bridge;
     bridge.theme_changed.connect(function (json) { theme(JSON.parse(json)); });
     bridge.data_changed.connect(function (json) { show(JSON.parse(json)); });
+    bridge.hovers_changed.connect(function (json) { boxes(JSON.parse(json)); });
     bridge.live_changed.connect(function (json) { live(JSON.parse(json)); });
     bridge.fit_requested.connect(fit);
     bridge.ready();

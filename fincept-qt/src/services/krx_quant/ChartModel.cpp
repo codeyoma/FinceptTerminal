@@ -55,99 +55,259 @@ QString percent(const std::optional<double>& p) {
     return p ? QString::number(std::lround(*p * 100)) + "%" : QStringLiteral("—");
 }
 
-QString blocked_label(const QString& why) {
-    if (why == "special")
-        return QStringLiteral("특수 상황");
-    if (why == "no_reference")
-        return QStringLiteral("기준가 없음");
-    if (why == "expired")
-        return QStringLiteral("목표 시각 지남");
-    return why;
+QString verdict_mark(Mark::Result r) {
+    return result_of(r);
 }
 
-QString signal_line(const Mark& m, const SignalRule& rule) {
-    const Prediction& p = m.prediction;
-    if (!p.blocked.isEmpty())
-        return QStringLiteral("신호 아님 (엔진이 막음: %1)").arg(blocked_label(p.blocked));
-    if (!p.votes)
-        return QStringLiteral("신호 알 수 없음");
-    const auto signal = judge(p, *p.votes, rule);
-    if (!signal)
-        return QStringLiteral("신호 아님");
-    return QStringLiteral("%1 신호 (%2 ≥ %3, 같은 방향 %4 ≥ %5)")
-        .arg(direction_label(signal->direction), percent(signal->probability), percent(rule.min_probability))
-        .arg(signal->agree)
-        .arg(rule.min_agree);
+QString verdict_text(Mark::Result r) {
+    switch (r) {
+        case Mark::Result::Hit:
+            return QStringLiteral("✓ 맞음");
+        case Mark::Result::Miss:
+            return QStringLiteral("✗ 틀림");
+        case Mark::Result::Unscorable:
+            return QStringLiteral("채점 불가");
+        case Mark::Result::Pending:
+            break;
+    }
+    return QStringLiteral("채점 전");
 }
 
-QString result_line(const Mark& m, const QString& basis) {
-    if (m.result == Mark::Result::Pending)
+/// What happened after a bar close: "실제 상승 +500원", or why it is not known yet.
+QString truth_text(const Truth& truth) {
+    if (!truth.scored)
         return QStringLiteral("채점 전");
-    if (m.result == Mark::Result::Unscorable)
-        return m.unscorable.isEmpty() ? QStringLiteral("채점 불가")
-                                      : QStringLiteral("채점 불가 (%1)").arg(m.unscorable);
-    const auto& o = m.prediction.outcome;
-    const std::optional<double> start = !o ? std::nullopt : basis == "a" ? o->mid_close : o->mid_display;
-    const QString verdict = m.result == Mark::Result::Hit ? QStringLiteral("✓ 맞음") : QStringLiteral("✗ 틀림");
-    if (!start || !o->mid_target)
-        return verdict;
-    const double move = *o->mid_target - *start;
-    const QString won = QLocale(QLocale::Korean).toString(std::abs(move), 'f', 0);
-    return QStringLiteral("실제 %1%2원 · %3").arg(move > 0 ? "+" : move < 0 ? "-" : "±", won, verdict);
+    if (truth.happened == Direction::None)
+        return truth.unscorable.isEmpty() ? QStringLiteral("채점 불가")
+                                          : QStringLiteral("채점 불가 (%1)").arg(truth.unscorable);
+    QString text = QStringLiteral("실제 %1").arg(direction_label(truth.happened));
+    if (truth.mid_start && truth.mid_target) {
+        const double move = *truth.mid_target - *truth.mid_start;
+        const QString won = QLocale(QLocale::Korean).toString(std::abs(move), 'f', 0);
+        text += QStringLiteral(" %1%2원").arg(move > 0 ? "+" : move < 0 ? "-" : "±", won);
+    }
+    if (truth.special)
+        text += QStringLiteral(" · 특수 상황");
+    return text;
+}
+
+QString probabilities(const Prediction& p) {
+    return QStringLiteral("상승 %1 · 보합 %2 · 하락 %3").arg(percent(p.p_up), percent(p.p_flat), percent(p.p_down));
+}
+
+/// A consensus's line of a hover box: its class, three probabilities, how its models leaned,
+/// its result, and whether it was a signal.
+QString consensus_line(const QString& name, const Prediction& c, const Truth& truth, const QString& counted,
+                       bool signal) {
+    const Direction d = most_likely(c);
+    QStringList parts{name, direction_label(d), probabilities(c)};
+    if (!counted.isEmpty())
+        parts << counted;
+    parts << verdict_mark(verdict(d, truth));
+    if (signal)
+        parts << QStringLiteral("신호");
+    return parts.join(QStringLiteral(" · "));
+}
+
+/// When a mark's bar close is scored: its truth's target time.
+QDateTime target_of(const Truth& truth, const QDateTime& bar_close) {
+    return truth.target_at.isValid() ? truth.target_at : bar_close.addSecs(240);
+}
+
+/// Whether a mark's consensus is a signal under ``rule``.
+bool signalled(const Mark& m, const SignalRule& rule) {
+    const Prediction& p = m.prediction;
+    if (!p.votes || !judge(p, *p.votes, rule))
+        return false;
+    return !(m.selected && m.special); // a selected consensus on a special bar is never emphasised
 }
 
 } // namespace
 
-/// When a prediction is scored: its own target time, or four minutes on for one without.
-static QDateTime target_of(const Mark& m) {
-    return m.prediction.target_at.isValid() ? m.prediction.target_at : m.bar_close.addSecs(240);
-}
-
-QStringList hover_lines(const Mark& m, const QString& basis, const SignalRule& rule) {
-    const Prediction& p = m.prediction;
-    const QString members = p.votes
-                                ? QStringLiteral("같은 방향 %1/%2").arg(p.votes->of(m.predicted)).arg(p.votes->total())
-                                : QStringLiteral("같은 방향 모델 수 알 수 없음");
-    return {QStringLiteral("%1 봉 → %2 목표").arg(kst_text(m.bar_close, "HH:mm"), kst_text(target_of(m), "HH:mm")),
-            QStringLiteral("합의 %1 · 상승 %2 · 보합 %3 · 하락 %4")
-                .arg(direction_label(m.predicted), percent(p.p_up), percent(p.p_flat), percent(p.p_down)),
-            members, signal_line(m, rule), result_line(m, basis)};
-}
-
-QList<ChartIcon> chart_icons(const QList<Mark>& marks, const QList<Bar>& bars, const QString& basis,
-                             const SignalRule& rule) {
-    QSet<qint64> drawn;
-    for (const auto& b : bars)
-        drawn.insert(chart_time(b.start));
-    const qint64 last = bars.isEmpty() ? 0 : chart_time(bars.last().start);
+QList<ChartIcon> chart_icons(const QList<Mark>& marks, const SignalRule& rule) {
     QList<ChartIcon> out;
     for (const auto& m : marks) {
         if (m.predicted == Direction::None)
             continue;
         ChartIcon icon;
-        // The bar that closed at the bar close started a minute before; the one it aims at
-        // closes four minutes later.
+        // The bar that closed at the bar close started a minute before.
         icon.time = chart_time(m.bar_close.addSecs(-60));
         icon.bar_close = m.bar_close;
         icon.direction = m.predicted;
         icon.arrow = arrow_of(m.predicted);
         icon.result = result_of(m.result);
         icon.faint = m.special;
-        icon.hover = hover_lines(m, basis, rule);
-        icon.target = chart_time(target_of(m).addSecs(-60)); // the bar closing then
-        icon.target_shown = drawn.contains(icon.target);
-        icon.target_after_last =
-            icon.target_shown || bars.isEmpty() ? 0 : static_cast<int>(std::max<qint64>(0, (icon.target - last) / 60));
-        const Prediction& p = m.prediction;
-        icon.signal = p.votes && judge(p, *p.votes, rule).has_value();
+        icon.signal = signalled(m, rule);
         out << icon;
     }
     std::sort(out.begin(), out.end(), [](const ChartIcon& a, const ChartIcon& b) { return a.time < b.time; });
     return out;
 }
 
+QStringList hover_box(const QList<Prediction>& at_close, const QDateTime& bar_close, const QStringList& selection,
+                      const QMap<QString, QString>& standings, const SignalRule& rule) {
+    const Truth truth = truth_of(at_close, bar_close);
+    const QString times = QStringLiteral("%1 봉 → %2 목표")
+                              .arg(kst_text(bar_close, "HH:mm"), kst_text(target_of(truth, bar_close), "HH:mm"));
+    if (at_close.isEmpty())
+        return {times, QStringLiteral("예측 없음")};
+    QStringList lines{QStringLiteral("%1 · %2").arg(times, truth_text(truth))};
+    if (!selection.isEmpty()) {
+        const QString chosen = QString::number(selection.size());
+        if (const auto pooled = select_consensus(at_close, selection)) {
+            const Votes& v = *pooled->consensus.votes;
+            Mark m;
+            m.prediction = pooled->consensus;
+            m.selected = true;
+            m.special = truth.special;
+            const QString counted = QStringLiteral("상승 %1 보합 %2 하락 %3 · %4/%5 모델")
+                                        .arg(v.up)
+                                        .arg(v.flat)
+                                        .arg(v.down)
+                                        .arg(pooled->made)
+                                        .arg(chosen);
+            lines << consensus_line(QStringLiteral("선택 합의"), pooled->consensus, truth, counted, signalled(m, rule));
+        } else {
+            lines << QStringLiteral("선택 합의 · 예측 없음 · 0/%1 모델").arg(chosen);
+        }
+        for (const auto& name : selection) {
+            const auto made = std::find_if(at_close.cbegin(), at_close.cend(),
+                                           [&name](const Prediction& p) { return p.algorithm == name; });
+            QStringList parts{predictor_label(name)};
+            if (const QString standing = standings.value(name); !standing.isEmpty())
+                parts << standing_label(standing);
+            if (made == at_close.cend()) {
+                parts << QStringLiteral("예측 없음");
+            } else if (made->status != "ok") {
+                parts << status_label(made->status);
+            } else {
+                const Direction d = most_likely(*made);
+                parts << direction_label(d) << probabilities(*made) << verdict_mark(verdict(d, truth));
+            }
+            lines << parts.join(QStringLiteral(" · "));
+        }
+    }
+    const auto final = std::find_if(at_close.cbegin(), at_close.cend(), [](const Prediction& p) {
+        return p.algorithm == QLatin1String("consensus-final");
+    });
+    if (final == at_close.cend()) {
+        lines << QStringLiteral("최종 합의 · 예측 없음");
+    } else if (final->status != "ok") {
+        lines << QStringLiteral("최종 합의 · %1").arg(status_label(final->status));
+    } else {
+        const Direction d = most_likely(*final);
+        const QString counted =
+            final->votes ? QStringLiteral("같은 방향 %1/%2").arg(final->votes->of(d)).arg(final->votes->total())
+                         : QString();
+        const bool signal = final->votes && judge(*final, *final->votes, rule).has_value();
+        lines << consensus_line(QStringLiteral("최종 합의"), *final, truth, counted, signal);
+    }
+    return lines;
+}
+
+QList<BarHover> bar_hovers(const QList<Bar>& bars, const QMap<QDateTime, QList<Prediction>>& closes,
+                           const QStringList& selection, const QMap<QString, QString>& standings,
+                           const SignalRule& rule) {
+    QSet<qint64> drawn;
+    for (const auto& b : bars)
+        drawn.insert(chart_time(b.start));
+    const qint64 last = bars.isEmpty() ? 0 : chart_time(bars.last().start);
+    QList<BarHover> out;
+    out.reserve(bars.size());
+    for (const auto& b : bars) {
+        const QDateTime bar_close = b.start.addSecs(60);
+        const QList<Prediction> at_close = closes.value(bar_close);
+        const Truth truth = truth_of(at_close, bar_close);
+        BarHover hover;
+        hover.time = chart_time(b.start);
+        hover.lines = hover_box(at_close, bar_close, selection, standings, rule);
+        hover.target = chart_time(target_of(truth, bar_close).addSecs(-60)); // the bar closing then
+        hover.target_shown = drawn.contains(hover.target);
+        hover.target_after_last =
+            hover.target_shown ? 0 : static_cast<int>(std::max<qint64>(0, (hover.target - last) / 60));
+        if (truth.hit_at && truth.hit_price) {
+            hover.hit_time = chart_time(*truth.hit_at);
+            hover.hit_price = truth.hit_price;
+        }
+        out << hover;
+    }
+    return out;
+}
+
+SelectionScore score_of(const QList<Mark>& marks, qint64 from, qint64 to, const QDateTime& now) {
+    SelectionScore score;
+    for (const auto& m : marks) {
+        const qint64 time = chart_time(m.bar_close.addSecs(-60));
+        if (time < from || time > to)
+            continue;
+        const Truth& t = m.truth;
+        if (!t.scored || t.happened == Direction::None || t.special)
+            continue;
+        if (!t.target_at.isValid() || t.target_at > now)
+            continue; // its 4 minutes are not over: a window decided early would weigh more
+        ++score.n;
+        score.hits += m.result == Mark::Result::Hit;
+        score.flat_hits += t.happened == Direction::Flat;
+    }
+    return score;
+}
+
+QString score_text(int chosen, const SelectionScore& score) {
+    const QString head = QStringLiteral("선택 합의 (%1)").arg(chosen);
+    if (score.n == 0)
+        return head + QStringLiteral(" · 채점된 봉 없음");
+    const auto rate = [&score](int k) { return QString::number(std::lround(100.0 * k / score.n)) + "%"; };
+    return QStringLiteral("%1 · 맞음 %2 · 늘 보합 %3 (%4개)")
+        .arg(head, rate(score.hits), rate(score.flat_hits))
+        .arg(score.n);
+}
+
+bool selectable(const QString& predictor) {
+    return !predictor.isEmpty() && !is_consensus(predictor) && predictor != QLatin1String(kSelected);
+}
+
+QStringList toggled(QStringList selection, const QString& predictor, bool on) {
+    selection.removeAll(predictor);
+    if (on && selectable(predictor))
+        selection << predictor;
+    selection.removeDuplicates();
+    std::sort(selection.begin(), selection.end());
+    return selection;
+}
+
+QString selection_value(const QStringList& selection) {
+    return selection.join(',');
+}
+
+QStringList parse_selection(const QString& saved) {
+    QStringList out;
+    for (const auto& name : saved.split(',', Qt::SkipEmptyParts))
+        out = toggled(out, name.trimmed(), true);
+    return out;
+}
+
+std::optional<QDateTime> relabel_before(const QDateTime& full_from, const QDateTime& oldest_close) {
+    if (!oldest_close.isValid())
+        return std::nullopt; // nothing shown
+    if (full_from.isValid() && full_from <= oldest_close)
+        return std::nullopt; // every predictor's, back to the first bar
+    return full_from;        // invalid: from the latest
+}
+
+QDateTime full_from_after(const QDateTime& full_from, const QList<Prediction>& page, const QDateTime& oldest_close) {
+    if (page.isEmpty())
+        return oldest_close.isValid() ? oldest_close : full_from; // nothing before: as far back as shown
+    QDateTime earliest = full_from;
+    for (const auto& p : page)
+        if (!earliest.isValid() || p.bar_close < earliest)
+            earliest = p.bar_close;
+    return earliest;
+}
+
 QList<CloseRow> close_rows(const QList<Prediction>& predictions, const QMap<QString, QString>& statuses,
-                           const QString& basis) {
+                           const QStringList& selection) {
+    const QDateTime bar_close = predictions.isEmpty() ? QDateTime() : predictions.first().bar_close;
+    const Truth truth = truth_of(predictions, bar_close);
     std::optional<QStringList> pooled;
     for (const auto& p : predictions)
         if (p.algorithm == "consensus-final")
@@ -164,6 +324,23 @@ QList<CloseRow> close_rows(const QList<Prediction>& predictions, const QMap<QStr
         return rank(a) != rank(b) ? rank(a) < rank(b) : a.algorithm < b.algorithm;
     });
     QList<CloseRow> out;
+    if (!selection.isEmpty()) {
+        CloseRow row;
+        row.algorithm = kSelected;
+        row.name = QStringLiteral("선택 합의");
+        row.consensus = true;
+        if (const auto made = select_consensus(predictions, selection)) {
+            const Prediction& c = made->consensus;
+            row.p_up = c.p_up;
+            row.p_flat = c.p_flat;
+            row.p_down = c.p_down;
+            row.direction = direction_label(most_likely(c));
+            row.result = verdict_text(verdict(most_likely(c), truth));
+        } else {
+            row.direction = QStringLiteral("예측 없음");
+        }
+        out << row;
+    }
     for (const auto& p : sorted) {
         CloseRow row;
         row.algorithm = p.algorithm;
@@ -181,15 +358,7 @@ QList<CloseRow> close_rows(const QList<Prediction>& predictions, const QMap<QStr
         row.p_down = p.p_down;
         const Direction leaned = p.status == "ok" ? most_likely(p) : Direction::None;
         row.direction = p.status == "ok" ? direction_label(leaned) : status_label(p.status);
-        if (p.status != "ok")
-            row.result = QString();
-        else if (!p.outcome)
-            row.result = QStringLiteral("채점 전");
-        else if (const Direction happened = basis == "a" ? p.outcome->class_a : p.outcome->class_b;
-                 happened == Direction::None)
-            row.result = QStringLiteral("채점 불가");
-        else
-            row.result = happened == leaned ? QStringLiteral("✓ 맞음") : QStringLiteral("✗ 틀림");
+        row.result = p.status == "ok" ? verdict_text(verdict(leaned, truth)) : QString();
         out << row;
     }
     return out;

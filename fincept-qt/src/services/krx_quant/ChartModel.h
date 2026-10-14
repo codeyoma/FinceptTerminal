@@ -13,8 +13,9 @@
 #include <utility>
 
 /// What the KRX screen's chart draws, worked out here so that its page only draws
-/// (krx-quant #105, #106): the bars, and the final consensus's icons, the bars they sit on,
-/// their hover lines, the bars they aim at, and which were signals. Qt Core only.
+/// (krx-quant #105, #106, #159): the bars; the icons of the final consensus or the selected
+/// models' consensus, the bars they sit on and which were signals; each bar's hover box and
+/// the bar it aims at; the selected consensus's score over the bars in view. Qt Core only.
 namespace fincept::krx_quant {
 
 /// Bars kept free to the right of the last one when the chart is fitted: the latest
@@ -40,31 +41,85 @@ struct ChartBar {
 
 QList<ChartBar> chart_bars(const QList<Bar>& bars);
 
-/// A final consensus's icon, on the bar that closed when it was made.
+/// A consensus's icon, on the bar that closed when it was made.
 struct ChartIcon {
     qint64 time = 0;     ///< that bar's start, as chart_time
     QDateTime bar_close; ///< the prediction's
     Direction direction = Direction::Flat;
-    QString arrow;             ///< "▲" up, "▼" down, "–" flat
-    QString result;            ///< "✓" hit, "✗" miss, "?" not scored yet or could not be
-    bool faint = false;        ///< a VI, circuit breaker or sidecar touched its 4 minutes: left out of the stats
-    QStringList hover;         ///< hover_lines
-    qint64 target = 0;         ///< the bar it aims at (the one closing at its target time), as chart_time
-    bool target_shown = false; ///< that bar is among the bars drawn
-    /// Not drawn yet: how many bars after the last one it will be (a slot on the right).
-    int target_after_last = 0;
+    QString arrow;       ///< "▲" up, "▼" down, "–" flat
+    QString result;      ///< "✓" hit, "✗" miss, "?" not scored yet or could not be
+    bool faint = false;  ///< a VI, circuit breaker or sidecar touched its 4 minutes: left out of the stats
     bool signal = false; ///< it was a signal under the screen's rule: drawn larger
 };
 
-/// The icons of ``marks`` over ``bars``, in time order: their results on ``basis`` ("a" or
-/// "b", the leaderboard's) and their signals under ``rule`` (the screen's threshold and N).
-QList<ChartIcon> chart_icons(const QList<Mark>& marks, const QList<Bar>& bars, const QString& basis,
-                             const SignalRule& rule);
+/// The icons of ``marks``, in time order, and their signals under ``rule`` (the screen's
+/// threshold and N): a consensus sure enough of a move that enough of its models lean that
+/// way, unless the engine blocked its bar close; the selected models' consensus also not on
+/// a bar a special situation touched (krx-quant #159).
+QList<ChartIcon> chart_icons(const QList<Mark>& marks, const SignalRule& rule);
 
-/// A final consensus icon's hover, five lines: its bar and target times; its class and three
-/// probabilities; its members leaning that way of all (krx-quant #106); whether it was a
-/// signal under ``rule``; and, once scored on ``basis``, the mid-point's move and the result.
-QStringList hover_lines(const Mark& mark, const QString& basis, const SignalRule& rule);
+/// A 1-minute bar's hover box (krx-quant #159): its lines and the bar it aims at.
+struct BarHover {
+    qint64 time = 0; ///< the bar's start, as chart_time
+    QStringList lines;
+    qint64 target = 0;         ///< the bar closing at its bar close's target time, as chart_time
+    bool target_shown = false; ///< that bar is among the bars drawn
+    /// Not drawn yet: how many bars after the last one it will be (a slot on the right).
+    int target_after_last = 0;
+    std::optional<qint64> hit_time; ///< where the target was reached, as chart_time (krx-quant #160)
+    std::optional<double> hit_price;
+};
+
+/// The hover box of the bar that closed at ``bar_close``, from its predictions: its bar and
+/// target times and what happened; the selected models' consensus and each selected model
+/// (``standings``: their statuses now, from the leaderboard); the final consensus last.
+/// "예측 없음" alone when it has none.
+QStringList hover_box(const QList<Prediction>& at_close, const QDateTime& bar_close, const QStringList& selection,
+                      const QMap<QString, QString>& standings, const SignalRule& rule);
+
+/// Each of ``bars``' hover box, from the predictions of their bar closes (``closes``, by
+/// bar close: Board::closes).
+QList<BarHover> bar_hovers(const QList<Bar>& bars, const QMap<QDateTime, QList<Prediction>>& closes,
+                           const QStringList& selection, const QMap<QString, QString>& standings,
+                           const SignalRule& rule);
+
+/// How the selected models' consensus did over the bars in view (krx-quant #159): the
+/// icons scored there whose 4 minutes are over, special situations left out; how many were
+/// right, and how many "늘 보합" (always flat) would have been on the same bars.
+struct SelectionScore {
+    int n = 0;
+    int hits = 0;
+    int flat_hits = 0;
+};
+
+/// The score of ``marks`` (the selected consensus's) whose bars start from ``from`` to ``to``
+/// (as chart_time), at the engine clock ``now``.
+SelectionScore score_of(const QList<Mark>& marks, qint64 from, qint64 to, const QDateTime& now);
+
+/// The chart header's score, e.g. "선택 합의 (3) · 맞음 52% · 늘 보합 61% (310개)".
+QString score_text(int chosen, const SelectionScore& score);
+
+/// Whether ``predictor`` can be selected for the chart (krx-quant #159): an algorithm or a
+/// baseline, not a consensus.
+bool selectable(const QString& predictor);
+
+/// ``selection`` with ``predictor`` on or off, in name order, once each.
+QStringList toggled(QStringList selection, const QString& predictor, bool on);
+
+/// A selection as kept in the settings ("gauss,markov"), and back: unknown kinds dropped.
+QString selection_value(const QStringList& selection);
+QStringList parse_selection(const QString& saved);
+
+/// With models selected, the predictions of the bar closes read must be every predictor's:
+/// those read with the final consensus alone are read again (krx-quant #159), from the
+/// latest back. ``full_from`` is the earliest bar close from which on all were read
+/// (invalid: none), ``oldest_close`` the first bar's close. The next page to read: its
+/// ``before`` (invalid: before now); none once they reach the first bar or nothing is shown.
+std::optional<QDateTime> relabel_before(const QDateTime& full_from, const QDateTime& oldest_close);
+
+/// ``full_from`` once a page of every predictor's predictions (``page``) read before it came
+/// in: its earliest bar close; ``oldest_close`` when the page is empty (none before it).
+QDateTime full_from_after(const QDateTime& full_from, const QList<Prediction>& page, const QDateTime& oldest_close);
 
 /// A row of a bar close's judgements, the prediction table's while an icon is chosen
 /// (krx-quant #107).
@@ -79,14 +134,16 @@ struct CloseRow {
     std::optional<double> p_down;
     QString direction;    ///< its likeliest class (a tie goes flat), or why it made no forecast
     QString in_consensus; ///< "포함", "제외" or "알 수 없음" for a model; empty for the others
-    QString result;       ///< "✓ 맞음", "✗ 틀림", "채점 전" or "채점 불가" on ``basis``
+    QString result;       ///< "✓ 맞음", "✗ 틀림", "채점 전" or "채점 불가" on the bar close's truth
 };
 
 /// A bar close's judgements (``GET …/predictions?bar_close=``) as the table shows them: the
-/// consensuses (fast, final), the models by name, then the baselines; each model with its
-/// status now (``statuses``, from /v1/algorithms) and whether the final consensus pooled it.
+/// selected models' consensus when models are selected (krx-quant #159), the consensuses
+/// (fast, final), the models by name, then the baselines; each model with its status now
+/// (``statuses``, from /v1/algorithms) and whether the final consensus pooled it. Each is
+/// scored on the bar close's truth (truth_of).
 QList<CloseRow> close_rows(const QList<Prediction>& predictions, const QMap<QString, QString>& statuses,
-                           const QString& basis);
+                           const QStringList& selection = {});
 
 /// The logical range (bar indexes) a fitted chart of ``bars`` bars shows: the last
 /// kFitBars, and kRightOffset free after them.

@@ -1,6 +1,7 @@
 #include "screens/krx_quant/KrxLeaderboard.h"
 
 #include "screens/krx_quant/KrxTables.h"
+#include "services/krx_quant/ChartModel.h"
 #include "ui/theme/Theme.h"
 
 #include <QSignalBlocker>
@@ -13,7 +14,19 @@ namespace {
 using krx_tables::cell;
 using krx_tables::kNumber;
 
-enum Column { kRank, kName, kStatus, kModels, kStats, kSignificant = kStats + krx_tables::kStatsColumns, kColumns };
+enum Column {
+    kPick, ///< the box selecting it for the chart (krx-quant #159)
+    kRank,
+    kName,
+    kStatus,
+    kModels,
+    kStats,
+    kSignificant = kStats + krx_tables::kStatsColumns,
+    kColumns
+};
+/// Clicks on the boxes settle for this long before the chart reads anything: a double click
+/// ticks and clears.
+constexpr int kSettleMs = 300;
 
 } // namespace
 
@@ -37,7 +50,7 @@ KrxLeaderboard::KrxLeaderboard(QWidget* parent) : QWidget(parent) {
     for (const char* basis : {"b", "a"})
         basis_->addItem(krx_quant::basis_label(basis), basis);
     basis_->setToolTip(tr("B: 예측이 화면에 뜬 시각의 중간가부터, A: 봉 마감의 중간가부터 4분. "
-                          "차트의 ✓/✗도 이 기준이다."));
+                          "순위표의 통계만 이 기준이다. 차트와 고정한 봉 마감의 ✓/✗는 봉 마감 기준(A)이다."));
     controls->addWidget(basis_);
     controls->addWidget(new QLabel(tr("종목")));
     symbol_ = new QComboBox;
@@ -47,8 +60,11 @@ KrxLeaderboard::KrxLeaderboard(QWidget* parent) : QWidget(parent) {
     special_->setToolTip(tr("VI·서킷브레이커·사이드카가 4분 구간에 낀 예측도 센다(기본은 뺀다)."));
     controls->addWidget(special_);
 
-    table_ = krx_tables::table(QStringList{tr("순위"), tr("예측"), tr("상태"), tr("모델")} +
+    table_ = krx_tables::table(QStringList{tr("차트"), tr("순위"), tr("예측"), tr("상태"), tr("모델")} +
                                krx_tables::stats_headers() + QStringList{tr("운 보정")});
+    if (auto* pick = table_->horizontalHeaderItem(kPick))
+        pick->setToolTip(tr("체크한 모델들의 합의(세 확률의 평균)를 차트에 그린다. 아무것도 체크하지 않으면 "
+                            "최종 합의다. 이 머리 칸을 누르면 모두 해제한다."));
     table_->horizontalHeader()->setStretchLastSection(false);
     table_->horizontalHeader()->setSectionResizeMode(kModels, QHeaderView::Stretch);
     layout->addWidget(table_, 1);
@@ -57,9 +73,33 @@ KrxLeaderboard::KrxLeaderboard(QWidget* parent) : QWidget(parent) {
     for (auto* combo : {period_, basis_, symbol_})
         connect(combo, &QComboBox::currentIndexChanged, this, &KrxLeaderboard::query_changed);
     connect(special_, &QCheckBox::toggled, this, &KrxLeaderboard::query_changed);
-    connect(table_, &QTableWidget::cellDoubleClicked, this, [this](int row, int) {
+    connect(table_, &QTableWidget::cellDoubleClicked, this, [this](int row, int column) {
+        if (column == kPick)
+            return; // two clicks on a box
         if (const auto* name = table_->item(row, kName))
             emit detail_requested(name->data(Qt::UserRole).toString());
+    });
+    settle_.setSingleShot(true);
+    settle_.setInterval(kSettleMs);
+    connect(&settle_, &QTimer::timeout, this, [this]() {
+        if (selection_ == told_)
+            return; // ticked and cleared again
+        told_ = selection_;
+        emit selection_changed(selection_);
+    });
+    connect(table_, &QTableWidget::itemChanged, this, [this](QTableWidgetItem* item) {
+        if (item->column() != kPick || !(item->flags() & Qt::ItemIsUserCheckable))
+            return;
+        selection_ =
+            krx_quant::toggled(selection_, item->data(Qt::UserRole).toString(), item->checkState() == Qt::Checked);
+        settle_.start();
+    });
+    connect(table_->horizontalHeader(), &QHeaderView::sectionClicked, this, [this](int section) {
+        if (section != kPick || selection_.isEmpty())
+            return;
+        selection_.clear();
+        show_selection();
+        settle_.start();
     });
 }
 
@@ -91,9 +131,17 @@ void KrxLeaderboard::show_leaderboard(const krx_quant::Leaderboard& leaderboard)
     failure_->hide();
     header_.title->setToolTip(krx_quant::ranking_rules(leaderboard.days, leaderboard.min_sample));
     table_->setRowCount(0);
+    const QSignalBlocker quiet(table_); // the boxes as selected, not the user's clicks
     const auto add = [this](const krx_quant::Entry& e, bool baseline) {
         const int row = table_->rowCount();
         table_->insertRow(row);
+        auto* pick = cell(QString());
+        pick->setData(Qt::UserRole, e.algorithm);
+        if (krx_quant::selectable(e.algorithm)) {
+            pick->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
+            pick->setCheckState(selection_.contains(e.algorithm) ? Qt::Checked : Qt::Unchecked);
+        }
+        table_->setItem(row, kPick, pick);
         table_->setItem(row, kRank, cell(e.rank ? QString::number(*e.rank) : QStringLiteral("—"), kNumber));
         auto* name = cell(krx_quant::predictor_label(e.algorithm));
         name->setData(Qt::UserRole, e.algorithm);
@@ -116,6 +164,21 @@ void KrxLeaderboard::show_leaderboard(const krx_quant::Leaderboard& leaderboard)
         add(e, false);
     for (const auto& e : leaderboard.baselines)
         add(e, true);
+}
+
+void KrxLeaderboard::set_selection(const QStringList& selection) {
+    selection_ = selection;
+    told_ = selection;
+    show_selection();
+}
+
+void KrxLeaderboard::show_selection() {
+    const QSignalBlocker quiet(table_);
+    for (int row = 0; row < table_->rowCount(); ++row) {
+        auto* pick = table_->item(row, kPick);
+        if (pick && (pick->flags() & Qt::ItemIsUserCheckable))
+            pick->setCheckState(selection_.contains(pick->data(Qt::UserRole).toString()) ? Qt::Checked : Qt::Unchecked);
+    }
 }
 
 void KrxLeaderboard::show_failure(const QString& reason) {

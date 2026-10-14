@@ -12,6 +12,8 @@
 #include <QTimer>
 #include <QWidget>
 
+#include <utility>
+
 namespace fincept::ui {
 class LoadingOverlay;
 }
@@ -50,6 +52,8 @@ class KrxQuantScreen : public QWidget {
     /// The table while a bar close is pinned (a chart icon clicked).
     void fill_pinned();
     void fill_chart();
+    /// The selected consensus's score over the bars in view, on the chart's header (krx-quant #159).
+    void show_score();
     /// Show the chart as bars of ``minutes`` (krx-quant #109), and keep the choice.
     void set_view(int minutes);
     void open_detail(const QString& algorithm);
@@ -70,6 +74,9 @@ class KrxQuantScreen : public QWidget {
     QTableWidget* symbols_table_ = nullptr;
     krx_panel::Header chart_header_;  ///< titled with the chosen symbol
     QLabel* chart_failure_ = nullptr; ///< on the chart's header, while the bars cannot be read
+    QLabel* chart_score_ = nullptr;   ///< on the chart's header: the selected consensus's score
+    QTimer* chart_soon_ = nullptr;    ///< draws the chart once the chosen symbol's predictions settle
+    std::pair<qint64, qint64> view_range_{0, 0}; ///< the bars in view, by time (chart_time)
     KrxChart* chart_ = nullptr;
     QWidget* chart_views_ = nullptr;       ///< the row of view buttons above the chart
     QList<QPushButton*> view_buttons_;     ///< the minute views', then the day view's (property "view")
