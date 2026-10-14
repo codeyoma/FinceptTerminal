@@ -15,14 +15,16 @@
 
 ## upstream 릴리스 반영
 
-새 릴리스의 merge는 저절로 되고, 빌드는 손으로 시작한다. `custom-upstream-watch` workflow가 매일 05:00 KST에 upstream의 최신 릴리스(prerelease 제외)와 `custom/UPSTREAM_BASE`를 비교한다.
+새 릴리스는 사람이 손대지 않아도 `custom`과 개인 빌드에 들어간다. `custom-upstream-watch` workflow가 매일 05:00 KST에 upstream의 최신 릴리스(prerelease 제외)와 `custom/UPSTREAM_BASE`를 비교한다.
 
 1. 새 릴리스가 있으면 runner에서 `custom/merge-upstream-release.sh <tag>`로 `custom`에 merge 하고, 결과를 `upstream-merge/<tag>` 브랜치에 push 한다.
-2. `Upstream <tag>: ready to build` issue를 연다. 그러면 사람이 그 브랜치로 `custom-release`를 시험 빌드로 돌린다(Actions → custom-release → Run workflow, 브랜치 `upstream-merge/<tag>`. 또는 `gh workflow run custom-release.yml --repo codeyoma/FinceptTerminal --ref upstream-merge/<tag>`). 맥과 윈도우 빌드(스모크 테스트 포함)만 하고 Release는 만들지 않는다. issue가 열려 있는 동안 매일 실행은 그 릴리스를 다시 merge 하지 않는다.
+2. 그 브랜치로 `custom-release`를 시험 빌드로 돌린다. 맥과 윈도우 빌드(스모크 테스트 포함)만 하고 Release는 만들지 않는다.
 3. 두 빌드가 통과하면 `custom`의 fast-forward와 `custom-<tag>-krx.1` 태그를 한 번에(atomic) push 한다(같은 버전의 태그가 이미 있으면 다음 번호). 둘 중 하나라도 거부되면 둘 다 그대로다. 이 태그 push로 `custom-release`가 다시 돌아 개인 빌드를 Release에 올린다. 시험 빌드와 릴리스 빌드로 두 번 빌드한다. 공개 저장소라 Actions 비용은 없다.
-4. 다 끝나면 `upstream-merge/<tag>` 브랜치를 지운다. 다음 날 실행이 `custom/UPSTREAM_BASE`가 새 태그인 것을 보고 그 릴리스의 issue(`ready to build` 포함)를 닫는다.
+4. 다 끝나면 `upstream-merge/<tag>` 브랜치를 지운다. 다음 날 실행이 `custom/UPSTREAM_BASE`가 새 태그인 것을 보고 그 릴리스의 issue를 닫는다.
 
 > **바뀜** (2026-10-14, krx-quant 결정): merge 뒤 workflow가 시험 빌드를 바로 시작했다 → `ready to build` issue를 열고 시험 빌드는 손으로 시작한다. 이유: 빌드는 필요할 때만 손으로 돌리기로 했다(맥·윈도우 빌드가 업데이트마다 돌았다).
+
+> **바뀜** (2026-10-15, krx-quant 결정): 시험 빌드를 손으로 시작했다(`ready to build` issue) → 다시 workflow가 merge 뒤 바로 시작한다. 이유: 이 fork는 공개 저장소라 GitHub Actions가 무료다. 한도를 쓴 것은 비공개였던 krx-quant의 CI였고, 그 저장소도 공개가 됐다. 빌드는 자동이 편하다.
 
 사람이 필요하면 `custom`을 건드리지 않고 `Upstream <tag>: merge needs a hand` issue를 연다. 본문에 마무리 명령이 있다. issue가 열려 있는 동안 매일 실행은 그 릴리스를 다시 시도하지 않는다. 손으로 끝내서 `custom/UPSTREAM_BASE`가 새 태그가 되면 issue는 저절로 닫힌다. 먼저 닫으면 다음 실행이 다시 시도한다.
 
@@ -404,14 +406,16 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 - 서명하지 않은 빌드다. 맥은 처음 열 때 우클릭 → 열기(또는 `xattr -dr com.apple.quarantine /Applications/FinceptTerminal.app`), 윈도우는 SmartScreen에서 추가 정보 → 실행.
 - 공식 버전 업데이트는 꺼져 있다(`FINCEPT_DISABLE_AUTO_UPDATE`). 새 버전은 새 태그로 만들고, 설치된 앱은 아래처럼 스스로 업데이트한다.
 - upstream 릴리스를 반영한 첫 빌드는 workflow가 `custom-<tag>-krx.1`로 태그한다(위 "upstream 릴리스 반영").
-- 그 뒤의 변경은 빌드가 필요할 때 손으로 `custom-auto-tag`를 돌려 태그한다(Actions → custom-auto-tag → Run workflow, 브랜치 `custom`. 또는 `gh workflow run custom-auto-tag.yml --repo codeyoma/FinceptTerminal --ref custom`). `custom`의 최신 커밋에 `custom-<custom/UPSTREAM_BASE>-krx.<N+1>`을 단다. N은 그 upstream 버전에서 이미 쓴 가장 큰 번호다(`-rc` 같은 꼴은 세지 않는다). 이 태그 push로 `custom-release`가 개인 빌드를 만들어 Release에 올리고, 설치된 앱이 업데이트로 받는다. 그 사이에 merge 된 변경은 모두 한 빌드에 들어간다. `custom`에 push 하는 것만으로는 빌드하지 않는다.
-  - 태그를 달지 않는 경우: 그 커밋에 이미 `custom-v*` 태그가 있을 때(upstream 반영은 `custom`과 `krx.1` 태그를 한 번에 push 한다. 손으로 단 태그도 그대로 된다).
-  - 실행은 한 번에 하나라서 번호가 겹치지 않는다. `queue: max`로 기다리는 실행을 모두(최대 100개) 남긴다. GitHub는 기다리는 실행의 순서를 보장하지 않는다. 그래서 더 새 커밋의 빌드가 이미 있으면 그 커밋은 태그하지 않는다. 오래된 코드가 더 큰 번호를 받아 앱이 그쪽으로 "업데이트" 하는 일을 막으려고서다. 같은 번호를 다른 태그가 먼저 가졌으면 태그 push가 실패하고 기존 태그는 그대로다.
+- 그 뒤 `custom`에 merge(push) 되는 변경은 `custom-auto-tag` workflow가 저절로 태그한다(codeyoma/krx-quant#98). push 된 커밋에 `custom-<custom/UPSTREAM_BASE>-krx.<N+1>`을 단다. N은 그 upstream 버전에서 이미 쓴 가장 큰 번호다(`-rc` 같은 꼴은 세지 않는다). 이 태그 push로 `custom-release`가 개인 빌드를 만들어 Release에 올리고, 설치된 앱이 업데이트로 받는다. 그래서 앱을 바꾸는 merge는 손대지 않아도 개인 빌드에 들어간다. 대개 그 merge의 빌드로 들어가고, 아래처럼 더 새 커밋의 빌드에 함께 들어가기도 한다. 문서나 workflow만 바꾼 merge는 빌드하지 않는다. 손으로도 돌릴 수 있다(Actions → custom-auto-tag → Run workflow, 브랜치 `custom`).
+  - 태그를 달지 않는 경우: 그 커밋에 이미 `custom-v*` 태그가 있을 때(upstream 반영은 `custom`과 `krx.1` 태그를 한 번에 push 한다. 손으로 단 태그도 그대로 된다), push가 문서나 workflow만 바꿨을 때(`custom/**`, `*.md`, `docs/**`, `fincept-qt/docs/**`, `.github/**`). 이런 변경을 빌드하려면 손으로 태그한다.
+  - 실행은 한 번에 하나라서 번호가 겹치지 않는다. `queue: max`로 기다리는 실행을 모두(최대 100개) 남겨서, 연달아 merge 해도 merge 마다 빌드가 나온다. GitHub는 기다리는 실행의 순서를 보장하지 않는다. 그래서 더 새 커밋의 빌드가 이미 있으면 그 커밋은 태그하지 않는다. 오래된 코드가 더 큰 번호를 받아 앱이 그쪽으로 "업데이트" 하는 일을 막으려고서다. 같은 번호를 다른 태그가 먼저 가졌으면 태그 push가 실패하고 기존 태그는 그대로다.
   - 태그는 `SYNC_TOKEN`으로 push 한다. `GITHUB_TOKEN`으로 push 한 태그는 `custom-release`를 돌리지 않는다. `SYNC_TOKEN`이 없으면 workflow가 실패로 끝난다.
   - 손으로 태그해도 된다. 이미 태그가 달린 커밋이면 `custom-auto-tag`는 아무것도 하지 않는다.
   - `custom`의 커밋만 태그한다. 다른 브랜치에서 손으로 돌리면(Run workflow) 아무것도 하지 않는다. 빌드 번호를 쓰거나 옛 커밋을 가장 새 빌드로 올리는 일을 막으려고서다.
 
 > **바뀜** (2026-10-14, krx-quant 결정): `custom`에 push 될 때마다 `custom-auto-tag`가 태그하고 빌드했다 → 빌드가 필요할 때 손으로 `custom-auto-tag`를 돌린다. 이유: merge 마다 맥·윈도우 빌드가 돌았고, 개인 빌드는 필요할 때만 있으면 된다.
+
+> **바뀜** (2026-10-15, krx-quant 결정): 손으로 돌렸다 → 다시 `custom`에 push 될 때마다 태그하고 빌드한다. 이유: 공개 저장소라 Actions가 무료이고, merge 한 화면이 앱 업데이트로 바로 오는 편이 낫다.
 
 > **바뀜** (2026-10-12, codeyoma/krx-quant#99): "그 뒤 화면 변경은 같은 upstream 버전에 번호를 올려 손으로 태그한다" → `custom`에 push 되면 `custom-auto-tag`가 다음 번호로 태그한다. 이유: merge 한 변경마다 사람이 태그를 달아야 앱 업데이트가 나왔다(codeyoma/krx-quant#98).
 
@@ -448,7 +452,7 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 
 ## upstream workflow
 
-이 fork에서는 upstream의 예약·릴리스 workflow를 끈다(GitHub Actions 설정에서 disable). 개인 빌드용 workflow는 `custom-` 접두사로 둔다: `custom-upstream-watch`(`main` 동기화와 upstream 릴리스 자동 반영), `custom-release`(개인 빌드와 upstream merge의 시험 빌드, 위 "개인 빌드"), `custom-auto-tag`(손으로 돌려 `custom`의 최신 커밋을 다음 개인 빌드로 태그, 위 "개인 빌드"), `custom-krx-pointer`(`custom`에 push 될 때마다 krx-quant에 포인터를 옮기라고 알림, 위 "krx-quant 포인터").
+이 fork에서는 upstream의 예약·릴리스 workflow를 끈다(GitHub Actions 설정에서 disable). 개인 빌드용 workflow는 `custom-` 접두사로 둔다: `custom-upstream-watch`(`main` 동기화와 upstream 릴리스 자동 반영), `custom-release`(개인 빌드와 upstream merge의 시험 빌드, 위 "개인 빌드"), `custom-auto-tag`(`custom`에 push 된 변경을 다음 개인 빌드로 태그, 위 "개인 빌드"), `custom-krx-pointer`(`custom`에 push 될 때마다 krx-quant에 포인터를 옮기라고 알림, 위 "krx-quant 포인터").
 
 > **바뀜** (2026-10-14, codeyoma/krx-quant#188): 개인 빌드용 workflow 셋 → 넷(`custom-krx-pointer`). 이유: krx-quant의 `fincept` 포인터가 손으로 올리지 않아도 `custom`의 최신 커밋을 따라가게 하려고(codeyoma/krx-quant#186).
 
