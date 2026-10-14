@@ -305,4 +305,72 @@ QList<QPair<QString, QString>> about_rows(const std::optional<AlgorithmInfo>& in
     return rows;
 }
 
+QList<QPair<QString, QString>> learning_rows(const std::optional<AlgorithmInfo>& info) {
+    using Row = QPair<QString, QString>;
+    if (!info || info->kind != QLatin1String("algorithm"))
+        return {};
+    QList<Row> rows;
+    if (const auto& t = info->training) {
+        QStringList parts{QStringLiteral("%1 – %2").arg(t->first_day, t->last_day),
+                          QStringLiteral("표본 %1").arg(number_text(t->samples, 0))};
+        if (t->recorded_days)
+            parts << QStringLiteral("녹화 호가 %1일").arg(*t->recorded_days);
+        if (t->bar_days)
+            parts << QStringLiteral("1분봉 %1일").arg(*t->bar_days);
+        rows << Row(QStringLiteral("학습 데이터"), parts.join(QStringLiteral(" · ")));
+        rows << Row(QStringLiteral("학습 손실"),
+                    QStringLiteral("%1 (학습 데이터로 잰 값)").arg(number_text(t->loss, 4)));
+    } else {
+        rows << Row(QStringLiteral("학습 데이터"),
+                    QStringLiteral("엔진이 주지 않음 (기본값이거나 이전에 저장한 모델)"));
+    }
+    const auto model = [](const std::optional<ValidatedModel>& m, const QString& none) {
+        if (!m)
+            return none;
+        QString text = m->version;
+        text += m->loss ? QStringLiteral(" · 검증 손실 %1").arg(number_text(*m->loss, 4))
+                        : QStringLiteral(" · 검증 손실 없음");
+        if (m->trained_on_validation.value_or(false))
+            text += QStringLiteral(" · 검증일로 학습한 모델");
+        return text;
+    };
+    if (const auto& v = info->validation) {
+        QStringList parts{QStringLiteral("%1 밤").arg(v->day)};
+        if (!v->validation_days.isEmpty())
+            parts << QStringLiteral("검증일 %1").arg(v->validation_days.join(", "));
+        if (v->samples)
+            parts << QStringLiteral("표본 %1").arg(number_text(*v->samples, 0));
+        rows << Row(QStringLiteral("지난밤 검증"), parts.join(QStringLiteral(" · ")));
+        rows << Row(QStringLiteral("새 모델"), model(v->challenger, QStringLiteral("학습하지 않음")));
+        rows << Row(QStringLiteral("지금 모델"), model(v->champion, QStringLiteral("검증할 데이터 없음")));
+        const QString verdict = v->promoted ? QStringLiteral("승격함") : QStringLiteral("승격하지 않음");
+        rows << Row(QStringLiteral("승격"),
+                    v->reason.isEmpty() ? verdict : QStringLiteral("%1 · %2").arg(verdict, v->reason));
+    } else {
+        rows << Row(QStringLiteral("지난밤 검증"), QStringLiteral("밤 학습 리포트 없음"));
+    }
+    if (const auto& st = info->stage) {
+        QString text = QStringLiteral("%1부터 · %2거래일 셈").arg(st->began).arg(st->days);
+        if (st->next_review)
+            text += st->next_review_on.isEmpty()
+                        ? QStringLiteral(" · 다음 판정 %1일째").arg(*st->next_review)
+                        : QStringLiteral(" · 다음 판정 %1일째 (%2 예정)").arg(*st->next_review).arg(st->next_review_on);
+        else
+            text += QStringLiteral(" · 마지막 판정이 지났다");
+        rows << Row(QStringLiteral("%1 단계").arg(standing_label(st->status)), text);
+        if (const auto& w = st->weakest; w && w->value && w->low) {
+            QString lift = QStringLiteral("%1 대비 %2 · 거래일 하한 %3 (%4일")
+                               .arg(w->baseline, signed_text(*w->value, 3), signed_text(*w->low, 3))
+                               .arg(w->n);
+            if (st->level)
+                lift += QStringLiteral(", 신뢰 %1%").arg(number_text(*st->level * 100, 1));
+            rows << Row(QStringLiteral("가장 약한 lift"), lift + ")");
+        } else {
+            rows << Row(QStringLiteral("가장 약한 lift"),
+                        QStringLiteral("아직 없음 (기준 예측마다 거래일 2일 이상 필요)"));
+        }
+    }
+    return rows;
+}
+
 } // namespace fincept::krx_quant

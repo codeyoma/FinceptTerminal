@@ -534,6 +534,48 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(consensus.card->training, QStringLiteral("가중치 글"));
     }
 
+    void an_algorithm_says_what_it_learned_from_and_how_last_night_went() {
+        // Made-up values (krx-quant #165).
+        const auto read = parse_algorithms(json(R"({"algorithms": [
+          {"name": "alpha",
+           "model": {"version": "alpha-2", "params": {}, "trained": "t", "trained_until": "2026-10-07",
+                     "training": {"first_day": "2026-09-08", "last_day": "2026-10-07", "samples": 1200, "loss": 0.81,
+                                  "days": {"recorded": 3, "bars": 17}}},
+           "validation": {"day": "2026-10-13", "validation_days": ["2026-10-12", "2026-10-13"], "samples": 400,
+                          "challenger": {"version": "alpha-2", "loss": 0.82},
+                          "champion": {"version": "alpha-1", "loss": null, "trained_on_validation": true},
+                          "promoted": true, "reason": "이유 글"},
+           "stage": {"status": "probation", "began": "2026-10-12", "counted_from": "2026-10-12", "days": 2,
+                     "review_days": [10, 20], "next_review": 10, "next_review_on": "2026-10-23", "lift_days": 2,
+                     "level": 0.98, "weakest": {"baseline": "base-x", "n": 2, "value": -0.01, "low": -0.4, "high": 0.3},
+                     "enough": true}},
+          {"name": "beta", "model": {"version": "beta-default", "params": {}, "trained": null, "trained_until": null,
+                                     "training": null},
+           "validation": null, "stage": null},
+          {"name": "gamma", "model": {"version": "gamma-1", "params": {}, "trained": "t", "trained_until": null,
+                                      "training": {"first_day": "2026-09-08", "last_day": "2026-10-07", "samples": 9,
+                                                   "loss": 0.8, "days": {"recorded": 2.5, "bars": 3}}}}]})"));
+        QVERIFY(read.is_ok());
+        const AlgorithmInfo alpha = read.value().value("alpha");
+        QCOMPARE(alpha.training->samples, 1200);
+        QCOMPARE(alpha.training->recorded_days, std::optional<int>(3));
+        QCOMPARE(alpha.training->bar_days, std::optional<int>(17));
+        QCOMPARE(alpha.validation->validation_days, (QStringList{"2026-10-12", "2026-10-13"}));
+        QCOMPARE(alpha.validation->challenger->loss, std::optional<double>(0.82));
+        QVERIFY(!alpha.validation->champion->loss.has_value());
+        QCOMPARE(alpha.validation->champion->trained_on_validation, std::optional<bool>(true));
+        QVERIFY(alpha.validation->promoted);
+        QCOMPARE(alpha.stage->next_review, std::optional<int>(10));
+        QCOMPARE(alpha.stage->review_days, (QList<int>{10, 20}));
+        QCOMPARE(alpha.stage->weakest->baseline, QStringLiteral("base-x"));
+        QCOMPARE(alpha.stage->weakest->low, std::optional<double>(-0.4));
+        const AlgorithmInfo beta = read.value().value("beta");
+        QVERIFY(!beta.training && !beta.validation && !beta.stage);
+        const AlgorithmInfo gamma = read.value().value("gamma"); // a day count not whole: not taken
+        QVERIFY(!gamma.training->recorded_days.has_value());
+        QCOMPARE(gamma.training->bar_days, std::optional<int>(3));
+    }
+
     void an_outcome_keeps_its_mid_points() {
         const auto history = parse_predictions(json(kHistory));
         QVERIFY(history.is_ok());

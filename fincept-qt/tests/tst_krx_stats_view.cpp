@@ -324,6 +324,62 @@ class TstKrxStatsView : public QObject {
         QCOMPARE(labels, (QStringList{"성격", "예측 로직", "예측 방식", "실패 조건", "학습 방법"}));
         QCOMPARE(rows[0].second, QStringLiteral("기준 성격")); // no scientist
     }
+
+    void the_learning_section_says_what_it_learned_from_and_how_last_night_went() {
+        // Made-up values (krx-quant #165).
+        AlgorithmInfo info;
+        info.name = "alpha";
+        info.training = TrainingInfo{"2026-09-08", "2026-10-07", 1200, 0.81234, 3, 17};
+        info.validation = NightValidation{"2026-10-13",
+                                          {"2026-10-12", "2026-10-13"},
+                                          400,
+                                          ValidatedModel{"alpha-2", 0.82, std::nullopt},
+                                          ValidatedModel{"alpha-1", std::nullopt, true},
+                                          true,
+                                          "이유 글"};
+        Stage stage;
+        stage.status = "probation";
+        stage.began = "2026-10-12";
+        stage.days = 2;
+        stage.next_review = 10;
+        stage.next_review_on = "2026-10-23";
+        stage.level = 0.983;
+        stage.weakest = WeakestLift{"base-x", 2, -0.0123, -0.3867, 0.3621};
+        info.stage = stage;
+
+        const auto rows = learning_rows(info);
+
+        QStringList labels;
+        for (const auto& row : rows)
+            labels << row.first;
+        QCOMPARE(labels, (QStringList{"학습 데이터", "학습 손실", "지난밤 검증", "새 모델", "지금 모델", "승격",
+                                      "수습 단계", "가장 약한 lift"}));
+        QCOMPARE(rows[0].second, QStringLiteral("2026-09-08 – 2026-10-07 · 표본 1,200 · 녹화 호가 3일 · 1분봉 17일"));
+        QCOMPARE(rows[1].second, QStringLiteral("0.8123 (학습 데이터로 잰 값)"));
+        QCOMPARE(rows[2].second, QStringLiteral("2026-10-13 밤 · 검증일 2026-10-12, 2026-10-13 · 표본 400"));
+        QCOMPARE(rows[3].second, QStringLiteral("alpha-2 · 검증 손실 0.8200"));
+        QCOMPARE(rows[4].second, QStringLiteral("alpha-1 · 검증 손실 없음 · 검증일로 학습한 모델"));
+        QCOMPARE(rows[5].second, QStringLiteral("승격함 · 이유 글"));
+        QCOMPARE(rows[6].second, QStringLiteral("2026-10-12부터 · 2거래일 셈 · 다음 판정 10일째 (2026-10-23 예정)"));
+        QCOMPARE(rows[7].second, QStringLiteral("base-x 대비 -0.012 · 거래일 하한 -0.387 (2일, 신뢰 98.3%)"));
+    }
+
+    void without_values_the_learning_section_says_so_and_a_baseline_has_none() {
+        AlgorithmInfo info;
+        info.name = "beta";
+        const auto rows = learning_rows(info);
+        QCOMPARE(rows.size(), 2);
+        QCOMPARE(rows[0].second, QStringLiteral("엔진이 주지 않음 (기본값이거나 이전에 저장한 모델)"));
+        QCOMPARE(rows[1].second, QStringLiteral("밤 학습 리포트 없음"));
+
+        // A report without a reason: the verdict alone.
+        info.validation = NightValidation{"2026-10-13", {}, std::nullopt, std::nullopt, std::nullopt, false, {}};
+        QCOMPARE(learning_rows(info).last(), (QPair<QString, QString>("승격", "승격하지 않음")));
+
+        info.kind = "baseline";
+        QVERIFY(learning_rows(info).isEmpty());
+        QVERIFY(learning_rows(std::nullopt).isEmpty());
+    }
 };
 
 QTEST_GUILESS_MAIN(TstKrxStatsView)

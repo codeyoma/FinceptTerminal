@@ -77,11 +77,13 @@ class KrxStatsWindow : public QWidget {
     QLabel* failure_ = nullptr;
     QWidget* body_ = nullptr;
     ui::LoadingOverlay* loading_ = nullptr;
-    krx_panel::Header about_header_;  ///< "학습·예측 방식": the training loss's meaning on its tooltip
-    QLabel* about_ = nullptr;         ///< the section's labelled lines
-    QLabel* excluded_ = nullptr;      ///< what the stats left out
-    QTableWidget* overall_ = nullptr; ///< one line: the leaderboard's
-    krx_panel::Header lift_header_;   ///< what lift is on its tooltip
+    krx_panel::Header about_header_;    ///< "학습·예측 방식": the training loss's meaning on its tooltip
+    QLabel* about_ = nullptr;           ///< the section's labelled lines
+    krx_panel::Header learning_header_; ///< "학습과 검증" (krx-quant #165): the losses' meaning on its tooltip
+    QLabel* learning_ = nullptr;        ///< its labelled lines; hidden for a baseline or the consensus
+    QLabel* excluded_ = nullptr;        ///< what the stats left out
+    QTableWidget* overall_ = nullptr;   ///< one line: the leaderboard's
+    krx_panel::Header lift_header_;     ///< what lift is on its tooltip
     QTableWidget* lifts_ = nullptr;
     krx_panel::Header calibration_header_; ///< what the plot compares on its tooltip
     KrxCalibrationPlot* calibration_ = nullptr;

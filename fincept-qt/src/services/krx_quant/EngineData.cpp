@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace fincept::krx_quant {
 
@@ -418,6 +419,77 @@ std::optional<QMap<QString, Meaning>> meanings_of(const QJsonValue& v) {
     return out;
 }
 
+/// A whole number, or none (absent, null, or not whole: not truncated).
+std::optional<int> integer_of(const QJsonValue& v) {
+    if (!v.isDouble())
+        return std::nullopt;
+    const double d = v.toDouble();
+    if (std::floor(d) != d || d < std::numeric_limits<int>::min() || d > std::numeric_limits<int>::max())
+        return std::nullopt;
+    return static_cast<int>(d);
+}
+
+std::optional<TrainingInfo> training_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    TrainingInfo t{o.value("first_day").toString(),
+                   o.value("last_day").toString(),
+                   o.value("samples").toInt(),
+                   o.value("loss").toDouble(),
+                   std::nullopt,
+                   std::nullopt};
+    if (const QJsonValue days = o.value("days"); days.isObject()) {
+        t.recorded_days = integer_of(days.toObject().value("recorded"));
+        t.bar_days = integer_of(days.toObject().value("bars"));
+    }
+    return t;
+}
+
+std::optional<ValidatedModel> validated_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    const QJsonValue trained = o.value("trained_on_validation");
+    return ValidatedModel{o.value("version").toString(), number(o.value("loss")),
+                          trained.isBool() ? std::optional<bool>(trained.toBool()) : std::nullopt};
+}
+
+std::optional<NightValidation> validation_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return NightValidation{o.value("day").toString(),         strings_of(o.value("validation_days")),
+                           integer_of(o.value("samples")),    validated_of(o.value("challenger")),
+                           validated_of(o.value("champion")), o.value("promoted").toBool(),
+                           o.value("reason").toString()};
+}
+
+std::optional<Stage> stage_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    Stage stage;
+    stage.status = o.value("status").toString();
+    stage.began = o.value("began").toString();
+    stage.counted_from = o.value("counted_from").toString();
+    stage.days = o.value("days").toInt();
+    for (const auto& d : o.value("review_days").toArray())
+        stage.review_days << d.toInt();
+    stage.next_review = integer_of(o.value("next_review"));
+    stage.next_review_on = o.value("next_review_on").toString();
+    stage.lift_days = o.value("lift_days").toInt();
+    stage.level = number(o.value("level"));
+    if (const QJsonValue w = o.value("weakest"); w.isObject()) {
+        const QJsonObject weakest = w.toObject();
+        stage.weakest =
+            WeakestLift{weakest.value("baseline").toString(), weakest.value("n").toInt(),
+                        number(weakest.value("value")), number(weakest.value("low")), number(weakest.value("high"))};
+    }
+    stage.enough = o.value("enough").toBool();
+    return stage;
+}
+
 } // namespace
 
 Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc) {
@@ -445,6 +517,9 @@ Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc) 
         for (const auto& name : names)
             info.params << QPair<QString, QString>(name, param_text(params.value(name)));
         info.trained = model.value("trained").toString();
+        info.training = training_of(model.value("training"));
+        info.validation = validation_of(a.value("validation"));
+        info.stage = stage_of(a.value("stage"));
         info.trained_until = model.value("trained_until").toString();
         const QJsonObject status = a.value("status").toObject();
         info.status = status.value("status").toString();
