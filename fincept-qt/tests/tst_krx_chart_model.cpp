@@ -228,22 +228,43 @@ class TstKrxChartModel : public QObject {
                  QStringLiteral("09:31 봉 → 09:35 목표 · 채점 전"));
     }
 
-    void each_bar_s_hover_knows_the_bar_it_aims_at() {
+    void each_bar_s_hover_has_its_four_minute_window_and_its_touch_targets() {
+        // krx-quant #167: the 09:31 bar close's label is in; up at 09:32:30, the bid 79,300.
+        Prediction scored = scored_up(forecast("consensus-final"));
+        scored.outcome->touch =
+            Touch{Direction::Up, {}, 79'000.0, 79'200.0, 78'800.0, Reach{kst("2026-10-12T09:32:30+09:00"), 79'300.0},
+                  std::nullopt};
         QMap<QDateTime, QList<Prediction>> closes;
-        closes.insert(kst("2026-10-12T09:31:00+09:00"), {forecast("consensus-final")});
+        closes.insert(kst("2026-10-12T09:31:00+09:00"), {scored});
 
         const auto hovers = bar_hovers(kBars, closes, {}, {}, SignalRule{});
 
         QCOMPARE(hovers.size(), 3); // every bar, with predictions or not
-        // The bar 09:30–09:31 closed at 09:31: its target 09:35 is the bar 09:34–09:35, drawn.
+        // The bar 09:30–09:31 closed at 09:31: its window runs 09:31–09:35.
         QCOMPARE(hovers[0].time, qint64(1791797400));
-        QCOMPARE(hovers[0].target, qint64(1791797400 + 4 * 60));
-        QVERIFY(hovers[0].target_shown);
-        QVERIFY(!hovers[0].hit_time.has_value());
+        QCOMPARE(hovers[0].window_from, qint64(1791797400 + 60));
+        QCOMPARE(hovers[0].window_to, qint64(1791797400 + 5 * 60));
+        QCOMPARE(hovers[0].upper, std::optional<double>(79'200.0));
+        QCOMPARE(hovers[0].lower, std::optional<double>(78'800.0));
+        QCOMPARE(hovers[0].upper_reached->time, chart_time(kst("2026-10-12T09:32:30+09:00")));
+        QCOMPARE(hovers[0].upper_reached->price, 79'300.0);
+        QVERIFY(!hovers[0].lower_reached.has_value());
+        QVERIFY(hovers[0].lines.first().endsWith(QStringLiteral(" · 도달 상승 09:32:30")));
+        // No label yet: the window alone, four minutes from its bar close.
+        QVERIFY(!hovers[1].upper.has_value());
+        QCOMPARE(hovers[1].window_to - hovers[1].window_from, qint64(240));
         QCOMPARE(hovers[1].lines.last(), QStringLiteral("예측 없음"));
-        // The bar 09:34–09:35 aims at 09:39: four bars after the last, not drawn yet.
-        QVERIFY(!hovers[2].target_shown);
-        QCOMPARE(hovers[2].target_after_last, 4);
+    }
+
+    void the_touch_label_reads_beside_the_truth() {
+        Prediction p = scored_up(forecast("consensus-final"));
+        p.outcome->touch = Touch{
+            Direction::None, QStringLiteral("silent quotes"), 79'000.0, 79'200.0, 78'800.0, std::nullopt, std::nullopt};
+        QCOMPARE(hover_box({p}, kst("2026-10-12T09:31:00+09:00"), {}, {}, SignalRule{})[0],
+                 QStringLiteral("09:31 봉 → 09:35 목표 · 실제 상승 +300원 · 도달 채점 불가 (silent quotes)"));
+        p.outcome->touch->direction = Direction::Flat;
+        QVERIFY(hover_box({p}, kst("2026-10-12T09:31:00+09:00"), {}, {}, SignalRule{})[0].endsWith(
+            QStringLiteral(" · 도달 보합")));
     }
 
     void the_score_counts_the_scored_bars_in_view_whose_four_minutes_are_over() {

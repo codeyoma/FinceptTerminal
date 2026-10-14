@@ -244,6 +244,7 @@ Truth truth_of(const QList<Prediction>& at_close, const QDateTime& bar_close) {
         truth.unscorable = o.class_a == Direction::None ? o.unscorable : QString();
         truth.mid_start = o.mid_close;
         truth.mid_target = o.mid_target;
+        truth.touch = o.touch;
         break;
     }
     return truth;

@@ -58,16 +58,25 @@ struct ChartIcon {
 /// a bar a special situation touched (krx-quant #159).
 QList<ChartIcon> chart_icons(const QList<Mark>& marks, const SignalRule& rule);
 
-/// A 1-minute bar's hover box (krx-quant #159): its lines and the bar it aims at.
+/// Where a touch target was first reached, as the chart draws it: its time (chart_time, to the
+/// second) and the quote then.
+struct ChartPoint {
+    qint64 time = 0;
+    double price = 0;
+};
+
+/// A 1-minute bar's hover box (krx-quant #159) and its four-minute window (krx-quant #167): the
+/// span from its bar close to four minutes on, the touch targets over it and where they were
+/// first reached; the targets only once the touch label is in.
 struct BarHover {
     qint64 time = 0; ///< the bar's start, as chart_time
     QStringList lines;
-    qint64 target = 0;         ///< the bar closing at its bar close's target time, as chart_time
-    bool target_shown = false; ///< that bar is among the bars drawn
-    /// Not drawn yet: how many bars after the last one it will be (a slot on the right).
-    int target_after_last = 0;
-    std::optional<qint64> hit_time; ///< where the target was reached, as chart_time (krx-quant #160)
-    std::optional<double> hit_price;
+    qint64 window_from = 0; ///< its bar close, as chart_time
+    qint64 window_to = 0;   ///< four minutes on (its target time)
+    std::optional<double> upper;
+    std::optional<double> lower;
+    std::optional<ChartPoint> upper_reached;
+    std::optional<ChartPoint> lower_reached;
 };
 
 /// The hover box of the bar that closed at ``bar_close``, from its predictions: its bar and

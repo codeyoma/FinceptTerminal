@@ -91,6 +91,24 @@ QString truth_text(const Truth& truth) {
     return text;
 }
 
+/// The touch label beside it (krx-quant #167): "도달 상승 09:32:30", "도달 보합", "도달 채점 불가 (…)".
+QString touch_text(const Touch& t) {
+    switch (t.direction) {
+        case Direction::Up:
+            return t.upper_reached ? QStringLiteral("도달 상승 %1").arg(kst_text(t.upper_reached->at, "HH:mm:ss"))
+                                   : QStringLiteral("도달 상승");
+        case Direction::Down:
+            return t.lower_reached ? QStringLiteral("도달 하락 %1").arg(kst_text(t.lower_reached->at, "HH:mm:ss"))
+                                   : QStringLiteral("도달 하락");
+        case Direction::Flat:
+            return QStringLiteral("도달 보합");
+        case Direction::None:
+            break;
+    }
+    return t.unscorable.isEmpty() ? QStringLiteral("도달 채점 불가")
+                                  : QStringLiteral("도달 채점 불가 (%1)").arg(t.unscorable);
+}
+
 QString probabilities(const Prediction& p) {
     return QStringLiteral("상승 %1 · 보합 %2 · 하락 %3").arg(percent(p.p_up), percent(p.p_flat), percent(p.p_down));
 }
@@ -152,6 +170,8 @@ QStringList hover_box(const QList<Prediction>& at_close, const QDateTime& bar_cl
     if (at_close.isEmpty())
         return {times, QStringLiteral("예측 없음")};
     QStringList lines{QStringLiteral("%1 · %2").arg(times, truth_text(truth))};
+    if (truth.touch)
+        lines.first() += QStringLiteral(" · ") + touch_text(*truth.touch);
     if (!selection.isEmpty()) {
         const QString chosen = QString::number(selection.size());
         if (const auto pooled = select_consensus(at_close, selection)) {
@@ -208,10 +228,6 @@ QStringList hover_box(const QList<Prediction>& at_close, const QDateTime& bar_cl
 QList<BarHover> bar_hovers(const QList<Bar>& bars, const QMap<QDateTime, QList<Prediction>>& closes,
                            const QStringList& selection, const QMap<QString, QString>& standings,
                            const SignalRule& rule) {
-    QSet<qint64> drawn;
-    for (const auto& b : bars)
-        drawn.insert(chart_time(b.start));
-    const qint64 last = bars.isEmpty() ? 0 : chart_time(bars.last().start);
     QList<BarHover> out;
     out.reserve(bars.size());
     for (const auto& b : bars) {
@@ -221,13 +237,15 @@ QList<BarHover> bar_hovers(const QList<Bar>& bars, const QMap<QDateTime, QList<P
         BarHover hover;
         hover.time = chart_time(b.start);
         hover.lines = hover_box(at_close, bar_close, selection, standings, rule);
-        hover.target = chart_time(target_of(truth, bar_close).addSecs(-60)); // the bar closing then
-        hover.target_shown = drawn.contains(hover.target);
-        hover.target_after_last =
-            hover.target_shown ? 0 : static_cast<int>(std::max<qint64>(0, (hover.target - last) / 60));
-        if (truth.hit_at && truth.hit_price) {
-            hover.hit_time = chart_time(*truth.hit_at);
-            hover.hit_price = truth.hit_price;
+        hover.window_from = chart_time(bar_close);
+        hover.window_to = chart_time(target_of(truth, bar_close));
+        if (const auto& t = truth.touch) {
+            hover.upper = t->upper;
+            hover.lower = t->lower;
+            if (t->upper_reached)
+                hover.upper_reached = ChartPoint{chart_time(t->upper_reached->at), t->upper_reached->price};
+            if (t->lower_reached)
+                hover.lower_reached = ChartPoint{chart_time(t->lower_reached->at), t->lower_reached->price};
         }
         out << hover;
     }

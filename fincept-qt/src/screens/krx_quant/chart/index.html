@@ -62,7 +62,9 @@
   let iconAt = new Map(); // time -> icon
   let hoverAt = new Map(); // time -> hover box (krx-quant #159)
   let hovered = null;      // the bar hovered: {time, x}, kept while the data is sent again
-  let colors = { tip_background: '#111', tip_border: '#333', tip_text: '#e5e5e5', link: '#f59e0b' };
+  let colors = {
+    tip_background: '#111', tip_border: '#333', tip_text: '#e5e5e5', link: '#f59e0b', up: '#16a34a', down: '#dc2626',
+  };
 
   // Fitted since the chart last emptied: another symbol is chosen by emptying the chart
   // first (KrxLive::select), and its first bars are fitted again.
@@ -111,9 +113,26 @@
     }
   }
 
-  // The hovered bar's link: from its top to where its target was reached, else to the bar
-  // it aims at, or to a dotted slot on the right while that bar is not there yet.
-  function drawLink(box) {
+  // The hovered bar's four-minute window (krx-quant #167): the span from its bar close to four
+  // minutes on, lightly filled; the touch targets across it, once its label is in; where each
+  // was first reached. A window not over yet runs dotted into the free space on the right.
+  function xOf(time) {
+    // A moment's x: within its minute's bar, or past the last bar drawn.
+    const scale = chart.timeScale();
+    const start = time - (time % 60);
+    const spacing = scale.options().barSpacing;
+    const at = barAt.get(start);
+    if (at !== undefined) {
+      const x = scale.timeToCoordinate(start);
+      return x === null ? null : x + ((time % 60) / 60 - 0.5) * spacing;
+    }
+    if (!bars.length) return null;
+    const last = bars[bars.length - 1].time;
+    if (start <= last) return null;
+    return scale.logicalToCoordinate(bars.length - 1 + (time - last) / 60 - 0.5);
+  }
+
+  function drawWindow(box) {
     const ratio = window.devicePixelRatio || 1;
     links.width = area.clientWidth * ratio;
     links.height = area.clientHeight * ratio;
@@ -121,41 +140,41 @@
     g.setTransform(ratio, 0, 0, ratio, 0, 0);
     g.clearRect(0, 0, area.clientWidth, area.clientHeight);
     if (!box) return;
-    const scale = chart.timeScale();
-    const from = bars[barAt.get(box.time)];
-    const x1 = scale.timeToCoordinate(box.time);
-    if (!from || x1 === null) return;
-    const y1 = candles.priceToCoordinate(from.high);
-    let x2 = null, y2 = null, slot = false;
-    if (box.hit_time !== undefined && box.hit_price !== undefined) {
-      x2 = scale.timeToCoordinate(box.hit_time - (box.hit_time % 60)); // the bar it was reached in
-      y2 = candles.priceToCoordinate(box.hit_price);
-    } else if (box.target_shown) {
-      const to = bars[barAt.get(box.target)];
-      x2 = scale.timeToCoordinate(box.target);
-      y2 = to ? candles.priceToCoordinate(to.close) : null;
-    } else if (box.target_after_last > 0 && bars.length) {
-      x2 = scale.logicalToCoordinate(bars.length - 1 + box.target_after_last);
-      y2 = candles.priceToCoordinate(bars[bars.length - 1].close);
-      slot = true;
-    }
-    if (x2 === null || y2 === null || y1 === null) return;
-    g.strokeStyle = colors.link;
+    const x1 = xOf(box.from), x2 = xOf(box.to);
+    if (x1 === null || x2 === null) return;
+    const open = !bars.length || box.to > bars[bars.length - 1].time + 60; // not over yet
+    const foot = chart.panes()[0].getHeight();
+    g.globalAlpha = 0.08;
+    g.fillStyle = colors.link;
+    g.fillRect(x1, 0, x2 - x1, foot);
+    g.globalAlpha = 1;
     g.lineWidth = 1.5;
-    g.setLineDash(slot ? [4, 3] : []);
-    g.beginPath();
-    g.moveTo(x1, y1 - 4);
-    g.lineTo(x2, y2);
-    g.stroke();
-    if (slot) { // where the target bar will be
-      const half = Math.max(3, scale.options().barSpacing / 2);
-      g.strokeRect(x2 - half, y2 - 14, 2 * half, 28);
+    g.setLineDash(open ? [4, 3] : []);
+    for (const [price, color] of [[box.upper, colors.up], [box.lower, colors.down]]) {
+      if (price === undefined) continue;
+      const y = candles.priceToCoordinate(price);
+      if (y === null) continue;
+      g.strokeStyle = color;
+      g.beginPath();
+      g.moveTo(x1, y);
+      g.lineTo(x2, y);
+      g.stroke();
+    }
+    g.setLineDash([]);
+    for (const [point, color] of [[box.upper_reached, colors.up], [box.lower_reached, colors.down]]) {
+      if (!point) continue;
+      const x = xOf(point.time), y = candles.priceToCoordinate(point.price);
+      if (x === null || y === null) continue;
+      g.fillStyle = color;
+      g.beginPath();
+      g.arc(x, y, 4, 0, 2 * Math.PI);
+      g.fill();
     }
   }
 
   function hide() {
     tip.style.display = 'none';
-    drawLink(null);
+    drawWindow(null);
   }
 
   // The box of the bar under the pointer, anywhere on its column (krx-quant #159).
@@ -180,7 +199,7 @@
     const top = Math.min(foot - tip.offsetHeight - 6, area.clientHeight - tip.offsetHeight - 6);
     tip.style.top = Math.max(6, top) + 'px';
     tip.style.left = right ? Math.max(6, area.clientWidth - tip.offsetWidth - 70) + 'px' : '6px';
-    drawLink(box);
+    drawWindow(box);
   }
   chart.subscribeCrosshairMove(hover);
 
