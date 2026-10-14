@@ -346,7 +346,7 @@ QList<QPair<QString, QString>> learning_rows(const std::optional<AlgorithmInfo>&
     }
     if (const auto& st = info->stage) {
         QString text = QStringLiteral("%1부터 · %2거래일 셈").arg(st->began).arg(st->days);
-        if (st->counted_from.isEmpty()) {
+        if (st->waiting) {
             // Nothing counted until a model trained on the touch target runs (krx-quant #170).
             text += QStringLiteral(" · 새 정답으로 학습한 모델을 기다림");
         } else if (st->next_review) {

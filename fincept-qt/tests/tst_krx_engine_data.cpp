@@ -554,7 +554,13 @@ class TstKrxEngineData : public QObject {
            "validation": null, "stage": null},
           {"name": "gamma", "model": {"version": "gamma-1", "params": {}, "trained": "t", "trained_until": null,
                                       "training": {"first_day": "2026-09-08", "last_day": "2026-10-07", "samples": 9,
-                                                   "loss": 0.8, "days": {"recorded": 2.5, "bars": 3}}}}]})"));
+                                                   "loss": 0.8, "days": {"recorded": 2.5, "bars": 3}}}},
+          {"name": "delta", "model": {"version": "delta-default", "params": {}, "trained": null, "trained_until": null},
+           "stage": {"status": "probation", "began": "2026-10-23", "counted_from": null, "days": 0, "review_days": [10],
+                     "next_review": 10, "next_review_on": null, "lift_days": 0, "level": 0.98, "weakest": null,
+                     "enough": false}},
+          {"name": "epsilon", "model": {"version": "epsilon-default", "params": {}, "trained": null, "trained_until": null},
+           "stage": {"status": "probation", "began": "2026-10-12", "days": 3, "review_days": [10], "next_review": 10}}]})"));
         QVERIFY(read.is_ok());
         const AlgorithmInfo alpha = read.value().value("alpha");
         QCOMPARE(alpha.training->samples, 1200);
@@ -574,6 +580,10 @@ class TstKrxEngineData : public QObject {
         const AlgorithmInfo gamma = read.value().value("gamma"); // a day count not whole: not taken
         QVERIFY(!gamma.training->recorded_days.has_value());
         QCOMPARE(gamma.training->bar_days, std::optional<int>(3));
+        // Waiting for a model on the touch target only when counted_from is given as null (krx-quant #170).
+        QVERIFY(!alpha.stage->waiting);
+        QVERIFY(read.value().value("delta").stage->waiting);
+        QVERIFY(!read.value().value("epsilon").stage->waiting); // left out: an older engine
     }
 
     void an_outcome_keeps_its_mid_points() {

@@ -366,6 +366,7 @@ class TstKrxStatsView : public QObject {
 
         // Waiting for a model trained on the touch target (krx-quant #170): nothing counted yet.
         info.stage->counted_from.clear();
+        info.stage->waiting = true;
         info.stage->days = 0;
         QCOMPARE(learning_rows(info)[6].second,
                  QStringLiteral("2026-10-12부터 · 0거래일 셈 · 새 정답으로 학습한 모델을 기다림"));
