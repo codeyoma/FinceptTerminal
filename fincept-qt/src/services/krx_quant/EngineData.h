@@ -233,7 +233,7 @@ struct Entry {
 struct Leaderboard {
     QString symbol;  ///< a symbol, or "all"
     QString period;  ///< "today", "5d" or "20d"
-    QString basis;   ///< "a" or "b"
+    QString basis;   ///< "a" or "b" as asked; an engine since krx-quant #170 scores on the touch target alone
     QString special; ///< "exclude" or "include"
     QStringList days;
     int min_sample = 0;

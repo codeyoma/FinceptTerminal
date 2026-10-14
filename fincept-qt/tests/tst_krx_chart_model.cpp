@@ -251,22 +251,27 @@ class TstKrxChartModel : public QObject {
         QCOMPARE(hovers[0].upper_reached->time, chart_time(kst("2026-10-12T09:32:30+09:00")));
         QCOMPARE(hovers[0].upper_reached->price, 79'300.0);
         QVERIFY(!hovers[0].lower_reached.has_value());
-        QVERIFY(hovers[0].lines.first().endsWith(QStringLiteral(" · 도달 상승 09:32:30")));
+        QVERIFY(hovers[0].lines.first().endsWith(QStringLiteral(" · 정답 상승 (09:32:30 닿음)")));
         // No label yet: the window alone, four minutes from its bar close.
         QVERIFY(!hovers[1].upper.has_value());
         QCOMPARE(hovers[1].window_to - hovers[1].window_from, qint64(240));
         QCOMPARE(hovers[1].lines.last(), QStringLiteral("예측 없음"));
     }
 
-    void the_touch_label_reads_beside_the_truth() {
+    void the_truth_is_the_touch_label_when_the_engine_gives_one() {
+        // krx-quant #170: the touch target, not the four-minute move (here up +300 won).
         Prediction p = scored_up(forecast("consensus-final"));
         p.outcome->touch = Touch{
             Direction::None, QStringLiteral("silent quotes"), 79'000.0, 79'200.0, 78'800.0, std::nullopt, std::nullopt};
         QCOMPARE(hover_box({p}, kst("2026-10-12T09:31:00+09:00"), {}, {}, SignalRule{})[0],
-                 QStringLiteral("09:31 봉 → 09:35 목표 · 실제 상승 +300원 · 도달 채점 불가 (silent quotes)"));
+                 QStringLiteral("09:31 봉 → 09:35 목표 · 채점 불가 (silent quotes)"));
         p.outcome->touch->direction = Direction::Flat;
-        QVERIFY(hover_box({p}, kst("2026-10-12T09:31:00+09:00"), {}, {}, SignalRule{})[0].endsWith(
-            QStringLiteral(" · 도달 보합")));
+        QCOMPARE(hover_box({p}, kst("2026-10-12T09:31:00+09:00"), {}, {}, SignalRule{})[0],
+                 QStringLiteral("09:31 봉 → 09:35 목표 · 정답 보합"));
+        p.outcome->touch->direction = Direction::Down;
+        p.outcome->touch->lower_reached = Reach{kst("2026-10-12T09:33:05+09:00"), 78'800.0};
+        QCOMPARE(hover_box({p}, kst("2026-10-12T09:31:00+09:00"), {}, {}, SignalRule{})[0],
+                 QStringLiteral("09:31 봉 → 09:35 목표 · 정답 하락 (09:33:05 닿음)"));
     }
 
     void the_score_counts_the_scored_bars_in_view_whose_four_minutes_are_over() {

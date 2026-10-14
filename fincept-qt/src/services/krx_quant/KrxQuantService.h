@@ -43,7 +43,6 @@ class KrxQuantService : public QObject {
     struct LeaderboardQuery {
         QString symbol = "all";
         QString period = "today"; ///< "today", "5d" or "20d"
-        QString basis = "b";      ///< "a" or "b"
         bool special = false;     ///< include the predictions a VI, circuit breaker or sidecar touched
 
         /// The API's value for ``special``: "include" or "exclude".
@@ -52,8 +51,7 @@ class KrxQuantService : public QObject {
         /// Whether ``answer`` (a Leaderboard, or an AlgorithmStats) answers this query.
         template <typename Answer>
         bool matches(const Answer& answer) const {
-            return answer.symbol == symbol && answer.period == period && answer.basis == basis &&
-                   answer.special == special_value();
+            return answer.symbol == symbol && answer.period == period && answer.special == special_value();
         }
     };
 

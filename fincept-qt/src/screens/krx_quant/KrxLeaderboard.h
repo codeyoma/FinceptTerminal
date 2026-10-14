@@ -14,7 +14,7 @@
 
 namespace fincept::screens {
 
-/// The KRX screen's leaderboard panel: its query (period, scoring basis, symbol, special
+/// The KRX screen's leaderboard panel: its query (period, symbol, special
 /// situations) on the header, and the ranked, unranked and baseline entries with their
 /// stats; intervals in tooltips, the ranking rules on the title's. A line double-clicked
 /// asks for that predictor's detail. The first column's boxes select models for the chart
@@ -37,7 +37,7 @@ class KrxLeaderboard : public QWidget {
     void restyle();
 
   signals:
-    /// The user chose another period, basis, symbol or special situations.
+    /// The user chose another period, symbol or special situations.
     void query_changed();
     /// The user asked for a predictor's detail (double-clicked its line).
     void detail_requested(const QString& algorithm);
@@ -47,7 +47,6 @@ class KrxLeaderboard : public QWidget {
   private:
     krx_panel::Header header_;
     QComboBox* period_ = nullptr;
-    QComboBox* basis_ = nullptr;
     QComboBox* symbol_ = nullptr;
     QCheckBox* special_ = nullptr;
     QLabel* failure_ = nullptr; ///< on the header, while the leaderboard cannot be read

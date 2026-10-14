@@ -202,6 +202,24 @@ class TstKrxBoard : public QObject {
         QCOMPARE(board.marks("005930")[0].result, Mark::Result::Hit);
     }
 
+    void marks_score_on_the_touch_label_when_the_engine_gives_one() {
+        // krx-quant #170: the touch target decides, whatever the four-minute move (A) was.
+        Prediction p = scored(made("005930", "consensus-final", "09:32", 0.1, 0.3, 0.6), Direction::Up, Direction::Up);
+        p.outcome->touch = Touch{Direction::Down, {}, 79'000.0, 79'200.0, 78'800.0, std::nullopt, std::nullopt};
+        Prediction silent =
+            scored(made("005930", "consensus-final", "09:33", 0.1, 0.3, 0.6), Direction::Up, Direction::Up);
+        silent.outcome->touch =
+            Touch{Direction::None, QStringLiteral("silent quotes"), 79'000.0, std::nullopt, std::nullopt, std::nullopt,
+                  std::nullopt};
+        Board board;
+        board.set_history("005930", {p, silent});
+
+        const auto marks = board.marks("005930");
+        QCOMPARE(marks[0].result, Mark::Result::Hit);
+        QCOMPARE(marks[1].result, Mark::Result::Unscorable);
+        QCOMPARE(truth_of({silent}, at("09:33")).unscorable, QStringLiteral("silent quotes"));
+    }
+
     void the_final_consensus_is_scored_on_any_forecast_of_its_bar_close() {
         // Its own outcome not in yet (read before it was scored), a model's is.
         Board board;

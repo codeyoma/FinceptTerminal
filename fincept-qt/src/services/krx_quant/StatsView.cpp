@@ -156,9 +156,11 @@ QString ranking_rules(const QStringList& days, int min_sample) {
 
 QString column_tip(const QString& header) {
     static const QMap<QString, QString> tips = {
-        {QStringLiteral("중간가 손익(틱)"),
-         QStringLiteral("거래당 평균, 연구용 값이다. 방향을 낸 모든 예측을 거래로 치고 시작 중간가에서 목표 "
-                        "중간가까지 잰다. 스프레드와 체결은 반영하지 않아 따라 했을 때의 손익이 아니다.")},
+        {QStringLiteral("닿음 손익(틱, 연구용)"),
+         QStringLiteral(
+             "거래당 평균, 연구용 값이다. ▲는 봉 마감의 매도 1호가에 사서 위 목표에 닿으면 목표가, 아니면 "
+             "4분 끝의 매수 1호가에 판다고 친다. ▼는 인버스를 가정해 반대로, ●는 거래하지 않는다. 비용(매도세와 "
+             "수수료)을 뺀다. 체결과 잔량은 반영하지 않아 따라 했을 때의 손익이 아니다.")},
         {QStringLiteral("95% 구간"), QStringLiteral("봉 마감마다 따로 센 설명용 구간이다. 같은 날의 4분 정답은 서로 "
                                                     "겹쳐 실제보다 확실해 보인다. p도 그렇다.")},
         {QStringLiteral("거래일 95% 구간"), QStringLiteral("하루를 값 하나로 본 구간이다. 상태(수습·정식·벤치)는 "
@@ -198,15 +200,8 @@ QString period_label(const QString& period) {
     return labels.value(period, period);
 }
 
-QString basis_label(const QString& basis) {
-    static const QMap<QString, QString> labels = {{"b", QStringLiteral("표시 시점 (B)")},
-                                                  {"a", QStringLiteral("봉 마감 (A)")}};
-    return labels.value(basis, basis);
-}
-
 QString query_text(const AlgorithmStats& stats) {
-    return QStringList{period_label(stats.period), basis_label(stats.basis),
-                       stats.symbol == "all" ? QStringLiteral("전체 종목") : stats.symbol,
+    return QStringList{period_label(stats.period), stats.symbol == "all" ? QStringLiteral("전체 종목") : stats.symbol,
                        stats.special == "include" ? QStringLiteral("특수 상황 포함") : QStringLiteral("특수 상황 제외")}
         .join(QStringLiteral(" · "));
 }
@@ -351,12 +346,16 @@ QList<QPair<QString, QString>> learning_rows(const std::optional<AlgorithmInfo>&
     }
     if (const auto& st = info->stage) {
         QString text = QStringLiteral("%1부터 · %2거래일 셈").arg(st->began).arg(st->days);
-        if (st->next_review)
+        if (st->counted_from.isEmpty()) {
+            // Nothing counted until a model trained on the touch target runs (krx-quant #170).
+            text += QStringLiteral(" · 새 정답으로 학습한 모델을 기다림");
+        } else if (st->next_review) {
             text += st->next_review_on.isEmpty()
                         ? QStringLiteral(" · 다음 판정 %1일째").arg(*st->next_review)
                         : QStringLiteral(" · 다음 판정 %1일째 (%2 예정)").arg(*st->next_review).arg(st->next_review_on);
-        else
+        } else {
             text += QStringLiteral(" · 마지막 판정이 지났다");
+        }
         rows << Row(QStringLiteral("%1 단계").arg(standing_label(st->status)), text);
         if (const auto& w = st->weakest; w && w->value && w->low) {
             QString lift = QStringLiteral("%1 대비 %2 · 거래일 하한 %3 (%4일")

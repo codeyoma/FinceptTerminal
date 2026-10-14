@@ -70,15 +70,13 @@ struct CalibrationSeries {
 /// can look well calibrated when each class on its own is not.
 QList<CalibrationSeries> calibration_series(const AlgorithmStats& stats);
 
-/// What the stats left out, in Korean: special situations, the predictions the basis could
-/// not score, and those not made by status; "제외 없음" if nothing. Special situations a
+/// What the stats left out, in Korean: special situations, the predictions over but without
+/// a touch label (krx-quant #170), and those not made by status; "제외 없음" if nothing. Special situations a
 /// query includes are counted in, and said apart before it ("특수 상황 포함 2 · …").
 QString excluded_text(const Excluded& excluded, const QString& special);
 
 /// A leaderboard period in Korean ("today", "5d", "20d"); an unknown one as it is.
 QString period_label(const QString& period);
-/// A scoring basis in Korean ("b", "a"); an unknown one as it is.
-QString basis_label(const QString& basis);
 /// The days a query covered: one, or the first ~ the last (how many).
 QString days_text(const QStringList& days);
 /// The leaderboard's rules, on its title's tooltip (krx-quant #103): the days it counts,
@@ -93,7 +91,7 @@ QString lift_tip(const AlgorithmStats& stats);
 /// The detail window's calibration title tooltip: what the plot compares, and that nothing
 /// was scored, if so.
 QString calibration_tip(const AlgorithmStats& stats);
-/// The query the stats answer, in Korean: period · scoring basis · symbol · special situations.
+/// The query the stats answer, in Korean: period · symbol · special situations.
 QString query_text(const AlgorithmStats& stats);
 
 /// The "학습·예측 방식" section of a predictor's detail window (krx-quant #163): labelled
