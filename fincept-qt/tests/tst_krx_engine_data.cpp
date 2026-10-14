@@ -267,13 +267,15 @@ const char* kRangeLeaderboard = R"({
 })";
 
 // GET /v1/symbols/005930/kinds/barrier/latest (krx-quant #183, #185): one scored "up first" with its
-// path (the demo engine's 10:26 bar close), one not made with the bar close's w all the same.
+// path (the demo engine's 10:26 bar close), one not made with the bar close's w, mid-point and tick
+// (krx-quant #210) all the same.
 const char* kBarrierLatest = R"({
   "symbol": "005930", "kind": "barrier", "bar_close": "2026-10-12T10:26:00+09:00",
   "predictions": [
     {"algorithm": "barrier-persist", "model_version": "v1", "bar_close": "2026-10-12T10:26:00+09:00",
      "displayed_at": "2026-10-12T10:26:00+09:00", "target_at": "2026-10-12T10:30:00+09:00", "status": "ok",
-     "flat_ticks": 2, "width_ticks": 6, "output": {"p_up_first": 0.0, "p_timeout": 1.0, "p_down_first": 0.0},
+     "flat_ticks": 2, "width_ticks": 6, "anchor": 78350.0, "tick": 100,
+     "output": {"p_up_first": 0.0, "p_timeout": 1.0, "p_down_first": 0.0},
      "answer": {"answer_version": 1, "class": "up_first", "unscorable": null, "special": false,
                 "scored_at": "2026-10-12T10:30:00+09:00",
                 "path": {"w": 6, "sigma": 6.405, "k": 2, "tick": 100, "anchor": 78350.0, "upper": 78950.0,
@@ -283,7 +285,8 @@ const char* kBarrierLatest = R"({
                          "quotes": 21, "silent": false}}},
     {"algorithm": "barrier-climate", "model_version": "barrier-climate-default",
      "bar_close": "2026-10-12T10:26:00+09:00", "displayed_at": "2026-10-12T10:26:00+09:00", "target_at": null,
-     "status": "vi", "flat_ticks": 2, "width_ticks": 6, "output": null, "answer": null}
+     "status": "vi", "flat_ticks": 2, "width_ticks": 6, "anchor": 78350.0, "tick": 100, "output": null,
+     "answer": null}
   ]
 })";
 
@@ -460,6 +463,10 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(predictor_label("consensus-final"), QStringLiteral("합의 (최종)"));
         QCOMPARE(predictor_label("consensus-fast"), QStringLiteral("합의 (빠른)"));
         QCOMPARE(predictor_label("baseline-flat"), QStringLiteral("기준: 늘 보합"));
+        QCOMPARE(predictor_label("baseline-persist"), QStringLiteral("기준: 직전 4분 방향"));
+        QCOMPARE(predictor_label("baseline-random"), QStringLiteral("기준: 비율대로 무작위"));
+        // The direction's climate (krx-quant #169): its name in Korean too (krx-quant #210).
+        QCOMPARE(predictor_label("baseline-climate"), QStringLiteral("기준: 시간대 기후"));
         QCOMPARE(predictor_label("alg-a"), QStringLiteral("alg-a")); // an algorithm keeps its name
         QVERIFY(is_consensus("consensus-fast"));
         QVERIFY(!is_consensus("alg-a"));
@@ -1397,6 +1404,8 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(l.kind, QStringLiteral("barrier"));
         const KindPrediction& persist = l.predictions[0];
         QCOMPARE(persist.width_ticks, std::optional<int>(6));
+        QCOMPARE(persist.anchor, std::optional<double>(78350.0)); // the bar close's mid-point (krx-quant #210)
+        QCOMPARE(persist.tick, std::optional<double>(100));
         QCOMPARE(persist.value("p_timeout"), std::optional<double>(1.0));
         QCOMPARE(persist.answer->klass, QStringLiteral("up_first"));
         QVERIFY(!persist.answer->range.has_value()); // not a range's path
@@ -1414,20 +1423,24 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!path.down_ask.has_value());
         QCOMPARE(path.ask_end, std::optional<double>(79300));
         QCOMPARE(path.quotes, 21);
-        // Not made (a VI): no output, still the bar close's w.
+        // Not made (a VI): no output, still the bar close's w, mid-point and tick.
         QCOMPARE(l.predictions[1].width_ticks, std::optional<int>(6));
+        QCOMPARE(l.predictions[1].anchor, std::optional<double>(78350.0));
+        QCOMPARE(l.predictions[1].tick, std::optional<double>(100));
         QVERIFY(l.predictions[1].output.isEmpty());
-        // The range's: no barrier path, no w.
+        // The range's: no barrier path, no w; from an engine before krx-quant #210, no mid-point or tick.
         const auto range = parse_kind_latest(json(kRangeLatest));
         QVERIFY(!range.value().predictions[0].answer->barrier.has_value());
         QVERIFY(!range.value().predictions[0].width_ticks.has_value());
+        QVERIFY(!range.value().predictions[0].anchor.has_value());
+        QVERIFY(!range.value().predictions[0].tick.has_value());
     }
 
     void a_barrier_answer_not_followed_or_without_a_mid_point_has_no_barriers() {
         const auto read = parse_kind_predictions(json(R"({"symbol": "005930", "kind": "barrier", "predictions": [
             {"algorithm": "barrier-persist", "model_version": "v1", "bar_close": "2026-10-12T09:31:00+09:00",
              "displayed_at": "2026-10-12T09:31:00+09:00", "target_at": "2026-10-12T09:35:00+09:00", "status": "ok",
-             "flat_ticks": null, "width_ticks": null,
+             "flat_ticks": null, "width_ticks": null, "anchor": null, "tick": null,
              "output": {"p_up_first": 1, "p_timeout": 0, "p_down_first": 0},
              "answer": {"answer_version": 1, "class": null, "unscorable": "restarted", "special": false,
                         "scored_at": "2026-10-12T09:35:00+09:00", "path": {}}},
@@ -1445,6 +1458,8 @@ class TstKrxEngineData : public QObject {
         QVERIFY(read.is_ok());
         QVERIFY(!read.value()[0].answer->barrier.has_value()); // an empty path
         QVERIFY(!read.value()[0].width_ticks.has_value());
+        QVERIFY(!read.value()[0].anchor.has_value()); // null: no mid-point at the bar close
+        QVERIFY(!read.value()[0].tick.has_value());
         const BarrierPath& none = *read.value()[1].answer->barrier; // without a mid-point: all null
         QVERIFY(!none.w.has_value());
         QVERIFY(!none.upper.has_value());
@@ -1457,9 +1472,12 @@ class TstKrxEngineData : public QObject {
               {"symbol": "000660", "algorithm": "barrier-climate", "model_version": "barrier-climate-default",
                "bar_close": "2026-10-12T09:31:00+09:00", "displayed_at": "2026-10-12T09:31:00+09:00",
                "target_at": "2026-10-12T09:35:00+09:00", "status": "ok", "flat_ticks": 1, "width_ticks": 3,
+               "anchor": 209000.0, "tick": 500,
                "output": {"p_up_first": 0.25, "p_timeout": 0.5, "p_down_first": 0.25}, "answer": null}]})");
         QVERIFY(predicted.is_ok());
         QCOMPARE(predicted.value().kind_predictions[0].width_ticks, std::optional<int>(3));
+        QCOMPARE(predicted.value().kind_predictions[0].anchor, std::optional<double>(209000.0)); // krx-quant #210
+        QCOMPARE(predicted.value().kind_predictions[0].tick, std::optional<double>(500));
         const auto answered = parse_event(R"({"type": "kind_answer", "at": "2026-10-12T09:35:00.1+09:00",
             "prediction_kind": "barrier", "answers": [
               {"symbol": "000660", "bar_close": "2026-10-12T09:31:00+09:00", "answer_version": 1,

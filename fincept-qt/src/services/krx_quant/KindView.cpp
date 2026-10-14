@@ -238,17 +238,29 @@ std::optional<int> bar_close_width(const QList<KindPrediction>& at_close) {
     return std::nullopt;
 }
 
+std::optional<Barriers> bar_close_barriers(const QList<KindPrediction>& at_close) {
+    if (const auto answer = answer_of(at_close)) { // the answer's, as it has them
+        if (answer->barrier && answer->barrier->upper && answer->barrier->lower)
+            return Barriers{*answer->barrier->upper, *answer->barrier->lower};
+        return std::nullopt;
+    }
+    // Before it: the bar close's mid-point, tick and w the predictions came with (the same for each).
+    for (const auto& p : at_close)
+        if (p.anchor && p.tick && p.width_ticks) {
+            const double span = *p.width_ticks * *p.tick;
+            return Barriers{*p.anchor + span, *p.anchor - span};
+        }
+    return std::nullopt;
+}
+
 QString barrier_text(const QList<KindPrediction>& at_close) {
     const auto w = bar_close_width(at_close);
     if (!w)
         return {};
     QStringList parts{QStringLiteral("w %1틱").arg(*w)};
-    if (const auto answer = answer_of(at_close); answer && answer->barrier) {
-        const BarrierPath& path = *answer->barrier;
-        if (path.upper && path.lower)
-            parts << QStringLiteral("U %1").arg(price_text(*path.upper))
-                  << QStringLiteral("L %1").arg(price_text(*path.lower));
-    }
+    if (const auto barriers = bar_close_barriers(at_close))
+        parts << QStringLiteral("U %1").arg(price_text(barriers->upper))
+              << QStringLiteral("L %1").arg(price_text(barriers->lower));
     return parts.join(QStringLiteral(" · "));
 }
 
@@ -388,12 +400,16 @@ QList<BarHover> kind_hovers(const QList<Bar>& bars, const QMap<QDateTime, QList<
             if (path.min_mid && path.min_mid_at.isValid())
                 hover.lower_reached = ChartPoint{chart_time(path.min_mid_at), *path.min_mid};
         }
-        // The barrier's U and L, and where each was first reached: the best bid at U or above,
-        // the best ask at L or below, the quote then (krx-quant #185, as the touch targets, #167).
+        // The barrier's U and L (krx-quant #185; before the answer, from the predictions, #210) and,
+        // once the answer is in, where each was first reached: the best bid at U or above, the best
+        // ask at L or below, the quote then (as the touch targets, #167).
+        if (is_barrier(kind))
+            if (const auto barriers = bar_close_barriers(at_close)) {
+                hover.upper = barriers->upper;
+                hover.lower = barriers->lower;
+            }
         if (const auto answer = answer_of(at_close); answer && answer->barrier) {
             const BarrierPath& path = *answer->barrier;
-            hover.upper = path.upper;
-            hover.lower = path.lower;
             if (const auto price = path.up_bid ? path.up_bid : path.upper; path.up_at.isValid() && price)
                 hover.upper_reached = ChartPoint{chart_time(path.up_at), *price};
             if (const auto price = path.down_ask ? path.down_ask : path.lower; path.down_at.isValid() && price)

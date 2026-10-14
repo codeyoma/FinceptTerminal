@@ -72,9 +72,22 @@ QString widths_text(std::optional<int> k);
 /// without either (another kind, an engine before #183, no mid-point at the bar close).
 std::optional<int> bar_close_width(const QList<KindPrediction>& at_close);
 
+/// A bar close's barriers (krx-quant #183): U above its mid-point, L below.
+struct Barriers {
+    double upper = 0;
+    double lower = 0;
+};
+
+/// The barriers U and L of a bar close: its answer's once it is in (none when its path has none:
+/// a window the engine did not follow, or one without a mid-point); before, anchor ± w·tick from
+/// its predictions (krx-quant #210: the engine gives the bar close's mid-point and tick with each,
+/// kept as the price moves on); none from an engine before #210 or without a mid-point there.
+std::optional<Barriers> bar_close_barriers(const QList<KindPrediction>& at_close);
+
 /// The barrier panel's title part (krx-quant #185): the bar close's width and barriers,
-/// "w 6틱 · U 78,950 · L 77,750". U and L come with the answer (the engine gives the bar close's
-/// mid-point then): before it, "w 6틱" alone. Empty without a w.
+/// "w 6틱 · U 78,950 · L 77,750", before its answer too (bar_close_barriers, krx-quant #210). From
+/// an engine that gives the bar close's mid-point only with the answer (before #210), "w 6틱" alone
+/// until then. Empty without a w.
 QString barrier_text(const QList<KindPrediction>& at_close);
 
 /// What happened after a kind's bar close: "정답 4틱 · 큼" for the range (r and its class),
@@ -126,8 +139,9 @@ QStringList kind_hover_box(const QList<KindPrediction>& at_close, const QDateTim
 /// Each of ``bars``' hover box while ``kind`` is chosen, from its predictions by bar close
 /// (``closes``: KindBoard::closes), with the bar close's four-minute window (as krx-quant #167
 /// draws it): once a range answer is in, its highest and lowest mid-points as the window's two
-/// lines (``upper``, ``lower``) and where each was first received; once a barrier answer is in
-/// (krx-quant #185), its barriers U and L and where each was first reached (U by the best bid,
+/// lines (``upper``, ``lower``) and where each was first received; for the barrier (krx-quant
+/// #185), its barriers U and L (bar_close_barriers: before the answer too, from the predictions,
+/// krx-quant #210) and, once the answer is in, where each was first reached (U by the best bid,
 /// L by the best ask: the quote then), as the direction's touch targets.
 QList<BarHover> kind_hovers(const QList<Bar>& bars, const QMap<QDateTime, QList<KindPrediction>>& closes,
                             const KindInfo& kind, const QMap<QString, QString>& standings);

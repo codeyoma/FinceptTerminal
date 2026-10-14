@@ -117,9 +117,10 @@
 
   // The hovered bar's four-minute window (krx-quant #167): the span from its bar close to four
   // minutes on, lightly filled; the touch targets across it, once its label is in (another kind's
-  // two levels the same way: the range's, the barrier's U and L, #182, #185); where each was first
-  // reached, the upper in the rising colour, the lower in the falling one. A window not over yet
-  // runs dotted into the free space on the right.
+  // two levels the same way: the range's, #182; the barrier's U and L, #185, from its bar close on
+  // when the engine gives its mid-point with the prediction, #210); where each was first reached,
+  // the upper in the rising colour, the lower in the falling one. A window not over yet runs
+  // dotted into the free space on the right, its levels too.
   function xOf(time) {
     // A moment's x on the logical bars: within its minute's bar; in minutes without a bar
     // (the chart skips minutes without trades), at the edge where the next bar starts; past
