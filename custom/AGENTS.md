@@ -2,7 +2,7 @@
 
 ### Issue tracker
 
-Work items live in GitHub Issues of the private repo `codeyoma/krx-quant`; always pass `--repo codeyoma/krx-quant` to `gh`. This fork's own issues are automated upstream notices only. See `custom/agents/issue-tracker.md`.
+Work items live in GitHub Issues of the repo `codeyoma/krx-quant`; always pass `--repo codeyoma/krx-quant` to `gh`. This fork's own issues are automated upstream notices only. See `custom/agents/issue-tracker.md`.
 
 ### Triage labels
 

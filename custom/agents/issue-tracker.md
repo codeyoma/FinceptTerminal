@@ -1,6 +1,6 @@
 # Issue tracker: GitHub (cross-repo, `codeyoma/krx-quant`)
 
-Issues, specs and tickets for work in this fork live in the **private** repo `codeyoma/krx-quant`, not in this fork. This fork is public; keeping tickets in the private repo keeps the engine and algorithm design private.
+Issues, specs and tickets for work in this fork live in the repo `codeyoma/krx-quant`, not in this fork, beside the engine they mostly concern. (Both repos are public since 2026-10-14; krx-quant used to be private, which is why the tickets started there.)
 
 This fork's own GitHub Issues are reserved for automated notices from the `custom-upstream-watch` workflow (new upstream release, failed `main` sync). Do not file work items here.
 

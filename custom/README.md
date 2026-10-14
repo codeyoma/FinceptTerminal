@@ -1,6 +1,8 @@
 # codeyoma fork 운영 메모
 
-이 fork는 upstream [Fincept-Corporation/FinceptTerminal](https://github.com/Fincept-Corporation/FinceptTerminal)에 KRX 4분 예측 엔진(비공개 저장소 `krx-quant`)을 보는 화면 하나를 더한 개인용 빌드다. 엔진과 알고리즘은 이 저장소에 두지 않는다.
+이 fork는 upstream [Fincept-Corporation/FinceptTerminal](https://github.com/Fincept-Corporation/FinceptTerminal)에 KRX 4분 예측 엔진(저장소 `krx-quant`)을 보는 화면 하나를 더한 개인용 빌드다. 엔진과 알고리즘은 이 저장소에 두지 않는다. 엔진 코드는 `krx-quant`에 한 곳으로 두고, 화면은 엔진 API로 받은 것을 보이기만 한다.
+
+> **바뀜** (2026-10-14, codeyoma/krx-quant#194): `krx-quant`는 비공개 저장소였다 → 공개. 이유: 비공개 저장소의 GitHub Actions 시간이 바닥났고, 알고리즘과 모델은 보여도 된다고 정했다. 엔진과 화면을 나눈 구조는 그대로다.
 
 ## 브랜치
 
