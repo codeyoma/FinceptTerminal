@@ -11,9 +11,10 @@
 
 #include <optional>
 
-/// What the KRX screen shows of a prediction kind besides the direction (krx-quant #182): the
-/// kind selector's choices, the kind's prediction panel, its hover boxes on the chart, and what
-/// the detail window says of a kind's baseline. Worked out here so the widgets only render.
+/// What the KRX screen shows of a prediction kind besides the direction (krx-quant #182, the
+/// range; #185, the barrier): the kind selector's choices, the kind's prediction panel, its hover
+/// boxes and lines on the chart, and what the detail window says of a kind's baseline. Worked out
+/// here so the widgets only render.
 /// Qt Core only, unit-tested on its own (tests/tst_krx_kind_view.cpp).
 namespace fincept::krx_quant {
 
@@ -31,8 +32,8 @@ struct KindChoice {
 
 /// The selector's choices in the screen's order — 방향, 장벽, 변동폭 —, each enabled when the
 /// engine makes it (``kinds``: GET /v1/kinds; none from an engine before krx-quant #179, which
-/// makes the direction alone) and this screen can show it (the direction and the range; the
-/// barrier's screen comes with krx-quant #185).
+/// makes the direction alone, and the barrier none from one before krx-quant #183) and this
+/// screen can show it (all three since krx-quant #185; a kind it does not know, never).
 QList<KindChoice> kind_choices(const std::optional<QList<KindInfo>>& kinds);
 
 /// The kind the screen shows: ``saved`` (the setting ``krx_quant/kind``) when it can be chosen,
@@ -66,10 +67,33 @@ std::optional<int> bar_close_k(const QList<KindPrediction>& at_close, std::optio
 /// The range panel's widths, on its title: "k 2틱 · 2k 4틱"; empty without a k.
 QString widths_text(std::optional<int> k);
 
+/// The barrier width w of a bar close (krx-quant #183): its answer's once it is in, else the one
+/// its predictions came with (the engine fixes it at the bar close, the same for each); none
+/// without either (another kind, an engine before #183, no mid-point at the bar close).
+std::optional<int> bar_close_width(const QList<KindPrediction>& at_close);
+
+/// The barrier panel's title part (krx-quant #185): the bar close's width and barriers,
+/// "w 6틱 · U 78,950 · L 77,750". U and L come with the answer (the engine gives the bar close's
+/// mid-point then): before it, "w 6틱" alone. Empty without a w.
+QString barrier_text(const QList<KindPrediction>& at_close);
+
 /// What happened after a kind's bar close: "정답 4틱 · 큼" for the range (r and its class),
-/// "정답 <class>" for another kind, "채점 전", or "채점 불가 (why)"; " · 특수 상황" when one
-/// touched its four minutes.
+/// "정답 위 먼저 (09:32:30 닿음)" for the barrier (the barrier reached first, and when; "정답
+/// 시간 만료" when neither was), "정답 <class>" for another kind, "채점 전", or "채점 불가
+/// (why)"; " · 특수 상황" when one touched its four minutes.
 QString kind_answer_text(const std::optional<KindAnswer>& answer, const KindInfo& kind);
+
+/// A column of a kind's prediction panel: its header, and what it is (empty where the header says it).
+struct PanelColumn {
+    QString header;
+    QString tip;
+};
+
+/// The columns of ``kind``'s prediction panel (krx-quant #182, #185): the predictor, the likeliest
+/// class, the kind's three classes' probabilities, the range's q10, q50 and q90, the result while
+/// a bar close is ``pinned``, the model version. Without the kind described, the predictor, the
+/// class, the result and the model.
+QList<PanelColumn> kind_panel_columns(const std::optional<KindInfo>& kind, bool pinned);
 
 /// A row of a kind's prediction panel (krx-quant #182).
 struct KindRow {
@@ -90,17 +114,21 @@ struct KindRow {
 QList<KindRow> kind_rows(const QList<KindPrediction>& at_close, const KindInfo& kind);
 
 /// The hover box of the bar that closed at ``bar_close`` while ``kind`` is chosen (krx-quant
-/// #182): its bar and target times with the answer ("09:31 봉 → 09:35 목표 · 정답 4틱 · 큼"),
-/// then a line per predictor, the algorithms by name then the baselines: its status now
-/// (``standings``, the kind's leaderboard), likeliest class and its probability, the range's
-/// q10~q90, and ✓/✗/? on the answer. "예측 없음" alone without predictions.
+/// #182): its bar and target times with the answer ("09:31 봉 → 09:35 목표 · 정답 4틱 · 큼"; the
+/// barrier's, krx-quant #185, with its width: "… · 정답 위 먼저 (09:32:30 닿음) · w 6틱"), then a
+/// line per predictor, the algorithms by name then the baselines: its status now (``standings``,
+/// the kind's leaderboard), likeliest class and its probability and the range's q10~q90 — or,
+/// for the barrier, its likeliest class and the three probabilities, as the direction's —, and
+/// ✓/✗/? on the answer. "예측 없음" alone without predictions.
 QStringList kind_hover_box(const QList<KindPrediction>& at_close, const QDateTime& bar_close, const KindInfo& kind,
                            const QMap<QString, QString>& standings);
 
 /// Each of ``bars``' hover box while ``kind`` is chosen, from its predictions by bar close
 /// (``closes``: KindBoard::closes), with the bar close's four-minute window (as krx-quant #167
 /// draws it): once a range answer is in, its highest and lowest mid-points as the window's two
-/// lines (``upper``, ``lower``) and where each was first received.
+/// lines (``upper``, ``lower``) and where each was first received; once a barrier answer is in
+/// (krx-quant #185), its barriers U and L and where each was first reached (U by the best bid,
+/// L by the best ask: the quote then), as the direction's touch targets.
 QList<BarHover> kind_hovers(const QList<Bar>& bars, const QMap<QDateTime, QList<KindPrediction>>& closes,
                             const KindInfo& kind, const QMap<QString, QString>& standings);
 

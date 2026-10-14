@@ -682,30 +682,18 @@ void KrxQuantScreen::fill_kind() {
     const auto kind = live_->kind_info();
     const bool pinned = live_->pinned().isValid();
     const QString& symbol = live_->selected();
-    QStringList headers{tr("예측"), tr("구간")};
-    if (kind)
-        headers << kind->class_titles;
-    const bool range = live_->kind() == QLatin1String(krx_quant::kRangeKind);
-    if (range)
-        headers << tr("q10") << tr("q50") << tr("q90");
-    if (pinned)
-        headers << tr("결과");
-    headers << tr("모델");
+    // The kind's columns (krx-quant #182, #185), what each is on its header: the range's widths in
+    // ticks, the barrier's w, U and L on the panel's title.
+    const auto columns = krx_quant::kind_panel_columns(kind, pinned);
+    QStringList headers;
+    for (const auto& c : columns)
+        headers << c.header;
     predictions_table_->setColumnCount(static_cast<int>(headers.size()));
     predictions_table_->setHorizontalHeaderLabels(headers);
-    if (range) {
-        // What the columns are, on their headers: the widths in ticks are on the panel's title.
-        const int first = 2;
-        const QStringList tips{tr("4분 동안 중간가 변동폭(최고 − 최저)이 k틱보다 작을 확률"),
-                               tr("k틱 이상 2k틱 미만일 확률"),
-                               tr("2k틱 이상일 확률"),
-                               tr("변동폭의 10% 분위수(틱): 열에 하나는 이보다 작다"),
-                               tr("변동폭의 중앙값(틱)"),
-                               tr("변동폭의 90% 분위수(틱): 열에 아홉은 이보다 작다")};
-        for (int i = 0; i < tips.size() && first + i < predictions_table_->columnCount(); ++i)
-            if (auto* item = predictions_table_->horizontalHeaderItem(first + i))
-                item->setToolTip(tips[i]);
-    }
+    for (int c = 0; c < columns.size(); ++c)
+        if (auto* item = predictions_table_->horizontalHeaderItem(c); item && !columns[c].tip.isEmpty())
+            item->setToolTip(columns[c].tip);
+    const bool range = live_->kind() == QLatin1String(krx_quant::kRangeKind);
     predictions_table_->setRowCount(0);
     if (!kind || symbol.isEmpty())
         return kind_title();
@@ -754,6 +742,7 @@ void KrxQuantScreen::kind_title() {
         if (q.symbol == symbol)
             k_now = q.flat_ticks;
     const bool range = live_->kind() == QLatin1String(krx_quant::kRangeKind);
+    const bool barrier = live_->kind() == QLatin1String(krx_quant::kBarrierKind);
     if (live_->pinned().isValid()) {
         const auto at_close = live_->kind_board().closes(symbol).value(live_->pinned());
         QStringList parts{
@@ -769,6 +758,9 @@ void KrxQuantScreen::kind_title() {
             if (const QString widths = krx_quant::widths_text(krx_quant::bar_close_k(at_close, std::nullopt));
                 !widths.isEmpty())
                 parts << widths;
+        if (barrier) // its w, U and L (krx-quant #185)
+            if (const QString barriers = krx_quant::barrier_text(at_close); !barriers.isEmpty())
+                parts << barriers;
         panel_title->setText(parts.join(QStringLiteral(" · ")));
         return;
     }
@@ -796,6 +788,9 @@ void KrxQuantScreen::kind_title() {
         if (const QString widths = krx_quant::widths_text(krx_quant::bar_close_k(latest.predictions, k_now));
             !widths.isEmpty())
             parts << widths;
+    if (barrier) // its w; U and L once its answer is in (krx-quant #185)
+        if (const QString barriers = krx_quant::barrier_text(latest.predictions); !barriers.isEmpty())
+            parts << barriers;
     panel_title->setText(parts.join(QStringLiteral(" · ")));
 }
 
@@ -869,7 +864,7 @@ void KrxQuantScreen::fill_chart() {
     const QList<krx_quant::Mark> marks = live_->board().marks(symbol, live_->selection());
     // Each 1-minute bar's box (krx-quant #159): the minute views' only. While another kind is
     // shown, its own (krx-quant #182): its answer and predictions, and the range's highest and
-    // lowest mid-points; the icons stay the direction's.
+    // lowest mid-points or the barrier's U and L (krx-quant #185); the icons stay the direction's.
     const auto kind = live_->kind() != QLatin1String(krx_quant::kDirectionKind) ? live_->kind_info() : std::nullopt;
     const QList<krx_quant::BarHover> hovers =
         minutes_ != 1 ? QList<krx_quant::BarHover>{}

@@ -32,6 +32,7 @@ constexpr double kNear = 9.0; ///< how close the pointer must be to a point to s
 enum OverallColumn { kRank, kStats }; ///< then the kind's stats, then the luck check
 enum LiftColumn { kBaseline, kGain, kInterval, kPairs, kP, kQ, kVerdict, kDayInterval, kDays };
 enum QuantileColumn { kQuantile, kPinball, kPinballInterval, kDayPinball, kPinballDays, kVsClimate, kVsClimateDay };
+enum BarrierColumn { kSide, kTrades, kTotal, kPerTrade, kPerTradeInterval };
 
 /// A breakdown table: what it is split by, then the stats.
 QTableWidget* breakdown_table(const QString& split) {
@@ -78,13 +79,14 @@ void KrxCalibrationPlot::set_series(const QList<krx_quant::CalibrationSeries>& s
 namespace {
 
 /// A curve's colour: the classes pooled in amber, up and down as prices move, flat in grey;
-/// the range's (krx-quant #182) small in grey, medium in cyan, large in blue.
+/// the range's (krx-quant #182) small in grey, medium in cyan, large in blue; the barrier's
+/// (krx-quant #185) up first and down first as prices move, timeout in grey.
 QColor series_color(const QString& key) {
-    if (key == "up")
+    if (key == "up" || key == "up_first")
         return QColor(ui::colors::POSITIVE());
-    if (key == "down")
+    if (key == "down" || key == "down_first")
         return QColor(ui::colors::NEGATIVE());
-    if (key == "flat" || key == "small")
+    if (key == "flat" || key == "small" || key == "timeout")
         return QColor(ui::colors::TEXT_SECONDARY());
     if (key == "medium")
         return QColor(ui::colors::CYAN());
@@ -301,17 +303,36 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
     quantile_column->addWidget(quantile_table_, 1);
     quantiles_->hide();
 
+    // A barrier predictor's barrier P&L (krx-quant #185), under the lifts as the range's quantiles.
+    barrier_header_ = krx_panel::header(tr("장벽 손익(틱, 연구용)"),
+                                        krx_quant::column_tip(QString::fromUtf8(krx_quant::kBarrierPnlHeader)));
+    barrier_summary_ = new QLabel;
+    barrier_summary_->setContentsMargins(12, 4, 12, 4);
+    barrier_summary_->setWordWrap(true);
+    barrier_table_ = krx_tables::table({tr("구분"), tr("거래 수"), tr("합계(틱)"), tr("거래당(틱)"), tr("95% 구간")});
+    barrier_table_->horizontalHeader()->setStretchLastSection(false);
+    barrier_ = new QWidget;
+    auto* barrier_column = new QVBoxLayout(barrier_);
+    barrier_column->setContentsMargins(0, 0, 0, 0);
+    barrier_column->setSpacing(0);
+    barrier_column->addWidget(barrier_header_.bar);
+    barrier_column->addWidget(barrier_summary_);
+    barrier_column->addWidget(barrier_table_, 1);
+    barrier_->hide();
+
     auto* middle = new QSplitter(Qt::Horizontal);
     lift_header_ = krx_panel::header(tr("기준 예측 대비 lift"));
     lifts_ = krx_tables::table({tr("기준"), tr("lift"), tr("95% 구간"), tr("짝"), tr("p"), tr("q"), tr("운 보정"),
                                 tr("거래일 95% 구간"), tr("날")});
-    // The lifts, then a range predictor's quantile stats below, the divider dragged as the user likes;
-    // hidden for another kind, the lifts have it all.
+    // The lifts, then a range predictor's quantile stats or a barrier predictor's P&L below, the
+    // divider dragged as the user likes; hidden for another kind, the lifts have it all.
     auto* lift_column = new QSplitter(Qt::Vertical);
     lift_column->addWidget(krx_panel::panel(lift_header_, lifts_));
     lift_column->addWidget(quantiles_);
+    lift_column->addWidget(barrier_);
     lift_column->setStretchFactor(0, 1);
     lift_column->setStretchFactor(1, 1);
+    lift_column->setStretchFactor(2, 1);
     middle->addWidget(lift_column);
     calibration_header_ = krx_panel::header(tr("보정도"));
     calibration_ = new KrxCalibrationPlot;
@@ -372,10 +393,12 @@ void KrxStatsWindow::clear() {
     query_->clear();
     excluded_->clear();
     failure_->hide();
-    for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_, quantile_table_})
+    for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_, quantile_table_, barrier_table_})
         table->setRowCount(0);
     quantile_summary_->clear();
     quantiles_->hide();
+    barrier_summary_->clear();
+    barrier_->hide();
     lift_header_.title->setToolTip(QString());
     calibration_header_.title->setToolTip(QString());
     calibration_->set_series({});
@@ -454,6 +477,22 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats,
         }
     }
 
+    // The barrier's P&L (krx-quant #185): all its trades, then each side.
+    barrier_->setVisible(e.barrier.has_value());
+    barrier_table_->setRowCount(0);
+    if (e.barrier) {
+        barrier_summary_->setText(krx_quant::barrier_summary(*e.barrier));
+        for (const auto& r : krx_quant::barrier_pnl_rows(*e.barrier)) {
+            const int row = barrier_table_->rowCount();
+            barrier_table_->insertRow(row);
+            const QStringList cells{r.side, r.trades, r.total, r.per_trade, r.interval};
+            for (int c = 0; c < cells.size(); ++c)
+                barrier_table_->setItem(row, c,
+                                        cell(cells[c], c == kSide ? Qt::AlignLeft | Qt::AlignVCenter : kNumber));
+        }
+        fit_rows(barrier_table_); // its three rows always show: the splitter leaves it that much
+    }
+
     lifts_->setRowCount(0);
     for (const auto& l : krx_quant::lift_rows(e)) {
         const int row = lifts_->rowCount();
@@ -489,14 +528,16 @@ void KrxStatsWindow::restyle() {
     setStyleSheet(QString("#krxStatsWindow{background:%1;}#krxStatsWindow QLabel{background:transparent;}")
                       .arg(ui::colors::BG_BASE()));
     for (const auto* header : {&header_, &about_header_, &learning_header_, &lift_header_, &calibration_header_,
-                               &breakdown_header_, &quantiles_header_})
+                               &breakdown_header_, &quantiles_header_, &barrier_header_})
         header->restyle();
     about_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
     learning_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
     failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
-    for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_, quantile_table_})
+    for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_, quantile_table_, barrier_table_})
         krx_tables::restyle(table);
     fit_rows(overall_);
+    if (barrier_table_->rowCount() > 0)
+        fit_rows(barrier_table_);
     calibration_->update();
 }
 

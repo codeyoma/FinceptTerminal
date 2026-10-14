@@ -43,10 +43,10 @@ class KrxCalibrationPlot : public QWidget {
 /// A predictor's detail window, on the leaderboard's query: the lift over each baseline
 /// with its test, the calibration curve, and the stats by 30-minute slot, model version and
 /// symbol, in Fincept's panels and tables. A predictor of another kind than the direction
-/// (krx-quant #182) shows its kind's stats columns and classes, and a range predictor its
-/// quantile stats too. The screen opens one per predictor, not modal,
-/// so several can be compared side by side; the screen's live state reads each one's stats
-/// with the leaderboard while it is open.
+/// (krx-quant #182) shows its kind's stats columns and classes, a range predictor its
+/// quantile stats too, and a barrier predictor its barrier P&L (krx-quant #185). The screen opens one per predictor,
+/// not modal, so several can be compared side by side; the screen's live state reads each one's stats with the
+/// leaderboard while it is open.
 class KrxStatsWindow : public QWidget {
     Q_OBJECT
   public:
@@ -102,6 +102,10 @@ class KrxStatsWindow : public QWidget {
     krx_panel::Header quantiles_header_;
     QLabel* quantile_summary_ = nullptr;
     QTableWidget* quantile_table_ = nullptr;
+    QWidget* barrier_ = nullptr; ///< a barrier predictor's barrier P&L (krx-quant #185)
+    krx_panel::Header barrier_header_;
+    QLabel* barrier_summary_ = nullptr;
+    QTableWidget* barrier_table_ = nullptr;
 };
 
 } // namespace fincept::screens

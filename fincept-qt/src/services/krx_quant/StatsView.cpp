@@ -4,6 +4,7 @@
 #include <QTime>
 
 #include <algorithm>
+#include <utility>
 
 namespace fincept::krx_quant {
 
@@ -201,6 +202,8 @@ QList<StatsColumn> kind_stats_columns(const KindInfo& kind) {
          called.isEmpty() ? QString() : QStringLiteral("%1(이)라고 한 예측의 비율이다.").arg(called)},
         {QStringLiteral("Brier"), {}},
     };
+    if (kind.name == QLatin1String("barrier")) // its barrier P&L (krx-quant #185)
+        columns << StatsColumn{QString::fromUtf8(kBarrierPnlHeader), column_tip(QString::fromUtf8(kBarrierPnlHeader))};
     if (kind.name == QLatin1String("range"))
         columns << StatsColumn{QStringLiteral("구간 적중률"),
                                QStringLiteral("실제 변동폭이 q10~q90 안에 든 비율이다. 분위수가 정직하면 80% 가까이 "
@@ -217,12 +220,68 @@ QList<Shown> kind_stats_cells(const Entry& e, const KindInfo& kind) {
                        rate_shown(e.precision),
                        rate_shown(e.coverage),
                        mean_shown(e.brier, 3)};
+    if (kind.name == QLatin1String("barrier"))
+        cells << barrier_pnl_shown(e.barrier);
     if (kind.name == QLatin1String("range")) {
         cells << rate_shown(e.range ? e.range->interval_coverage : std::nullopt)
               << mean_shown(e.range ? e.range->q50_abs_error : std::nullopt, 2);
     }
     cells << Shown{weakest_lift_text(e), {}};
     return cells;
+}
+
+Shown barrier_pnl_shown(const std::optional<BarrierStats>& stats) {
+    if (!stats)
+        return {QStringLiteral("—"), {}};
+    Shown shown = mean_shown(stats->pnl.per_trade, 2);
+    QStringList tip{QStringLiteral("거래 %1건, 합계 %2틱")
+                        .arg(number_text(stats->pnl.trades, 0), number_text(stats->pnl.total_ticks, 1))};
+    if (!shown.tip.isEmpty())
+        tip << shown.tip;
+    const auto side = [](const QString& name, const BarrierPnl& pnl) {
+        return pnl.per_trade ? QStringLiteral("%1 %2건 평균 %3틱")
+                                   .arg(name, number_text(pnl.trades, 0), number_text(pnl.per_trade->value, 2))
+                             : QStringLiteral("%1 %2건").arg(name, number_text(pnl.trades, 0));
+    };
+    tip << side(QStringLiteral("롱(위 먼저)"), stats->longs) + " · " +
+               side(QStringLiteral("숏(아래 먼저)"), stats->shorts);
+    shown.tip = tip.join('\n');
+    return shown;
+}
+
+QList<BarrierPnlRow> barrier_pnl_rows(const BarrierStats& stats) {
+    QList<BarrierPnlRow> rows;
+    for (const auto& [side, pnl] :
+         {std::pair{QStringLiteral("전체"), stats.pnl}, std::pair{QStringLiteral("롱(위 먼저)"), stats.longs},
+          std::pair{QStringLiteral("숏(아래 먼저)"), stats.shorts}}) {
+        BarrierPnlRow row{side, number_text(pnl.trades, 0), number_text(pnl.total_ticks, 1), QStringLiteral("—"),
+                          QStringLiteral("—")};
+        if (const auto& mean = pnl.per_trade) {
+            row.per_trade = number_text(mean->value, 2);
+            if (mean->low && mean->high)
+                row.interval = QStringLiteral("%1 – %2").arg(number_text(*mean->low, 2), number_text(*mean->high, 2));
+        }
+        rows << row;
+    }
+    return rows;
+}
+
+QString barrier_summary(const BarrierStats& stats) {
+    if (stats.n == 0)
+        return QStringLiteral("채점된 예측 없음");
+    if (stats.pnl.trades == 0)
+        return QStringLiteral("채점 %1개 · 거래 없음 (모두 시간 만료 예측)").arg(number_text(stats.n, 0));
+    QStringList parts{QStringLiteral("채점 %1개 중 거래 %2건 (롱 %3 · 숏 %4)")
+                          .arg(number_text(stats.n, 0), number_text(stats.pnl.trades, 0),
+                               number_text(stats.longs.trades, 0), number_text(stats.shorts.trades, 0))};
+    if (const auto& mean = stats.pnl.per_trade) {
+        QString text = QStringLiteral("거래당 %1틱").arg(number_text(mean->value, 2));
+        if (mean->low && mean->high)
+            text += QStringLiteral(" (95% %1 – %2)").arg(number_text(*mean->low, 2), number_text(*mean->high, 2));
+        parts << text;
+    }
+    parts << QStringLiteral("합계 %1틱").arg(number_text(stats.pnl.total_ticks, 1));
+    return parts.join(QStringLiteral(" · "));
 }
 
 QList<QuantileRow> quantile_rows(const RangeStats& stats) {
@@ -286,6 +345,12 @@ QString column_tip(const QString& header) {
              "거래당 평균, 연구용 값이다. ▲는 봉 마감의 매도 1호가에 사서 위 목표에 닿으면 목표가, 아니면 "
              "4분 끝의 매수 1호가에 판다고 친다. ▼는 인버스를 가정해 반대로, ●는 거래하지 않는다. 비용(매도세와 "
              "수수료)을 뺀다. 체결과 잔량은 반영하지 않아 따라 했을 때의 손익이 아니다.")},
+        {QString::fromUtf8(kBarrierPnlHeader),
+         QStringLiteral(
+             "거래당 평균, 연구용 값이다. 위 먼저는 봉 마감의 매도 1호가에 사서 위 장벽 U에 먼저 닿으면 U에, 아래 "
+             "장벽 L에 먼저 닿으면 그때의 매수 1호가에, 어느 쪽에도 닿지 않으면 4분 끝의 매수 1호가에 판다고 친다. "
+             "아래 먼저는 인버스를 가정해 반대로, 시간 만료는 거래하지 않는다. 비용(매도세와 수수료)을 뺀다. 체결과 "
+             "잔량은 반영하지 않아 따라 했을 때의 손익이 아니다.")},
         {QStringLiteral("95% 구간"), QStringLiteral("봉 마감마다 따로 센 설명용 구간이다. 같은 날의 4분 정답은 서로 "
                                                     "겹쳐 실제보다 확실해 보인다. p도 그렇다.")},
         {QStringLiteral("거래일 95% 구간"), QStringLiteral("하루를 값 하나로 본 구간이다. 상태(수습·정식·벤치)는 "
@@ -313,17 +378,30 @@ QString lift_tip(const AlgorithmStats& stats, const std::optional<KindInfo>& kin
     return lines.join('\n');
 }
 
+namespace {
+
+/// The object particle after ``word``: "을" after a final consonant ("큼을"), else "를" ("먼저를").
+QString object_particle(const QString& word) {
+    const char16_t last = word.isEmpty() ? u'\0' : word.back().unicode();
+    const bool syllable = last >= 0xAC00 && last <= 0xD7A3;
+    return syllable && (last - 0xAC00) % 28 == 0 ? QStringLiteral("를") : QStringLiteral("을");
+}
+
+} // namespace
+
 QString calibration_tip(const AlgorithmStats& stats, const std::optional<KindInfo>& kind) {
     QStringList lines;
     if (calibration_series(stats, kind).isEmpty())
         lines << QStringLiteral("채점된 예측이 없다.");
     lines << QStringLiteral("확률을 10% 구간으로 나눠, 예측한 확률과 실제로 일어난 비율을 견준다.");
-    if (kind && kind->name != QLatin1String("direction"))
-        lines << QStringLiteral("전체는 세 클래스를 합친 것이라 클래스별 오차를 숨길 수 있어, %1을 따로 그린다.")
-                     .arg(kind->class_titles.join(QStringLiteral("·")));
-    else
+    if (kind && kind->name != QLatin1String("direction")) {
+        const QString classes = kind->class_titles.join(QStringLiteral("·"));
+        lines << QStringLiteral("전체는 세 클래스를 합친 것이라 클래스별 오차를 숨길 수 있어, %1%2 따로 그린다.")
+                     .arg(classes, object_particle(classes));
+    } else {
         lines << QStringLiteral(
             "전체는 세 클래스를 합친 것이라 방향별 오차를 숨길 수 있어, 상승·보합·하락을 따로 그린다.");
+    }
     lines << QStringLiteral("점이 점선에 가까울수록 확률을 믿을 수 있다.");
     return lines.join('\n');
 }

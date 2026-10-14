@@ -265,6 +265,52 @@ const char* kRangeLeaderboard = R"({
      "excluded": {"special": 0, "unscorable": 0, "status": {}}}
   ]
 })";
+
+// GET /v1/symbols/005930/kinds/barrier/latest (krx-quant #183, #185): one scored "up first" with its
+// path (the demo engine's 10:26 bar close), one not made with the bar close's w all the same.
+const char* kBarrierLatest = R"({
+  "symbol": "005930", "kind": "barrier", "bar_close": "2026-10-12T10:26:00+09:00",
+  "predictions": [
+    {"algorithm": "barrier-persist", "model_version": "v1", "bar_close": "2026-10-12T10:26:00+09:00",
+     "displayed_at": "2026-10-12T10:26:00+09:00", "target_at": "2026-10-12T10:30:00+09:00", "status": "ok",
+     "flat_ticks": 2, "width_ticks": 6, "output": {"p_up_first": 0.0, "p_timeout": 1.0, "p_down_first": 0.0},
+     "answer": {"answer_version": 1, "class": "up_first", "unscorable": null, "special": false,
+                "scored_at": "2026-10-12T10:30:00+09:00",
+                "path": {"w": 6, "sigma": 6.405, "k": 2, "tick": 100, "anchor": 78350.0, "upper": 78950.0,
+                         "lower": 77750.0, "cost": 1.80205, "bid_start": 78300.0, "ask_start": 78400.0,
+                         "up_at": "2026-10-12T10:29:28+09:00", "up_bid": 79000, "up_ask": 79100,
+                         "down_at": null, "down_bid": null, "down_ask": null, "bid_end": 79200, "ask_end": 79300,
+                         "quotes": 21, "silent": false}}},
+    {"algorithm": "barrier-climate", "model_version": "barrier-climate-default",
+     "bar_close": "2026-10-12T10:26:00+09:00", "displayed_at": "2026-10-12T10:26:00+09:00", "target_at": null,
+     "status": "vi", "flat_ticks": 2, "width_ticks": 6, "output": null, "answer": null}
+  ]
+})";
+
+// GET /v1/leaderboard?kind=barrier: barrier-persist's barrier P&L (its extra), barrier-climate's
+// default calling every bar close "timeout": no trade.
+const char* kBarrierLeaderboard = R"({
+  "kind": "barrier", "symbol": "all", "period": "today", "days": ["2026-10-12"], "special": "exclude",
+  "min_sample": 200, "ranked": [], "unranked": [],
+  "baselines": [
+    {"rank": null, "algorithm": "barrier-climate", "model_versions": ["barrier-climate-default"], "n": 252,
+     "accuracy": {"value": 0.504, "low": 0.443, "high": 0.565, "n": 252}, "precision": null,
+     "coverage": {"value": 0.0, "low": 0.0, "high": 0.015, "n": 252}, "brier": null,
+     "extra": {"n": 252, "pnl": {"trades": 0, "total_ticks": 0, "per_trade": null},
+               "long": {"trades": 0, "total_ticks": 0, "per_trade": null},
+               "short": {"trades": 0, "total_ticks": 0, "per_trade": null}},
+     "excluded": {"special": 4, "unscorable": 0, "status": {"vi": 2}}},
+    {"rank": null, "algorithm": "barrier-persist", "model_versions": ["v1"], "n": 240,
+     "accuracy": {"value": 0.4125, "low": 0.352, "high": 0.476, "n": 240},
+     "precision": {"value": 0.281, "low": 0.209, "high": 0.367, "n": 121},
+     "coverage": {"value": 0.504, "low": 0.441, "high": 0.567, "n": 240}, "brier": null,
+     "extra": {"n": 240,
+               "pnl": {"trades": 121, "total_ticks": -378.38, "per_trade": {"value": -3.127, "low": -3.855, "high": -2.399, "n": 121}},
+               "long": {"trades": 60, "total_ticks": -214.87, "per_trade": {"value": -3.581, "low": -4.564, "high": -2.599, "n": 60}},
+               "short": {"trades": 61, "total_ticks": -163.51, "per_trade": {"value": -2.681, "low": -3.75, "high": -1.611, "n": 61}}},
+     "excluded": {"special": 0, "unscorable": 0, "status": {}}}
+  ]
+})";
 } // namespace
 
 class TstKrxEngineData : public QObject {
@@ -1341,6 +1387,124 @@ class TstKrxEngineData : public QObject {
     void the_range_s_baselines_read_in_korean() {
         QCOMPARE(predictor_label("range-climate"), QStringLiteral("기준: 변동폭 시간대 기후"));
         QCOMPARE(predictor_label("range-persist"), QStringLiteral("기준: 직전 4분 변동폭"));
+    }
+
+    void a_barrier_prediction_keeps_its_width_and_its_answer_s_barriers() {
+        // krx-quant #183, #185.
+        const auto latest = parse_kind_latest(json(kBarrierLatest));
+        QVERIFY(latest.is_ok());
+        const KindLatest& l = latest.value();
+        QCOMPARE(l.kind, QStringLiteral("barrier"));
+        const KindPrediction& persist = l.predictions[0];
+        QCOMPARE(persist.width_ticks, std::optional<int>(6));
+        QCOMPARE(persist.value("p_timeout"), std::optional<double>(1.0));
+        QCOMPARE(persist.answer->klass, QStringLiteral("up_first"));
+        QVERIFY(!persist.answer->range.has_value()); // not a range's path
+        const BarrierPath& path = *persist.answer->barrier;
+        QCOMPARE(path.w, std::optional<int>(6));
+        QCOMPARE(path.sigma, std::optional<double>(6.405));
+        QCOMPARE(path.k, std::optional<int>(2));
+        QCOMPARE(path.anchor, std::optional<double>(78350.0));
+        QCOMPARE(path.upper, std::optional<double>(78950.0));
+        QCOMPARE(path.lower, std::optional<double>(77750.0));
+        QCOMPARE(path.cost, std::optional<double>(1.80205));
+        QCOMPARE(path.up_at, QDateTime::fromString("2026-10-12T10:29:28+09:00", Qt::ISODate));
+        QCOMPARE(path.up_bid, std::optional<double>(79000));
+        QVERIFY(!path.down_at.isValid()); // L not reached
+        QVERIFY(!path.down_ask.has_value());
+        QCOMPARE(path.ask_end, std::optional<double>(79300));
+        QCOMPARE(path.quotes, 21);
+        // Not made (a VI): no output, still the bar close's w.
+        QCOMPARE(l.predictions[1].width_ticks, std::optional<int>(6));
+        QVERIFY(l.predictions[1].output.isEmpty());
+        // The range's: no barrier path, no w.
+        const auto range = parse_kind_latest(json(kRangeLatest));
+        QVERIFY(!range.value().predictions[0].answer->barrier.has_value());
+        QVERIFY(!range.value().predictions[0].width_ticks.has_value());
+    }
+
+    void a_barrier_answer_not_followed_or_without_a_mid_point_has_no_barriers() {
+        const auto read = parse_kind_predictions(json(R"({"symbol": "005930", "kind": "barrier", "predictions": [
+            {"algorithm": "barrier-persist", "model_version": "v1", "bar_close": "2026-10-12T09:31:00+09:00",
+             "displayed_at": "2026-10-12T09:31:00+09:00", "target_at": "2026-10-12T09:35:00+09:00", "status": "ok",
+             "flat_ticks": null, "width_ticks": null,
+             "output": {"p_up_first": 1, "p_timeout": 0, "p_down_first": 0},
+             "answer": {"answer_version": 1, "class": null, "unscorable": "restarted", "special": false,
+                        "scored_at": "2026-10-12T09:35:00+09:00", "path": {}}},
+            {"algorithm": "barrier-persist", "model_version": "v1", "bar_close": "2026-10-12T09:32:00+09:00",
+             "displayed_at": "2026-10-12T09:32:00+09:00", "target_at": "2026-10-12T09:36:00+09:00", "status": "ok",
+             "flat_ticks": null, "width_ticks": null,
+             "output": {"p_up_first": 1, "p_timeout": 0, "p_down_first": 0},
+             "answer": {"answer_version": 1, "class": null, "unscorable": "missing mid", "special": false,
+                        "scored_at": "2026-10-12T09:36:00+09:00",
+                        "path": {"w": null, "sigma": null, "k": null, "tick": null, "anchor": null, "upper": null,
+                                 "lower": null, "cost": null, "bid_start": null, "ask_start": null, "up_at": null,
+                                 "up_bid": null, "up_ask": null, "down_at": null, "down_bid": null,
+                                 "down_ask": null, "bid_end": null, "ask_end": null, "quotes": 0,
+                                 "silent": false}}}]})"));
+        QVERIFY(read.is_ok());
+        QVERIFY(!read.value()[0].answer->barrier.has_value()); // an empty path
+        QVERIFY(!read.value()[0].width_ticks.has_value());
+        const BarrierPath& none = *read.value()[1].answer->barrier; // without a mid-point: all null
+        QVERIFY(!none.w.has_value());
+        QVERIFY(!none.upper.has_value());
+        QVERIFY(!none.up_at.isValid());
+    }
+
+    void a_barrier_answer_comes_by_the_stream_with_its_path() {
+        const auto predicted = parse_event(R"({"type": "kind_prediction", "at": "2026-10-12T09:31:00.2+09:00",
+            "prediction_kind": "barrier", "bar_close": "2026-10-12T09:31:00+09:00", "predictions": [
+              {"symbol": "000660", "algorithm": "barrier-climate", "model_version": "barrier-climate-default",
+               "bar_close": "2026-10-12T09:31:00+09:00", "displayed_at": "2026-10-12T09:31:00+09:00",
+               "target_at": "2026-10-12T09:35:00+09:00", "status": "ok", "flat_ticks": 1, "width_ticks": 3,
+               "output": {"p_up_first": 0.25, "p_timeout": 0.5, "p_down_first": 0.25}, "answer": null}]})");
+        QVERIFY(predicted.is_ok());
+        QCOMPARE(predicted.value().kind_predictions[0].width_ticks, std::optional<int>(3));
+        const auto answered = parse_event(R"({"type": "kind_answer", "at": "2026-10-12T09:35:00.1+09:00",
+            "prediction_kind": "barrier", "answers": [
+              {"symbol": "000660", "bar_close": "2026-10-12T09:31:00+09:00", "answer_version": 1,
+               "class": "down_first", "unscorable": null, "special": false, "scored_at": "2026-10-12T09:35:00+09:00",
+               "path": {"w": 3, "sigma": 2.6, "k": 1, "tick": 500, "anchor": 209000.0, "upper": 210500.0,
+                        "lower": 207500.0, "cost": 0.96, "bid_start": 208500.0, "ask_start": 209500.0,
+                        "up_at": "2026-10-12T09:34:10.5+09:00", "up_bid": 210500.0, "up_ask": 211000.0,
+                        "down_at": "2026-10-12T09:32:01.25+09:00", "down_bid": 207000.0, "down_ask": 207500.0,
+                        "bid_end": 210000.0, "ask_end": 210500.0, "quotes": 64, "silent": false}}]})");
+        QVERIFY(answered.is_ok());
+        const KindAnswerAt& a = answered.value().kind_answers[0];
+        QCOMPARE(a.answer.klass, QStringLiteral("down_first"));
+        QCOMPARE(a.answer.barrier->down_at, QDateTime::fromString("2026-10-12T09:32:01.25+09:00", Qt::ISODateWithMs));
+        QCOMPARE(a.answer.barrier->down_ask, std::optional<double>(207500.0));
+        QCOMPARE(a.answer.barrier->up_at, QDateTime::fromString("2026-10-12T09:34:10.5+09:00", Qt::ISODateWithMs));
+        QCOMPARE(a.answer.barrier->lower, std::optional<double>(207500.0));
+    }
+
+    void a_barrier_leaderboard_keeps_its_barrier_p_and_l() {
+        const auto board = parse_leaderboard(json(kBarrierLeaderboard));
+        QVERIFY(board.is_ok());
+        QCOMPARE(board.value().kind, QStringLiteral("barrier"));
+        const Entry& persist = board.value().baselines[1];
+        QVERIFY(!persist.range.has_value());
+        QCOMPARE(persist.trades, 0); // no touch P&L: the direction's own
+        const BarrierStats& b = *persist.barrier;
+        QCOMPARE(b.n, 240);
+        QCOMPARE(b.pnl.trades, 121);
+        QCOMPARE(b.pnl.total_ticks, -378.38);
+        QCOMPARE(b.pnl.per_trade->low, std::optional<double>(-3.855));
+        QCOMPARE(b.longs.trades, 60);
+        QCOMPARE(b.shorts.per_trade->value, -2.681);
+        // No trade: no mean.
+        const BarrierStats& climate = *board.value().baselines[0].barrier;
+        QCOMPARE(climate.n, 252);
+        QCOMPARE(climate.pnl.trades, 0);
+        QVERIFY(!climate.pnl.per_trade.has_value());
+        // The range's and the direction's: no barrier P&L.
+        QVERIFY(!parse_leaderboard(json(kRangeLeaderboard)).value().unranked[0].barrier.has_value());
+        QVERIFY(!parse_leaderboard(json(kLeaderboard)).value().ranked[0].barrier.has_value());
+    }
+
+    void the_barrier_s_baselines_read_in_korean() {
+        QCOMPARE(predictor_label("barrier-climate"), QStringLiteral("기준: 장벽 시간대 기후"));
+        QCOMPARE(predictor_label("barrier-persist"), QStringLiteral("기준: 직전 4분 장벽"));
     }
 };
 

@@ -108,6 +108,21 @@ KindAnswer range_answer(const QString& klass) {
     return a;
 }
 
+/// A barrier forecast (krx-quant #185) of ``algorithm`` at ``bar_close``, the bar close's width 6 ticks.
+KindPrediction barred(const QString& symbol, const QString& algorithm, const char* bar_close, double up, double timeout,
+                      double down) {
+    KindPrediction p;
+    p.symbol = symbol;
+    p.algorithm = algorithm;
+    p.model_version = algorithm + "-1";
+    p.status = "ok";
+    p.bar_close = at(bar_close);
+    p.target_at = p.bar_close.addSecs(240);
+    p.width_ticks = 6;
+    p.output = {{"p_up_first", up}, {"p_timeout", timeout}, {"p_down_first", down}};
+    return p;
+}
+
 Event kind_event(Event::Type type, const QString& kind) {
     Event e;
     e.type = type;
@@ -579,6 +594,42 @@ class TstKrxBoard : public QObject {
         board.set_kind("barrier");
         QVERIFY(board.closes("005930").isEmpty());
         QCOMPARE(board.kind(), QStringLiteral("barrier"));
+    }
+
+    void a_barrier_answer_brings_its_barriers_to_every_prediction_of_its_bar_close() {
+        // krx-quant #185: what the barrier's panel title and hover lines read.
+        KindBoard board;
+        board.set_kind("barrier");
+        board.focus("005930");
+        board.set_latest({"005930",
+                          "barrier",
+                          at("09:31"),
+                          {barred("005930", "barrier-persist", "09:31", 1, 0, 0),
+                           barred("005930", "barrier-climate", "09:31", 0.25, 0.5, 0.25)}});
+        KindAnswer answer = range_answer("up_first");
+        BarrierPath path;
+        path.w = 6;
+        path.upper = 78'950;
+        path.lower = 77'750;
+        path.up_at = at("09:33");
+        path.up_bid = 79'000;
+        answer.barrier = path;
+        Event answered = kind_event(Event::Type::KindAnswer, "barrier");
+        answered.kind_answers = {{"005930", at("09:31"), answer}};
+
+        QVERIFY(board.apply(answered));
+
+        for (const auto& p : board.latest("005930").predictions) {
+            QCOMPARE(p.answer->barrier->upper, std::optional<double>(78'950));
+            QCOMPARE(p.answer->barrier->up_at, at("09:33"));
+            QCOMPARE(p.width_ticks, std::optional<int>(6)); // the bar close's w they came with stays
+        }
+        QCOMPARE(board.closes("005930").value(at("09:31")).size(), 2);
+        // The range's answers are not this kind's.
+        Event range = kind_event(Event::Type::KindAnswer, "range");
+        range.kind_answers = {{"005930", at("09:31"), range_answer("large")}};
+        QVERIFY(!board.apply(range));
+        QCOMPARE(board.latest("005930").predictions[0].answer->klass, QStringLiteral("up_first"));
     }
 
     void the_direction_s_board_passes_over_another_kind_s_events() {

@@ -223,6 +223,24 @@ struct RangeStats {
     std::optional<QMap<QString, RangeMean>> vs_climate;
 };
 
+/// Barrier trades' P&L in ticks less the round-trip cost (krx-quant #183, research only): how
+/// many, their total and the mean a trade with its normal 95% interval (none without a trade).
+struct BarrierPnl {
+    int trades = 0;
+    double total_ticks = 0;
+    std::optional<Interval> per_trade;
+};
+
+/// A barrier predictor's own statistics (krx-quant #183, an entry's ``extra``): of its scored
+/// predictions, the barrier P&L of its calls — a long on "up first", a short (an inverse) on
+/// "down first", none on "timeout" — all of them, and each side.
+struct BarrierStats {
+    int n = 0;
+    BarrierPnl pnl;
+    BarrierPnl longs;  ///< the "up first" calls
+    BarrierPnl shorts; ///< the "down first" calls
+};
+
 /// What a query's stats leave out of a predictor's predictions (krx-quant #83).
 struct Excluded {
     int special = 0;             ///< scored, touched by a special situation: left out, or counted in on "include"
@@ -251,6 +269,8 @@ struct Entry {
     std::optional<Excluded> excluded; ///< on a leaderboard line and a detail's overall; none in a breakdown
     /// A range predictor's quantile stats (its ``extra``, krx-quant #180); none for another kind.
     std::optional<RangeStats> range{};
+    /// A barrier predictor's barrier P&L (its ``extra``, krx-quant #183); none for another kind.
+    std::optional<BarrierStats> barrier{};
 };
 
 /// GET /v1/leaderboard: the query it answers and its three lists.
@@ -486,6 +506,34 @@ struct RangePath {
     bool silent = false; ///< the quotes stopped for over 60 seconds
 };
 
+/// A barrier answer's window (krx-quant #183): the width w the bar close fixed (ticks), the
+/// barriers U and L it put around the bar close's integrated mid-point (``anchor``), and when
+/// each was first reached in the four minutes — U by the best bid, L by the best ask — with
+/// the best quote then. What the engine could not tell (no mid-point at the bar close, a
+/// barrier not reached) stays empty.
+struct BarrierPath {
+    std::optional<int> w;        ///< the width, ticks
+    std::optional<double> sigma; ///< the four-minute volatility it came from, ticks; none when w = k for want of bars
+    std::optional<int> k;
+    std::optional<double> tick;
+    std::optional<double> anchor;
+    std::optional<double> upper; ///< U = anchor + w ticks
+    std::optional<double> lower; ///< L = anchor − w ticks
+    std::optional<double> cost;  ///< the round trip's cost, ticks
+    std::optional<double> bid_start;
+    std::optional<double> ask_start;
+    QDateTime up_at; ///< when the best bid first reached U; invalid if it did not
+    std::optional<double> up_bid;
+    std::optional<double> up_ask;
+    QDateTime down_at; ///< when the best ask first reached L; invalid if it did not
+    std::optional<double> down_bid;
+    std::optional<double> down_ask;
+    std::optional<double> bid_end;
+    std::optional<double> ask_end;
+    int quotes = 0;
+    bool silent = false; ///< the quotes stopped for over 60 seconds
+};
+
 /// A bar close's answer of a kind (krx-quant #179), every predictor's of that kind there.
 struct KindAnswer {
     int answer_version = 0;
@@ -493,7 +541,8 @@ struct KindAnswer {
     QString unscorable; ///< why not, e.g. "silent quotes"
     bool special = false;
     QDateTime scored_at;
-    std::optional<RangePath> range; ///< a range answer's path; none for another kind or a window not followed
+    std::optional<RangePath> range;       ///< a range answer's path; none for another kind or a window not followed
+    std::optional<BarrierPath> barrier{}; ///< a barrier answer's path (krx-quant #183); likewise
 };
 
 /// A prediction of a kind besides the direction (krx-quant #179): its output by key — the
@@ -508,6 +557,10 @@ struct KindPrediction {
     /// k at its bar close (krx-quant #200): the flat band it was made with, kept as the price
     /// moves on; none from an engine before #200, for one stored before, or without a mid-point.
     std::optional<int> flat_ticks;
+    /// The barrier width w at its bar close (krx-quant #183), ticks: fixed there by the engine, the
+    /// same for every predictor; none for a kind without barriers, from an older engine, or
+    /// without a mid-point.
+    std::optional<int> width_ticks{};
     QMap<QString, double> output;
     std::optional<KindAnswer> answer; ///< its bar close's, once its four minutes are over
 
