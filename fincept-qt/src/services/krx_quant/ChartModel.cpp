@@ -153,8 +153,11 @@ QStringList hover_box(const QList<Prediction>& at_close, const QDateTime& bar_cl
         return {times, QStringLiteral("예측 없음")};
     QStringList lines{QStringLiteral("%1 · %2").arg(times, truth_text(truth))};
     if (!selection.isEmpty()) {
-        const QString chosen = QString::number(selection.size());
-        if (const auto pooled = select_consensus(at_close, selection)) {
+        const qsizetype models = selection.size() - baselines_of(selection).size();
+        const QString chosen = QString::number(models);
+        if (models == 0) {
+            // Baselines alone: no consensus of theirs, their lines below compare.
+        } else if (const auto pooled = select_consensus(at_close, selection)) {
             const Votes& v = *pooled->consensus.votes;
             Mark m;
             m.prediction = pooled->consensus;
@@ -236,30 +239,63 @@ QList<BarHover> bar_hovers(const QList<Bar>& bars, const QMap<QDateTime, QList<P
 
 SelectionScore score_of(const QList<Mark>& marks, qint64 from, qint64 to, const QDateTime& now) {
     SelectionScore score;
+    QSet<QDate> days;
+    const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(kKstSeconds);
     for (const auto& m : marks) {
         const qint64 time = chart_time(m.bar_close.addSecs(-60));
         if (time < from || time > to)
             continue;
         const Truth& t = m.truth;
-        if (!t.scored || t.happened == Direction::None || t.special)
+        if (!t.scored || t.happened == Direction::None)
             continue;
         if (!t.target_at.isValid() || t.target_at > now)
             continue; // its 4 minutes are not over: a window decided early would weigh more
+        if (t.special) {
+            ++score.special;
+            continue;
+        }
+        const bool hit = m.result == Mark::Result::Hit;
         ++score.n;
-        score.hits += m.result == Mark::Result::Hit;
+        score.hits += hit;
         score.flat_hits += t.happened == Direction::Flat;
+        if (m.predicted == Direction::Up) {
+            ++score.up_n;
+            score.up_hits += hit;
+        } else if (m.predicted == Direction::Down) {
+            ++score.down_n;
+            score.down_hits += hit;
+        }
+        days.insert(m.bar_close.toTimeZone(kst).date());
     }
+    score.days = static_cast<int>(days.size());
     return score;
 }
 
-QString score_text(int chosen, const SelectionScore& score) {
-    const QString head = QStringLiteral("선택 합의 (%1)").arg(chosen);
-    if (score.n == 0)
-        return head + QStringLiteral(" · 채점된 봉 없음");
-    const auto rate = [&score](int k) { return QString::number(std::lround(100.0 * k / score.n)) + "%"; };
-    return QStringLiteral("%1 · 맞음 %2 · 늘 보합 %3 (%4개)")
-        .arg(head, rate(score.hits), rate(score.flat_hits))
-        .arg(score.n);
+QString selection_head(const QStringList& selection) {
+    const QStringList baselines = baselines_of(selection);
+    const qsizetype models = selection.size() - baselines.size();
+    if (models > 0)
+        return QStringLiteral("선택 합의 (%1)").arg(models);
+    return baselines.size() == 1 ? predictor_label(baselines.first()) : QString();
+}
+
+QString score_text(const QString& head, const SelectionScore& score) {
+    const auto rate = [](int k, int n) {
+        return n == 0 ? QStringLiteral("—") : QString::number(std::lround(100.0 * k / n)) + "%";
+    };
+    QStringList parts{head};
+    if (score.n == 0) {
+        parts << QStringLiteral("채점된 봉 없음");
+    } else {
+        parts << QStringLiteral("맞음 %1").arg(rate(score.hits, score.n))
+              << QStringLiteral("늘 보합 %1").arg(rate(score.flat_hits, score.n))
+              << QStringLiteral("▲ 맞음 %1 (%2)").arg(rate(score.up_hits, score.up_n)).arg(score.up_n)
+              << QStringLiteral("▼ 맞음 %1 (%2)").arg(rate(score.down_hits, score.down_n)).arg(score.down_n)
+              << QStringLiteral("%1개 %2거래일").arg(score.n).arg(score.days);
+    }
+    if (score.special > 0)
+        parts << QStringLiteral("특수 %1개 제외").arg(score.special);
+    return parts.join(QStringLiteral(" · "));
 }
 
 bool selectable(const QString& predictor) {
@@ -324,7 +360,7 @@ QList<CloseRow> close_rows(const QList<Prediction>& predictions, const QMap<QStr
         return rank(a) != rank(b) ? rank(a) < rank(b) : a.algorithm < b.algorithm;
     });
     QList<CloseRow> out;
-    if (!selection.isEmpty()) {
+    if (selection.size() > baselines_of(selection).size()) { // a model selected: their consensus
         CloseRow row;
         row.algorithm = kSelected;
         row.name = QStringLiteral("선택 합의");

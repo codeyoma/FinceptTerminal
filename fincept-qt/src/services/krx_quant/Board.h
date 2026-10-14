@@ -64,14 +64,18 @@ struct Pooled {
     /// leaned (``votes``), the final consensus's ``blocked``.
     Prediction consensus;
     int made = 0;   ///< the selected models with a forecast at that bar close
-    int chosen = 0; ///< the models selected
+    int chosen = 0; ///< the models selected (baselines not counted)
 };
 
-/// The consensus of ``selection`` (predictor names) at a bar close, from its predictions:
-/// the three probabilities of those with a forecast (status "ok") averaged, each weighing
-/// the same, summed in name order; each counted by its likeliest class (a tie goes flat,
-/// then up). None when none of them made one.
+/// The consensus of the models of ``selection`` (predictor names; its baselines are left
+/// out, krx-quant #166) at a bar close, from its predictions: the three probabilities of
+/// those with a forecast (status "ok") averaged, each weighing the same, summed in name
+/// order; each counted by its likeliest class (a tie goes flat, then up). None when none of
+/// them made one, or none is selected.
 std::optional<Pooled> select_consensus(const QList<Prediction>& at_close, const QStringList& selection);
+
+/// The baselines among ``selection``, in its order.
+QStringList baselines_of(const QStringList& selection);
 
 /// Each symbol's predictions of its latest bar close and its final consensus over the day;
 /// for the chosen symbol (focus), every predictor's over the bar closes read (krx-quant #159).
@@ -106,9 +110,10 @@ class Board {
     /// The symbol's predictions of its latest bar close, in the screen's order; empty if none.
     Latest latest(const QString& symbol) const;
     /// The icons of the symbol's bar closes, oldest first, scored on their truth: with no
-    /// ``selection``, the final consensus of each bar close that had a forecast; else the
-    /// selected models' consensus (select_consensus) where one of them made a forecast, for the
-    /// chosen symbol only.
+    /// ``selection``, the final consensus of each bar close that had a forecast; else, for the
+    /// chosen symbol only, the selected models' consensus (select_consensus) where one of them
+    /// made a forecast. Baselines selected are not in it (krx-quant #166): with no model
+    /// selected and one baseline, that baseline's own forecasts; with several, none.
     QList<Mark> marks(const QString& symbol, const QStringList& selection = {}) const;
     /// The symbol's predictions of each bar close, oldest first: every predictor's for the
     /// chosen symbol, the final consensus alone for another.
