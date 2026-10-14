@@ -19,7 +19,8 @@ namespace fincept::screens {
 /// stats; intervals in tooltips, the ranking rules on the title's. A line double-clicked
 /// asks for that predictor's detail. The first column's boxes select models for the chart
 /// (krx-quant #159): an algorithm's or a baseline's line, not a consensus's; clicking that
-/// column's header clears them.
+/// column's header clears them. Of another kind than the direction (krx-quant #182), its
+/// predictors with its stats columns, and no boxes: the chart's consensus is the direction's.
 class KrxLeaderboard : public QWidget {
     Q_OBJECT
   public:
@@ -32,6 +33,9 @@ class KrxLeaderboard : public QWidget {
     void show_failure(const QString& reason);
     /// The models selected for the chart: their boxes ticked.
     void set_selection(const QStringList& selection);
+    /// The kind ranked (krx-quant #182): its columns; none or the direction's, the direction's as
+    /// before. The lines shown go until its leaderboard comes.
+    void set_kind(const std::optional<krx_quant::KindInfo>& kind);
     const QStringList& selection() const { return selection_; }
     /// Paint in the theme's colors and font now.
     void restyle();
@@ -56,8 +60,15 @@ class KrxLeaderboard : public QWidget {
     QStringList selection_;                       ///< the models selected for the chart
     QStringList told_;                            ///< the selection last said (selection_changed)
     QTimer settle_;                               ///< a moment after the last click
+    std::optional<krx_quant::KindInfo> kind_;     ///< the kind ranked; none: the direction
     /// Tick the boxes as selection_ says, without taking it for the user's clicks.
     void show_selection();
+    /// Whether the kind ranked is the direction.
+    bool direction() const;
+    /// The column of the luck check, the last: after the kind's stats.
+    int significant_column() const;
+    /// The table's columns for the kind ranked.
+    void set_columns();
 };
 
 } // namespace fincept::screens

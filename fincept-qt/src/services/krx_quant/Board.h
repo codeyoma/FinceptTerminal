@@ -138,4 +138,44 @@ class Board {
 /// When a bar close's predictions are scored (4 minutes on); invalid if none was made.
 QDateTime scoring_at(const Latest& latest);
 
+/// The predictions of the kind chosen besides the direction (krx-quant #182), kept current from
+/// the engine's answers and its stream as Board keeps the direction's: each symbol's of its
+/// latest bar close, and the chosen symbol's (focus) over the bar closes read, for its hover
+/// boxes and a bar close pinned. An answer (kind_answer, four minutes on) goes to every
+/// prediction of its bar close. Nothing goes back: a later bar close is never replaced by an
+/// earlier one, nor a prediction with its answer by the same one without.
+class KindBoard {
+  public:
+    /// Follow ``kind``: what was kept of another kind goes.
+    void set_kind(const QString& kind);
+    const QString& kind() const { return kind_; }
+    /// The symbol whose predictions are kept over the bar closes; another's are dropped.
+    void focus(const QString& symbol);
+    /// GET …/kinds/{kind}/latest; another kind's is passed over.
+    void set_latest(const KindLatest& latest);
+    /// GET …/kinds/{kind}/predictions of ``symbol``.
+    void set_history(const QString& symbol, const QList<KindPrediction>& predictions);
+    /// What the stream brought: this kind's predictions or answers. Whether it was this kind's.
+    bool apply(const Event& event);
+    /// The engine could not be read, or another was chosen.
+    void forget();
+    /// As Board::rewind_to. Whether anything was dropped.
+    bool rewind_to(const QDateTime& now);
+
+    /// The symbol's predictions of its latest bar close; empty if none.
+    KindLatest latest(const QString& symbol) const;
+    /// The chosen symbol's predictions by bar close, oldest first; empty for another symbol.
+    QMap<QDateTime, QList<KindPrediction>> closes(const QString& symbol) const;
+
+  private:
+    void put(KindPrediction p);
+    void answer(const QString& symbol, const QDateTime& bar_close, const KindAnswer& answer);
+
+    QString kind_;
+    QMap<QString, KindLatest> latest_; ///< by symbol
+    QString focus_;
+    QMap<QDateTime, QMap<QString, KindPrediction>> closes_; ///< the focus's, by bar close, by predictor
+    QMap<QString, QMap<QDateTime, KindAnswer>> answers_;    ///< by symbol, by bar close: for those read after
+};
+
 } // namespace fincept::krx_quant

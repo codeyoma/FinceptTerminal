@@ -194,6 +194,77 @@ Prediction forecast(double up, double flat, double down) {
     return p;
 }
 
+// GET /v1/kinds (krx-quant #179, #182): the direction and the range, made-up meanings and cards.
+const char* kKinds = R"({"kinds": [
+  {"name": "direction", "title": "방향", "classes": ["up", "flat", "down"], "class_titles": ["상승", "보합", "하락"],
+   "action": ["up", "down"], "answer_version": 2,
+   "fields": {"expected_ticks": {"meaning": "기대값", "unit": "틱", "known": "봉 마감"}},
+   "baselines": [{"name": "baseline-flat", "card": {"scientist": null, "character": "늘 보합", "logic": "x",
+                  "unique_features": [], "training": "없음"}}]},
+  {"name": "range", "title": "변동폭", "classes": ["small", "medium", "large"], "class_titles": ["작음", "보통", "큼"],
+   "action": ["small", "large"], "answer_version": 1,
+   "fields": {"q10": {"meaning": "10% 분위수", "unit": "틱", "known": "봉 마감"},
+              "q50": {"meaning": "중앙", "unit": "틱", "known": "봉 마감"},
+              "q90": {"meaning": "90% 분위수", "unit": "틱", "known": "봉 마감"}},
+   "baselines": [{"name": "range-climate", "card": {"scientist": null, "character": "시간대 기후", "logic": "y",
+                  "unique_features": [], "training": "밤 학습"}},
+                 {"name": "range-persist", "card": {"scientist": null, "character": "직전 4분", "logic": "z",
+                  "unique_features": [], "training": "없음"}}]}
+]})";
+
+// GET /v1/symbols/005930/kinds/range/latest: one scored with its path, one not made, one pending.
+const char* kRangeLatest = R"({
+  "symbol": "005930", "kind": "range", "bar_close": "2026-10-12T09:31:00+09:00",
+  "predictions": [
+    {"algorithm": "range-climate", "model_version": "range-climate-x", "bar_close": "2026-10-12T09:31:00+09:00",
+     "displayed_at": "2026-10-12T09:31:00.004+09:00", "target_at": "2026-10-12T09:35:00+09:00", "status": "ok",
+     "output": {"p_small": 0.2, "p_medium": 0.5, "p_large": 0.3, "q10": 1.0, "q50": 2.5, "q90": 5.0},
+     "answer": {"answer_version": 1, "class": "medium", "unscorable": null, "special": false,
+                "scored_at": "2026-10-12T09:35:00.003+09:00",
+                "path": {"r": 3.0, "k": 2, "tick": 100, "anchor": 81250.0,
+                         "max_mid": 81450.0, "max_mid_at": "2026-10-12T09:32:10.201+09:00",
+                         "min_mid": 81150.0, "min_mid_at": "2026-10-12T09:33:30.512+09:00",
+                         "up": 2.0, "down": 1.0, "quotes": 1043, "silent": false, "max_bid": 81400.0, "min_ask": 81200.0}}},
+    {"algorithm": "range-persist", "model_version": "v1", "bar_close": "2026-10-12T09:31:00+09:00",
+     "displayed_at": "2026-10-12T09:31:00.004+09:00", "target_at": null, "status": "no_previous",
+     "output": null, "answer": null},
+    {"algorithm": "alg-r", "model_version": "alg-r-1", "bar_close": "2026-10-12T09:31:00+09:00",
+     "displayed_at": "2026-10-12T09:31:01+09:00", "target_at": "2026-10-12T09:35:00+09:00", "status": "ok",
+     "output": {"p_small": 0.1, "p_medium": 0.3, "p_large": 0.6, "q10": 2.0, "q50": 4.0, "q90": 8.5},
+     "answer": null}
+  ]
+})";
+
+// GET /v1/leaderboard?kind=range: an entry with its quantile stats (extra), a baseline without vs_climate.
+const char* kRangeLeaderboard = R"({
+  "kind": "range", "symbol": "all", "period": "5d", "days": ["2026-10-12", "2026-10-13"], "special": "exclude",
+  "min_sample": 200,
+  "ranked": [],
+  "unranked": [
+    {"rank": null, "algorithm": "alg-r", "status": "probation", "model_versions": ["alg-r-1"], "n": 240,
+     "accuracy": {"value": 0.5, "low": 0.44, "high": 0.56, "n": 240}, "precision": null, "coverage": null,
+     "brier": {"value": 0.6, "low": 0.58, "high": 0.62, "n": 240},
+     "extra": {"n": 240,
+               "pinball": {"q10": {"mean": {"value": 0.4, "low": 0.35, "high": 0.45, "n": 240}, "by_day": null},
+                           "q50": {"mean": {"value": 1.2, "low": 1.0, "high": 1.4, "n": 240},
+                                   "by_day": {"value": 1.25, "low": 0.9, "high": 1.6, "n": 2}},
+                           "q90": {"mean": null, "by_day": null}},
+               "interval_coverage": {"value": 0.78, "low": 0.72, "high": 0.83, "n": 240},
+               "q50_abs_error": {"value": 2.4, "low": 2.1, "high": 2.7, "n": 240},
+               "vs_climate": {"q10": {"mean": {"value": -0.1, "low": -0.2, "high": 0.0, "n": 240}, "by_day": null},
+                              "q50": {"mean": null, "by_day": null}, "q90": {"mean": null, "by_day": null}}},
+     "lift": {"low": null, "day_low": null, "vs": {}},
+     "excluded": {"special": 0, "unscorable": 1, "status": {}}}
+  ],
+  "baselines": [
+    {"rank": null, "algorithm": "range-climate", "model_versions": ["range-climate-x"], "n": 250,
+     "accuracy": null, "precision": null, "coverage": null, "brier": null,
+     "extra": {"n": 250, "pinball": {"q10": {"mean": null, "by_day": null}, "q50": {"mean": null, "by_day": null},
+                                     "q90": {"mean": null, "by_day": null}},
+               "interval_coverage": null, "q50_abs_error": null, "vs_climate": null},
+     "excluded": {"special": 0, "unscorable": 0, "status": {}}}
+  ]
+})";
 } // namespace
 
 class TstKrxEngineData : public QObject {
@@ -1075,6 +1146,188 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(standing_label("active"), QStringLiteral("정식"));
         QCOMPARE(standing_label("clone"), QStringLiteral("복제"));
         QCOMPARE(standing_label(""), QString()); // the consensus and the baselines have none
+    }
+    void the_kinds_say_their_classes_fields_and_baselines() {
+        const auto kinds = parse_kinds(json(kKinds));
+        QVERIFY(kinds.is_ok());
+        QCOMPARE(kinds.value().size(), 2);
+        const KindInfo& range = kinds.value()[1];
+        QCOMPARE(range.name, QStringLiteral("range"));
+        QCOMPARE(range.title, QStringLiteral("변동폭"));
+        QCOMPARE(range.classes, (QStringList{"small", "medium", "large"}));
+        QCOMPARE(range.class_titles, (QStringList{"작음", "보통", "큼"}));
+        QCOMPARE(range.action, (QStringList{"small", "large"}));
+        QCOMPARE(range.answer_version, 1);
+        QCOMPARE(range.fields.keys(), (QList<QString>{"q10", "q50", "q90"}));
+        QCOMPARE(range.fields.value("q90").meaning, QStringLiteral("90% 분위수"));
+        QCOMPARE(range.baselines.size(), 2);
+        QCOMPARE(range.baselines[1].name, QStringLiteral("range-persist"));
+        QCOMPARE(range.baselines[1].card->character, QStringLiteral("직전 4분"));
+
+        // Read again from the same engine: the same description. An upgrade that changes a
+        // baseline's card is another description, which the screen rebuilds on (review on #48).
+        QCOMPARE(parse_kinds(json(kKinds)).value()[1], range);
+        KindInfo upgraded = range;
+        upgraded.baselines[1].card->character = QStringLiteral("직전 4분 (새)");
+        QVERIFY(upgraded != range);
+    }
+
+    void an_engine_before_the_kinds_has_none_to_give() {
+        // Its 404, or an answer without the list: the screen knows the direction alone then.
+        QVERIFY(parse_kinds(json(R"({"error": "not found"})")).is_err());
+        QVERIFY(parse_kinds(json(R"({"symbols": []})")).is_err());
+    }
+
+    void a_kind_s_latest_predictions_keep_their_output_and_answer() {
+        const auto latest = parse_kind_latest(json(kRangeLatest));
+        QVERIFY(latest.is_ok());
+        const KindLatest& l = latest.value();
+        QCOMPARE(l.kind, QStringLiteral("range"));
+        QCOMPARE(l.bar_close, QDateTime::fromString("2026-10-12T09:31:00+09:00", Qt::ISODate));
+        QCOMPARE(l.predictions.size(), 3);
+        const KindPrediction& climate = l.predictions[0];
+        QCOMPARE(climate.symbol, QStringLiteral("005930"));
+        QCOMPARE(climate.value("p_medium"), std::optional<double>(0.5));
+        QCOMPARE(climate.value("q90"), std::optional<double>(5.0));
+        QVERIFY(!climate.value("p_up").has_value());
+        QCOMPARE(climate.target_at, QDateTime::fromString("2026-10-12T09:35:00+09:00", Qt::ISODate));
+        QCOMPARE(climate.answer->klass, QStringLiteral("medium"));
+        QCOMPARE(climate.answer->answer_version, 1);
+        const RangePath& path = *climate.answer->range;
+        QCOMPARE(path.r, std::optional<double>(3.0));
+        QCOMPARE(path.k, std::optional<int>(2));
+        QCOMPARE(path.max_mid, std::optional<double>(81450.0));
+        QCOMPARE(path.max_mid_at, QDateTime::fromString("2026-10-12T09:32:10.201+09:00", Qt::ISODateWithMs));
+        QCOMPARE(path.min_mid, std::optional<double>(81150.0));
+        QCOMPARE(path.down, std::optional<double>(1.0));
+        QCOMPARE(path.quotes, 1043);
+        QVERIFY(!path.silent);
+        // Not made: no output, no target, no answer; made but its four minutes not over: no answer.
+        QVERIFY(l.predictions[1].output.isEmpty());
+        QVERIFY(!l.predictions[1].target_at.isValid());
+        QVERIFY(!l.predictions[1].answer.has_value());
+        QCOMPARE(l.predictions[1].status, QStringLiteral("no_previous"));
+        QVERIFY(!l.predictions[2].answer.has_value());
+    }
+
+    void a_kind_answer_not_followed_or_not_scored_has_no_path_or_no_class() {
+        const auto read = parse_kind_predictions(json(R"({"symbol": "005930", "kind": "range", "predictions": [
+            {"algorithm": "alg-r", "model_version": "alg-r-1", "bar_close": "2026-10-12T09:31:00+09:00",
+             "displayed_at": "2026-10-12T09:31:00+09:00", "target_at": "2026-10-12T09:35:00+09:00", "status": "ok",
+             "output": {"p_small": 0.3, "p_medium": 0.3, "p_large": 0.4, "q10": 0, "q50": 1, "q90": 2},
+             "answer": {"answer_version": 1, "class": null, "unscorable": "restarted", "special": false,
+                        "scored_at": "2026-10-12T09:35:00+09:00", "path": {}}}]})"));
+        QVERIFY(read.is_ok());
+        const KindAnswer& a = *read.value()[0].answer;
+        QVERIFY(a.klass.isEmpty());
+        QCOMPARE(a.unscorable, QStringLiteral("restarted"));
+        QVERIFY(!a.range.has_value()); // a window not followed: an empty path
+        QCOMPARE(read.value()[0].symbol, QStringLiteral("005930"));
+    }
+
+    void kind_events_bring_their_kind_s_predictions_and_answers() {
+        const auto predicted = parse_event(R"({"type": "kind_prediction", "at": "2026-10-12T09:31:00.2+09:00",
+            "prediction_kind": "range", "bar_close": "2026-10-12T09:31:00+09:00", "predictions": [
+              {"symbol": "000660", "algorithm": "range-persist", "model_version": "v1",
+               "bar_close": "2026-10-12T09:31:00+09:00", "displayed_at": "2026-10-12T09:31:00+09:00",
+               "target_at": "2026-10-12T09:35:00+09:00", "status": "ok",
+               "output": {"p_small": 0, "p_medium": 0, "p_large": 1, "q10": 6, "q50": 6, "q90": 6}, "answer": null}]})");
+        QVERIFY(predicted.is_ok());
+        QCOMPARE(predicted.value().type, Event::Type::KindPrediction);
+        QCOMPARE(predicted.value().prediction_kind, QStringLiteral("range"));
+        QVERIFY(predicted.value().predictions.isEmpty()); // not the direction's
+        QCOMPARE(predicted.value().kind_predictions.size(), 1);
+        QCOMPARE(predicted.value().kind_predictions[0].symbol, QStringLiteral("000660"));
+        QCOMPARE(predicted.value().kind_predictions[0].value("q50"), std::optional<double>(6));
+
+        const auto answered = parse_event(R"({"type": "kind_answer", "at": "2026-10-12T09:35:00.1+09:00",
+            "prediction_kind": "range", "answers": [
+              {"symbol": "000660", "bar_close": "2026-10-12T09:31:00+09:00", "answer_version": 1, "class": "large",
+               "unscorable": null, "special": true, "scored_at": "2026-10-12T09:35:00+09:00",
+               "path": {"r": 7.5, "k": 1, "tick": 500, "anchor": 209000.0, "max_mid": 210250.0,
+                        "max_mid_at": "2026-10-12T09:34:00+09:00", "min_mid": 206500.0,
+                        "min_mid_at": "2026-10-12T09:31:00+09:00", "up": 2.5, "down": 5.0, "quotes": 80,
+                        "silent": false, "max_bid": 210000.0, "min_ask": 206750.0}}]})");
+        QVERIFY(answered.is_ok());
+        QCOMPARE(answered.value().type, Event::Type::KindAnswer);
+        QCOMPARE(answered.value().kind_answers.size(), 1);
+        const KindAnswerAt& a = answered.value().kind_answers[0];
+        QCOMPARE(a.symbol, QStringLiteral("000660"));
+        QCOMPARE(a.bar_close, QDateTime::fromString("2026-10-12T09:31:00+09:00", Qt::ISODate));
+        QCOMPARE(a.answer.klass, QStringLiteral("large"));
+        QVERIFY(a.answer.special);
+        QCOMPARE(a.answer.range->r, std::optional<double>(7.5));
+        // The direction's consensus event keeps its own "kind" (fast, final).
+        QCOMPARE(parse_event(R"({"type": "consensus", "kind": "final", "predictions": []})").value().prediction_kind,
+                 QString());
+    }
+
+    void a_kind_s_leaderboard_keeps_its_kind_and_quantile_stats() {
+        const auto board = parse_leaderboard(json(kRangeLeaderboard));
+        QVERIFY(board.is_ok());
+        QCOMPARE(board.value().kind, QStringLiteral("range"));
+        const Entry& e = board.value().unranked[0];
+        QCOMPARE(e.trades, 0); // no touch P&L: the direction's own
+        QVERIFY(e.range.has_value());
+        const RangeStats& r = *e.range;
+        QCOMPARE(r.n, 240);
+        QCOMPARE(r.pinball.value("q10").mean->value, 0.4);
+        QVERIFY(!r.pinball.value("q10").by_day.has_value());
+        QCOMPARE(r.pinball.value("q50").by_day->n, 2);
+        QVERIFY(!r.pinball.value("q90").mean.has_value());
+        QCOMPARE(r.interval_coverage->value, 0.78);
+        QCOMPARE(r.q50_abs_error->high, std::optional<double>(2.7));
+        QCOMPARE(r.vs_climate->value("q10").mean->value, -0.1);
+        // range-climate itself: no comparison with itself, and nothing measured yet.
+        const Entry& climate = board.value().baselines[0];
+        QVERIFY(!climate.range->vs_climate.has_value());
+        QVERIFY(!climate.range->interval_coverage.has_value());
+        // The direction's: as before, no kind in the answer.
+        const auto direction = parse_leaderboard(json(kLeaderboard));
+        QCOMPARE(direction.value().kind, QStringLiteral("direction"));
+        QVERIFY(!direction.value().ranked[0].range.has_value());
+    }
+
+    void a_kind_predictor_s_stats_say_its_kind() {
+        const auto stats = parse_stats(json(R"({"kind": "range", "algorithm": "alg-r", "symbol": "all",
+            "period": "today", "days": [], "special": "exclude", "min_sample": 200,
+            "overall": {"rank": null, "algorithm": "alg-r", "model_versions": [], "n": 0, "accuracy": null,
+                        "precision": null, "coverage": null, "brier": null,
+                        "extra": {"n": 0, "pinball": {}, "interval_coverage": null, "q50_abs_error": null,
+                                  "vs_climate": null},
+                        "calibration": [], "calibration_by_class": {"small": [], "medium": [], "large": []},
+                        "excluded": {"special": 0, "unscorable": 0, "status": {}}},
+            "by_symbol": {}, "by_slot": {}, "by_model_version": {}})"));
+        QVERIFY(stats.is_ok());
+        QCOMPARE(stats.value().kind, QStringLiteral("range"));
+        QCOMPARE(stats.value().calibration_by_class.keys(), (QList<QString>{"large", "medium", "small"}));
+        QCOMPARE(stats.value().overall.range->n, 0);
+        QCOMPARE(parse_stats(json(kStats)).value().kind, QStringLiteral("direction")); // an older engine's
+    }
+
+    void the_symbols_say_their_tick_and_k_now() {
+        const auto symbols = parse_symbols(json(R"({"symbols": [
+            {"symbol": "005930", "mid": 81250.0, "tick": 100, "flat_ticks": 2},
+            {"symbol": "000660", "mid": null, "tick": null, "flat_ticks": null}]})"));
+        QCOMPARE(symbols.value()[0].tick, std::optional<double>(100));
+        QCOMPARE(symbols.value()[0].flat_ticks, std::optional<int>(2));
+        QVERIFY(!symbols.value()[1].flat_ticks.has_value());
+    }
+
+    void an_algorithm_says_which_kind_it_predicts() {
+        const auto read = parse_algorithms(json(R"({"algorithms": [
+            {"name": "alg-r", "kind": "range", "card": {}, "features": [], "model": {}, "status": {}},
+            {"name": "alg-d", "card": {}, "features": [], "model": {}, "status": {}}],
+            "baselines": [], "consensus": []})"));
+        QVERIFY(read.is_ok());
+        QCOMPARE(read.value().value("alg-r").prediction_kind, QStringLiteral("range"));
+        QCOMPARE(read.value().value("alg-r").kind, QStringLiteral("algorithm"));
+        QCOMPARE(read.value().value("alg-d").prediction_kind, QStringLiteral("direction")); // an older engine's
+    }
+
+    void the_range_s_baselines_read_in_korean() {
+        QCOMPARE(predictor_label("range-climate"), QStringLiteral("기준: 변동폭 시간대 기후"));
+        QCOMPARE(predictor_label("range-persist"), QStringLiteral("기준: 직전 4분 변동폭"));
     }
 };
 

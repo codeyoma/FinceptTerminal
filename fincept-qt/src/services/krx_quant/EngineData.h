@@ -91,6 +91,8 @@ struct Macro {
 struct SymbolQuote {
     QString symbol;
     std::optional<double> mid;
+    std::optional<double> tick{};    ///< its tick size now (krx-quant #182: the range panel's k); none without a mid
+    std::optional<int> flat_ticks{}; ///< k, the flat width in ticks now; likewise
 };
 
 /// Where one of a bar close's touch targets was first reached (krx-quant #167).
@@ -201,6 +203,26 @@ struct Lift {
     std::optional<Interval> by_day;
 };
 
+/// A mean over a range predictor's scored predictions (krx-quant #180): over all of them with
+/// its normal 95% interval, and taken a trading day at a time (each day's mean one value; none
+/// from fewer than two days).
+struct RangeMean {
+    std::optional<Interval> mean;
+    std::optional<Interval> by_day;
+};
+
+/// A range predictor's own statistics (krx-quant #180, an entry's ``extra``): of its scored
+/// predictions with an r, each quantile's pinball loss, how often r fell within q10–q90
+/// (ideally 80%), the mean absolute error of q50, and the pinball loss less range-climate's on
+/// the same bar closes (none for range-climate itself).
+struct RangeStats {
+    int n = 0;
+    QMap<QString, RangeMean> pinball; ///< "q10", "q50", "q90"
+    std::optional<Interval> interval_coverage;
+    std::optional<Interval> q50_abs_error;
+    std::optional<QMap<QString, RangeMean>> vs_climate;
+};
+
 /// What a query's stats leave out of a predictor's predictions (krx-quant #83).
 struct Excluded {
     int special = 0;             ///< scored, touched by a special situation: left out, or counted in on "include"
@@ -227,12 +249,15 @@ struct Entry {
     bool significant = false;         ///< beats every baseline after the luck correction (q ≤ 0.05)
     QList<Lift> lifts;                ///< over each baseline, by name; none without a baseline to compare with
     std::optional<Excluded> excluded; ///< on a leaderboard line and a detail's overall; none in a breakdown
+    /// A range predictor's quantile stats (its ``extra``, krx-quant #180); none for another kind.
+    std::optional<RangeStats> range{};
 };
 
 /// GET /v1/leaderboard: the query it answers and its three lists.
 struct Leaderboard {
-    QString symbol;  ///< a symbol, or "all"
-    QString period;  ///< "today", "5d" or "20d"
+    QString kind = QStringLiteral("direction"); ///< the kind ranked (krx-quant #179); an older engine's: the direction
+    QString symbol;                             ///< a symbol, or "all"
+    QString period;                             ///< "today", "5d" or "20d"
     QString basis;   ///< "a" or "b" as asked; an engine since krx-quant #170 scores on the touch target alone
     QString special; ///< "exclude" or "include"
     QStringList days;
@@ -254,6 +279,8 @@ struct CalibrationBin {
 
 /// GET /v1/algorithms/{name}/stats: one predictor's stats for a leaderboard query.
 struct AlgorithmStats {
+    QString kind =
+        QStringLiteral("direction"); ///< the predictor's kind (krx-quant #179); an older engine's: the direction
     QString algorithm;
     QString symbol; ///< the query's, as in Leaderboard
     QString period;
@@ -261,9 +288,10 @@ struct AlgorithmStats {
     QString special;
     QStringList days;
     int min_sample = 0;
-    Entry overall;                                             ///< its leaderboard line (rank, luck correction)
-    QList<CalibrationBin> calibration;                         ///< the three classes pooled
-    QMap<QString, QList<CalibrationBin>> calibration_by_class; ///< "up", "flat", "down": each class on its own
+    Entry overall;                     ///< its leaderboard line (rank, luck correction)
+    QList<CalibrationBin> calibration; ///< the three classes pooled
+    QMap<QString, QList<CalibrationBin>>
+        calibration_by_class; ///< by its kind's classes ("up", "flat", "down"): each on its own
     // Breakdowns, by key. Their lifts were not tested together: no q, no verdict.
     QMap<QString, Entry> by_symbol;
     QMap<QString, Entry> by_slot; ///< the predicted bar's 30-minute slot: "09:00" for the closes 09:01–09:30
@@ -301,6 +329,8 @@ struct AlgorithmCard {
     QString training;    ///< how it learns
     QString forecasting; ///< how it makes its three probabilities (krx-quant #164)
     QString failure;     ///< the market it tends to be wrong in (krx-quant #164)
+
+    bool operator==(const AlgorithmCard&) const = default;
 };
 
 /// What a feature or a parameter is (krx-quant #164), as the engine says: its meaning, its
@@ -309,6 +339,8 @@ struct Meaning {
     QString meaning;
     QString unit;
     QString known;
+
+    bool operator==(const Meaning&) const = default;
 };
 
 /// A change of an algorithm's lifecycle status, as the engine recorded it.
@@ -379,6 +411,9 @@ struct Stage {
 struct AlgorithmInfo {
     QString name;
     QString kind = QStringLiteral("algorithm"); ///< "algorithm", "baseline" or "consensus" (krx-quant #164)
+    /// The kind of prediction it makes (krx-quant #179, the engine's ``kind``): "direction",
+    /// "range", …; the direction from an older engine, and for the baselines and consensus listed here.
+    QString prediction_kind = QStringLiteral("direction");
     std::optional<AlgorithmCard> card;
     QStringList features;
     /// By name; none from an older engine (krx-quant #164), which gives no such field.
@@ -403,6 +438,102 @@ Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc);
 /// GET /v1/consensus: its members, the active algorithms.
 Result<QStringList> parse_members(const QJsonDocument& doc);
 
+/// A baseline of a kind and its card, as GET /v1/kinds lists it.
+struct KindBaseline {
+    QString name;
+    std::optional<AlgorithmCard> card;
+
+    bool operator==(const KindBaseline&) const = default;
+};
+
+/// A kind of prediction the engine makes (GET /v1/kinds, krx-quant #179): the direction, the
+/// range (krx-quant #180), …: its three classes in order (a forecast's class is the likeliest,
+/// a tie the middle one, then the first), the classes precision and coverage count, its answer
+/// version, the fields its output has besides the probabilities, and its baselines. The titles
+/// and meanings are the engine's Korean.
+struct KindInfo {
+    QString name;  ///< "direction", "range", …
+    QString title; ///< e.g. "변동폭"
+    QStringList classes;
+    QStringList class_titles;
+    QStringList action;
+    int answer_version = 0;
+    QMap<QString, Meaning> fields;
+    QList<KindBaseline> baselines; ///< in the engine's order
+
+    bool operator==(const KindInfo&) const = default;
+};
+
+/// GET /v1/kinds: every kind the engine makes, the direction first. An engine before
+/// krx-quant #179 has no such answer: the screen then knows the direction only.
+Result<QList<KindInfo>> parse_kinds(const QJsonDocument& doc);
+
+/// A range answer's window (krx-quant #180): from the bar close's integrated mid-point
+/// (``anchor``), how high and low the mid-point went in the four minutes and when it first did.
+/// What the engine could not tell (no mid-point at the bar close) stays empty.
+struct RangePath {
+    std::optional<double> r; ///< the range, ticks (half-tick steps)
+    std::optional<int> k;    ///< the flat width at the anchor: small below it, large from twice it
+    std::optional<double> tick;
+    std::optional<double> anchor;
+    std::optional<double> max_mid;
+    QDateTime max_mid_at; ///< the bar close for the anchor
+    std::optional<double> min_mid;
+    QDateTime min_mid_at;
+    std::optional<double> up;   ///< max_mid less the anchor, ticks
+    std::optional<double> down; ///< the anchor less min_mid, ticks
+    int quotes = 0;
+    bool silent = false; ///< the quotes stopped for over 60 seconds
+};
+
+/// A bar close's answer of a kind (krx-quant #179), every predictor's of that kind there.
+struct KindAnswer {
+    int answer_version = 0;
+    QString klass;      ///< its class; empty when its window could not be scored
+    QString unscorable; ///< why not, e.g. "silent quotes"
+    bool special = false;
+    QDateTime scored_at;
+    std::optional<RangePath> range; ///< a range answer's path; none for another kind or a window not followed
+};
+
+/// A prediction of a kind besides the direction (krx-quant #179): its output by key — the
+/// kind's p_<class> and its fields (the range's q10, q50, q90) — only when the status is "ok".
+struct KindPrediction {
+    QString algorithm;
+    QString model_version;
+    QString status; ///< "ok", or why there is no forecast
+    QString symbol;
+    QDateTime bar_close;
+    QDateTime target_at; ///< invalid unless the status is "ok"
+    QMap<QString, double> output;
+    std::optional<KindAnswer> answer; ///< its bar close's, once its four minutes are over
+
+    /// An output value; none when not there.
+    std::optional<double> value(const QString& key) const {
+        const auto it = output.constFind(key);
+        return it == output.cend() ? std::nullopt : std::optional<double>(*it);
+    }
+};
+
+/// A symbol's predictions of a kind at its latest bar close (GET …/kinds/{kind}/latest).
+struct KindLatest {
+    QString symbol;
+    QString kind;
+    QDateTime bar_close; ///< invalid before any
+    QList<KindPrediction> predictions;
+};
+
+Result<KindLatest> parse_kind_latest(const QJsonDocument& doc);
+/// GET /v1/symbols/{symbol}/kinds/{kind}/predictions: the latest bar closes first.
+Result<QList<KindPrediction>> parse_kind_predictions(const QJsonDocument& doc);
+
+/// A kind's answer to a symbol's bar close, as the stream brings it (krx-quant #179).
+struct KindAnswerAt {
+    QString symbol;
+    QDateTime bar_close;
+    KindAnswer answer;
+};
+
 /// The screen's order: the final consensus, the fast one, the algorithms, then the
 /// baselines; the algorithms and the baselines by name, so the rows stay put whatever order
 /// the stream brings them in.
@@ -417,18 +548,22 @@ struct StatusChange {
 /// A message of the engine's stream (GET /v1/stream, WebSocket): what the engine did, as
 /// it did it.
 struct Event {
-    enum class Type { Prediction, Consensus, Outcome, Health, Lifecycle, Bar, Other };
-    Type type = Type::Other;       ///< Other: a type this screen does not know (a newer engine's)
-    QDateTime at;                  ///< the engine clock when it was sent
-    QString kind;                  ///< a consensus: "fast" or "final"
-    QDateTime bar_close;           ///< predictions and a consensus
-    QList<Prediction> predictions; ///< the predictions, the consensus, or the outcomes (scored predictions)
-    bool kis_connected = false;    ///< health
-    QList<Feed> feeds;             ///< health
-    QString algorithm;             ///< lifecycle
-    StatusChange change;           ///< lifecycle
-    QString symbol;                ///< bar
-    Bar bar;                       ///< bar: the one-minute bar being made, so far (krx-quant #110)
+    /// KindPrediction and KindAnswer: another kind's (krx-quant #179), named by prediction_kind.
+    enum class Type { Prediction, Consensus, Outcome, Health, Lifecycle, Bar, KindPrediction, KindAnswer, Other };
+    Type type = Type::Other;                  ///< Other: a type this screen does not know (a newer engine's)
+    QDateTime at;                             ///< the engine clock when it was sent
+    QString kind;                             ///< a consensus: "fast" or "final"
+    QDateTime bar_close;                      ///< predictions and a consensus
+    QList<Prediction> predictions;            ///< the predictions, the consensus, or the outcomes (scored predictions)
+    bool kis_connected = false;               ///< health
+    QList<Feed> feeds;                        ///< health
+    QString algorithm;                        ///< lifecycle
+    StatusChange change;                      ///< lifecycle
+    QString symbol;                           ///< bar
+    Bar bar;                                  ///< bar: the one-minute bar being made, so far (krx-quant #110)
+    QString prediction_kind{};                ///< a kind event's kind, e.g. "range"
+    QList<KindPrediction> kind_predictions{}; ///< a kind_prediction event's
+    QList<KindAnswerAt> kind_answers{};       ///< a kind_answer event's
 };
 
 /// One stream message (JSON text).

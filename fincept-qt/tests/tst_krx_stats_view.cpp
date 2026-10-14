@@ -17,6 +17,34 @@ Lift lift(const char* baseline, double gain, std::optional<double> q, std::optio
     return {baseline, Interval{gain, gain - 0.03, gain + 0.03, 1128}, 0.01, q, significant, std::nullopt};
 }
 
+/// The range kind as GET /v1/kinds describes it (krx-quant #180, #182).
+KindInfo range_kind() {
+    KindInfo k;
+    k.name = "range";
+    k.title = QStringLiteral("변동폭");
+    k.classes = {"small", "medium", "large"};
+    k.class_titles = {QStringLiteral("작음"), QStringLiteral("보통"), QStringLiteral("큼")};
+    k.action = {"small", "large"};
+    k.answer_version = 1;
+    k.baselines = {{"range-climate", std::nullopt}, {"range-persist", std::nullopt}};
+    return k;
+}
+
+/// Made-up quantile stats: 240 scored, q50's pinball also by day, against range-climate on q10.
+RangeStats range_stats() {
+    RangeStats r;
+    r.n = 240;
+    r.pinball = {{"q10", RangeMean{Interval{0.4, 0.35, 0.45, 240}, std::nullopt}},
+                 {"q50", RangeMean{Interval{1.2, 1.0, 1.4, 240}, Interval{1.25, 0.9, 1.6, 2}}},
+                 {"q90", RangeMean{std::nullopt, std::nullopt}}};
+    r.interval_coverage = Interval{0.78, 0.723, 0.829, 240};
+    r.q50_abs_error = Interval{2.4, 2.1, 2.7, 240};
+    r.vs_climate =
+        QMap<QString, RangeMean>{{"q10", RangeMean{Interval{-0.1, -0.2, 0.0, 240}, Interval{-0.12, -0.3, 0.06, 2}}},
+                                 {"q50", RangeMean{Interval{0.05, -0.1, 0.2, 240}, std::nullopt}},
+                                 {"q90", RangeMean{std::nullopt, std::nullopt}}};
+    return r;
+}
 } // namespace
 
 class TstKrxStatsView : public QObject {
@@ -370,6 +398,115 @@ class TstKrxStatsView : public QObject {
         info.stage->days = 0;
         QCOMPARE(learning_rows(info)[6].second,
                  QStringLiteral("2026-10-12부터 · 0거래일 셈 · 새 정답으로 학습한 모델을 기다림"));
+    }
+
+    void a_range_leaderboard_has_its_action_classes_coverage_and_q50_error_and_no_touch_p_and_l() {
+        const auto columns = kind_stats_columns(range_kind());
+        QStringList headers;
+        for (const auto& c : columns)
+            headers << c.header;
+        QCOMPARE(headers, (QStringList{"표본", "정답률", "작음·큼 정밀도", "커버리지", "Brier", "구간 적중률",
+                                       "q50 오차(틱)", "가장 약한 lift 하한"}));
+        QCOMPARE(columns[2].tip, QStringLiteral("작음·큼(이)라고 한 예측 중 맞은 비율이다."));
+        QVERIFY(columns[5].tip.startsWith(QStringLiteral("실제 변동폭이 q10~q90 안에 든 비율이다.")));
+
+        Entry e;
+        e.n = 240;
+        e.accuracy = Interval{0.5, 0.44, 0.56, 240};
+        e.brier = Interval{0.6, 0.58, 0.62, 240};
+        e.lift_low = -0.02;
+        e.range = range_stats();
+        const auto cells = kind_stats_cells(e, range_kind());
+        QCOMPARE(cells.size(), columns.size());
+        QCOMPARE(cells[0].text, QStringLiteral("240"));
+        QCOMPARE(cells[1].text, QStringLiteral("50.0%"));
+        QCOMPARE(cells[2].text, QStringLiteral("—")); // nothing called small or large
+        QCOMPARE(cells[5].text, QStringLiteral("78.0%"));
+        QCOMPARE(cells[5].tip, QStringLiteral("95% 구간 72.3–82.9% (n 240)"));
+        QCOMPARE(cells[6].text, QStringLiteral("2.40"));
+        QCOMPARE(cells[6].tip, QStringLiteral("95% 구간 2.10 – 2.70 (n 240)"));
+        QCOMPARE(cells[7].text, QStringLiteral("-0.020"));
+        // Another kind without quantiles: no range columns; without its stats, unknown.
+        KindInfo other = range_kind();
+        other.name = "barrier";
+        QCOMPARE(kind_stats_columns(other).size(), 6);
+        e.range.reset();
+        QCOMPARE(kind_stats_cells(e, range_kind())[5].text, QStringLiteral("—"));
+    }
+
+    void the_quantile_stats_have_each_pinball_and_how_it_did_against_climate() {
+        const auto rows = quantile_rows(range_stats());
+        QCOMPARE(rows.size(), 3);
+        QCOMPARE(rows[0].quantile, QStringLiteral("q10"));
+        QCOMPARE(rows[0].pinball, QStringLiteral("0.40"));
+        QCOMPARE(rows[0].interval, QStringLiteral("0.35 – 0.45"));
+        QCOMPARE(rows[0].day_interval, QStringLiteral("—")); // fewer than two days
+        QCOMPARE(rows[0].days, QStringLiteral("—"));
+        QCOMPARE(rows[0].vs_climate, QStringLiteral("-0.10"));
+        QCOMPARE(rows[0].vs_climate_interval, QStringLiteral("-0.30 – +0.06"));
+        QCOMPARE(rows[1].day_interval, QStringLiteral("0.90 – 1.60"));
+        QCOMPARE(rows[1].days, QStringLiteral("2"));
+        QCOMPARE(rows[1].vs_climate, QStringLiteral("+0.05"));
+        QCOMPARE(rows[2].pinball, QStringLiteral("—"));
+        // range-climate itself: nothing against itself.
+        RangeStats climate = range_stats();
+        climate.vs_climate.reset();
+        QCOMPARE(quantile_rows(climate)[0].vs_climate, QStringLiteral("—"));
+        QCOMPARE(quantile_rows(climate)[0].vs_climate_interval, QStringLiteral("—"));
+    }
+
+    void a_baseline_without_the_window_before_says_so_in_korean() {
+        // range-persist (and the direction's baseline-persist) make none without the window before.
+        QCOMPARE(excluded_text(Excluded{4, 0, {{"no_previous", 12}}}, "exclude"),
+                 QStringLiteral("제외: 특수 상황 4 · 직전 창 없음 12"));
+    }
+
+    void the_quantile_summary_says_coverage_q50_error_and_samples() {
+        QCOMPARE(range_summary(range_stats()),
+                 QStringLiteral("구간 적중률(q10~q90) 78.0% (95% 72.3–82.9%, 이상 80%) · q50 오차 2.40틱 (95% 2.10 – "
+                                "2.70) · 표본 240"));
+        QCOMPARE(range_summary(RangeStats{}), QStringLiteral("채점된 예측 없음"));
+    }
+
+    void a_range_predictor_s_calibration_draws_its_classes() {
+        AlgorithmStats stats;
+        stats.kind = "range";
+        const CalibrationBin bin{0.3, 0.4, 10, 0.35, Interval{0.4, 0.2, 0.6, 10}};
+        stats.calibration = {bin};
+        stats.calibration_by_class = {{"small", {bin}}, {"large", {bin}}, {"medium", {}}};
+        const auto series = calibration_series(stats, range_kind());
+        QCOMPARE(series.size(), 3); // medium has no point
+        QCOMPARE(series[0].key, QStringLiteral("all"));
+        QCOMPARE(series[1].key, QStringLiteral("small"));
+        QCOMPARE(series[1].name, QStringLiteral("작음"));
+        QCOMPARE(series[2].key, QStringLiteral("large"));
+        QVERIFY(series[2].points[0].tip.startsWith(QStringLiteral("큼 · 확률 30–40%")));
+        QVERIFY(calibration_tip(stats, range_kind()).contains(QStringLiteral("작음·보통·큼을 따로 그린다")));
+        // The direction's as before.
+        QVERIFY(calibration_tip(stats).contains(QStringLiteral("상승·보합·하락을 따로 그린다")));
+    }
+
+    void a_range_baseline_has_no_lift_of_its_own() {
+        AlgorithmStats stats;
+        stats.kind = "range";
+        stats.algorithm = "range-climate";
+        QVERIFY(lift_tip(stats, range_kind()).startsWith(QStringLiteral("기준 예측 자신이라 lift가 없다.")));
+        stats.algorithm = "alg-r";
+        QVERIFY(lift_tip(stats, range_kind())
+                    .startsWith(QStringLiteral("기준 예측과 짝지을 채점된 예측이 없어 lift가 없다.")));
+    }
+
+    void a_range_leaderboard_s_rules_say_what_it_is_scored_on_and_against() {
+        const QString rules = ranking_rules({"2026-10-12"}, 200, range_kind());
+        QCOMPARE(rules.split('\n')[1], QStringLiteral("변동폭 예측을 변동폭 정답으로 센다. 정밀도와 커버리지는 "
+                                                      "작음·큼(으)로 센다."));
+        QCOMPARE(luck_tip(range_kind()),
+                 QStringLiteral("운 보정 통과는 기준 예측(기준: 변동폭 시간대 기후, 기준: 직전 4분 변동폭)을 모두 이긴 "
+                                "것이 운으로 보기 어렵다는 뜻이다(q ≤ 0.05)."));
+        QVERIFY(rules.contains(luck_tip(range_kind())));
+        // The direction's rules are as before.
+        QCOMPARE(ranking_rules({"2026-10-12"}, 200), ranking_rules({"2026-10-12"}, 200, std::nullopt));
+        QVERIFY(ranking_rules({"2026-10-12"}, 200).contains(QStringLiteral("기준 예측 셋을 모두 이긴")));
     }
 
     void without_values_the_learning_section_says_so_and_a_baseline_has_none() {

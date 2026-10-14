@@ -67,7 +67,9 @@ struct ChartPoint {
 
 /// A 1-minute bar's hover box (krx-quant #159) and its four-minute window (krx-quant #167): the
 /// span from its bar close to four minutes on, the touch targets over it and where they were
-/// first reached; the targets only once the touch label is in.
+/// first reached; the targets only once the touch label is in. While the range is shown
+/// (krx-quant #182, KindView's kind_hovers), the two lines are its highest and lowest
+/// mid-points instead, and where each was first received.
 struct BarHover {
     qint64 time = 0; ///< the bar's start, as chart_time
     QStringList lines;

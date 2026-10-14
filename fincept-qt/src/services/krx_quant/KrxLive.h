@@ -2,6 +2,7 @@
 
 #include "services/krx_quant/Board.h"
 #include "services/krx_quant/ChartModel.h"
+#include "services/krx_quant/KindView.h"
 #include "services/krx_quant/KrxQuantService.h"
 #include "services/krx_quant/KrxStream.h"
 #include "services/krx_quant/Signals.h"
@@ -55,6 +56,23 @@ class KrxLive : public QObject {
     const QStringList& selection() const { return selection_; }
     /// The predictors' statuses now, from the last leaderboard read: the hover's.
     const QMap<QString, QString>& standings() const { return standings_; }
+    /// Show the kind ``saved`` (krx-quant #182: the user's choice, kept in ``krx_quant/kind``)
+    /// besides the direction: its latest predictions (the panel), its predictions over the bars
+    /// shown (the chart's hover boxes) and its leaderboard are read. Shown only while the engine
+    /// makes it and the screen can show it (kind_choices), else the direction: the choice stays.
+    void set_kind(const QString& saved);
+    /// The kind shown: "direction", or another set_kind chose and the engine makes.
+    const QString& kind() const { return kind_; }
+    /// What the engine says of its kinds (GET /v1/kinds); none before it answered, or from an
+    /// engine before krx-quant #179 (the direction alone).
+    const std::optional<QList<krx_quant::KindInfo>>& kinds() const { return kinds_; }
+    /// The kind shown as the engine describes it; none for the direction from an older engine.
+    std::optional<krx_quant::KindInfo> kind_info() const { return krx_quant::kind_named(kinds_, kind_); }
+    /// The predictions of the kind shown (not the direction's): the latest of the chosen symbol,
+    /// and its predictions over the bar closes read.
+    const krx_quant::KindBoard& kind_board() const { return kind_board_; }
+    /// The kind's predictors' statuses now, from its last leaderboard read: its hover's.
+    const QMap<QString, QString>& kind_standings() const { return kind_standings_; }
     /// What the engine says about each algorithm (krx-quant #163), read with the detail
     /// windows' stats; empty before the first answer, or for a baseline or consensus.
     const QMap<QString, krx_quant::AlgorithmInfo>& algorithms() const { return algorithms_; }
@@ -112,7 +130,7 @@ class KrxLive : public QObject {
     /// The chosen symbol's predictions, the selection or the statuses changed: the chart's
     /// icons and hover boxes (krx-quant #159).
     void marks_changed();
-    void chart_changed();       ///< the chosen symbol's bars (or none, while they are read)
+    void chart_changed(); ///< the chosen symbol's bars (or none, while they are read)
     /// Only the chosen symbol's last bar moved: the bar being made (krx-quant #110).
     void live_changed();
     void chart_failed(const QString& reason);
@@ -123,6 +141,11 @@ class KrxLive : public QObject {
     void stats_changed(const fincept::krx_quant::AlgorithmStats& stats); ///< a detail's, on the leaderboard's query
     void stats_failed(const QString& algorithm, const QString& reason);
     void algorithms_changed(); ///< what the engine says about the algorithms (krx-quant #163)
+    void kinds_changed();      ///< what the engine says of its kinds (the selector's choices)
+    void kind_changed();       ///< another kind is shown (krx-quant #182)
+    /// The kind's predictions of the chosen symbol or their statuses changed: its panel and
+    /// hover boxes (krx-quant #182).
+    void kind_predictions_changed();
     void pinned_changed(); ///< pinned or back to the latest, or its judgements read
     void pinned_failed(const QString& reason);
     /// The bars before the chart's could not be read; those shown stay (krx-quant #108).
@@ -157,6 +180,14 @@ class KrxLive : public QObject {
     void set_engine_clock(const QDateTime& now);
     /// A new bar close of the chosen symbol has a new bar to read.
     void follow_bar_close(const QDateTime& shown_before);
+    /// Show the kind the choice and the engine's kinds allow, if another: read it from scratch.
+    void apply_kind();
+    /// The kind's latest predictions of the chosen symbol, unless the direction is shown.
+    void read_kind_latest();
+    /// The kind's predictions of the chosen symbol over the bars shown, unless the direction is
+    /// shown: the latest page first (again with ``latest``, on each chart read), then back to
+    /// the first bar shown, a page at a time.
+    void read_kind_history(bool latest = false);
 
     KrxQuantService* service_ = nullptr;
     KrxStream* stream_ = nullptr;
@@ -193,14 +224,23 @@ class KrxLive : public QObject {
     std::optional<krx_quant::EngineStatus> status_;
     std::optional<krx_quant::Macro> macro_;
     QString macro_failure_;
-    QStringList selection_;            ///< the models selected for the chart
-    QMap<QString, QString> standings_; ///< the predictors' statuses, from the leaderboard
+    QStringList selection_;                              ///< the models selected for the chart
+    QMap<QString, QString> standings_;                   ///< the predictors' statuses, from the leaderboard
     QMap<QString, krx_quant::AlgorithmInfo> algorithms_; ///< the engine's cards, models and statuses
     QString algorithms_failure_;                         ///< why their last read failed
     /// The earliest bar close from which on every predictor's predictions were read; invalid:
     /// none (krx-quant #159).
     QDateTime full_from_;
     bool relabeling_ = false; ///< a page of them is read
+    // Another kind than the direction (krx-quant #182).
+    std::optional<QList<krx_quant::KindInfo>> kinds_; ///< GET /v1/kinds; none before, or from an older engine
+    QString saved_kind_ = krx_quant::kDirectionKind;  ///< the user's choice
+    QString kind_ = krx_quant::kDirectionKind;        ///< the kind shown
+    krx_quant::KindBoard kind_board_;
+    QMap<QString, QString> kind_standings_; ///< the kind's predictors' statuses, from its leaderboard
+    QDateTime kind_from_;                   ///< the earliest bar close from which on its predictions were read
+    bool kind_paging_ = false;              ///< a page of them is read
+    bool kind_latest_page_ = false;         ///< the latest page is to be read again
     QString failure_;
     QString stream_state_;
     QStringList read_errors_;

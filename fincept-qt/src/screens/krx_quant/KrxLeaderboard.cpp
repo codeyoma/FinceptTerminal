@@ -20,9 +20,7 @@ enum Column {
     kName,
     kStatus,
     kModels,
-    kStats,
-    kSignificant = kStats + krx_tables::kStatsColumns,
-    kColumns
+    kStats, ///< the kind's stats columns, then the luck check (significant_column)
 };
 /// Clicks on the boxes settle for this long before the chart reads anything: a double click
 /// ticks and clears.
@@ -59,6 +57,7 @@ KrxLeaderboard::KrxLeaderboard(QWidget* parent) : QWidget(parent) {
         pick->setToolTip(tr("체크한 모델들의 합의(세 확률의 평균)를 차트에 그린다. 아무것도 체크하지 않으면 "
                             "최종 합의다. 이 머리 칸을 누르면 모두 해제한다."));
     table_->horizontalHeader()->setStretchLastSection(false);
+    // The direction's columns as made above; another kind's are set as it is chosen (set_kind).
     table_->horizontalHeader()->setSectionResizeMode(kModels, QHeaderView::Stretch);
     layout->addWidget(table_, 1);
     restyle();
@@ -121,7 +120,7 @@ void KrxLeaderboard::set_symbols(const QStringList& symbols) {
 void KrxLeaderboard::show_leaderboard(const krx_quant::Leaderboard& leaderboard) {
     shown_ = leaderboard;
     failure_->hide();
-    header_.title->setToolTip(krx_quant::ranking_rules(leaderboard.days, leaderboard.min_sample));
+    header_.title->setToolTip(krx_quant::ranking_rules(leaderboard.days, leaderboard.min_sample, kind_));
     table_->setRowCount(0);
     const QSignalBlocker quiet(table_); // the boxes as selected, not the user's clicks
     const auto add = [this](const krx_quant::Entry& e, bool baseline) {
@@ -129,7 +128,7 @@ void KrxLeaderboard::show_leaderboard(const krx_quant::Leaderboard& leaderboard)
         table_->insertRow(row);
         auto* pick = cell(QString());
         pick->setData(Qt::UserRole, e.algorithm);
-        if (krx_quant::selectable(e.algorithm)) {
+        if (direction() && krx_quant::selectable(e.algorithm)) { // another kind's are not the chart's
             pick->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
             pick->setCheckState(selection_.contains(e.algorithm) ? Qt::Checked : Qt::Unchecked);
         }
@@ -142,12 +141,13 @@ void KrxLeaderboard::show_leaderboard(const krx_quant::Leaderboard& leaderboard)
         auto* models = cell(e.model_versions.join(", "));
         models->setToolTip(e.model_versions.join("\n"));
         table_->setItem(row, kModels, models);
-        krx_tables::set_stats(table_, row, kStats, e);
-        table_->setItem(row, kSignificant, cell(e.significant ? tr("통과") : QString()));
+        krx_tables::set_stats(table_, row, kStats, e, kind_);
+        table_->setItem(row, significant_column(), cell(e.significant ? tr("통과") : QString()));
         if (baseline || krx_quant::is_consensus(e.algorithm)) {
             const QColor color(baseline ? ui::colors::TEXT_DIM() : ui::colors::AMBER());
-            for (int c = 0; c < kColumns; ++c)
-                table_->item(row, c)->setForeground(color);
+            for (int c = 0; c < table_->columnCount(); ++c)
+                if (auto* item = table_->item(row, c))
+                    item->setForeground(color);
         }
     };
     for (const auto& e : leaderboard.ranked)
@@ -156,6 +156,39 @@ void KrxLeaderboard::show_leaderboard(const krx_quant::Leaderboard& leaderboard)
         add(e, false);
     for (const auto& e : leaderboard.baselines)
         add(e, true);
+}
+
+bool KrxLeaderboard::direction() const {
+    return !kind_ || kind_->name == QLatin1String("direction");
+}
+
+int KrxLeaderboard::significant_column() const {
+    return kStats + static_cast<int>(krx_tables::stats_columns(kind_).size());
+}
+
+void KrxLeaderboard::set_kind(const std::optional<krx_quant::KindInfo>& kind) {
+    const QString before = kind_ ? kind_->name : QStringLiteral("direction");
+    kind_ = kind;
+    if ((kind_ ? kind_->name : QStringLiteral("direction")) == before)
+        return;
+    set_columns();
+    shown_.reset(); // the other kind's: its own comes next
+    header_.title->setToolTip(QString());
+    table_->setRowCount(0);
+}
+
+void KrxLeaderboard::set_columns() {
+    // The first five as they are; the kind's stats, then the luck check.
+    QList<krx_quant::StatsColumn> columns;
+    for (int c = 0; c < kStats; ++c)
+        if (const auto* item = table_->horizontalHeaderItem(c))
+            columns.push_back({item->text(), item->toolTip()});
+    columns += krx_tables::stats_columns(kind_);
+    columns.push_back(
+        {tr("운 보정"), direction() ? krx_quant::column_tip(QStringLiteral("운 보정")) : krx_quant::luck_tip(*kind_)});
+    krx_tables::set_columns(table_, columns);
+    // The chart's boxes are the direction's (krx-quant #159): no column for another kind.
+    table_->setColumnHidden(kPick, !direction());
 }
 
 void KrxLeaderboard::set_selection(const QStringList& selection) {

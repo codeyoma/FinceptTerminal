@@ -42,7 +42,9 @@ class KrxCalibrationPlot : public QWidget {
 
 /// A predictor's detail window, on the leaderboard's query: the lift over each baseline
 /// with its test, the calibration curve, and the stats by 30-minute slot, model version and
-/// symbol, in Fincept's panels and tables. The screen opens one per predictor, not modal,
+/// symbol, in Fincept's panels and tables. A predictor of another kind than the direction
+/// (krx-quant #182) shows its kind's stats columns and classes, and a range predictor its
+/// quantile stats too. The screen opens one per predictor, not modal,
 /// so several can be compared side by side; the screen's live state reads each one's stats
 /// with the leaderboard while it is open.
 class KrxStatsWindow : public QWidget {
@@ -52,7 +54,8 @@ class KrxStatsWindow : public QWidget {
 
     /// Show ``algorithm``'s detail, emptied and loading until its stats come.
     void open(const QString& algorithm);
-    void show_stats(const krx_quant::AlgorithmStats& stats);
+    /// ``kind``: the predictor's kind as the engine describes it (none: the direction).
+    void show_stats(const krx_quant::AlgorithmStats& stats, const std::optional<krx_quant::KindInfo>& kind = {});
     void show_failure(const QString& reason);
     /// What the engine says about the algorithm (krx-quant #163): the "학습·예측 방식" section;
     /// none for a baseline or a consensus, or before the engine answers; ``failure``: why the
@@ -70,6 +73,8 @@ class KrxStatsWindow : public QWidget {
     void clear();
     /// Paint in the theme's colors and the user's font size now.
     void restyle();
+    /// The stats columns of ``kind`` (none: the direction's) on the overall line and the breakdowns.
+    void set_kind(const std::optional<krx_quant::KindInfo>& kind);
 
     QString algorithm_;
     krx_panel::Header header_; ///< the predictor; the query and a failure on the right
@@ -92,6 +97,11 @@ class KrxStatsWindow : public QWidget {
     QTableWidget* by_slot_ = nullptr;
     QTableWidget* by_model_version_ = nullptr;
     QTableWidget* by_symbol_ = nullptr;
+    QString kind_ = QStringLiteral("direction"); ///< the kind whose columns are shown
+    QWidget* quantiles_ = nullptr;               ///< a range predictor's quantile stats (krx-quant #182)
+    krx_panel::Header quantiles_header_;
+    QLabel* quantile_summary_ = nullptr;
+    QTableWidget* quantile_table_ = nullptr;
 };
 
 } // namespace fincept::screens

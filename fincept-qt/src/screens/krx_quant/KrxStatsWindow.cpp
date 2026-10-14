@@ -29,8 +29,9 @@ constexpr int kAxis = 34;     ///< room for an axis's labels, px
 constexpr double kDot = 4.0;  ///< a point's radius, px
 constexpr double kNear = 9.0; ///< how close the pointer must be to a point to show it, px
 
-enum OverallColumn { kRank, kStats, kSignificant = kStats + krx_tables::kStatsColumns };
+enum OverallColumn { kRank, kStats }; ///< then the kind's stats, then the luck check
 enum LiftColumn { kBaseline, kGain, kInterval, kPairs, kP, kQ, kVerdict, kDayInterval, kDays };
+enum QuantileColumn { kQuantile, kPinball, kPinballInterval, kDayPinball, kPinballDays, kVsClimate, kVsClimateDay };
 
 /// A breakdown table: what it is split by, then the stats.
 QTableWidget* breakdown_table(const QString& split) {
@@ -41,13 +42,13 @@ QTableWidget* breakdown_table(const QString& split) {
 }
 
 void fill_breakdown(QTableWidget* table, const QMap<QString, krx_quant::Entry>& entries,
-                    QString (*label)(const QString&)) {
+                    QString (*label)(const QString&), const std::optional<krx_quant::KindInfo>& kind) {
     table->setRowCount(0);
     for (auto it = entries.begin(); it != entries.end(); ++it) {
         const int row = table->rowCount();
         table->insertRow(row);
         table->setItem(row, 0, cell(label ? label(it.key()) : it.key()));
-        krx_tables::set_stats(table, row, 1, it.value());
+        krx_tables::set_stats(table, row, 1, it.value(), kind);
     }
 }
 
@@ -76,15 +77,22 @@ void KrxCalibrationPlot::set_series(const QList<krx_quant::CalibrationSeries>& s
 
 namespace {
 
-/// A curve's colour: the classes pooled in amber, up and down as prices move, flat in grey.
+/// A curve's colour: the classes pooled in amber, up and down as prices move, flat in grey;
+/// the range's (krx-quant #182) small in grey, medium in cyan, large in blue.
 QColor series_color(const QString& key) {
     if (key == "up")
         return QColor(ui::colors::POSITIVE());
     if (key == "down")
         return QColor(ui::colors::NEGATIVE());
-    if (key == "flat")
+    if (key == "flat" || key == "small")
         return QColor(ui::colors::TEXT_SECONDARY());
-    return QColor(ui::colors::AMBER());
+    if (key == "medium")
+        return QColor(ui::colors::CYAN());
+    if (key == "large")
+        return QColor(ui::colors::INFO());
+    if (key == "all")
+        return QColor(ui::colors::AMBER());
+    return QColor(ui::colors::TEXT_TERTIARY()); // a class of a kind this screen does not know yet
 }
 
 } // namespace
@@ -271,11 +279,40 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
     excluded_->setWordWrap(true);
     body->addWidget(excluded_);
 
+    // A range predictor's quantile stats (krx-quant #182), under the lifts: hidden for another kind's.
+    quantiles_header_ = krx_panel::header(
+        tr("분위수 통계"),
+        tr("pinball loss는 분위수 예측의 손실(틱)이다. 실제 변동폭 r이 분위수 q 이상이면 τ·(r − q), 아니면 "
+           "(1 − τ)·(q − r)이고 작을수록 좋다. 거래일 95% 구간은 하루를 값 하나로 본 구간이다. 기후 대비는 같은 "
+           "종목·봉 마감의 '변동폭 시간대 기후'와의 pinball loss 차이로, 음수가 낫다. 설명용이고 상태 판정은 "
+           "lift로 한다."));
+    quantile_summary_ = new QLabel;
+    quantile_summary_->setContentsMargins(12, 4, 12, 4);
+    quantile_summary_->setWordWrap(true);
+    quantile_table_ = krx_tables::table({tr("분위수"), tr("pinball(틱)"), tr("95% 구간"), tr("거래일 95% 구간"),
+                                         tr("날"), tr("기후 대비"), tr("기후 대비 거래일 95% 구간")});
+    quantile_table_->horizontalHeader()->setStretchLastSection(false);
+    quantiles_ = new QWidget;
+    auto* quantile_column = new QVBoxLayout(quantiles_);
+    quantile_column->setContentsMargins(0, 0, 0, 0);
+    quantile_column->setSpacing(0);
+    quantile_column->addWidget(quantiles_header_.bar);
+    quantile_column->addWidget(quantile_summary_);
+    quantile_column->addWidget(quantile_table_, 1);
+    quantiles_->hide();
+
     auto* middle = new QSplitter(Qt::Horizontal);
     lift_header_ = krx_panel::header(tr("기준 예측 대비 lift"));
     lifts_ = krx_tables::table({tr("기준"), tr("lift"), tr("95% 구간"), tr("짝"), tr("p"), tr("q"), tr("운 보정"),
                                 tr("거래일 95% 구간"), tr("날")});
-    middle->addWidget(krx_panel::panel(lift_header_, lifts_));
+    // The lifts, then a range predictor's quantile stats below, the divider dragged as the user likes;
+    // hidden for another kind, the lifts have it all.
+    auto* lift_column = new QSplitter(Qt::Vertical);
+    lift_column->addWidget(krx_panel::panel(lift_header_, lifts_));
+    lift_column->addWidget(quantiles_);
+    lift_column->setStretchFactor(0, 1);
+    lift_column->setStretchFactor(1, 1);
+    middle->addWidget(lift_column);
     calibration_header_ = krx_panel::header(tr("보정도"));
     calibration_ = new KrxCalibrationPlot;
     middle->addWidget(krx_panel::panel(calibration_header_, calibration_));
@@ -335,8 +372,10 @@ void KrxStatsWindow::clear() {
     query_->clear();
     excluded_->clear();
     failure_->hide();
-    for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_})
+    for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_, quantile_table_})
         table->setRowCount(0);
+    quantile_summary_->clear();
+    quantiles_->hide();
     lift_header_.title->setToolTip(QString());
     calibration_header_.title->setToolTip(QString());
     calibration_->set_series({});
@@ -359,17 +398,61 @@ void KrxStatsWindow::show_about(const std::optional<krx_quant::AlgorithmInfo>& i
     learning_->setVisible(!learning.isEmpty());
 }
 
-void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats) {
+void KrxStatsWindow::set_kind(const std::optional<krx_quant::KindInfo>& kind) {
+    const QString name = kind ? kind->name : QStringLiteral("direction");
+    if (name == kind_)
+        return;
+    kind_ = name;
+    const auto columns = krx_tables::stats_columns(kind);
+    const bool direction = name == QLatin1String("direction");
+    krx_tables::set_columns(
+        overall_,
+        QList<krx_quant::StatsColumn>{{tr("순위"), {}}} + columns +
+            QList<krx_quant::StatsColumn>{{tr("운 보정"), direction ? krx_quant::column_tip(QStringLiteral("운 보정"))
+                                                                    : krx_quant::luck_tip(*kind)}});
+    for (auto* table : {by_slot_, by_model_version_, by_symbol_}) {
+        const QString split = table->horizontalHeaderItem(0) ? table->horizontalHeaderItem(0)->text() : QString();
+        krx_tables::set_columns(table, QList<krx_quant::StatsColumn>{{split, {}}} + columns);
+    }
+}
+
+void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats,
+                                const std::optional<krx_quant::KindInfo>& kind) {
     loading_->hide_loading();
     failure_->hide();
+    // The predictor's kind (krx-quant #182): its own, whatever the screen shows.
+    std::optional<krx_quant::KindInfo> its =
+        kind && kind->name == stats.kind ? kind : std::optional<krx_quant::KindInfo>{};
+    if (!its && stats.kind != QLatin1String("direction")) { // its kind not described yet: by name alone
+        its = krx_quant::KindInfo{};
+        its->name = stats.kind;
+        its->title = stats.kind;
+    }
+    set_kind(stats.kind == QLatin1String("direction") ? std::nullopt : its);
     query_->setText(tr("%1 · %2").arg(krx_quant::query_text(stats), krx_quant::days_text(stats.days)));
 
     const auto& e = stats.overall;
     overall_->setRowCount(1);
     overall_->setItem(0, kRank, cell(e.rank ? QString::number(*e.rank) : tr("순위 밖"), kNumber));
-    krx_tables::set_stats(overall_, 0, kStats, e);
-    overall_->setItem(0, kSignificant, cell(e.significant ? tr("통과") : QString()));
+    krx_tables::set_stats(overall_, 0, kStats, e, its);
+    overall_->setItem(0, overall_->columnCount() - 1, cell(e.significant ? tr("통과") : QString()));
     fit_rows(overall_);
+
+    // The range's quantile stats (krx-quant #182).
+    quantiles_->setVisible(e.range.has_value());
+    quantile_table_->setRowCount(0);
+    if (e.range) {
+        quantile_summary_->setText(krx_quant::range_summary(*e.range));
+        for (const auto& q : krx_quant::quantile_rows(*e.range)) {
+            const int row = quantile_table_->rowCount();
+            quantile_table_->insertRow(row);
+            const QStringList cells{q.quantile, q.pinball,    q.interval,           q.day_interval,
+                                    q.days,     q.vs_climate, q.vs_climate_interval};
+            for (int c = 0; c < cells.size(); ++c)
+                quantile_table_->setItem(row, c,
+                                         cell(cells[c], c == kQuantile ? Qt::AlignLeft | Qt::AlignVCenter : kNumber));
+        }
+    }
 
     lifts_->setRowCount(0);
     for (const auto& l : krx_quant::lift_rows(e)) {
@@ -385,14 +468,14 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats) {
         lifts_->setItem(row, kDayInterval, cell(l.day_interval, kNumber));
         lifts_->setItem(row, kDays, cell(l.days, kNumber));
     }
-    lift_header_.title->setToolTip(krx_quant::lift_tip(stats));
+    lift_header_.title->setToolTip(krx_quant::lift_tip(stats, its));
     excluded_->setText(e.excluded ? krx_quant::excluded_text(*e.excluded, stats.special) : QString());
-    calibration_->set_series(krx_quant::calibration_series(stats));
-    calibration_header_.title->setToolTip(krx_quant::calibration_tip(stats));
+    calibration_->set_series(krx_quant::calibration_series(stats, its));
+    calibration_header_.title->setToolTip(krx_quant::calibration_tip(stats, its));
 
-    fill_breakdown(by_slot_, stats.by_slot, krx_quant::slot_label);
-    fill_breakdown(by_model_version_, stats.by_model_version, nullptr);
-    fill_breakdown(by_symbol_, stats.by_symbol, nullptr);
+    fill_breakdown(by_slot_, stats.by_slot, krx_quant::slot_label, its);
+    fill_breakdown(by_model_version_, stats.by_model_version, nullptr, its);
+    fill_breakdown(by_symbol_, stats.by_symbol, nullptr, its);
 }
 
 void KrxStatsWindow::show_failure(const QString& reason) {
@@ -405,13 +488,13 @@ void KrxStatsWindow::show_failure(const QString& reason) {
 void KrxStatsWindow::restyle() {
     setStyleSheet(QString("#krxStatsWindow{background:%1;}#krxStatsWindow QLabel{background:transparent;}")
                       .arg(ui::colors::BG_BASE()));
-    for (const auto* header :
-         {&header_, &about_header_, &learning_header_, &lift_header_, &calibration_header_, &breakdown_header_})
+    for (const auto* header : {&header_, &about_header_, &learning_header_, &lift_header_, &calibration_header_,
+                               &breakdown_header_, &quantiles_header_})
         header->restyle();
     about_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
     learning_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
     failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
-    for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_})
+    for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_, quantile_table_})
         krx_tables::restyle(table);
     fit_rows(overall_);
     calibration_->update();

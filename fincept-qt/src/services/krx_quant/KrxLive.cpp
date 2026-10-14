@@ -56,6 +56,7 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
                     full_from_ = krx_quant::full_from_after(full_from_, predictions, oldest_close());
                 emit chart_changed();
                 emit marks_changed();
+                read_kind_history(); // the kind's over the bars now shown too (krx-quant #182)
             });
     connect(service_, &KrxQuantService::predictions_ready, this,
             [this](const QString& symbol, const QDateTime&, const QList<krx_quant::Prediction>& predictions) {
@@ -123,6 +124,54 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         algorithms_failure_ = reason;
         emit algorithms_changed();
     });
+    connect(service_, &KrxQuantService::kinds_ready, this, [this](const QList<krx_quant::KindInfo>& kinds) {
+        const auto described = kind_info();
+        const QString shown = kind_;
+        kinds_ = kinds;
+        emit kinds_changed();
+        apply_kind();
+        if (kind_ == shown && kind_info() != described) {
+            // The same kind, described anew (an engine upgrade: its title, classes or
+            // baselines): what shows it is rebuilt with the new description.
+            emit kind_changed();
+            emit kind_predictions_changed();
+            read_leaderboard();
+        }
+    });
+    connect(service_, &KrxQuantService::kinds_failed, this, [this](const QString&) {
+        // An engine before krx-quant #179, or one not answering: the direction alone.
+        kinds_.reset();
+        emit kinds_changed();
+        apply_kind();
+    });
+    connect(service_, &KrxQuantService::kind_latest_ready, this, [this](const krx_quant::KindLatest& latest) {
+        if (latest.symbol != selected_ || latest.kind != kind_)
+            return read_kind_latest(); // another was chosen meanwhile
+        kind_board_.set_latest(latest);
+        emit kind_predictions_changed();
+    });
+    connect(service_, &KrxQuantService::kind_latest_failed, this,
+            [this](const QString& symbol, const QString& kind, const QString&) {
+                if (symbol != selected_ || kind != kind_)
+                    read_kind_latest(); // another was chosen meanwhile; a failure shows as no prediction
+            });
+    connect(service_, &KrxQuantService::kind_history_ready, this,
+            [this](const QString& symbol, const QString& kind, const QDateTime&,
+                   const QList<krx_quant::KindPrediction>& predictions) {
+                kind_paging_ = false;
+                if (symbol == selected_ && kind == kind_) {
+                    kind_board_.set_history(symbol, predictions);
+                    kind_from_ = krx_quant::kind_from_after(kind_from_, predictions, oldest_close());
+                    emit kind_predictions_changed();
+                }
+                read_kind_history(); // what is still to read, or another symbol's or kind's
+            });
+    connect(service_, &KrxQuantService::kind_history_failed, this,
+            [this](const QString& symbol, const QString& kind, const QString&) {
+                kind_paging_ = false; // asked again on the next chart read
+                if (symbol != selected_ || kind != kind_)
+                    read_kind_history(true);
+            });
     connect(service_, &KrxQuantService::macro_ready, this, [this](const krx_quant::Macro& macro) {
         macro_ = macro;
         macro_failure_.clear();
@@ -139,7 +188,13 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
             for (const auto& e : *entries)
                 if (!e.status.isEmpty())
                     standings.insert(e.algorithm, e.status);
-        if (standings != standings_) {
+        if (leaderboard.kind != QLatin1String(krx_quant::kDirectionKind)) {
+            // Another kind's (krx-quant #182): its hover's statuses; the direction's stay.
+            if (leaderboard.kind == kind_ && standings != kind_standings_) {
+                kind_standings_ = standings;
+                emit kind_predictions_changed();
+            }
+        } else if (standings != standings_) {
             standings_ = standings;
             emit marks_changed(); // the hover's statuses
         }
@@ -180,6 +235,12 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         algorithms_.clear(); // the old engine's; the new one's come with the details
         algorithms_failure_.clear();
         emit algorithms_changed();
+        // The old engine's kinds go: the direction until the new one says what it makes (krx-quant #182).
+        kind_paging_ = false;
+        kinds_.reset();
+        emit kinds_changed();
+        apply_kind();
+        service_->read_kinds();
         stream_->open(url); // also when another KRX panel applied an address
         // The old engine's macro row goes; the new engine's is read.
         macro_.reset();
@@ -208,6 +269,7 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
 
 void KrxLive::start() {
     service_->refresh(); // reads the address from the settings; opens the stream on it
+    service_->read_kinds();
     service_->read_macro();
     read_leaderboard();
     timer_.start();
@@ -218,6 +280,9 @@ void KrxLive::apply_base_url(const QString& url) {
     KrxQuantService::set_base_url(url);
     board_ = {};
     board_.focus(selected_);
+    kind_board_.forget();
+    kind_from_ = {};
+    kind_paging_ = false;
     relabeling_ = false; // the restart below drops a page under way: none would answer
     bars_.clear();
     live_.reset();
@@ -248,6 +313,8 @@ void KrxLive::select(const QString& symbol) {
         return;
     selected_ = symbol;
     board_.focus(symbol);
+    kind_board_.focus(symbol);
+    kind_from_ = {};
     live_.reset();
     pinned_ = {}; // another symbol: its latest
     pinned_predictions_.clear();
@@ -256,12 +323,59 @@ void KrxLive::select(const QString& symbol) {
     forget_older();
     emit chart_changed();
     emit predictions_changed();
+    emit kind_predictions_changed();
     read_chart();
+    read_kind_latest();
 }
 
 void KrxLive::set_leaderboard_query(const KrxQuantService::LeaderboardQuery& query) {
     query_ = query;
+    query_.kind = kind_; // the kind shown's
     read_leaderboard();
+}
+
+void KrxLive::set_kind(const QString& saved) {
+    saved_kind_ = saved;
+    apply_kind();
+}
+
+void KrxLive::apply_kind() {
+    const QString kind = krx_quant::shown_kind(saved_kind_, krx_quant::kind_choices(kinds_));
+    if (kind == kind_)
+        return;
+    kind_ = kind;
+    kind_board_.set_kind(kind == QLatin1String(krx_quant::kDirectionKind) ? QString() : kind);
+    kind_board_.focus(selected_);
+    kind_standings_.clear();
+    kind_from_ = {};
+    query_.kind = kind;
+    emit kind_changed();
+    emit kind_predictions_changed();
+    read_leaderboard();
+    read_kind_latest();
+    read_kind_history(true);
+}
+
+void KrxLive::read_kind_latest() {
+    if (kind_ != QLatin1String(krx_quant::kDirectionKind) && !selected_.isEmpty())
+        service_->read_kind_latest(selected_, kind_);
+}
+
+void KrxLive::read_kind_history(bool latest) {
+    if (kind_ == QLatin1String(krx_quant::kDirectionKind) || selected_.isEmpty())
+        return;
+    kind_latest_page_ |= latest;
+    if (kind_paging_)
+        return; // asked again once it answers
+    std::optional<krx_quant::KindRead> read = krx_quant::kind_read(kind_from_, oldest_close());
+    if (kind_latest_page_ && oldest_close().isValid())
+        read = krx_quant::KindRead{}; // the latest bar closes again: their answers since
+    if (!read)
+        return;
+    if (!read->before.isValid())
+        kind_latest_page_ = false;
+    kind_paging_ = true;
+    service_->read_kind_history(selected_, kind_, read->before, read->limit);
 }
 
 void KrxLive::set_details(const QStringList& algorithms) {
@@ -311,6 +425,7 @@ bool KrxLive::ensure_full() {
 void KrxLive::read_chart() {
     if (!selected_.isEmpty())
         service_->read_chart(selected_, all_predictors());
+    read_kind_history(true); // the kind's latest bar closes with the chart's (krx-quant #182)
 }
 
 void KrxLive::view_from(double from, int minutes) {
@@ -440,6 +555,7 @@ void KrxLive::tick() {
 
 void KrxLive::read_everything() {
     service_->refresh();
+    service_->read_kinds();
     read_chart();
     read_leaderboard();
     service_->read_macro();
@@ -460,6 +576,8 @@ void KrxLive::on_snapshot(const KrxQuantService::Snapshot& snapshot) {
         live_.reset();
         full_from_ = {};
     }
+    if (snapshot.status.now.isValid() && kind_board_.rewind_to(snapshot.status.now))
+        kind_from_ = {};
     const QDateTime shown_before = board_.latest(selected_).bar_close;
     board_.set_symbols(snapshot.symbols);
     if (snapshot.members)
@@ -478,6 +596,7 @@ void KrxLive::on_snapshot(const KrxQuantService::Snapshot& snapshot) {
         follow_bar_close(shown_before);
     emit predictions_changed();
     emit marks_changed();
+    read_kind_latest(); // the kind's with the direction's (krx-quant #182)
     on_status(snapshot.status, true);
 }
 
@@ -494,10 +613,15 @@ void KrxLive::on_status(const krx_quant::EngineStatus& status, bool with_snapsho
         emit chart_changed();
         read_chart();
     }
+    if (status.now.isValid() && kind_board_.rewind_to(status.now)) {
+        kind_from_ = {};
+        emit kind_predictions_changed();
+    }
     if (recovering) {
         // Back after a failure: what was not read meanwhile is read again.
         if (!with_snapshot)
             service_->refresh();
+        service_->read_kinds();
         service_->read_macro();
         read_leaderboard();
         read_chart();
@@ -510,10 +634,13 @@ void KrxLive::on_failure(const QString& reason) {
     failure_ = reason;
     read_errors_.clear();
     board_.forget_predictions(); // old predictions must not pass for current ones
+    kind_board_.forget();
+    kind_from_ = {};
     bars_.clear();
     live_.reset();
     forget_older();
     emit predictions_changed();
+    emit kind_predictions_changed();
     emit chart_changed();
     emit status_changed();
 }
@@ -537,6 +664,7 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
     emit chart_changed();
     emit marks_changed();
     ensure_full();
+    read_kind_history(); // the kind's over the bars now shown (krx-quant #182)
     if (krx_quant::candle_view(view_minutes_))
         set_view(view_minutes_); // the view's candles, unless read (a symbol or an engine changed)
     else if (bars_.isEmpty() && older_.isEmpty())
@@ -564,6 +692,23 @@ void KrxLive::on_event(const krx_quant::Event& event) {
                 emit live_changed();
             }
             return;
+        case krx_quant::Event::Type::KindPrediction:
+        case krx_quant::Event::Type::KindAnswer: {
+            // Another kind's (krx-quant #182): the kind shown's alone; the direction's are not touched.
+            if (!kind_board_.apply(event))
+                return;
+            set_engine_clock(event.at);
+            if (event.type == krx_quant::Event::Type::KindAnswer)
+                leaderboard_soon_.start(); // its leaderboard, once its answers are in
+            const bool chosen =
+                std::any_of(event.kind_predictions.cbegin(), event.kind_predictions.cend(),
+                            [this](const krx_quant::KindPrediction& p) { return p.symbol == selected_; }) ||
+                std::any_of(event.kind_answers.cbegin(), event.kind_answers.cend(),
+                            [this](const krx_quant::KindAnswerAt& a) { return a.symbol == selected_; });
+            if (chosen)
+                emit kind_predictions_changed();
+            return;
+        }
         case krx_quant::Event::Type::Other:
             return;
         case krx_quant::Event::Type::Prediction:

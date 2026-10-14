@@ -3,6 +3,8 @@
 #include <QLocale>
 #include <QTime>
 
+#include <algorithm>
+
 namespace fincept::krx_quant {
 
 QString number_text(double value, int decimals) {
@@ -95,11 +97,16 @@ QList<CalibrationPoint> calibration_points(const QList<CalibrationBin>& bins) {
     return points;
 }
 
-QList<CalibrationSeries> calibration_series(const AlgorithmStats& stats) {
-    const QList<QPair<QString, QString>> curves = {{"all", QStringLiteral("전체")},
-                                                   {"up", QStringLiteral("상승")},
-                                                   {"flat", QStringLiteral("보합")},
-                                                   {"down", QStringLiteral("하락")}};
+QList<CalibrationSeries> calibration_series(const AlgorithmStats& stats, const std::optional<KindInfo>& kind) {
+    QList<QPair<QString, QString>> curves = {{"all", QStringLiteral("전체")},
+                                             {"up", QStringLiteral("상승")},
+                                             {"flat", QStringLiteral("보합")},
+                                             {"down", QStringLiteral("하락")}};
+    if (kind && kind->name != QLatin1String("direction")) { // another kind's classes (krx-quant #182)
+        curves = {{"all", QStringLiteral("전체")}};
+        for (qsizetype i = 0; i < kind->classes.size(); ++i)
+            curves.append({kind->classes[i], i < kind->class_titles.size() ? kind->class_titles[i] : kind->classes[i]});
+    }
     QList<CalibrationSeries> series;
     for (const auto& [key, name] : curves) {
         auto points = calibration_points(key == "all" ? stats.calibration : stats.calibration_by_class.value(key));
@@ -118,7 +125,8 @@ QString excluded_text(const Excluded& excluded, const QString& special) {
                                                    {"timed_out", QStringLiteral("시간 초과")},
                                                    {"error", QStringLiteral("오류")},
                                                    {"no_members", QStringLiteral("구성원 없음")},
-                                                   {"none_finished", QStringLiteral("결과 없음")}};
+                                                   {"none_finished", QStringLiteral("결과 없음")},
+                                                   {"no_previous", QStringLiteral("직전 창 없음")}};
     const bool included = special == "include";
     QStringList parts;
     if (excluded.special > 0 && !included)
@@ -143,7 +151,23 @@ QString days_text(const QStringList& days) {
     return QStringLiteral("%1 ~ %2 (%3일)").arg(days.first(), days.last()).arg(days.size());
 }
 
-QString ranking_rules(const QStringList& days, int min_sample) {
+QString ranking_rules(const QStringList& days, int min_sample, const std::optional<KindInfo>& kind) {
+    if (kind && kind->name != QLatin1String("direction")) {
+        QStringList action;
+        for (const auto& c : kind->action)
+            if (const qsizetype at = kind->classes.indexOf(c); at >= 0 && at < kind->class_titles.size())
+                action << kind->class_titles[at];
+        return QStringList{
+            days_text(days),
+            QStringLiteral("%1 예측을 %1 정답으로 센다. 정밀도와 커버리지는 %2(으)로 센다.")
+                .arg(kind->title, action.join(QStringLiteral("·"))),
+            QStringLiteral("순위에는 채점 %1건 이상, 기준 예측과의 짝도 그만큼 있어야 오른다.").arg(min_sample),
+            QStringLiteral("순위는 가장 약한 lift의 하한 순이다."),
+            luck_tip(*kind),
+            QStringLiteral("줄을 두 번 누르면 그 예측의 상세 통계가 열린다."),
+        }
+            .join('\n');
+    }
     return QStringList{
         days_text(days),
         QStringLiteral("순위에는 채점 %1건 이상, 기준 예측과의 짝도 그만큼 있어야 오른다.").arg(min_sample),
@@ -152,6 +176,107 @@ QString ranking_rules(const QStringList& days, int min_sample) {
         QStringLiteral("줄을 두 번 누르면 그 예측의 상세 통계가 열린다."),
     }
         .join('\n');
+}
+
+QString luck_tip(const KindInfo& kind) {
+    QStringList names;
+    for (const auto& b : kind.baselines)
+        names << predictor_label(b.name);
+    return QStringLiteral("운 보정 통과는 기준 예측(%1)을 모두 이긴 것이 운으로 보기 어렵다는 뜻이다(q ≤ 0.05).")
+        .arg(names.join(QStringLiteral(", ")));
+}
+
+QList<StatsColumn> kind_stats_columns(const KindInfo& kind) {
+    QStringList action;
+    for (const auto& c : kind.action)
+        if (const qsizetype at = kind.classes.indexOf(c); at >= 0 && at < kind.class_titles.size())
+            action << kind.class_titles[at];
+    const QString called = action.join(QStringLiteral("·"));
+    QList<StatsColumn> columns{
+        {QStringLiteral("표본"), {}},
+        {QStringLiteral("정답률"), {}},
+        {called.isEmpty() ? QStringLiteral("정밀도") : QStringLiteral("%1 정밀도").arg(called),
+         called.isEmpty() ? QString() : QStringLiteral("%1(이)라고 한 예측 중 맞은 비율이다.").arg(called)},
+        {QStringLiteral("커버리지"),
+         called.isEmpty() ? QString() : QStringLiteral("%1(이)라고 한 예측의 비율이다.").arg(called)},
+        {QStringLiteral("Brier"), {}},
+    };
+    if (kind.name == QLatin1String("range"))
+        columns << StatsColumn{QStringLiteral("구간 적중률"),
+                               QStringLiteral("실제 변동폭이 q10~q90 안에 든 비율이다. 분위수가 정직하면 80% 가까이 "
+                                              "나온다. 95% 구간(Wilson)은 칸의 툴팁에 있다.")}
+                << StatsColumn{QStringLiteral("q50 오차(틱)"),
+                               QStringLiteral("실제 변동폭과 q50의 차이(절댓값)의 평균, 틱이다.")};
+    columns << StatsColumn{QStringLiteral("가장 약한 lift 하한"), {}};
+    return columns;
+}
+
+QList<Shown> kind_stats_cells(const Entry& e, const KindInfo& kind) {
+    QList<Shown> cells{{number_text(e.n, 0), {}},
+                       rate_shown(e.accuracy),
+                       rate_shown(e.precision),
+                       rate_shown(e.coverage),
+                       mean_shown(e.brier, 3)};
+    if (kind.name == QLatin1String("range")) {
+        cells << rate_shown(e.range ? e.range->interval_coverage : std::nullopt)
+              << mean_shown(e.range ? e.range->q50_abs_error : std::nullopt, 2);
+    }
+    cells << Shown{weakest_lift_text(e), {}};
+    return cells;
+}
+
+QList<QuantileRow> quantile_rows(const RangeStats& stats) {
+    const auto plain = [](const std::optional<Interval>& i) {
+        return i ? number_text(i->value, 2) : QStringLiteral("—");
+    };
+    const auto signed_ = [](const std::optional<Interval>& i) {
+        return i ? signed_text(i->value, 2) : QStringLiteral("—");
+    };
+    const auto span = [](const std::optional<Interval>& i, bool sign) {
+        if (!i || !i->low || !i->high)
+            return QStringLiteral("—");
+        return sign ? QStringLiteral("%1 – %2").arg(signed_text(*i->low, 2), signed_text(*i->high, 2))
+                    : QStringLiteral("%1 – %2").arg(number_text(*i->low, 2), number_text(*i->high, 2));
+    };
+    QList<QuantileRow> rows;
+    for (const char* q : {"q10", "q50", "q90"}) {
+        const RangeMean pinball = stats.pinball.value(q);
+        QuantileRow row{q,
+                        plain(pinball.mean),
+                        span(pinball.mean, false),
+                        span(pinball.by_day, false),
+                        pinball.by_day ? number_text(pinball.by_day->n, 0) : QStringLiteral("—"),
+                        QStringLiteral("—"),
+                        QStringLiteral("—")};
+        if (stats.vs_climate) {
+            const RangeMean versus = stats.vs_climate->value(q);
+            row.vs_climate = signed_(versus.mean);
+            row.vs_climate_interval = span(versus.by_day, true);
+        }
+        rows << row;
+    }
+    return rows;
+}
+
+QString range_summary(const RangeStats& stats) {
+    if (stats.n == 0)
+        return QStringLiteral("채점된 예측 없음");
+    QStringList parts;
+    if (const auto& c = stats.interval_coverage) {
+        QString text = QStringLiteral("구간 적중률(q10~q90) %1%").arg(number_text(c->value * 100, 1));
+        text += c->low && c->high ? QStringLiteral(" (95% %1–%2%, 이상 80%)")
+                                        .arg(number_text(*c->low * 100, 1), number_text(*c->high * 100, 1))
+                                  : QStringLiteral(" (이상 80%)");
+        parts << text;
+    }
+    if (const auto& e = stats.q50_abs_error) {
+        QString text = QStringLiteral("q50 오차 %1틱").arg(number_text(e->value, 2));
+        if (e->low && e->high)
+            text += QStringLiteral(" (95% %1 – %2)").arg(number_text(*e->low, 2), number_text(*e->high, 2));
+        parts << text;
+    }
+    parts << QStringLiteral("표본 %1").arg(number_text(stats.n, 0));
+    return parts.join(QStringLiteral(" · "));
 }
 
 QString column_tip(const QString& header) {
@@ -173,9 +298,13 @@ QString column_tip(const QString& header) {
     return tips.value(header);
 }
 
-QString lift_tip(const AlgorithmStats& stats) {
+QString lift_tip(const AlgorithmStats& stats, const std::optional<KindInfo>& kind) {
+    bool baseline = false; // another kind's baseline (krx-quant #182)
+    if (kind)
+        baseline = std::any_of(kind->baselines.cbegin(), kind->baselines.cend(),
+                               [&stats](const KindBaseline& b) { return b.name == stats.algorithm; });
     QStringList lines;
-    if (is_baseline(stats.algorithm))
+    if (is_baseline(stats.algorithm) || baseline)
         lines << QStringLiteral("기준 예측 자신이라 lift가 없다.");
     else if (lift_rows(stats.overall).isEmpty())
         lines << QStringLiteral("기준 예측과 짝지을 채점된 예측이 없어 lift가 없다.");
@@ -184,13 +313,18 @@ QString lift_tip(const AlgorithmStats& stats) {
     return lines.join('\n');
 }
 
-QString calibration_tip(const AlgorithmStats& stats) {
+QString calibration_tip(const AlgorithmStats& stats, const std::optional<KindInfo>& kind) {
     QStringList lines;
-    if (calibration_series(stats).isEmpty())
+    if (calibration_series(stats, kind).isEmpty())
         lines << QStringLiteral("채점된 예측이 없다.");
-    lines << QStringLiteral("확률을 10% 구간으로 나눠, 예측한 확률과 실제로 일어난 비율을 견준다.")
-          << QStringLiteral("전체는 세 클래스를 합친 것이라 방향별 오차를 숨길 수 있어, 상승·보합·하락을 따로 그린다.")
-          << QStringLiteral("점이 점선에 가까울수록 확률을 믿을 수 있다.");
+    lines << QStringLiteral("확률을 10% 구간으로 나눠, 예측한 확률과 실제로 일어난 비율을 견준다.");
+    if (kind && kind->name != QLatin1String("direction"))
+        lines << QStringLiteral("전체는 세 클래스를 합친 것이라 클래스별 오차를 숨길 수 있어, %1을 따로 그린다.")
+                     .arg(kind->class_titles.join(QStringLiteral("·")));
+    else
+        lines << QStringLiteral(
+            "전체는 세 클래스를 합친 것이라 방향별 오차를 숨길 수 있어, 상승·보합·하락을 따로 그린다.");
+    lines << QStringLiteral("점이 점선에 가까울수록 확률을 믿을 수 있다.");
     return lines.join('\n');
 }
 
