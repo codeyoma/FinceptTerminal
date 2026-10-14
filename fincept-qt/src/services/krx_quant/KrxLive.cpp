@@ -125,9 +125,18 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         emit algorithms_changed();
     });
     connect(service_, &KrxQuantService::kinds_ready, this, [this](const QList<krx_quant::KindInfo>& kinds) {
+        const auto described = kind_info();
+        const QString shown = kind_;
         kinds_ = kinds;
         emit kinds_changed();
         apply_kind();
+        if (kind_ == shown && kind_info() != described) {
+            // The same kind, described anew (an engine upgrade: its title, classes or
+            // baselines): what shows it is rebuilt with the new description.
+            emit kind_changed();
+            emit kind_predictions_changed();
+            read_leaderboard();
+        }
     });
     connect(service_, &KrxQuantService::kinds_failed, this, [this](const QString&) {
         // An engine before krx-quant #179, or one not answering: the direction alone.

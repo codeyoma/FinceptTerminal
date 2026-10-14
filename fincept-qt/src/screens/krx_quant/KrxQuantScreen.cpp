@@ -311,12 +311,12 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     });
     connect(live_, &services::KrxLive::algorithms_changed, this, [this]() {
         for (auto it = stats_windows_.cbegin(); it != stats_windows_.cend(); ++it)
-            it.value()->show_about(about_of(it.key()), live_->algorithms_failure());
+            it.value()->show_about(about_of(it.key()), about_failure(it.key()));
     });
     connect(live_, &services::KrxLive::kinds_changed, this, [this]() {
         show_kinds();
         for (auto it = stats_windows_.cbegin(); it != stats_windows_.cend(); ++it) // a kind's baselines' cards
-            it.value()->show_about(about_of(it.key()), live_->algorithms_failure());
+            it.value()->show_about(about_of(it.key()), about_failure(it.key()));
     });
     connect(live_, &services::KrxLive::kind_changed, this, &KrxQuantScreen::on_kind_changed);
     connect(live_, &services::KrxLive::kind_predictions_changed, this, [this]() {
@@ -894,6 +894,13 @@ void KrxQuantScreen::show_score() {
     chart_score_->show();
 }
 
+QString KrxQuantScreen::about_failure(const QString& algorithm) const {
+    // Another kind's baseline is described by GET /v1/kinds: a failed /v1/algorithms is not its.
+    if (!live_->algorithms().contains(algorithm) && krx_quant::kind_baseline_info(live_->kinds(), algorithm))
+        return {};
+    return live_->algorithms_failure();
+}
+
 std::optional<krx_quant::AlgorithmInfo> KrxQuantScreen::about_of(const QString& algorithm) const {
     const auto& algorithms = live_->algorithms();
     if (const auto it = algorithms.constFind(algorithm); it != algorithms.cend())
@@ -916,7 +923,7 @@ void KrxQuantScreen::open_detail(const QString& algorithm) {
         });
     }
     window->open(algorithm);
-    window->show_about(about_of(algorithm), live_->algorithms_failure()); // as last read; read again with its stats
+    window->show_about(about_of(algorithm), about_failure(algorithm)); // as last read; read again with its stats
     live_->set_details(stats_windows_.keys());
 }
 

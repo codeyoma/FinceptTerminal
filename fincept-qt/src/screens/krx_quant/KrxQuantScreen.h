@@ -69,6 +69,9 @@ class KrxQuantScreen : public QWidget {
     void open_detail(const QString& algorithm);
     /// What the engine says about ``algorithm`` (krx-quant #163); none for a baseline or a
     /// consensus, or before it answered.
+    /// Why the description of ``algorithm`` could not be read; empty for another kind's baseline,
+    /// described by GET /v1/kinds whatever /v1/algorithms answered (krx-quant #182).
+    QString about_failure(const QString& algorithm) const;
     std::optional<krx_quant::AlgorithmInfo> about_of(const QString& algorithm) const;
     void update_countdowns();
     /// Paint in the theme's colors and font now (Fincept's theme, font or density changed).

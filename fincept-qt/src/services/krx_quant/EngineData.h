@@ -329,6 +329,8 @@ struct AlgorithmCard {
     QString training;    ///< how it learns
     QString forecasting; ///< how it makes its three probabilities (krx-quant #164)
     QString failure;     ///< the market it tends to be wrong in (krx-quant #164)
+
+    bool operator==(const AlgorithmCard&) const = default;
 };
 
 /// What a feature or a parameter is (krx-quant #164), as the engine says: its meaning, its
@@ -337,6 +339,8 @@ struct Meaning {
     QString meaning;
     QString unit;
     QString known;
+
+    bool operator==(const Meaning&) const = default;
 };
 
 /// A change of an algorithm's lifecycle status, as the engine recorded it.
@@ -438,6 +442,8 @@ Result<QStringList> parse_members(const QJsonDocument& doc);
 struct KindBaseline {
     QString name;
     std::optional<AlgorithmCard> card;
+
+    bool operator==(const KindBaseline&) const = default;
 };
 
 /// A kind of prediction the engine makes (GET /v1/kinds, krx-quant #179): the direction, the
@@ -454,6 +460,8 @@ struct KindInfo {
     int answer_version = 0;
     QMap<QString, Meaning> fields;
     QList<KindBaseline> baselines; ///< in the engine's order
+
+    bool operator==(const KindInfo&) const = default;
 };
 
 /// GET /v1/kinds: every kind the engine makes, the direction first. An engine before

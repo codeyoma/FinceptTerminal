@@ -1163,6 +1163,13 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(range.baselines.size(), 2);
         QCOMPARE(range.baselines[1].name, QStringLiteral("range-persist"));
         QCOMPARE(range.baselines[1].card->character, QStringLiteral("직전 4분"));
+
+        // Read again from the same engine: the same description. An upgrade that changes a
+        // baseline's card is another description, which the screen rebuilds on (review on #48).
+        QCOMPARE(parse_kinds(json(kKinds)).value()[1], range);
+        KindInfo upgraded = range;
+        upgraded.baselines[1].card->character = QStringLiteral("직전 4분 (새)");
+        QVERIFY(upgraded != range);
     }
 
     void an_engine_before_the_kinds_has_none_to_give() {
