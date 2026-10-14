@@ -1,40 +1,33 @@
 # Fork-only workflow (codeyoma/FinceptTerminal, codeyoma/krx-quant#98).
-# Every push to `custom` that changes the app gets into a personal build: the
-# pushed commit is tagged custom-<custom/UPSTREAM_BASE>-krx.<N+1>, N being the
-# highest build number already used for that upstream version, unless a build of
-# a newer commit already contains it (see the tagging step). The tag push starts
-# custom-release, which builds and publishes the release, and installed apps then
-# offer it as an update (custom/README.md "앱 업데이트").
+# Run by hand (Actions → custom-auto-tag → Run workflow, on `custom`) to make a
+# personal build of custom's head: it is tagged custom-<custom/UPSTREAM_BASE>-krx.<N+1>,
+# N being the highest build number already used for that upstream version, unless a
+# build of a newer commit already contains it (see the tagging step). The tag push
+# starts custom-release, which builds and publishes the release, and installed apps
+# then offer it as an update (custom/README.md "앱 업데이트").
+#
+# Pushes to `custom` no longer start it: every merge built Windows and macOS
+# installers, which is more than a personal build needs (krx-quant, 2026-10-14).
 #
 # Nothing is tagged when the commit already has a custom-v* tag (the upstream
 # landing pushes custom together with its krx.1 tag, and a hand-made tag still
-# works) or when the push changed only docs or workflows (paths-ignore below);
-# a hand-made tag still builds such a commit. Only commits on `custom` are
-# tagged: a manual run from another branch does nothing.
+# works). Only commits on `custom` are tagged: a run from another branch does
+# nothing.
 #
 # The tag is pushed with SYNC_TOKEN: a tag pushed with GITHUB_TOKEN starts no
 # workflow, so it would never be built.
 name: custom-auto-tag
 
 on:
-  push:
-    branches: [custom]
-    paths-ignore:
-      - 'custom/**'
-      - '**/*.md'
-      - 'docs/**'
-      - 'fincept-qt/docs/**'
-      - '.github/**'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 # One run at a time, so two runs never pick the same number. queue: max keeps
-# every waiting run (up to 100) instead of letting a newer push replace the
-# waiting one, so each merge gets its own build. GitHub does not promise the
-# order of waiting runs; the tagging step skips a commit that a newer build
-# already contains.
+# every waiting run (up to 100) instead of letting a newer one replace the
+# waiting one. GitHub does not promise the order of waiting runs; the tagging
+# step skips a commit that a newer build already contains.
 concurrency:
   group: custom-auto-tag
   cancel-in-progress: false
