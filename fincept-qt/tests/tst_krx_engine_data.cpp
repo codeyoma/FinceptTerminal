@@ -218,7 +218,7 @@ const char* kRangeLatest = R"({
   "predictions": [
     {"algorithm": "range-climate", "model_version": "range-climate-x", "bar_close": "2026-10-12T09:31:00+09:00",
      "displayed_at": "2026-10-12T09:31:00.004+09:00", "target_at": "2026-10-12T09:35:00+09:00", "status": "ok",
-     "output": {"p_small": 0.2, "p_medium": 0.5, "p_large": 0.3, "q10": 1.0, "q50": 2.5, "q90": 5.0},
+     "flat_ticks": 2, "output": {"p_small": 0.2, "p_medium": 0.5, "p_large": 0.3, "q10": 1.0, "q50": 2.5, "q90": 5.0},
      "answer": {"answer_version": 1, "class": "medium", "unscorable": null, "special": false,
                 "scored_at": "2026-10-12T09:35:00.003+09:00",
                 "path": {"r": 3.0, "k": 2, "tick": 100, "anchor": 81250.0,
@@ -227,10 +227,10 @@ const char* kRangeLatest = R"({
                          "up": 2.0, "down": 1.0, "quotes": 1043, "silent": false, "max_bid": 81400.0, "min_ask": 81200.0}}},
     {"algorithm": "range-persist", "model_version": "v1", "bar_close": "2026-10-12T09:31:00+09:00",
      "displayed_at": "2026-10-12T09:31:00.004+09:00", "target_at": null, "status": "no_previous",
-     "output": null, "answer": null},
+     "flat_ticks": 2, "output": null, "answer": null},
     {"algorithm": "alg-r", "model_version": "alg-r-1", "bar_close": "2026-10-12T09:31:00+09:00",
      "displayed_at": "2026-10-12T09:31:01+09:00", "target_at": "2026-10-12T09:35:00+09:00", "status": "ok",
-     "output": {"p_small": 0.1, "p_medium": 0.3, "p_large": 0.6, "q10": 2.0, "q50": 4.0, "q90": 8.5},
+     "flat_ticks": 2, "output": {"p_small": 0.1, "p_medium": 0.3, "p_large": 0.6, "q10": 2.0, "q50": 4.0, "q90": 8.5},
      "answer": null}
   ]
 })";
@@ -1208,6 +1208,9 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!l.predictions[1].answer.has_value());
         QCOMPARE(l.predictions[1].status, QStringLiteral("no_previous"));
         QVERIFY(!l.predictions[2].answer.has_value());
+        // The bar close's k came with each, made or not (krx-quant #200).
+        for (const auto& p : l.predictions)
+            QCOMPARE(p.flat_ticks, std::optional<int>(2));
     }
 
     void a_kind_answer_not_followed_or_not_scored_has_no_path_or_no_class() {
@@ -1223,6 +1226,15 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(a.unscorable, QStringLiteral("restarted"));
         QVERIFY(!a.range.has_value()); // a window not followed: an empty path
         QCOMPARE(read.value()[0].symbol, QStringLiteral("005930"));
+        QVERIFY(!read.value()[0].flat_ticks.has_value()); // an engine before krx-quant #200 gives no k
+
+        // One stored before #200, or at a bar close without a mid-point: null, none.
+        const auto older = parse_kind_predictions(json(R"({"symbol": "005930", "kind": "range", "predictions": [
+            {"algorithm": "range-persist", "model_version": "v1", "bar_close": "2026-10-09T15:00:00+09:00",
+             "displayed_at": "2026-10-09T15:00:00+09:00", "target_at": null, "status": "no_previous",
+             "flat_ticks": null, "output": null, "answer": null}]})"));
+        QVERIFY(older.is_ok());
+        QVERIFY(!older.value()[0].flat_ticks.has_value());
     }
 
     void kind_events_bring_their_kind_s_predictions_and_answers() {
@@ -1230,7 +1242,7 @@ class TstKrxEngineData : public QObject {
             "prediction_kind": "range", "bar_close": "2026-10-12T09:31:00+09:00", "predictions": [
               {"symbol": "000660", "algorithm": "range-persist", "model_version": "v1",
                "bar_close": "2026-10-12T09:31:00+09:00", "displayed_at": "2026-10-12T09:31:00+09:00",
-               "target_at": "2026-10-12T09:35:00+09:00", "status": "ok",
+               "target_at": "2026-10-12T09:35:00+09:00", "status": "ok", "flat_ticks": 1,
                "output": {"p_small": 0, "p_medium": 0, "p_large": 1, "q10": 6, "q50": 6, "q90": 6}, "answer": null}]})");
         QVERIFY(predicted.is_ok());
         QCOMPARE(predicted.value().type, Event::Type::KindPrediction);
@@ -1239,6 +1251,7 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(predicted.value().kind_predictions.size(), 1);
         QCOMPARE(predicted.value().kind_predictions[0].symbol, QStringLiteral("000660"));
         QCOMPARE(predicted.value().kind_predictions[0].value("q50"), std::optional<double>(6));
+        QCOMPARE(predicted.value().kind_predictions[0].flat_ticks, std::optional<int>(1));
 
         const auto answered = parse_event(R"({"type": "kind_answer", "at": "2026-10-12T09:35:00.1+09:00",
             "prediction_kind": "range", "answers": [

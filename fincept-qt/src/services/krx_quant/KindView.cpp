@@ -190,6 +190,9 @@ QString ticks_text(double ticks) {
 std::optional<int> bar_close_k(const QList<KindPrediction>& at_close, std::optional<int> now) {
     if (const auto answer = answer_of(at_close); answer && answer->range && answer->range->k)
         return answer->range->k;
+    for (const auto& p : at_close)
+        if (p.flat_ticks)
+            return p.flat_ticks;
     return now;
 }
 

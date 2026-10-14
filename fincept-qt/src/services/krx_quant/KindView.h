@@ -57,7 +57,10 @@ int likeliest_class(const KindPrediction& p, const KindInfo& kind);
 QString ticks_text(double ticks);
 
 /// The flat width k of a kind's bar close (krx-quant #180): its answer's (the engine's k at the
-/// bar close), else ``now`` (GET /v1/symbols' flat_ticks, k at the mid-point now); none without either.
+/// bar close) once it is in; before, the one its predictions came with (krx-quant #200: k at the
+/// bar close, what their classes were predicted against, though the price has since moved into
+/// another band); from an engine that gives neither, ``now`` (GET /v1/symbols' flat_ticks, k at
+/// the mid-point now); none without any.
 std::optional<int> bar_close_k(const QList<KindPrediction>& at_close, std::optional<int> now);
 
 /// The range panel's widths, on its title: "k 2틱 · 2k 4틱"; empty without a k.
