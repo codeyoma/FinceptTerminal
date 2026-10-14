@@ -115,8 +115,14 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
     connect(service_, &KrxQuantService::algorithms_ready, this,
             [this](const QMap<QString, krx_quant::AlgorithmInfo>& algorithms) {
                 algorithms_ = algorithms;
+                algorithms_failure_.clear();
                 emit algorithms_changed();
             });
+    connect(service_, &KrxQuantService::algorithms_failed, this, [this](const QString& reason) {
+        algorithms_.clear(); // not shown as the engine's while they cannot be read
+        algorithms_failure_ = reason;
+        emit algorithms_changed();
+    });
     connect(service_, &KrxQuantService::macro_ready, this, [this](const krx_quant::Macro& macro) {
         macro_ = macro;
         macro_failure_.clear();
@@ -172,6 +178,7 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
     connect(service_, &KrxQuantService::base_url_changed, this, [this](const QString& url) {
         relabeling_ = false; // its page was dropped with the old engine's reads
         algorithms_.clear(); // the old engine's; the new one's come with the details
+        algorithms_failure_.clear();
         emit algorithms_changed();
         stream_->open(url); // also when another KRX panel applied an address
         // The old engine's macro row goes; the new engine's is read.

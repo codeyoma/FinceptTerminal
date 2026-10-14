@@ -58,6 +58,8 @@ class KrxLive : public QObject {
     /// What the engine says about each algorithm (krx-quant #163), read with the detail
     /// windows' stats; empty before the first answer, or for a baseline or consensus.
     const QMap<QString, krx_quant::AlgorithmInfo>& algorithms() const { return algorithms_; }
+    /// Why the last read of them failed (they are dropped then, not left stale); empty once one works.
+    const QString& algorithms_failure() const { return algorithms_failure_; }
     /// Show one bar close's judgements of the chosen symbol (a chart icon clicked, krx-quant
     /// #107) instead of the latest's; an invalid time goes back to the latest.
     void pin(const QDateTime& bar_close);
@@ -194,6 +196,7 @@ class KrxLive : public QObject {
     QStringList selection_;            ///< the models selected for the chart
     QMap<QString, QString> standings_; ///< the predictors' statuses, from the leaderboard
     QMap<QString, krx_quant::AlgorithmInfo> algorithms_; ///< the engine's cards, models and statuses
+    QString algorithms_failure_;                         ///< why their last read failed
     /// The earliest bar close from which on every predictor's predictions were read; invalid:
     /// none (krx-quant #159).
     QDateTime full_from_;

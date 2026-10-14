@@ -55,8 +55,9 @@ class KrxStatsWindow : public QWidget {
     void show_stats(const krx_quant::AlgorithmStats& stats);
     void show_failure(const QString& reason);
     /// What the engine says about the algorithm (krx-quant #163): the "학습·예측 방식" section;
-    /// none for a baseline or a consensus, or before the engine answers.
-    void show_about(const std::optional<krx_quant::AlgorithmInfo>& info);
+    /// none for a baseline or a consensus, or before the engine answers; ``failure``: why the
+    /// engine's descriptions could not be read (none shown then, not a stale one).
+    void show_about(const std::optional<krx_quant::AlgorithmInfo>& info, const QString& failure = {});
 
   signals:
     void closed();

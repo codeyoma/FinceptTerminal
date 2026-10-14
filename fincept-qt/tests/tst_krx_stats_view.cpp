@@ -272,6 +272,11 @@ class TstKrxStatsView : public QObject {
         const auto none = about_rows(std::nullopt);
         QCOMPARE(none.size(), 1);
         QCOMPARE(none[0].second, QStringLiteral("엔진이 아직 설명을 주지 않음"));
+
+        // A failed read says so, and shows nothing as the engine's, not even what was read before.
+        const auto failed = about_rows(info, "엔진에 연결할 수 없습니다");
+        QCOMPARE(failed.size(), 1);
+        QCOMPARE(failed[0].second, QStringLiteral("엔진에서 설명을 읽지 못했습니다: 엔진에 연결할 수 없습니다"));
     }
 };
 

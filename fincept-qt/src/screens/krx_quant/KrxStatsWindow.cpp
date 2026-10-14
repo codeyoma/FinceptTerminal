@@ -294,6 +294,7 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
 void KrxStatsWindow::open(const QString& algorithm) {
     if (algorithm != algorithm_ || !isVisible()) {
         algorithm_ = algorithm;
+        about_->clear(); // the stats' failure leaves the algorithm's description as read
         clear();
         loading_->show_loading(tr("읽는 중…"));
     }
@@ -307,7 +308,6 @@ void KrxStatsWindow::open(const QString& algorithm) {
 }
 
 void KrxStatsWindow::clear() {
-    about_->clear();
     query_->clear();
     excluded_->clear();
     failure_->hide();
@@ -318,9 +318,9 @@ void KrxStatsWindow::clear() {
     calibration_->set_series({});
 }
 
-void KrxStatsWindow::show_about(const std::optional<krx_quant::AlgorithmInfo>& info) {
+void KrxStatsWindow::show_about(const std::optional<krx_quant::AlgorithmInfo>& info, const QString& failure) {
     QStringList lines;
-    for (const auto& [label, text] : krx_quant::about_rows(info))
+    for (const auto& [label, text] : krx_quant::about_rows(info, failure))
         lines << QStringLiteral("<b>%1</b>&nbsp;&nbsp;%2")
                      .arg(label.toHtmlEscaped(), text.toHtmlEscaped().replace('\n', QStringLiteral("<br>")));
     about_->setText(lines.join(QStringLiteral("<br>")));

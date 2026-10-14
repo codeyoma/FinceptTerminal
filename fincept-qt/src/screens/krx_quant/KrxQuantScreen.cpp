@@ -286,7 +286,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     });
     connect(live_, &services::KrxLive::algorithms_changed, this, [this]() {
         for (auto it = stats_windows_.cbegin(); it != stats_windows_.cend(); ++it)
-            it.value()->show_about(about_of(it.key()));
+            it.value()->show_about(about_of(it.key()), live_->algorithms_failure());
     });
     connect(live_, &services::KrxLive::signal_raised, alerts_, &KrxAlerts::raise);
     connect(live_, &services::KrxLive::base_url_changed, this, [this](const QString& url) {
@@ -709,7 +709,7 @@ void KrxQuantScreen::open_detail(const QString& algorithm) {
         });
     }
     window->open(algorithm);
-    window->show_about(about_of(algorithm)); // as last read; read again with its stats
+    window->show_about(about_of(algorithm), live_->algorithms_failure()); // as last read; read again with its stats
     live_->set_details(stats_windows_.keys());
 }
 

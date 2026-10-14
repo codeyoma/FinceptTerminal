@@ -211,8 +211,10 @@ QString query_text(const AlgorithmStats& stats) {
         .join(QStringLiteral(" · "));
 }
 
-QList<QPair<QString, QString>> about_rows(const std::optional<AlgorithmInfo>& info) {
+QList<QPair<QString, QString>> about_rows(const std::optional<AlgorithmInfo>& info, const QString& failure) {
     using Row = QPair<QString, QString>;
+    if (!failure.isEmpty())
+        return {Row(QStringLiteral("설명"), QStringLiteral("엔진에서 설명을 읽지 못했습니다: %1").arg(failure))};
     if (!info)
         return {Row(QStringLiteral("설명"), QStringLiteral("엔진이 아직 설명을 주지 않음"))};
     QList<Row> rows;
