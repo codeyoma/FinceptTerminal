@@ -29,7 +29,14 @@ Mark mark(const char* bar_close, Direction predicted, Mark::Result result, bool 
     p.p_up = 0.62;
     p.p_flat = 0.25;
     p.p_down = 0.13;
-    return Mark{kst(bar_close), predicted, 0.5, result, special, {}, p};
+    Mark m;
+    m.bar_close = kst(bar_close);
+    m.predicted = predicted;
+    m.probability = 0.5;
+    m.result = result;
+    m.special = special;
+    m.prediction = p;
+    return m;
 }
 
 /// A forecast of ``algorithm`` at 09:31: up 62%, flat 25%, down 13% unless given.
@@ -47,7 +54,7 @@ Prediction forecast(const QString& algorithm, double up = 0.62, double flat = 0.
 
 /// ``p`` scored up on basis A, the mid-point 79,000 at the bar close and 79,300 four minutes on.
 Prediction scored_up(Prediction p) {
-    p.outcome = Outcome{Direction::Up, Direction::Down, false, {}, 79000.0, 79100.0, 79300.0};
+    p.outcome = Outcome{Direction::Up, Direction::Down, false, {}, 79000.0, 79100.0, 79300.0, std::nullopt};
     return p;
 }
 
@@ -379,9 +386,10 @@ class TstKrxChartModel : public QObject {
         };
         auto final = at("consensus-final", 0.5, 0.3, 0.2);
         final.pooled = QStringList{"gauss", "markov"};
-        final.outcome = Outcome{Direction::Up, Direction::Down, false, {}, 79000.0, 79100.0, 79300.0};
+        final.outcome = Outcome{Direction::Up, Direction::Down, false, {}, 79000.0, 79100.0, 79300.0, std::nullopt};
         auto gauss = at("gauss", 0.2, 0.2, 0.6);
-        gauss.outcome = Outcome{Direction::Up, Direction::Down, false, {}, std::nullopt, std::nullopt, std::nullopt};
+        gauss.outcome = Outcome{Direction::Up, Direction::Down, false,        {},
+                                std::nullopt,  std::nullopt,    std::nullopt, std::nullopt};
         auto newton = at("newton", 0.6, 0.3, 0.1);
         Prediction late = at("turing", 0, 0, 0);
         late.status = "timed_out";
