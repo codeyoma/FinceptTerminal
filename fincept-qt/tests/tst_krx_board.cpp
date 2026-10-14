@@ -288,6 +288,37 @@ class TstKrxBoard : public QObject {
         QCOMPARE(a.predicted, Direction::Flat);
     }
 
+    void baselines_selected_are_left_out_of_the_selected_consensus() {
+        // krx-quant #166: a baseline is 100% sure of one class; averaged in, it would swamp the models.
+        Board board;
+        board.focus("005930");
+        board.set_history("005930", {made("005930", "gauss", "09:31", 0.5, 0.25, 0.25),
+                                     made("005930", "markov", "09:31", 0.25, 0.5, 0.25),
+                                     made("005930", "baseline-persist", "09:31", 1, 0, 0),
+                                     made("005930", "baseline-flat", "09:31", 0, 1, 0)});
+
+        const Mark m = board.marks("005930", {"baseline-flat", "baseline-persist", "gauss", "markov"})[0];
+
+        QCOMPARE(*m.prediction.p_up, 0.375); // gauss and markov only
+        QCOMPARE(m.prediction.votes->total(), 2);
+        QCOMPARE(m.made, 2);
+        QCOMPARE(m.chosen, 2);
+    }
+
+    void a_baseline_alone_draws_its_own_forecasts_several_draw_none() {
+        Board board;
+        board.focus("005930");
+        board.set_history("005930", {made("005930", "baseline-persist", "09:31", 0, 0, 1),
+                                     made("005930", "baseline-flat", "09:31", 0, 1, 0)});
+
+        const QList<Mark> alone = board.marks("005930", {"baseline-persist"});
+        QCOMPARE(alone.size(), 1);
+        QCOMPARE(alone[0].predicted, Direction::Down);
+        QCOMPARE(alone[0].prediction.algorithm, QStringLiteral("baseline-persist"));
+        QVERIFY(!alone[0].prediction.votes.has_value()); // never emphasised
+        QVERIFY(board.marks("005930", {"baseline-flat", "baseline-persist"}).isEmpty());
+    }
+
     void a_model_arriving_later_moves_the_selected_consensus() {
         Board board;
         board.focus("005930");

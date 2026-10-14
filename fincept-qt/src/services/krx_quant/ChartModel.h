@@ -92,21 +92,34 @@ QList<BarHover> bar_hovers(const QList<Bar>& bars, const QMap<QDateTime, QList<P
                            const QStringList& selection, const QMap<QString, QString>& standings,
                            const SignalRule& rule);
 
-/// How the selected models' consensus did over the bars in view (krx-quant #159): the
+/// How the selected models' consensus did over the bars in view (krx-quant #159, #166): the
 /// icons scored there whose 4 minutes are over, special situations left out; how many were
-/// right, and how many "늘 보합" (always flat) would have been on the same bars.
+/// right, how many "늘 보합" (always flat) would have been on the same bars, how the up and
+/// down calls did, on how many trading days, and how many special bars were left out.
 struct SelectionScore {
     int n = 0;
     int hits = 0;
     int flat_hits = 0;
+    int up_n = 0;      ///< icons that predicted up
+    int up_hits = 0;   ///< of those, the ones right
+    int down_n = 0;    ///< icons that predicted down
+    int down_hits = 0; ///< of those, the ones right
+    int days = 0;      ///< trading days (KST) of the bars counted: the overlapping windows are not independent
+    int special = 0;   ///< scored bars in view a special situation touched, left out
 };
 
 /// The score of ``marks`` (the selected consensus's) whose bars start from ``from`` to ``to``
 /// (as chart_time), at the engine clock ``now``.
 SelectionScore score_of(const QList<Mark>& marks, qint64 from, qint64 to, const QDateTime& now);
 
-/// The chart header's score, e.g. "선택 합의 (3) · 맞음 52% · 늘 보합 61% (310개)".
-QString score_text(int chosen, const SelectionScore& score);
+/// What the chart draws for ``selection`` (krx-quant #166): "선택 합의 (3)" for its models'
+/// consensus, a baseline's name when it is the only one selected; empty when nothing is drawn
+/// (several baselines alone).
+QString selection_head(const QStringList& selection);
+
+/// The chart header's score, e.g. "선택 합의 (3) · 맞음 52% · 늘 보합 61% · ▲ 맞음 40% (52) ·
+/// ▼ 맞음 45% (60) · 310개 4거래일 · 특수 12개 제외".
+QString score_text(const QString& head, const SelectionScore& score);
 
 /// Whether ``predictor`` can be selected for the chart (krx-quant #159): an algorithm or a
 /// baseline, not a consensus.
