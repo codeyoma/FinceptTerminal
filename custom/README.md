@@ -53,6 +53,17 @@ custom/merge-upstream-release.sh [tag]
 
 > **바뀜** (2026-10-12, krx-quant #94): `SYNC_TOKEN`은 `main` 동기화에만 썼다 → upstream 릴리스 자동 반영(브랜치 push, `custom` 반영, 태그 push)에도 쓴다. 없으면 자동 반영은 issue로 끝난다. 이유: 자동 반영이 upstream workflow 변경과 태그 push를 다뤄야 해서다(krx-quant #93).
 
+## krx-quant 포인터와 KRX_QUANT_DISPATCH_TOKEN
+
+krx-quant는 이 fork를 `fincept/` submodule로 담는다. 그 포인터는 언제나 `custom`의 최신 커밋을 가리킨다(codeyoma/krx-quant#186). `custom-krx-pointer` workflow가 `custom`에 push 될 때마다(PR merge, upstream 자동 반영, 손 push. 문서나 workflow만 바꾼 push도) krx-quant에 `repository_dispatch`(`fincept-custom`)를 보낸다. 그러면 krx-quant의 workflow가 `custom`의 head를 읽어 포인터를 옮긴다. 그래서 fork PR을 merge 한 뒤 krx-quant에서 포인터를 손으로 올리지 않는다.
+
+`GITHUB_TOKEN`은 다른 저장소에 닿지 못한다. 그래서 fine-grained PAT를 `KRX_QUANT_DISPATCH_TOKEN` secret으로 등록한다.
+
+- Repository access: `codeyoma/krx-quant`만
+- Permissions: Contents 읽기·쓰기(`repository_dispatch`에 필요하다)
+
+secret이 없거나 만료되면 `custom-krx-pointer`가 실패한다. 그래도 krx-quant가 매일 05:30 KST에 스스로 따라잡는다.
+
 ## upstream 파일 수정 원칙
 
 - 새 코드는 새 디렉터리에 둔다 (`fincept-qt/src/screens/krx_quant/`, `fincept-qt/src/services/krx_quant/`).
@@ -404,7 +415,9 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 
 ## upstream workflow
 
-이 fork에서는 upstream의 예약·릴리스 workflow를 끈다(GitHub Actions 설정에서 disable). 개인 빌드용 workflow는 `custom-` 접두사로 둔다: `custom-upstream-watch`(`main` 동기화와 upstream 릴리스 자동 반영), `custom-release`(개인 빌드와 upstream merge의 시험 빌드, 위 "개인 빌드"), `custom-auto-tag`(`custom`에 push 된 변경을 다음 개인 빌드로 태그, 위 "개인 빌드").
+이 fork에서는 upstream의 예약·릴리스 workflow를 끈다(GitHub Actions 설정에서 disable). 개인 빌드용 workflow는 `custom-` 접두사로 둔다: `custom-upstream-watch`(`main` 동기화와 upstream 릴리스 자동 반영), `custom-release`(개인 빌드와 upstream merge의 시험 빌드, 위 "개인 빌드"), `custom-auto-tag`(`custom`에 push 된 변경을 다음 개인 빌드로 태그, 위 "개인 빌드"), `custom-krx-pointer`(`custom`에 push 될 때마다 krx-quant에 포인터를 옮기라고 알림, 위 "krx-quant 포인터").
+
+> **바뀜** (2026-10-14, codeyoma/krx-quant#188): 개인 빌드용 workflow 셋 → 넷(`custom-krx-pointer`). 이유: krx-quant의 `fincept` 포인터가 손으로 올리지 않아도 `custom`의 최신 커밋을 따라가게 하려고(codeyoma/krx-quant#186).
 
 > **바뀜** (2026-10-12, codeyoma/krx-quant#99): 개인 빌드용 workflow 둘 → 셋(`custom-auto-tag`). 이유: 위 "개인 빌드"의 바뀜과 같다(codeyoma/krx-quant#98).
 
