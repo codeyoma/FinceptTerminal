@@ -3890,8 +3890,12 @@ if(FINCEPT_BUILD_INSTALLER)
         # installed separately below (app assets); these are *additional* files
         # the CI stage step dropped into the build dir's resources/ folder, so
         # capture them by name from the staged dir rather than re-globbing.
+        # fork addition (codeyoma/krx-quant#207): v8_context_snapshot.bin is the
+        # V8 startup snapshot. Without it every renderer aborts at start
+        # (0x80000003) and each web view (the KRX chart, klinechart) stays blank.
         install(FILES
                 "$<TARGET_FILE_DIR:FinceptTerminal>/resources/icudtl.dat"
+                "$<TARGET_FILE_DIR:FinceptTerminal>/resources/v8_context_snapshot.bin"
                 "$<TARGET_FILE_DIR:FinceptTerminal>/resources/qtwebengine_resources.pak"
                 "$<TARGET_FILE_DIR:FinceptTerminal>/resources/qtwebengine_resources_100p.pak"
                 "$<TARGET_FILE_DIR:FinceptTerminal>/resources/qtwebengine_resources_200p.pak"
