@@ -3,9 +3,10 @@
 // The KRX screen shows another kind of prediction than the direction (krx-quant #182): a
 // selector at its top, the kind's prediction panel, its hover boxes on the chart and its
 // baselines' cards. These tests pin the selector's choices (greyed for an older engine and
-// for a kind this screen cannot show yet), which kind shows for the choice kept, the range's
-// panel rows, its hover lines and windows, and how its predictions are read back to the first
-// bar shown. The values are made up and the expected ones worked out by hand.
+// for a kind this screen cannot show), which kind shows for the choice kept, the range's and
+// the barrier's (krx-quant #185) panel columns and rows, the barrier's width and barriers on
+// the panel's title, their hover lines and windows, and how a kind's predictions are read back
+// to the first bar shown. The values are made up and the expected ones worked out by hand.
 
 #include "services/krx_quant/KindView.h"
 
@@ -93,6 +94,69 @@ KindAnswer answer(double r, const QString& klass) {
     return a;
 }
 
+KindInfo barrier_kind() {
+    KindInfo k;
+    k.name = "barrier";
+    k.title = QStringLiteral("장벽");
+    k.classes = {"up_first", "timeout", "down_first"};
+    k.class_titles = {QStringLiteral("위 먼저"), QStringLiteral("시간 만료"), QStringLiteral("아래 먼저")};
+    k.action = {"up_first", "down_first"};
+    k.answer_version = 1;
+    k.baselines = {{"barrier-climate", std::nullopt}, {"barrier-persist", std::nullopt}};
+    return k;
+}
+
+/// A barrier forecast of ``algorithm`` at ``bar_close``: up first, timeout, down first; the bar
+/// close's width w 6 ticks, as the engine gives every prediction of it (krx-quant #183).
+KindPrediction barrier_forecast(const QString& algorithm, const char* bar_close, double up, double timeout,
+                                double down) {
+    KindPrediction p;
+    p.algorithm = algorithm;
+    p.model_version = algorithm + "-1";
+    p.status = "ok";
+    p.symbol = "005930";
+    p.bar_close = at(bar_close);
+    p.target_at = p.bar_close.addSecs(240);
+    p.flat_ticks = 2;
+    p.width_ticks = 6;
+    p.output = {{"p_up_first", up}, {"p_timeout", timeout}, {"p_down_first", down}};
+    return p;
+}
+
+/// A barrier answer of the bar close 09:31: the mid-point 78,350 won (the best quote 78,300 /
+/// 78,400), a 100-won tick, w 6: U 78,950 and L 77,750. ``up``: when the best bid first reached U (it was 79,000),
+/// ``down``: when the best ask first reached L (77,700); either may be none.
+KindAnswer barrier_answer(const QString& klass, const char* up, const char* down) {
+    KindAnswer a;
+    a.answer_version = 1;
+    a.klass = klass;
+    a.scored_at = at("09:35");
+    BarrierPath path;
+    path.w = 6;
+    path.sigma = 6.4;
+    path.k = 2;
+    path.tick = 100;
+    path.anchor = 78'350;
+    path.upper = 78'950;
+    path.lower = 77'750;
+    path.cost = 1.8;
+    path.bid_start = 78'300;
+    path.ask_start = 78'400;
+    if (up) {
+        path.up_at = kst(up);
+        path.up_bid = 79'000;
+        path.up_ask = 79'100;
+    }
+    if (down) {
+        path.down_at = kst(down);
+        path.down_bid = 77'600;
+        path.down_ask = 77'700;
+    }
+    path.quotes = 210;
+    a.barrier = path;
+    return a;
+}
+
 KindPrediction with(KindPrediction p, const KindAnswer& a) {
     p.answer = a;
     return p;
@@ -135,14 +199,21 @@ class TstKrxKindView : public QObject {
         QVERIFY(choices[2].tip.startsWith(QStringLiteral("작음·보통·큼의 확률\n예측 패널, 순위표, 상세 통계 창이")));
     }
 
-    void a_barrier_the_engine_makes_stays_greyed_until_this_screen_shows_it() {
-        KindInfo barrier;
-        barrier.name = "barrier";
+    void a_barrier_the_engine_makes_can_be_chosen() {
+        // krx-quant #185: the screen shows the barrier; an engine since #183 makes it.
+        KindInfo barrier = barrier_kind();
         barrier.title = QStringLiteral("장벽(엔진)");
         const auto choices = kind_choices(QList<KindInfo>{direction_kind(), range_kind(), barrier});
         QCOMPARE(choices[1].title, QStringLiteral("장벽(엔진)")); // the engine's title
-        QVERIFY(!choices[1].enabled);
-        QCOMPARE(choices[1].tip, QStringLiteral("이 화면은 아직 이 종류를 보이지 못한다."));
+        QVERIFY(choices[1].enabled);
+        QCOMPARE(choices[1].tip,
+                 QStringLiteral("위 먼저·시간 만료·아래 먼저의 확률\n예측 패널, 순위표, 상세 통계 창이 이 종류로 "
+                                "바뀐다. 차트의 아이콘·선택 합의·신호 알림은 방향 그대로다."));
+        QCOMPARE(shown_kind("barrier", choices), QStringLiteral("barrier"));
+        // A kind this screen does not know stays out of the selector, whatever the engine makes.
+        KindInfo weather;
+        weather.name = "weather";
+        QCOMPARE(kind_choices(QList<KindInfo>{direction_kind(), weather}).size(), 3);
     }
 
     void the_kind_kept_shows_while_it_can_and_stays_kept_while_it_cannot() {
@@ -324,6 +395,170 @@ class TstKrxKindView : public QObject {
         QVERIFY(!hovers[1].upper.has_value());
         QVERIFY(!hovers[1].lower_reached.has_value());
         QCOMPARE(hovers[1].window_to - hovers[1].window_from, qint64(240));
+    }
+
+    void the_panel_s_columns_are_the_kind_s_classes_and_the_range_s_quantiles() {
+        const auto headers = [](const QList<PanelColumn>& columns) {
+            QStringList out;
+            for (const auto& c : columns)
+                out << c.header;
+            return out;
+        };
+        // The range's, as krx-quant #182 made them.
+        const auto range = kind_panel_columns(range_kind(), false);
+        QCOMPARE(headers(range), (QStringList{"예측", "구간", "작음", "보통", "큼", "q10", "q50", "q90", "모델"}));
+        QVERIFY(range[0].tip.isEmpty());
+        QVERIFY(range[1].tip.isEmpty());
+        QCOMPARE(range[2].tip, QStringLiteral("4분 동안 중간가 변동폭(최고 − 최저)이 k틱보다 작을 확률"));
+        QCOMPARE(range[4].tip, QStringLiteral("2k틱 이상일 확률"));
+        QCOMPARE(range[7].tip, QStringLiteral("변동폭의 90% 분위수(틱): 열에 아홉은 이보다 작다"));
+        QVERIFY(range[8].tip.isEmpty());
+        // The barrier's (krx-quant #185): its three classes, no quantiles; a pinned bar close's result.
+        const auto barrier = kind_panel_columns(barrier_kind(), true);
+        QCOMPARE(headers(barrier),
+                 (QStringList{"예측", "예측 클래스", "위 먼저", "시간 만료", "아래 먼저", "결과", "모델"}));
+        QVERIFY(barrier[1].tip.startsWith(QStringLiteral("세 확률 중 가장 큰 것이다")));
+        QCOMPARE(
+            barrier[2].tip,
+            QStringLiteral("4분 안에 매수 1호가가 위 장벽 U(봉 마감 중간가 + w틱)에 아래 장벽보다 먼저 닿을 확률"));
+        QCOMPARE(barrier[3].tip, QStringLiteral("4분 동안 어느 장벽에도 닿지 않을 확률"));
+        QVERIFY(barrier[5].tip.isEmpty());
+        // Without the kind described yet.
+        QCOMPARE(headers(kind_panel_columns(std::nullopt, true)), (QStringList{"예측", "구간", "결과", "모델"}));
+    }
+
+    void the_barrier_width_is_the_answer_s_once_in_else_the_predictions_bar_close_s() {
+        const QList<KindPrediction> pending{barrier_forecast("alg-b", "09:31", 0.3, 0.5, 0.2),
+                                            not_made("barrier-persist", "09:31", "no_previous")};
+        QCOMPARE(bar_close_width(pending), std::optional<int>(6));
+        // Not made, it still has the bar close's w (krx-quant #183); one stored before has none.
+        KindPrediction persist = pending[1];
+        persist.width_ticks = 6;
+        QCOMPARE(bar_close_width({pending[1], persist}), std::optional<int>(6));
+        QVERIFY(!bar_close_width({pending[1]}).has_value());
+        QVERIFY(!bar_close_width({forecast("alg-r", "09:31", 0.2, 0.3, 0.5, 1, 2, 4)}).has_value()); // the range's
+        // Before the answer the engine gives no mid-point of the bar close: w alone.
+        QCOMPARE(barrier_text(pending), QStringLiteral("w 6틱"));
+        // With it, U and L as the exchange writes prices; its w (made up to differ, to pin which wins).
+        KindAnswer answer = barrier_answer("up_first", "2026-10-12T09:34:28+09:00", nullptr);
+        answer.barrier->w = 7;
+        QCOMPARE(bar_close_width({with(pending[0], answer)}), std::optional<int>(7));
+        QCOMPARE(barrier_text({with(pending[0], barrier_answer("timeout", nullptr, nullptr))}),
+                 QStringLiteral("w 6틱 · U 78,950 · L 77,750"));
+        // The mid-point 78,350 is between ticks (78,300 / 78,400), so are U and L; on a whole tick, U
+        // and L are too.
+        KindAnswer whole = barrier_answer("timeout", nullptr, nullptr);
+        whole.barrier->anchor = 78'400;
+        whole.barrier->upper = 79'000;
+        whole.barrier->lower = 77'800;
+        QCOMPARE(barrier_text({with(pending[0], whole)}), QStringLiteral("w 6틱 · U 79,000 · L 77,800"));
+        // A window the engine did not follow (no path): the predictions' w.
+        KindAnswer restarted = barrier_answer("", nullptr, nullptr);
+        restarted.unscorable = "restarted";
+        restarted.barrier.reset();
+        QCOMPARE(barrier_text({with(pending[0], restarted)}), QStringLiteral("w 6틱"));
+        QVERIFY(barrier_text({not_made("barrier-persist", "09:31", "vi")}).isEmpty());
+    }
+
+    void the_barrier_answer_says_which_barrier_was_reached_first_and_when() {
+        const KindInfo barrier = barrier_kind();
+        QCOMPARE(kind_answer_text(barrier_answer("up_first", "2026-10-12T09:34:28+09:00", nullptr), barrier),
+                 QStringLiteral("정답 위 먼저 (09:34:28 닿음)"));
+        // Both reached: the first, with its own time.
+        QCOMPARE(
+            kind_answer_text(barrier_answer("down_first", "2026-10-12T09:33:40+09:00", "2026-10-12T09:32:05.250+09:00"),
+                             barrier),
+            QStringLiteral("정답 아래 먼저 (09:32:05 닿음)"));
+        QCOMPARE(kind_answer_text(barrier_answer("timeout", nullptr, nullptr), barrier),
+                 QStringLiteral("정답 시간 만료"));
+        KindAnswer same = barrier_answer("", "2026-10-12T09:33:40+09:00", "2026-10-12T09:33:40+09:00");
+        same.unscorable = "ambiguous";
+        QCOMPARE(kind_answer_text(same, barrier), QStringLiteral("채점 불가 (ambiguous)"));
+        KindAnswer special = barrier_answer("timeout", nullptr, nullptr);
+        special.special = true;
+        QCOMPARE(kind_answer_text(special, barrier), QStringLiteral("정답 시간 만료 · 특수 상황"));
+        KindAnswer pathless = barrier_answer("up_first", nullptr, nullptr);
+        pathless.barrier.reset();
+        QCOMPARE(kind_answer_text(pathless, barrier), QStringLiteral("정답 위 먼저"));
+    }
+
+    void the_barrier_panel_lists_three_probabilities_and_scores_on_the_answer() {
+        const KindAnswer up = barrier_answer("up_first", "2026-10-12T09:34:28+09:00", nullptr);
+        const auto rows = kind_rows({with(barrier_forecast("barrier-persist", "09:31", 1, 0, 0), up),
+                                     with(barrier_forecast("barrier-climate", "09:31", 1.0 / 3, 1.0 / 3, 1.0 / 3), up),
+                                     with(barrier_forecast("alg-b", "09:31", 0.45, 0.35, 0.2), up)},
+                                    barrier_kind());
+        QCOMPARE(rows.size(), 3);
+        QCOMPARE(rows[0].algorithm, QStringLiteral("alg-b"));
+        QCOMPARE(rows[1].name, QStringLiteral("기준: 장벽 시간대 기후"));
+        QCOMPARE(rows[2].name, QStringLiteral("기준: 직전 4분 장벽"));
+        QVERIFY(rows[1].baseline);
+        QCOMPARE(rows[0].top, QStringLiteral("위 먼저"));
+        QCOMPARE(*rows[0].probabilities[2], 0.2);
+        QVERIFY(!rows[0].q50.has_value());
+        QCOMPARE(rows[0].result, QStringLiteral("✓ 맞음"));
+        // barrier-climate's default, a third each: a tie goes to the middle class, timeout.
+        QCOMPARE(rows[1].top, QStringLiteral("시간 만료"));
+        QCOMPARE(rows[1].result, QStringLiteral("✗ 틀림"));
+        QCOMPARE(rows[2].result, QStringLiteral("✓ 맞음"));
+    }
+
+    void the_barrier_hover_has_the_answer_and_w_then_each_predictor_s_three_probabilities() {
+        const KindAnswer down = barrier_answer("down_first", "2026-10-12T09:33:40+09:00", "2026-10-12T09:32:05+09:00");
+        const QList<KindPrediction> at_close{with(barrier_forecast("barrier-persist", "09:31", 1, 0, 0), down),
+                                             with(barrier_forecast("alg-b", "09:31", 0.2, 0.35, 0.45), down),
+                                             not_made("barrier-climate", "09:31", "vi")};
+        const auto lines = kind_hover_box(at_close, at("09:31"), barrier_kind(), {{"alg-b", "probation"}});
+        QCOMPARE(lines.size(), 4);
+        QCOMPARE(lines[0], QStringLiteral("09:31 봉 → 09:35 목표 · 정답 아래 먼저 (09:32:05 닿음) · w 6틱"));
+        QCOMPARE(lines[1],
+                 QStringLiteral("alg-b · 수습 · 아래 먼저 · 위 먼저 20% · 시간 만료 35% · 아래 먼저 45% · ✓"));
+        QCOMPARE(lines[2], QStringLiteral("기준: 장벽 시간대 기후 · VI 중"));
+        QCOMPARE(lines[3],
+                 QStringLiteral("기준: 직전 4분 장벽 · 위 먼저 · 위 먼저 100% · 시간 만료 0% · 아래 먼저 0% · ✗"));
+        // Before the answer: w from the predictions, "?" for each.
+        const auto pending =
+            kind_hover_box({barrier_forecast("alg-b", "09:31", 0.2, 0.35, 0.45)}, at("09:31"), barrier_kind(), {});
+        QCOMPARE(pending[0], QStringLiteral("09:31 봉 → 09:35 목표 · 채점 전 · w 6틱"));
+        QCOMPARE(pending[1], QStringLiteral("alg-b · 아래 먼저 · 위 먼저 20% · 시간 만료 35% · 아래 먼저 45% · ?"));
+    }
+
+    void each_bar_s_hover_has_the_barriers_and_where_each_was_first_reached() {
+        const QList<Bar> bars{{at("09:30"), 78'350, 78'350, 78'350, 78'350, 10},
+                              {at("09:31"), 78'350, 78'350, 78'350, 78'350, 10},
+                              {at("09:32"), 78'350, 78'350, 78'350, 78'350, 10}};
+        QMap<QDateTime, QList<KindPrediction>> closes;
+        // 09:31: the best ask reached L at 09:32:05, then the best bid U at 09:33:40: both drawn.
+        closes.insert(at("09:31"),
+                      {with(barrier_forecast("alg-b", "09:31", 0.2, 0.35, 0.45),
+                            barrier_answer("down_first", "2026-10-12T09:33:40+09:00", "2026-10-12T09:32:05+09:00"))});
+        // 09:32: neither reached.
+        closes.insert(at("09:32"), {with(barrier_forecast("alg-b", "09:32", 0.2, 0.35, 0.45),
+                                         barrier_answer("timeout", nullptr, nullptr))});
+        // 09:33: not answered yet.
+        closes.insert(at("09:33"), {barrier_forecast("alg-b", "09:33", 0.2, 0.35, 0.45)});
+
+        const auto hovers = kind_hovers(bars, closes, barrier_kind(), {});
+
+        QCOMPARE(hovers.size(), 3);
+        QCOMPARE(hovers[0].window_from, chart_time(at("09:31")));
+        QCOMPARE(hovers[0].window_to, chart_time(at("09:35")));
+        QCOMPARE(hovers[0].upper, std::optional<double>(78'950));
+        QCOMPARE(hovers[0].lower, std::optional<double>(77'750));
+        // Where each was first reached: the best bid at U or above, the best ask at L or below.
+        QCOMPARE(hovers[0].upper_reached->time, chart_time(kst("2026-10-12T09:33:40+09:00")));
+        QCOMPARE(hovers[0].upper_reached->price, 79'000.0);
+        QCOMPARE(hovers[0].lower_reached->time, chart_time(kst("2026-10-12T09:32:05+09:00")));
+        QCOMPARE(hovers[0].lower_reached->price, 77'700.0);
+        QVERIFY(hovers[0].lines[0].endsWith(QStringLiteral("정답 아래 먼저 (09:32:05 닿음) · w 6틱")));
+        // Neither reached: the barriers, no point.
+        QCOMPARE(hovers[1].upper, std::optional<double>(78'950));
+        QVERIFY(!hovers[1].upper_reached.has_value());
+        QVERIFY(!hovers[1].lower_reached.has_value());
+        // Not answered: the window alone (the engine gives the bar close's mid-point with the answer).
+        QVERIFY(!hovers[2].upper.has_value());
+        QVERIFY(!hovers[2].lower.has_value());
+        QCOMPARE(hovers[2].window_to - hovers[2].window_from, qint64(240));
     }
 
     void the_kind_s_predictions_are_read_back_to_the_first_bar_shown() {

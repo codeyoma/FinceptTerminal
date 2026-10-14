@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <!--
-  The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182), drawn
-  with TradingView Lightweight Charts (NOTICE). It only draws what the screen sends over the web
-  channel: the bars and their volumes, the consensus icons, each bar's hover box and its
-  four-minute window with two levels across it (the touch targets, or the range's highest and
-  lowest mid-points), the theme, and when to fit. It tells the screen where its view is.
+  The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182, #185),
+  drawn with TradingView Lightweight Charts (NOTICE). It only draws what the screen sends over
+  the web channel: the bars and their volumes, the consensus icons, each bar's hover box and its
+  four-minute window with two levels across it (the touch targets, the range's highest and
+  lowest mid-points, or the barrier's U and L), the theme, and when to fit. It tells the screen
+  where its view is.
 -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #080808; }
@@ -115,8 +116,10 @@
   }
 
   // The hovered bar's four-minute window (krx-quant #167): the span from its bar close to four
-  // minutes on, lightly filled; the touch targets across it, once its label is in; where each
-  // was first reached. A window not over yet runs dotted into the free space on the right.
+  // minutes on, lightly filled; the touch targets across it, once its label is in (another kind's
+  // two levels the same way: the range's, the barrier's U and L, #182, #185); where each was first
+  // reached, the upper in the rising colour, the lower in the falling one. A window not over yet
+  // runs dotted into the free space on the right.
   function xOf(time) {
     // A moment's x on the logical bars: within its minute's bar; in minutes without a bar
     // (the chart skips minutes without trades), at the edge where the next bar starts; past

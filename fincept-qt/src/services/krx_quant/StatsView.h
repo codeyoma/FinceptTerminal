@@ -106,8 +106,8 @@ struct StatsColumn {
 /// The stats columns of ``kind``'s leaderboard, detail window and breakdowns, in place of the
 /// direction's (krx_tables' kStatsHeaders): the samples, accuracy, precision and coverage of its
 /// action classes (named by their titles, "작음·큼 정밀도"), Brier; for the range, the share of
-/// r within q10–q90 and q50's error; then the weakest lift's lower bound. No touch P&L: the
-/// direction's own.
+/// r within q10–q90 and q50's error; for the barrier (krx-quant #185), its barrier P&L a trade;
+/// then the weakest lift's lower bound. No touch P&L: the direction's own.
 QList<StatsColumn> kind_stats_columns(const KindInfo& kind);
 /// An entry's cells under kind_stats_columns, with their intervals.
 QList<Shown> kind_stats_cells(const Entry& entry, const KindInfo& kind);
@@ -130,6 +130,30 @@ QList<QuantileRow> quantile_rows(const RangeStats& stats);
 /// The quantile stats' summary: "구간 적중률(q10~q90) 78.0% (95% 72.3–82.9%, 이상 80%) · q50
 /// 오차 3.74틱 (95% 3.15 – 4.32) · 표본 240"; "채점된 예측 없음" without any.
 QString range_summary(const RangeStats& stats);
+/// The header of the barrier P&L column (krx-quant #185); column_tip says what it is.
+inline constexpr auto kBarrierPnlHeader = "장벽 손익(틱, 연구용)";
+
+/// A barrier predictor's P&L cell (krx-quant #185): the mean a trade, ticks; its tooltip the
+/// trades and their total, the 95% interval, and each side's trades and mean. "—" without a
+/// trade or without the stats.
+Shown barrier_pnl_shown(const std::optional<BarrierStats>& stats);
+
+/// A side's row of a barrier predictor's P&L (krx-quant #183, #185).
+struct BarrierPnlRow {
+    QString side;      ///< "전체", "롱(위 먼저)", "숏(아래 먼저)"
+    QString trades;    ///< how many
+    QString total;     ///< ticks
+    QString per_trade; ///< the mean, ticks; "—" without a trade
+    QString interval;  ///< its normal 95% interval; "—" likewise
+};
+
+/// All the trades, the longs (its "up first" calls), the shorts (its "down first" calls).
+QList<BarrierPnlRow> barrier_pnl_rows(const BarrierStats& stats);
+/// The barrier P&L's summary: "채점 240개 중 거래 121건 (롱 60 · 숏 61) · 거래당 -3.13틱 (95%
+/// -3.86 – -2.40) · 합계 -378.4틱"; "채점 252개 · 거래 없음 (모두 시간 만료 예측)" without a trade;
+/// "채점된 예측 없음" without any.
+QString barrier_summary(const BarrierStats& stats);
+
 /// The query the stats answer, in Korean: period · symbol · special situations.
 QString query_text(const AlgorithmStats& stats);
 

@@ -158,6 +158,20 @@ std::optional<RangeStats> range_stats_of(const QJsonValue& v) {
     return stats;
 }
 
+BarrierPnl barrier_pnl_of(const QJsonValue& v) {
+    const QJsonObject o = v.toObject();
+    return BarrierPnl{o.value("trades").toInt(), o.value("total_ticks").toDouble(), interval_of(o.value("per_trade"))};
+}
+
+/// A barrier entry's extra (krx-quant #183): its barrier P&L; none for another kind's.
+std::optional<BarrierStats> barrier_stats_of(const QJsonValue& v) {
+    const QJsonObject o = v.toObject();
+    if (!o.contains("pnl") || !o.contains("long") || !o.contains("short"))
+        return std::nullopt;
+    return BarrierStats{o.value("n").toInt(), barrier_pnl_of(o.value("pnl")), barrier_pnl_of(o.value("long")),
+                        barrier_pnl_of(o.value("short"))};
+}
+
 Entry entry_of(const QJsonObject& e) {
     Entry entry;
     if (e.value("rank").isDouble())
@@ -176,6 +190,7 @@ Entry entry_of(const QJsonObject& e) {
     entry.per_trade = interval_of(pnl.value("per_trade"));
     entry.excluded = excluded_of(e.value("excluded"));
     entry.range = range_stats_of(e.value("extra"));
+    entry.barrier = barrier_stats_of(e.value("extra"));
     if (e.value("lift").isObject()) {
         const QJsonObject lift = e.value("lift").toObject();
         entry.lift_low = number(lift.value("low"));
@@ -678,6 +693,36 @@ std::optional<RangePath> range_path_of(const QJsonValue& v) {
     return path;
 }
 
+/// A barrier answer's path (krx-quant #183); none for another kind's (no ``w`` and ``upper``) or a
+/// window not followed (an empty path).
+std::optional<BarrierPath> barrier_path_of(const QJsonValue& v) {
+    const QJsonObject o = v.toObject();
+    if (!o.contains("w") || !o.contains("upper"))
+        return std::nullopt;
+    BarrierPath path;
+    path.w = integer_of(o.value("w"));
+    path.sigma = number(o.value("sigma"));
+    path.k = integer_of(o.value("k"));
+    path.tick = number(o.value("tick"));
+    path.anchor = number(o.value("anchor"));
+    path.upper = number(o.value("upper"));
+    path.lower = number(o.value("lower"));
+    path.cost = number(o.value("cost"));
+    path.bid_start = number(o.value("bid_start"));
+    path.ask_start = number(o.value("ask_start"));
+    path.up_at = time_of(o.value("up_at"));
+    path.up_bid = number(o.value("up_bid"));
+    path.up_ask = number(o.value("up_ask"));
+    path.down_at = time_of(o.value("down_at"));
+    path.down_bid = number(o.value("down_bid"));
+    path.down_ask = number(o.value("down_ask"));
+    path.bid_end = number(o.value("bid_end"));
+    path.ask_end = number(o.value("ask_end"));
+    path.quotes = o.value("quotes").toInt();
+    path.silent = o.value("silent").toBool();
+    return path;
+}
+
 std::optional<KindAnswer> kind_answer_of(const QJsonValue& v) {
     if (!v.isObject())
         return std::nullopt;
@@ -689,6 +734,7 @@ std::optional<KindAnswer> kind_answer_of(const QJsonValue& v) {
     answer.special = o.value("special").toBool();
     answer.scored_at = time_of(o.value("scored_at"));
     answer.range = range_path_of(o.value("path"));
+    answer.barrier = barrier_path_of(o.value("path"));
     return answer;
 }
 
@@ -702,6 +748,7 @@ KindPrediction kind_prediction_of(const QJsonObject& p, const QString& symbol, c
     made.bar_close = p.contains("bar_close") ? time_of(p.value("bar_close")) : bar_close;
     made.target_at = time_of(p.value("target_at"));
     made.flat_ticks = integer_of(p.value("flat_ticks"));
+    made.width_ticks = integer_of(p.value("width_ticks"));
     if (made.status == "ok") {
         const QJsonObject output = p.value("output").toObject();
         for (auto it = output.begin(); it != output.end(); ++it)
@@ -871,6 +918,9 @@ QString predictor_label(const QString& predictor) {
         // The range's (krx-quant #180, #182).
         {"range-climate", QStringLiteral("기준: 변동폭 시간대 기후")},
         {"range-persist", QStringLiteral("기준: 직전 4분 변동폭")},
+        // The barrier's (krx-quant #183, #185).
+        {"barrier-climate", QStringLiteral("기준: 장벽 시간대 기후")},
+        {"barrier-persist", QStringLiteral("기준: 직전 4분 장벽")},
     };
     return labels.value(predictor, predictor);
 }

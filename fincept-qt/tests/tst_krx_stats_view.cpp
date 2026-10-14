@@ -30,6 +30,30 @@ KindInfo range_kind() {
     return k;
 }
 
+/// The barrier kind as GET /v1/kinds describes it (krx-quant #183, #185).
+KindInfo barrier_kind() {
+    KindInfo k;
+    k.name = "barrier";
+    k.title = QStringLiteral("장벽");
+    k.classes = {"up_first", "timeout", "down_first"};
+    k.class_titles = {QStringLiteral("위 먼저"), QStringLiteral("시간 만료"), QStringLiteral("아래 먼저")};
+    k.action = {"up_first", "down_first"};
+    k.answer_version = 1;
+    k.baselines = {{"barrier-climate", std::nullopt}, {"barrier-persist", std::nullopt}};
+    return k;
+}
+
+/// Made-up barrier P&L: 240 scored, 121 trades — 60 longs, 61 shorts —, as the demo engine's
+/// barrier-persist (its numbers rounded).
+BarrierStats barrier_stats() {
+    BarrierStats b;
+    b.n = 240;
+    b.pnl = BarrierPnl{121, -378.38, Interval{-3.127, -3.856, -2.399, 121}};
+    b.longs = BarrierPnl{60, -214.87, Interval{-3.581, -4.564, -2.599, 60}};
+    b.shorts = BarrierPnl{61, -163.51, Interval{-2.681, -3.75, -1.611, 61}};
+    return b;
+}
+
 /// Made-up quantile stats: 240 scored, q50's pinball also by day, against range-climate on q10.
 RangeStats range_stats() {
     RangeStats r;
@@ -426,9 +450,10 @@ class TstKrxStatsView : public QObject {
         QCOMPARE(cells[6].text, QStringLiteral("2.40"));
         QCOMPARE(cells[6].tip, QStringLiteral("95% 구간 2.10 – 2.70 (n 240)"));
         QCOMPARE(cells[7].text, QStringLiteral("-0.020"));
-        // Another kind without quantiles: no range columns; without its stats, unknown.
+        // Another kind without quantiles (one this screen does not know): no range columns; without
+        // its stats, unknown.
         KindInfo other = range_kind();
-        other.name = "barrier";
+        other.name = "weather";
         QCOMPARE(kind_stats_columns(other).size(), 6);
         e.range.reset();
         QCOMPARE(kind_stats_cells(e, range_kind())[5].text, QStringLiteral("—"));
@@ -507,6 +532,93 @@ class TstKrxStatsView : public QObject {
         // The direction's rules are as before.
         QCOMPARE(ranking_rules({"2026-10-12"}, 200), ranking_rules({"2026-10-12"}, 200, std::nullopt));
         QVERIFY(ranking_rules({"2026-10-12"}, 200).contains(QStringLiteral("기준 예측 셋을 모두 이긴")));
+    }
+
+    void a_barrier_leaderboard_has_up_and_down_first_precision_and_the_barrier_p_and_l() {
+        // krx-quant #185: the kind's columns, its barrier P&L (its extra) before the weakest lift.
+        const auto columns = kind_stats_columns(barrier_kind());
+        QStringList headers;
+        for (const auto& c : columns)
+            headers << c.header;
+        QCOMPARE(headers, (QStringList{"표본", "정답률", "위 먼저·아래 먼저 정밀도", "커버리지", "Brier",
+                                       "장벽 손익(틱, 연구용)", "가장 약한 lift 하한"}));
+        QCOMPARE(columns[2].tip, QStringLiteral("위 먼저·아래 먼저(이)라고 한 예측 중 맞은 비율이다."));
+        QVERIFY(columns[5].tip.startsWith(QStringLiteral("거래당 평균, 연구용 값이다. 위 먼저는 봉 마감의 매도 "
+                                                         "1호가에 사서 위 장벽 U에 먼저 닿으면 U에")));
+        QCOMPARE(column_tip(QStringLiteral("장벽 손익(틱, 연구용)")), columns[5].tip);
+
+        Entry e;
+        e.n = 240;
+        e.accuracy = Interval{0.4125, 0.352, 0.476, 240};
+        e.precision = Interval{0.281, 0.209, 0.367, 121};
+        e.lift_low = -0.05;
+        e.barrier = barrier_stats();
+        const auto cells = kind_stats_cells(e, barrier_kind());
+        QCOMPARE(cells.size(), columns.size());
+        QCOMPARE(cells[2].text, QStringLiteral("28.1%"));
+        QCOMPARE(cells[5].text, QStringLiteral("-3.13"));
+        QCOMPARE(cells[5].tip, QStringLiteral("거래 121건, 합계 -378.4틱\n95% 구간 -3.86 – -2.40 (n 121)\n"
+                                              "롱(위 먼저) 60건 평균 -3.58틱 · 숏(아래 먼저) 61건 평균 -2.68틱"));
+        QCOMPARE(cells[6].text, QStringLiteral("-0.050"));
+        // barrier-climate's default (1/3 each) calls every bar close "timeout": no trade.
+        e.barrier = BarrierStats{252, {}, {}, {}};
+        QCOMPARE(kind_stats_cells(e, barrier_kind())[5].text, QStringLiteral("—"));
+        QCOMPARE(kind_stats_cells(e, barrier_kind())[5].tip,
+                 QStringLiteral("거래 0건, 합계 0.0틱\n롱(위 먼저) 0건 · 숏(아래 먼저) 0건"));
+        // An engine that gives no barrier P&L: unknown.
+        e.barrier.reset();
+        QCOMPARE(kind_stats_cells(e, barrier_kind())[5].text, QStringLiteral("—"));
+        QVERIFY(kind_stats_cells(e, barrier_kind())[5].tip.isEmpty());
+    }
+
+    void the_barrier_p_and_l_has_all_its_trades_then_each_side() {
+        const auto rows = barrier_pnl_rows(barrier_stats());
+        QCOMPARE(rows.size(), 3);
+        QCOMPARE(rows[0].side, QStringLiteral("전체"));
+        QCOMPARE(rows[0].trades, QStringLiteral("121"));
+        QCOMPARE(rows[0].total, QStringLiteral("-378.4"));
+        QCOMPARE(rows[0].per_trade, QStringLiteral("-3.13"));
+        QCOMPARE(rows[0].interval, QStringLiteral("-3.86 – -2.40"));
+        QCOMPARE(rows[1].side, QStringLiteral("롱(위 먼저)"));
+        QCOMPARE(rows[1].trades, QStringLiteral("60"));
+        QCOMPARE(rows[2].side, QStringLiteral("숏(아래 먼저)"));
+        QCOMPARE(rows[2].per_trade, QStringLiteral("-2.68"));
+        // A side without a trade: no mean.
+        BarrierStats longs_only = barrier_stats();
+        longs_only.shorts = BarrierPnl{};
+        QCOMPARE(barrier_pnl_rows(longs_only)[2].trades, QStringLiteral("0"));
+        QCOMPARE(barrier_pnl_rows(longs_only)[2].per_trade, QStringLiteral("—"));
+        QCOMPARE(barrier_pnl_rows(longs_only)[2].interval, QStringLiteral("—"));
+    }
+
+    void the_barrier_summary_says_the_trades_their_mean_and_total() {
+        QCOMPARE(barrier_summary(barrier_stats()),
+                 QStringLiteral("채점 240개 중 거래 121건 (롱 60 · 숏 61) · 거래당 -3.13틱 (95% -3.86 – -2.40) · "
+                                "합계 -378.4틱"));
+        QCOMPARE(barrier_summary(BarrierStats{252, {}, {}, {}}),
+                 QStringLiteral("채점 252개 · 거래 없음 (모두 시간 만료 예측)"));
+        QCOMPARE(barrier_summary(BarrierStats{}), QStringLiteral("채점된 예측 없음"));
+    }
+
+    void a_barrier_predictor_s_calibration_draws_its_classes_and_its_baselines_have_no_lift() {
+        AlgorithmStats stats;
+        stats.kind = "barrier";
+        stats.algorithm = "barrier-persist";
+        const CalibrationBin bin{0.9, 1.0, 40, 1.0, Interval{0.3, 0.2, 0.4, 40}};
+        stats.calibration = {bin};
+        stats.calibration_by_class = {{"up_first", {bin}}, {"timeout", {bin}}, {"down_first", {bin}}};
+        const auto series = calibration_series(stats, barrier_kind());
+        QCOMPARE(series.size(), 4);
+        QCOMPARE(series[1].key, QStringLiteral("up_first"));
+        QCOMPARE(series[2].name, QStringLiteral("시간 만료"));
+        QCOMPARE(series[3].key, QStringLiteral("down_first"));
+        QVERIFY(calibration_tip(stats, barrier_kind()).contains(QStringLiteral("위 먼저·시간 만료·아래 먼저를 따로")));
+        QVERIFY(lift_tip(stats, barrier_kind()).startsWith(QStringLiteral("기준 예측 자신이라 lift가 없다.")));
+        QCOMPARE(ranking_rules({"2026-10-12"}, 200, barrier_kind()).split('\n')[1],
+                 QStringLiteral("장벽 예측을 장벽 정답으로 센다. 정밀도와 커버리지는 위 먼저·아래 먼저(으)로 센다."));
+        QCOMPARE(luck_tip(barrier_kind()),
+                 QStringLiteral("운 보정 통과는 기준 예측(기준: 장벽 시간대 기후, 기준: 직전 4분 장벽)을 모두 이긴 "
+                                "것이 운으로 보기 어렵다는 뜻이다(q ≤ 0.05)."));
     }
 
     void without_values_the_learning_section_says_so_and_a_baseline_has_none() {
