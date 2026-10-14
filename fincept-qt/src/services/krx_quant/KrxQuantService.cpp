@@ -42,7 +42,6 @@ QString query_string(const KrxQuantService::LeaderboardQuery& query) {
     QUrlQuery q;
     q.addQueryItem("symbol", query.symbol);
     q.addQueryItem("period", query.period);
-    q.addQueryItem("basis", query.basis);
     q.addQueryItem("special", query.special_value());
     return q.toString(QUrl::FullyEncoded);
 }

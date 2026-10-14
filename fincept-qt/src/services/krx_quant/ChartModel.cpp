@@ -73,40 +73,35 @@ QString verdict_text(Mark::Result r) {
     return QStringLiteral("채점 전");
 }
 
-/// What happened after a bar close: "실제 상승 +500원", or why it is not known yet.
+/// What happened after a bar close: "정답 상승 (09:32:30 닿음)", the touch target and when it
+/// was reached (krx-quant #170); "실제 상승 +500원" from an engine before it; or why it is not
+/// known yet.
 QString truth_text(const Truth& truth) {
     if (!truth.scored)
         return QStringLiteral("채점 전");
     if (truth.happened == Direction::None)
         return truth.unscorable.isEmpty() ? QStringLiteral("채점 불가")
                                           : QStringLiteral("채점 불가 (%1)").arg(truth.unscorable);
-    QString text = QStringLiteral("실제 %1").arg(direction_label(truth.happened));
-    if (truth.mid_start && truth.mid_target) {
-        const double move = *truth.mid_target - *truth.mid_start;
-        const QString won = QLocale(QLocale::Korean).toString(std::abs(move), 'f', 0);
-        text += QStringLiteral(" %1%2원").arg(move > 0 ? "+" : move < 0 ? "-" : "±", won);
+    QString text;
+    if (truth.touch) {
+        text = QStringLiteral("정답 %1").arg(direction_label(truth.happened));
+        const auto& t = *truth.touch;
+        const std::optional<Reach> reach = truth.happened == Direction::Up     ? t.upper_reached
+                                           : truth.happened == Direction::Down ? t.lower_reached
+                                                                               : std::nullopt;
+        if (reach)
+            text += QStringLiteral(" (%1 닿음)").arg(kst_text(reach->at, "HH:mm:ss"));
+    } else {
+        text = QStringLiteral("실제 %1").arg(direction_label(truth.happened));
+        if (truth.mid_start && truth.mid_target) {
+            const double move = *truth.mid_target - *truth.mid_start;
+            const QString won = QLocale(QLocale::Korean).toString(std::abs(move), 'f', 0);
+            text += QStringLiteral(" %1%2원").arg(move > 0 ? "+" : move < 0 ? "-" : "±", won);
+        }
     }
     if (truth.special)
         text += QStringLiteral(" · 특수 상황");
     return text;
-}
-
-/// The touch label beside it (krx-quant #167): "도달 상승 09:32:30", "도달 보합", "도달 채점 불가 (…)".
-QString touch_text(const Touch& t) {
-    switch (t.direction) {
-        case Direction::Up:
-            return t.upper_reached ? QStringLiteral("도달 상승 %1").arg(kst_text(t.upper_reached->at, "HH:mm:ss"))
-                                   : QStringLiteral("도달 상승");
-        case Direction::Down:
-            return t.lower_reached ? QStringLiteral("도달 하락 %1").arg(kst_text(t.lower_reached->at, "HH:mm:ss"))
-                                   : QStringLiteral("도달 하락");
-        case Direction::Flat:
-            return QStringLiteral("도달 보합");
-        case Direction::None:
-            break;
-    }
-    return t.unscorable.isEmpty() ? QStringLiteral("도달 채점 불가")
-                                  : QStringLiteral("도달 채점 불가 (%1)").arg(t.unscorable);
 }
 
 QString probabilities(const Prediction& p) {
@@ -170,8 +165,6 @@ QStringList hover_box(const QList<Prediction>& at_close, const QDateTime& bar_cl
     if (at_close.isEmpty())
         return {times, QStringLiteral("예측 없음")};
     QStringList lines{QStringLiteral("%1 · %2").arg(times, truth_text(truth))};
-    if (truth.touch)
-        lines.first() += QStringLiteral(" · ") + touch_text(*truth.touch);
     if (!selection.isEmpty()) {
         const qsizetype models = selection.size() - baselines_of(selection).size();
         const QString chosen = QString::number(models);

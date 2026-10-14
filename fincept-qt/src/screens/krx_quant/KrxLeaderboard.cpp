@@ -45,13 +45,6 @@ KrxLeaderboard::KrxLeaderboard(QWidget* parent) : QWidget(parent) {
     for (const char* period : {"today", "5d", "20d"})
         period_->addItem(krx_quant::period_label(period), period);
     controls->addWidget(period_);
-    controls->addWidget(new QLabel(tr("채점 기준")));
-    basis_ = new QComboBox;
-    for (const char* basis : {"b", "a"})
-        basis_->addItem(krx_quant::basis_label(basis), basis);
-    basis_->setToolTip(tr("B: 예측이 화면에 뜬 시각의 중간가부터, A: 봉 마감의 중간가부터 4분. "
-                          "순위표의 통계만 이 기준이다. 차트와 고정한 봉 마감의 ✓/✗는 봉 마감 기준(A)이다."));
-    controls->addWidget(basis_);
     controls->addWidget(new QLabel(tr("종목")));
     symbol_ = new QComboBox;
     symbol_->addItem(tr("전체"), "all");
@@ -70,7 +63,7 @@ KrxLeaderboard::KrxLeaderboard(QWidget* parent) : QWidget(parent) {
     layout->addWidget(table_, 1);
     restyle();
 
-    for (auto* combo : {period_, basis_, symbol_})
+    for (auto* combo : {period_, symbol_})
         connect(combo, &QComboBox::currentIndexChanged, this, &KrxLeaderboard::query_changed);
     connect(special_, &QCheckBox::toggled, this, &KrxLeaderboard::query_changed);
     connect(table_, &QTableWidget::cellDoubleClicked, this, [this](int row, int column) {
@@ -104,8 +97,7 @@ KrxLeaderboard::KrxLeaderboard(QWidget* parent) : QWidget(parent) {
 }
 
 services::KrxQuantService::LeaderboardQuery KrxLeaderboard::query() const {
-    return {symbol_->currentData().toString(), period_->currentData().toString(), basis_->currentData().toString(),
-            special_->isChecked()};
+    return {symbol_->currentData().toString(), period_->currentData().toString(), special_->isChecked()};
 }
 
 void KrxLeaderboard::set_symbols(const QStringList& symbols) {

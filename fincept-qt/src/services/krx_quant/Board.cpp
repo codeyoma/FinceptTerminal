@@ -264,12 +264,20 @@ Truth truth_of(const QList<Prediction>& at_close, const QDateTime& bar_close) {
             truth.target_at = p.target_at;
         if (!p.outcome)
             continue;
-        // Every predictor of a bar close is scored on the same mid-points: any one says it.
+        // Every predictor of a bar close is scored on the same label: any one says it. The
+        // touch target's (krx-quant #170); from an engine before it, the bar close's move (A).
         const Outcome& o = *p.outcome;
         truth.scored = true;
-        truth.happened = o.class_a;
         truth.special = o.special;
-        truth.unscorable = o.class_a == Direction::None ? o.unscorable : QString();
+        if (o.touch) {
+            truth.happened = o.touch->direction;
+            truth.unscorable = o.touch->direction == Direction::None
+                                   ? (o.touch->unscorable.isEmpty() ? o.unscorable : o.touch->unscorable)
+                                   : QString();
+        } else {
+            truth.happened = o.class_a;
+            truth.unscorable = o.class_a == Direction::None ? o.unscorable : QString();
+        }
         truth.mid_start = o.mid_close;
         truth.mid_target = o.mid_target;
         truth.touch = o.touch;

@@ -473,6 +473,7 @@ std::optional<Stage> stage_of(const QJsonValue& v) {
     stage.status = o.value("status").toString();
     stage.began = o.value("began").toString();
     stage.counted_from = o.value("counted_from").toString();
+    stage.waiting = o.value("counted_from").isNull(); // given as null, not left out (an older engine)
     stage.days = o.value("days").toInt();
     for (const auto& d : o.value("review_days").toArray())
         stage.review_days << d.toInt();

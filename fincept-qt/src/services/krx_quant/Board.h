@@ -16,8 +16,9 @@ namespace fincept::krx_quant {
 
 /// What happened after a bar close, the same for every predictor of it (krx-quant #159),
 /// taken from whichever of its forecasts was scored: the chart's icons, its hover and the
-/// pinned table all score on it. Today that is basis A, the bar close's mid-point to the one
-/// four minutes on; krx-quant #160 brings its touch target and where it was reached.
+/// pinned table all score on it: the touch target (krx-quant #160, #170), whether the best bid
+/// reached the bar close's mid-point plus k ticks within four minutes, else the best ask minus
+/// k ticks. From an engine before it, the bar close's mid-point to the one four minutes on.
 struct Truth {
     bool scored = false;                  ///< an outcome is in
     Direction happened = Direction::None; ///< None: not scored yet, or it could not be

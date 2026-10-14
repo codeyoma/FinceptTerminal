@@ -127,8 +127,8 @@ class TstKrxStatsView : public QObject {
     }
 
     void the_columns_a_name_could_mislead_say_what_they_are() {
-        QVERIFY(
-            column_tip(QStringLiteral("중간가 손익(틱)")).startsWith(QStringLiteral("거래당 평균, 연구용 값이다.")));
+        QVERIFY(column_tip(QStringLiteral("닿음 손익(틱, 연구용)"))
+                    .startsWith(QStringLiteral("거래당 평균, 연구용 값이다.")));
         QCOMPARE(column_tip(QStringLiteral("95% 구간")),
                  QStringLiteral("봉 마감마다 따로 센 설명용 구간이다. 같은 날의 4분 정답은 서로 겹쳐 실제보다 "
                                 "확실해 보인다. p도 그렇다."));
@@ -212,14 +212,14 @@ class TstKrxStatsView : public QObject {
         AlgorithmStats s;
         s.symbol = "005930";
         s.period = "20d";
-        s.basis = "a";
+        s.basis = "a"; // asked by an older screen: the touch target is the only one (krx-quant #170)
         s.special = "include";
-        QCOMPARE(query_text(s), QStringLiteral("20일 · 봉 마감 (A) · 005930 · 특수 상황 포함"));
+        QCOMPARE(query_text(s), QStringLiteral("20일 · 005930 · 특수 상황 포함"));
         s.symbol = "all";
         s.period = "today";
-        s.basis = "b";
+        s.basis.clear();
         s.special = "exclude";
-        QCOMPARE(query_text(s), QStringLiteral("오늘 · 표시 시점 (B) · 전체 종목 · 특수 상황 제외"));
+        QCOMPARE(query_text(s), QStringLiteral("오늘 · 전체 종목 · 특수 상황 제외"));
     }
 
     void the_weakest_lift_is_its_lower_bound_or_unknown() {
@@ -340,6 +340,7 @@ class TstKrxStatsView : public QObject {
         Stage stage;
         stage.status = "probation";
         stage.began = "2026-10-12";
+        stage.counted_from = "2026-10-12";
         stage.days = 2;
         stage.next_review = 10;
         stage.next_review_on = "2026-10-23";
@@ -362,6 +363,13 @@ class TstKrxStatsView : public QObject {
         QCOMPARE(rows[5].second, QStringLiteral("승격함 · 이유 글"));
         QCOMPARE(rows[6].second, QStringLiteral("2026-10-12부터 · 2거래일 셈 · 다음 판정 10일째 (2026-10-23 예정)"));
         QCOMPARE(rows[7].second, QStringLiteral("base-x 대비 -0.012 · 거래일 하한 -0.387 (2일, 신뢰 98.3%)"));
+
+        // Waiting for a model trained on the touch target (krx-quant #170): nothing counted yet.
+        info.stage->counted_from.clear();
+        info.stage->waiting = true;
+        info.stage->days = 0;
+        QCOMPARE(learning_rows(info)[6].second,
+                 QStringLiteral("2026-10-12부터 · 0거래일 셈 · 새 정답으로 학습한 모델을 기다림"));
     }
 
     void without_values_the_learning_section_says_so_and_a_baseline_has_none() {

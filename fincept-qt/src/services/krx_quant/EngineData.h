@@ -233,7 +233,7 @@ struct Entry {
 struct Leaderboard {
     QString symbol;  ///< a symbol, or "all"
     QString period;  ///< "today", "5d" or "20d"
-    QString basis;   ///< "a" or "b"
+    QString basis;   ///< "a" or "b" as asked; an engine since krx-quant #170 scores on the touch target alone
     QString special; ///< "exclude" or "include"
     QStringList days;
     int min_sample = 0;
@@ -363,7 +363,8 @@ struct Stage {
     QString status; ///< "probation" or "bench"
     QString began;  ///< "YYYY-MM-DD"
     QString counted_from;
-    int days = 0; ///< trading days counted
+    bool waiting = false; ///< counted_from null: no model trained on the touch target runs yet (krx-quant #170)
+    int days = 0;         ///< trading days counted
     QList<int> review_days;
     std::optional<int> next_review; ///< the day counted; none past the last
     QString next_review_on;         ///< "YYYY-MM-DD", empty when none

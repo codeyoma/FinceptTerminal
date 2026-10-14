@@ -35,8 +35,8 @@ inline QTableWidgetItem* shown_cell(const krx_quant::Shown& shown) {
 }
 
 /// The stats columns set_stats fills, in order.
-inline constexpr const char* kStatsHeaders[] = {"표본",  "정답률",          "방향 정밀도",        "커버리지",
-                                                "Brier", "중간가 손익(틱)", "가장 약한 lift 하한"};
+inline constexpr const char* kStatsHeaders[] = {
+    "표본", "정답률", "방향 정밀도", "커버리지", "Brier", "닿음 손익(틱, 연구용)", "가장 약한 lift 하한"};
 inline constexpr int kStatsColumns = static_cast<int>(std::size(kStatsHeaders));
 
 inline QStringList stats_headers() {
