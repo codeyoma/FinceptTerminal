@@ -4,11 +4,9 @@
 #   1. When upstream publishes a release newer than custom/UPSTREAM_BASE, merge
 #      it on the runner with custom/merge-upstream-release.sh and push the
 #      result to the branch upstream-merge/<tag>.
-#   2. Open the issue "Upstream <tag>: ready to build", which asks for the trial
-#      build by hand (Actions → custom-release → Run workflow, on that branch).
-#      When both builds pass, custom-release fast-forwards `custom` to the merge
-#      and pushes the tag custom-<tag>-krx.1, which publishes the personal build.
-#      Builds are started by hand only (krx-quant, 2026-10-14).
+#   2. Start custom-release on that branch as a trial build. When both builds
+#      pass, custom-release fast-forwards `custom` to the merge and pushes the
+#      tag custom-<tag>-krx.1, which publishes the personal build.
 # Nothing reaches `custom` when the merge conflicts or a trial build fails; an
 # issue titled "Upstream <tag>: merge needs a hand" says how to finish by hand,
 # and the daily run waits while it is open.
@@ -22,7 +20,7 @@ on:
 permissions:
   contents: write
   issues: write
-  actions: read   # gh run list: is a trial build of the release running
+  actions: write   # start the custom-release trial build
 
 concurrency:
   group: custom-upstream-watch
@@ -82,7 +80,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BASE: ${{ steps.release.outputs.base }}
         run: |
-          for title in "Upstream $BASE released" "Upstream $BASE: merge needs a hand" "Upstream $BASE: ready to build"; do
+          for title in "Upstream $BASE released" "Upstream $BASE: merge needs a hand"; do
             gh issue list --state open --search "\"$title\" in:title" --json number,title \
               --jq ".[] | select(.title == \"$title\") | .number" |
               while read -r n; do
@@ -100,29 +98,18 @@ jobs:
           title="Upstream $LATEST: merge needs a hand"
           open=$(gh issue list --state open --search "\"$title\" in:title" --json number,title \
             --jq ".[] | select(.title == \"$title\") | .number" | head -1)
-          ready="Upstream $LATEST: ready to build"
-          waiting=$(gh issue list --state open --search "\"$ready\" in:title" --json number,title \
-            --jq ".[] | select(.title == \"$ready\") | .number" | head -1)
           busy=$(gh run list --workflow custom-release.yml --branch "upstream-merge/$LATEST" \
             --json status --jq '[.[] | select(.status != "completed")] | length')
           if [ -n "$open" ]; then
             echo "Waiting for issue #$open to be finished by hand."
             echo "go=false" >> "$GITHUB_OUTPUT"
-          elif [ "$busy" != "0" ]; then
-            echo "The trial build of upstream-merge/$LATEST is still running."
-            echo "go=false" >> "$GITHUB_OUTPUT"
-          elif [ -n "$waiting" ] && [ "$(gh api "repos/$GH_REPO/compare/custom...upstream-merge/$LATEST" --jq .behind_by 2>/dev/null || echo 0)" != "0" ]; then
-            # custom moved on after the merge: the trial build could no longer land it.
-            # Merge again on the new custom, and ask again.
-            gh issue close "$waiting" --comment "\`custom\` moved on after the merge; merging $LATEST again on its new head."
-            echo "go=true" >> "$GITHUB_OUTPUT"
-          elif [ -n "$waiting" ]; then
-            echo "upstream-merge/$LATEST waits for its trial build, started by hand (issue #$waiting)."
-            echo "go=false" >> "$GITHUB_OUTPUT"
           elif [[ ! "$LATEST" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             # Personal builds are tagged custom-vX.Y.Z-krx.N, the only shape the
             # app updates from (AppRelease.h).
             gh issue create --title "$title" --body "Upstream published $LATEST, which is not vX.Y.Z. Personal builds are tagged \`custom-vX.Y.Z-krx.N\`, the only shape the app updates from (\`fincept-qt/src/services/krx_quant/AppRelease.h\`), so the automatic merge stops here. Merge it by hand with \`custom/merge-upstream-release.sh $LATEST\` and pick a tag the app can read. This issue closes itself once \`custom/UPSTREAM_BASE\` says $LATEST."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          elif [ "$busy" != "0" ]; then
+            echo "The trial build of upstream-merge/$LATEST is still running."
             echo "go=false" >> "$GITHUB_OUTPUT"
           else
             echo "go=true" >> "$GITHUB_OUTPUT"
@@ -138,7 +125,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.SYNC_TOKEN || github.token }}
 
-      - name: Merge the release
+      - name: Merge the release and start the trial build
         id: merge
         if: steps.plan.outputs.go == 'true'
         env:
@@ -162,17 +149,9 @@ jobs:
             echo "result=push-failed" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "result=ready" >> "$GITHUB_OUTPUT"
-          echo "Pushed $branch; its trial build is started by hand."
-
-      - name: Ask for the trial build
-        if: steps.merge.outputs.result == 'ready'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          LATEST: ${{ steps.release.outputs.latest }}
-        run: |
-          branch="upstream-merge/$LATEST"
-          gh issue create --title "Upstream $LATEST: ready to build" --body "Upstream published $LATEST (https://github.com/$UPSTREAM/releases/tag/$LATEST). It merged cleanly into \`$branch\`. Start its trial build by hand: Actions → custom-release → Run workflow, branch \`$branch\` (or \`gh workflow run custom-release.yml --repo $GH_REPO --ref $branch\`). When the Windows and macOS builds pass, custom-release moves \`custom\` to the merge and tags \`custom-$LATEST-krx.1\`. This issue closes itself once \`custom/UPSTREAM_BASE\` says $LATEST; the daily run waits while it is open."
+          gh workflow run custom-release.yml --ref "$branch"
+          echo "result=trial" >> "$GITHUB_OUTPUT"
+          echo "Pushed $branch and started its trial build."
 
       - name: Ask for a hand
         if: steps.merge.outputs.result == 'conflict' || steps.merge.outputs.result == 'push-failed'
