@@ -226,8 +226,8 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
     // words, read at run time. Above the stats, in a pane of its own the user can resize.
     about_header_ = krx_panel::header(
         tr("학습·예측 방식"),
-        tr("엔진이 알려 주는 이 알고리즘의 성격, 예측 로직, 입력, 학습 방법과 지금 모델이다. 학습 결과의 "
-           "손실은 학습 데이터로 잰 값이라 다른 알고리즘이나 검증 손실과 견줄 수 없다."));
+        tr("엔진이 알려 주는 이 알고리즘의 성격, 예측 로직, 입력, 학습 방법, 지금 모델에 대한 설명이다. 학습 "
+           "결과의 손실은 학습 데이터로 잰 값이라 다른 알고리즘이나 검증 손실과 견줄 수 없다."));
     about_ = new QLabel;
     about_->setWordWrap(true);
     about_->setTextFormat(Qt::RichText);
