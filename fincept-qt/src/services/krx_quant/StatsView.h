@@ -102,4 +102,10 @@ QString query_text(const AlgorithmStats& stats);
 /// consensus), or, with ``failure``, that the descriptions could not be read and why.
 QList<QPair<QString, QString>> about_rows(const std::optional<AlgorithmInfo>& info, const QString& failure = {});
 
+/// The "학습과 검증" section below it (krx-quant #165): what the model was trained on and its
+/// training loss, last night's validation (the new and the server's model, promoted or not and
+/// why) and, on probation or the bench, how far to the next review. Empty for a predictor
+/// that is not an algorithm, or with nothing read.
+QList<QPair<QString, QString>> learning_rows(const std::optional<AlgorithmInfo>& info);
+
 } // namespace fincept::krx_quant

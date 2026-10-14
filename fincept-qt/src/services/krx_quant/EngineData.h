@@ -319,6 +319,60 @@ struct StatusRecord {
     QString reason;
 };
 
+/// What a model was trained on (krx-quant #165): its days, samples and loss on its own
+/// training data, and the days by where their outcomes came from.
+struct TrainingInfo {
+    QString first_day; ///< "YYYY-MM-DD"
+    QString last_day;
+    int samples = 0;
+    double loss = 0;                  ///< mean log loss on its training samples
+    std::optional<int> recorded_days; ///< outcomes from recorded mid-points; none when not said
+    std::optional<int> bar_days;      ///< outcomes from one-minute closes
+};
+
+/// A model in last night's validation: its version and validation loss.
+struct ValidatedModel {
+    QString version;
+    std::optional<double> loss;
+    std::optional<bool> trained_on_validation; ///< the server's model only
+};
+
+/// The algorithm's report of the latest night's training (krx-quant #165), as stored.
+struct NightValidation {
+    QString day; ///< the night, "YYYY-MM-DD"
+    QStringList validation_days;
+    std::optional<int> samples;
+    std::optional<ValidatedModel> challenger; ///< the new model; none when not trained
+    std::optional<ValidatedModel> champion;   ///< the server's; none without validation data
+    bool promoted = false;
+    QString reason;
+};
+
+/// The weakest lift by trading day toward a review (krx-quant #165).
+struct WeakestLift {
+    QString baseline;
+    int n = 0; ///< trading days
+    std::optional<double> value;
+    std::optional<double> low;
+    std::optional<double> high;
+};
+
+/// Where a probation or bench algorithm stands toward its next review (krx-quant #165), as of
+/// the latest review.
+struct Stage {
+    QString status; ///< "probation" or "bench"
+    QString began;  ///< "YYYY-MM-DD"
+    QString counted_from;
+    int days = 0; ///< trading days counted
+    QList<int> review_days;
+    std::optional<int> next_review; ///< the day counted; none past the last
+    QString next_review_on;         ///< "YYYY-MM-DD", empty when none
+    int lift_days = 0;
+    std::optional<double> level;
+    std::optional<WeakestLift> weakest;
+    bool enough = false;
+};
+
 /// One algorithm of GET /v1/algorithms (krx-quant #163): its card, inputs, the model it
 /// runs now and its status with the history. Empty where the engine leaves a value out.
 struct AlgorithmInfo {
@@ -331,9 +385,12 @@ struct AlgorithmInfo {
     std::optional<QMap<QString, Meaning>> param_meanings;
     std::optional<int> training_days;
     QString model_version;
-    QList<QPair<QString, QString>> params; ///< name, value as text, by name
-    QString trained;                       ///< e.g. "2026-09-08..2026-10-08, 22560 samples, log loss 0.61"
-    QString trained_until;                 ///< "YYYY-MM-DD"
+    QList<QPair<QString, QString>> params;     ///< name, value as text, by name
+    QString trained;                           ///< e.g. "2026-09-08..2026-10-08, 22560 samples, log loss 0.61"
+    std::optional<TrainingInfo> training;      ///< the same as values (krx-quant #165)
+    std::optional<NightValidation> validation; ///< last night's report (krx-quant #165)
+    std::optional<Stage> stage;                ///< on probation or the bench (krx-quant #165)
+    QString trained_until;                     ///< "YYYY-MM-DD"
     QString status;
     QDateTime since;
     QList<StatusRecord> history; ///< oldest first

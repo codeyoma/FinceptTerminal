@@ -234,8 +234,29 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
     about_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     about_->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     about_->setContentsMargins(12, 6, 12, 6);
+    // Below it, what the model learned from and last night's validation (krx-quant #165).
+    learning_header_ = krx_panel::header(
+        tr("학습과 검증"),
+        tr("학습 손실은 학습 데이터로, 검증 손실은 학습에 쓰지 않은 검증일로 잰 값이라 서로 견주지 않는다. 지난밤 "
+           "검증은 마지막 밤 학습 리포트 그대로다. 단계는 마지막 판정 때의 것이다."));
+    learning_ = new QLabel;
+    learning_->setWordWrap(true);
+    learning_->setTextFormat(Qt::RichText);
+    learning_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    learning_->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    learning_->setContentsMargins(12, 6, 12, 6);
+    auto* about_body = new QWidget;
+    auto* about_column = new QVBoxLayout(about_body);
+    about_column->setContentsMargins(0, 0, 0, 0);
+    about_column->setSpacing(0);
+    about_column->addWidget(about_);
+    about_column->addWidget(learning_header_.bar);
+    about_column->addWidget(learning_);
+    about_column->addStretch(1);
+    learning_header_.bar->hide();
+    learning_->hide();
     auto* about_scroll = new QScrollArea;
-    about_scroll->setWidget(about_);
+    about_scroll->setWidget(about_body);
     about_scroll->setWidgetResizable(true);
     about_scroll->setFrameShape(QFrame::NoFrame);
 
@@ -295,6 +316,9 @@ void KrxStatsWindow::open(const QString& algorithm) {
     if (algorithm != algorithm_ || !isVisible()) {
         algorithm_ = algorithm;
         about_->clear(); // the stats' failure leaves the algorithm's description as read
+        learning_->clear();
+        learning_header_.bar->hide();
+        learning_->hide();
         clear();
         loading_->show_loading(tr("읽는 중…"));
     }
@@ -324,6 +348,15 @@ void KrxStatsWindow::show_about(const std::optional<krx_quant::AlgorithmInfo>& i
         lines << QStringLiteral("<b>%1</b>&nbsp;&nbsp;%2")
                      .arg(label.toHtmlEscaped(), text.toHtmlEscaped().replace('\n', QStringLiteral("<br>")));
     about_->setText(lines.join(QStringLiteral("<br>")));
+
+    const auto learning = failure.isEmpty() ? krx_quant::learning_rows(info) : QList<QPair<QString, QString>>{};
+    QStringList learned;
+    for (const auto& [label, text] : learning)
+        learned << QStringLiteral("<b>%1</b>&nbsp;&nbsp;%2")
+                       .arg(label.toHtmlEscaped(), text.toHtmlEscaped().replace('\n', QStringLiteral("<br>")));
+    learning_->setText(learned.join(QStringLiteral("<br>")));
+    learning_header_.bar->setVisible(!learning.isEmpty());
+    learning_->setVisible(!learning.isEmpty());
 }
 
 void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats) {
@@ -372,9 +405,11 @@ void KrxStatsWindow::show_failure(const QString& reason) {
 void KrxStatsWindow::restyle() {
     setStyleSheet(QString("#krxStatsWindow{background:%1;}#krxStatsWindow QLabel{background:transparent;}")
                       .arg(ui::colors::BG_BASE()));
-    for (const auto* header : {&header_, &about_header_, &lift_header_, &calibration_header_, &breakdown_header_})
+    for (const auto* header :
+         {&header_, &about_header_, &learning_header_, &lift_header_, &calibration_header_, &breakdown_header_})
         header->restyle();
     about_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
+    learning_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
     failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
     for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_})
         krx_tables::restyle(table);
