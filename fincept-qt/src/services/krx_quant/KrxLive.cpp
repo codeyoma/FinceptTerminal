@@ -165,7 +165,8 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
             emit stats_failed(algorithm, reason);
     });
     connect(service_, &KrxQuantService::base_url_changed, this, [this](const QString& url) {
-        stream_->open(url); // also when another KRX panel applied an address
+        relabeling_ = false; // its page was dropped with the old engine's reads
+        stream_->open(url);  // also when another KRX panel applied an address
         // The old engine's macro row goes; the new engine's is read.
         macro_.reset();
         macro_failure_.clear();
@@ -203,6 +204,7 @@ void KrxLive::apply_base_url(const QString& url) {
     KrxQuantService::set_base_url(url);
     board_ = {};
     board_.focus(selected_);
+    relabeling_ = false; // the restart below drops a page under way: none would answer
     bars_.clear();
     live_.reset();
     forget_older(); // the old engine's
