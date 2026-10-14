@@ -50,13 +50,31 @@ Direction class_of(const QJsonValue& v) {
     return classes.value(v.toString(), Direction::None);
 }
 
+/// A touch target's first reach in a touch label, if it was reached.
+std::optional<Reach> reach_of(const QJsonObject& touch, const QString& side) {
+    const QDateTime at = time_of(touch.value(side + "_at"));
+    const auto price = number(touch.value(side + "_price"));
+    if (!at.isValid() || !price)
+        return std::nullopt;
+    return Reach{at, *price};
+}
+
+std::optional<Touch> touch_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject t = v.toObject();
+    return Touch{class_of(t.value("class")), t.value("unscorable").toString(), number(t.value("anchor")),
+                 number(t.value("upper")),   number(t.value("lower")),         reach_of(t, "upper"),
+                 reach_of(t, "lower")};
+}
+
 std::optional<Outcome> outcome_of(const QJsonValue& v) {
     if (!v.isObject())
         return std::nullopt;
     const QJsonObject o = v.toObject();
     return Outcome{class_of(o.value("class_a")),     class_of(o.value("class_b")), o.value("special").toBool(),
                    o.value("unscorable").toString(), number(o.value("mid_close")), number(o.value("mid_display")),
-                   number(o.value("mid_target"))};
+                   number(o.value("mid_target")),    touch_of(o.value("touch"))};
 }
 
 /// The feeds of a KIS status (``/v1/status``'s ``kis``, a health event's).

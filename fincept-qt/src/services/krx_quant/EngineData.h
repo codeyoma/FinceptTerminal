@@ -93,6 +93,25 @@ struct SymbolQuote {
     std::optional<double> mid;
 };
 
+/// Where one of a bar close's touch targets was first reached (krx-quant #167).
+struct Reach {
+    QDateTime at;
+    double price = 0; ///< the best bid (upper) or ask (lower) then
+};
+
+/// A bar close's touch label (krx-quant #160, #167): did the best bid reach the mid-point plus
+/// k ticks within the four minutes (up), else the best ask reach it minus k (down), else flat.
+/// Recorded beside the outcome; the chart draws its window, targets and where they were reached.
+struct Touch {
+    Direction direction = Direction::None; ///< None: it could not be scored
+    QString unscorable;                    ///< why not, e.g. "silent quotes"
+    std::optional<double> anchor;          ///< the mid-point at the bar close
+    std::optional<double> upper;           ///< the targets
+    std::optional<double> lower;
+    std::optional<Reach> upper_reached;
+    std::optional<Reach> lower_reached;
+};
+
 /// A prediction scored 4 minutes after its bar close, on both bases: A from the bar
 /// close's mid-point, B from the one when it was displayed.
 struct Outcome {
@@ -105,6 +124,7 @@ struct Outcome {
     std::optional<double> mid_close;
     std::optional<double> mid_display;
     std::optional<double> mid_target;
+    std::optional<Touch> touch; ///< the bar close's touch label; none from an engine before it (krx-quant #167)
 };
 
 /// How a consensus's members leaned (krx-quant #106): the active algorithms it pooled, by

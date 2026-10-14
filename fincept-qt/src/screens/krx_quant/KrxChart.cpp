@@ -190,13 +190,17 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
         for (const auto& h : hovers) {
             QJsonObject box{{"time", h.time},
                             {"lines", QJsonArray::fromStringList(h.lines)},
-                            {"target", h.target},
-                            {"target_shown", h.target_shown},
-                            {"target_after_last", h.target_after_last}};
-            if (h.hit_time && h.hit_price) {
-                box.insert("hit_time", *h.hit_time);
-                box.insert("hit_price", *h.hit_price);
-            }
+                            {"from", h.window_from},
+                            {"to", h.window_to}};
+            // The touch targets, once the label is in (krx-quant #167), each as it is.
+            if (h.upper)
+                box.insert("upper", *h.upper);
+            if (h.lower)
+                box.insert("lower", *h.lower);
+            for (const auto& [key, point] :
+                 {std::pair{"upper_reached", h.upper_reached}, std::pair{"lower_reached", h.lower_reached}})
+                if (point)
+                    box.insert(key, QJsonObject{{"time", point->time}, {"price", point->price}});
             boxes.insert(h.time, compact(box));
         }
     }

@@ -432,6 +432,35 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!read.value().contains("newton")); // none known
     }
 
+    void an_outcome_carries_its_bar_close_s_touch_label() {
+        // krx-quant #167: recorded beside the outcome; none from an engine before it.
+        const auto read = parse_predictions(json(R"({"symbol": "005930", "predictions": [
+          {"algorithm": "gauss", "model_version": "g-1", "bar_close": "2026-10-12T09:31:00+09:00",
+           "displayed_at": "2026-10-12T09:31:00.5+09:00", "target_at": "2026-10-12T09:35:00+09:00",
+           "status": "ok", "p_up": 0.5, "p_flat": 0.3, "p_down": 0.2, "expected_ticks": 1.0,
+           "outcome": {"mid_close": 81250, "mid_display": 81250, "mid_target": 81350, "flat_ticks": 2,
+                       "class_a": "flat", "class_b": "flat", "special": false, "unscorable": null,
+                       "scored_at": "2026-10-12T09:35:00+09:00",
+                       "touch": {"target_version": 2, "class": "up", "unscorable": null, "anchor": 81250,
+                                 "upper": 81450, "lower": 81050, "upper_at": "2026-10-12T09:32:30+09:00",
+                                 "upper_price": 81500, "lower_at": null, "lower_price": null}}},
+          {"algorithm": "markov", "model_version": "m-1", "bar_close": "2026-10-12T09:31:00+09:00",
+           "displayed_at": "2026-10-12T09:31:00.5+09:00", "target_at": "2026-10-12T09:35:00+09:00",
+           "status": "ok", "p_up": 0.5, "p_flat": 0.3, "p_down": 0.2, "expected_ticks": 1.0,
+           "outcome": {"mid_close": 81250, "mid_display": 81250, "mid_target": 81350, "flat_ticks": 2,
+                       "class_a": "flat", "class_b": "flat", "special": false, "unscorable": null,
+                       "scored_at": "2026-10-12T09:35:00+09:00"}}]})"));
+        QVERIFY(read.is_ok());
+        const auto& touch = read.value()[0].outcome->touch;
+        QVERIFY(touch.has_value());
+        QCOMPARE(touch->direction, Direction::Up);
+        QCOMPARE(touch->upper, std::optional<double>(81450.0));
+        QCOMPARE(touch->upper_reached->price, 81500.0);
+        QCOMPARE(touch->upper_reached->at, QDateTime::fromString("2026-10-12T09:32:30+09:00", Qt::ISODate));
+        QVERIFY(!touch->lower_reached.has_value());
+        QVERIFY(!read.value()[1].outcome->touch.has_value()); // an older engine's
+    }
+
     void the_algorithms_say_what_they_are_and_how_they_learn() {
         // Made-up text: the fork holds none of the engine's own (krx-quant #163).
         const auto read = parse_algorithms(json(R"({"algorithms": [
