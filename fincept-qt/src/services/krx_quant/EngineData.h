@@ -294,11 +294,21 @@ Result<QMap<QString, QString>> parse_statuses(const QJsonDocument& doc);
 /// What an algorithm is, as the engine describes it (GET /v1/algorithms, its card): the
 /// text is the engine's, in Korean, read at run time (the fork holds none of it).
 struct AlgorithmCard {
-    QString scientist;
+    QString scientist; ///< empty for a baseline
     QString character; ///< its thesis in a few words, e.g. "추세 추종"
     QString logic;     ///< how it forecasts
     QStringList unique_features;
-    QString training; ///< how it learns
+    QString training;    ///< how it learns
+    QString forecasting; ///< how it makes its three probabilities (krx-quant #164)
+    QString failure;     ///< the market it tends to be wrong in (krx-quant #164)
+};
+
+/// What a feature or a parameter is (krx-quant #164), as the engine says: its meaning, its
+/// unit and when it is known (at the bar close, the day before, …).
+struct Meaning {
+    QString meaning;
+    QString unit;
+    QString known;
 };
 
 /// A change of an algorithm's lifecycle status, as the engine recorded it.
@@ -313,8 +323,12 @@ struct StatusRecord {
 /// runs now and its status with the history. Empty where the engine leaves a value out.
 struct AlgorithmInfo {
     QString name;
+    QString kind = QStringLiteral("algorithm"); ///< "algorithm", "baseline" or "consensus" (krx-quant #164)
     std::optional<AlgorithmCard> card;
     QStringList features;
+    /// By name; none from an older engine (krx-quant #164), which gives no such field.
+    std::optional<QMap<QString, Meaning>> feature_meanings;
+    std::optional<QMap<QString, Meaning>> param_meanings;
     std::optional<int> training_days;
     QString model_version;
     QList<QPair<QString, QString>> params; ///< name, value as text, by name
@@ -325,7 +339,8 @@ struct AlgorithmInfo {
     QList<StatusRecord> history; ///< oldest first
 };
 
-/// Every algorithm of GET /v1/algorithms, by name.
+/// Every algorithm of GET /v1/algorithms, by name, and the baselines' and the consensus'
+/// cards beside them (krx-quant #164: only a card, no model or status).
 Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc);
 /// GET /v1/consensus: its members, the active algorithms.
 Result<QStringList> parse_members(const QJsonDocument& doc);

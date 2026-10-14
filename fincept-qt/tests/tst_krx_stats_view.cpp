@@ -278,6 +278,52 @@ class TstKrxStatsView : public QObject {
         QCOMPARE(failed.size(), 1);
         QCOMPARE(failed[0].second, QStringLiteral("엔진에서 설명을 읽지 못했습니다: 엔진에 연결할 수 없습니다"));
     }
+
+    void the_card_says_how_it_forecasts_and_each_name_says_what_it_is() {
+        // Made-up text: the fork holds none of the engine's own (krx-quant #164).
+        AlgorithmInfo info;
+        info.name = "alpha";
+        info.card = AlgorithmCard{"A. Person", "테스트 성격", "로직 글", {}, "학습 글", "확률 글", "실패 글"};
+        info.features = {"f1", "f2"};
+        info.feature_meanings = {{"f1", {"뜻 1", "틱", "봉 마감"}}, {"f2", {"뜻 2", "", ""}}};
+        info.model_version = "alpha-1";
+        info.params = {{"a", "3"}, {"b", "0.25"}};
+        info.param_meanings = {{"a", {"뜻 a", "", "밤 학습"}}}; // b's is missing: its name alone
+
+        const auto rows = about_rows(info);
+
+        QStringList labels;
+        for (const auto& row : rows)
+            labels << row.first;
+        QCOMPARE(labels, (QStringList{"성격", "예측 로직", "예측 방식", "실패 조건", "입력 피처", "학습 방법", "모델",
+                                      "학습 결과", "파라미터"}));
+        QCOMPARE(rows[2].second, QStringLiteral("확률 글"));
+        QCOMPARE(rows[3].second, QStringLiteral("실패 글"));
+        QCOMPARE(rows[4].second, QStringLiteral("f1 — 뜻 1 (틱 · 봉 마감)\nf2 — 뜻 2"));
+        QCOMPARE(rows[8].second, QStringLiteral("a = 3 — 뜻 a (밤 학습)\nb = 0.25"));
+
+        // A newer engine that knows no meaning for these names: still one line each.
+        info.feature_meanings = QMap<QString, Meaning>{};
+        info.param_meanings = QMap<QString, Meaning>{};
+        const auto bare = about_rows(info);
+        QCOMPARE(bare[4].second, QStringLiteral("f1\nf2"));
+        QCOMPARE(bare[8].second, QStringLiteral("a = 3\nb = 0.25"));
+    }
+
+    void a_baseline_or_the_consensus_shows_its_card_only() {
+        AlgorithmInfo info;
+        info.name = "baseline-x";
+        info.kind = "baseline";
+        info.card = AlgorithmCard{{}, "기준 성격", "기준 로직", {}, "배우지 않음", "기준 확률", "기준 실패"};
+
+        const auto rows = about_rows(info);
+
+        QStringList labels;
+        for (const auto& row : rows)
+            labels << row.first;
+        QCOMPARE(labels, (QStringList{"성격", "예측 로직", "예측 방식", "실패 조건", "학습 방법"}));
+        QCOMPARE(rows[0].second, QStringLiteral("기준 성격")); // no scientist
+    }
 };
 
 QTEST_GUILESS_MAIN(TstKrxStatsView)
