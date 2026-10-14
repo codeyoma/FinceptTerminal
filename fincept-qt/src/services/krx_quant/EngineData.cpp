@@ -395,8 +395,10 @@ Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc) 
         const QJsonObject model = a.value("model").toObject();
         info.model_version = model.value("version").toString();
         const QJsonObject params = model.value("params").toObject();
-        for (auto it = params.constBegin(); it != params.constEnd(); ++it)
-            info.params << QPair<QString, QString>(it.key(), param_text(it.value()));
+        QStringList names = params.keys();
+        names.sort(); // by name, whatever order the object keeps
+        for (const auto& name : names)
+            info.params << QPair<QString, QString>(name, param_text(params.value(name)));
         info.trained = model.value("trained").toString();
         info.trained_until = model.value("trained_until").toString();
         const QJsonObject status = a.value("status").toObject();
