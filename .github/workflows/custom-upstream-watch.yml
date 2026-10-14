@@ -80,7 +80,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BASE: ${{ steps.release.outputs.base }}
         run: |
-          for title in "Upstream $BASE released" "Upstream $BASE: merge needs a hand"; do
+          # "ready to build": opened while trial builds were started by hand (#46); closed
+          # here still, though no longer opened.
+          for title in "Upstream $BASE released" "Upstream $BASE: merge needs a hand" "Upstream $BASE: ready to build"; do
             gh issue list --state open --search "\"$title\" in:title" --json number,title \
               --jq ".[] | select(.title == \"$title\") | .number" |
               while read -r n; do
