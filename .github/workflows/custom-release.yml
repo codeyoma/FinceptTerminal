@@ -417,9 +417,11 @@ jobs:
           else
             echo "::warning::QtWebEngineProcess.exe not found in ${QT_BIN} — WebEngine chart will be unavailable"
           fi
-          # Resource paks + ICU data live in Qt's resources/ dir.
+          # Resource paks, ICU data and the V8 startup snapshot live in Qt's
+          # resources/ dir. Without the snapshot every renderer aborts at start
+          # and each web view stays blank (codeyoma/krx-quant#207).
           mkdir -p "${BUILD_DIR}/resources"
-          for pak in icudtl.dat qtwebengine_resources.pak qtwebengine_resources_100p.pak \
+          for pak in icudtl.dat v8_context_snapshot.bin qtwebengine_resources.pak qtwebengine_resources_100p.pak \
             qtwebengine_resources_200p.pak qtwebengine_devtools_resources.pak; do
             [ -f "${QT_ROOT_DIR}/resources/${pak}" ] && \
               cp "${QT_ROOT_DIR}/resources/${pak}" "${BUILD_DIR}/resources/" || true
@@ -457,7 +459,7 @@ jobs:
           # are data files the dependency-closure gate can't see, so check here.
           if [ -f "${BUILD_DIR}/Qt6WebEngineCore.dll" ]; then
             for we in QtWebEngineProcess.exe resources/icudtl.dat \
-              resources/qtwebengine_resources.pak; do
+              resources/v8_context_snapshot.bin resources/qtwebengine_resources.pak; do
               if [ ! -f "${BUILD_DIR}/${we}" ]; then
                 echo "::error::Missing WebEngine runtime file: ${we} (Equity chart would crash)"
                 MISSING=1
@@ -691,6 +693,7 @@ jobs:
             $required += @(
               'QtWebEngineProcess.exe',
               'resources/icudtl.dat',
+              'resources/v8_context_snapshot.bin',
               'resources/qtwebengine_resources.pak'
             )
           }
