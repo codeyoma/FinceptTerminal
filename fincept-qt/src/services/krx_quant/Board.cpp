@@ -75,6 +75,8 @@ QList<Prediction> Board::apply(const Event& event) {
             break;
         case Event::Type::Health:
         case Event::Type::Bar:
+        case Event::Type::KindPrediction: // another kind's: KindBoard's (krx-quant #182)
+        case Event::Type::KindAnswer:
         case Event::Type::Other:
             break;
     }
@@ -358,6 +360,138 @@ QDateTime scoring_at(const Latest& latest) {
         if (p.target_at.isValid())
             return p.target_at;
     return {};
+}
+
+void KindBoard::set_kind(const QString& kind) {
+    if (kind == kind_)
+        return;
+    kind_ = kind;
+    forget();
+}
+
+void KindBoard::focus(const QString& symbol) {
+    if (symbol == focus_)
+        return;
+    focus_ = symbol;
+    closes_.clear();
+}
+
+void KindBoard::set_latest(const KindLatest& latest) {
+    if (!latest.kind.isEmpty() && latest.kind != kind_)
+        return;
+    for (KindPrediction p : latest.predictions) {
+        p.symbol = latest.symbol;
+        put(p);
+    }
+}
+
+void KindBoard::set_history(const QString& symbol, const QList<KindPrediction>& predictions) {
+    for (KindPrediction p : predictions) {
+        p.symbol = symbol;
+        put(p);
+    }
+}
+
+bool KindBoard::apply(const Event& event) {
+    if (kind_.isEmpty() || event.prediction_kind != kind_)
+        return false;
+    if (event.type == Event::Type::KindPrediction) {
+        for (const auto& p : event.kind_predictions)
+            put(p);
+        return true;
+    }
+    if (event.type == Event::Type::KindAnswer) {
+        for (const auto& a : event.kind_answers)
+            answer(a.symbol, a.bar_close, a.answer);
+        return true;
+    }
+    return false;
+}
+
+void KindBoard::forget() {
+    latest_.clear();
+    closes_.clear();
+    answers_.clear();
+}
+
+bool KindBoard::rewind_to(const QDateTime& now) {
+    bool dropped = false;
+    for (auto it = latest_.begin(); it != latest_.end();) {
+        const bool later = it->bar_close > now;
+        dropped |= later;
+        it = later ? latest_.erase(it) : std::next(it);
+    }
+    for (auto it = closes_.begin(); it != closes_.end();) {
+        const bool later = it.key() > now;
+        dropped |= later;
+        it = later ? closes_.erase(it) : std::next(it);
+    }
+    for (auto& answers : answers_)
+        for (auto it = answers.begin(); it != answers.end();)
+            it = it.key() > now ? answers.erase(it) : std::next(it);
+    return dropped;
+}
+
+void KindBoard::put(KindPrediction p) {
+    if (p.symbol.isEmpty() || !p.bar_close.isValid())
+        return;
+    // An answer that came before (the stream's, while this was read) goes to it.
+    if (!p.answer && p.status == QLatin1String("ok")) {
+        const QMap<QDateTime, KindAnswer> known = answers_.value(p.symbol);
+        if (const auto it = known.constFind(p.bar_close); it != known.cend())
+            p.answer = *it;
+    }
+    if (p.answer)
+        answers_[p.symbol].insert(p.bar_close, *p.answer);
+    const auto replaces = [](const KindPrediction& shown, const KindPrediction& incoming) {
+        return incoming.answer.has_value() || !shown.answer.has_value();
+    };
+    KindLatest& latest = latest_[p.symbol];
+    if (!latest.bar_close.isValid() || p.bar_close > latest.bar_close) {
+        latest = {p.symbol, kind_, p.bar_close, {p}};
+    } else if (p.bar_close == latest.bar_close) {
+        auto shown = std::find_if(latest.predictions.begin(), latest.predictions.end(),
+                                  [&p](const KindPrediction& q) { return q.algorithm == p.algorithm; });
+        if (shown == latest.predictions.end()) {
+            latest.predictions << p;
+            std::sort(latest.predictions.begin(), latest.predictions.end(),
+                      [](const KindPrediction& a, const KindPrediction& b) { return a.algorithm < b.algorithm; });
+        } else if (replaces(*shown, p)) {
+            *shown = p;
+        }
+    }
+    if (!focus_.isEmpty() && p.symbol == focus_) {
+        auto& at_close = closes_[p.bar_close];
+        const auto shown = at_close.constFind(p.algorithm);
+        if (shown == at_close.cend() || replaces(*shown, p))
+            at_close.insert(p.algorithm, p);
+    }
+}
+
+void KindBoard::answer(const QString& symbol, const QDateTime& bar_close, const KindAnswer& answer) {
+    answers_[symbol].insert(bar_close, answer);
+    if (auto it = latest_.find(symbol); it != latest_.end() && it->bar_close == bar_close)
+        for (auto& p : it->predictions)
+            if (p.status == QLatin1String("ok"))
+                p.answer = answer;
+    if (symbol == focus_)
+        if (auto it = closes_.find(bar_close); it != closes_.end())
+            for (auto& p : *it)
+                if (p.status == QLatin1String("ok"))
+                    p.answer = answer;
+}
+
+KindLatest KindBoard::latest(const QString& symbol) const {
+    return latest_.value(symbol, KindLatest{symbol, kind_, {}, {}});
+}
+
+QMap<QDateTime, QList<KindPrediction>> KindBoard::closes(const QString& symbol) const {
+    QMap<QDateTime, QList<KindPrediction>> out;
+    if (focus_.isEmpty() || symbol != focus_)
+        return out;
+    for (auto it = closes_.cbegin(); it != closes_.cend(); ++it)
+        out.insert(it.key(), it->values());
+    return out;
 }
 
 } // namespace fincept::krx_quant

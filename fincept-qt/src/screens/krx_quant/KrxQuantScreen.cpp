@@ -7,6 +7,7 @@
 #include "screens/krx_quant/KrxStatsWindow.h"
 #include "screens/krx_quant/KrxTables.h"
 #include "services/krx_quant/ChartModel.h"
+#include "services/krx_quant/KindView.h"
 #include "ui/theme/Theme.h"
 #include "ui/widgets/LoadingOverlay.h"
 
@@ -34,6 +35,8 @@ enum SymbolColumn { kSymbol, kMid, kFinal, kScoring };
 constexpr auto kChartViewKey = "krx_quant/chart_view_minutes";
 // The models selected for the chart (krx-quant #159), as "gauss,markov".
 constexpr auto kChartSelectionKey = "krx_quant/chart_selection";
+// The kind of prediction shown (krx-quant #182): "direction", "range", …
+constexpr auto kKindKey = "krx_quant/kind";
 // The chart draws again this long after the last prediction of the chosen symbol came:
 // a bar close brings about ten at once.
 constexpr int kChartSettleMs = 250;
@@ -96,6 +99,27 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     dot_ = new QLabel;
     dot_->setFixedSize(8, 8);
     header_.row->insertWidget(2, dot_); // right after the title
+    // The kind of prediction shown (krx-quant #182): checkable buttons as the chart's views, one
+    // kind at a time; a kind the engine does not make (or this screen cannot show yet) greyed.
+    kind_bar_ = new QWidget;
+    auto* kinds = new QHBoxLayout(kind_bar_);
+    kinds->setContentsMargins(12, 0, 0, 0);
+    kinds->setSpacing(2);
+    kinds->addWidget(new QLabel(tr("예측 종류")));
+    for (const auto& choice : krx_quant::kind_choices(std::nullopt)) {
+        auto* button = new QPushButton(choice.title);
+        button->setCheckable(true);
+        button->setFocusPolicy(Qt::NoFocus);
+        button->setProperty("kind", choice.name);
+        connect(button, &QPushButton::clicked, this, [this, name = choice.name]() {
+            AppConfig::instance().set(kKindKey, name);
+            live_->set_kind(name);
+            show_kinds(); // checked as chosen, even while it shows another
+        });
+        kind_buttons_ << button;
+        kinds->addWidget(button);
+    }
+    header_.row->insertWidget(3, kind_bar_);
     header_.controls->addWidget(new QLabel(tr("엔진 주소")));
     url_edit_ = new QLineEdit(services::KrxQuantService::base_url());
     url_edit_->setPlaceholderText(tr("예: http://엔진-주소:8080"));
@@ -279,7 +303,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(live_, &services::KrxLive::leaderboard_failed, leaderboard_, &KrxLeaderboard::show_failure);
     connect(live_, &services::KrxLive::stats_changed, this, [this](const krx_quant::AlgorithmStats& stats) {
         if (auto* window = stats_windows_.value(stats.algorithm))
-            window->show_stats(stats);
+            window->show_stats(stats, krx_quant::kind_named(live_->kinds(), stats.kind));
     });
     connect(live_, &services::KrxLive::stats_failed, this, [this](const QString& algorithm, const QString& reason) {
         if (auto* window = stats_windows_.value(algorithm))
@@ -288,6 +312,18 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(live_, &services::KrxLive::algorithms_changed, this, [this]() {
         for (auto it = stats_windows_.cbegin(); it != stats_windows_.cend(); ++it)
             it.value()->show_about(about_of(it.key()), live_->algorithms_failure());
+    });
+    connect(live_, &services::KrxLive::kinds_changed, this, [this]() {
+        show_kinds();
+        for (auto it = stats_windows_.cbegin(); it != stats_windows_.cend(); ++it) // a kind's baselines' cards
+            it.value()->show_about(about_of(it.key()), live_->algorithms_failure());
+    });
+    connect(live_, &services::KrxLive::kind_changed, this, &KrxQuantScreen::on_kind_changed);
+    connect(live_, &services::KrxLive::kind_predictions_changed, this, [this]() {
+        if (live_->kind() == QLatin1String(krx_quant::kDirectionKind))
+            return; // the direction's panel and boxes follow their own
+        fill_predictions();
+        chart_soon_->start(); // the hover boxes, once they settle
     });
     connect(live_, &services::KrxLive::signal_raised, alerts_, &KrxAlerts::raise);
     connect(live_, &services::KrxLive::base_url_changed, this, [this](const QString& url) {
@@ -345,6 +381,8 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(&ui::ThemeManager::instance(), &ui::ThemeManager::theme_changed, this, [this]() { refresh_theme(); });
 
     live_->set_alerts(alerts_->is_on(), alerts_->rule());
+    live_->set_kind(AppConfig::instance().get(kKindKey, QString(krx_quant::kDirectionKind)).toString());
+    show_kinds();
     live_->set_leaderboard_query(leaderboard_->query());
     const QStringList selection = krx_quant::parse_selection(AppConfig::instance().get(kChartSelectionKey).toString());
     leaderboard_->set_selection(selection);
@@ -398,6 +436,16 @@ void KrxQuantScreen::refresh_theme() {
                 "QPushButton:hover:!checked{color:%3;border-color:%5;}")
             .arg(ui::colors::TEXT_TERTIARY(), ui::colors::AMBER(), ui::colors::TEXT_PRIMARY(), ui::colors::BG_BASE(),
                  ui::colors::BORDER_MED()));
+    // The kind selector as the views (krx-quant #182); a kind that cannot be chosen, dim.
+    kind_bar_->setStyleSheet(
+        QString("QLabel{color:%1;padding-right:4px;}"
+                "QPushButton{background:transparent;color:%3;border:1px solid transparent;padding:2px 8px;"
+                "font-weight:700;}"
+                "QPushButton:checked{color:%4;background:%2;border:1px solid %2;}"
+                "QPushButton:hover:!checked:enabled{border-color:%5;}"
+                "QPushButton:disabled{color:%6;}")
+            .arg(ui::colors::TEXT_TERTIARY(), ui::colors::AMBER(), ui::colors::TEXT_PRIMARY(), ui::colors::BG_BASE(),
+                 ui::colors::BORDER_MED(), ui::colors::TEXT_DIM()));
     fill_chart();                              // the volumes' and icons' colors too
     dot_->setProperty("krxColor", QVariant()); // the dot in the new colors
     show_dot();
@@ -601,8 +649,159 @@ void KrxQuantScreen::fill_pinned() {
     }
 }
 
+void KrxQuantScreen::show_kinds() {
+    const QString saved = AppConfig::instance().get(kKindKey, QString(krx_quant::kDirectionKind)).toString();
+    const auto choices = krx_quant::kind_choices(live_->kinds());
+    for (auto* button : kind_buttons_) {
+        const QString name = button->property("kind").toString();
+        for (const auto& c : choices) {
+            if (c.name != name)
+                continue;
+            button->setText(c.title);
+            button->setEnabled(c.enabled);
+            button->setToolTip(c.tip);
+        }
+        // The kind shown; the one chosen stays kept while it cannot be shown (an older engine).
+        button->setChecked(name == live_->kind());
+        if (name == saved && name != live_->kind())
+            button->setToolTip(button->toolTip() + tr("\n고른 종류지만 지금 엔진에서는 방향을 보인다."));
+    }
+}
+
+void KrxQuantScreen::on_kind_changed() {
+    show_kinds();
+    const bool direction = live_->kind() == QLatin1String(krx_quant::kDirectionKind);
+    leaderboard_->set_kind(direction ? std::nullopt : live_->kind_info());
+    // The panel's header items go with their columns: the kind's tooltips do not stay on the direction's.
+    predictions_table_->setColumnCount(0);
+    fill_predictions();
+    fill_chart();
+}
+
+void KrxQuantScreen::fill_kind() {
+    const auto kind = live_->kind_info();
+    const bool pinned = live_->pinned().isValid();
+    const QString& symbol = live_->selected();
+    QStringList headers{tr("예측"), tr("구간")};
+    if (kind)
+        headers << kind->class_titles;
+    const bool range = live_->kind() == QLatin1String(krx_quant::kRangeKind);
+    if (range)
+        headers << tr("q10") << tr("q50") << tr("q90");
+    if (pinned)
+        headers << tr("결과");
+    headers << tr("모델");
+    predictions_table_->setColumnCount(static_cast<int>(headers.size()));
+    predictions_table_->setHorizontalHeaderLabels(headers);
+    if (range) {
+        // What the columns are, on their headers: the widths in ticks are on the panel's title.
+        const int first = 2;
+        const QStringList tips{tr("4분 동안 중간가 변동폭(최고 − 최저)이 k틱보다 작을 확률"),
+                               tr("k틱 이상 2k틱 미만일 확률"),
+                               tr("2k틱 이상일 확률"),
+                               tr("변동폭의 10% 분위수(틱): 열에 하나는 이보다 작다"),
+                               tr("변동폭의 중앙값(틱)"),
+                               tr("변동폭의 90% 분위수(틱): 열에 아홉은 이보다 작다")};
+        for (int i = 0; i < tips.size() && first + i < predictions_table_->columnCount(); ++i)
+            if (auto* item = predictions_table_->horizontalHeaderItem(first + i))
+                item->setToolTip(tips[i]);
+    }
+    predictions_table_->setRowCount(0);
+    if (!kind || symbol.isEmpty())
+        return kind_title();
+    const QList<krx_quant::KindPrediction> at_close = pinned ? live_->kind_board().closes(symbol).value(live_->pinned())
+                                                             : live_->kind_board().latest(symbol).predictions;
+    const auto quantile = [](const std::optional<double>& q) { return q ? krx_quant::ticks_text(*q) : QString(); };
+    for (const auto& r : krx_quant::kind_rows(at_close, *kind)) {
+        const int row = predictions_table_->rowCount();
+        predictions_table_->insertRow(row);
+        QList<QPair<QString, Qt::Alignment>> cells{{r.name, Qt::AlignLeft | Qt::AlignVCenter},
+                                                   {r.top, Qt::AlignLeft | Qt::AlignVCenter}};
+        for (const auto& p : r.probabilities)
+            cells.append({krx_percent(p), kNumber});
+        for (qsizetype i = r.probabilities.size(); i < kind->classes.size(); ++i)
+            cells.append({QString(), kNumber}); // no forecast
+        if (range)
+            cells << QPair<QString, Qt::Alignment>{quantile(r.q10), kNumber}
+                  << QPair<QString, Qt::Alignment>{quantile(r.q50), kNumber}
+                  << QPair<QString, Qt::Alignment>{quantile(r.q90), kNumber};
+        if (pinned)
+            cells.append({r.result, Qt::AlignLeft | Qt::AlignVCenter});
+        cells.append({r.model_version, Qt::AlignLeft | Qt::AlignVCenter});
+        for (int c = 0; c < cells.size(); ++c) {
+            auto* item = cell(cells[c].first, cells[c].second);
+            if (r.baseline)
+                item->setForeground(QColor(ui::colors::TEXT_DIM()));
+            predictions_table_->setItem(row, c, item);
+        }
+    }
+    kind_title();
+}
+
+void KrxQuantScreen::kind_title() {
+    QLabel* panel_title = predictions_header_.title;
+    const QString& symbol = live_->selected();
+    const auto kind = live_->kind_info();
+    const QString name = kind ? kind->title : live_->kind();
+    if (symbol.isEmpty()) {
+        panel_title->setText(tr("예측 · %1").arg(name));
+        return;
+    }
+    // k now, from the symbols' answer: the bar close's own once its answer is in.
+    std::optional<int> k_now;
+    for (const auto& q : live_->board().symbols())
+        if (q.symbol == symbol)
+            k_now = q.flat_ticks;
+    const bool range = live_->kind() == QLatin1String(krx_quant::kRangeKind);
+    if (live_->pinned().isValid()) {
+        const auto at_close = live_->kind_board().closes(symbol).value(live_->pinned());
+        QStringList parts{
+            tr("%1 · %2 · %3 봉 마감의 판단").arg(symbol, name, krx_quant::kst_text(live_->pinned(), "MM-dd HH:mm"))};
+        if (kind) {
+            std::optional<krx_quant::KindAnswer> answer;
+            for (const auto& p : at_close)
+                if (p.answer)
+                    answer = p.answer;
+            parts << krx_quant::kind_answer_text(answer, *kind);
+        }
+        if (range)
+            if (const QString widths = krx_quant::widths_text(krx_quant::bar_close_k(at_close, std::nullopt));
+                !widths.isEmpty())
+                parts << widths;
+        panel_title->setText(parts.join(QStringLiteral(" · ")));
+        return;
+    }
+    const krx_quant::KindLatest latest = live_->kind_board().latest(symbol);
+    if (!latest.bar_close.isValid()) {
+        panel_title->setText(tr("%1 · %2 · 예측 없음").arg(symbol, name));
+        return;
+    }
+    QStringList parts;
+    if (!is_today(latest.bar_close)) {
+        parts << tr("%1 · %2 · %3 봉 마감 (지난 거래일)")
+                     .arg(symbol, name, krx_quant::kst_text(latest.bar_close, "MM-dd HH:mm"));
+    } else {
+        parts << tr("%1 · %2 · %3 봉 마감").arg(symbol, name, krx_quant::kst_text(latest.bar_close, "HH:mm"));
+        QDateTime at;
+        for (const auto& p : latest.predictions)
+            if (p.target_at.isValid())
+                at = p.target_at;
+        const QDateTime now = live_->engine_now();
+        if (at.isValid())
+            parts << (now.secsTo(at) > 0 ? tr("채점까지 %1").arg(krx_countdown(now.secsTo(at)))
+                                         : tr("%1에 채점").arg(krx_quant::kst_text(at, "HH:mm")));
+    }
+    if (range)
+        if (const QString widths = krx_quant::widths_text(krx_quant::bar_close_k(latest.predictions, k_now));
+            !widths.isEmpty())
+            parts << widths;
+    panel_title->setText(parts.join(QStringLiteral(" · ")));
+}
+
 void KrxQuantScreen::fill_predictions() {
     latest_->setVisible(live_->pinned().isValid());
+    if (live_->kind() != QLatin1String(krx_quant::kDirectionKind))
+        return fill_kind(); // another kind's panel (krx-quant #182)
     if (live_->pinned().isValid())
         return fill_pinned();
     predictions_table_->setColumnCount(kPredictionColumns);
@@ -667,11 +866,16 @@ void KrxQuantScreen::fill_chart() {
     }
     const krx_quant::SignalRule rule = alerts_->rule();
     const QList<krx_quant::Mark> marks = live_->board().marks(symbol, live_->selection());
-    // Each 1-minute bar's box (krx-quant #159): the minute views' only.
-    const QList<krx_quant::BarHover> hovers = minutes_ == 1
-                                                  ? krx_quant::bar_hovers(live_->bars(), live_->board().closes(symbol),
-                                                                          live_->selection(), live_->standings(), rule)
-                                                  : QList<krx_quant::BarHover>{};
+    // Each 1-minute bar's box (krx-quant #159): the minute views' only. While another kind is
+    // shown, its own (krx-quant #182): its answer and predictions, and the range's highest and
+    // lowest mid-points; the icons stay the direction's.
+    const auto kind = live_->kind() != QLatin1String(krx_quant::kDirectionKind) ? live_->kind_info() : std::nullopt;
+    const QList<krx_quant::BarHover> hovers =
+        minutes_ != 1 ? QList<krx_quant::BarHover>{}
+        : kind
+            ? krx_quant::kind_hovers(live_->bars(), live_->kind_board().closes(symbol), *kind, live_->kind_standings())
+            : krx_quant::bar_hovers(live_->bars(), live_->board().closes(symbol), live_->selection(),
+                                    live_->standings(), rule);
     chart_->set_data(candles ? live_->view_candles(minutes_) : live_->bars(), marks, hovers, rule, minutes_);
     show_score();
 }
@@ -694,7 +898,8 @@ std::optional<krx_quant::AlgorithmInfo> KrxQuantScreen::about_of(const QString& 
     const auto& algorithms = live_->algorithms();
     if (const auto it = algorithms.constFind(algorithm); it != algorithms.cend())
         return *it;
-    return std::nullopt;
+    // Another kind's baseline (krx-quant #182): its card is in GET /v1/kinds.
+    return krx_quant::kind_baseline_info(live_->kinds(), algorithm);
 }
 
 void KrxQuantScreen::open_detail(const QString& algorithm) {
@@ -732,6 +937,8 @@ void KrxQuantScreen::update_countdowns() {
     }
     const QString& symbol = live_->selected();
     QLabel* panel_title = predictions_header_.title;
+    if (live_->kind() != QLatin1String(krx_quant::kDirectionKind))
+        return kind_title();                              // another kind's panel (krx-quant #182)
     if (live_->pinned().isValid() && !symbol.isEmpty()) { // pinned: no countdown, its own time
         panel_title->setText(
             tr("%1 · %2 봉 마감의 판단").arg(symbol, krx_quant::kst_text(live_->pinned(), "MM-dd HH:mm")));

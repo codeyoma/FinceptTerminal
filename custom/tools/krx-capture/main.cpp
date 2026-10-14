@@ -19,7 +19,9 @@
 #include <QApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QPushButton>
+#include <QScreen>
 #include <QTextStream>
 #include <QTimer>
 #ifdef HAS_QT_WEBENGINE
@@ -46,9 +48,20 @@ int main(int argc, char* argv[]) {
     // chart (krx-quant #159); empty clears them. Unset, the scratch settings' last one stays.
     if (qEnvironmentVariableIsSet("KRX_CAPTURE_SELECTION"))
         fincept::AppConfig::instance().set("krx_quant/chart_selection", qEnvironmentVariable("KRX_CAPTURE_SELECTION"));
+    // KRX_CAPTURE_KIND=<kind>: the prediction kind chosen at the top (krx-quant #182), e.g. "range";
+    // "direction" goes back. Unset, the scratch settings' last one stays. Shown once the engine says it makes it.
+    if (qEnvironmentVariableIsSet("KRX_CAPTURE_KIND"))
+        fincept::AppConfig::instance().set("krx_quant/kind", qEnvironmentVariable("KRX_CAPTURE_KIND"));
 
     fincept::screens::KrxQuantScreen screen;
     screen.resize(width, height);
+    // KRX_CAPTURE_SCREEN=<index>: open on that display (QGuiApplication::screens()), e.g. a wide
+    // one when the primary is too narrow for the width asked (the window is kept within its display).
+    if (const QString index = qEnvironmentVariable("KRX_CAPTURE_SCREEN"); !index.isEmpty()) {
+        const auto screens = QGuiApplication::screens();
+        if (const int i = index.toInt(); i >= 0 && i < screens.size())
+            screen.move(screens[i]->availableGeometry().topLeft());
+    }
     screen.show();
     if (auto* leaderboard = screen.findChild<fincept::screens::KrxLeaderboard*>()) {
         for (const auto& predictor : details) // as a double-click on its line asks

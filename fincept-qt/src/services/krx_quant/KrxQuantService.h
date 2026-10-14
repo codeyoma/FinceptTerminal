@@ -44,14 +44,23 @@ class KrxQuantService : public QObject {
         QString symbol = "all";
         QString period = "today"; ///< "today", "5d" or "20d"
         bool special = false;     ///< include the predictions a VI, circuit breaker or sidecar touched
+        /// The kind ranked (krx-quant #182): "direction" (asked without ``kind``, as before) or another.
+        /// An algorithm's stats are of its own kind: they are asked without it.
+        QString kind = "direction";
 
         /// The API's value for ``special``: "include" or "exclude".
         QString special_value() const { return special ? "include" : "exclude"; }
         bool operator==(const LeaderboardQuery&) const = default;
-        /// Whether ``answer`` (a Leaderboard, or an AlgorithmStats) answers this query.
+        /// Whether ``answer`` (an AlgorithmStats) answers this query: its symbol, period and special
+        /// situations; a stats answer is of its predictor's kind.
         template <typename Answer>
         bool matches(const Answer& answer) const {
             return answer.symbol == symbol && answer.period == period && answer.special == special_value();
+        }
+        /// Whether ``answer`` answers this query, its kind too.
+        bool matches(const krx_quant::Leaderboard& answer) const {
+            return answer.kind == kind && answer.symbol == symbol && answer.period == period &&
+                   answer.special == special_value();
         }
     };
 
@@ -106,6 +115,18 @@ class KrxQuantService : public QObject {
     /// status history; krx-quant #163): algorithms_ready or algorithms_failed. Asked again
     /// while one is read, it is not read.
     void read_algorithms();
+    /// The kinds of prediction the engine makes (GET /v1/kinds, krx-quant #179, #182):
+    /// kinds_ready or kinds_failed (an engine before #179 has no such answer). Asked again while
+    /// one is read, it is not read.
+    void read_kinds();
+    /// A symbol's predictions of ``kind`` (besides the direction) at its latest bar close
+    /// (krx-quant #182): kind_latest_ready or kind_latest_failed. Asked again while one is read,
+    /// it is not read.
+    void read_kind_latest(const QString& symbol, const QString& kind);
+    /// A symbol's predictions of ``kind`` of the ``limit`` bar closes before ``before`` (invalid:
+    /// before now), for the chart's hover boxes (krx-quant #182): kind_history_ready or
+    /// kind_history_failed. Asked again while one is read, it is not read: KrxLive asks again.
+    void read_kind_history(const QString& symbol, const QString& kind, const QDateTime& before, int limit);
 
   signals:
     void snapshot_ready(const fincept::services::KrxQuantService::Snapshot& snapshot);
@@ -134,6 +155,13 @@ class KrxQuantService : public QObject {
     void macro_failed(const QString& reason);
     void algorithms_ready(const QMap<QString, fincept::krx_quant::AlgorithmInfo>& algorithms);
     void algorithms_failed(const QString& reason);
+    void kinds_ready(const QList<fincept::krx_quant::KindInfo>& kinds);
+    void kinds_failed(const QString& reason);
+    void kind_latest_ready(const fincept::krx_quant::KindLatest& latest);
+    void kind_latest_failed(const QString& symbol, const QString& kind, const QString& reason);
+    void kind_history_ready(const QString& symbol, const QString& kind, const QDateTime& before,
+                            const QList<fincept::krx_quant::KindPrediction>& predictions);
+    void kind_history_failed(const QString& symbol, const QString& kind, const QString& reason);
     /// The address this service reads changed (also when another panel set it).
     void base_url_changed(const QString& url);
 
@@ -151,7 +179,10 @@ class KrxQuantService : public QObject {
         kCandles,
         kPredictions,
         kAlgorithms,
-        kKinds
+        kKindList,    ///< GET /v1/kinds
+        kKindLatest,  ///< a kind's latest predictions
+        kKindHistory, ///< a kind's predictions over bar closes
+        kKinds        ///< how many kinds of read there are
     };
 
     /// Start a read of ``kind`` unless one is under way; false if skipped.

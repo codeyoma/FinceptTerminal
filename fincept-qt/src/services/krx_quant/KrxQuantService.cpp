@@ -46,6 +46,20 @@ QString query_string(const KrxQuantService::LeaderboardQuery& query) {
     return q.toString(QUrl::FullyEncoded);
 }
 
+/// The leaderboard's query string: an algorithm's stats', and the kind ranked unless the
+/// direction (krx-quant #182: asked as before, so an older engine answers it alike).
+QString leaderboard_string(const KrxQuantService::LeaderboardQuery& query) {
+    QString string = query_string(query);
+    if (query.kind != QLatin1String("direction"))
+        string += "&kind=" + QString::fromUtf8(QUrl::toPercentEncoding(query.kind));
+    return string;
+}
+
+/// A path under a symbol's kind (krx-quant #179): /v1/symbols/{symbol}/kinds/{kind}…
+QString kind_path(const QString& symbol, const QString& kind, const QString& rest) {
+    return symbol_path(symbol, "/kinds/" + QString::fromUtf8(QUrl::toPercentEncoding(kind)) + rest);
+}
+
 } // namespace
 
 QString krx_failure(const std::string& error) {
@@ -339,7 +353,7 @@ void KrxQuantService::read_leaderboard(const LeaderboardQuery& query) {
     if (!begin(kLeaderboard))
         return;
     leaderboard_asked_ = query;
-    get("/v1/leaderboard?" + query_string(query), [this](Result<QJsonDocument> answer) {
+    get("/v1/leaderboard?" + leaderboard_string(query), [this](Result<QJsonDocument> answer) {
         end(kLeaderboard);
         if (next_leaderboard_) { // asked again meanwhile: this answer, or its failure, is stale
             const LeaderboardQuery next = *next_leaderboard_;
@@ -349,6 +363,10 @@ void KrxQuantService::read_leaderboard(const LeaderboardQuery& query) {
         auto leaderboard = parsed(answer, krx_quant::parse_leaderboard);
         if (leaderboard.is_err())
             return emit leaderboard_failed(why(leaderboard.error()));
+        // An engine that does not know the kind asked for answers the direction's (krx-quant #182).
+        if (leaderboard.value().kind != leaderboard_asked_.kind)
+            return emit leaderboard_failed(
+                QStringLiteral("엔진이 이 예측 종류(%1)의 순위표를 주지 않았습니다").arg(leaderboard_asked_.kind));
         emit leaderboard_ready(leaderboard.value());
     });
 }
@@ -372,6 +390,49 @@ void KrxQuantService::read_stats(const QString& algorithm, const LeaderboardQuer
         if (stats.is_err())
             return emit stats_failed(algorithm, why(stats.error()));
         emit stats_ready(stats.value());
+    });
+}
+
+void KrxQuantService::read_kinds() {
+    if (!begin(kKindList))
+        return;
+    get("/v1/kinds", [this](Result<QJsonDocument> answer) {
+        end(kKindList);
+        auto kinds = parsed(answer, krx_quant::parse_kinds);
+        if (kinds.is_err())
+            return emit kinds_failed(why(kinds.error()));
+        emit kinds_ready(kinds.value());
+    });
+}
+
+void KrxQuantService::read_kind_latest(const QString& symbol, const QString& kind) {
+    if (!begin(kKindLatest))
+        return;
+    get(kind_path(symbol, kind, "/latest"), [this, symbol, kind](Result<QJsonDocument> answer) {
+        end(kKindLatest);
+        auto latest = parsed(answer, krx_quant::parse_kind_latest);
+        if (latest.is_err())
+            return emit kind_latest_failed(symbol, kind, why(latest.error()));
+        krx_quant::KindLatest read = latest.value();
+        read.symbol = symbol;
+        read.kind = kind;
+        emit kind_latest_ready(read);
+    });
+}
+
+void KrxQuantService::read_kind_history(const QString& symbol, const QString& kind, const QDateTime& before,
+                                        int limit) {
+    if (!begin(kKindHistory))
+        return;
+    QString path = QString("/predictions?limit=%1").arg(limit);
+    if (before.isValid())
+        path += "&before=" + QString::fromUtf8(QUrl::toPercentEncoding(before.toString(Qt::ISODate)));
+    get(kind_path(symbol, kind, path), [this, symbol, kind, before](Result<QJsonDocument> answer) {
+        end(kKindHistory);
+        auto made = parsed(answer, krx_quant::parse_kind_predictions);
+        if (made.is_err())
+            return emit kind_history_failed(symbol, kind, why(made.error()));
+        emit kind_history_ready(symbol, kind, before, made.value());
     });
 }
 

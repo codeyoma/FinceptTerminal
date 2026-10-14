@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <!--
-  The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159), drawn with
-  TradingView Lightweight Charts (NOTICE). It only draws what the screen sends over the web
-  channel: the bars and their volumes, the consensus icons, each bar's hover box and the bar
-  it aims at, the theme, and when to fit. It tells the screen where its view is.
+  The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182), drawn
+  with TradingView Lightweight Charts (NOTICE). It only draws what the screen sends over the web
+  channel: the bars and their volumes, the consensus icons, each bar's hover box and its
+  four-minute window with two levels across it (the touch targets, or the range's highest and
+  lowest mid-points), the theme, and when to fit. It tells the screen where its view is.
 -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #080808; }
@@ -128,7 +129,18 @@
       if (bars[mid].time <= time) lo = mid; else hi = mid - 1;
     }
     const into = time - bars[lo].time;
-    return chart.timeScale().logicalToCoordinate(lo - 0.5 + (lo === last ? into : Math.min(into, 60)) / 60);
+    return logicalX(lo - 0.5 + (lo === last ? into : Math.min(into, 60)) / 60);
+  }
+
+  // A fractional logical position's x, between those of the whole bars around it: the chart's own
+  // logicalToCoordinate takes whole bars only (a fraction gave 0, so the window drew at the left
+  // edge, krx-quant #182).
+  function logicalX(logical) {
+    const scale = chart.timeScale();
+    const whole = Math.floor(logical);
+    const a = scale.logicalToCoordinate(whole), b = scale.logicalToCoordinate(whole + 1);
+    if (a === null || b === null) return null;
+    return a + (b - a) * (logical - whole);
   }
 
   function drawWindow(box) {

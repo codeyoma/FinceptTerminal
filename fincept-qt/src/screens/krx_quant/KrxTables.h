@@ -61,6 +61,36 @@ inline void set_stats(QTableWidget* table, int row, int column, const krx_quant:
     table->setItem(row, column + 6, cell(krx_quant::weakest_lift_text(e), kNumber));
 }
 
+/// The stats columns of ``kind`` (krx-quant #182): the direction's (kStatsHeaders) without one.
+inline QList<krx_quant::StatsColumn> stats_columns(const std::optional<krx_quant::KindInfo>& kind) {
+    if (kind && kind->name != QLatin1String("direction"))
+        return krx_quant::kind_stats_columns(*kind);
+    QList<krx_quant::StatsColumn> columns;
+    for (const auto& header : stats_headers())
+        columns.push_back({header, krx_quant::column_tip(header)});
+    return columns;
+}
+
+/// An entry's stats in ``row`` from ``column`` on, under stats_columns(``kind``).
+inline void set_stats(QTableWidget* table, int row, int column, const krx_quant::Entry& e,
+                      const std::optional<krx_quant::KindInfo>& kind) {
+    if (!kind || kind->name == QLatin1String("direction"))
+        return set_stats(table, row, column, e);
+    const auto cells = krx_quant::kind_stats_cells(e, *kind);
+    for (int i = 0; i < cells.size(); ++i)
+        table->setItem(row, column + i, shown_cell(cells[i]));
+}
+
+/// ``table``'s columns: ``columns``' headers, each with its tooltip.
+inline void set_columns(QTableWidget* table, const QList<krx_quant::StatsColumn>& columns) {
+    table->setColumnCount(static_cast<int>(columns.size()));
+    for (int c = 0; c < columns.size(); ++c) {
+        auto* item = new QTableWidgetItem(columns[c].header);
+        item->setToolTip(columns[c].tip);
+        table->setHorizontalHeaderItem(c, item);
+    }
+}
+
 /// DataTable's colors (ui/tables/DataTable.cpp), the theme's now: DataTable paints once,
 /// when it is made. Its fixed cell padding is left out, so the global style's, which
 /// follows the user's density, applies.

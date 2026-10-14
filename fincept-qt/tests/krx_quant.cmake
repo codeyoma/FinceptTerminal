@@ -72,3 +72,13 @@ fincept_add_test(tst_equity_valuation_units tst_equity_valuation_units.cpp)
 fincept_add_test(tst_krx_engine_calendar
     tst_krx_engine_calendar.cpp
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineCalendar.cpp")
+
+# src/services/krx_quant/KindView.{h,cpp} — what the KRX screen shows of a prediction kind besides the
+# direction (codeyoma/krx-quant#182): the kind selector, the range's panel and hover boxes. Qt Core only.
+fincept_add_test(tst_krx_kind_view
+    tst_krx_kind_view.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")

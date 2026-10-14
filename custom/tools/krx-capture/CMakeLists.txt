@@ -42,6 +42,7 @@ add_executable(krx_capture
     "${SRC}/services/krx_quant/Board.cpp"
     "${SRC}/services/krx_quant/ChartModel.cpp"
     "${SRC}/services/krx_quant/EngineData.cpp"
+    "${SRC}/services/krx_quant/KindView.cpp"
     "${SRC}/services/krx_quant/KrxLive.cpp"
     "${SRC}/services/krx_quant/KrxQuantService.cpp"
     "${SRC}/services/krx_quant/KrxStream.cpp"

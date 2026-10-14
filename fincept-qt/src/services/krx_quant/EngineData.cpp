@@ -124,6 +124,40 @@ std::optional<Excluded> excluded_of(const QJsonValue& value) {
     return excluded;
 }
 
+std::optional<RangeMean> range_mean_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return RangeMean{interval_of(o.value("mean")), interval_of(o.value("by_day"))};
+}
+
+/// A mean for each quantile; none unless an object.
+std::optional<QMap<QString, RangeMean>> quantile_means_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    QMap<QString, RangeMean> out;
+    const QJsonObject o = v.toObject();
+    for (auto it = o.begin(); it != o.end(); ++it)
+        if (const auto mean = range_mean_of(it.value()))
+            out.insert(it.key(), *mean);
+    return out;
+}
+
+/// A range entry's extra (krx-quant #180): its quantile stats; none for another kind's (a
+/// direction entry has none, another kind's extra has other fields).
+std::optional<RangeStats> range_stats_of(const QJsonValue& v) {
+    const QJsonObject o = v.toObject();
+    if (!o.contains("pinball") || !o.contains("interval_coverage"))
+        return std::nullopt;
+    RangeStats stats;
+    stats.n = o.value("n").toInt();
+    stats.pinball = quantile_means_of(o.value("pinball")).value_or(QMap<QString, RangeMean>{});
+    stats.interval_coverage = interval_of(o.value("interval_coverage"));
+    stats.q50_abs_error = interval_of(o.value("q50_abs_error"));
+    stats.vs_climate = quantile_means_of(o.value("vs_climate"));
+    return stats;
+}
+
 Entry entry_of(const QJsonObject& e) {
     Entry entry;
     if (e.value("rank").isDouble())
@@ -141,6 +175,7 @@ Entry entry_of(const QJsonObject& e) {
     entry.total_ticks = pnl.value("total_ticks").toDouble();
     entry.per_trade = interval_of(pnl.value("per_trade"));
     entry.excluded = excluded_of(e.value("excluded"));
+    entry.range = range_stats_of(e.value("extra"));
     if (e.value("lift").isObject()) {
         const QJsonObject lift = e.value("lift").toObject();
         entry.lift_low = number(lift.value("low"));
@@ -258,7 +293,11 @@ Result<QList<SymbolQuote>> parse_symbols(const QJsonDocument& doc) {
     QList<SymbolQuote> out;
     for (const auto& v : obj.value().value("symbols").toArray()) {
         const QJsonObject s = v.toObject();
-        out.push_back({s.value("symbol").toString(), number(s.value("mid"))});
+        SymbolQuote quote{s.value("symbol").toString(), number(s.value("mid"))};
+        quote.tick = number(s.value("tick"));
+        if (s.value("flat_ticks").isDouble())
+            quote.flat_ticks = s.value("flat_ticks").toInt();
+        out.push_back(quote);
     }
     return Result<QList<SymbolQuote>>::ok(out);
 }
@@ -323,6 +362,8 @@ Result<Leaderboard> parse_leaderboard(const QJsonDocument& doc) {
         return Result<Leaderboard>::err(obj.error());
     const QJsonObject& o = obj.value();
     Leaderboard board;
+    if (const QString kind = o.value("kind").toString(); !kind.isEmpty())
+        board.kind = kind;
     board.symbol = o.value("symbol").toString();
     board.period = o.value("period").toString();
     board.basis = o.value("basis").toString();
@@ -341,6 +382,8 @@ Result<AlgorithmStats> parse_stats(const QJsonDocument& doc) {
         return Result<AlgorithmStats>::err(obj.error());
     const QJsonObject& o = obj.value();
     AlgorithmStats stats;
+    if (const QString kind = o.value("kind").toString(); !kind.isEmpty())
+        stats.kind = kind;
     stats.algorithm = o.value("algorithm").toString();
     stats.symbol = o.value("symbol").toString();
     stats.period = o.value("period").toString();
@@ -504,6 +547,8 @@ Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc) 
         info.name = a.value("name").toString();
         if (info.name.isEmpty())
             continue;
+        if (const QString kind = a.value("kind").toString(); !kind.isEmpty())
+            info.prediction_kind = kind;
         info.card = card_of(a.value("card"));
         info.features = strings_of(a.value("features"));
         info.feature_meanings = meanings_of(a.value("feature_meanings"));
@@ -579,6 +624,117 @@ Result<QStringList> parse_members(const QJsonDocument& doc) {
     return Result<QStringList>::ok(strings_of(obj.value().value("members")));
 }
 
+Result<QList<KindInfo>> parse_kinds(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<QList<KindInfo>>::err(obj.error());
+    const QJsonValue kinds = obj.value().value("kinds");
+    if (!kinds.isArray())
+        return Result<QList<KindInfo>>::err(QStringLiteral("엔진이 예측 종류를 주지 않았습니다").toStdString());
+    QList<KindInfo> out;
+    for (const auto& v : kinds.toArray()) {
+        const QJsonObject k = v.toObject();
+        KindInfo kind;
+        kind.name = k.value("name").toString();
+        if (kind.name.isEmpty())
+            continue;
+        kind.title = k.value("title").toString();
+        kind.classes = strings_of(k.value("classes"));
+        kind.class_titles = strings_of(k.value("class_titles"));
+        kind.action = strings_of(k.value("action"));
+        kind.answer_version = k.value("answer_version").toInt();
+        kind.fields = meanings_of(k.value("fields")).value_or(QMap<QString, Meaning>{});
+        for (const auto& b : k.value("baselines").toArray()) {
+            const QJsonObject baseline = b.toObject();
+            if (const QString name = baseline.value("name").toString(); !name.isEmpty())
+                kind.baselines.push_back({name, card_of(baseline.value("card"))});
+        }
+        out.push_back(kind);
+    }
+    return Result<QList<KindInfo>>::ok(out);
+}
+
+namespace {
+
+/// A range answer's path (krx-quant #180); none for another kind's (no ``r``) or a window not
+/// followed (an empty path).
+std::optional<RangePath> range_path_of(const QJsonValue& v) {
+    const QJsonObject o = v.toObject();
+    if (!o.contains("r") || !o.contains("max_mid"))
+        return std::nullopt;
+    RangePath path;
+    path.r = number(o.value("r"));
+    path.k = integer_of(o.value("k"));
+    path.tick = number(o.value("tick"));
+    path.anchor = number(o.value("anchor"));
+    path.max_mid = number(o.value("max_mid"));
+    path.max_mid_at = time_of(o.value("max_mid_at"));
+    path.min_mid = number(o.value("min_mid"));
+    path.min_mid_at = time_of(o.value("min_mid_at"));
+    path.up = number(o.value("up"));
+    path.down = number(o.value("down"));
+    path.quotes = o.value("quotes").toInt();
+    path.silent = o.value("silent").toBool();
+    return path;
+}
+
+std::optional<KindAnswer> kind_answer_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    KindAnswer answer;
+    answer.answer_version = o.value("answer_version").toInt();
+    answer.klass = o.value("class").toString();
+    answer.unscorable = o.value("unscorable").toString();
+    answer.special = o.value("special").toBool();
+    answer.scored_at = time_of(o.value("scored_at"));
+    answer.range = range_path_of(o.value("path"));
+    return answer;
+}
+
+/// A prediction of a kind; ``symbol`` and ``bar_close`` are the answer's, for items without their own.
+KindPrediction kind_prediction_of(const QJsonObject& p, const QString& symbol, const QDateTime& bar_close) {
+    KindPrediction made;
+    made.algorithm = p.value("algorithm").toString();
+    made.model_version = p.value("model_version").toString();
+    made.status = p.value("status").toString();
+    made.symbol = p.contains("symbol") ? p.value("symbol").toString() : symbol;
+    made.bar_close = p.contains("bar_close") ? time_of(p.value("bar_close")) : bar_close;
+    made.target_at = time_of(p.value("target_at"));
+    if (made.status == "ok") {
+        const QJsonObject output = p.value("output").toObject();
+        for (auto it = output.begin(); it != output.end(); ++it)
+            if (it.value().isDouble())
+                made.output.insert(it.key(), it.value().toDouble());
+    }
+    made.answer = kind_answer_of(p.value("answer"));
+    return made;
+}
+
+} // namespace
+
+Result<KindLatest> parse_kind_latest(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<KindLatest>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    KindLatest latest{o.value("symbol").toString(), o.value("kind").toString(), time_of(o.value("bar_close")), {}};
+    for (const auto& v : o.value("predictions").toArray())
+        latest.predictions.push_back(kind_prediction_of(v.toObject(), latest.symbol, latest.bar_close));
+    return Result<KindLatest>::ok(latest);
+}
+
+Result<QList<KindPrediction>> parse_kind_predictions(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<QList<KindPrediction>>::err(obj.error());
+    const QString symbol = obj.value().value("symbol").toString();
+    QList<KindPrediction> out;
+    for (const auto& v : obj.value().value("predictions").toArray())
+        out.push_back(kind_prediction_of(v.toObject(), symbol, {}));
+    return Result<QList<KindPrediction>>::ok(out);
+}
+
 Result<Event> parse_event(const QString& message) {
     QJsonParseError error;
     const QJsonDocument doc = QJsonDocument::fromJson(message.toUtf8(), &error);
@@ -586,15 +742,35 @@ Result<Event> parse_event(const QString& message) {
         return Result<Event>::err(QStringLiteral("엔진 스트림 메시지를 읽을 수 없습니다").toStdString());
     const QJsonObject o = doc.object();
     static const QMap<QString, Event::Type> types = {
-        {"prediction", Event::Type::Prediction}, {"consensus", Event::Type::Consensus},
-        {"outcome", Event::Type::Outcome},       {"health", Event::Type::Health},
-        {"lifecycle", Event::Type::Lifecycle},   {"bar", Event::Type::Bar},
+        {"prediction", Event::Type::Prediction},
+        {"consensus", Event::Type::Consensus},
+        {"outcome", Event::Type::Outcome},
+        {"health", Event::Type::Health},
+        {"lifecycle", Event::Type::Lifecycle},
+        {"bar", Event::Type::Bar},
+        {"kind_prediction", Event::Type::KindPrediction},
+        {"kind_answer", Event::Type::KindAnswer},
     };
     Event event;
     event.type = types.value(o.value("type").toString(), Event::Type::Other);
     event.at = time_of(o.value("at"));
     event.kind = o.value("kind").toString();
     event.bar_close = time_of(o.value("bar_close"));
+    event.prediction_kind = o.value("prediction_kind").toString();
+    if (event.type == Event::Type::KindPrediction) {
+        // Another kind's predictions (krx-quant #179): kept apart from the direction's.
+        for (const auto& v : o.value("predictions").toArray())
+            event.kind_predictions.push_back(kind_prediction_of(v.toObject(), {}, event.bar_close));
+        return Result<Event>::ok(event);
+    }
+    if (event.type == Event::Type::KindAnswer) {
+        for (const auto& v : o.value("answers").toArray()) {
+            const QJsonObject a = v.toObject();
+            if (const auto answer = kind_answer_of(a))
+                event.kind_answers.push_back({a.value("symbol").toString(), time_of(a.value("bar_close")), *answer});
+        }
+        return Result<Event>::ok(event);
+    }
     const QJsonArray items = o.value(event.type == Event::Type::Outcome ? "outcomes" : "predictions").toArray();
     for (const auto& v : items)
         event.predictions.push_back(prediction_of(v.toObject(), {}, event.bar_close));
@@ -691,6 +867,9 @@ QString predictor_label(const QString& predictor) {
         {"baseline-flat", QStringLiteral("기준: 늘 보합")},
         {"baseline-persist", QStringLiteral("기준: 직전 4분 방향")},
         {"baseline-random", QStringLiteral("기준: 비율대로 무작위")},
+        // The range's (krx-quant #180, #182).
+        {"range-climate", QStringLiteral("기준: 변동폭 시간대 기후")},
+        {"range-persist", QStringLiteral("기준: 직전 4분 변동폭")},
     };
     return labels.value(predictor, predictor);
 }
