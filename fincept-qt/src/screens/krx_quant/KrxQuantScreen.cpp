@@ -747,7 +747,8 @@ void KrxQuantScreen::kind_title() {
         panel_title->setText(tr("예측 · %1").arg(name));
         return;
     }
-    // k now, from the symbols' answer: the bar close's own once its answer is in.
+    // k now, from the symbols' answer: shown only when the bar close's own is not known (an
+    // engine before krx-quant #200, whose predictions do not carry it, before the answer).
     std::optional<int> k_now;
     for (const auto& q : live_->board().symbols())
         if (q.symbol == symbol)

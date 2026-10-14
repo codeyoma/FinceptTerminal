@@ -505,6 +505,9 @@ struct KindPrediction {
     QString symbol;
     QDateTime bar_close;
     QDateTime target_at; ///< invalid unless the status is "ok"
+    /// k at its bar close (krx-quant #200): the flat band it was made with, kept as the price
+    /// moves on; none from an engine before #200, for one stored before, or without a mid-point.
+    std::optional<int> flat_ticks;
     QMap<QString, double> output;
     std::optional<KindAnswer> answer; ///< its bar close's, once its four minutes are over
 
