@@ -137,9 +137,10 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     chart_failure_->hide();
     chart_header_.controls->addWidget(chart_failure_);
     chart_score_ = new QLabel;
-    chart_score_->setToolTip(tr("보이는 구간에서 4분이 다 지나 채점된 봉 중 선택 합의가 맞은 비율과, 같은 봉들에서 "
-                                "'늘 보합'이 맞았을 비율이다. 설명용 성적이다. 정식 판정은 순위표의 거래일 단위 "
-                                "구간으로 한다. 특수 상황 봉은 세지 않는다."));
+    chart_score_->setToolTip(tr("보이는 구간에서 4분이 다 지나 채점된 봉 중 선택 합의가 맞은 비율, 같은 봉들에서 "
+                                "'늘 보합'이 맞았을 비율, ▲·▼라고 한 봉 중 맞은 비율(괄호는 그 수), 봉 수와 거래일 "
+                                "수다. 4분 창은 서로 겹쳐 독립 표본이 아니다. 설명용 성적이고, 정식 판정은 순위표의 "
+                                "거래일 단위 구간으로 한다. 특수 상황 봉은 세지 않고 따로 센다."));
     chart_score_->hide();
     chart_header_.controls->addWidget(chart_score_);
     auto* fit = new QPushButton(tr("맞춤"));
@@ -674,13 +675,14 @@ void KrxQuantScreen::fill_chart() {
 void KrxQuantScreen::show_score() {
     const QString& symbol = live_->selected();
     const QStringList& selection = live_->selection();
-    if (symbol.isEmpty() || selection.isEmpty() || minutes_ != 1 || view_range_.second <= 0) {
+    const QString head = krx_quant::selection_head(selection); // empty: several baselines alone, nothing drawn
+    if (symbol.isEmpty() || head.isEmpty() || minutes_ != 1 || view_range_.second <= 0) {
         chart_score_->hide();
         return;
     }
     const auto score = krx_quant::score_of(live_->board().marks(symbol, selection), view_range_.first,
                                            view_range_.second, live_->engine_now());
-    chart_score_->setText(krx_quant::score_text(static_cast<int>(selection.size()), score));
+    chart_score_->setText(krx_quant::score_text(head, score));
     chart_score_->show();
 }
 

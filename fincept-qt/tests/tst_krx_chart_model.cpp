@@ -10,6 +10,8 @@
 
 #include <QTest>
 
+#include <limits>
+
 using namespace fincept::krx_quant;
 
 namespace {
@@ -252,7 +254,7 @@ class TstKrxChartModel : public QObject {
             selected("2026-10-12T09:32:00+09:00", Direction::Up, Direction::Flat),     // miss, flat right
             selected("2026-10-12T09:33:00+09:00", Direction::Flat, Direction::Flat),   // hit, flat right
             selected("2026-10-12T09:34:00+09:00", Direction::Down, Direction::Up),     // miss
-            selected("2026-10-12T09:35:00+09:00", Direction::Up, Direction::Up, true), // special: out
+            selected("2026-10-12T09:35:00+09:00", Direction::Up, Direction::Up, true), // special: out, counted aside
             selected("2026-10-12T09:36:00+09:00", Direction::Up, Direction::None),     // not scored: out
             selected("2026-10-12T09:37:00+09:00", Direction::Up, Direction::Up),       // its 09:41 not yet
         };
@@ -264,10 +266,45 @@ class TstKrxChartModel : public QObject {
         QCOMPARE(score.n, 4);
         QCOMPARE(score.hits, 2);
         QCOMPARE(score.flat_hits, 2);
-        QCOMPARE(score_text(3, score), QStringLiteral("선택 합의 (3) · 맞음 50% · 늘 보합 50% (4개)"));
+        QCOMPARE(score.up_n, 2); // 09:31 right, 09:32 wrong
+        QCOMPARE(score.up_hits, 1);
+        QCOMPARE(score.down_n, 1);
+        QCOMPARE(score.down_hits, 0);
+        QCOMPARE(score.days, 1);
+        QCOMPARE(score.special, 1);
+        QCOMPARE(score_text("선택 합의 (3)", score),
+                 QStringLiteral("선택 합의 (3) · 맞음 50% · 늘 보합 50% · ▲ 맞음 50% (2) · ▼ 맞음 0% (1) · 4개 1거래일 "
+                                "· 특수 1개 제외"));
         // Out of view: the 09:31 bar (09:30–09:31) is left out from 09:31 on.
         QCOMPARE(score_of(marks, from + 60, to, kst("2026-10-12T09:40:30+09:00")).n, 3);
-        QCOMPARE(score_text(2, SelectionScore{}), QStringLiteral("선택 합의 (2) · 채점된 봉 없음"));
+        QCOMPARE(score_text("선택 합의 (2)", SelectionScore{}), QStringLiteral("선택 합의 (2) · 채점된 봉 없음"));
+    }
+
+    void the_score_counts_trading_days_and_says_none_for_a_direction_never_called() {
+        QList<Mark> marks{selected("2026-10-12T09:31:00+09:00", Direction::Flat, Direction::Flat),
+                          selected("2026-10-13T09:31:00+09:00", Direction::Flat, Direction::Up)};
+        const SelectionScore score =
+            score_of(marks, 0, std::numeric_limits<qint64>::max(), kst("2026-10-14T00:00:00+09:00"));
+        QCOMPARE(score.days, 2);
+        QVERIFY(score_text("기준: 늘 보합", score).contains(QStringLiteral("▲ 맞음 — (0)")));
+    }
+
+    void the_head_names_the_models_consensus_or_a_lone_baseline() {
+        QCOMPARE(selection_head({"baseline-flat", "gauss", "markov"}), QStringLiteral("선택 합의 (2)"));
+        QCOMPARE(selection_head({"baseline-flat"}), QStringLiteral("기준: 늘 보합"));
+        QVERIFY(selection_head({"baseline-flat", "baseline-persist"}).isEmpty()); // nothing drawn
+    }
+
+    void the_hover_compares_baselines_without_averaging_them() {
+        const QList<Prediction> at_close{forecast("gauss"), forecast("baseline-flat", 0, 1, 0)};
+        const QStringList with =
+            hover_box(at_close, kst("2026-10-12T09:31:00+09:00"), {"baseline-flat", "gauss"}, {}, SignalRule{});
+        QVERIFY(with[1].startsWith(QStringLiteral("선택 합의 · 상승 · 상승 62%"))); // gauss alone
+        QVERIFY(with[1].contains(QStringLiteral("1/1 모델")));
+        QVERIFY(with.contains(QStringLiteral("기준: 늘 보합 · 보합 · 상승 0% · 보합 100% · 하락 0% · ?")));
+        const QStringList alone =
+            hover_box(at_close, kst("2026-10-12T09:31:00+09:00"), {"baseline-flat"}, {}, SignalRule{});
+        QVERIFY(!alone[1].startsWith(QStringLiteral("선택 합의"))); // no consensus line
     }
 
     void a_selection_holds_models_and_baselines_once_each_in_name_order() {
@@ -365,6 +402,8 @@ class TstKrxChartModel : public QObject {
         QCOMPARE(*chosen[0].p_up, 0.4);
         QCOMPARE(chosen[0].result, QStringLiteral("✓ 맞음"));
         QCOMPARE(close_rows(made, statuses, {"turing"})[0].direction, QStringLiteral("예측 없음"));
+        QCOMPARE(close_rows(made, statuses, {"baseline-flat"})[0].algorithm,
+                 QStringLiteral("consensus-fast")); // no row
     }
 
     void the_bars_before_are_read_once_the_view_nears_the_left_end() {
