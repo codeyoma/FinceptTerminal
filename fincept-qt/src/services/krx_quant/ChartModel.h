@@ -91,10 +91,10 @@ struct SelectionScore {
     int n = 0;
     int hits = 0;
     int flat_hits = 0;
-    int up_n = 0; ///< icons saying up, and those right
-    int up_hits = 0;
-    int down_n = 0;
-    int down_hits = 0;
+    int up_n = 0;      ///< icons that predicted up
+    int up_hits = 0;   ///< of those, the ones right
+    int down_n = 0;    ///< icons that predicted down
+    int down_hits = 0; ///< of those, the ones right
     int days = 0;    ///< trading days (KST) of the bars counted: the overlapping windows are not independent
     int special = 0; ///< scored bars in view a special situation touched, left out
 };
