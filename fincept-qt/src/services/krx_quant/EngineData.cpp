@@ -392,6 +392,31 @@ QString param_text(const QJsonValue& v) {
 
 } // namespace
 
+namespace {
+
+std::optional<AlgorithmCard> card_of(const QJsonValue& v) {
+    const QJsonObject card = v.toObject();
+    if (card.isEmpty())
+        return std::nullopt;
+    return AlgorithmCard{card.value("scientist").toString(), card.value("character").toString(),
+                         card.value("logic").toString(),     strings_of(card.value("unique_features")),
+                         card.value("training").toString(),  card.value("forecasting").toString(),
+                         card.value("failure").toString()};
+}
+
+QMap<QString, Meaning> meanings_of(const QJsonValue& v) {
+    QMap<QString, Meaning> out;
+    const QJsonObject o = v.toObject();
+    for (auto it = o.begin(); it != o.end(); ++it) {
+        const QJsonObject m = it.value().toObject();
+        out.insert(it.key(),
+                   Meaning{m.value("meaning").toString(), m.value("unit").toString(), m.value("known").toString()});
+    }
+    return out;
+}
+
+} // namespace
+
 Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc) {
     const auto obj = object_of(doc);
     if (obj.is_err())
@@ -403,11 +428,10 @@ Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc) 
         info.name = a.value("name").toString();
         if (info.name.isEmpty())
             continue;
-        if (const QJsonObject card = a.value("card").toObject(); !card.isEmpty())
-            info.card = AlgorithmCard{card.value("scientist").toString(), card.value("character").toString(),
-                                      card.value("logic").toString(), strings_of(card.value("unique_features")),
-                                      card.value("training").toString()};
+        info.card = card_of(a.value("card"));
         info.features = strings_of(a.value("features"));
+        info.feature_meanings = meanings_of(a.value("feature_meanings"));
+        info.param_meanings = meanings_of(a.value("param_meanings"));
         if (a.value("training_days").isDouble())
             info.training_days = a.value("training_days").toInt();
         const QJsonObject model = a.value("model").toObject();
@@ -429,6 +453,19 @@ Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc) 
                                          record.value("reason").toString()};
         }
         out.insert(info.name, info);
+    }
+    // The baselines and the consensus: what they are, nothing more (krx-quant #164).
+    for (const auto& [key, kind] : {std::pair{"baselines", "baseline"}, std::pair{"consensus", "consensus"}}) {
+        for (const auto& v : obj.value().value(QLatin1String(key)).toArray()) {
+            const QJsonObject p = v.toObject();
+            AlgorithmInfo info;
+            info.name = p.value("name").toString();
+            if (info.name.isEmpty() || out.contains(info.name))
+                continue;
+            info.kind = QLatin1String(kind);
+            info.card = card_of(p.value("card"));
+            out.insert(info.name, info);
+        }
     }
     return Result<QMap<QString, AlgorithmInfo>>::ok(out);
 }
