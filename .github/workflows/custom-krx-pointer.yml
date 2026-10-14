@@ -1,0 +1,39 @@
+# Fork-only workflow (codeyoma/FinceptTerminal, codeyoma/krx-quant#186).
+# After every push to `custom` (a merged PR, the upstream landing, a hand push), ask
+# the krx-quant repository, which holds this fork as its fincept/ submodule, to point
+# the submodule at custom's new head. krx-quant's own workflow reads the head and
+# moves the pointer; this one only sends the request (a repository_dispatch).
+#
+# Every push counts, docs and workflows included: the pointer follows custom, not the
+# builds. A failed request is caught by krx-quant's daily run.
+#
+# Needs the KRX_QUANT_DISPATCH_TOKEN secret: a fine-grained PAT on codeyoma/krx-quant
+# only, with Contents read/write (custom/README.md, "krx-quant 포인터"). GITHUB_TOKEN
+# cannot reach another repository.
+name: custom-krx-pointer
+
+on:
+  push:
+    branches: [custom]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  notify:
+    name: Ask krx-quant to follow custom
+    if: github.ref == 'refs/heads/custom'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.KRX_QUANT_DISPATCH_TOKEN }}
+    steps:
+      - name: Send the repository_dispatch
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::The KRX_QUANT_DISPATCH_TOKEN secret is missing (fine-grained PAT on codeyoma/krx-quant: Contents read/write). krx-quant's daily run still moves the pointer."
+            exit 1
+          fi
+          gh api repos/codeyoma/krx-quant/dispatches \
+            -f event_type=fincept-custom \
+            -f "client_payload[sha]=$GITHUB_SHA"
+          echo "asked krx-quant to follow custom at ${GITHUB_SHA:0:7}"
