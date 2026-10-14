@@ -260,7 +260,7 @@ class TstKrxStatsView : public QObject {
     void the_about_section_says_what_the_engine_says_about_the_algorithm() {
         AlgorithmInfo info;
         info.name = "alpha";
-        info.card = AlgorithmCard{"A. Person", "테스트 성격", "로직 글", {"f1"}, "학습 글"};
+        info.card = AlgorithmCard{"A. Person", "테스트 성격", "로직 글", {"f1"}, "학습 글", {}, {}};
         info.features = {"f1", "f2"};
         info.training_days = 20;
         info.model_version = "alpha-1";

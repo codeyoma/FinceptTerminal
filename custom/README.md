@@ -337,7 +337,7 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
   - `uv run krx-quant demo-engine`: 10:30에 멈춘 아침이다. 스트림에는 연결할 때의 KIS 상태 하나만 온다.
   - `uv run krx-quant demo-engine --pace 2`: 10:00에 열고 10:30까지 1분을 2초마다 이어 재생하며 스트림을 보낸다. 차트, 패널, 채점이 움직이는 것을 볼 수 있다. 데모 아침의 최종 합의는 50%를 거의 넘지 않아 신호는 나오지 않는다. 알림은 **시험 알림**으로 본다.
 - 테스트(Qt Core만): `cmake -B build -DFINCEPT_BUILD_TESTS=ON … && cmake --build build --target tst_krx_engine_data tst_krx_board tst_krx_signals tst_krx_stats_view tst_krx_chart_model tst_krx_kind_view tst_krx_app_release && ctest --test-dir build -R krx`.
-  - CI는 경고를 오류로 빌드한다(`-Werror`, 환경 변수 `CI`가 있을 때). 로컬에서 같은 조건으로 보려면 `CI=1 cmake -B build …`로 설정한다. 그러지 않으면 구조체에 필드를 더하고 테스트의 초기화 목록을 그대로 두는 것 같은 경고를 놓친다(`custom-v4.5.0-krx.4` 맥 빌드가 이것으로 실패했다).
+  - CI는 경고를 오류로 빌드한다(`-Werror`, 환경 변수 `CI`가 있을 때). 로컬에서 같은 조건으로 보려면 `CI=1 cmake -B build …`로 설정한다. 그러지 않으면 구조체에 필드를 더하고 테스트의 초기화 목록을 그대로 두는 것 같은 경고를 놓친다(`custom-v4.5.0-krx.4` 맥 빌드가 이것으로 실패했다). 이 경고는 clang(맥)에서만 나고, 이 fork의 PR에는 빌드 검사가 돌지 않는다(`build-pr.yml`은 꺼져 있다). 그래서 KRX 구조체에 필드를 더하는 PR은 머지 전에 맥에서 `CI=1`로 KRX 테스트를 빌드한다. `custom-v4.5.0-krx.30`부터 `krx.37`까지 맥 빌드가 모두 이것으로 실패해 Release가 없다(`Mark`, `Outcome`, `AlgorithmCard`의 새 필드).
   - `tst_krx_engine_data`: 엔진 API와 스트림 메시지 해석(일봉과 그 시장, `bar` 이벤트, 합의의 `pooled`, `/v1/algorithms`의 수명 상태, 상세 통계의 기준별 lift와 그 거래일 단위 값, 보정 곡선, 나눠 본 통계 포함), 한국어 이름, 시각·가격 표기, 머리줄 엔진 점의 상태와 툴팁.
   - `tst_krx_board`: 답과 스트림을 합친 화면 상태(최신 봉 마감, 차트 표시, 합의 구성원, 신호가 볼 예측, 실패와 되감기).
   - `tst_krx_signals`: 신호 규칙, 다시 알리지 않는 규칙, 구성원을 모를 때 미루기, 엔진의 `votes`로 판단하기.
