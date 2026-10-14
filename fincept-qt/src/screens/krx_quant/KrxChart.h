@@ -1,8 +1,10 @@
 #pragma once
 
 #include "services/krx_quant/Board.h"
+#include "services/krx_quant/ChartModel.h"
 #include "services/krx_quant/Signals.h"
 
+#include <QHash>
 #include <QList>
 #include <QObject>
 #include <QString>
@@ -14,7 +16,8 @@ class QWebEngineView;
 namespace fincept::screens {
 
 /// What the chart's page and the screen say to each other over the web channel: the page
-/// asks for what to draw once it listens; the screen sends the theme, the data and fits.
+/// asks for what to draw once it listens and says where its view is; the screen sends the
+/// theme, the data, the bars' hover boxes (those changed) and fits.
 class KrxChartBridge : public QObject {
     Q_OBJECT
   public:
@@ -26,13 +29,18 @@ class KrxChartBridge : public QObject {
     Q_INVOKABLE void clicked(const QString& bar_close);
     /// The view moved: it starts ``from`` bars (a logical index) from the left end.
     Q_INVOKABLE void moved(double from);
+    /// The bars in view start from ``from`` to ``to`` (the chart's times, chart_time).
+    Q_INVOKABLE void range(double from, double to);
 
   signals:
     void page_ready();
     void icon_clicked(const QString& bar_close);
     void view_moved(double from);
+    void range_moved(double from, double to);
     void theme_changed(const QString& json);
     void data_changed(const QString& json);
+    /// Hover boxes to set and drop: {"reset", "set": [...], "drop": [times]} (krx-quant #159).
+    void hovers_changed(const QString& json);
     void live_changed(const QString& json);
     void fit_requested();
 };
@@ -48,15 +56,17 @@ class KrxChart : public QWidget {
   public:
     explicit KrxChart(QWidget* parent = nullptr);
 
-    /// The bars and the final consensus's marks, scored on ``basis`` (the leaderboard's) and
-    /// judged as signals under ``rule`` (the alerts'): hovering an icon shows its five lines
-    /// and links its bar to the one it aims at (krx-quant #106).
+    /// The bars, the icons of ``marks`` (the final consensus's, or the selected models',
+    /// krx-quant #159) judged as signals under ``rule`` (the alerts'), and each 1-minute bar's
+    /// hover box (``hovers``): hovering a bar shows its box and links it to the bar it aims at.
     /// ``minutes`` is the view (krx-quant #109): the 1-minute bars are drawn as bars of that
-    /// many minutes, and only the 1-minute view has icons. In a candle view
+    /// many minutes, and only the 1-minute view has icons and boxes. In a candle view
     /// (krx_quant::candle_view: day, week, month, year; krx-quant #111, #112) ``bars`` are
-    /// its candles, drawn as they are, with dates only on the axis.
+    /// its candles, drawn as they are, with dates only on the axis. Only the boxes that
+    /// changed are sent again; one shown stays shown.
     void set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
-                  const QString& basis = QStringLiteral("b"), const krx_quant::SignalRule& rule = {}, int minutes = 1);
+                  const QList<krx_quant::BarHover>& hovers = {}, const krx_quant::SignalRule& rule = {},
+                  int minutes = 1);
     /// Only the last bar of ``bars`` moved (the bar being made, krx-quant #110): it alone is
     /// drawn again, in the view of ``minutes``. A candle view's ``bars`` are its candles.
     void update_live(const QList<krx_quant::Bar>& bars, int minutes);
@@ -72,6 +82,9 @@ class KrxChart : public QWidget {
     /// The view was scrolled or zoomed: it starts ``from`` bars (a logical index, negative
     /// past the first bar) from the left end; near it, the bars before are read (krx-quant #108).
     void view_moved(double from);
+    /// The bars in view now start from ``from`` to ``to`` (chart_time): the score over them
+    /// (krx-quant #159).
+    void view_range(qint64 from, qint64 to);
 
   protected:
     void showEvent(QShowEvent* event) override;
@@ -85,6 +98,7 @@ class KrxChart : public QWidget {
     QLabel* unavailable_ = nullptr;
     QString theme_; ///< the last sent, sent again when the page is ready
     QString data_;
+    QHash<qint64, QString> hovers_; ///< the hover boxes sent, by bar time
 };
 
 } // namespace fincept::screens

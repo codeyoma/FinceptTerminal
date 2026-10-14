@@ -43,11 +43,18 @@ void Board::set_latest(const Latest& latest) {
         put(p);
 }
 
-void Board::set_history(const QString& symbol, const QList<Prediction>& finals) {
-    for (Prediction p : finals) {
+void Board::set_history(const QString& symbol, const QList<Prediction>& predictions) {
+    for (Prediction p : predictions) {
         p.symbol = symbol;
         put(p);
     }
+}
+
+void Board::focus(const QString& symbol) {
+    if (symbol == focus_)
+        return;
+    focus_ = symbol;
+    closes_.clear();
 }
 
 QList<Prediction> Board::apply(const Event& event) {
@@ -84,6 +91,7 @@ void Board::forget_predictions() {
     symbols_.clear();
     latest_.clear();
     finals_.clear();
+    closes_.clear();
 }
 
 bool Board::rewind_to(const QDateTime& now) {
@@ -99,6 +107,11 @@ bool Board::rewind_to(const QDateTime& now) {
             dropped |= later;
             it = later ? finals.erase(it) : std::next(it);
         }
+    }
+    for (auto it = closes_.begin(); it != closes_.end();) {
+        const bool later = it.key() > now;
+        dropped |= later;
+        it = later ? closes_.erase(it) : std::next(it);
     }
     return dropped;
 }
@@ -123,29 +136,80 @@ void Board::put(const Prediction& p) {
         if (shown == finals.cend() || replaces(*shown, p))
             finals.insert(p.bar_close, p);
     }
+    if (!focus_.isEmpty() && p.symbol == focus_ && p.bar_close.isValid()) {
+        auto& at_close = closes_[p.bar_close];
+        const auto shown = at_close.constFind(p.algorithm);
+        if (shown == at_close.cend() || replaces(*shown, p))
+            at_close.insert(p.algorithm, p);
+    }
 }
 
 Latest Board::latest(const QString& symbol) const {
     return latest_.value(symbol, Latest{symbol, {}, {}});
 }
 
-QList<Mark> Board::marks(const QString& symbol, const QString& basis) const {
+QMap<QDateTime, QList<Prediction>> Board::closes(const QString& symbol) const {
+    QMap<QDateTime, QList<Prediction>> out;
+    if (!focus_.isEmpty() && symbol == focus_) {
+        for (auto it = closes_.cbegin(); it != closes_.cend(); ++it)
+            out.insert(it.key(), it->values());
+    }
+    // The final consensus of another symbol, or one read before it was chosen.
+    const auto finals = finals_.value(symbol);
+    for (auto it = finals.cbegin(); it != finals.cend(); ++it) {
+        QList<Prediction>& at_close = out[it.key()];
+        const bool there = std::any_of(at_close.cbegin(), at_close.cend(),
+                                       [](const Prediction& p) { return p.algorithm == QLatin1String(kFinal); });
+        if (!there)
+            at_close << *it;
+    }
+    return out;
+}
+
+QList<Mark> Board::marks(const QString& symbol, const QStringList& selection) const {
     QList<Mark> out;
-    for (const auto& p : finals_.value(symbol)) {
-        const Direction predicted = most_likely(p);
-        if (p.status != "ok" || predicted == Direction::None)
-            continue;
-        Mark mark{p.bar_close, predicted, probability_of(p, predicted), Mark::Result::Pending, false, {}, p};
-        if (p.outcome) {
-            const Direction happened = basis == "a" ? p.outcome->class_a : p.outcome->class_b;
-            mark.special = p.outcome->special;
-            if (happened == Direction::None) {
-                mark.result = Mark::Result::Unscorable;
-                mark.unscorable = p.outcome->unscorable;
-            } else {
-                mark.result = happened == predicted ? Mark::Result::Hit : Mark::Result::Miss;
-            }
+    if (selection.isEmpty()) {
+        const auto all = closes(symbol);
+        for (const auto& p : finals_.value(symbol)) {
+            const Direction predicted = most_likely(p);
+            if (p.status != "ok" || predicted == Direction::None)
+                continue;
+            const Truth truth = truth_of(all.value(p.bar_close, {p}), p.bar_close);
+            Mark mark{p.bar_close,
+                      predicted,
+                      probability_of(p, predicted),
+                      verdict(predicted, truth),
+                      truth.special,
+                      truth.unscorable,
+                      p,
+                      truth};
+            out << mark;
         }
+        return out;
+    }
+    if (focus_.isEmpty() || symbol != focus_)
+        return out;
+    for (auto it = closes_.cbegin(); it != closes_.cend(); ++it) {
+        const QList<Prediction> at_close = it->values();
+        const auto pooled = select_consensus(at_close, selection);
+        if (!pooled)
+            continue;
+        const Truth truth = truth_of(at_close, it.key());
+        Prediction consensus = pooled->consensus;
+        consensus.symbol = symbol;
+        consensus.target_at = truth.target_at;
+        const Direction predicted = most_likely(consensus);
+        Mark mark{it.key(),
+                  predicted,
+                  probability_of(consensus, predicted),
+                  verdict(predicted, truth),
+                  truth.special,
+                  truth.unscorable,
+                  consensus,
+                  truth,
+                  true,
+                  pooled->made,
+                  pooled->chosen};
         out << mark;
     }
     return out;
@@ -160,6 +224,87 @@ QList<Prediction> Board::pooled(const QString& symbol, const QDateTime& bar_clos
         if (p.status == "ok" && members_.contains(p.algorithm))
             out << p;
     return out;
+}
+
+Truth truth_of(const QList<Prediction>& at_close, const QDateTime& bar_close) {
+    Truth truth;
+    truth.target_at = bar_close.addSecs(240);
+    for (const auto& p : at_close) {
+        if (p.status != "ok")
+            continue;
+        if (p.target_at.isValid())
+            truth.target_at = p.target_at;
+        if (!p.outcome)
+            continue;
+        // Every predictor of a bar close is scored on the same mid-points: any one says it.
+        const Outcome& o = *p.outcome;
+        truth.scored = true;
+        truth.happened = o.class_a;
+        truth.special = o.special;
+        truth.unscorable = o.class_a == Direction::None ? o.unscorable : QString();
+        truth.mid_start = o.mid_close;
+        truth.mid_target = o.mid_target;
+        break;
+    }
+    return truth;
+}
+
+Mark::Result verdict(Direction predicted, const Truth& truth) {
+    if (!truth.scored)
+        return Mark::Result::Pending;
+    if (truth.happened == Direction::None)
+        return Mark::Result::Unscorable;
+    return truth.happened == predicted ? Mark::Result::Hit : Mark::Result::Miss;
+}
+
+std::optional<Pooled> select_consensus(const QList<Prediction>& at_close, const QStringList& selection) {
+    QList<Prediction> made;
+    QString blocked;
+    for (const auto& p : at_close) {
+        if (p.algorithm == QLatin1String(kFinal))
+            blocked = p.blocked;
+        if (selection.contains(p.algorithm) && p.status == "ok" && p.p_up && p.p_flat && p.p_down)
+            made << p;
+    }
+    if (made.isEmpty())
+        return std::nullopt;
+    // Summed in name order, so that the same forecasts always give the same mean, ties included.
+    std::sort(made.begin(), made.end(),
+              [](const Prediction& a, const Prediction& b) { return a.algorithm < b.algorithm; });
+    double up = 0, flat = 0, down = 0;
+    Votes votes;
+    for (const auto& p : made) {
+        up += *p.p_up;
+        flat += *p.p_flat;
+        down += *p.p_down;
+        switch (most_likely(p)) {
+            case Direction::Up:
+                ++votes.up;
+                break;
+            case Direction::Flat:
+                ++votes.flat;
+                break;
+            case Direction::Down:
+                ++votes.down;
+                break;
+            case Direction::None:
+                break;
+        }
+    }
+    const double n = static_cast<double>(made.size());
+    Pooled pooled;
+    Prediction& c = pooled.consensus;
+    c.algorithm = kSelected;
+    c.status = "ok";
+    c.bar_close = made.first().bar_close;
+    c.p_up = up / n;
+    c.p_flat = flat / n;
+    c.p_down = down / n;
+    c.votes = votes;
+    c.blocked = blocked;
+    pooled.made = static_cast<int>(made.size());
+    pooled.chosen = static_cast<int>(selection.size());
+    return pooled;
 }
 
 QDateTime scoring_at(const Latest& latest) {

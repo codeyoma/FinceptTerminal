@@ -1,9 +1,10 @@
 // Unit tests for src/services/krx_quant/ChartModel.h
 //
 // The KRX chart's page only draws: what goes on it is worked out here. These tests pin the
-// chart's time (KST shown as the chart's UTC), the bars, and the final consensus's icons:
-// their arrow, result, faintness and the bar they sit on. The expected values are worked
-// out by hand.
+// chart's time (KST shown as the chart's UTC), the bars, the consensus icons (their arrow,
+// result, faintness, signal and the bar they sit on), each bar's hover box and target, the
+// selected consensus's score and the selection itself (krx-quant #159). The expected
+// values are worked out by hand.
 
 #include "services/krx_quant/ChartModel.h"
 
@@ -29,12 +30,29 @@ Mark mark(const char* bar_close, Direction predicted, Mark::Result result, bool 
     return Mark{kst(bar_close), predicted, 0.5, result, special, {}, p};
 }
 
-/// A final consensus at 09:31 up 62%, three of its five members up, scored up on both bases
-/// with the mid-point 79,000 at the bar close, 79,100 when shown and 79,300 four minutes on.
-Mark scored_up() {
+/// A forecast of ``algorithm`` at 09:31: up 62%, flat 25%, down 13% unless given.
+Prediction forecast(const QString& algorithm, double up = 0.62, double flat = 0.25, double down = 0.13) {
+    Prediction p;
+    p.algorithm = algorithm;
+    p.status = "ok";
+    p.bar_close = kst("2026-10-12T09:31:00+09:00");
+    p.target_at = p.bar_close.addSecs(240);
+    p.p_up = up;
+    p.p_flat = flat;
+    p.p_down = down;
+    return p;
+}
+
+/// ``p`` scored up on basis A, the mid-point 79,000 at the bar close and 79,300 four minutes on.
+Prediction scored_up(Prediction p) {
+    p.outcome = Outcome{Direction::Up, Direction::Down, false, {}, 79000.0, 79100.0, 79300.0};
+    return p;
+}
+
+/// A final consensus at 09:31 up 62%, three of its five members up, scored up.
+Mark final_up() {
     Mark m = mark("2026-10-12T09:31:00+09:00", Direction::Up, Mark::Result::Hit);
     m.prediction.votes = Votes{3, 1, 1};
-    m.prediction.outcome = Outcome{Direction::Up, Direction::Up, false, {}, 79000.0, 79100.0, 79300.0};
     return m;
 }
 
@@ -43,7 +61,20 @@ const QList<Bar> kBars{{kst("2026-10-12T09:30:00+09:00"), 79000, 79000, 79000, 7
                        {kst("2026-10-12T09:34:00+09:00"), 79000, 79000, 79000, 79000, 10}};
 
 QList<ChartIcon> plain_icons(const QList<Mark>& marks) {
-    return chart_icons(marks, {}, "b", SignalRule{});
+    return chart_icons(marks, SignalRule{});
+}
+
+/// A selected consensus's mark at ``bar_close`` (KST), scored ``happened`` with its target at
+/// four minutes on.
+Mark selected(const char* bar_close, Direction predicted, Direction happened, bool special = false) {
+    Mark m = mark(bar_close, predicted, Mark::Result::Pending, special);
+    m.selected = true;
+    m.truth.scored = happened != Direction::None;
+    m.truth.happened = happened;
+    m.truth.special = special;
+    m.truth.target_at = m.bar_close.addSecs(240);
+    m.result = verdict(predicted, m.truth);
+    return m;
 }
 
 } // namespace
@@ -113,42 +144,163 @@ class TstKrxChartModel : public QObject {
         QCOMPARE(icons[1].time, qint64(1791797520));
     }
 
-    void the_hover_says_the_times_the_classes_the_members_the_signal_and_the_result() {
-        QCOMPARE(hover_lines(scored_up(), "b", SignalRule{0.6, 2}),
-                 (QStringList{"09:31 봉 → 09:35 목표", "합의 상승 · 상승 62% · 보합 25% · 하락 13%", "같은 방향 3/5",
-                              "상승 신호 (62% ≥ 60%, 같은 방향 3 ≥ 2)", "실제 +200원 · ✓ 맞음"}));
-        // Basis A: from the bar close's mid-point.
-        QCOMPARE(hover_lines(scored_up(), "a", SignalRule{0.6, 2}).last(), QStringLiteral("실제 +300원 · ✓ 맞음"));
-        QCOMPARE(hover_lines(scored_up(), "b", SignalRule{0.7, 2})[3], QStringLiteral("신호 아님"));
+    void an_icon_is_a_signal_when_sure_enough_and_enough_lean_that_way() {
+        QVERIFY(chart_icons({final_up()}, SignalRule{0.6, 2})[0].signal);
+        QVERIFY(!chart_icons({final_up()}, SignalRule{0.7, 2})[0].signal); // 62% < 70%
+        QVERIFY(!chart_icons({final_up()}, SignalRule{0.6, 4})[0].signal); // 3 < 4 lean up
+        Mark blocked = final_up();
+        blocked.prediction.blocked = "special";
+        QVERIFY(!chart_icons({blocked}, SignalRule{0.6, 2})[0].signal);
+        Mark unknown = mark("2026-10-12T09:31:00+09:00", Direction::Up, Mark::Result::Pending);
+        QVERIFY(!chart_icons({unknown}, SignalRule{0.6, 2})[0].signal); // no votes: never emphasised
     }
 
-    void the_hover_before_scoring_or_without_votes_says_so() {
-        Mark m = mark("2026-10-12T09:31:00+09:00", Direction::Up, Mark::Result::Pending);
-        const auto lines = hover_lines(m, "b", SignalRule{0.6, 2});
-        QCOMPARE(lines[2], QStringLiteral("같은 방향 모델 수 알 수 없음"));
-        QCOMPARE(lines[3], QStringLiteral("신호 알 수 없음"));
-        QCOMPARE(lines[4], QStringLiteral("채점 전"));
-        m.prediction.blocked = "special";
-        m.prediction.votes = Votes{3, 1, 1};
-        QCOMPARE(hover_lines(m, "b", SignalRule{0.6, 2})[3], QStringLiteral("신호 아님 (엔진이 막음: 특수 상황)"));
-        Mark unscorable = mark("2026-10-12T09:31:00+09:00", Direction::Up, Mark::Result::Unscorable);
-        unscorable.unscorable = "missing mid: target";
-        QCOMPARE(hover_lines(unscorable, "b", SignalRule{}).last(), QStringLiteral("채점 불가 (missing mid: target)"));
+    void a_selected_consensus_on_a_special_bar_is_not_emphasised() {
+        Mark m = final_up();
+        m.selected = true;
+        QVERIFY(chart_icons({m}, SignalRule{0.6, 2})[0].signal);
+        m.special = true;
+        QVERIFY(!chart_icons({m}, SignalRule{0.6, 2})[0].signal);
+        QVERIFY(chart_icons({m}, SignalRule{0.6, 2})[0].faint);
     }
 
-    void an_icon_knows_its_target_bar_and_whether_it_signalled() {
-        // 09:31's target is 09:35: the bar 09:34–09:35 is there.
-        const auto icons = chart_icons({scored_up()}, kBars, "b", SignalRule{0.6, 2});
-        QCOMPARE(icons[0].target, qint64(1791797400 + 4 * 60));
-        QVERIFY(icons[0].target_shown);
-        QVERIFY(icons[0].signal);
-        QCOMPARE(icons[0].hover.size(), 5);
-        // Not yet: the 09:36 prediction's 09:40 bar is in the future, 5 bars after the last.
-        Mark later = mark("2026-10-12T09:36:00+09:00", Direction::Down, Mark::Result::Pending);
-        const auto pending = chart_icons({later}, kBars, "b", SignalRule{0.6, 2});
-        QVERIFY(!pending[0].target_shown);
-        QCOMPARE(pending[0].target_after_last, 5);
-        QVERIFY(!pending[0].signal); // no votes: never emphasised
+    void a_bar_close_s_truth_is_any_scored_forecast_s() {
+        const QDateTime close = kst("2026-10-12T09:31:00+09:00");
+        Prediction none;
+        none.algorithm = "consensus-final";
+        none.status = "no_members";
+        none.bar_close = close;
+        const Truth pending = truth_of({none}, close);
+        QVERIFY(!pending.scored);
+        QCOMPARE(pending.target_at, kst("2026-10-12T09:35:00+09:00")); // four minutes on
+        QCOMPARE(verdict(Direction::Up, pending), Mark::Result::Pending);
+
+        const Truth truth = truth_of({none, forecast("gauss"), scored_up(forecast("markov"))}, close);
+        QVERIFY(truth.scored);
+        QCOMPARE(truth.happened, Direction::Up); // basis A, whatever B said
+        QCOMPARE(truth.mid_start, std::optional<double>(79000.0));
+        QCOMPARE(verdict(Direction::Up, truth), Mark::Result::Hit);
+        QCOMPARE(verdict(Direction::Flat, truth), Mark::Result::Miss);
+        Truth unscorable = truth;
+        unscorable.happened = Direction::None;
+        QCOMPARE(verdict(Direction::Up, unscorable), Mark::Result::Unscorable);
+    }
+
+    void a_bar_without_predictions_says_so() {
+        QCOMPARE(hover_box({}, kst("2026-10-12T09:31:00+09:00"), {"gauss"}, {}, SignalRule{}),
+                 (QStringList{"09:31 봉 → 09:35 목표", "예측 없음"}));
+    }
+
+    void the_hover_shows_the_selected_consensus_each_selected_model_and_the_final_one() {
+        Prediction late = forecast("newton");
+        late.status = "timed_out";
+        late.p_up = late.p_flat = late.p_down = std::nullopt;
+        Prediction none;
+        none.algorithm = "consensus-final";
+        none.status = "no_members";
+        none.bar_close = kst("2026-10-12T09:31:00+09:00");
+        const QList<Prediction> at_close{scored_up(forecast("gauss")), late, none};
+        const QMap<QString, QString> standings{{"gauss", "probation"}, {"newton", "probation"}};
+
+        const QStringList lines = hover_box(at_close, kst("2026-10-12T09:31:00+09:00"), {"gauss", "markov", "newton"},
+                                            standings, SignalRule{0.6, 2});
+
+        QCOMPARE(lines, (QStringList{
+                            "09:31 봉 → 09:35 목표 · 실제 상승 +300원",
+                            "선택 합의 · 상승 · 상승 62% · 보합 25% · 하락 13% · 상승 1 보합 0 하락 0 · 1/3 모델 · ✓",
+                            "gauss · 수습 · 상승 · 상승 62% · 보합 25% · 하락 13% · ✓",
+                            "markov · 예측 없음",
+                            "newton · 수습 · 시간 초과",
+                            "최종 합의 · 합의 대상 없음",
+                        }));
+    }
+
+    void the_hover_without_a_selection_shows_the_final_consensus_and_its_signal() {
+        Prediction final = scored_up(forecast("consensus-final"));
+        final.votes = Votes{3, 1, 1};
+
+        const QStringList lines = hover_box({final}, kst("2026-10-12T09:31:00+09:00"), {}, {}, SignalRule{0.6, 2});
+
+        QCOMPARE(lines, (QStringList{"09:31 봉 → 09:35 목표 · 실제 상승 +300원",
+                                     "최종 합의 · 상승 · 상승 62% · 보합 25% · 하락 13% · 같은 방향 3/5 · ✓ · 신호"}));
+        Prediction pending = forecast("consensus-final");
+        QCOMPARE(hover_box({pending}, kst("2026-10-12T09:31:00+09:00"), {}, {}, SignalRule{})[0],
+                 QStringLiteral("09:31 봉 → 09:35 목표 · 채점 전"));
+    }
+
+    void each_bar_s_hover_knows_the_bar_it_aims_at() {
+        QMap<QDateTime, QList<Prediction>> closes;
+        closes.insert(kst("2026-10-12T09:31:00+09:00"), {forecast("consensus-final")});
+
+        const auto hovers = bar_hovers(kBars, closes, {}, {}, SignalRule{});
+
+        QCOMPARE(hovers.size(), 3); // every bar, with predictions or not
+        // The bar 09:30–09:31 closed at 09:31: its target 09:35 is the bar 09:34–09:35, drawn.
+        QCOMPARE(hovers[0].time, qint64(1791797400));
+        QCOMPARE(hovers[0].target, qint64(1791797400 + 4 * 60));
+        QVERIFY(hovers[0].target_shown);
+        QVERIFY(!hovers[0].hit_time.has_value());
+        QCOMPARE(hovers[1].lines.last(), QStringLiteral("예측 없음"));
+        // The bar 09:34–09:35 aims at 09:39: four bars after the last, not drawn yet.
+        QVERIFY(!hovers[2].target_shown);
+        QCOMPARE(hovers[2].target_after_last, 4);
+    }
+
+    void the_score_counts_the_scored_bars_in_view_whose_four_minutes_are_over() {
+        const QList<Mark> marks{
+            selected("2026-10-12T09:31:00+09:00", Direction::Up, Direction::Up),       // hit
+            selected("2026-10-12T09:32:00+09:00", Direction::Up, Direction::Flat),     // miss, flat right
+            selected("2026-10-12T09:33:00+09:00", Direction::Flat, Direction::Flat),   // hit, flat right
+            selected("2026-10-12T09:34:00+09:00", Direction::Down, Direction::Up),     // miss
+            selected("2026-10-12T09:35:00+09:00", Direction::Up, Direction::Up, true), // special: out
+            selected("2026-10-12T09:36:00+09:00", Direction::Up, Direction::None),     // not scored: out
+            selected("2026-10-12T09:37:00+09:00", Direction::Up, Direction::Up),       // its 09:41 not yet
+        };
+        const qint64 from = chart_time(kst("2026-10-12T09:30:00+09:00"));
+        const qint64 to = chart_time(kst("2026-10-12T09:40:00+09:00"));
+
+        const SelectionScore score = score_of(marks, from, to, kst("2026-10-12T09:40:30+09:00"));
+
+        QCOMPARE(score.n, 4);
+        QCOMPARE(score.hits, 2);
+        QCOMPARE(score.flat_hits, 2);
+        QCOMPARE(score_text(3, score), QStringLiteral("선택 합의 (3) · 맞음 50% · 늘 보합 50% (4개)"));
+        // Out of view: the 09:31 bar (09:30–09:31) is left out from 09:31 on.
+        QCOMPARE(score_of(marks, from + 60, to, kst("2026-10-12T09:40:30+09:00")).n, 3);
+        QCOMPARE(score_text(2, SelectionScore{}), QStringLiteral("선택 합의 (2) · 채점된 봉 없음"));
+    }
+
+    void a_selection_holds_models_and_baselines_once_each_in_name_order() {
+        QVERIFY(selectable("gauss"));
+        QVERIFY(selectable("baseline-flat"));
+        QVERIFY(!selectable("consensus-final"));
+        QVERIFY(!selectable("consensus-fast"));
+        QVERIFY(!selectable(QString()));
+
+        QStringList chosen = toggled({}, "markov", true);
+        chosen = toggled(chosen, "gauss", true);
+        chosen = toggled(chosen, "gauss", true);
+        chosen = toggled(chosen, "consensus-final", true);
+        QCOMPARE(chosen, (QStringList{"gauss", "markov"}));
+        QCOMPARE(toggled(chosen, "gauss", false), (QStringList{"markov"}));
+
+        QCOMPARE(selection_value(chosen), QStringLiteral("gauss,markov"));
+        QCOMPARE(parse_selection("markov, gauss,,consensus-final,gauss"), (QStringList{"gauss", "markov"}));
+        QVERIFY(parse_selection(QString()).isEmpty());
+    }
+
+    void once_models_are_selected_the_bar_closes_shown_are_read_again_from_the_latest_back() {
+        const QDateTime oldest = kst("2026-10-08T09:01:00+09:00");                   // the first bar's close
+        QVERIFY(!relabel_before({}, {}).has_value());                                // nothing shown
+        QCOMPARE(relabel_before({}, oldest), std::optional<QDateTime>(QDateTime())); // from the latest
+
+        // A page of every predictor's back to 10-12 09:01: read on before it.
+        const QDateTime from = full_from_after({}, {forecast("gauss")}, oldest);
+        QCOMPARE(from, kst("2026-10-12T09:31:00+09:00"));
+        QCOMPARE(relabel_before(from, oldest), std::optional<QDateTime>(from));
+        // Nothing before: as far back as shown, and done.
+        QCOMPARE(full_from_after(from, {}, oldest), oldest);
+        QVERIFY(!relabel_before(oldest, oldest).has_value());
     }
 
     void a_bar_close_s_judgements_come_consensus_first_then_models_then_baselines() {
@@ -176,7 +328,7 @@ class TstKrxChartModel : public QObject {
             at("markov", 0.4, 0.4, 0.2)};
         const QMap<QString, QString> statuses{{"gauss", "active"}, {"markov", "active"}, {"newton", "probation"}};
 
-        const auto rows = close_rows(made, statuses, "b");
+        const auto rows = close_rows(made, statuses);
 
         QStringList order;
         for (const auto& r : rows)
@@ -184,23 +336,35 @@ class TstKrxChartModel : public QObject {
         QCOMPARE(order, (QStringList{"consensus-fast", "consensus-final", "gauss", "markov", "newton", "turing",
                                      "baseline-flat"}));
         QVERIFY(rows[6].baseline && !rows[2].baseline);
-        // gauss: active, pooled, leaned down, scored down on basis B: right.
+        // gauss: active, pooled, leaned down; the bar close went up on basis A (krx-quant #159).
         QCOMPARE(rows[2].status, QStringLiteral("정식"));
         QCOMPARE(rows[2].in_consensus, QStringLiteral("포함"));
         QCOMPARE(rows[2].direction, QStringLiteral("하락"));
-        QCOMPARE(rows[2].result, QStringLiteral("✓ 맞음"));
-        QCOMPARE(close_rows(made, statuses, "a")[2].result, QStringLiteral("✗ 틀림")); // up on basis A
-        // markov: up and flat tie, so flat (as scored); newton on probation, not pooled.
+        QCOMPARE(rows[2].result, QStringLiteral("✗ 틀림"));
+        // markov: up and flat tie, so flat (as scored); newton on probation, not pooled, its
+        // own outcome not in but the bar close's truth is.
         QCOMPARE(rows[3].direction, QStringLiteral("보합"));
         QCOMPARE(rows[4].in_consensus, QStringLiteral("제외"));
-        QCOMPARE(rows[4].result, QStringLiteral("채점 전"));
+        QCOMPARE(rows[4].result, QStringLiteral("✓ 맞음"));
         QCOMPARE(rows[5].direction, QStringLiteral("시간 초과")); // no forecast: why
-        QCOMPARE(rows[1].in_consensus, QString());                // a consensus itself
-        QCOMPARE(rows[1].result, QStringLiteral("✗ 틀림"));       // up, scored down on B
+        QCOMPARE(rows[5].result, QString());
+        QCOMPARE(rows[1].in_consensus, QString());          // a consensus itself
+        QCOMPARE(rows[1].result, QStringLiteral("✓ 맞음")); // up, and up it went
         // Without the final consensus's members (an older engine): unknown.
         QList<Prediction> older = made;
         older[2].pooled.reset();
-        QCOMPARE(close_rows(older, statuses, "b")[2].in_consensus, QStringLiteral("알 수 없음"));
+        QCOMPARE(close_rows(older, statuses)[2].in_consensus, QStringLiteral("알 수 없음"));
+
+        // Models selected: their consensus first. gauss and newton: up 0.4, flat 0.25, down 0.35.
+        const auto chosen = close_rows(made, statuses, {"gauss", "newton"});
+        QCOMPARE(chosen.size(), rows.size() + 1);
+        QCOMPARE(chosen[0].algorithm, QStringLiteral("selected"));
+        QCOMPARE(chosen[0].name, QStringLiteral("선택 합의"));
+        QVERIFY(chosen[0].consensus);
+        QCOMPARE(chosen[0].direction, QStringLiteral("상승"));
+        QCOMPARE(*chosen[0].p_up, 0.4);
+        QCOMPARE(chosen[0].result, QStringLiteral("✓ 맞음"));
+        QCOMPARE(close_rows(made, statuses, {"turing"})[0].direction, QStringLiteral("예측 없음"));
     }
 
     void the_bars_before_are_read_once_the_view_nears_the_left_end() {

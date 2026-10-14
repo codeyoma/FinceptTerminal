@@ -32,6 +32,11 @@ enum SymbolColumn { kSymbol, kMid, kFinal, kScoring };
 // The chart's view, in minutes (krx-quant #109). Not "krx_quant/chart_minutes": that was the
 // range box's until #134 and is no longer read.
 constexpr auto kChartViewKey = "krx_quant/chart_view_minutes";
+// The models selected for the chart (krx-quant #159), as "gauss,markov".
+constexpr auto kChartSelectionKey = "krx_quant/chart_selection";
+// The chart draws again this long after the last prediction of the chosen symbol came:
+// a bar close brings about ten at once.
+constexpr int kChartSettleMs = 250;
 enum PredictionColumn { kPredictor, kDirection, kUp, kFlat, kDown, kTicks, kModel, kPredictionColumns };
 // The table while a bar close is pinned (krx-quant #107).
 enum PinnedColumn {
@@ -131,6 +136,12 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     chart_failure_ = new QLabel(tr("읽지 못함"));
     chart_failure_->hide();
     chart_header_.controls->addWidget(chart_failure_);
+    chart_score_ = new QLabel;
+    chart_score_->setToolTip(tr("보이는 구간에서 4분이 다 지나 채점된 봉 중 선택 합의가 맞은 비율과, 같은 봉들에서 "
+                                "'늘 보합'이 맞았을 비율이다. 설명용 성적이다. 정식 판정은 순위표의 거래일 단위 "
+                                "구간으로 한다. 특수 상황 봉은 세지 않는다."));
+    chart_score_->hide();
+    chart_header_.controls->addWidget(chart_score_);
     auto* fit = new QPushButton(tr("맞춤"));
     fit->setToolTip(tr("최근 60봉 보기로 돌아간다. 차트를 두 번 눌러도 된다."));
     chart_header_.controls->addWidget(fit);
@@ -233,8 +244,13 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         leaderboard_->set_symbols(symbols);
         fill_symbols();
         fill_predictions();
-        fill_chart();
     });
+    // The chart draws again once the chosen symbol's predictions settle (krx-quant #159).
+    chart_soon_ = new QTimer(this);
+    chart_soon_->setSingleShot(true);
+    chart_soon_->setInterval(kChartSettleMs);
+    connect(chart_soon_, &QTimer::timeout, this, &KrxQuantScreen::fill_chart);
+    connect(live_, &services::KrxLive::marks_changed, chart_soon_, qOverload<>(&QTimer::start));
     connect(live_, &services::KrxLive::live_changed, this, [this]() {
         // A candle view's last candle holds today, made of the day's bars (krx-quant #111, #112).
         const bool candles = krx_quant::candle_view(minutes_);
@@ -284,6 +300,10 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(fit, &QPushButton::clicked, chart_, &KrxChart::fit);
     connect(chart_, &KrxChart::icon_clicked, this, [this](const QDateTime& bar_close) { live_->pin(bar_close); });
     connect(chart_, &KrxChart::view_moved, this, [this](double from) { live_->view_from(from, minutes_); });
+    connect(chart_, &KrxChart::view_range, this, [this](qint64 from, qint64 to) {
+        view_range_ = {from, to};
+        show_score();
+    });
     live_->set_view(minutes_); // the view kept from before
     connect(latest_, &QPushButton::clicked, this, [this]() { live_->pin({}); });
     connect(live_, &services::KrxLive::pinned_changed, this, [this]() {
@@ -295,9 +315,13 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         predictions_table_->setRowCount(0);
         predictions_header_.title->setToolTip(tr("그 봉 마감의 예측을 읽지 못했습니다: %1").arg(reason));
     });
-    connect(leaderboard_, &KrxLeaderboard::query_changed, this, [this]() {
-        live_->set_leaderboard_query(leaderboard_->query());
-        fill_chart(); // the chart's ✓/✗ are on the leaderboard's basis
+    connect(leaderboard_, &KrxLeaderboard::query_changed, this,
+            [this]() { live_->set_leaderboard_query(leaderboard_->query()); });
+    connect(leaderboard_, &KrxLeaderboard::selection_changed, this, [this](const QStringList& selection) {
+        AppConfig::instance().set(kChartSelectionKey, krx_quant::selection_value(selection));
+        live_->set_selection(selection);
+        fill_predictions(); // the pinned bar close's selected consensus
+        fill_chart();
     });
     connect(leaderboard_, &KrxLeaderboard::detail_requested, this, &KrxQuantScreen::open_detail);
     connect(alerts_, &KrxAlerts::changed, this, [this]() {
@@ -317,6 +341,9 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
 
     live_->set_alerts(alerts_->is_on(), alerts_->rule());
     live_->set_leaderboard_query(leaderboard_->query());
+    const QStringList selection = krx_quant::parse_selection(AppConfig::instance().get(kChartSelectionKey).toString());
+    leaderboard_->set_selection(selection);
+    live_->set_selection(selection);
     live_->start(); // from now on, even before the screen is first shown: the signal alerts
 }
 
@@ -357,6 +384,7 @@ void KrxQuantScreen::refresh_theme() {
     alerts_->restyle();
     chart_->restyle();
     chart_failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
+    chart_score_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
     chart_views_->setStyleSheet(
         QString("QLabel{color:%1;padding-right:4px;}"
                 "QPushButton{background:transparent;color:%1;border:1px solid transparent;padding:2px 6px;"
@@ -547,8 +575,7 @@ void KrxQuantScreen::fill_pinned() {
     predictions_table_->setHorizontalHeaderLabels(
         {tr("예측"), tr("상태"), tr("방향"), tr("상승"), tr("보합"), tr("하락"), tr("합의"), tr("결과")});
     predictions_table_->setRowCount(0);
-    for (const auto& r :
-         krx_quant::close_rows(live_->pinned_predictions(), live_->statuses(), leaderboard_->query().basis)) {
+    for (const auto& r : krx_quant::close_rows(live_->pinned_predictions(), live_->statuses(), live_->selection())) {
         const int row = predictions_table_->rowCount();
         predictions_table_->insertRow(row);
         const QStringList cells{
@@ -614,23 +641,47 @@ void KrxQuantScreen::set_view(int minutes) {
 }
 
 void KrxQuantScreen::fill_chart() {
+    if (chart_soon_)
+        chart_soon_->stop(); // drawn now
     const QString& symbol = live_->selected();
     const bool candles = krx_quant::candle_view(minutes_);
+    const bool chosen = !live_->selection().isEmpty();
     const QString candle_title = minutes_ == krx_quant::kWeekView    ? tr("%1 · 주봉")
                                  : minutes_ == krx_quant::kMonthView ? tr("%1 · 월봉")
                                  : minutes_ == krx_quant::kYearView  ? tr("%1 · 년봉")
                                                                      : tr("%1 · 일봉");
     chart_header_.title->setText(symbol.isEmpty() ? tr("차트")
                                  : candles        ? candle_title.arg(symbol)
-                                 : minutes_ == 1  ? tr("%1 · 1분봉과 최종 합의").arg(symbol)
-                                                  : tr("%1 · %2분봉").arg(symbol).arg(minutes_));
+                                 : minutes_ == 1
+                                     ? (chosen ? tr("%1 · 1분봉") : tr("%1 · 1분봉과 최종 합의")).arg(symbol)
+                                     : tr("%1 · %2분봉").arg(symbol).arg(minutes_));
     if (symbol.isEmpty()) {
         chart_->set_data({}, {});
+        show_score();
         return;
     }
-    const QString basis = leaderboard_->query().basis;
-    chart_->set_data(candles ? live_->view_candles(minutes_) : live_->bars(), live_->board().marks(symbol, basis),
-                     basis, alerts_->rule(), minutes_);
+    const krx_quant::SignalRule rule = alerts_->rule();
+    const QList<krx_quant::Mark> marks = live_->board().marks(symbol, live_->selection());
+    // Each 1-minute bar's box (krx-quant #159): the minute views' only.
+    const QList<krx_quant::BarHover> hovers = minutes_ == 1
+                                                  ? krx_quant::bar_hovers(live_->bars(), live_->board().closes(symbol),
+                                                                          live_->selection(), live_->standings(), rule)
+                                                  : QList<krx_quant::BarHover>{};
+    chart_->set_data(candles ? live_->view_candles(minutes_) : live_->bars(), marks, hovers, rule, minutes_);
+    show_score();
+}
+
+void KrxQuantScreen::show_score() {
+    const QString& symbol = live_->selected();
+    const QStringList& selection = live_->selection();
+    if (symbol.isEmpty() || selection.isEmpty() || minutes_ != 1 || view_range_.second <= 0) {
+        chart_score_->hide();
+        return;
+    }
+    const auto score = krx_quant::score_of(live_->board().marks(symbol, selection), view_range_.first,
+                                           view_range_.second, live_->engine_now());
+    chart_score_->setText(krx_quant::score_text(static_cast<int>(selection.size()), score));
+    chart_score_->show();
 }
 
 void KrxQuantScreen::open_detail(const QString& algorithm) {

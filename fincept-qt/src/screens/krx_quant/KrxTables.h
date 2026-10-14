@@ -65,11 +65,16 @@ inline void set_stats(QTableWidget* table, int row, int column, const krx_quant:
 /// when it is made. Its fixed cell padding is left out, so the global style's, which
 /// follows the user's density, applies.
 inline void restyle(QTableWidget* table) {
+    // A row's box (the leaderboard's, krx-quant #159) as Fincept's check boxes: the global
+    // style draws QCheckBox's, not a table item's, which would be black on black.
     table->setStyleSheet(
         QString("QTableWidget { background: %1; alternate-background-color: %2; "
                 "gridline-color: %3; border: none; }"
-                "QTableWidget::item:selected { background: %4; }")
-            .arg(ui::colors::DARK(), ui::colors::ROW_ALT(), ui::colors::BORDER(), ui::colors::BG_RAISED()));
+                "QTableWidget::item:selected { background: %4; }"
+                "QTableWidget::indicator { width: 12px; height: 12px; border: 1px solid %5; background: %6; }"
+                "QTableWidget::indicator:checked { background: %7; border-color: %7; }")
+            .arg(ui::colors::DARK(), ui::colors::ROW_ALT(), ui::colors::BORDER(), ui::colors::BG_RAISED(),
+                 ui::colors::BORDER_MED(), ui::colors::BG_SURFACE(), ui::colors::AMBER()));
 }
 
 inline QTableWidget* table(const QStringList& headers) {

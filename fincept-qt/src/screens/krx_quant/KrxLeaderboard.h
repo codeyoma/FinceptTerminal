@@ -7,6 +7,7 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QTableWidget>
+#include <QTimer>
 #include <QWidget>
 
 #include <optional>
@@ -16,7 +17,9 @@ namespace fincept::screens {
 /// The KRX screen's leaderboard panel: its query (period, scoring basis, symbol, special
 /// situations) on the header, and the ranked, unranked and baseline entries with their
 /// stats; intervals in tooltips, the ranking rules on the title's. A line double-clicked
-/// asks for that predictor's detail.
+/// asks for that predictor's detail. The first column's boxes select models for the chart
+/// (krx-quant #159): an algorithm's or a baseline's line, not a consensus's; clicking that
+/// column's header clears them.
 class KrxLeaderboard : public QWidget {
     Q_OBJECT
   public:
@@ -27,6 +30,9 @@ class KrxLeaderboard : public QWidget {
     void set_symbols(const QStringList& symbols);
     void show_leaderboard(const krx_quant::Leaderboard& leaderboard);
     void show_failure(const QString& reason);
+    /// The models selected for the chart: their boxes ticked.
+    void set_selection(const QStringList& selection);
+    const QStringList& selection() const { return selection_; }
     /// Paint in the theme's colors and font now.
     void restyle();
 
@@ -35,6 +41,8 @@ class KrxLeaderboard : public QWidget {
     void query_changed();
     /// The user asked for a predictor's detail (double-clicked its line).
     void detail_requested(const QString& algorithm);
+    /// The user ticked or cleared models for the chart, once their clicks settled.
+    void selection_changed(const QStringList& selection);
 
   private:
     krx_panel::Header header_;
@@ -46,6 +54,11 @@ class KrxLeaderboard : public QWidget {
     QTableWidget* table_ = nullptr;
     QStringList symbols_;
     std::optional<krx_quant::Leaderboard> shown_; ///< the last one read
+    QStringList selection_;                       ///< the models selected for the chart
+    QStringList told_;                            ///< the selection last said (selection_changed)
+    QTimer settle_;                               ///< a moment after the last click
+    /// Tick the boxes as selection_ says, without taking it for the user's clicks.
+    void show_selection();
 };
 
 } // namespace fincept::screens

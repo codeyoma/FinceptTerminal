@@ -73,12 +73,20 @@ class KrxQuantService : public QObject {
     void restart();
     /// The status alone (its feeds' silences change by the second): status_ready or refresh_failed.
     void read_status();
-    /// A symbol's 1-minute bars and final consensus over the day: chart_ready or chart_failed.
-    void read_chart(const QString& symbol);
-    /// The bars that start before the chart's first one (``read.before``) and their final
-    /// consensus (krx-quant #108): older_ready or older_failed. Asked again while one is
-    /// read, it is not read: KrxLive asks again once that one answers.
-    void read_older(const QString& symbol, const krx_quant::OlderRead& read);
+    /// A symbol's 1-minute bars and predictions over the day: chart_ready or chart_failed.
+    /// The predictions are every predictor's with ``all`` (models selected for the chart,
+    /// krx-quant #159), else the final consensus's and "늘 보합"'s (always made where there is
+    /// a reference price, so the bar close's truth shows while the final consensus has no
+    /// members).
+    void read_chart(const QString& symbol, bool all = false);
+    /// The bars that start before the chart's first one (``read.before``) and their
+    /// predictions, as read_chart's (krx-quant #108): older_ready or older_failed. Asked
+    /// again while one is read, it is not read: KrxLive asks again once that one answers.
+    void read_older(const QString& symbol, const krx_quant::OlderRead& read, bool all = false);
+    /// Every predictor's predictions of the ``limit`` bar closes before ``before`` (invalid:
+    /// before now), to read those shown again once models are selected (krx-quant #159):
+    /// predictions_ready or predictions_failed. Asked again while one is read, it is not read.
+    void read_predictions(const QString& symbol, const QDateTime& before, int limit);
     /// kCandleRead candles of ``period`` ("day", "week", "month", "year") the engine stored
     /// before ``before`` (invalid: before now), for the candle views (krx-quant #111, #112):
     /// candles_ready or candles_failed. Asked again while one is read, it is not read:
@@ -102,11 +110,14 @@ class KrxQuantService : public QObject {
     void refresh_failed(const QString& reason);
     void status_ready(const fincept::krx_quant::EngineStatus& status);
     void chart_ready(const QString& symbol, const QList<fincept::krx_quant::Bar>& bars,
-                     const QList<fincept::krx_quant::Prediction>& finals);
+                     const QList<fincept::krx_quant::Prediction>& predictions, bool all);
     void chart_failed(const QString& symbol, const QString& reason);
     void older_ready(const QString& symbol, const QList<fincept::krx_quant::Bar>& bars,
-                     const QList<fincept::krx_quant::Prediction>& finals);
+                     const QList<fincept::krx_quant::Prediction>& predictions, bool all);
     void older_failed(const QString& symbol, const QString& reason);
+    void predictions_ready(const QString& symbol, const QDateTime& before,
+                           const QList<fincept::krx_quant::Prediction>& predictions);
+    void predictions_failed(const QString& symbol, const QString& reason);
     void candles_ready(const QString& symbol, const QString& period, const QDateTime& before,
                        const fincept::krx_quant::Candles& candles);
     void candles_failed(const QString& symbol, const QString& period, const QString& reason);
@@ -125,7 +136,7 @@ class KrxQuantService : public QObject {
   private:
     /// A step of a read: the answer to one GET, or why it failed.
     using Step = std::function<void(Result<QJsonDocument>)>;
-    enum Kind { kRefresh, kStatus, kChart, kLeaderboard, kMacro, kClose, kOlder, kCandles, kKinds };
+    enum Kind { kRefresh, kStatus, kChart, kLeaderboard, kMacro, kClose, kOlder, kCandles, kPredictions, kKinds };
 
     /// Start a read of ``kind`` unless one is under way; false if skipped.
     bool begin(Kind kind);
@@ -133,6 +144,11 @@ class KrxQuantService : public QObject {
     void get(const QString& path, Step step);
     void read_symbols(Snapshot snapshot);
     void read_members(Snapshot snapshot);
+    /// A chart's predictions at ``path`` (a query string without the algorithm): every
+    /// predictor's with ``all``, else the final consensus's then "늘 보합"'s. ``done`` gets them,
+    /// or why they could not be read.
+    void read_chart_predictions(const QString& symbol, const QString& query, bool all,
+                                std::function<void(Result<QList<krx_quant::Prediction>>)> done);
     void read_latest(Snapshot snapshot);
     void finish_with(const Snapshot& snapshot);
     /// The refresh failed: why, after ending it.

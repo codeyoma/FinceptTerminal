@@ -47,6 +47,14 @@ class KrxLive : public QObject {
     /// window each); a new one's at once.
     void set_details(const QStringList& algorithms);
     void set_alerts(bool on, const krx_quant::SignalRule& rule);
+    /// The models selected for the chart (krx-quant #159): their consensus is drawn in place
+    /// of the final one. While some are selected and the view is of 1-minute bars, the chart
+    /// reads every predictor's predictions; on selecting, those of the bar closes shown are
+    /// read again from the latest back, and the bars before wait for them.
+    void set_selection(const QStringList& selection);
+    const QStringList& selection() const { return selection_; }
+    /// The predictors' statuses now, from the last leaderboard read: the hover's.
+    const QMap<QString, QString>& standings() const { return standings_; }
     /// Show one bar close's judgements of the chosen symbol (a chart icon clicked, krx-quant
     /// #107) instead of the latest's; an invalid time goes back to the latest.
     void pin(const QDateTime& bar_close);
@@ -96,6 +104,9 @@ class KrxLive : public QObject {
     void base_url_changed(const QString& url);
     void status_changed();      ///< the status, the failure, the stream's state or the engine clock
     void predictions_changed(); ///< the board: symbols, latest predictions, final consensus, members
+    /// The chosen symbol's predictions, the selection or the statuses changed: the chart's
+    /// icons and hover boxes (krx-quant #159).
+    void marks_changed();
     void chart_changed();       ///< the chosen symbol's bars (or none, while they are read)
     /// Only the chosen symbol's last bar moved: the bar being made (krx-quant #110).
     void live_changed();
@@ -122,7 +133,19 @@ class KrxLive : public QObject {
     /// A status read; ``with_snapshot`` when it came with the predictions.
     void on_status(const krx_quant::EngineStatus& status, bool with_snapshot);
     void on_failure(const QString& reason);
-    void on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars, const QList<krx_quant::Prediction>& finals);
+    void on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
+                  const QList<krx_quant::Prediction>& predictions, bool all);
+    /// Read the chosen symbol's chart, every predictor's predictions while all_predictors().
+    void read_chart();
+    /// Models are selected and the view is of 1-minute bars: the chart needs every
+    /// predictor's predictions (krx-quant #159).
+    bool all_predictors() const;
+    /// The close of the first bar shown (1-minute); invalid without bars.
+    QDateTime oldest_close() const;
+    /// While all_predictors(), read again the predictions of the bar closes shown that were
+    /// read with the final consensus alone, a page at a time from the latest back. Whether
+    /// that is under way.
+    bool ensure_full();
     void on_event(const krx_quant::Event& event);
     void consider(const krx_quant::Prediction& final, const QDateTime& now);
     void set_engine_clock(const QDateTime& now);
@@ -164,6 +187,12 @@ class KrxLive : public QObject {
     std::optional<krx_quant::EngineStatus> status_;
     std::optional<krx_quant::Macro> macro_;
     QString macro_failure_;
+    QStringList selection_;            ///< the models selected for the chart
+    QMap<QString, QString> standings_; ///< the predictors' statuses, from the leaderboard
+    /// The earliest bar close from which on every predictor's predictions were read; invalid:
+    /// none (krx-quant #159).
+    QDateTime full_from_;
+    bool relabeling_ = false; ///< a page of them is read
     QString failure_;
     QString stream_state_;
     QStringList read_errors_;

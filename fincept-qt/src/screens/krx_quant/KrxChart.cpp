@@ -16,6 +16,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <utility>
 
 #ifdef HAS_QT_WEBENGINE
 #    include <QWebChannel>
@@ -90,6 +91,10 @@ void KrxChartBridge::moved(double from) {
     emit view_moved(from);
 }
 
+void KrxChartBridge::range(double from, double to) {
+    emit range_moved(from, to);
+}
+
 KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
     setMinimumHeight(220);
     auto* layout = new QVBoxLayout(this);
@@ -99,12 +104,19 @@ KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
         emit bridge_->theme_changed(theme_);
         if (!data_.isEmpty())
             emit bridge_->data_changed(data_);
+        // A page (re)loaded has no boxes: all of them.
+        QJsonArray all;
+        for (const auto& json : std::as_const(hovers_))
+            all.append(QJsonDocument::fromJson(json.toUtf8()).object());
+        emit bridge_->hovers_changed(compact(QJsonObject{{"reset", true}, {"set", all}, {"drop", QJsonArray{}}}));
     });
     connect(bridge_, &KrxChartBridge::icon_clicked, this, [this](const QString& bar_close) {
         if (const QDateTime at = QDateTime::fromString(bar_close, Qt::ISODate); at.isValid())
             emit icon_clicked(at);
     });
     connect(bridge_, &KrxChartBridge::view_moved, this, &KrxChart::view_moved);
+    connect(bridge_, &KrxChartBridge::range_moved, this,
+            [this](double from, double to) { emit view_range(static_cast<qint64>(from), static_cast<qint64>(to)); });
     unavailable_ = new QLabel(tr("차트를 열 수 없음"));
     unavailable_->setAlignment(Qt::AlignCenter);
     unavailable_->setToolTip(tr("이 빌드에 Qt WebEngine이 없거나 그 실행 파일이 빠졌다."));
@@ -135,8 +147,8 @@ void KrxChart::ensure_view() {
 #endif
 }
 
-void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks, const QString& basis,
-                        const krx_quant::SignalRule& rule, int minutes) {
+void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
+                        const QList<krx_quant::BarHover>& hovers, const krx_quant::SignalRule& rule, int minutes) {
     QJsonArray candles;
     QJsonArray volumes;
     const QColor up(ui::colors::POSITIVE());
@@ -150,8 +162,9 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
         volumes.append(QJsonObject{{"time", b.time}, {"value", b.volume}, {"color", css(b.rising ? up : down, 0.5)}});
     }
     QJsonArray icons;
-    // Icons, their hover and click are the 1-minute view's: a wider bar holds many bar closes.
-    const auto drawn = minutes == 1 ? krx_quant::chart_icons(marks, bars, basis, rule) : QList<krx_quant::ChartIcon>{};
+    // Icons, hover boxes and clicks are the 1-minute view's: a wider bar holds many bar closes.
+    const bool minute = minutes == 1;
+    const auto drawn = minute ? krx_quant::chart_icons(marks, rule) : QList<krx_quant::ChartIcon>{};
     for (const auto& icon : drawn) {
         // A signal is larger and never faint; a special prediction otherwise is.
         const double alpha = icon.signal ? 1.0 : icon.faint ? 0.35 : 0.8;
@@ -161,10 +174,6 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
                                  {"color", css(direction_color(icon.direction), alpha)},
                                  {"size", icon.signal ? 2 : 1},
                                  {"text", icon.result},
-                                 {"hover", QJsonArray::fromStringList(icon.hover)},
-                                 {"target", icon.target},
-                                 {"target_shown", icon.target_shown},
-                                 {"target_after_last", icon.target_after_last},
                                  {"bar_close", icon.bar_close.toString(Qt::ISODate)}});
     }
     const auto [from, to] = krx_quant::fit_range(static_cast<int>(shown.size()));
@@ -174,6 +183,34 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
                                 {"fit", QJsonObject{{"from", from}, {"to", to}}},
                                 {"day", dated}});
     emit bridge_->data_changed(data_);
+
+    // The hover boxes: only those changed go to the page, and those gone are dropped.
+    QHash<qint64, QString> boxes;
+    if (minute) {
+        for (const auto& h : hovers) {
+            QJsonObject box{{"time", h.time},
+                            {"lines", QJsonArray::fromStringList(h.lines)},
+                            {"target", h.target},
+                            {"target_shown", h.target_shown},
+                            {"target_after_last", h.target_after_last}};
+            if (h.hit_time && h.hit_price) {
+                box.insert("hit_time", *h.hit_time);
+                box.insert("hit_price", *h.hit_price);
+            }
+            boxes.insert(h.time, compact(box));
+        }
+    }
+    QJsonArray set;
+    QJsonArray drop;
+    for (auto it = boxes.cbegin(); it != boxes.cend(); ++it)
+        if (hovers_.value(it.key()) != it.value())
+            set.append(QJsonDocument::fromJson(it.value().toUtf8()).object());
+    for (auto it = hovers_.cbegin(); it != hovers_.cend(); ++it)
+        if (!boxes.contains(it.key()))
+            drop.append(it.key());
+    hovers_ = boxes;
+    if (!set.isEmpty() || !drop.isEmpty())
+        emit bridge_->hovers_changed(compact(QJsonObject{{"reset", false}, {"set", set}, {"drop", drop}}));
 }
 
 void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {

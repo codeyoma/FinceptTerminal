@@ -4,8 +4,10 @@
 // on the chart, kept up to date from two sources: the engine's answers (read on connecting,
 // reconnecting, and every few seconds without the stream) and its stream. They arrive in any
 // order, so these tests pin what wins: a later bar close over an earlier one, a scored
-// prediction over the same one unscored. They also pin what the chart marks, who the
-// consensus members are, and what a final consensus pooled (for the signal alerts).
+// prediction over the same one unscored. They also pin what the chart marks (the final
+// consensus, or the selected models' consensus, krx-quant #159, scored on the bar close's
+// truth), who the consensus members are, and what a final consensus pooled (for the signal
+// alerts). The expected means and counts are worked out by hand.
 
 #include "services/krx_quant/Board.h"
 
@@ -131,7 +133,7 @@ class TstKrxBoard : public QObject {
         board.set_history("005930", {final});
 
         QVERIFY(board.latest("005930").predictions[0].outcome.has_value());
-        QCOMPARE(board.marks("005930", "b")[0].result, Mark::Result::Hit);
+        QCOMPARE(board.marks("005930")[0].result, Mark::Result::Hit);
     }
 
     void each_symbol_is_kept_on_its_own() {
@@ -165,14 +167,14 @@ class TstKrxBoard : public QObject {
             {
                 scored(made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1), Direction::Up, Direction::Up),
                 scored(made("005930", "consensus-final", "09:32", 0.1, 0.3, 0.6), Direction::Up, Direction::Flat),
-                scored(made("005930", "consensus-final", "09:33", 0.2, 0.7, 0.1), Direction::Flat, Direction::None),
+                scored(made("005930", "consensus-final", "09:33", 0.2, 0.7, 0.1), Direction::None, Direction::None),
                 scored(made("005930", "consensus-final", "09:34", 0.2, 0.7, 0.1), Direction::Flat, Direction::Flat,
                        true),
                 made("005930", "consensus-final", "09:35", 0.3, 0.3, 0.4),
                 not_made("005930", "consensus-final", "09:36", "no_members"),
             });
 
-        const QList<Mark> marks = board.marks("005930", "b");
+        const QList<Mark> marks = board.marks("005930");
 
         QCOMPARE(marks.size(), 5); // none where there was no forecast
         QCOMPARE(marks[0].bar_close, at("09:31"));
@@ -182,32 +184,156 @@ class TstKrxBoard : public QObject {
         QCOMPARE(marks[1].predicted, Direction::Down);
         QCOMPARE(marks[1].result, Mark::Result::Miss);
         QCOMPARE(marks[2].predicted, Direction::Flat);
-        QCOMPARE(marks[2].result, Mark::Result::Unscorable); // not scored on basis B
+        QCOMPARE(marks[2].result, Mark::Result::Unscorable);
         QCOMPARE(marks[2].unscorable, QStringLiteral("missing mid: display"));
         QCOMPARE(marks[3].result, Mark::Result::Hit);
         QVERIFY(marks[3].special);
         QCOMPARE(marks[4].result, Mark::Result::Pending);
+        QVERIFY(!marks[0].selected);
     }
 
-    void marks_follow_the_chosen_basis() {
+    void marks_score_on_the_bar_close_s_truth_basis_a() {
+        // The chart no longer follows the leaderboard's basis (krx-quant #159): A, the same
+        // for every predictor of the bar close.
         Board board;
         board.set_history("005930", {scored(made("005930", "consensus-final", "09:32", 0.1, 0.3, 0.6), Direction::Down,
                                             Direction::Flat)});
 
-        QCOMPARE(board.marks("005930", "a")[0].result, Mark::Result::Hit);
-        QCOMPARE(board.marks("005930", "b")[0].result, Mark::Result::Miss);
+        QCOMPARE(board.marks("005930")[0].result, Mark::Result::Hit);
+    }
+
+    void the_final_consensus_is_scored_on_any_forecast_of_its_bar_close() {
+        // Its own outcome not in yet (read before it was scored), a model's is.
+        Board board;
+        board.focus("005930");
+        board.set_history("005930",
+                          {made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1),
+                           scored(made("005930", "gauss", "09:31", 0.2, 0.2, 0.6), Direction::Up, Direction::Up)});
+
+        QCOMPARE(board.marks("005930")[0].result, Mark::Result::Hit);
     }
 
     void the_stream_scores_the_marks_as_it_goes() {
         Board board;
         const Prediction final = made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1);
         board.apply(event_of(Event::Type::Consensus, {final}, "final"));
-        QCOMPARE(board.marks("005930", "b")[0].result, Mark::Result::Pending);
+        QCOMPARE(board.marks("005930")[0].result, Mark::Result::Pending);
 
         board.apply(event_of(Event::Type::Outcome, {scored(final, Direction::Down, Direction::Down)}));
 
-        QCOMPARE(board.marks("005930", "b").size(), 1);
-        QCOMPARE(board.marks("005930", "b")[0].result, Mark::Result::Miss);
+        QCOMPARE(board.marks("005930").size(), 1);
+        QCOMPARE(board.marks("005930")[0].result, Mark::Result::Miss);
+    }
+
+    void the_chosen_symbol_keeps_every_predictor_s_forecasts_another_only_its_final() {
+        Board board;
+        board.focus("005930");
+        board.apply(event_of(Event::Type::Prediction, {made("005930", "gauss", "09:31", 0.6, 0.3, 0.1),
+                                                       made("000660", "gauss", "09:31", 0.6, 0.3, 0.1)}));
+        board.apply(event_of(Event::Type::Consensus,
+                             {made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1),
+                              made("000660", "consensus-final", "09:31", 0.6, 0.3, 0.1)},
+                             "final"));
+
+        QCOMPARE(board.closes("005930").value(at("09:31")).size(), 2);
+        QCOMPARE(board.closes("000660").value(at("09:31")).size(), 1); // its final consensus alone
+        QCOMPARE(board.closes("000660").value(at("09:31"))[0].algorithm, QStringLiteral("consensus-final"));
+        QVERIFY(board.marks("000660", {"gauss"}).isEmpty()); // not the chosen symbol
+
+        board.focus("000660"); // another chosen: the first one's models go
+        QCOMPARE(board.closes("005930").value(at("09:31")).size(), 1);
+    }
+
+    void the_selected_models_consensus_is_their_mean_and_how_they_leaned() {
+        Board board;
+        board.focus("005930");
+        board.set_history("005930", {made("005930", "gauss", "09:31", 0.6, 0.3, 0.1),
+                                     made("005930", "markov", "09:31", 0.2, 0.5, 0.3),
+                                     made("005930", "newton", "09:31", 0.7, 0.2, 0.1),
+                                     not_made("005930", "turing", "09:31", "timed_out"),
+                                     made("005930", "granger", "09:31", 0, 0, 1)}); // not selected
+
+        const QList<Mark> marks = board.marks("005930", {"gauss", "markov", "newton", "turing"});
+
+        // Up (0.6 + 0.2 + 0.7) / 3 = 0.5, flat 1.0 / 3, down 0.5 / 3; two lean up, one flat.
+        QCOMPARE(marks.size(), 1);
+        QVERIFY(marks[0].selected);
+        QCOMPARE(marks[0].predicted, Direction::Up);
+        QCOMPARE(marks[0].probability, 0.5);
+        QCOMPARE(*marks[0].prediction.p_flat, (0.3 + 0.5 + 0.2) / 3);
+        QCOMPARE(marks[0].prediction.votes->up, 2);
+        QCOMPARE(marks[0].prediction.votes->flat, 1);
+        QCOMPARE(marks[0].prediction.votes->down, 0);
+        QCOMPARE(marks[0].made, 3);
+        QCOMPARE(marks[0].chosen, 4);
+        QCOMPARE(marks[0].prediction.target_at, at("09:35"));
+    }
+
+    void a_tie_goes_flat_and_the_mean_does_not_depend_on_the_order_they_came_in() {
+        const auto first = made("005930", "gauss", "09:31", 0.5, 0.25, 0.25);
+        const auto second = made("005930", "markov", "09:31", 0.25, 0.5, 0.25);
+        Board forward, backward;
+        forward.focus("005930");
+        backward.focus("005930");
+        forward.set_history("005930", {first, second});
+        backward.set_history("005930", {second, first});
+
+        const Mark a = forward.marks("005930", {"gauss", "markov"})[0];
+        const Mark b = backward.marks("005930", {"markov", "gauss"})[0];
+
+        QCOMPARE(a.prediction.p_up, b.prediction.p_up); // the same bits
+        QCOMPARE(a.prediction.p_flat, b.prediction.p_flat);
+        // Up and flat both 0.375: flat, as the engine scores a tie.
+        QCOMPARE(*a.prediction.p_up, *a.prediction.p_flat);
+        QCOMPARE(a.predicted, Direction::Flat);
+    }
+
+    void a_model_arriving_later_moves_the_selected_consensus() {
+        Board board;
+        board.focus("005930");
+        board.apply(event_of(Event::Type::Prediction, {made("005930", "gauss", "09:31", 0.6, 0.3, 0.1)}));
+        QCOMPARE(board.marks("005930", {"gauss", "markov"})[0].predicted, Direction::Up);
+        QCOMPARE(board.marks("005930", {"gauss", "markov"})[0].made, 1);
+
+        board.apply(event_of(Event::Type::Prediction, {made("005930", "markov", "09:31", 0.0, 0.1, 0.9)}));
+
+        // Up 0.3, flat 0.2, down 0.5.
+        QCOMPARE(board.marks("005930", {"gauss", "markov"})[0].predicted, Direction::Down);
+        QCOMPARE(board.marks("005930", {"gauss", "markov"})[0].made, 2);
+    }
+
+    void no_selected_forecast_no_mark() {
+        Board board;
+        board.focus("005930");
+        board.set_history("005930", {not_made("005930", "turing", "09:31", "timed_out"),
+                                     made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1)});
+
+        QVERIFY(board.marks("005930", {"turing"}).isEmpty());
+        QCOMPARE(board.marks("005930").size(), 1); // nothing selected: the final consensus
+    }
+
+    void the_selected_consensus_is_scored_and_blocked_as_its_bar_close() {
+        Board board;
+        board.focus("005930");
+        Prediction final = made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1);
+        final.blocked = "special";
+        board.set_history("005930", {final, scored(made("005930", "gauss", "09:31", 0.1, 0.3, 0.6), Direction::Down,
+                                                   Direction::Up, true)});
+
+        const Mark m = board.marks("005930", {"gauss"})[0];
+
+        QCOMPARE(m.result, Mark::Result::Hit); // down on basis A
+        QVERIFY(m.special);
+        QCOMPARE(m.prediction.blocked, QStringLiteral("special"));
+    }
+
+    void a_final_consensus_with_no_members_does_not_block_the_selected_one() {
+        Board board;
+        board.focus("005930");
+        board.set_history("005930", {not_made("005930", "consensus-final", "09:31", "no_members"),
+                                     made("005930", "gauss", "09:31", 0.7, 0.2, 0.1)});
+
+        QVERIFY(board.marks("005930", {"gauss"})[0].prediction.blocked.isEmpty());
     }
 
     void the_members_follow_their_status_changes() {
@@ -253,26 +379,32 @@ class TstKrxBoard : public QObject {
         board.set_symbols({{"005930", 81250.0}});
         board.set_latest(latest_of("005930", "09:31", {made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1)}));
 
+        board.focus("005930");
+        board.set_history("005930", {made("005930", "gauss", "09:31", 0.6, 0.3, 0.1)});
         board.forget_predictions();
 
         QVERIFY(board.symbols().isEmpty());
+        QVERIFY(board.closes("005930").isEmpty());
         QVERIFY(board.latest("005930").predictions.isEmpty());
-        QVERIFY(board.marks("005930", "b").isEmpty());
+        QVERIFY(board.marks("005930").isEmpty());
         QCOMPARE(board.members(), (QStringList{"alg-a", "alg-b"})); // a signal still counts them
     }
 
     void an_engine_whose_clock_went_back_takes_the_screen_back_too() {
         // A demo engine started again: its 10:00 comes after the 10:30 already shown.
         Board board;
+        board.focus("005930");
         board.set_history("005930", {made("005930", "consensus-final", "09:59", 0.6, 0.3, 0.1),
-                                     made("005930", "consensus-final", "10:30", 0.6, 0.3, 0.1)});
+                                     made("005930", "consensus-final", "10:30", 0.6, 0.3, 0.1),
+                                     made("005930", "gauss", "10:30", 0.6, 0.3, 0.1)});
         board.set_latest(latest_of("005930", "10:30", {made("005930", "alg-a", "10:30", 0.5, 0.3, 0.2)}));
 
         board.rewind_to(at("10:00"));
 
         QVERIFY(!board.latest("005930").bar_close.isValid());
-        QCOMPARE(board.marks("005930", "b").size(), 1);
-        QCOMPARE(board.marks("005930", "b")[0].bar_close, at("09:59"));
+        QCOMPARE(board.marks("005930").size(), 1);
+        QCOMPARE(board.marks("005930")[0].bar_close, at("09:59"));
+        QVERIFY(board.marks("005930", {"gauss"}).isEmpty()); // the models' later forecasts go too
         board.set_latest(latest_of("005930", "10:00", {made("005930", "alg-a", "10:00", 0.5, 0.3, 0.2)}));
         QCOMPARE(board.latest("005930").bar_close, at("10:00")); // the earlier bar close shows again
     }
