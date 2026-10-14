@@ -701,6 +701,7 @@ KindPrediction kind_prediction_of(const QJsonObject& p, const QString& symbol, c
     made.symbol = p.contains("symbol") ? p.value("symbol").toString() : symbol;
     made.bar_close = p.contains("bar_close") ? time_of(p.value("bar_close")) : bar_close;
     made.target_at = time_of(p.value("target_at"));
+    made.flat_ticks = integer_of(p.value("flat_ticks"));
     if (made.status == "ok") {
         const QJsonObject output = p.value("output").toObject();
         for (auto it = output.begin(); it != output.end(); ++it)

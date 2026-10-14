@@ -98,6 +98,12 @@ KindPrediction with(KindPrediction p, const KindAnswer& a) {
     return p;
 }
 
+/// ``p`` with the bar close's k it came with (krx-quant #200).
+KindPrediction with_k(KindPrediction p, int k) {
+    p.flat_ticks = k;
+    return p;
+}
+
 } // namespace
 
 class TstKrxKindView : public QObject {
@@ -192,11 +198,24 @@ class TstKrxKindView : public QObject {
         QCOMPARE(ticks_text(0), QStringLiteral("0"));
     }
 
-    void k_is_the_answer_s_once_in_else_now_s() {
-        const QList<KindPrediction> pending{forecast("a", "09:31", 0.2, 0.3, 0.5, 1, 2, 4)};
-        QCOMPARE(bar_close_k(pending, 3), std::optional<int>(3));
-        QCOMPARE(bar_close_k({with(pending[0], answer(4, "large"))}, 3), std::optional<int>(2));
-        QVERIFY(!bar_close_k(pending, std::nullopt).has_value());
+    void k_is_the_answer_s_once_in_else_the_predictions_bar_close_s_else_now_s() {
+        // The 09:31 predictions came with k 2 (krx-quant #200: the bar close at 86,950 won);
+        // the price has since moved to 87,150, where GET /v1/symbols' k is 3. Their small,
+        // medium and large were made against 2 and 4: the panel shows k 2, not 3.
+        const QList<KindPrediction> pending{with_k(forecast("a", "09:31", 0.2, 0.3, 0.5, 1, 2, 4), 2),
+                                            with_k(not_made("range-persist", "09:31", "no_previous"), 2)};
+        QCOMPARE(bar_close_k(pending, 3), std::optional<int>(2));
+        QCOMPARE(bar_close_k(pending, std::nullopt), std::optional<int>(2)); // a pinned bar close
+        QCOMPARE(widths_text(bar_close_k(pending, 3)), QStringLiteral("k 2틱 · 2k 4틱"));
+        // A row without it (not made, or stored before #200) does not hide the others'.
+        QCOMPARE(bar_close_k({not_made("range-persist", "09:31", "vi"), pending[0]}, 3), std::optional<int>(2));
+        // Once the answer is in, its k (made up here to differ from the predictions', to pin which wins).
+        QCOMPARE(bar_close_k({with(with_k(pending[0], 5), answer(4, "large"))}, 3), std::optional<int>(2));
+        // An engine before #200: no k with the predictions; the symbols' k now, until the answer.
+        const QList<KindPrediction> older{forecast("a", "09:31", 0.2, 0.3, 0.5, 1, 2, 4)};
+        QCOMPARE(bar_close_k(older, 3), std::optional<int>(3));
+        QCOMPARE(bar_close_k({with(older[0], answer(4, "large"))}, 3), std::optional<int>(2));
+        QVERIFY(!bar_close_k(older, std::nullopt).has_value());
         QCOMPARE(widths_text(2), QStringLiteral("k 2틱 · 2k 4틱"));
         QCOMPARE(widths_text(std::nullopt), QString());
     }
