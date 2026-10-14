@@ -326,8 +326,9 @@ struct AlgorithmInfo {
     QString kind = QStringLiteral("algorithm"); ///< "algorithm", "baseline" or "consensus" (krx-quant #164)
     std::optional<AlgorithmCard> card;
     QStringList features;
-    QMap<QString, Meaning> feature_meanings; ///< by feature name; empty from an older engine
-    QMap<QString, Meaning> param_meanings;   ///< by parameter name; empty from an older engine
+    /// By name; none from an older engine (krx-quant #164), which gives no such field.
+    std::optional<QMap<QString, Meaning>> feature_meanings;
+    std::optional<QMap<QString, Meaning>> param_meanings;
     std::optional<int> training_days;
     QString model_version;
     QList<QPair<QString, QString>> params; ///< name, value as text, by name

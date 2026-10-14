@@ -493,6 +493,8 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!beta.card.has_value()); // none given
         QVERIFY(beta.trained.isEmpty());
         QVERIFY(!beta.training_days.has_value());
+        QVERIFY(!beta.feature_meanings.has_value()); // no such field: an older engine
+        QVERIFY(!beta.param_meanings.has_value());
     }
 
     void the_cards_say_how_each_predictor_forecasts_and_what_its_names_mean() {
@@ -503,7 +505,10 @@ class TstKrxEngineData : public QObject {
                     "training": "학습 글", "forecasting": "확률 글", "failure": "실패 글"},
            "features": ["f1"], "feature_meanings": {"f1": {"meaning": "뜻 1", "unit": "틱", "known": "봉 마감"}},
            "model": {"version": "alpha-1", "params": {"a": 3}, "trained": null, "trained_until": null},
-           "param_meanings": {"a": {"meaning": "뜻 a", "unit": "", "known": "밤 학습"}}}],
+           "param_meanings": {"a": {"meaning": "뜻 a", "unit": "", "known": "밤 학습"}}},
+          {"name": "gamma", "features": [], "feature_meanings": {},
+           "model": {"version": "gamma-1", "params": {}, "trained": null, "trained_until": null},
+           "param_meanings": {}}],
          "baselines": [{"name": "baseline-x", "card": {"scientist": null, "character": "기준 성격", "logic": "기준 로직",
                         "unique_features": [], "training": "배우지 않음", "forecasting": "기준 확률", "failure": "기준 실패"}}],
          "consensus": [{"name": "consensus-y", "card": {"scientist": "C. Person", "character": "합의 성격", "logic": "합의 로직",
@@ -513,9 +518,12 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(alpha.kind, QStringLiteral("algorithm"));
         QCOMPARE(alpha.card->forecasting, QStringLiteral("확률 글"));
         QCOMPARE(alpha.card->failure, QStringLiteral("실패 글"));
-        QCOMPARE(alpha.feature_meanings.value("f1").meaning, QStringLiteral("뜻 1"));
-        QCOMPARE(alpha.feature_meanings.value("f1").unit, QStringLiteral("틱"));
-        QCOMPARE(alpha.param_meanings.value("a").known, QStringLiteral("밤 학습"));
+        QCOMPARE(alpha.feature_meanings->value("f1").meaning, QStringLiteral("뜻 1"));
+        QCOMPARE(alpha.feature_meanings->value("f1").unit, QStringLiteral("틱"));
+        QCOMPARE(alpha.param_meanings->value("a").known, QStringLiteral("밤 학습"));
+        const AlgorithmInfo gamma = read.value().value("gamma"); // the fields, though empty
+        QVERIFY(gamma.feature_meanings.has_value() && gamma.feature_meanings->isEmpty());
+        QVERIFY(gamma.param_meanings.has_value());
         const AlgorithmInfo baseline = read.value().value("baseline-x");
         QCOMPARE(baseline.kind, QStringLiteral("baseline"));
         QCOMPARE(baseline.card->scientist, QString()); // a baseline has none

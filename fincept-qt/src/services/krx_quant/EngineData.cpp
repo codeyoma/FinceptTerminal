@@ -404,7 +404,10 @@ std::optional<AlgorithmCard> card_of(const QJsonValue& v) {
                          card.value("failure").toString()};
 }
 
-QMap<QString, Meaning> meanings_of(const QJsonValue& v) {
+/// The meanings by name, or none when the engine gave no such field (an older engine).
+std::optional<QMap<QString, Meaning>> meanings_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
     QMap<QString, Meaning> out;
     const QJsonObject o = v.toObject();
     for (auto it = o.begin(); it != o.end(); ++it) {

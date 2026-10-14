@@ -256,12 +256,12 @@ QList<QPair<QString, QString>> about_rows(const std::optional<AlgorithmInfo>& in
     if (card && !card->unique_features.isEmpty())
         rows << Row(QStringLiteral("고유 피처"), card->unique_features.join(", "));
     if (!info->features.isEmpty()) {
-        if (info->feature_meanings.isEmpty()) { // an older engine: the names only
+        if (!info->feature_meanings) { // an older engine: the names only
             rows << Row(QStringLiteral("입력 피처"), info->features.join(", "));
         } else {
             QStringList lines;
             for (const auto& name : info->features)
-                lines << meant(name, info->feature_meanings.value(name));
+                lines << meant(name, info->feature_meanings->value(name));
             rows << Row(QStringLiteral("입력 피처"), lines.join("\n"));
         }
     }
@@ -279,10 +279,10 @@ QList<QPair<QString, QString>> about_rows(const std::optional<AlgorithmInfo>& in
         QStringList params;
         for (const auto& [name, value] : info->params) {
             const QString set = QStringLiteral("%1 = %2").arg(name, value);
-            params << (info->param_meanings.isEmpty() ? set : meant(set, info->param_meanings.value(name)));
+            params << (info->param_meanings ? meant(set, info->param_meanings->value(name)) : set);
         }
         rows << Row(QStringLiteral("파라미터"),
-                    params.join(info->param_meanings.isEmpty() ? QStringLiteral(", ") : QStringLiteral("\n")));
+                    params.join(info->param_meanings ? QStringLiteral("\n") : QStringLiteral(", ")));
     }
     if (!info->status.isEmpty()) {
         QString status = standing_label(info->status);

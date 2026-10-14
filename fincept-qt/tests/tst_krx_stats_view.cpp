@@ -301,6 +301,13 @@ class TstKrxStatsView : public QObject {
         QCOMPARE(rows[3].second, QStringLiteral("실패 글"));
         QCOMPARE(rows[4].second, QStringLiteral("f1 — 뜻 1 (틱 · 봉 마감)\nf2 — 뜻 2"));
         QCOMPARE(rows[8].second, QStringLiteral("a = 3 — 뜻 a (밤 학습)\nb = 0.25"));
+
+        // A newer engine that knows no meaning for these names: still one line each.
+        info.feature_meanings = QMap<QString, Meaning>{};
+        info.param_meanings = QMap<QString, Meaning>{};
+        const auto bare = about_rows(info);
+        QCOMPARE(bare[4].second, QStringLiteral("f1\nf2"));
+        QCOMPARE(bare[8].second, QStringLiteral("a = 3\nb = 0.25"));
     }
 
     void a_baseline_or_the_consensus_shows_its_card_only() {
