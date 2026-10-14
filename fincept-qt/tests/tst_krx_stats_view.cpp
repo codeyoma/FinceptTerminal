@@ -372,6 +372,10 @@ class TstKrxStatsView : public QObject {
         QCOMPARE(rows[0].second, QStringLiteral("엔진이 주지 않음 (기본값이거나 이전에 저장한 모델)"));
         QCOMPARE(rows[1].second, QStringLiteral("밤 학습 리포트 없음"));
 
+        // A report without a reason: the verdict alone.
+        info.validation = NightValidation{"2026-10-13", {}, std::nullopt, std::nullopt, std::nullopt, false, {}};
+        QCOMPARE(learning_rows(info).last(), (QPair<QString, QString>("승격", "승격하지 않음")));
+
         info.kind = "baseline";
         QVERIFY(learning_rows(info).isEmpty());
         QVERIFY(learning_rows(std::nullopt).isEmpty());

@@ -343,9 +343,9 @@ QList<QPair<QString, QString>> learning_rows(const std::optional<AlgorithmInfo>&
         rows << Row(QStringLiteral("지난밤 검증"), parts.join(QStringLiteral(" · ")));
         rows << Row(QStringLiteral("새 모델"), model(v->challenger, QStringLiteral("학습하지 않음")));
         rows << Row(QStringLiteral("지금 모델"), model(v->champion, QStringLiteral("검증할 데이터 없음")));
+        const QString verdict = v->promoted ? QStringLiteral("승격함") : QStringLiteral("승격하지 않음");
         rows << Row(QStringLiteral("승격"),
-                    QStringLiteral("%1 · %2").arg(
-                        v->promoted ? QStringLiteral("승격함") : QStringLiteral("승격하지 않음"), v->reason));
+                    v->reason.isEmpty() ? verdict : QStringLiteral("%1 · %2").arg(verdict, v->reason));
     } else {
         rows << Row(QStringLiteral("지난밤 검증"), QStringLiteral("밤 학습 리포트 없음"));
     }

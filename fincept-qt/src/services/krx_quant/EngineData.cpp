@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace fincept::krx_quant {
 
@@ -418,8 +419,14 @@ std::optional<QMap<QString, Meaning>> meanings_of(const QJsonValue& v) {
     return out;
 }
 
+/// A whole number, or none (absent, null, or not whole: not truncated).
 std::optional<int> integer_of(const QJsonValue& v) {
-    return v.isDouble() ? std::optional<int>(v.toInt()) : std::nullopt;
+    if (!v.isDouble())
+        return std::nullopt;
+    const double d = v.toDouble();
+    if (std::floor(d) != d || d < std::numeric_limits<int>::min() || d > std::numeric_limits<int>::max())
+        return std::nullopt;
+    return static_cast<int>(d);
 }
 
 std::optional<TrainingInfo> training_of(const QJsonValue& v) {

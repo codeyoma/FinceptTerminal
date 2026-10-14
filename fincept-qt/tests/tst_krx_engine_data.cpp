@@ -551,7 +551,10 @@ class TstKrxEngineData : public QObject {
                      "enough": true}},
           {"name": "beta", "model": {"version": "beta-default", "params": {}, "trained": null, "trained_until": null,
                                      "training": null},
-           "validation": null, "stage": null}]})"));
+           "validation": null, "stage": null},
+          {"name": "gamma", "model": {"version": "gamma-1", "params": {}, "trained": "t", "trained_until": null,
+                                      "training": {"first_day": "2026-09-08", "last_day": "2026-10-07", "samples": 9,
+                                                   "loss": 0.8, "days": {"recorded": 2.5, "bars": 3}}}}]})"));
         QVERIFY(read.is_ok());
         const AlgorithmInfo alpha = read.value().value("alpha");
         QCOMPARE(alpha.training->samples, 1200);
@@ -568,6 +571,9 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(alpha.stage->weakest->low, std::optional<double>(-0.4));
         const AlgorithmInfo beta = read.value().value("beta");
         QVERIFY(!beta.training && !beta.validation && !beta.stage);
+        const AlgorithmInfo gamma = read.value().value("gamma"); // a day count not whole: not taken
+        QVERIFY(!gamma.training->recorded_days.has_value());
+        QCOMPARE(gamma.training->bar_days, std::optional<int>(3));
     }
 
     void an_outcome_keeps_its_mid_points() {
