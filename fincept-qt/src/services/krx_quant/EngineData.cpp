@@ -749,6 +749,8 @@ KindPrediction kind_prediction_of(const QJsonObject& p, const QString& symbol, c
     made.target_at = time_of(p.value("target_at"));
     made.flat_ticks = integer_of(p.value("flat_ticks"));
     made.width_ticks = integer_of(p.value("width_ticks"));
+    made.anchor = number(p.value("anchor"));
+    made.tick = number(p.value("tick"));
     if (made.status == "ok") {
         const QJsonObject output = p.value("output").toObject();
         for (auto it = output.begin(); it != output.end(); ++it)
@@ -915,6 +917,7 @@ QString predictor_label(const QString& predictor) {
         {"baseline-flat", QStringLiteral("기준: 늘 보합")},
         {"baseline-persist", QStringLiteral("기준: 직전 4분 방향")},
         {"baseline-random", QStringLiteral("기준: 비율대로 무작위")},
+        {"baseline-climate", QStringLiteral("기준: 시간대 기후")}, // krx-quant #169, named since #210
         // The range's (krx-quant #180, #182).
         {"range-climate", QStringLiteral("기준: 변동폭 시간대 기후")},
         {"range-persist", QStringLiteral("기준: 직전 4분 변동폭")},

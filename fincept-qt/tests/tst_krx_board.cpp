@@ -108,7 +108,8 @@ KindAnswer range_answer(const QString& klass) {
     return a;
 }
 
-/// A barrier forecast (krx-quant #185) of ``algorithm`` at ``bar_close``, the bar close's width 6 ticks.
+/// A barrier forecast (krx-quant #185) of ``algorithm`` at ``bar_close``, the bar close's width 6 ticks,
+/// mid-point 78,350 and tick 100 (krx-quant #210).
 KindPrediction barred(const QString& symbol, const QString& algorithm, const char* bar_close, double up, double timeout,
                       double down) {
     KindPrediction p;
@@ -119,6 +120,8 @@ KindPrediction barred(const QString& symbol, const QString& algorithm, const cha
     p.bar_close = at(bar_close);
     p.target_at = p.bar_close.addSecs(240);
     p.width_ticks = 6;
+    p.anchor = 78'350;
+    p.tick = 100;
     p.output = {{"p_up_first", up}, {"p_timeout", timeout}, {"p_down_first", down}};
     return p;
 }
@@ -622,7 +625,9 @@ class TstKrxBoard : public QObject {
         for (const auto& p : board.latest("005930").predictions) {
             QCOMPARE(p.answer->barrier->upper, std::optional<double>(78'950));
             QCOMPARE(p.answer->barrier->up_at, at("09:33"));
-            QCOMPARE(p.width_ticks, std::optional<int>(6)); // the bar close's w they came with stays
+            QCOMPARE(p.width_ticks, std::optional<int>(6));    // the bar close's w they came with stays
+            QCOMPARE(p.anchor, std::optional<double>(78'350)); // and its mid-point and tick (krx-quant #210)
+            QCOMPARE(p.tick, std::optional<double>(100));
         }
         QCOMPARE(board.closes("005930").value(at("09:31")).size(), 2);
         // The range's answers are not this kind's.

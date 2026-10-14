@@ -168,6 +168,14 @@ KindPrediction with_k(KindPrediction p, int k) {
     return p;
 }
 
+/// ``p`` with the bar close's mid-point and tick it came with (krx-quant #210); without them, as
+/// from an engine before #210.
+KindPrediction with_anchor(KindPrediction p, double anchor, double tick) {
+    p.anchor = anchor;
+    p.tick = tick;
+    return p;
+}
+
 } // namespace
 
 class TstKrxKindView : public QObject {
@@ -535,7 +543,7 @@ class TstKrxKindView : public QObject {
         // 09:32: neither reached.
         closes.insert(at("09:32"), {with(barrier_forecast("alg-b", "09:32", 0.2, 0.35, 0.45),
                                          barrier_answer("timeout", nullptr, nullptr))});
-        // 09:33: not answered yet.
+        // 09:33: not answered yet, from an engine before krx-quant #210 (no mid-point with it).
         closes.insert(at("09:33"), {barrier_forecast("alg-b", "09:33", 0.2, 0.35, 0.45)});
 
         const auto hovers = kind_hovers(bars, closes, barrier_kind(), {});
@@ -555,10 +563,74 @@ class TstKrxKindView : public QObject {
         QCOMPARE(hovers[1].upper, std::optional<double>(78'950));
         QVERIFY(!hovers[1].upper_reached.has_value());
         QVERIFY(!hovers[1].lower_reached.has_value());
-        // Not answered: the window alone (the engine gives the bar close's mid-point with the answer).
+        // Not answered, by an engine that gives the bar close's mid-point with the answer only: the
+        // window alone.
         QVERIFY(!hovers[2].upper.has_value());
         QVERIFY(!hovers[2].lower.has_value());
         QCOMPARE(hovers[2].window_to - hovers[2].window_from, qint64(240));
+    }
+
+    void before_the_answer_the_barriers_come_from_the_predictions_bar_close() {
+        // krx-quant #210: the bar close's mid-point 78,350 and tick 100 come with each prediction,
+        // w 6: U 78,950 and L 77,750 before the answer.
+        const QList<KindPrediction> pending{
+            with_anchor(barrier_forecast("alg-b", "09:31", 0.3, 0.5, 0.2), 78'350, 100),
+            with_anchor(not_made("barrier-persist", "09:31", "no_previous"), 78'350, 100)};
+        const auto barriers = bar_close_barriers(pending);
+        QVERIFY(barriers.has_value());
+        QCOMPARE(barriers->upper, 78'950.0);
+        QCOMPARE(barriers->lower, 77'750.0);
+        QCOMPARE(barrier_text(pending), QStringLiteral("w 6틱 · U 78,950 · L 77,750"));
+        // A prediction not made has them too (a VI, krx-quant #183): its w with them.
+        KindPrediction vi = with_anchor(not_made("barrier-climate", "09:31", "vi"), 78'350, 100);
+        vi.width_ticks = 6;
+        QCOMPARE(barrier_text({vi}), QStringLiteral("w 6틱 · U 78,950 · L 77,750"));
+        // On a mid-point between won (a 1-won tick under 2,000 won), so are U and L.
+        KindPrediction cheap = with_anchor(barrier_forecast("alg-b", "09:31", 0.3, 0.5, 0.2), 1'234.5, 1);
+        cheap.width_ticks = 3;
+        QCOMPARE(barrier_text({cheap}), QStringLiteral("w 3틱 · U 1,237.5 · L 1,231.5"));
+        // An engine before krx-quant #210 gives no mid-point with them: w alone, as before.
+        QCOMPARE(barrier_text({barrier_forecast("alg-b", "09:31", 0.3, 0.5, 0.2)}), QStringLiteral("w 6틱"));
+        QVERIFY(!bar_close_barriers({barrier_forecast("alg-b", "09:31", 0.3, 0.5, 0.2)}).has_value());
+        // Nor without the w (another kind: the range's carry the mid-point but no barriers).
+        QVERIFY(!bar_close_barriers({with_anchor(forecast("alg-r", "09:31", 0.2, 0.3, 0.5, 1, 2, 4), 78'350, 100)})
+                     .has_value());
+        // Once the answer is in, its U and L (made up to differ, to pin which wins); a window the
+        // engine did not follow has none, as before.
+        KindAnswer answer = barrier_answer("timeout", nullptr, nullptr);
+        answer.barrier->upper = 79'000;
+        answer.barrier->lower = 77'700;
+        QCOMPARE(barrier_text({with(pending[0], answer)}), QStringLiteral("w 6틱 · U 79,000 · L 77,700"));
+        KindAnswer restarted = barrier_answer("", nullptr, nullptr);
+        restarted.unscorable = "restarted";
+        restarted.barrier.reset();
+        QVERIFY(!bar_close_barriers({with(pending[0], restarted)}).has_value());
+        QCOMPARE(barrier_text({with(pending[0], restarted)}), QStringLiteral("w 6틱"));
+    }
+
+    void before_the_answer_the_hover_draws_the_barriers_the_predictions_came_with() {
+        const QList<Bar> bars{{at("09:30"), 78'350, 78'350, 78'350, 78'350, 10},
+                              {at("09:31"), 78'350, 78'350, 78'350, 78'350, 10}};
+        QMap<QDateTime, QList<KindPrediction>> closes;
+        // 09:31: not answered yet; the predictions came with the bar close's mid-point (krx-quant #210).
+        closes.insert(at("09:31"), {with_anchor(barrier_forecast("alg-b", "09:31", 0.2, 0.35, 0.45), 78'350, 100)});
+        // 09:32: the range's carry the mid-point too, but the barrier is chosen and they have no w.
+        closes.insert(at("09:32"), {with_anchor(forecast("alg-r", "09:32", 0.2, 0.3, 0.5, 1, 2, 4), 78'350, 100)});
+
+        const auto hovers = kind_hovers(bars, closes, barrier_kind(), {});
+
+        QCOMPARE(hovers.size(), 2);
+        QCOMPARE(hovers[0].upper, std::optional<double>(78'950));
+        QCOMPARE(hovers[0].lower, std::optional<double>(77'750));
+        QVERIFY(!hovers[0].upper_reached.has_value()); // nothing reached yet
+        QVERIFY(!hovers[0].lower_reached.has_value());
+        QCOMPARE(hovers[0].window_to - hovers[0].window_from, qint64(240));
+        QVERIFY(hovers[0].lines[0].endsWith(QStringLiteral("채점 전 · w 6틱")));
+        QVERIFY(!hovers[1].upper.has_value());
+        // While the range is chosen, the barrier's are not drawn.
+        const auto range = kind_hovers(bars, closes, range_kind(), {});
+        QVERIFY(!range[0].upper.has_value());
+        QVERIFY(!range[0].lower.has_value());
     }
 
     void the_kind_s_predictions_are_read_back_to_the_first_bar_shown() {

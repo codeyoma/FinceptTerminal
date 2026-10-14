@@ -561,6 +561,12 @@ struct KindPrediction {
     /// same for every predictor; none for a kind without barriers, from an older engine, or
     /// without a mid-point.
     std::optional<int> width_ticks{};
+    /// The integrated mid-point at its bar close (krx-quant #210), the reference its answer is
+    /// measured from, kept as the price moves on, and the tick size there: a barrier's U and L
+    /// are anchor ± w·tick before its answer is in. None from an engine before #210, for one
+    /// stored before, or without a mid-point.
+    std::optional<double> anchor{};
+    std::optional<double> tick{};
     QMap<QString, double> output;
     std::optional<KindAnswer> answer; ///< its bar close's, once its four minutes are over
 

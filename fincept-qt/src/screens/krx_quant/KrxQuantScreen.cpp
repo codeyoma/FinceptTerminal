@@ -788,7 +788,7 @@ void KrxQuantScreen::kind_title() {
         if (const QString widths = krx_quant::widths_text(krx_quant::bar_close_k(latest.predictions, k_now));
             !widths.isEmpty())
             parts << widths;
-    if (barrier) // its w; U and L once its answer is in (krx-quant #185)
+    if (barrier) // its w, U and L (krx-quant #185), before its answer too (#210)
         if (const QString barriers = krx_quant::barrier_text(latest.predictions); !barriers.isEmpty())
             parts << barriers;
     panel_title->setText(parts.join(QStringLiteral(" · ")));
