@@ -102,6 +102,10 @@ int main(int argc, char* argv[]) {
     if (qEnvironmentVariableIsSet("KRX_CAPTURE_SEPARATOR"))
         fincept::AppConfig::instance().set("krx_quant/chart_day_separator",
                                            qEnvironmentVariableIntValue("KRX_CAPTURE_SEPARATOR") != 0);
+    // KRX_CAPTURE_SPECIAL=<0|1>: the options menu's special situations' bands (krx-quant #236).
+    if (qEnvironmentVariableIsSet("KRX_CAPTURE_SPECIAL"))
+        fincept::AppConfig::instance().set(fincept::krx_quant::kSpecialKey,
+                                           qEnvironmentVariableIntValue("KRX_CAPTURE_SPECIAL") != 0);
     // KRX_CAPTURE_MAGNET=<0|1>: the drawing menu's magnet (krx-quant #224).
     if (qEnvironmentVariableIsSet("KRX_CAPTURE_MAGNET"))
         fincept::AppConfig::instance().set(fincept::krx_quant::kMagnetKey,
@@ -120,6 +124,15 @@ int main(int argc, char* argv[]) {
     if (auto* leaderboard = screen.findChild<fincept::screens::KrxLeaderboard*>()) {
         for (const auto& predictor : details) // as a double-click on its line asks
             QMetaObject::invokeMethod(leaderboard, "detail_requested", Q_ARG(QString, predictor));
+    }
+
+    // KRX_CAPTURE_SYMBOL=<symbol>: as picking that symbol in the list (krx-quant #236), at 0.2 of the
+    // wait, once the engine is read: the views and styles below are then its own.
+    if (const QString symbol = qEnvironmentVariable("KRX_CAPTURE_SYMBOL"); !symbol.isEmpty()) {
+        QTimer::singleShot(seconds * 200, &app, [&screen, symbol]() {
+            if (auto* live = screen.findChild<fincept::services::KrxLive*>())
+                live->select(symbol);
+        });
     }
 
     // KRX_CAPTURE_VIEW=<minutes>: as picking that view above the chart (krx-quant #109, #221); 1440
@@ -296,6 +309,36 @@ int main(int argc, char* argv[]) {
                         "})();")
                         .arg(across)
                         .arg(down));
+        });
+    }
+    // KRX_CAPTURE_AT=<ISO 8601>: the chart's view moved, at 0.7 of the wait, so that the slot holding
+    // that moment is in its middle, as many bars wide as it was (krx-quant #236), e.g. a halt's start.
+    // KRX_CAPTURE_HOVER_AT=<ISO 8601>: as the pointer resting on that moment's slot, a third of the
+    // way down, from 0.8 of the wait: its hover box shows (an empty bar's, a band's).
+    const QDateTime show_at = QDateTime::fromString(qEnvironmentVariable("KRX_CAPTURE_AT"), Qt::ISODate);
+    if (show_at.isValid()) {
+        QTimer::singleShot(seconds * 700, &app, [&screen, show_at]() {
+            auto* chart = screen.findChild<fincept::screens::KrxChart*>();
+            if (auto* view = chart ? chart->findChild<QWebEngineView*>() : nullptr)
+                view->page()->runJavaScript(QStringLiteral("window.krxChart && window.krxChart.show(%1);")
+                                                .arg(fincept::krx_quant::chart_time(show_at)));
+        });
+    }
+    const QDateTime hover_at = QDateTime::fromString(qEnvironmentVariable("KRX_CAPTURE_HOVER_AT"), Qt::ISODate);
+    if (hover_at.isValid()) {
+        QTimer::singleShot(seconds * 800, &app, [&screen, hover_at]() {
+            auto* chart = screen.findChild<fincept::screens::KrxChart*>();
+            if (auto* view = chart ? chart->findChild<QWebEngineView*>() : nullptr)
+                view->page()->runJavaScript(
+                    QStringLiteral(
+                        "(function(){const x = window.krxChart.x(%1), y = innerHeight / 3; if (x === null) return;"
+                        "const at = document.elementFromPoint(x, y);"
+                        "const event = (type, bubbles) => new MouseEvent(type, {clientX: x, clientY: y, "
+                        "  pageX: x, pageY: y, bubbles: bubbles, view: window});"
+                        "for (let e = at; e; e = e.parentElement) e.dispatchEvent(event('mouseenter', false));"
+                        "at.dispatchEvent(event('mousemove', true));"
+                        "})();")
+                        .arg(fincept::krx_quant::chart_time(hover_at)));
         });
     }
     // KRX_CAPTURE_DRAG=<pane>:<pixels>: as dragging the border above that lower pane (1 the top one,

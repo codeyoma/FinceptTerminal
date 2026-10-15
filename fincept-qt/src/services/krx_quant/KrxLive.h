@@ -14,6 +14,7 @@
 #include <QTimer>
 
 #include <optional>
+#include <utility>
 
 namespace fincept::services {
 
@@ -26,8 +27,9 @@ namespace fincept::services {
 /// Reads: with the stream connected, the status every 5 s (the feeds' silences), the
 /// symbols, latest predictions and members every 30 s, the chosen symbol's chart and the
 /// leaderboard every 60 s (and the chart on a new bar close, the leaderboard 3 s after
-/// outcomes), the macro row every 5 min. The stats of each predictor a detail window
-/// shows are read with the leaderboard, each on its own. Without the stream, the status, predictions,
+/// outcomes), the macro row every 5 min. The chosen symbol's special situations over the days of
+/// its bars held (krx-quant #236) every 60 s while shown, and as soon as those days change. The stats of each predictor
+/// a detail window shows are read with the leaderboard, each on its own. Without the stream, the status, predictions,
 /// members and leaderboard every 5 s; the chart and the macro row as with it. While the
 /// screen is hidden only what the alerts need is read, and an address applied elsewhere.
 class KrxLive : public QObject {
@@ -89,7 +91,9 @@ class KrxLive : public QObject {
     /// week, month, year; krx-quant #111, #112) reads the engine's latest candles of its
     /// period if it has none yet, or none since the engine day changed, and so do its days
     /// for a longer view (its last periods are made of them). The chart's reads call it
-    /// again, so a screen left open past midnight gets the day before's stored candles.
+    /// again, so a screen left open past midnight gets the day before's stored candles. A
+    /// minute view with no bar today (before the open, a holiday) reads the last day's bars,
+    /// however the view was reached; the bars before that the indicators want otherwise.
     void set_view(int minutes);
     /// The chart's indicators want ``bars`` bars of the view (krx-quant #222,
     /// krx_quant::history_bars) and the bars back to ``back_to`` (the anchored VWAP's anchor;
@@ -130,6 +134,10 @@ class KrxLive : public QObject {
     /// a week, month or year view's (krx-quant #112) the engine's finished ones, then those
     /// made of the day view's candles.
     QList<krx_quant::Bar> view_candles(int view) const;
+    /// The chosen symbol's special situations over the days of its 1-minute bars held (krx-quant
+    /// #236): its VIs and the market's circuit breakers and sidecars, in start order. None before
+    /// they are read, from an engine without them, or while the engine cannot be read.
+    const QList<krx_quant::SpecialWindow>& special() const { return special_; }
     /// Why the engine could not be read; empty once it can.
     const QString& failure() const { return failure_; }
     /// The stream's state in Korean ("스트림 연결됨", why it is down and when it is tried again).
@@ -153,6 +161,8 @@ class KrxLive : public QObject {
     /// Only the chosen symbol's last bar moved: the bar being made (krx-quant #110).
     void live_changed();
     void chart_failed(const QString& reason);
+    /// The chosen symbol's special situations changed (krx-quant #236): the chart's bands.
+    void special_changed();
     void macro_changed(const fincept::krx_quant::Macro& macro);
     void macro_failed(const QString& reason);
     void leaderboard_changed(const fincept::krx_quant::Leaderboard& leaderboard);
@@ -226,6 +236,7 @@ class KrxLive : public QObject {
     bool shown_ = false;
     QString selected_;
     QList<krx_quant::Bar> bars_;
+    bool day_read_ = false;                      ///< bars_ is the engine's answer: empty means no bar today yet
     std::optional<krx_quant::Bar> live_;         ///< the chosen symbol's bar being made, as last sent
     QList<krx_quant::Bar> older_;                ///< read before the day's, as the chart scrolled back
     bool oldest_ = false;                        ///< the engine has nothing before older_
@@ -248,12 +259,21 @@ class KrxLive : public QObject {
     void forget_older();
     /// Read the next page before the first bar while the indicators want more (set_history).
     void read_history();
-    int history_ = 0;           ///< bars of the view the indicators want
-    QDateTime history_back_to_; ///< and the moment they reach back to
-    bool whole_days_ = false;   ///< and whole days on the first screen (the VWAP)
-    QDateTime day_target_;      ///< where those start, from the first screen; invalid: not worked out yet
-    bool cumulative_ = false;   ///< and back past the AD line's and the OBV's 0 (krx-quant #223)
-    QDateTime zero_target_;     ///< that moment, from the bars first held; invalid: not worked out yet
+    /// The days whose special situations the chart wants (krx-quant #236): from the first 1-minute
+    /// bar held to the engine's day, the last 60 at most (what the engine answers at once); none
+    /// without a symbol or bars.
+    std::optional<std::pair<QDate, QDate>> special_days() const;
+    /// Read the chosen symbol's special situations over special_days (``always``), or only when those
+    /// days are not the ones read.
+    void read_special(bool always = true);
+    QList<krx_quant::SpecialWindow> special_;
+    std::optional<std::pair<QDate, QDate>> special_read_; ///< the days special_ is of
+    int history_ = 0;                                     ///< bars of the view the indicators want
+    QDateTime history_back_to_;                           ///< and the moment they reach back to
+    bool whole_days_ = false;                             ///< and whole days on the first screen (the VWAP)
+    QDateTime day_target_;    ///< where those start, from the first screen; invalid: not worked out yet
+    bool cumulative_ = false; ///< and back past the AD line's and the OBV's 0 (krx-quant #223)
+    QDateTime zero_target_;   ///< that moment, from the bars first held; invalid: not worked out yet
     KrxQuantService::LeaderboardQuery query_;
     QStringList details_; ///< the algorithms whose stats are read
     QDateTime pinned_;

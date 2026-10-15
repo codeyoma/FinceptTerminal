@@ -127,6 +127,8 @@ class KrxQuantScreen : public QWidget {
     QLabel* chart_score_ = nullptr;              ///< on the chart's header: the selected consensus's score
     QTimer* chart_soon_ = nullptr;               ///< draws the chart once the chosen symbol's predictions settle
     std::pair<qint64, qint64> view_range_{0, 0}; ///< the bars in view, by time (chart_time)
+    /// The slot of the engine's clock the chart was last drawn at (krx-quant #238, krx_quant::clock_slot).
+    std::optional<qint64> clock_slot_drawn_;
     KrxChart* chart_ = nullptr;
     KrxChartToolbar* chart_toolbar_ = nullptr; ///< the row above the chart (krx-quant #221)
     int minutes_ = 1;                          ///< the chart's view
@@ -134,7 +136,7 @@ class KrxQuantScreen : public QWidget {
     std::optional<double> brick_atr_;          ///< ATR(14) the chart last counted for the bricks' default (#225)
     KrxStudyPanel* study_panel_ = nullptr;     ///< the indicators panel (krx-quant #222)
     KrxDrawingPopup* drawing_popup_ = nullptr; ///< a drawing's colour, width, line style and text (krx-quant #224)
-    krx_panel::Header predictions_header_; ///< titled with the bar close and the countdown
+    krx_panel::Header predictions_header_;     ///< titled with the bar close and the countdown
     QTableWidget* predictions_table_ = nullptr;
     QPushButton* latest_ = nullptr; ///< back to the latest bar close, while one is pinned
     KrxLeaderboard* leaderboard_ = nullptr;

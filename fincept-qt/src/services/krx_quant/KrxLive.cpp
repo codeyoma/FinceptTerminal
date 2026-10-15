@@ -17,6 +17,8 @@ constexpr int kRefreshEvery = 6; ///< ticks between full reads (30 s)
 constexpr int kChartEvery = 12;  ///< 60 s
 constexpr int kMacroEvery = 60;  ///< 5 min
 constexpr int kLeaderboardDelayMs = 3000;
+/// The most days of special situations the engine gives in one answer (krx-quant #236: more is 400).
+constexpr int kSpecialDays = 60;
 
 /// The final consensus among a symbol's latest predictions, if there.
 std::optional<krx_quant::Prediction> final_of(const krx_quant::Latest& latest) {
@@ -54,6 +56,7 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
                 ensure_marks();      // their icons' predictions, if not read along (krx-quant #239)
                 read_kind_history(); // the kind's over the bars now shown too (krx-quant #182)
                 read_history();      // more for the indicators (krx-quant #222)
+                read_special(false); // the special situations of the days now held (krx-quant #236)
             });
     connect(service_, &KrxQuantService::predictions_ready, this,
             [this](const QString& symbol, const QDateTime& before, const QList<krx_quant::Prediction>& predictions,
@@ -111,6 +114,24 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
                 if (symbol == selected_ && own)
                     return emit older_failed(reason);
                 set_view(view_minutes_); // another symbol or view was chosen meanwhile: its reads, waiting till now
+            });
+    connect(service_, &KrxQuantService::special_ready, this,
+            [this](const QString& symbol, const QDate& from, const QDate& to,
+                   const QList<krx_quant::SpecialWindow>& windows) {
+                if (symbol == selected_) {
+                    special_read_ = std::pair(from, to);
+                    if (windows != special_) {
+                        special_ = windows;
+                        emit special_changed();
+                    }
+                }
+                read_special(false); // another symbol's, or more days held meanwhile
+            });
+    connect(service_, &KrxQuantService::special_failed, this,
+            [this](const QString& symbol, const QDate&, const QDate&, const QString&) {
+                // The bands are left as they were; asked again within a minute. Another symbol's at once.
+                if (symbol != selected_)
+                    read_special(false);
             });
     connect(service_, &KrxQuantService::algorithms_ready, this,
             [this](const QMap<QString, krx_quant::AlgorithmInfo>& algorithms) {
@@ -284,8 +305,11 @@ void KrxLive::apply_base_url(const QString& url) {
     kind_paging_ = false;
     marks_paging_ = false; // the restart below drops a page under way: none would answer
     bars_.clear();
+    day_read_ = false;
     live_.reset();
     forget_older(); // the old engine's
+    special_.clear();
+    special_read_.reset();
     status_.reset();
     macro_.reset(); // the new engine's is read below
     macro_failure_.clear();
@@ -319,7 +343,10 @@ void KrxLive::select(const QString& symbol) {
     pinned_predictions_.clear();
     emit pinned_changed();
     bars_.clear();
+    day_read_ = false;
     forget_older();
+    special_.clear(); // its own are read with its bars (krx-quant #236)
+    special_read_.reset();
     emit selected_changed();
     emit chart_changed();
     emit predictions_changed();
@@ -478,9 +505,16 @@ void KrxLive::set_view(int minutes) {
     }
     view_minutes_ = minutes;
     ensure_marks(); // back to 1-minute bars: the icons' predictions over those read meanwhile
-    if (krx_quant::candle_view(minutes) && !selected_.isEmpty()) {
+    const bool candles = krx_quant::candle_view(minutes);
+    if (candles && !selected_.isEmpty()) {
         read_latest(krx_quant::kDayView); // a longer view's last periods are made of the days
         read_latest(minutes);             // skipped while the days are read: asked again on their answer
+    }
+    // Nothing today yet (before the open, a holiday): the last day's bars, also in a minute view
+    // chosen after the chart was read in a candle view. Before the day is read, its answer does it.
+    if (!candles && day_read_ && bars_.isEmpty() && older_.isEmpty()) {
+        view_from_ = 0;
+        return read_older();
     }
     read_history();
 }
@@ -544,6 +578,27 @@ void KrxLive::read_history() {
     const int have = static_cast<int>(krx_quant::group_bars(held, view_minutes_).size());
     if (const auto read = krx_quant::history_read(first, have, history_, view_minutes_, back_to))
         read_bars(*read);
+}
+
+std::optional<std::pair<QDate, QDate>> KrxLive::special_days() const {
+    const QDateTime first = !older_.isEmpty()  ? older_.first().start
+                            : !bars_.isEmpty() ? bars_.first().start
+                                               : QDateTime();
+    if (selected_.isEmpty() || !first.isValid())
+        return std::nullopt;
+    const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+    const QDate from = first.toTimeZone(kst).date();
+    const QDate last = (!bars_.isEmpty() ? bars_.last().start : older_.last().start).toTimeZone(kst).date();
+    const QDate to = std::max(last, engine_day());
+    // The engine answers at most kSpecialDays at a time: bars held further back have no bands.
+    return std::pair(std::max(from, to.addDays(1 - kSpecialDays)), to);
+}
+
+void KrxLive::read_special(bool always) {
+    const auto days = special_days();
+    if (!days || (!always && days == special_read_))
+        return;
+    service_->read_special(selected_, days->first, days->second);
 }
 
 void KrxLive::read_latest(int view) {
@@ -635,6 +690,9 @@ void KrxLive::tick() {
     // bar close (krx-quant #110); without it they are read here.
     if (!live && ticks_ % kChartEvery == 0)
         read_chart();
+    // The special situations over the days held (krx-quant #236): a halt or a VI shows within a minute.
+    if (ticks_ % kChartEvery == 0)
+        read_special();
     if (ticks_ % kMacroEvery == 0)
         service_->read_macro();
 }
@@ -659,6 +717,7 @@ void KrxLive::on_snapshot(const KrxQuantService::Snapshot& snapshot) {
     // An engine whose clock went back (a demo started again) takes the screen back too.
     if (snapshot.status.now.isValid() && board_.rewind_to(snapshot.status.now)) {
         bars_.clear();
+        day_read_ = false;
         live_.reset();
         full_from_ = {};
         finals_from_ = {};
@@ -694,6 +753,7 @@ void KrxLive::on_status(const krx_quant::EngineStatus& status, bool with_snapsho
     set_engine_clock(status.now);
     if (status.now.isValid() && board_.rewind_to(status.now)) {
         bars_.clear();
+        day_read_ = false;
         live_.reset();
         full_from_ = {};
         finals_from_ = {};
@@ -725,8 +785,11 @@ void KrxLive::on_failure(const QString& reason) {
     kind_board_.forget();
     kind_from_ = {};
     bars_.clear();
+    day_read_ = false;
     live_.reset();
     forget_older();
+    special_.clear(); // not shown as the engine's while it cannot be read (krx-quant #236)
+    special_read_.reset();
     emit predictions_changed();
     emit kind_predictions_changed();
     emit chart_changed();
@@ -738,6 +801,7 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
     if (symbol != selected_)
         return read_chart(); // another was chosen meanwhile
     bars_ = bars;
+    day_read_ = true;
     // The finished bars, then the one being made: only today's (the engine's day), as a
     // bar kept from before a rewind (a demo started again) or from yesterday is not.
     const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
@@ -756,13 +820,10 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
     emit marks_changed();
     ensure_marks();
     read_kind_history(); // the kind's over the bars now shown (krx-quant #182)
-    if (krx_quant::candle_view(view_minutes_))
-        set_view(view_minutes_); // the view's candles, unless read (a symbol or an engine changed)
-    else if (bars_.isEmpty() && older_.isEmpty()) {
-        view_from_ = 0; // nothing today yet (before the open): the last day's bars
-        read_older();
-    } else
-        read_history(); // the bars before that the indicators want (krx-quant #222)
+    // The view's candles, unless read (a symbol or an engine changed); in a minute view the bars
+    // before that the indicators want (krx-quant #222), or with nothing today yet the last day's.
+    set_view(view_minutes_);
+    read_special(false); // the special situations of the days held, unless read (krx-quant #236)
 }
 
 void KrxLive::on_event(const krx_quant::Event& event) {

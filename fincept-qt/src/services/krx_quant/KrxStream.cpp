@@ -12,7 +12,7 @@ namespace fincept::services {
 namespace {
 
 constexpr int kPingMs = 15000;
-constexpr int kDeadMs = 45000; ///< no pong for this long: the connection is gone
+[[maybe_unused]] constexpr int kDeadMs = 45000; ///< no pong for this long: the connection is gone (with WebSockets)
 constexpr int kMaxRetrySeconds = 30;
 
 } // namespace

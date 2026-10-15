@@ -124,8 +124,10 @@ struct ChartSpot {
 /// (oldest first, each starting its slot: a minute view's N minutes on the clock, a day, a week
 /// from Monday, a month or a year), as a bar position. Within a bar, as far into it as the moment
 /// is into the bar's trading time (08:00–20:00 KST on weekdays; a 1-minute bar's clock, a day
-/// candle's 08:00 at its start and 14:00 at its middle). Between two bars (minutes without trades,
-/// the night), at the edge between them. Before the first bar or after the last, as many of the
+/// candle's 08:00 at its start and 14:00 at its middle). An empty bar (krx-quant #236, ChartSlots'
+/// fill_slots: a minute without trades within a day) is a bar like the others: a moment of a halt
+/// lies on its slot. Between two bars (the night, or minutes without trades on bars not filled),
+/// at the edge between them. Before the first bar or after the last, as many of the
 /// view's slots away as the trading time between holds (holidays are not known): an estimate
 /// until those bars are read. None without bars.
 std::optional<double> logical_at(const QList<ChartBar>& bars, qint64 time, int view);
@@ -137,13 +139,15 @@ std::optional<qint64> time_at(const QList<ChartBar>& bars, double logical, int v
 /// The bar being made (``live``, as the chart draws it) on ``bars``, the bars the page has, oldest
 /// first: one with the last bar's start replaces it; a later one is appended; an earlier one is left
 /// out. Whether it was appended: then the places past the old last bar move (the slots up to the new
-/// bar, a gap without trades or a night or a weekend, are that one bar now), and the drawings are
+/// bar, a night or a weekend, are that one bar now; a gap without trades within the day is filled
+/// with empty bars first in a minute view, ChartSlots' append_live_slots), and the drawings are
 /// placed again.
 bool append_live(QList<ChartBar>& bars, const ChartBar& live);
 
 /// ``spot`` with the magnet on: over a bar read (its position within it), that bar's middle and
 /// whichever of its open, high, low and close is nearest the price (the first of them on a tie).
-/// Past the bars (the free space after the last), as it is.
+/// Past the bars (the free space after the last), and over an empty bar (krx-quant #236), which has
+/// no prices, as it is.
 ChartSpot magnet_spot(const QList<ChartBar>& bars, ChartSpot spot);
 
 } // namespace fincept::krx_quant

@@ -129,6 +129,12 @@ class KrxQuantService : public QObject {
     /// before now), for the chart's hover boxes (krx-quant #182): kind_history_ready or
     /// kind_history_failed. Asked again while one is read, it is not read: KrxLive asks again.
     void read_kind_history(const QString& symbol, const QString& kind, const QDateTime& before, int limit);
+    /// A symbol's special situations from ``from`` to ``to`` (KST dates, both in; GET
+    /// /v1/symbols/{symbol}/special, krx-quant #236): its VIs and the market's circuit breakers and
+    /// sidecars, for the chart's bands. special_ready, also with none from an engine without the
+    /// answer (404, before krx-quant #236), or special_failed. Asked again while one is read, it is
+    /// not read: KrxLive asks again once that one answers.
+    void read_special(const QString& symbol, const QDate& from, const QDate& to);
 
   signals:
     void snapshot_ready(const fincept::services::KrxQuantService::Snapshot& snapshot);
@@ -163,6 +169,9 @@ class KrxQuantService : public QObject {
     void kind_history_ready(const QString& symbol, const QString& kind, const QDateTime& before,
                             const QList<fincept::krx_quant::KindPrediction>& predictions);
     void kind_history_failed(const QString& symbol, const QString& kind, const QString& reason);
+    void special_ready(const QString& symbol, const QDate& from, const QDate& to,
+                       const QList<fincept::krx_quant::SpecialWindow>& windows);
+    void special_failed(const QString& symbol, const QDate& from, const QDate& to, const QString& reason);
     /// The address this service reads changed (also when another panel set it).
     void base_url_changed(const QString& url);
 
@@ -183,6 +192,7 @@ class KrxQuantService : public QObject {
         kKindList,    ///< GET /v1/kinds
         kKindLatest,  ///< a kind's latest predictions
         kKindHistory, ///< a kind's predictions over bar closes
+        kSpecial,     ///< a symbol's special situations over days (krx-quant #236)
         kKinds        ///< how many kinds of read there are
     };
 
