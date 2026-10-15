@@ -598,8 +598,9 @@ void KrxChartToolbar::show_brick_size(std::optional<double> kept, std::optional<
     brick_atr_->setVisible(!lines);
     brick_atr_->setChecked(!kept);
     brick_atr_->setText(atr ? tr("ATR(14) %L1원").arg(static_cast<qlonglong>(*atr)) : tr("ATR(14)"));
-    brick_atr_->setToolTip(tr("지금 보기의 봉으로 센 ATR(14)의 마지막 값(원 단위로 반올림). 읽은 봉이 바뀌면 다시 "
-                              "센다. 켜면 이 값을 쓴다."));
+    brick_atr_->setToolTip(tr("지금 보기의 봉 중 마지막 봉(만들어지는 중일 수 있다)을 뺀 봉으로 센 ATR(14)의 마지막 "
+                              "값(원 단위로 반올림). 새 봉이 시작되거나 앞의 봉을 더 읽으면 다시 센다. 켜면 이 값을 "
+                              "쓴다."));
 }
 
 void KrxChartToolbar::show_style(ChartStyle style) {

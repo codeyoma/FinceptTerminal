@@ -161,18 +161,20 @@ class TstKrxChartBricks : public QObject {
     }
 
     void the_default_size_is_the_last_atr_14_to_the_won() {
-        // True ranges 10, 13, 10, 13…: the first ATR(14) is their mean 11.5, then Wilder's.
+        // True ranges 10, 13, 10, 13…: the first ATR(14) is their mean 11.5, then Wilder's. The last
+        // bar, which may be the one being made, is left out.
         QList<ChartBar> bars;
-        for (int i = 0; i < 15; ++i) {
+        for (int i = 0; i < 16; ++i) {
             const double half = i % 2 == 0 ? 5 : 6.5;
             bars << ChartBar{at(i), 100, 100 + half, 100 - half, 100, 1, true};
         }
-        QVERIFY(!atr_size(bars.mid(0, 13)));                      // fewer than 14 bars
-        QCOMPARE(atr_size(bars.mid(0, 14)), std::optional(12.0)); // 11.5
+        QVERIFY(!atr_size(bars.mid(0, 14))); // fewer than 14 bars before the last
+        QVERIFY(!atr_size(bars.mid(0, 1)) && !atr_size({}));
+        QCOMPARE(atr_size(bars.mid(0, 15)), std::optional(12.0)); // 11.5
         QCOMPARE(atr_size(bars), std::optional(11.0));            // (11.5 × 13 + 10) / 14 = 11.39
         // At least a won.
         QList<ChartBar> flat;
-        for (int i = 0; i < 14; ++i)
+        for (int i = 0; i < 15; ++i)
             flat << ChartBar{at(i), 100, 100.2, 100, 100, 1, true};
         QCOMPARE(atr_size(flat), std::optional(1.0));
 
@@ -195,6 +197,24 @@ class TstKrxChartBricks : public QObject {
         QCOMPARE(wide[0].close, 120.0);
         QCOMPARE(make_bricks(ChartStyle::LineBreak, bars2, 3), break_lines(bars2, 3));
         QVERIFY(make_bricks(ChartStyle::HeikinAshi, bars2, 10).isEmpty());
+    }
+
+    void the_default_size_stays_while_the_last_bar_moves() {
+        // Fifteen bars with true ranges of 10, then the bar being made. However wide it grows, the
+        // size is that of the bars before it, so a redraw meanwhile (an indicator turned on, a
+        // prediction come in) keeps it and every brick. A new bar ends it, and it counts then.
+        QList<ChartBar> bars;
+        for (int i = 0; i < 15; ++i)
+            bars << ChartBar{at(i), 100.0 + 10 * i, 105.0 + 10 * i, 95.0 + 10 * i, 100.0 + 10 * i, 1, true};
+        bars << ChartBar{at(15), 250, 251, 249, 250, 1, true};
+        QCOMPARE(atr_size(bars), std::optional(15.0)); // true ranges 10, then 15 from the close before: 14.67
+        const auto bricks = make_bricks(ChartStyle::Renko, bars, *atr_size(bars));
+        bars.last().high = 370; // the bar being made reaches 370 and 130: a true range of 240
+        bars.last().low = 130;
+        QCOMPARE(atr_size(bars), std::optional(15.0));
+        QCOMPARE(make_bricks(ChartStyle::Renko, bars, *atr_size(bars)), bricks); // its close is the same
+        bars << ChartBar{at(16), 250, 251, 249, 250, 1, true};                   // a new bar: the wide one has ended
+        QCOMPARE(atr_size(bars), std::optional(31.0));                           // (14.67 × 13 + 240) / 14 = 30.8
     }
 
     void a_symbol_keeps_the_sizes_it_set() {

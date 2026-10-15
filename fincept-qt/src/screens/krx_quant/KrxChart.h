@@ -124,8 +124,9 @@ class KrxChart : public QWidget {
     /// view scrolls). A style without a time axis (krx-quant #225) draws the bricks of the bars
     /// (krx_quant::make_bricks) in order, a slot each, its axis and crosshair at the time each ended,
     /// its volumes and indicators those of the bricks: from a start fixed once for the view's bars
-    /// (krx_quant::brick_start: none drawn until it is), at the size set or ATR(14) of the bars as
-    /// they are now. It has no icons, hover boxes, four-minute windows, day separators or drawings.
+    /// (krx_quant::brick_start: none drawn until it is), at the size set or ATR(14) of the bars but
+    /// the last (krx_quant::atr_size: not the bar being made). It has no icons, hover boxes,
+    /// four-minute windows, day separators or drawings.
     void set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
                   const QList<krx_quant::BarHover>& hovers = {}, const krx_quant::SignalRule& rule = {},
                   int minutes = 1, const krx_quant::ChartLook& look = {});
@@ -180,7 +181,7 @@ class KrxChart : public QWidget {
     /// The tool placed its drawing or was cancelled: back to the cursor.
     void tool_finished();
     /// The default size of the styles without a time axis changed (krx-quant #225): ATR(14) of the
-    /// view's bars as last drawn, to the won (krx_quant::atr_size); 0 without one.
+    /// view's bars but the last as last drawn, to the won (krx_quant::atr_size); 0 without one.
     void brick_atr(double size);
 
   protected:
@@ -224,7 +225,7 @@ class KrxChart : public QWidget {
     bool timeless_ = false;            ///< the style last set draws bricks
     std::optional<qint64> brick_from_; ///< the view's bar the bricks start from, fixed once
     std::optional<double> brick_size_; ///< the box, reversal or lines last drawn with
-    std::optional<double> atr_;        ///< ATR(14) of the view's bars as last drawn
+    std::optional<double> atr_;        ///< ATR(14) of the view's bars but the last, as last drawn
     QList<krx_quant::Brick> bricks_;   ///< as last sent
 };
 

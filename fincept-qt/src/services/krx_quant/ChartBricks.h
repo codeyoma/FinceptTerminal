@@ -43,9 +43,12 @@ struct Brick {
     bool operator==(const Brick&) const = default;
 };
 
-/// ATR(14) of ``bars`` (the view's, ChartStudies' average_true_range), its last value to the won
-/// (at least 1): the renko and point and figure box and the kagi reversal unless one is set. None
-/// with fewer than 14 bars.
+/// ATR(14) of ``bars`` (the view's, ChartStudies' average_true_range) but the last, its last value
+/// to the won (at least 1): the renko and point and figure box and the kagi reversal unless one is
+/// set. The last bar may be the one being made: left out, the size stays while it moves, whatever
+/// draws the chart again meanwhile, and changes only with the bars before it (a new bar, which ends
+/// the one before; the bars before the first read; another view or symbol). None with fewer than 14
+/// bars before the last.
 std::optional<double> atr_size(const QList<ChartBar>& bars);
 /// The size ``style`` draws with: the one set (``sizes``), else ``atr`` (atr_size), the line break's
 /// kBreakLines. None for a style with a time axis, or without an ATR.

@@ -33,7 +33,9 @@ double level_above(double price, double box) {
 } // namespace
 
 std::optional<double> atr_size(const QList<ChartBar>& bars) {
-    const Values atr = average_true_range(bars, kBrickAtr);
+    if (bars.size() < 2)
+        return std::nullopt;
+    const Values atr = average_true_range(bars.mid(0, bars.size() - 1), kBrickAtr); // not the bar being made
     if (atr.isEmpty() || !atr.last())
         return std::nullopt;
     return std::max(1.0, std::round(*atr.last()));

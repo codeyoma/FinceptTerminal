@@ -325,8 +325,8 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
     timeless_ = timeless;
     if (timeless) {
         // The bricks (krx-quant #225): from a start fixed once for the view's bars, at the size set or
-        // ATR(14) of the bars as they are now (counted again as they are read, kept while the bar
-        // being made moves).
+        // ATR(14) of the bars before the last, which may be the one being made: the size stays while it
+        // moves, however often the chart is drawn again, and changes with a new bar or more read.
         brick_from_ = krx_quant::brick_start(real, brick_from_, look.first_day_whole);
         if (const auto atr = krx_quant::atr_size(real); atr != atr_) {
             atr_ = atr;

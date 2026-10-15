@@ -14,6 +14,7 @@
 
 #include <QApplication>
 #include <QGuiApplication>
+#include <QSignalSpy>
 #include <QTest>
 #include <QWebEngineView>
 
@@ -189,6 +190,30 @@ class TstKrxChartPage : public QObject {
         draw(all); // candles again
         chart_->fit();
         expect_fitted(all);
+    }
+
+    void a_redraw_while_the_last_bar_moves_keeps_the_default_brick_size() {
+        // The bricks' default size (krx-quant #225, ATR(14)) leaves out the bar being made: drawn again
+        // for anything else while it moves (an indicator turned on, a prediction come in), the chart
+        // keeps its size and so its bricks; a new bar, which ends that one, counts it.
+        empty();
+        ChartLook look;
+        look.style = ChartStyle::Renko;
+        look.first_day_whole = true;
+        QList<Bar> bars = kBefore + kToday;
+        QSignalSpy sized(chart_, &screens::KrxChart::brick_atr);
+        draw(bars, look);
+        const auto counted = sized.size();
+        bars.last().high += 300; // the bar being made swings far
+        bars.last().low -= 300;
+        draw(bars, look);
+        look.studies.turn(Study::Rsi, true); // drawn again for an indicator
+        draw(bars, look);
+        QCOMPARE(sized.size(), counted);
+        bars << Bar{bars.last().start.addSecs(60), 1000, 1001, 999, 1000, 100}; // a new bar: the wide one ended
+        draw(bars, look);
+        QCOMPARE(sized.size(), counted + 1);
+        QVERIFY(sized.last().at(0).toDouble() > 30); // its true range of 600 in the average
     }
 };
 
