@@ -378,7 +378,9 @@ bool AppUpdater::start_helper(const QString& payload, UpdateMode how) {
 #endif
     if (helper.isEmpty())
         return false;
-    return QProcess::startDetached(program, arguments);
+    // In the helper's own folder, not the app's: the Start menu shortcut opens the app in its
+    // install folder, and a process standing in a folder keeps Windows from moving it.
+    return QProcess::startDetached(program, arguments, QFileInfo(helper).absolutePath());
 }
 
 void AppUpdater::ask_to_restart() {

@@ -37,6 +37,12 @@ param(
 $ErrorActionPreference = 'Stop'
 $log = Join-Path $env:TEMP 'fincept-update.log'
 
+# Out of the folder this script was started in. The Start menu shortcut opens the app in its
+# install folder and a process's working directory keeps that folder in use, so the swap below
+# could not move it ("... is in use") while this script stood in it.
+[IO.Directory]::SetCurrentDirectory($env:TEMP)
+Set-Location -LiteralPath $env:TEMP
+
 # A folder path with backslashes only and no trailing separator.
 function Format-Dir([string]$path) {
     return ($path -replace '/', '\').TrimEnd('\')
@@ -117,7 +123,8 @@ function Start-App([string]$exe) {
     Remove-Quietly $Relaunch
     if ($exe -and (Test-Path -LiteralPath $exe)) {
         Write-Log "opening $exe"
-        Start-Process -FilePath $exe
+        # In its own folder, as the Start menu shortcut opens it.
+        Start-Process -FilePath $exe -WorkingDirectory (Split-Path -Parent $exe)
     }
 }
 

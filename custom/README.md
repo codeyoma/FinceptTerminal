@@ -576,16 +576,19 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
   - 윈도우, 사용자 폴더 설치(`%LOCALAPPDATA%\Programs\FinceptTerminal`, `…-windows-x64.zip`): 폴더를 통째로 바꾼다. ZIP은 설치된 파일 트리에서 설치 프로그램 자신의 파일(`FinceptMaintenanceTool.*`, `components.xml`, `InstallationLog.txt`, `network.xml`, `installer.dat`, `installerResources`)을 뺀 것이다. 도우미는 앱이 도는 동안 ZIP을 `<설치 폴더>.staging`에 풀어 둔다. 앱이 끝나면 그 폴더에서 띄운 프로세스(QtWebEngineProcess 등)도 끝나기를 2분까지 기다리고, 남은 것은 멈춘다. 앱이 그 폴더에서 다시 켜져 있으면 이번 업데이트는 그만둔다. 설치 폴더를 `<설치 폴더>.old`로 옮기고 새 트리를 그 자리에 놓은 뒤, 새 트리에 없는 것(제거 도구와 그 기록, 사용자가 넣은 파일)을 옛 폴더에서 복사해 온다. 그래서 제어판의 제거도 그대로 된다. 어느 단계든 실패하면 옛 폴더를 되돌린다. 관리자 권한이 필요 없어 UAC가 뜨지 않는다.
   - 윈도우, 다른 곳 설치(Program Files 등, `…-windows-x64-setup.exe`): 이번 한 번 사용자 폴더로 옮긴다. 앱이 끝나면 새 `setup.exe`를 사용자 폴더에 무인 설치하고(workflow의 설치 확인과 같은 옵션), 옛 설치를 그 제거 도구(`FinceptMaintenanceTool.exe purge`)로 지운다. 옛 폴더에 쓸 수 없으면(Program Files) 지울 때 UAC가 한 번 뜬다. 거절하면 옛 설치는 남고 새 설치는 그대로 쓴다. 옛 설치를 지우면 그 바로가기(시작 메뉴의 `Fincept\Fincept Terminal`, 바탕 화면의 `Fincept Terminal`)도 지워지는데, 새 설치가 같은 이름으로 만든 것일 수 있다. 그래서 지우기 전에 새 설치를 여는 바로가기를 적어 두고, 지워졌으면 다시 만든다. 옛 설치를 먼저 지우지 않는 것은, 새 설치가 실패하면 앱이 없는 상태가 되기 때문이다. 준비 창에 옮길 위치와 UAC 안내가 나온다. 그 뒤로는 위의 폴더 바꾸기다.
   - 앱은 도우미를 Windows PowerShell의 전체 경로(`%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`, 없으면 PATH의 `powershell.exe`)로 숨은 창에서 띄운다. PATH에 없을 수 있어서다(codeyoma/krx-quant#101).
+  - 도우미의 작업 폴더는 도우미가 있는 임시 폴더다. 도우미도 시작하자마자 임시 폴더로 옮겨 간다(옛 앱이 설치 폴더에서 띄웠을 때를 위해). 시작 메뉴 바로가기는 앱을 설치 폴더에서 여는데, 어떤 프로세스든 그 폴더를 작업 폴더로 두고 있으면 윈도우는 폴더를 옮기지 못한다. 다시 여는 앱은 바로가기처럼 설치 폴더에서 연다.
   - 스스로 업데이트할 수 없는 경우(설치 프로그램으로 설치하지 않은 윈도우 앱, `%LOCALAPPDATA%`를 모르는 윈도우, 쓸 수 없는 폴더의 맥 앱)에는 메뉴의 확인에서만 알리고, 설치 파일을 받아 열어 직접 설치하게 한다. 도우미를 띄우지 못하면 설치 파일이나(ZIP이면) 릴리스 페이지를 연다.
 - **새 설치 위치.** 윈도우 설치 프로그램의 기본 폴더는 `%LOCALAPPDATA%\Programs\FinceptTerminal`이다(`fincept-qt/CMakeLists.txt`의 `CPACK_IFW_TARGET_DIRECTORY`, upstream은 Program Files). 마법사에서 다른 곳을 고를 수 있지만, 그러면 첫 업데이트 때 이 폴더로 옮긴다.
 - **신뢰.** Release에서 직접 받는 것과 같다(이 fork의 GitHub 계정과 Release). 거기에 GitHub digest 확인을 더했다. 서명 키는 쓰지 않는다.
 - **CI.** `custom-release` workflow가 Release마다 윈도우 ZIP을 만들어 올리고, 두 도우미를 새로 만든 파일로 돌려 본다.
-  - 윈도우: 설치 확인으로 설치한 트리에서 ZIP을 만든다. 폴더 바꾸기(옛 설치에만 있던 파일이 남는지, 바꾼 뒤에도 제거 도구가 지우는지)와 사용자 폴더로 옮기기(새 폴더에 설치되고 옛 설치가 지워지는지)를 확인한다. PowerShell은 전체 경로로 띄운다. 앞의 IFW 설치 단계가 PATH를 MSYS 꼴로 `GITHUB_ENV`에 써서, 뒤의 PowerShell 단계는 PATH로 `powershell.exe`를 찾지 못한다. 그 때문에 `krx.4`–`krx.6`은 윈도우 단계에서 실패해 Release가 나오지 않았다(codeyoma/krx-quant#101).
+  - 윈도우: 설치 확인으로 설치한 트리에서 ZIP을 만든다. 폴더 바꾸기(옛 설치에만 있던 파일이 남는지, 바꾼 뒤에도 제거 도구가 지우는지)와 사용자 폴더로 옮기기(새 폴더에 설치되고 옛 설치가 지워지는지)를 확인한다. 두 경우 모두 바로가기로 연 앱이 띄울 때처럼 옛 설치 폴더를 작업 폴더로 해서 도우미를 띄운다. PowerShell은 전체 경로로 띄운다. 앞의 IFW 설치 단계가 PATH를 MSYS 꼴로 `GITHUB_ENV`에 써서, 뒤의 PowerShell 단계는 PATH로 `powershell.exe`를 찾지 못한다. 그 때문에 `krx.4`–`krx.6`은 윈도우 단계에서 실패해 Release가 나오지 않았다(codeyoma/krx-quant#101).
   - 맥: 설치된 복사본을 새 DMG로 바꾼다. 재시작 표시 파일 없이 돌려 아무것도 열지 않는다.
 
 > **바뀜** (2026-10-13, codeyoma/krx-quant#133): "지금 업데이트"를 눌러야 내려받고, 받으면 앱을 바로 닫고 설치했다 → 백그라운드에서 받고 "지금 재시작" 버튼 하나, 누르지 않으면 앱을 끌 때 바뀐다. 확인은 로그인 뒤 한 번 → 그 뒤 6시간마다도. 이유: 업데이트를 사용자가 편하게, 버튼 한 번으로(codeyoma/krx-quant#130).
 
 > **바뀜** (2026-10-13, codeyoma/krx-quant#133): 윈도우는 설치 폴더를 제거 도구로 지우고 새 `setup.exe`를 같은 폴더에 무인 설치했다(Program Files면 UAC 두 번, 실패하면 설치 마법사가 열렸고 마법사는 비어 있지 않은 폴더에 설치하지 못했다) → 사용자 폴더 설치는 ZIP으로 폴더를 바꾸고(UAC 없음, 실패하면 되돌림), 다른 곳 설치는 첫 업데이트 때 사용자 폴더로 옮긴다. 기본 설치 폴더는 Program Files → `%LOCALAPPDATA%\Programs\FinceptTerminal`. 이유: 윈도우에서 업데이트를 누르면 설치 마법사가 뜨고 덮어쓰지 못했다(codeyoma/krx-quant#130).
+
+> **바뀜** (2026-10-15, codeyoma/krx-quant#234): 윈도우 도우미는 앱의 작업 폴더를 물려받았다. 시작 메뉴로 열었다면 그것은 설치 폴더다 → 임시 폴더에서 돈다. 이유: 도우미가 설치 폴더를 작업 폴더로 두고 있어서 폴더 바꾸기가 "사용 중"으로 늘 실패했고, 업데이트를 눌러도 옛 빌드가 다시 열렸다. CI는 도우미를 설치 폴더 밖에서 띄워 이것을 잡지 못했다.
 
 ## 에이전트 설정
 

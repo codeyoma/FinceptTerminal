@@ -746,6 +746,9 @@ jobs:
       #    uninstalls the result.
       #  - Move: install this setup.exe somewhere else, then move it into a
       #    "user folder" with the helper; the old install is removed.
+      # Each run starts the helper standing in the old install folder, as the
+      # app opened by its Start menu shortcut passes it on: a helper that stays
+      # there keeps the folder in use and the swap cannot move it.
       - name: Verify the update helper
         shell: pwsh
         working-directory: fincept-qt/build
@@ -759,8 +762,8 @@ jobs:
           $log = Join-Path $env:TEMP 'fincept-update.log'
           $required = @('FinceptTerminal.exe', 'FinceptMaintenanceTool.exe', 'Qt6Core.dll', 'Qt6Gui.dll',
                         'Qt6Widgets.dll', 'qt.conf', 'platforms/qwindows.dll', 'sqldrivers/qsqlite.dll')
-          function Invoke-Helper([string]$arguments) {
-            $p = Start-Process -FilePath $powershell -Wait -PassThru -NoNewWindow -ArgumentList `
+          function Invoke-Helper([string]$arguments, [string]$workingDirectory) {
+            $p = Start-Process -FilePath $powershell -Wait -PassThru -NoNewWindow -WorkingDirectory $workingDirectory -ArgumentList `
                    "-NoProfile -ExecutionPolicy Bypass -File `"$helper`" $arguments -NoLaunch"
             Write-Host "----- fincept-update.log -----"
             Get-Content $log -ErrorAction SilentlyContinue | Write-Host
@@ -787,7 +790,7 @@ jobs:
           Set-Content -Path $kept -Value 'only the old install has this'
           $zipCopy = Join-Path $env:RUNNER_TEMP 'fincept-update.zip'
           Copy-Item $zip $zipCopy
-          Invoke-Helper "-Mode Swap -Zip `"$zipCopy`" -Root `"$root`""
+          Invoke-Helper "-Mode Swap -Zip `"$zipCopy`" -Root `"$root`"" $root
           Assert-Installed $root
           if (-not (Test-Path $kept)) { Write-Host "::error::the swap lost a file only the old install had"; exit 1 }
           foreach ($left in @("$root.staging", "$root.old", $zipCopy)) {
@@ -804,7 +807,7 @@ jobs:
           if ($p.ExitCode -ne 0) { Write-Host "::error::could not install into $oldRoot"; exit 1 }
           $setupCopy = Join-Path $env:RUNNER_TEMP 'fincept-update-setup.exe'
           Copy-Item $setup $setupCopy
-          Invoke-Helper "-Mode Move -Setup `"$setupCopy`" -OldRoot `"$oldRoot`" -Root `"$userRoot`""
+          Invoke-Helper "-Mode Move -Setup `"$setupCopy`" -OldRoot `"$oldRoot`" -Root `"$userRoot`"" $oldRoot
           Assert-Installed $userRoot
           if (Test-Path (Join-Path $oldRoot 'FinceptTerminal.exe')) { Write-Host "::error::the old install was not removed"; exit 1 }
           if (Test-Path $setupCopy) { Write-Host "::error::the move left the installer behind"; exit 1 }
