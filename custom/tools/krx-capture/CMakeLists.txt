@@ -43,6 +43,7 @@ add_executable(krx_capture
     "${SRC}/screens/krx_quant/KrxStatsWindow.cpp"
     "${SRC}/screens/krx_quant/KrxStudyPanel.cpp"
     "${SRC}/services/krx_quant/Board.cpp"
+    "${SRC}/services/krx_quant/ChartBricks.cpp"
     "${SRC}/services/krx_quant/ChartDrawings.cpp"
     "${SRC}/services/krx_quant/ChartLook.cpp"
     "${SRC}/services/krx_quant/ChartModel.cpp"

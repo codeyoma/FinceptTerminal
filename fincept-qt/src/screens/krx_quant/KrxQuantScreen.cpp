@@ -189,6 +189,13 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     chart_toolbar_->show_day_separator(look_.day_separator);
     connect(chart_toolbar_, &KrxChartToolbar::view_chosen, this, &KrxQuantScreen::set_view);
     connect(chart_toolbar_, &KrxChartToolbar::style_chosen, this, &KrxQuantScreen::set_style);
+    // The size of a style without a time axis (krx-quant #225), set in the options menu for the
+    // symbol, and the ATR(14) the chart counted for its default.
+    connect(chart_toolbar_, &KrxChartToolbar::brick_size_chosen, this, &KrxQuantScreen::set_brick_size);
+    connect(chart_, &KrxChart::brick_atr, this, [this](double size) {
+        brick_atr_ = size > 0 ? std::optional(size) : std::nullopt;
+        show_brick_size();
+    });
     connect(chart_toolbar_, &KrxChartToolbar::day_separator_toggled, this, [this](bool on) {
         look_.day_separator = on;
         AppConfig::instance().set(krx_quant::kDaySeparatorKey, on);
@@ -200,8 +207,8 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(chart_toolbar_, &KrxChartToolbar::indicators_requested, this, [this]() { open_studies(); });
     connect(study_panel_, &KrxStudyPanel::studies_changed, this, &KrxQuantScreen::set_studies);
     connect(study_panel_, &KrxStudyPanel::anchor_requested, this, [this]() {
-        if (!krx_quant::anchor_pickable(look_.studies))
-            return;           // hidden: nothing of it waits for a click (the panel's button is off)
+        if (!krx_quant::anchor_pickable(look_.studies) || krx_quant::timeless(look_.style))
+            return;           // hidden, or bricks: nothing of it waits for a click (the panel's button is off)
         look_.picking = true; // the next click on the chart
         study_panel_->hide();
         fill_chart();
@@ -423,7 +430,11 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     });
     connect(fit, &QPushButton::clicked, chart_, &KrxChart::fit);
     connect(chart_, &KrxChart::icon_clicked, this, [this](const QDateTime& bar_close) { live_->pin(bar_close); });
-    connect(chart_, &KrxChart::view_moved, this, [this](double from) { live_->view_from(from, minutes_); });
+    connect(chart_, &KrxChart::view_moved, this, [this](double from) {
+        // Bricks (krx-quant #225) start at a fixed bar: scrolling them back reads nothing before it.
+        if (!krx_quant::timeless(look_.style))
+            live_->view_from(from, minutes_);
+    });
     connect(chart_, &KrxChart::view_range, this, [this](qint64 from, qint64 to) {
         view_range_ = {from, to};
         show_score();
@@ -915,18 +926,47 @@ void KrxQuantScreen::set_view(int minutes) {
     chart_toolbar_->show_view(minutes);
     live_->set_view(minutes);
     want_history();                                     // the indicators' bars in this view (krx-quant #222)
-    study_panel_->show_studies(look_.studies, minutes); // the VWAP is the minute views'
+    study_panel_->show_studies(look_.studies, minutes,
+                               krx_quant::timeless(look_.style)); // the VWAP is the minute views'
     fill_chart();
     chart_->fit(); // the last 60 bars of the new view
 }
 
 void KrxQuantScreen::set_style(krx_quant::ChartStyle style) {
+    const bool was_timeless = krx_quant::timeless(look_.style);
     look_.style = style;
     if (const QString& symbol = live_->selected(); !symbol.isEmpty())
         AppConfig::instance().set(krx_quant::prefs_group(symbol) + krx_quant::kPrefsStyle, krx_quant::style_key(style));
     chart_toolbar_->show_style(style);
-    if (krx_quant::timeless(style)) // no drawings there (krx-quant #220, #224)
+    show_brick_size();
+    const bool timeless = krx_quant::timeless(style);
+    if (timeless) { // no drawings there (krx-quant #220, #224, #225)
         set_tool(std::nullopt);
+        drawing_popup_->hide();
+    }
+    study_panel_->show_studies(look_.studies, minutes_, timeless); // neither VWAP on bricks (krx-quant #225)
+    if (timeless != was_timeless)
+        want_history(); // the bars the bricks start with, or the indicators' again
+    fill_chart();
+    if (timeless || was_timeless)
+        chart_->fit(); // bricks and bars are not on the same slots: the last 60 of them
+}
+
+void KrxQuantScreen::show_brick_size() {
+    chart_toolbar_->show_brick_size(
+        look_.brick_sizes.contains(look_.style) ? std::optional(look_.brick_sizes.value(look_.style)) : std::nullopt,
+        brick_atr_);
+}
+
+void KrxQuantScreen::set_brick_size(krx_quant::ChartStyle style, double size) {
+    if (size > 0 && krx_quant::valid_brick_size(style, size))
+        look_.brick_sizes.insert(style, size);
+    else
+        look_.brick_sizes.remove(style); // its default again
+    if (const QString& symbol = live_->selected(); !symbol.isEmpty())
+        AppConfig::instance().set(krx_quant::prefs_group(symbol) + krx_quant::kPrefsBrickSizes,
+                                  krx_quant::brick_sizes_value(look_.brick_sizes));
+    show_brick_size();
     fill_chart();
 }
 
@@ -935,7 +975,10 @@ void KrxQuantScreen::show_symbol_prefs() {
     const auto prefs = krx_quant::parse_prefs(AppConfig::instance().get(group + krx_quant::kPrefsView),
                                               AppConfig::instance().get(group + krx_quant::kPrefsStyle));
     look_.style = prefs.style;
+    // The sizes it set for the styles without a time axis (krx-quant #225); the others their defaults.
+    look_.brick_sizes = krx_quant::parse_brick_sizes(AppConfig::instance().get(group + krx_quant::kPrefsBrickSizes));
     chart_toolbar_->show_style(prefs.style);
+    show_brick_size();
     chart_toolbar_->show_view(prefs.view);
     if (prefs.view != minutes_) {
         minutes_ = prefs.view;
@@ -950,7 +993,7 @@ void KrxQuantScreen::show_symbol_prefs() {
     look_.picking = krx_quant::anchor_pickable(look_.studies) && !look_.anchor;
     // Its lower panes' heights (krx-quant #223): those dragged; the others the default.
     look_.pane_heights = krx_quant::parse_pane_heights(AppConfig::instance().get(group + krx_quant::kPrefsPaneHeights));
-    study_panel_->show_studies(look_.studies, minutes_);
+    study_panel_->show_studies(look_.studies, minutes_, krx_quant::timeless(look_.style));
     want_history();
     // Its drawings (krx-quant #224), none selected; a tool chosen for another symbol is put down.
     look_.drawings = krx_quant::parse_drawings(AppConfig::instance().get(group + krx_quant::kPrefsDrawings));
@@ -993,13 +1036,13 @@ void KrxQuantScreen::set_studies(const krx_quant::StudySet& set) {
     if (const QString& symbol = live_->selected(); !symbol.isEmpty())
         AppConfig::instance().set(krx_quant::prefs_group(symbol) + krx_quant::kPrefsStudies,
                                   krx_quant::studies_value(set));
-    study_panel_->show_studies(set, minutes_); // as the legend changed it
+    study_panel_->show_studies(set, minutes_, krx_quant::timeless(look_.style)); // as the legend changed it
     want_history();
     fill_chart();
 }
 
 void KrxQuantScreen::open_studies(std::optional<krx_quant::Study> study) {
-    study_panel_->show_studies(look_.studies, minutes_);
+    study_panel_->show_studies(look_.studies, minutes_, krx_quant::timeless(look_.style));
     if (study)
         study_panel_->select(*study);
     study_panel_->open_at(chart_toolbar_->indicators_corner());
@@ -1019,6 +1062,10 @@ void KrxQuantScreen::set_anchor(qint64 time) {
 }
 
 void KrxQuantScreen::want_history() {
+    // Bricks (krx-quant #225) start from at least kBrickBars of the view's bars, read first; the
+    // indicators on them count on the bricks, not on the bars before.
+    if (krx_quant::timeless(look_.style))
+        return live_->set_history(krx_quant::kBrickBars);
     QDateTime back_to;
     if (look_.studies.on(krx_quant::Study::AnchoredVwap) && look_.anchor)
         back_to = QDateTime::fromSecsSinceEpoch(*look_.anchor - 9 * 3600, QTimeZone::fromSecondsAheadOfUtc(9 * 3600));
@@ -1039,11 +1086,14 @@ void KrxQuantScreen::fill_chart() {
                                  : minutes_ == krx_quant::kMonthView ? tr("%1 · 월봉")
                                  : minutes_ == krx_quant::kYearView  ? tr("%1 · 년봉")
                                                                      : tr("%1 · 일봉");
-    chart_header_.title->setText(symbol.isEmpty() ? tr("차트")
-                                 : candles        ? candle_title.arg(symbol)
-                                 : minutes_ == 1
-                                     ? (chosen ? tr("%1 · 1분봉") : tr("%1 · 1분봉과 최종 합의")).arg(symbol)
-                                     : tr("%1 · %2분봉").arg(symbol).arg(minutes_));
+    const bool bricks = krx_quant::timeless(look_.style); // no icons on them (krx-quant #225)
+    chart_header_.title->setText(
+        symbol.isEmpty() ? tr("차트")
+        : bricks ? tr("%1 · %2").arg(candles ? candle_title.arg(symbol) : tr("%1 · %2분봉").arg(symbol).arg(minutes_),
+                                     krx_quant::style_title(look_.style))
+        : candles       ? candle_title.arg(symbol)
+        : minutes_ == 1 ? (chosen ? tr("%1 · 1분봉") : tr("%1 · 1분봉과 최종 합의")).arg(symbol)
+                        : tr("%1 · %2분봉").arg(symbol).arg(minutes_));
     if (symbol.isEmpty()) {
         chart_->set_data({}, {});
         show_score();
@@ -1072,7 +1122,8 @@ void KrxQuantScreen::show_score() {
     const QString& symbol = live_->selected();
     const QStringList& selection = live_->selection();
     const QString head = krx_quant::selection_head(selection); // empty: several baselines alone, nothing drawn
-    if (symbol.isEmpty() || head.isEmpty() || minutes_ != 1 || view_range_.second <= 0) {
+    if (symbol.isEmpty() || head.isEmpty() || minutes_ != 1 || view_range_.second <= 0 ||
+        krx_quant::timeless(look_.style)) { // bricks have no icons (krx-quant #225)
         chart_score_->hide();
         return;
     }

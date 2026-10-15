@@ -79,8 +79,15 @@ class TstKrxChartPage : public QObject {
             .toUtf8();
     }
 
-    /// ``bars`` drawn as the screen draws them (the 1-minute view, its default indicators).
-    void draw(const QList<Bar>& bars) { chart_->set_data(bars, {}); }
+    /// ``bars`` drawn as the screen draws them (the 1-minute view, its default indicators), in
+    /// ``look``'s style.
+    void draw(const QList<Bar>& bars, const ChartLook& look = {}) { chart_->set_data(bars, {}, {}, {}, 1, look); }
+
+    /// Whether the page shows the last kFitBars of ``count`` bricks (krx-quant #225), on their slots.
+    bool shows_bricks(qsizetype count) const {
+        const qint64 first = brick_slot(std::max<qsizetype>(0, count - kFitBars));
+        return range_ && std::abs(range_->first - first) <= 60 && range_->second == brick_slot(count - 1);
+    }
 
     /// The page settled on the latest kFitBars bars of ``bars``, and is still there a while later.
     void expect_fitted(const QList<Bar>& bars) {
@@ -152,6 +159,36 @@ class TstKrxChartPage : public QObject {
         QCOMPARE(range_, moved);
         chart_->fit(); // the button: the latest bars again
         expect_fitted(kEarlier + kBefore + kToday);
+    }
+
+    void bricks_fit_the_latest_bricks_once_they_start_and_bars_come_back() {
+        // A style without a time axis (krx-quant #225): no bricks while the bars they start with are
+        // read, then the last kFitBars bricks, a slot each; back to candles, the latest bars again.
+        empty();
+        ChartLook look;
+        look.style = ChartStyle::Renko;
+        look.brick_sizes = {{ChartStyle::Renko, 1}};
+        draw(kToday, look); // fewer than kBrickBars and more to read: none yet
+        QTest::qWait(300);
+        look.first_day_whole = true; // the engine has none before: they start at its first bar
+        const QList<Bar> all = kBefore + kToday;
+        draw(all, look);
+        const auto bricks = make_bricks(ChartStyle::Renko, chart_bars(all), 1);
+        QVERIFY(bricks.size() > kFitBars);
+        QTRY_VERIFY_WITH_TIMEOUT(shows_bricks(bricks.size()), 10000);
+        QTest::qWait(400);
+        QVERIFY(shows_bricks(bricks.size()));
+        // Kagi, a custom series, on the same slots.
+        look.style = ChartStyle::Kagi;
+        look.brick_sizes = {{ChartStyle::Kagi, 2}};
+        draw(all, look);
+        chart_->fit(); // as the screen fits a style changed
+        const auto lines = make_bricks(ChartStyle::Kagi, chart_bars(all), 2);
+        QVERIFY(lines.size() > 1);
+        QTRY_VERIFY_WITH_TIMEOUT(shows_bricks(lines.size()), 10000);
+        draw(all); // candles again
+        chart_->fit();
+        expect_fitted(all);
     }
 };
 

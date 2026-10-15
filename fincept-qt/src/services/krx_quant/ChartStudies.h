@@ -187,6 +187,15 @@ struct StudySettings {
 
 /// ``study``'s defaults (off).
 StudySettings default_settings(Study study);
+
+/// Whether ``study`` is drawn in the view ``view``, on bricks (a style without a time axis,
+/// krx-quant #225) or on bars: the VWAP in the minute views only; neither VWAP on bricks, as both
+/// need the bars' real time (a day's first bar, the anchor's moment). Those not drawn keep their
+/// settings.
+bool study_drawn(Study study, int view, bool bricks = false);
+/// Why not, as the indicators panel says it: "분봉에서만", or on bricks "시간축 없는 차트에서는 쓰지
+/// 않는다"; empty when it is drawn.
+QString study_unavailable(Study study, int view, bool bricks = false);
 /// The settings' text in the legend and the panel: "5 20 60 120", "20 2", "20 10%", a choice by
 /// its name ("10 21 단순"); the source after them when it is not the default ("5 20 고가").
 QString settings_text(const StudySettings& settings);
@@ -554,8 +563,13 @@ struct StudyDrawing {
 /// first day is whole (session_vwap) and so is the stretch from the cumulative lines' 0 on
 /// (cumulative_anchor). Until those are held, the VWAP's day and the AD line and OBV are empty,
 /// with why in the legend; past kMaxHistoryBars (no more is read for them), why that.
+/// With ``bricks`` (krx-quant #225) ``bars`` are a style's bricks on their slots (ChartBricks'
+/// brick_bars): the VWAP and the anchored VWAP are neither drawn nor in the legend (study_drawn),
+/// nothing waits for a click, and the AD line and the OBV are 0 at the first brick, as the bricks'
+/// start is fixed (ChartBricks' brick_start).
 StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int view, std::optional<qint64> anchor,
-                          bool picking, bool first_day_whole = false, const PaneHeights& heights = {});
+                          bool picking, bool first_day_whole = false, const PaneHeights& heights = {},
+                          bool bricks = false);
 
 /// ``color`` (#rrggbb) at ``alpha`` (0–1) as CSS: rgba(r,g,b,a).
 QString css_color(const QString& color, double alpha);

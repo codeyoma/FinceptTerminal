@@ -692,6 +692,18 @@ StudySettings default_settings(Study study) {
     return s;
 }
 
+bool study_drawn(Study study, int view, bool bricks) {
+    if (bricks)
+        return study != Study::Vwap && study != Study::AnchoredVwap;
+    return !(study_spec(study).minute_only && candle_view(view));
+}
+
+QString study_unavailable(Study study, int view, bool bricks) {
+    if (study_drawn(study, view, bricks))
+        return {};
+    return bricks ? QStringLiteral("시간축 없는 차트에서는 쓰지 않는다") : QStringLiteral("분봉에서만");
+}
+
 QString settings_text(const StudySettings& settings) {
     const StudySpec& spec = study_spec(settings.study);
     QStringList parts;
@@ -1740,12 +1752,19 @@ QList<LowerLine> lower_lines(const QList<ChartBar>& bars, const StudySettings& s
 } // namespace
 
 StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int view, std::optional<qint64> anchor,
-                          bool picking, bool first_day_whole, const PaneHeights& heights) {
+                          bool picking, bool first_day_whole, const PaneHeights& heights, bool bricks) {
     StudyDrawing out;
     const qsizetype n = bars.size();
     // The AD line's and the OBV's 0 (krx-quant #223): empty until the bars from its moment on are
-    // all held, as the VWAP's day; past the read's cap, saying so.
-    const auto zero = cumulative_anchor(bars, view, first_day_whole);
+    // all held, as the VWAP's day; past the read's cap, saying so. On bricks (krx-quant #225) the
+    // first brick: their start is fixed, so the bars read before it change nothing.
+    const auto zero = bricks ? (bars.isEmpty() ? std::nullopt : std::optional<qsizetype>(0))
+                             : cumulative_anchor(bars, view, first_day_whole);
+    if (bricks) { // a slot a minute: what reaches past the last brick takes the next slots
+        view = 1;
+        anchor.reset();
+        picking = false;
+    }
     const QString since = candle_view(view) ? QStringLiteral("그해") : QStringLiteral("그날");
     const QString unread = zero || bars.isEmpty() ? QString()
                            : n >= kMaxHistoryBars ? QStringLiteral("%1 첫 봉이 %2봉보다 앞이라 비움")
@@ -1785,8 +1804,8 @@ StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int 
         if (!s.on)
             continue;
         const StudySpec& spec = study_spec(s.study);
-        if (spec.minute_only && candle_view(view))
-            continue; // the VWAP: kept, not drawn
+        if (!study_drawn(s.study, view, bricks))
+            continue; // the VWAP in a candle view, either VWAP on bricks: kept, not drawn
         LegendRow row;
         row.study = s.study;
         row.title = spec.title;

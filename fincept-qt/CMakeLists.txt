@@ -1479,6 +1479,7 @@ set(SERVICE_SOURCES
     src/services/notifications/providers/SMSProvider.cpp
     # KRX prediction engine reader (fork addition, custom/README.md)
     src/services/krx_quant/Board.cpp
+    src/services/krx_quant/ChartBricks.cpp
     src/services/krx_quant/ChartDrawings.cpp
     src/services/krx_quant/ChartLook.cpp
     src/services/krx_quant/ChartStudies.cpp
@@ -2659,6 +2660,7 @@ set_source_files_properties(
     src/screens/krx_quant/KrxStatsWindow.cpp
     src/screens/krx_quant/KrxStudyPanel.cpp
     src/services/krx_quant/Board.cpp
+    src/services/krx_quant/ChartBricks.cpp
     src/services/krx_quant/ChartDrawings.cpp
     src/services/krx_quant/ChartLook.cpp
     src/services/krx_quant/ChartStudies.cpp

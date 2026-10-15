@@ -26,9 +26,11 @@ class KrxStudyPanel : public QFrame {
   public:
     explicit KrxStudyPanel(QWidget* parent = nullptr);
 
-    /// Show ``set`` in the view ``view``: the VWAP is greyed in a candle view ("분봉에서만").
-    /// The settings shown are built again only when they differ from those the panel has.
-    void show_studies(const krx_quant::StudySet& set, int view);
+    /// Show ``set`` in the view ``view``, on ``bricks`` (a style without a time axis, krx-quant
+    /// #225) or bars: the VWAP is greyed in a candle view ("분봉에서만"), both VWAPs on bricks
+    /// (krx_quant::study_unavailable). The settings shown are built again only when they differ
+    /// from those the panel has.
+    void show_studies(const krx_quant::StudySet& set, int view, bool bricks = false);
     /// Show ``study``'s settings on the right.
     void select(krx_quant::Study study);
     krx_quant::Study selected() const { return selected_; }
@@ -57,6 +59,7 @@ class KrxStudyPanel : public QFrame {
 
     krx_quant::StudySet set_;
     int view_ = 1;
+    bool bricks_ = false;
     krx_quant::Study selected_ = krx_quant::Study::MovingAverage;
     QHash<int, QToolButton*> checks_; ///< by study
     QHash<int, QPushButton*> names_;  ///< by study

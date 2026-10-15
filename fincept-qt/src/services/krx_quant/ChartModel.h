@@ -37,6 +37,7 @@ struct ChartBar {
     double close = 0;
     double volume = 0;
     bool rising = true; ///< closed at or above its open: drawn in the rising color
+    bool operator==(const ChartBar&) const = default;
 };
 
 QList<ChartBar> chart_bars(const QList<Bar>& bars);
