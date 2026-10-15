@@ -337,6 +337,39 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(s.kis_connected, std::optional<bool>(true));
     }
 
+    void a_symbols_special_situations_over_days_are_read() {
+        // GET /v1/symbols/{symbol}/special (krx-quant #236): its VIs and the market's circuit breakers
+        // and sidecars, a detail where the engine gives one; kept in start order.
+        const auto read = parse_special(json(R"json({"symbol": "005930", "from": "2026-10-13", "to": "2026-10-15",
+          "special": [
+            {"kind": "vi", "symbol": "005930", "start": "2026-10-15T13:45:10+09:00",
+             "end": "2026-10-15T13:47:20+09:00", "detail": null},
+            {"kind": "circuit_breaker", "symbol": null, "start": "2026-10-15T13:10:00+09:00",
+             "end": "2026-10-15T13:30:00+09:00", "detail": "1단계"},
+            {"kind": "sidecar", "symbol": null, "start": "2026-10-14T09:05:00+09:00",
+             "end": "2026-10-14T09:10:00+09:00"}
+          ]})json"));
+        QVERIFY(read.is_ok());
+        const auto& windows = read.value();
+        QCOMPARE(windows.size(), 3);
+        QCOMPARE(windows[0].kind, QStringLiteral("sidecar"));
+        QVERIFY(windows[0].detail.isEmpty()); // none given
+        QCOMPARE(windows[1].kind, QStringLiteral("circuit_breaker"));
+        QVERIFY(windows[1].symbol.isEmpty()); // the whole market
+        QCOMPARE(windows[1].detail, QStringLiteral("1단계"));
+        QCOMPARE(windows[1].start, QDateTime::fromString("2026-10-15T13:10:00+09:00", Qt::ISODate));
+        QCOMPARE(windows[1].end, QDateTime::fromString("2026-10-15T13:30:00+09:00", Qt::ISODate));
+        QCOMPARE(windows[2].symbol, QStringLiteral("005930"));
+        QVERIFY(windows[2].detail.isEmpty()); // null
+        // None, and the engine's error.
+        QVERIFY(parse_special(json(R"({"symbol": "005930", "special": []})")).value().isEmpty());
+        QVERIFY(parse_special(json(R"({"error": "unknown symbol"})")).is_err());
+        // The status's carry a detail too.
+        const auto status = parse_status(json(R"({"special": [{"kind": "circuit_breaker", "symbol": null,
+          "start": "2026-10-15T13:10:00+09:00", "end": "2026-10-15T13:30:00+09:00", "detail": "1단계"}]})"));
+        QCOMPARE(status.value().special.value(0).detail, QStringLiteral("1단계"));
+    }
+
     void status_has_the_usd_futures_now() {
         const auto status = parse_status(json(kStatus));
         QVERIFY(status.is_ok());

@@ -3,9 +3,12 @@
 // The KRX chart's drawings (krx-quant #224): the tools and their names, a symbol's drawings as
 // kept and read back (broken ones dropped), where a moment lies on a view's bars and back (so a
 // drawing stays put across the minute and candle views), and what the magnet picks. The expected
-// positions are worked out by hand.
+// positions are worked out by hand. On a minute view's bars with their empty bars (krx-quant #236,
+// ChartSlots' fill_slots), a moment without trades lies on its own slot, and a drawing past the last
+// bar stays at its moment when a bar after a gap fills it.
 
 #include "services/krx_quant/ChartDrawings.h"
+#include "services/krx_quant/ChartSlots.h"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -288,6 +291,54 @@ class TstKrxChartDrawings : public QObject {
         QVERIFY(append_live(friday, chart_bars({bar("2026-10-12T08:03:00+09:00", 100, 102, 100, 101)}).first()));
         QVERIFY(near(logical_at(friday, monday, 1), 1));
         QVERIFY(near(logical_at(friday, at("2026-10-12T08:05:30+09:00"), 1), 3));
+    }
+
+    void a_moment_across_a_filled_gap() {
+        // 09:00, 09:01, 09:02, then empty bars at 09:03 and 09:04 (krx-quant #236), 09:05 and 09:06.
+        const auto bars = fill_slots(view_of(minutes(), 1), 1);
+        QCOMPARE(bars.size(), 7);
+        // A moment without trades lies on its own slot now, not on the edge between the bars around it.
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:03:00+09:00"), 1), 2.5));
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:03:30+09:00"), 1), 3));
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:04:45+09:00"), 1), 4.25));
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:06:30+09:00"), 1), 6));
+        QCOMPARE(time_at(bars, 3, 1).value_or(0), at("2026-10-12T09:03:30+09:00"));
+        QCOMPARE(time_at(bars, 4.25, 1).value_or(0), at("2026-10-12T09:04:45+09:00"));
+        // A drawing placed on an empty bar keeps its moment in every minute view, filled likewise.
+        const qint64 placed = *time_at(bars, 3, 1);
+        for (const int view : kMinuteViews) {
+            const auto slotted = fill_slots(view_of(minutes(), view), view);
+            for (const double logical : {-30.25, -0.5, 0.0, 1.5, 2.75, 3.0, 4.25, 6.0, 9.5}) {
+                const auto time = time_at(slotted, logical, view);
+                QVERIFY(time);
+                QVERIFY2(near(logical_at(slotted, *time, view), logical),
+                         qPrintable(QStringLiteral("%1 min at %2").arg(view).arg(logical)));
+            }
+            const auto there = logical_at(slotted, placed, view);
+            QVERIFY(there);
+            QCOMPARE(time_at(slotted, *there, view).value_or(0), placed);
+        }
+        // 5 minutes: 09:00 holds 09:00–09:02 and 09:05 the rest; nothing between them to fill.
+        QCOMPARE(fill_slots(view_of(minutes(), 5), 5).size(), 2);
+        // The magnet leaves a point over an empty bar as it is.
+        QCOMPARE(magnet_spot(bars, {3.2, 101}), (ChartSpot{3.2, 101}));
+        QCOMPARE(magnet_spot(bars, {5.1, 103.9}), (ChartSpot{5, 104})); // 09:05, its open
+    }
+
+    void points_past_the_last_bar_stay_when_a_gap_fills() {
+        // The last bar is 09:06 (slot 6); the next one comes at 09:09 after two minutes without trades.
+        auto bars = fill_slots(view_of(minutes(), 1), 1);
+        const qint64 on_it = at("2026-10-12T09:09:30+09:00");
+        const qint64 after_it = at("2026-10-12T09:10:30+09:00");
+        QVERIFY(near(logical_at(bars, on_it, 1), 9));
+        QVERIFY(near(logical_at(bars, after_it, 1), 10));
+        const auto made =
+            append_live_slots(bars, chart_bars({bar("2026-10-12T09:09:00+09:00", 103, 104, 102, 103)}).first(), 1);
+        QVERIFY(made.appended);
+        QCOMPARE(made.filled.size(), 2);
+        // The empty bars took the slots between: the points stay at their moments.
+        QVERIFY(near(logical_at(bars, on_it, 1), 9));
+        QVERIFY(near(logical_at(bars, after_it, 1), 10));
     }
 
     void a_moment_on_the_candle_views() {

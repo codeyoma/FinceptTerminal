@@ -498,7 +498,8 @@ KrxChartToolbar::KrxChartToolbar(QWidget* parent) : QWidget(parent) {
     connect(trash_, &QToolButton::clicked, this, &KrxChartToolbar::trash_requested);
     end->addWidget(trash_);
 
-    // The options (krx-quant #221): the day separators, for every symbol.
+    // The options (krx-quant #221): the day separators and the special situations' bands (krx-quant
+    // #236), each for every symbol.
     options_ = new QToolButton;
     options_->setObjectName("krxOptions");
     options_->setPopupMode(QToolButton::InstantPopup);
@@ -509,6 +510,10 @@ KrxChartToolbar::KrxChartToolbar(QWidget* parent) : QWidget(parent) {
     day_separator_ = options_menu->addAction(tr("날짜 구분선"));
     day_separator_->setCheckable(true);
     connect(day_separator_, &QAction::toggled, this, &KrxChartToolbar::day_separator_toggled);
+    special_ = options_menu->addAction(tr("특수 상황 표시"));
+    special_->setCheckable(true);
+    special_->setChecked(true);
+    connect(special_, &QAction::toggled, this, &KrxChartToolbar::special_toggled);
     // While a style without a time axis is shown (krx-quant #225), its size: the box, the reversal or
     // the lines, and ATR(14) for the default.
     brick_divider_ = options_menu->addSeparator();
@@ -570,6 +575,13 @@ void KrxChartToolbar::show_day_separator_state() {
     day_separator_->setToolTip(bricks    ? tr("분봉에서만. 시간축 없는 차트에서는 쓰지 않는다.")
                                : candles ? tr("분봉에서만")
                                          : tr("분봉에서 날짜가 바뀐 뒤 첫 봉에 회색 띠를 칠한다."));
+    // The special situations' bands likewise (krx-quant #236).
+    special_->setEnabled(!candles && !bricks);
+    special_->setToolTip(
+        bricks    ? tr("분봉에서만. 시간축 없는 차트에서는 쓰지 않는다.")
+        : candles ? tr("분봉에서만")
+                  : tr("분봉에서 엔진이 아는 서킷브레이커·사이드카(시장 전체)와 이 종목의 VI 구간을 옅은 띠와 "
+                       "이름표로 칠하고, 그 안의 봉 호버에 적는다."));
 }
 
 void KrxChartToolbar::show_brick_size(std::optional<double> kept, std::optional<double> atr) {
@@ -657,6 +669,11 @@ QPoint KrxChartToolbar::indicators_corner() const {
 void KrxChartToolbar::show_day_separator(bool on) {
     const QSignalBlocker quiet(day_separator_); // shown, not toggled
     day_separator_->setChecked(on);
+}
+
+void KrxChartToolbar::show_special(bool on) {
+    const QSignalBlocker quiet(special_); // shown, not toggled
+    special_->setChecked(on);
 }
 
 void KrxChartToolbar::paint_icons() {

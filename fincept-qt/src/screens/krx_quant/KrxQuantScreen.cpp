@@ -181,12 +181,14 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     chart_ = new KrxChart;
     // The row above the chart (krx-quant #220, #221): the minute views' drop-down, the day, week,
     // month and year buttons, the chart style, and the options. Each symbol keeps its view and
-    // style; the day separators are every symbol's.
+    // style; the day separators and the special situations' bands (krx-quant #236) are every symbol's.
     chart_toolbar_ = new KrxChartToolbar;
     look_.day_separator = AppConfig::instance().get(krx_quant::kDaySeparatorKey, true).toBool();
+    look_.special = AppConfig::instance().get(krx_quant::kSpecialKey, true).toBool();
     chart_toolbar_->show_view(minutes_);
     chart_toolbar_->show_style(look_.style);
     chart_toolbar_->show_day_separator(look_.day_separator);
+    chart_toolbar_->show_special(look_.special);
     connect(chart_toolbar_, &KrxChartToolbar::view_chosen, this, &KrxQuantScreen::set_view);
     connect(chart_toolbar_, &KrxChartToolbar::style_chosen, this, &KrxQuantScreen::set_style);
     // The size of a style without a time axis (krx-quant #225), set in the options menu for the
@@ -199,6 +201,11 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(chart_toolbar_, &KrxChartToolbar::day_separator_toggled, this, [this](bool on) {
         look_.day_separator = on;
         AppConfig::instance().set(krx_quant::kDaySeparatorKey, on);
+        fill_chart();
+    });
+    connect(chart_toolbar_, &KrxChartToolbar::special_toggled, this, [this](bool on) {
+        look_.special = on;
+        AppConfig::instance().set(krx_quant::kSpecialKey, on);
         fill_chart();
     });
     // The indicators (krx-quant #222): their panel under the toolbar's button, and the legend's
@@ -365,6 +372,8 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     chart_soon_->setInterval(kChartSettleMs);
     connect(chart_soon_, &QTimer::timeout, this, &KrxQuantScreen::fill_chart);
     connect(live_, &services::KrxLive::marks_changed, chart_soon_, qOverload<>(&QTimer::start));
+    // The special situations' bands (krx-quant #236) with the next drawing.
+    connect(live_, &services::KrxLive::special_changed, chart_soon_, qOverload<>(&QTimer::start));
     connect(live_, &services::KrxLive::live_changed, this, [this]() {
         // A candle view's last candle holds today, made of the day's bars (krx-quant #111, #112).
         const bool candles = krx_quant::candle_view(minutes_);
@@ -925,7 +934,7 @@ void KrxQuantScreen::set_view(int minutes) {
         AppConfig::instance().set(krx_quant::prefs_group(symbol) + krx_quant::kPrefsView, minutes);
     chart_toolbar_->show_view(minutes);
     live_->set_view(minutes);
-    want_history();                                     // the indicators' bars in this view (krx-quant #222)
+    want_history(); // the indicators' bars in this view (krx-quant #222)
     study_panel_->show_studies(look_.studies, minutes,
                                krx_quant::timeless(look_.style)); // the VWAP is the minute views'
     fill_chart();
@@ -1101,9 +1110,11 @@ void KrxQuantScreen::fill_chart() {
     }
     const krx_quant::SignalRule rule = alerts_->rule();
     const QList<krx_quant::Mark> marks = live_->board().marks(symbol, live_->selection());
-    // Each 1-minute bar's box (krx-quant #159): the minute views' only. While another kind is
+    // Each 1-minute bar's box (krx-quant #159): the 1-minute view's only. While another kind is
     // shown, its own (krx-quant #182): its answer and predictions, and the range's highest and
     // lowest mid-points or the barrier's U and L (krx-quant #185); the icons stay the direction's.
+    // The chart adds the empty bars' boxes and the special situations' lines in every minute view
+    // (krx-quant #236).
     const auto kind = live_->kind() != QLatin1String(krx_quant::kDirectionKind) ? live_->kind_info() : std::nullopt;
     const QList<krx_quant::BarHover> hovers =
         minutes_ != 1 ? QList<krx_quant::BarHover>{}
@@ -1114,7 +1125,8 @@ void KrxQuantScreen::fill_chart() {
     // Nothing before the first bar held in this view: its first day's VWAP is drawn, and the AD
     // line's and the OBV's stretch from their 0 is whole (krx-quant #223).
     look_.first_day_whole = live_->reached_start(minutes_);
-    chart_->set_data(candles ? live_->view_candles(minutes_) : live_->bars(), marks, hovers, rule, minutes_, look_);
+    chart_->set_data(candles ? live_->view_candles(minutes_) : live_->bars(), marks, hovers, rule, minutes_, look_,
+                     live_->special());
     show_score();
 }
 

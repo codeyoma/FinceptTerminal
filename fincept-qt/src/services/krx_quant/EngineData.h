@@ -21,12 +21,15 @@ namespace fincept::krx_quant {
 /// A class of the 4-minute move: what a forecast predicts, or what happened.
 enum class Direction { Up, Flat, Down, None };
 
-/// A VI, circuit breaker or sidecar known today.
+/// A VI, circuit breaker or sidecar: known today (the status), or a symbol's over days (GET
+/// /v1/symbols/{symbol}/special, krx-quant #236).
 struct SpecialWindow {
     QString kind;   ///< "vi", "circuit_breaker" or "sidecar"
     QString symbol; ///< empty: the whole market
     QDateTime start;
     QDateTime end;
+    QString detail = {}; ///< e.g. "1단계" for a circuit breaker's stage; empty when the engine gives none
+    bool operator==(const SpecialWindow&) const = default;
 };
 
 /// The last night's training, as the engine's morning swap saw it.
@@ -320,7 +323,10 @@ struct AlgorithmStats {
 
 Result<EngineStatus> parse_status(const QJsonDocument& doc);        ///< GET /v1/status
 Result<QList<SymbolQuote>> parse_symbols(const QJsonDocument& doc); ///< GET /v1/symbols
-Result<Latest> parse_latest(const QJsonDocument& doc);              ///< GET /v1/symbols/{symbol}/latest
+/// GET /v1/symbols/{symbol}/special?from=&to= (krx-quant #236): the symbol's VIs and the market's
+/// circuit breakers and sidecars over those days, in start order.
+Result<QList<SpecialWindow>> parse_special(const QJsonDocument& doc);
+Result<Latest> parse_latest(const QJsonDocument& doc); ///< GET /v1/symbols/{symbol}/latest
 /// GET /v1/symbols/{symbol}/predictions: the latest bar closes first.
 Result<QList<Prediction>> parse_predictions(const QJsonDocument& doc);
 Result<QList<Bar>> parse_bars(const QJsonDocument& doc); ///< GET /v1/symbols/{symbol}/bars, oldest first

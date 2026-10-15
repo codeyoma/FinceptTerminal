@@ -261,6 +261,12 @@ Prediction prediction_of(const QJsonObject& p, const QString& symbol, const QDat
     return made;
 }
 
+/// A special situation's window: the status's, or a symbol's over days (krx-quant #236).
+SpecialWindow special_of(const QJsonObject& w) {
+    return {w.value("kind").toString(), w.value("symbol").toString(), time_of(w.value("start")),
+            time_of(w.value("end")), w.value("detail").toString()};
+}
+
 } // namespace
 
 Result<EngineStatus> parse_status(const QJsonDocument& doc) {
@@ -278,8 +284,7 @@ Result<EngineStatus> parse_status(const QJsonDocument& doc) {
     s.pending_outcomes = o.value("pending_outcomes").toInt();
     for (const auto& v : o.value("special").toArray()) {
         const QJsonObject w = v.toObject();
-        s.special.push_back({w.value("kind").toString(), w.value("symbol").toString(), time_of(w.value("start")),
-                             time_of(w.value("end"))});
+        s.special.push_back(special_of(w));
     }
     if (o.value("training").isObject()) {
         const QJsonObject t = o.value("training").toObject();
@@ -299,6 +304,19 @@ Result<EngineStatus> parse_status(const QJsonDocument& doc) {
         s.usd_futures = UsdFutures{u.value("price").toDouble(), time_of(u.value("at")), number(u.value("change_pct"))};
     }
     return Result<EngineStatus>::ok(s);
+}
+
+Result<QList<SpecialWindow>> parse_special(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<QList<SpecialWindow>>::err(obj.error());
+    QList<SpecialWindow> windows;
+    for (const auto& v : obj.value().value("special").toArray())
+        windows.push_back(special_of(v.toObject()));
+    // In start order, as the engine sends them; kept so if one does not.
+    std::stable_sort(windows.begin(), windows.end(),
+                     [](const SpecialWindow& a, const SpecialWindow& b) { return a.start < b.start; });
+    return Result<QList<SpecialWindow>>::ok(windows);
 }
 
 Result<QList<SymbolQuote>> parse_symbols(const QJsonDocument& doc) {

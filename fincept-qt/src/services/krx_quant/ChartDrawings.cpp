@@ -397,6 +397,8 @@ ChartSpot magnet_spot(const QList<ChartBar>& bars, ChartSpot spot) {
         return spot;
     const auto i = static_cast<qsizetype>(std::floor(spot.logical + 0.5));
     const ChartBar& b = bars[std::clamp<qsizetype>(i, 0, bars.size() - 1)];
+    if (b.empty) // a slot without trades (krx-quant #236): no price to snap to
+        return spot;
     double best = b.open;
     for (const double v : {b.high, b.low, b.close})
         if (std::abs(v - spot.price) < std::abs(best - spot.price))

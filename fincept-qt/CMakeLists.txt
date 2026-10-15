@@ -1518,6 +1518,7 @@ set(SERVICE_SOURCES
     src/services/krx_quant/ChartBricks.cpp
     src/services/krx_quant/ChartDrawings.cpp
     src/services/krx_quant/ChartLook.cpp
+    src/services/krx_quant/ChartSlots.cpp
     src/services/krx_quant/ChartStudies.cpp
     src/services/krx_quant/ChartModel.cpp
     src/services/krx_quant/EngineData.cpp
@@ -2733,6 +2734,7 @@ set_source_files_properties(
     src/services/krx_quant/ChartBricks.cpp
     src/services/krx_quant/ChartDrawings.cpp
     src/services/krx_quant/ChartLook.cpp
+    src/services/krx_quant/ChartSlots.cpp
     src/services/krx_quant/ChartStudies.cpp
     src/services/krx_quant/ChartModel.cpp
     src/services/krx_quant/EngineData.cpp

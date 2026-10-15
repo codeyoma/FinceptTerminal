@@ -23,9 +23,10 @@ namespace fincept::screens {
 /// day, week, month and year buttons, the chart style's menu, the indicators button (#222: it
 /// asks the screen to open the indicators panel) and the drawing menu (#224: the twelve tools and
 /// the magnet), and at the right end the trash (#224: the symbol's drawings, all of them) and the
-/// options menu with the day separators and, while a style without a time axis is shown (#225), its
-/// size. It only shows what the screen says and tells it what was picked; the screen keeps the
-/// choices. In a narrow panel the indicators and drawing buttons lose their labels.
+/// options menu with the day separators, the special situations' bands (#236) and, while a style
+/// without a time axis is shown (#225), its size. It only shows what the screen says and tells it
+/// what was picked; the screen keeps the choices. In a narrow panel the indicators and drawing
+/// buttons lose their labels.
 class KrxChartToolbar : public QWidget {
     Q_OBJECT
   public:
@@ -35,6 +36,8 @@ class KrxChartToolbar : public QWidget {
     void show_view(int view);
     void show_style(krx_quant::ChartStyle style);
     void show_day_separator(bool on);
+    /// Whether the special situations' bands are shown (krx-quant #236): the options menu's check.
+    void show_special(bool on);
     /// The size of the style shown when it has no time axis (krx-quant #225): the one the symbol set
     /// (``kept``; none: the default) and ATR(14) of the view's bars (``atr``; none: not counted yet),
     /// in the options menu below the day separators. Hidden for a style with a time axis.
@@ -56,6 +59,8 @@ class KrxChartToolbar : public QWidget {
     void view_chosen(int view);
     void style_chosen(krx_quant::ChartStyle style);
     void day_separator_toggled(bool on);
+    /// The options menu's `특수 상황 표시` (krx-quant #236): the special situations' bands on or off.
+    void special_toggled(bool on);
     /// A size set for ``style``, a style without a time axis (krx-quant #225), in the options menu:
     /// won, or the line break's lines; 0: back to its default (ATR(14), 3 lines).
     void brick_size_chosen(krx_quant::ChartStyle style, double size);
@@ -76,7 +81,8 @@ class KrxChartToolbar : public QWidget {
     /// The left group from the left end, cut off where the right group (trash, options) starts.
     void place();
     void paint_icons();
-    /// The day separators' item: on in a minute view with a time axis.
+    /// The day separators' item and the special situations' (krx-quant #236): on in a minute view
+    /// with a time axis.
     void show_day_separator_state();
 
     QWidget* left_clip_ = nullptr;   ///< clips the left group
@@ -94,6 +100,7 @@ class KrxChartToolbar : public QWidget {
     QToolButton* trash_ = nullptr;
     QToolButton* options_ = nullptr;
     QAction* day_separator_ = nullptr;
+    QAction* special_ = nullptr;         ///< the special situations' bands (krx-quant #236)
     QAction* brick_divider_ = nullptr;   ///< above the size, while a style without a time axis is shown
     QWidgetAction* brick_row_ = nullptr; ///< its size (krx-quant #225)
     QLabel* brick_title_ = nullptr;
@@ -106,7 +113,7 @@ class KrxChartToolbar : public QWidget {
     krx_quant::ChartStyle style_shown_ = krx_quant::ChartStyle::Candle;
     std::optional<krx_quant::DrawingTool> tool_shown_;
     int drawings_shown_ = 0; ///< the symbol's drawings, as the screen last said
-    int wide_ = 0; ///< the row's width with the labels
+    int wide_ = 0;           ///< the row's width with the labels
     bool narrow_ = false;
 };
 

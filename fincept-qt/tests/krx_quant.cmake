@@ -110,6 +110,7 @@ fincept_add_test(tst_krx_chart_studies
 fincept_add_test(tst_krx_chart_drawings
     tst_krx_chart_drawings.cpp
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
@@ -129,6 +130,20 @@ fincept_add_test(tst_krx_chart_bricks
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
 
+# src/services/krx_quant/ChartSlots.{h,cpp} — the minute views' empty bars for the minutes without trades
+# and the special situations' bands and hover lines over them (codeyoma/krx-quant#236), with what places
+# by time on them (the drawings' positions) and what computes on prices beside them (the indicators).
+# Qt Core only.
+fincept_add_test(tst_krx_chart_slots
+    tst_krx_chart_slots.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
+
 # src/screens/krx_quant/chart/index.html as src/screens/krx_quant/KrxChart.{h,cpp} drives it: the
 # first screen fits the latest bars however the bars read before them come in, and a view moved
 # by hand stays. Unlike the suites above it needs Widgets and Qt WebEngine: what it tests is the
@@ -141,6 +156,7 @@ if(HAS_WEBENGINE)
         "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChart.h"
         "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartBricks.cpp"
         "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
+        "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
         "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
         "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
         "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"

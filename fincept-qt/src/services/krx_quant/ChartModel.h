@@ -37,6 +37,9 @@ struct ChartBar {
     double close = 0;
     double volume = 0;
     bool rising = true; ///< closed at or above its open: drawn in the rising color
+    /// An empty bar (krx-quant #236, ChartSlots' fill_slots): a minute view's slot without trades
+    /// between two bars of a day. Its time alone counts; it has no prices and no volume.
+    bool empty = false;
     bool operator==(const ChartBar&) const = default;
 };
 

@@ -4,9 +4,11 @@
 <meta charset="utf-8">
 <!--
   The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182, #185,
-  #221, #222, #223, #224, #225), drawn with TradingView Lightweight Charts (NOTICE). It only draws what
-  the screen sends over the web channel: the bars in the style chosen (or the bricks of a style
-  without a time axis, a slot each, named by when each ended), the days' first bars filled,
+  #221, #222, #223, #224, #225, #236), drawn with TradingView Lightweight Charts (NOTICE). It only draws
+  what the screen sends over the web channel: the bars in the style chosen (or the bricks of a style
+  without a time axis, a slot each, named by when each ended), a minute view's empty bars (a slot
+  without trades between two bars of a day: whitespace, no candle and no volume, #236) and the
+  special situations' bands over every pane with their names (#236), the days' first bars filled,
   the consensus icons, each bar's hover box and its four-minute window with two levels across it
   (the touch targets, the range's highest and lowest mid-points, or the barrier's U and L), the
   indicators (their lines, the fills between two, the fractals' marks, the volume profile's bars,
@@ -122,6 +124,43 @@
             const left = Math.round((x - half) * scope.horizontalPixelRatio);
             const right = Math.round((x + half) * scope.horizontalPixelRatio);
             g.fillRect(left, 0, Math.max(1, right - left), scope.bitmapSize.height);
+          }
+        });
+      },
+    };
+    const view = { zOrder: () => 'bottom', renderer: () => renderer };
+    return { paneViews: () => [view], updateAllViews() {} };
+  }
+
+  // The special situations (krx-quant #236): each VI, circuit breaker or sidecar a faint band from
+  // where it started to where it ended (bar positions on the bars drawn, the empty bars' slots among
+  // them), the whole height of each pane it is attached to, behind the bars; ``labelled`` (the price
+  // pane) writes its name at the top, below the legend where they would meet. As the screen sends
+  // them: [{from, to, label, fill, color}].
+  let specialBands = [];
+  function specialPrimitive(labelled) {
+    const renderer = {
+      draw(target) {
+        if (!specialBands.length) return;
+        target.useMediaCoordinateSpace(function (scope) {
+          const g = scope.context;
+          const size = scope.mediaSize;
+          const px = Math.max(9, (colors.size || 11) - 1);
+          const legend = legendBoxes.length ? legendBoxes[0] : null;
+          const legendRight = legend && legend.childElementCount ? legend.offsetLeft + legend.offsetWidth : 0;
+          const legendFoot = legend ? legend.offsetTop + legend.offsetHeight : 0;
+          for (const band of specialBands) {
+            const a = logicalX(band.from), b = logicalX(band.to);
+            if (a === null || b === null || b < 0 || a > size.width) continue;
+            g.fillStyle = band.fill;
+            g.fillRect(a, 0, Math.max(1, b - a), size.height);
+            if (!labelled) continue;
+            const x = Math.max(a, 0) + 3;
+            g.font = fontOf(px, true);
+            g.fillStyle = band.color;
+            g.textAlign = 'left';
+            g.textBaseline = 'top';
+            g.fillText(band.label, x, x < legendRight + 6 ? legendFoot + 4 : 4);
           }
         });
       },
@@ -299,6 +338,7 @@
     }
   }
   function point(b) {
+    if (b.close === undefined) return { time: b.time }; // an empty bar (krx-quant #236): its slot alone
     return style === 'line' || style === 'area' || style === 'baseline' ? { time: b.time, value: b.close } : b;
   }
 
@@ -347,6 +387,7 @@
     realLine = null;
     icons = L.createSeriesMarkers(main, []);
     main.attachPrimitive(bandPrimitive());
+    main.attachPrimitive(specialPrimitive(true)); // the special situations (krx-quant #236), named
     main.attachPrimitive(layer('bottom', drawFills));
     main.attachPrimitive(layer('bottom', drawProfile));
     main.attachPrimitive(layer('top', drawAnchor));
@@ -416,6 +457,7 @@
   function makePane(key) {
     const api = chart.addPane(true); // kept while it has no series: a hidden indicator's
     api.attachPrimitive(bandPrimitive()); // the days' first bars, its whole height
+    api.attachPrimitive(specialPrimitive(false)); // the special situations (krx-quant #236)
     return { key: key, api: api, height: 100, hidden: false, guides: [] };
   }
   function dropPaneSeries(pane) {
@@ -560,7 +602,9 @@
     iconAt = new Map(data.icons.map((i) => [String(i.time), i]));
     main.setData(bars.map(point));
     volumeData = data.volumes;
-    volumeAt = new Map(volumeData.map((v) => [v.time, v.value]));
+    // An empty bar's volume (krx-quant #236) is 0 in the legend; its pane draws none.
+    volumeAt = new Map(volumeData.map((v) => [v.time, v.value === undefined ? 0 : v.value]));
+    specialBands = data.special || [];
     if (volumes) volumes.setData(volumeData);
     showReal(data.last);
     iconMarks = data.icons.map((i) => ({
@@ -764,6 +808,7 @@
     const n = bars.length;
     if (!magnet || !n || spot[0] < -0.5 || spot[0] >= n - 0.5) return spot;
     const i = Math.max(0, Math.min(n - 1, Math.floor(spot[0] + 0.5)));
+    if (bars[i].close === undefined) return spot; // an empty bar (krx-quant #236): no price to snap to
     const b = realBars && realBars[i] ? realBars[i] : [bars[i].open, bars[i].high, bars[i].low, bars[i].close];
     let best = b[0];
     for (const v of b) if (Math.abs(v - spot[1]) < Math.abs(best - spot[1])) best = v;
@@ -1469,6 +1514,9 @@
     const valueAt = function (id) {
       return id === 'volume' ? volumeAt.get(at) : (lines.get(id) || { values: new Map() }).values.get(at);
     };
+    // An empty bar (krx-quant #236) has no values: no reason why one is missing either.
+    const index = at === null ? undefined : barAt.get(at);
+    const empty = index !== undefined && bars[index].close === undefined;
     for (const { span, id } of valueSpans) {
       const value = valueAt(id);
       const decimals = id === 'volume' ? 0 : (lines.get(id) || {}).decimals || 0; // a lower one's (krx-quant #223)
@@ -1477,7 +1525,7 @@
       span.style.display = value === undefined ? 'none' : '';
     }
     for (const { span, ids } of missingSpans)
-      span.style.display = ids.some((id) => valueAt(id) !== undefined) ? 'none' : '';
+      span.style.display = empty || ids.some((id) => valueAt(id) !== undefined) ? 'none' : '';
   }
   // Each at the top left of its pane, the panes top down with a pixel's border between them.
   function placeLegend() {
@@ -1510,6 +1558,16 @@
       return;
     }
     if (!bars.length || data.bar.time < bars[bars.length - 1].time) return;
+    // A new bar after minutes without trades (krx-quant #236): their empty bars first, a slot each.
+    for (const time of data.gap || []) {
+      if (time <= bars[bars.length - 1].time) continue;
+      main.update({ time: time });
+      if (volumes) volumes.update({ time: time });
+      volumeAt.set(time, 0);
+      barAt.set(time, bars.length);
+      bars.push({ time: time });
+    }
+    if (data.special) specialBands = data.special; // the bands on those slots
     main.update(point(data.bar));
     if (volumes) volumes.update(data.volume);
     volumeAt.set(data.volume.time, data.volume.value);
@@ -1585,7 +1643,7 @@
     const g = links.getContext('2d');
     g.setTransform(ratio, 0, 0, ratio, 0, 0);
     g.clearRect(0, 0, area.clientWidth, area.clientHeight);
-    if (!box) return;
+    if (!box || box.from === undefined) return; // an empty bar's box, a wider view's: no window (krx-quant #236)
     const x1 = xOf(box.from), x2 = xOf(box.to);
     if (x1 === null || x2 === null) return;
     const open = !bars.length || box.to > bars[bars.length - 1].time + 60; // not over yet
@@ -1741,6 +1799,37 @@
     profile = data && data.rows ? data : null;
     repaint();
   }
+
+  // For krx-capture and the page's tests (krx-quant #236): the x of the slot holding a moment
+  // (chart_time; null before the first bar), and the view moved to show that slot in its middle, as
+  // many bars wide as now (it stops following the latest bars, as a hand's move does).
+  function slotAt(time) {
+    if (!bars.length || time < bars[0].time) return null;
+    let lo = 0, hi = bars.length - 1; // the last bar starting at or before ``time``
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (bars[mid].time <= time) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+  }
+  window.krxChart = {
+    x: function (time) {
+      const i = slotAt(time);
+      return i === null ? null : chart.timeScale().logicalToCoordinate(i);
+    },
+    show: function (time) {
+      const i = slotAt(time);
+      if (i === null) return false;
+      const range = chart.timeScale().getVisibleLogicalRange();
+      const width = range ? range.to - range.from : 66;
+      following = false;
+      chart.timeScale().setVisibleLogicalRange({ from: i - width / 2, to: i + width / 2 });
+      return true;
+    },
+    bars: function () { return bars.map((b) => [b.time, b.close === undefined ? 0 : 1]); },
+    tip: function () { return tip.style.display === 'none' ? '' : tip.textContent; },
+    hovered: function () { return hovered ? [hovered.time, hoverAt.has(hovered.time)] : null; },
+  };
 
   area.addEventListener('dblclick', fit);
   area.addEventListener('mouseleave', () => hover(null));

@@ -6,6 +6,10 @@
 // bars, the view kept their zoom, or, as the chart applies a range at its next frame by its
 // indexes then, landed on the days read before. A view moved by hand stays where it is.
 //
+// Minutes without trades (krx-quant #236) take a slot each, drawn as nothing: the first screen fits
+// the latest slots, an empty one's hover box says so with the special situation over it, and a bar
+// after a gap fills it at once.
+//
 // The page runs in Qt WebEngine with TradingView Lightweight Charts, so this suite opens a
 // window. It is skipped where the WebEngine runtime is missing or the platform draws nothing
 // (offscreen).
@@ -41,6 +45,10 @@ QList<Bar> minutes(const char* first, int count) {
 const QList<Bar> kBefore = minutes("2026-10-08T14:00:00+09:00", 62);
 const QList<Bar> kToday = minutes("2026-10-12T09:00:00+09:00", 18); // fewer than kFitBars
 const QList<Bar> kEarlier = minutes("2026-10-07T14:00:00+09:00", 30);
+
+QDateTime kst(const char* text) {
+    return QDateTime::fromString(QString::fromLatin1(text), Qt::ISODate);
+}
 
 QList<qint64> times(const QList<Bar>& bars) {
     QList<qint64> out;
@@ -96,6 +104,40 @@ class TstKrxChartPage : public QObject {
         QTRY_VERIFY2_WITH_TIMEOUT(shows(bars, first), in_view(bars).constData(), 10000);
         QTest::qWait(400);
         QVERIFY2(shows(bars, first), in_view(bars).constData());
+    }
+
+    /// ``script``'s value on the page, once it answers (an invalid one if it does not in 5 s).
+    QVariant js(const QString& script) {
+        QVariant out;
+        bool done = false;
+        view_->page()->runJavaScript(script, [&out, &done](const QVariant& value) {
+            out = value;
+            done = true;
+        });
+        if (!QTest::qWaitFor([&done]() { return done; }, 5000))
+            return {};
+        return out;
+    }
+
+    /// The page's slots: how many, and how many of them empty (krx-quant #236).
+    std::pair<int, int> slots_drawn() {
+        const QVariantList bars = js("window.krxChart.bars()").toList();
+        int empty = 0;
+        for (const QVariant& b : bars)
+            empty += b.toList().value(1).toInt() == 0 ? 1 : 0;
+        return {static_cast<int>(bars.size()), empty};
+    }
+
+    /// The pointer resting on the slot holding ``time`` (chart_time), a third of the way down, as
+    /// krx-capture's KRX_CAPTURE_HOVER does it: the chart takes a mouseenter before it follows moves.
+    void hover_at(qint64 time) {
+        js(QStringLiteral("(function(){const x = window.krxChart.x(%1), y = innerHeight / 3;"
+                          "const at = document.elementFromPoint(x, y);"
+                          "const event = (type, bubbles) => new MouseEvent(type, {clientX: x, clientY: y, "
+                          "  pageX: x, pageY: y, bubbles: bubbles, view: window});"
+                          "for (let e = at; e; e = e.parentElement) e.dispatchEvent(event('mouseenter', false));"
+                          "at.dispatchEvent(event('mousemove', true));})()")
+               .arg(time));
     }
 
     /// Another symbol chosen: the screen empties the chart first (KrxLive::select).
@@ -214,6 +256,39 @@ class TstKrxChartPage : public QObject {
         draw(bars, look);
         QCOMPARE(sized.size(), counted + 1);
         QVERIFY(sized.last().at(0).toDouble() > 30); // its true range of 600 in the average
+    }
+
+    void a_halt_takes_its_slots_and_the_first_screen_fits_them() {
+        // The 2026-10-15 halt (krx-quant #236): trades to 13:09, none for 30 minutes, again from 13:40.
+        // The page has a slot for each minute, the 30 of the halt empty, and the first screen shows the
+        // latest 60 of them: 13:00 to 13:59.
+        empty();
+        const QList<Bar> before = minutes("2026-10-15T12:30:00+09:00", 40);
+        const QList<Bar> after = minutes("2026-10-15T13:40:00+09:00", 20);
+        const QList<SpecialWindow> halt = {SpecialWindow{"circuit_breaker",
+                                                         {},
+                                                         kst("2026-10-15T13:10:00+09:00"),
+                                                         kst("2026-10-15T13:30:00+09:00"),
+                                                         QStringLiteral("1단계")}};
+        chart_->set_data(before + after, {}, {}, {}, 1, {}, halt);
+        QTRY_COMPARE_WITH_TIMEOUT(slots_drawn(), (std::pair{90, 30}), 10000);
+        const qint64 first = chart_time(kst("2026-10-15T13:00:00+09:00"));
+        QTRY_VERIFY_WITH_TIMEOUT(range_ && std::abs(range_->first - first) <= 60 && // give or take a slot
+                                     range_->second == chart_time(kst("2026-10-15T13:59:00+09:00")),
+                                 10000);
+        // An empty bar's box: its time, no trades, and the circuit breaker over it.
+        const qint64 empty_slot = chart_time(kst("2026-10-15T13:20:00+09:00"));
+        hover_at(empty_slot);
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.tip()").toString(),
+                                  QStringLiteral("13:20–13:21 · 체결 없음\n서킷브레이커 1단계 13:10–13:30"), 10000);
+        // A new bar after minutes without trades fills them at once: 13:59, then 14:03.
+        QList<Bar> live = before + after;
+        live << Bar{kst("2026-10-15T14:03:00+09:00"), 1000, 1002, 999, 1001, 50};
+        chart_->update_live(live, 1);
+        QTRY_COMPARE_WITH_TIMEOUT(slots_drawn(), (std::pair{94, 33}), 10000);
+        // The 5-minute view: 13:10 to 13:35 empty.
+        chart_->set_data(before + after, {}, {}, {}, 5, {}, halt);
+        QTRY_COMPARE_WITH_TIMEOUT(slots_drawn(), (std::pair{18, 6}), 10000);
     }
 };
 
