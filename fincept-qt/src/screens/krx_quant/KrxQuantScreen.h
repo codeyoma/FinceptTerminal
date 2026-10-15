@@ -25,6 +25,7 @@ namespace fincept::screens {
 class KrxAlerts;
 class KrxChart;
 class KrxChartToolbar;
+class KrxDrawingPopup;
 class KrxLeaderboard;
 class KrxStatsWindow;
 class KrxStudyPanel;
@@ -72,8 +73,8 @@ class KrxQuantScreen : public QWidget {
     void set_view(int minutes);
     /// Draw the chart in ``style`` (krx-quant #221), and keep the choice for the symbol chosen.
     void set_style(krx_quant::ChartStyle style);
-    /// The symbol chosen now: its chart's view and style as it kept them (krx-quant #221), and
-    /// its indicators and the anchored VWAP's anchor (krx-quant #222).
+    /// The symbol chosen now: its chart's view and style as it kept them (krx-quant #221), its
+    /// indicators and the anchored VWAP's anchor (krx-quant #222), and its drawings (krx-quant #224).
     void show_symbol_prefs();
     /// Draw the chart's indicators as ``set`` says (krx-quant #222), and keep them for the symbol
     /// chosen. The anchored VWAP turned on without an anchor waits for a click on the chart.
@@ -84,6 +85,13 @@ class KrxQuantScreen : public QWidget {
     void set_anchor(qint64 time);
     /// Tell KrxLive how many bars the indicators want, and back to the anchor (krx-quant #222).
     void want_history();
+    /// The symbol's drawings changed (krx-quant #224): kept for it, drawn (``select``: the one to
+    /// select, as KrxChart::set_drawings), and the trash on while there are any.
+    void drawings_changed(int select = 0);
+    /// The drawing ``id`` gone (the trash, Delete, the popup's `삭제`, a text left empty).
+    void remove_drawing(int id);
+    /// A drawing tool chosen (krx-quant #224); none: back at the cursor.
+    void set_tool(std::optional<krx_quant::DrawingTool> tool);
     void open_detail(const QString& algorithm);
     /// What the engine says about ``algorithm`` (krx-quant #163); none for a baseline or a
     /// consensus, or before it answered.
@@ -116,8 +124,9 @@ class KrxQuantScreen : public QWidget {
     KrxChart* chart_ = nullptr;
     KrxChartToolbar* chart_toolbar_ = nullptr; ///< the row above the chart (krx-quant #221)
     int minutes_ = 1;                          ///< the chart's view
-    krx_quant::ChartLook look_;                ///< its style, day separators (#221) and indicators (#222)
+    krx_quant::ChartLook look_;                ///< its style, day separators (#221), indicators (#222), drawings (#224)
     KrxStudyPanel* study_panel_ = nullptr;     ///< the indicators panel (krx-quant #222)
+    KrxDrawingPopup* drawing_popup_ = nullptr; ///< a drawing's colour, width, line style and text (krx-quant #224)
     krx_panel::Header predictions_header_; ///< titled with the bar close and the countdown
     QTableWidget* predictions_table_ = nullptr;
     QPushButton* latest_ = nullptr; ///< back to the latest bar close, while one is pinned

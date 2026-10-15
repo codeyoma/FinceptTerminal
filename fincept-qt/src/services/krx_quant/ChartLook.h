@@ -1,5 +1,6 @@
 #pragma once
 
+#include "services/krx_quant/ChartDrawings.h"
 #include "services/krx_quant/ChartModel.h"
 #include "services/krx_quant/ChartStudies.h"
 
@@ -65,7 +66,8 @@ struct ChartPrefs {
 /// Where a symbol's chart settings are kept in the app settings: "krx_quant/chart/005930/"
 /// (krx-quant #221), followed by "view" or "style". The settings later issues keep for a symbol
 /// (indicators and the anchored VWAP's anchor, krx-quant #222: kPrefsStudies, kPrefsAnchor; pane
-/// heights, krx-quant #223: kPrefsPaneHeights; drawings) go under the same group.
+/// heights, krx-quant #223: kPrefsPaneHeights; drawings, krx-quant #224: kPrefsDrawings) go under
+/// the same group.
 QString prefs_group(const QString& symbol);
 inline constexpr auto kPrefsView = "view";
 inline constexpr auto kPrefsStyle = "style";
@@ -91,7 +93,7 @@ std::optional<double> baseline_base(const QList<ChartBar>& bars, int view, std::
 
 /// What the chart is drawn as besides its data (krx-quant #221): the style, and whether a minute
 /// view fills its days' first bars; the indicators and the anchored VWAP's anchor (krx-quant #222);
-/// the lower panes' heights (krx-quant #223).
+/// the lower panes' heights (krx-quant #223); the drawings and the magnet (krx-quant #224).
 struct ChartLook {
     ChartStyle style = ChartStyle::Candle;
     bool day_separator = true;
@@ -101,6 +103,8 @@ struct ChartLook {
     /// The first day held is whole, nothing before it to read: its VWAP is drawn (krx-quant #222).
     bool first_day_whole = false;
     PaneHeights pane_heights; ///< those dragged; the others kPaneHeight
+    QList<Drawing> drawings;  ///< the symbol's, drawn over the prices but in a style without a time axis
+    bool magnet = false;      ///< the points placed and dragged snap to a bar's open, high, low or close
 };
 
 /// The bars a minute view's day separators fill (krx-quant #221), by time (chart_time): each

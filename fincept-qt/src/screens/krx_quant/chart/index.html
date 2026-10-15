@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!--
   The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182, #185,
-  #221, #222, #223), drawn with TradingView Lightweight Charts (NOTICE). It only draws what the
+  #221, #222, #223, #224), drawn with TradingView Lightweight Charts (NOTICE). It only draws what the
   screen sends over the web channel: the bars in the style chosen, the days' first bars filled,
   the consensus icons, each bar's hover box and its four-minute window with two levels across it
   (the touch targets, the range's highest and lowest mid-points, or the barrier's U and L), the
@@ -13,7 +13,9 @@
   them, with its guide lines) with each pane's legend, the theme, and when to fit. Many panes
   make the chart taller than the page, which then scrolls. It tells the screen where its view
   is, the legend's buttons, the anchored VWAP's bar clicked or dragged to, and the lower panes'
-  heights once a border between panes is dragged.
+  heights once a border between panes is dragged. Over the prices it draws the symbol's drawings
+  (#224) and lets them be placed with the tool the screen chose, picked, dragged, removed (Delete,
+  Backspace) and double-clicked; it tells the screen each, in bar positions.
 -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #080808; }
@@ -197,6 +199,22 @@
   let picking = false; // the next click on the chart anchors the anchored VWAP
   let legendRows = []; // as sent
   let realLine = null; // a Heikin-Ashi chart's line at the last bar's own close
+  // The drawings (krx-quant #224, below): declared before the price series is made with their layer.
+  const FIB = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+  const FAN = [0.25, 0.382, 0.5, 0.618, 0.75];
+  const TEXT_SIZES = [12, 14, 17, 20]; // a text's width 1–4 is its size
+  let drawings = [];
+  let drawingsHidden = false; // a style without a time axis (krx-quant #225)
+  let magnet = false;
+  let realBars = null;        // a Heikin-Ashi chart's bars as they are, [open, high, low, close]: the magnet's
+  let dated = false;          // a candle view: the time axis shows dates
+  let selectedId = 0;
+  let tool = null;            // the tool chosen: {tool, points (how many), color, width, style, text}
+  let placed = [];            // its points placed so far, [logical, price]
+  let follow = null;          // where its next point would go: under the pointer
+  let downAt = null;          // where the button last went down while placing, [x, y]
+  let grab = null;            // a drawing being dragged: {id, grip, start, from, drawing, moved, at}
+  const measure = document.createElement('canvas').getContext('2d');
   function makeMain(kind) {
     style = kind;
     const [type, options] = styleOptions(kind);
@@ -213,6 +231,7 @@
     main.attachPrimitive(layer('bottom', drawFills));
     main.attachPrimitive(layer('bottom', drawProfile));
     main.attachPrimitive(layer('top', drawAnchor));
+    main.attachPrimitive(drawingPrimitive()); // the drawings (krx-quant #224), over all of them
     showMarks();
   }
   function showReal(last) {
@@ -349,6 +368,8 @@
   function show(data) {
     // Day candles (krx-quant #111) are dated: the axis and the crosshair show no time.
     chart.applyOptions({ timeScale: { timeVisible: !data.day } });
+    dated = !!data.day;
+    const firstBefore = bars.length ? bars[0].time : null;
     if (data.style !== style) makeMain(data.style);
     if (data.base !== undefined) {
       baseValue = data.base;
@@ -357,6 +378,9 @@
     bandTimes = data.bands;
     bars = data.bars;
     barAt = new Map(bars.map((b, i) => [b.time, i]));
+    realBars = data.real || null;
+    rebaseDrawing(firstBefore); // a drawing being placed or dragged stays on its bars (krx-quant #224)
+    showDrawings(data.drawings);
     iconAt = new Map(data.icons.map((i) => [String(i.time), i]));
     main.setData(bars.map(point));
     volumeData = data.volumes;
@@ -475,7 +499,7 @@
     profile = profileData && profileData.rows ? profileData : null;
     anchor = s.anchor || null;
     picking = !!s.picking;
-    area.style.cursor = picking ? 'crosshair' : '';
+    area.style.cursor = picking || tool ? 'crosshair' : '';
     legendRows = s.legend || [];
     buildLegend();
     repaint();
@@ -525,6 +549,603 @@
       g.fillRect(size.width - width, top, width, height);
     }
   }
+
+  // The drawings (krx-quant #224), over the prices: the symbol's as the screen sends them, each {id,
+  // tool, points: [[logical, price]…] on the bars as drawn, times (its points' moments), color,
+  // width, style, text}. The page places them with the tool chosen, picks, drags and removes them,
+  // and tells the screen in bar positions; the screen keeps them as moments and prices and sends
+  // them back. While a tool is chosen a click on the prices places its next point (a drag from one
+  // point to the next places both); otherwise a click on a drawing picks it, a drag moves it (or the
+  // point grabbed), a double-click asks for its look, Delete or Backspace removes it, and a click
+  // elsewhere is the chart's own (icons, scrolling).
+  // Its state is declared with the price series' (above), which is made before this.
+
+  function hexAlpha(color, alpha) {
+    const m = /^#([0-9a-f]{6})$/i.exec(color || '');
+    if (!m) return fade(color, alpha);
+    const v = parseInt(m[1], 16);
+    return 'rgba(' + ((v >> 16) & 255) + ',' + ((v >> 8) & 255) + ',' + (v & 255) + ',' + alpha + ')';
+  }
+  // Dark text on a light colour, light on a dark one (the axis labels).
+  function inkOn(color) {
+    const m = /^#([0-9a-f]{6})$/i.exec(color || '');
+    if (!m) return '#ffffff';
+    const v = parseInt(m[1], 16);
+    return 0.299 * ((v >> 16) & 255) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255) > 150 ? '#111111' : '#ffffff';
+  }
+  function paneSize() {
+    return { width: chart.timeScale().width(), height: chart.panes()[0].getHeight() };
+  }
+  // The pointer's place in the price pane's pixels; null outside it.
+  function panePoint(e) {
+    const box = area.getBoundingClientRect();
+    const x = e.clientX - box.left, y = e.clientY - box.top;
+    const size = paneSize();
+    return x >= 0 && y >= 0 && x < size.width && y < size.height ? [x, y] : null;
+  }
+  // The magnet (as ChartDrawings::magnet_spot): over a bar, its middle and the nearest of its open,
+  // high, low and close (the bar as it is, a Heikin-Ashi chart's too); past the bars, as it is. The
+  // screen snaps the points again as they come.
+  function snapped(spot) {
+    const n = bars.length;
+    if (!magnet || !n || spot[0] < -0.5 || spot[0] >= n - 0.5) return spot;
+    const i = Math.max(0, Math.min(n - 1, Math.floor(spot[0] + 0.5)));
+    const b = realBars && realBars[i] ? realBars[i] : [bars[i].open, bars[i].high, bars[i].low, bars[i].close];
+    let best = b[0];
+    for (const v of b) if (Math.abs(v - spot[1]) < Math.abs(best - spot[1])) best = v;
+    return [i, best];
+  }
+  // A bar position's x and back, between bars too (the chart's own coordinateToLogical gives the
+  // whole bar under a pixel). They hold on the bars the page has, as the screen's positions do:
+  // measured from the last bar's own time, a bar's width a position.
+  function barScale() {
+    if (!bars.length) return null;
+    const scale = chart.timeScale();
+    const last = scale.timeToCoordinate(bars[bars.length - 1].time);
+    const a = scale.logicalToCoordinate(0), b = scale.logicalToCoordinate(1);
+    return last === null || a === null || b === null || b === a ? null : { at: bars.length - 1, x: last, width: b - a };
+  }
+  function xAt(logical) {
+    const s = barScale();
+    return s ? s.x + (logical - s.at) * s.width : null;
+  }
+  function logicalAt(x) {
+    const s = barScale();
+    return s ? s.at + (x - s.x) / s.width : null;
+  }
+  // The bar position and price at a pixel of the price pane; the magnet's when ``snap``.
+  function spotAt(x, y, snap) {
+    const logical = logicalAt(x);
+    const price = main.coordinateToPrice(y);
+    if (logical === null || price === null) return null;
+    return snap ? snapped([logical, price]) : [logical, price];
+  }
+  function pixelOf(spot) {
+    const x = xAt(spot[0]), y = main.priceToCoordinate(spot[1]);
+    return x === null || y === null ? null : [x, y];
+  }
+  function levelText(k) {
+    return String(Math.round(k * 1000) / 1000);
+  }
+  function priceText(price) {
+    return Math.round(price).toLocaleString('en-US');
+  }
+  function fontOf(size, bold) {
+    return (bold ? '600 ' : '') + size + 'px ' + (colors.font || 'monospace');
+  }
+
+  // What a drawing is made of in the pane's pixels: lines [a, b, guide] (a guide thin and dashed),
+  // filled shapes, an ellipse, labels and a text; its handles are its points. Null while one of its
+  // points cannot be placed.
+  function shapeOf(d, size) {
+    const P = [];
+    for (const spot of d.points) {
+      const p = pixelOf(spot);
+      if (!p) return null;
+      P.push(p);
+    }
+    const s = { lines: [], fills: [], ellipse: null, labels: [], text: null, handles: P };
+    const far = 4 * (size.width + size.height);
+    const ray = function (a, b) { // from a through b, to past the pane's edge
+      const dx = b[0] - a[0], dy = b[1] - a[1], length = Math.hypot(dx, dy);
+      return length < 1e-6 ? [a, a] : [a, [a[0] + dx / length * far, a[1] + dy / length * far]];
+    };
+    const across = (y) => [[0, y], [size.width, y]];
+    const down = (x) => [[x, 0], [x, size.height]];
+    const labelSize = Math.max(9, (colors.size || 11) - 1);
+    switch (d.tool) {
+      case 'trend_line':
+        s.lines.push([P[0], P[1]]);
+        break;
+      case 'ray':
+        s.lines.push(ray(P[0], P[1]));
+        break;
+      case 'horizontal':
+        s.lines.push(across(P[0][1]));
+        break;
+      case 'vertical':
+        s.lines.push(down(P[0][0]));
+        break;
+      case 'cross':
+        s.lines.push(across(P[0][1]), down(P[0][0]));
+        break;
+      case 'rectangle': {
+        const [a, b] = P;
+        const corners = [[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]]];
+        for (let i = 0; i < 4; ++i) s.lines.push([corners[i], corners[(i + 1) % 4]]);
+        s.fills.push({ points: corners, alpha: 0.12 });
+        break;
+      }
+      case 'ellipse': { // within the box of its two points
+        const [a, b] = P;
+        s.ellipse = {
+          x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, rx: Math.abs(b[0] - a[0]) / 2, ry: Math.abs(b[1] - a[1]) / 2,
+        };
+        break;
+      }
+      case 'pitchfork': { // Andrews': the median from the first point through the middle of the
+        // other two, and the tines from them along it
+        const [a, b, c] = P;
+        const middle = [(b[0] + c[0]) / 2, (b[1] + c[1]) / 2];
+        const along = [middle[0] - a[0], middle[1] - a[1]];
+        s.lines.push(ray(a, middle), ray(b, [b[0] + along[0], b[1] + along[1]]),
+          ray(c, [c[0] + along[0], c[1] + along[1]]), [b, c]);
+        break;
+      }
+      case 'fib_retracement': { // 0 at the second point, 1 at the first, across the two
+        const [a, b] = P;
+        const left = Math.min(a[0], b[0]), right = Math.max(a[0], b[0]);
+        s.lines.push([a, b, true]);
+        s.fills.push({ points: [[left, a[1]], [right, a[1]], [right, b[1]], [left, b[1]]], alpha: 0.06 });
+        for (const k of FIB) {
+          const y = b[1] + (a[1] - b[1]) * k;
+          const price = main.coordinateToPrice(y);
+          s.lines.push([[left, y], [right, y]]);
+          s.labels.push({ // just above its line, from the left
+            x: left + 4, y: y - 2, align: 'left', baseline: 'bottom', size: labelSize,
+            text: levelText(k) + (price === null ? '' : ' (' + priceText(price) + ')'),
+          });
+        }
+        break;
+      }
+      case 'fib_channel': { // lines along the first two points, the third's at 1
+        const [a, b, c] = P;
+        const dx = b[0] - a[0];
+        const offset = Math.abs(dx) > 1e-6 ? [0, c[1] - (a[1] + (c[0] - a[0]) * (b[1] - a[1]) / dx)] : [c[0] - a[0], 0];
+        s.fills.push({
+          points: [a, b, [b[0] + offset[0], b[1] + offset[1]], [a[0] + offset[0], a[1] + offset[1]]], alpha: 0.06,
+        });
+        for (const k of FIB) {
+          const from = [a[0] + offset[0] * k, a[1] + offset[1] * k];
+          const to = [b[0] + offset[0] * k, b[1] + offset[1] * k];
+          s.lines.push([from, to]);
+          const start = from[0] <= to[0] ? from : to;
+          s.labels.push({ x: start[0] + 4, y: start[1] - 2, align: 'left', baseline: 'bottom', size: labelSize, text: levelText(k) });
+        }
+        break;
+      }
+      case 'fib_fan': { // from the first point through the levels of the box up to the second
+        const [a, b] = P;
+        const corner1 = [b[0], a[1]], corner2 = [a[0], b[1]];
+        s.lines.push([a, corner1, true], [corner1, b, true], [b, corner2, true], [corner2, a, true]);
+        const right = b[0] >= a[0], below = b[1] >= a[1];
+        for (const k of [1].concat(FAN)) { // the price levels, on the second point's side
+          const p = [b[0], a[1] + (b[1] - a[1]) * k];
+          s.lines.push(ray(a, p));
+          s.labels.push({ x: b[0] + (right ? 4 : -4), y: p[1], align: right ? 'left' : 'right', size: labelSize, text: levelText(k) });
+        }
+        for (const k of FAN) { // the time levels, on its price
+          const p = [a[0] + (b[0] - a[0]) * k, b[1]];
+          s.lines.push(ray(a, p));
+          s.labels.push({ x: p[0], y: b[1] + (below ? 10 : -10), align: 'center', size: labelSize, text: levelText(k) });
+        }
+        break;
+      }
+      case 'text': { // to the right of its point, its middle on the point's price
+        const px = TEXT_SIZES[Math.max(0, Math.min(3, d.width - 1))];
+        measure.font = fontOf(px, true);
+        const width = measure.measureText(d.text || '').width;
+        const x = P[0][0] + 8, y = P[0][1];
+        s.text = { x: x, y: y, size: px, text: d.text || '', box: [P[0][0] - 4, y - px * 0.7, width + 16, px * 1.4] };
+        break;
+      }
+    }
+    return s;
+  }
+
+  function lineDash(style, width) {
+    return style === 'dotted' ? [width, width * 2] : style === 'dashed' ? [width * 4, width * 3] : [];
+  }
+
+  function paintDrawing(g, d, s, selected) {
+    g.save();
+    g.lineJoin = 'round';
+    for (const f of s.fills) {
+      g.fillStyle = hexAlpha(d.color, f.alpha);
+      g.beginPath();
+      f.points.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])));
+      g.closePath();
+      g.fill();
+    }
+    g.strokeStyle = d.color;
+    for (const [a, b, guide] of s.lines) {
+      g.lineWidth = guide ? 1 : d.width;
+      g.setLineDash(guide ? [4, 4] : lineDash(d.style, d.width));
+      g.globalAlpha = guide ? 0.55 : 1;
+      g.beginPath();
+      g.moveTo(a[0], a[1]);
+      g.lineTo(b[0], b[1]);
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+    if (s.ellipse) {
+      const e = s.ellipse;
+      g.beginPath();
+      g.ellipse(e.x, e.y, Math.max(0.5, e.rx), Math.max(0.5, e.ry), 0, 0, 2 * Math.PI);
+      g.fillStyle = hexAlpha(d.color, 0.12);
+      g.fill();
+      g.lineWidth = d.width;
+      g.setLineDash(lineDash(d.style, d.width));
+      g.stroke();
+    }
+    g.setLineDash([]);
+    g.fillStyle = d.color;
+    const taken = []; // a label that would cover one drawn (a narrow fan's) is left out
+    for (const label of s.labels) {
+      g.font = fontOf(label.size, false);
+      const width = g.measureText(label.text).width;
+      const left = label.align === 'right' ? label.x - width : label.align === 'center' ? label.x - width / 2 : label.x;
+      const top = label.baseline === 'bottom' ? label.y - label.size : label.y - label.size / 2;
+      const box = [left - 2, top, left + width + 2, top + label.size];
+      if (taken.some((t) => box[0] < t[2] && t[0] < box[2] && box[1] < t[3] && t[1] < box[3])) continue;
+      taken.push(box);
+      g.textAlign = label.align;
+      g.textBaseline = label.baseline || 'middle';
+      g.fillText(label.text, label.x, label.y);
+    }
+    if (s.text) {
+      g.font = fontOf(s.text.size, true);
+      g.textAlign = 'left';
+      g.textBaseline = 'middle';
+      g.fillText(s.text.text, s.text.x, s.text.y);
+      if (selected) { // its box, faint
+        g.strokeStyle = hexAlpha(d.color, 0.5);
+        g.lineWidth = 1;
+        g.setLineDash([3, 3]);
+        g.strokeRect(...s.text.box);
+        g.setLineDash([]);
+      }
+    }
+    if (selected) { // the handles: its points
+      g.lineWidth = 1.5;
+      g.strokeStyle = d.color;
+      g.fillStyle = colors.background || colors.tip_background;
+      for (const [x, y] of s.handles) {
+        g.beginPath();
+        g.arc(x, y, 4.5, 0, 2 * Math.PI);
+        g.fill();
+        g.stroke();
+      }
+    }
+    g.restore();
+  }
+
+  // The drawing as shown now: the one dragged where it is dragged to.
+  function current(d) {
+    return grab && grab.id === d.id ? grab.drawing : d;
+  }
+
+  function drawDrawings(g, size) {
+    if (drawingsHidden || !bars.length) return;
+    for (const d of drawings) {
+      const shown = current(d);
+      const s = shapeOf(shown, size);
+      if (s) paintDrawing(g, shown, s, d.id === selectedId);
+    }
+    if (tool) { // the one being placed, its next point under the pointer
+      const spots = placed.concat(follow ? [follow] : []);
+      if (!spots.length) return;
+      while (spots.length < tool.points) spots.push(spots[spots.length - 1]);
+      const d = {
+        tool: tool.tool, points: spots, color: tool.color, width: tool.width, style: tool.style, text: tool.text,
+      };
+      const s = shapeOf(d, size);
+      if (s) paintDrawing(g, d, s, true);
+    }
+  }
+
+  // A horizontal line's price on the price axis, a vertical line's time on the time axis.
+  function timeText(time) {
+    const t = new Date(time * 1000); // chart_time: KST read as UTC
+    const two = (n) => String(n).padStart(2, '0');
+    const date = two(t.getUTCMonth() + 1) + '-' + two(t.getUTCDate());
+    return dated ? t.getUTCFullYear() + '-' + date : date + ' ' + two(t.getUTCHours()) + ':' + two(t.getUTCMinutes());
+  }
+  function axisLabel(coordinate, text, color) {
+    return {
+      coordinate: () => coordinate, text: () => text, textColor: () => inkOn(color), backColor: () => color,
+    };
+  }
+  function drawingAxisViews(axis) {
+    if (drawingsHidden || !bars.length) return [];
+    const views = [];
+    for (const original of drawings) {
+      const d = current(original);
+      const across = d.tool === 'horizontal' || d.tool === 'cross';
+      const down = d.tool === 'vertical' || d.tool === 'cross';
+      if (axis === 'price' && across) {
+        const y = main.priceToCoordinate(d.points[0][1]);
+        if (y !== null) views.push(axisLabel(y, priceText(d.points[0][1]), d.color));
+      }
+      if (axis === 'time' && down) {
+        const x = xAt(d.points[0][0]);
+        // Dragged, the bar under it until the screen sends its moment.
+        const i = Math.max(0, Math.min(bars.length - 1, Math.round(d.points[0][0])));
+        const time = d === original && d.times ? d.times[0] : bars[i].time;
+        if (x !== null) views.push(axisLabel(x, timeText(time), d.color));
+      }
+    }
+    return views;
+  }
+  function drawingPrimitive() {
+    const renderer = {
+      draw(target) {
+        target.useMediaCoordinateSpace(function (scope) { drawDrawings(scope.context, scope.mediaSize); });
+      },
+    };
+    const view = { zOrder: () => 'top', renderer: () => renderer };
+    return {
+      paneViews: () => [view],
+      priceAxisViews: () => drawingAxisViews('price'),
+      timeAxisViews: () => drawingAxisViews('time'),
+      updateAllViews() {},
+      attached(param) { redrawPrices = param.requestUpdate; },
+    };
+  }
+
+  function segmentDistance(p, a, b) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], length = dx * dx + dy * dy;
+    const t = length < 1e-9 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / length));
+    return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+  }
+  function inside(p, polygon) {
+    let within = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const [xi, yi] = polygon[i], [xj, yj] = polygon[j];
+      if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) within = !within;
+    }
+    return within;
+  }
+  function hits(s, d, x, y) {
+    const near = Math.max(5, d.width / 2 + 3);
+    for (const [a, b] of s.lines) if (segmentDistance([x, y], a, b) <= near) return true;
+    for (const f of s.fills) if (inside([x, y], f.points)) return true;
+    if (s.ellipse) {
+      const e = s.ellipse;
+      const r = Math.pow((x - e.x) / Math.max(e.rx, 1), 2) + Math.pow((y - e.y) / Math.max(e.ry, 1), 2);
+      if (r <= 1.1) return true;
+    }
+    if (s.text) {
+      const [left, top, width, height] = s.text.box;
+      if (x >= left && x <= left + width && y >= top && y <= top + height) return true;
+    }
+    return false;
+  }
+  // The drawing under the pixel (x, y), the topmost (the last drawn) first, and its point grabbed
+  // there (-1: the whole drawing).
+  function drawingAt(x, y) {
+    if (drawingsHidden) return null;
+    const size = paneSize();
+    for (let i = drawings.length - 1; i >= 0; --i) {
+      const d = drawings[i], s = shapeOf(d, size);
+      if (!s) continue;
+      for (let k = 0; k < s.handles.length; ++k)
+        if (Math.hypot(s.handles[k][0] - x, s.handles[k][1] - y) <= 7) return { d: d, grip: k };
+      if (hits(s, d, x, y)) return { d: d, grip: -1 };
+    }
+    return null;
+  }
+
+  function showDrawings(data) {
+    if (!data) return;
+    drawings = data.items || [];
+    drawingsHidden = !!data.hidden;
+    magnet = !!data.magnet;
+    if (data.select > 0) selectedId = data.select;
+    else if (data.select < 0 || !drawings.some((d) => d.id === selectedId)) selectedId = 0;
+    if (grab && !drawings.some((d) => d.id === grab.id)) grab = null;
+    repaint();
+  }
+
+  // The bars now start elsewhere (older ones read, or another symbol): the points being placed or
+  // dragged move by the bars before the old first one; on other bars they go.
+  function rebaseDrawing(firstBefore) {
+    if (firstBefore === null || (!placed.length && !grab)) return;
+    const shift = bars.length ? barAt.get(firstBefore) : undefined;
+    if (shift === undefined) {
+      placed = [];
+      follow = null;
+      grab = null;
+      return;
+    }
+    if (!shift) return;
+    const move = (spot) => [spot[0] + shift, spot[1]];
+    placed = placed.map(move);
+    if (follow) follow = move(follow);
+    if (grab) {
+      grab.start = move(grab.start);
+      grab.from = grab.from.map(move);
+      grab.drawing.points = grab.drawing.points.map(move);
+    }
+  }
+
+  function setTool(chosen) {
+    tool = chosen && chosen.tool ? chosen : null;
+    placed = [];
+    follow = null;
+    downAt = null;
+    if (tool) selectedId = 0;
+    area.style.cursor = tool || picking ? 'crosshair' : '';
+    repaint();
+  }
+  // Back to the cursor: the drawing placed, or Esc.
+  function endTool() {
+    setTool(null);
+    if (bridge) bridge.tool_ended();
+  }
+  function placeNext(spot) {
+    placed.push(spot);
+    if (placed.length < tool.points) return repaint();
+    const box = area.getBoundingClientRect();
+    const last = pixelOf(spot) || [0, 0];
+    if (bridge) {
+      bridge.drawn(JSON.stringify({
+        tool: tool.tool, points: placed.slice(0, tool.points), first: bars[0].time, x: box.left + last[0], y: box.top + last[1],
+      }));
+    }
+    endTool();
+  }
+
+  function startGrab(hit, at) {
+    const start = spotAt(at[0], at[1], false);
+    if (!start) return;
+    const copy = (points) => points.map((p) => p.slice());
+    grab = {
+      id: hit.d.id, grip: hit.grip, start: start, from: copy(hit.d.points), at: at, moved: false,
+      drawing: Object.assign({}, hit.d, { points: copy(hit.d.points) }),
+    };
+    // Grabbed: the chart does not scroll while it moves.
+    chart.applyOptions({ handleScroll: false, handleScale: false });
+    const move = function (m) {
+      if (!grab) return;
+      const box = area.getBoundingClientRect();
+      const x = m.clientX - box.left, y = m.clientY - box.top;
+      if (!grab.moved && Math.hypot(x - grab.at[0], y - grab.at[1]) < 3) return;
+      grab.moved = true;
+      if (grab.grip >= 0) { // one point, on the magnet's when on
+        const spot = spotAt(x, y, true);
+        if (spot) grab.drawing.points[grab.grip] = spot;
+      } else { // the whole drawing, as far as the pointer went
+        const now = spotAt(x, y, false);
+        if (now) {
+          const dl = now[0] - grab.start[0], dp = now[1] - grab.start[1];
+          grab.drawing.points = grab.from.map((p) => [p[0] + dl, p[1] + dp]);
+        }
+      }
+      repaint();
+    };
+    const up = function () {
+      window.removeEventListener('mousemove', move, true);
+      window.removeEventListener('mouseup', up, true);
+      chart.applyOptions({ handleScroll: true, handleScale: true });
+      const done = grab;
+      grab = null;
+      if (done && done.moved && bars.length) {
+        const d = drawings.find((one) => one.id === done.id);
+        if (d) d.points = done.drawing.points; // where it was dropped, until the screen sends it
+        if (bridge) {
+          bridge.reshaped(JSON.stringify({ id: done.id, grip: done.grip, points: done.drawing.points, first: bars[0].time }));
+        }
+      }
+      repaint();
+    };
+    window.addEventListener('mousemove', move, true);
+    window.addEventListener('mouseup', up, true);
+    repaint();
+  }
+
+  // Before the chart's own handlers (and the anchored VWAP's marker): a drawing tool's clicks, and
+  // a drawing grabbed, are not the chart's.
+  area.addEventListener('mousedown', function (e) {
+    if (e.button !== 0 || !bars.length) return;
+    if (e.target && e.target.style && e.target.style.cursor === 'row-resize') return; // a border between panes
+    const at = panePoint(e);
+    if (tool) {
+      if (!at) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      const spot = spotAt(at[0], at[1], true);
+      if (!spot) return;
+      downAt = at;
+      placeNext(spot);
+      return;
+    }
+    const hit = at ? drawingAt(at[0], at[1]) : null;
+    if (!hit) {
+      if (selectedId) {
+        selectedId = 0;
+        repaint();
+      }
+      return; // the chart's: scrolling, an icon's click
+    }
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    selectedId = hit.d.id;
+    startGrab(hit, at);
+  }, true);
+  // A drag from one point placed to the next places that one where the button comes up.
+  area.addEventListener('mouseup', function (e) {
+    if (!tool || e.button !== 0) return;
+    e.stopImmediatePropagation();
+    const at = panePoint(e);
+    if (!at || !downAt || !placed.length || Math.hypot(at[0] - downAt[0], at[1] - downAt[1]) < 5) return;
+    downAt = null;
+    const spot = spotAt(at[0], at[1], true);
+    if (spot) placeNext(spot);
+  }, true);
+  area.addEventListener('mousemove', function (e) {
+    if (grab) return;
+    const at = panePoint(e);
+    if (tool) {
+      follow = at ? spotAt(at[0], at[1], true) : null;
+      return repaint();
+    }
+    if (!drawings.length || drawingsHidden) return;
+    const hit = at ? drawingAt(at[0], at[1]) : null;
+    const cursor = hit ? (hit.grip >= 0 ? 'move' : 'pointer') : picking ? 'crosshair' : '';
+    if (area.style.cursor !== cursor) area.style.cursor = cursor;
+  }, true);
+  area.addEventListener('mouseleave', function () {
+    if (!tool || !follow) return;
+    follow = null;
+    repaint();
+  });
+  // A drawing double-clicked: the screen opens its look's popup there (not the chart's fit).
+  area.addEventListener('dblclick', function (e) {
+    if (tool) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      return;
+    }
+    const at = panePoint(e);
+    const hit = at ? drawingAt(at[0], at[1]) : null;
+    if (!hit) return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    selectedId = hit.d.id;
+    repaint();
+    if (bridge) bridge.edit(hit.d.id, e.clientX, e.clientY);
+  }, true);
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (tool) {
+        e.preventDefault();
+        endTool();
+      } else if (selectedId) {
+        selectedId = 0;
+        repaint();
+      }
+      return;
+    }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !tool && !grab) {
+      e.preventDefault();
+      const id = selectedId;
+      selectedId = 0;
+      drawings = drawings.filter((d) => d.id !== id);
+      repaint();
+      if (bridge) bridge.erased(id);
+    }
+  });
 
   // The anchored VWAP's bar (krx-quant #222): a dashed line down the price pane with a handle at
   // its foot. Dragged, it follows the pointer to a bar.
@@ -721,6 +1342,9 @@
       barAt.set(data.bar.time, bars.length);
       bars.push(data.bar);
     }
+    // A Heikin-Ashi chart's bar being made as it is, for the magnet (krx-quant #224): in step with
+    // the bars, the last replaced or a new one added.
+    if (realBars && data.real) realBars[bars.length - 1] = data.real;
     for (const [id, p] of data.studies || []) {
       const entry = lines.get(id);
       if (!entry) continue;
@@ -947,6 +1571,8 @@
     bridge.live_changed.connect(function (json) { live(JSON.parse(json)); });
     bridge.base_changed.connect(function (json) { rebase(JSON.parse(json)); });
     bridge.profile_changed.connect(function (json) { reprofile(JSON.parse(json)); });
+    bridge.drawings_changed.connect(function (json) { showDrawings(JSON.parse(json)); });
+    bridge.tool_changed.connect(function (json) { setTool(JSON.parse(json)); });
     bridge.fit_requested.connect(fit);
     bridge.ready();
   });
