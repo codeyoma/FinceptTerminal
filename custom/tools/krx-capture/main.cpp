@@ -14,6 +14,7 @@
 #include "screens/krx_quant/KrxLeaderboard.h"
 #include "screens/krx_quant/KrxQuantScreen.h"
 #include "screens/krx_quant/KrxStatsWindow.h"
+#include "screens/krx_quant/KrxStudyPanel.h"
 #include "services/krx_quant/KrxQuantService.h"
 #include "ui/theme/ThemeManager.h"
 
@@ -22,10 +23,10 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QMenu>
-#include <QToolButton>
 #include <QScreen>
 #include <QTextStream>
 #include <QTimer>
+#include <QToolButton>
 #ifdef HAS_QT_WEBENGINE
 #    include <QWebEngineView>
 #endif
@@ -78,6 +79,12 @@ int main(int argc, char* argv[]) {
     // is the day view's ("일", krx-quant #111). KRX_CAPTURE_STYLE=<style>: as picking that chart
     // style (krx-quant #221), e.g. "heikin_ashi". Both once the engine is read and a symbol is
     // chosen, as each symbol keeps its own: they stay in the scratch settings for that symbol.
+    //
+    // KRX_CAPTURE_INDICATORS=<indicator,...>: those indicators on (krx-quant #222), in that order,
+    // at their defaults, the others off but the volume, e.g. "ma,bollinger,ichimoku,volume_profile"
+    // (the names of custom/README.md); "none" turns all but the volume off. KRX_CAPTURE_ANCHOR=<ISO
+    // 8601>: the anchored VWAP's bar, as a click on the chart at that moment. Both at the same time,
+    // kept for that symbol too.
     QTimer::singleShot(seconds * 300, &app, [&screen]() {
         auto* toolbar = screen.findChild<fincept::screens::KrxChartToolbar*>();
         if (!toolbar)
@@ -86,16 +93,41 @@ int main(int argc, char* argv[]) {
             emit toolbar->view_chosen(minutes);
         if (const auto style = fincept::krx_quant::parse_style(qEnvironmentVariable("KRX_CAPTURE_STYLE")))
             emit toolbar->style_chosen(*style);
+        auto* panel = screen.findChild<fincept::screens::KrxStudyPanel*>();
+        if (const QString on = qEnvironmentVariable("KRX_CAPTURE_INDICATORS"); panel && !on.isEmpty()) {
+            fincept::krx_quant::StudySet set = fincept::krx_quant::default_studies();
+            for (const auto study : fincept::krx_quant::kUpperStudies)
+                set.turn(study, false);
+            for (const QString& key : on.split(',', Qt::SkipEmptyParts))
+                if (const auto study = fincept::krx_quant::parse_study(key.trimmed()))
+                    set.turn(*study, true);
+            emit panel->studies_changed(set);
+        }
+        const QDateTime anchor = QDateTime::fromString(qEnvironmentVariable("KRX_CAPTURE_ANCHOR"), Qt::ISODate);
+        if (auto* chart = screen.findChild<fincept::screens::KrxChart*>(); chart && anchor.isValid())
+            emit chart->anchor_chosen(fincept::krx_quant::chart_time(anchor));
     });
-    // KRX_CAPTURE_MENU=<minutes|style|options>: that menu of the row above the chart opened at 0.9
-    // of the wait, and saved as <out>-menu.png (a menu is a window of its own).
-    QMenu* menu = nullptr;
+    // KRX_CAPTURE_MENU=<minutes|style|options|indicators>: that menu of the row above the chart opened
+    // at 0.9 of the wait, and saved as <out>-menu.png (a menu is a window of its own). "indicators" is
+    // the indicators panel (krx-quant #222), KRX_CAPTURE_INDICATOR=<indicator> picked in it.
+    QWidget* menu = nullptr;
     if (const QString which = qEnvironmentVariable("KRX_CAPTURE_MENU"); !which.isEmpty()) {
         QTimer::singleShot(seconds * 900, &app, [&screen, &menu, which]() {
+            if (which == "indicators") {
+                auto* toolbar = screen.findChild<fincept::screens::KrxChartToolbar*>();
+                auto* panel = screen.findChild<fincept::screens::KrxStudyPanel*>();
+                if (!toolbar || !panel)
+                    return;
+                emit toolbar->indicators_requested();
+                if (const auto study = fincept::krx_quant::parse_study(qEnvironmentVariable("KRX_CAPTURE_INDICATOR")))
+                    panel->select(*study);
+                menu = panel;
+                return;
+            }
             const QString name = which == "style" ? "krxStyle" : which == "options" ? "krxOptions" : "krxMinutes";
             if (auto* button = screen.findChild<QToolButton*>(name); button && button->menu()) {
+                button->menu()->popup(button->mapToGlobal(QPoint(0, button->height())));
                 menu = button->menu();
-                menu->popup(button->mapToGlobal(QPoint(0, button->height())));
             }
         });
     }
@@ -143,6 +175,19 @@ int main(int argc, char* argv[]) {
                         "at.dispatchEvent(event('mousemove', true));"
                         "})();")
                         .arg(across));
+        });
+    }
+    // KRX_CAPTURE_LEGEND=<row>: as the pointer resting on that row of the price pane's legend
+    // (krx-quant #222, 0 the first), from 0.85 of the wait: its hide, settings and delete buttons show.
+    if (const QString row = qEnvironmentVariable("KRX_CAPTURE_LEGEND"); !row.isEmpty()) {
+        QTimer::singleShot(seconds * 850, &app, [&screen, row]() {
+            auto* chart = screen.findChild<fincept::screens::KrxChart*>();
+            auto* view = chart ? chart->findChild<QWebEngineView*>() : nullptr;
+            if (view)
+                view->page()->runJavaScript(
+                    QStringLiteral("(function(){const r = document.querySelectorAll('#legend0 .row')[%1];"
+                                   "if (r) r.dispatchEvent(new MouseEvent('mouseenter'));})();")
+                        .arg(row.toInt()));
         });
     }
 #endif

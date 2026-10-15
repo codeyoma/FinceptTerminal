@@ -27,6 +27,7 @@ class KrxChart;
 class KrxChartToolbar;
 class KrxLeaderboard;
 class KrxStatsWindow;
+class KrxStudyPanel;
 
 /// KRX 4-minute predictions (fork addition, see custom/README.md): the prediction engine's
 /// status and macro row, each symbol's latest predictions, the chosen symbol's chart with
@@ -71,8 +72,18 @@ class KrxQuantScreen : public QWidget {
     void set_view(int minutes);
     /// Draw the chart in ``style`` (krx-quant #221), and keep the choice for the symbol chosen.
     void set_style(krx_quant::ChartStyle style);
-    /// The symbol chosen now: its chart's view and style as it kept them (krx-quant #221).
+    /// The symbol chosen now: its chart's view and style as it kept them (krx-quant #221), and
+    /// its indicators and the anchored VWAP's anchor (krx-quant #222).
     void show_symbol_prefs();
+    /// Draw the chart's indicators as ``set`` says (krx-quant #222), and keep them for the symbol
+    /// chosen. The anchored VWAP turned on without an anchor waits for a click on the chart.
+    void set_studies(const krx_quant::StudySet& set);
+    /// Open the indicators panel under its button, ``study`` picked (none: as it was).
+    void open_studies(std::optional<krx_quant::Study> study = std::nullopt);
+    /// The anchored VWAP's bar was chosen at ``time`` (chart_time): kept for the symbol as a moment.
+    void set_anchor(qint64 time);
+    /// Tell KrxLive how many bars the indicators want, and back to the anchor (krx-quant #222).
+    void want_history();
     void open_detail(const QString& algorithm);
     /// What the engine says about ``algorithm`` (krx-quant #163); none for a baseline or a
     /// consensus, or before it answered.
@@ -105,7 +116,8 @@ class KrxQuantScreen : public QWidget {
     KrxChart* chart_ = nullptr;
     KrxChartToolbar* chart_toolbar_ = nullptr; ///< the row above the chart (krx-quant #221)
     int minutes_ = 1;                          ///< the chart's view
-    krx_quant::ChartLook look_;                ///< the chart's style and day separators (krx-quant #221)
+    krx_quant::ChartLook look_;                ///< its style, day separators (#221) and indicators (#222)
+    KrxStudyPanel* study_panel_ = nullptr;     ///< the indicators panel (krx-quant #222)
     krx_panel::Header predictions_header_; ///< titled with the bar close and the countdown
     QTableWidget* predictions_table_ = nullptr;
     QPushButton* latest_ = nullptr; ///< back to the latest bar close, while one is pinned

@@ -90,6 +90,11 @@ class KrxLive : public QObject {
     /// for a longer view (its last periods are made of them). The chart's reads call it
     /// again, so a screen left open past midnight gets the day before's stored candles.
     void set_view(int minutes);
+    /// The chart's indicators want ``bars`` bars of the view (krx-quant #222,
+    /// krx_quant::history_bars) and the bars back to ``back_to`` (the anchored VWAP's anchor;
+    /// invalid: none): the bars (a candle view's candles) before the first are read, a page at a
+    /// time, until it has them or kMaxHistoryBars of the view, or the engine has none before.
+    void set_history(int bars, const QDateTime& back_to = {});
     /// The bar close pinned; invalid while the latest is followed.
     const QDateTime& pinned() const { return pinned_; }
     /// Its judgements as last read, and the algorithms' statuses then.
@@ -219,6 +224,10 @@ class KrxLive : public QObject {
     void read_latest(int view);
     /// Back to today's bars only: a symbol or an engine changed, or the engine is lost.
     void forget_older();
+    /// Read the next page before the first bar while the indicators want more (set_history).
+    void read_history();
+    int history_ = 0;           ///< bars of the view the indicators want
+    QDateTime history_back_to_; ///< and the moment they reach back to
     KrxQuantService::LeaderboardQuery query_;
     QStringList details_; ///< the algorithms whose stats are read
     QDateTime pinned_;

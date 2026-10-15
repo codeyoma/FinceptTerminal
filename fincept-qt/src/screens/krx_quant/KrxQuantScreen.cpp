@@ -6,6 +6,7 @@
 #include "screens/krx_quant/KrxChartToolbar.h"
 #include "screens/krx_quant/KrxLeaderboard.h"
 #include "screens/krx_quant/KrxStatsWindow.h"
+#include "screens/krx_quant/KrxStudyPanel.h"
 #include "screens/krx_quant/KrxTables.h"
 #include "services/krx_quant/ChartModel.h"
 #include "services/krx_quant/KindView.h"
@@ -18,6 +19,7 @@
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSplitter>
+#include <QTimeZone>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -31,7 +33,8 @@ using krx_tables::cell;
 using krx_tables::kNumber;
 
 enum SymbolColumn { kSymbol, kMid, kFinal, kScoring };
-// The chart's view and style are kept for each symbol (krx-quant #221, krx_quant::prefs_group).
+// The chart's view and style are kept for each symbol (krx-quant #221, krx_quant::prefs_group), and
+// so are its indicators and the anchored VWAP's anchor (krx-quant #222).
 // "krx_quant/chart_view_minutes", the view of every symbol until then (krx-quant #109), and
 // "krx_quant/chart_minutes", the range box's until #134, are no longer read.
 // The models selected for the chart (krx-quant #159), as "gauss,markov".
@@ -186,6 +189,28 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         look_.day_separator = on;
         AppConfig::instance().set(krx_quant::kDaySeparatorKey, on);
         fill_chart();
+    });
+    // The indicators (krx-quant #222): their panel under the toolbar's button, and the legend's
+    // buttons and the anchored VWAP's bar on the chart. Each symbol keeps its own.
+    study_panel_ = new KrxStudyPanel(this);
+    connect(chart_toolbar_, &KrxChartToolbar::indicators_requested, this, [this]() { open_studies(); });
+    connect(study_panel_, &KrxStudyPanel::studies_changed, this, &KrxQuantScreen::set_studies);
+    connect(study_panel_, &KrxStudyPanel::anchor_requested, this, [this]() {
+        look_.picking = true; // the next click on the chart
+        study_panel_->hide();
+        fill_chart();
+    });
+    connect(chart_, &KrxChart::anchor_chosen, this, &KrxQuantScreen::set_anchor);
+    connect(chart_, &KrxChart::study_settings_requested, this, [this](krx_quant::Study study) { open_studies(study); });
+    connect(chart_, &KrxChart::study_hide_toggled, this, [this](krx_quant::Study study) {
+        krx_quant::StudySet set = look_.studies;
+        set.of(study).hidden = !set.of(study).hidden;
+        set_studies(set);
+    });
+    connect(chart_, &KrxChart::study_removed, this, [this](krx_quant::Study study) {
+        krx_quant::StudySet set = look_.studies;
+        set.turn(study, false);
+        set_studies(set);
     });
     auto* chart_body = new QWidget;
     auto* chart_column = new QVBoxLayout(chart_body);
@@ -406,6 +431,7 @@ void KrxQuantScreen::refresh_theme() {
     chart_failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
     chart_score_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
     chart_toolbar_->restyle();
+    study_panel_->restyle();
     // The kind selector as the views (krx-quant #182); a kind that cannot be chosen, dim.
     kind_bar_->setStyleSheet(
         QString("QLabel{color:%1;padding-right:4px;}"
@@ -806,6 +832,8 @@ void KrxQuantScreen::set_view(int minutes) {
         AppConfig::instance().set(krx_quant::prefs_group(symbol) + krx_quant::kPrefsView, minutes);
     chart_toolbar_->show_view(minutes);
     live_->set_view(minutes);
+    want_history();                                     // the indicators' bars in this view (krx-quant #222)
+    study_panel_->show_studies(look_.studies, minutes); // the VWAP is the minute views'
     fill_chart();
     chart_->fit(); // the last 60 bars of the new view
 }
@@ -829,6 +857,60 @@ void KrxQuantScreen::show_symbol_prefs() {
         minutes_ = prefs.view;
         live_->set_view(minutes_); // its bars are read next, for this view
     }
+    // Its indicators (krx-quant #222): opened for the first time, the moving averages 5, 20, 60
+    // and 120 of the close, and the volume.
+    look_.studies = krx_quant::parse_studies(AppConfig::instance().get(group + krx_quant::kPrefsStudies));
+    const QDateTime anchor =
+        QDateTime::fromString(AppConfig::instance().get(group + krx_quant::kPrefsAnchor).toString(), Qt::ISODate);
+    look_.anchor = anchor.isValid() ? std::optional(krx_quant::chart_time(anchor)) : std::nullopt;
+    look_.picking = look_.studies.on(krx_quant::Study::AnchoredVwap) && !look_.anchor;
+    study_panel_->show_studies(look_.studies, minutes_);
+    want_history();
+}
+
+void KrxQuantScreen::set_studies(const krx_quant::StudySet& set) {
+    using krx_quant::Study;
+    const bool anchoring = set.on(Study::AnchoredVwap) && !look_.studies.on(Study::AnchoredVwap);
+    look_.studies = set;
+    if (!set.on(Study::AnchoredVwap) || set.of(Study::AnchoredVwap).hidden)
+        look_.picking = false;
+    else if (anchoring && !look_.anchor) {
+        look_.picking = true; // turned on without an anchor: the next click on the chart
+        study_panel_->hide();
+    }
+    if (const QString& symbol = live_->selected(); !symbol.isEmpty())
+        AppConfig::instance().set(krx_quant::prefs_group(symbol) + krx_quant::kPrefsStudies,
+                                  krx_quant::studies_value(set));
+    study_panel_->show_studies(set, minutes_); // as the legend changed it
+    want_history();
+    fill_chart();
+}
+
+void KrxQuantScreen::open_studies(std::optional<krx_quant::Study> study) {
+    study_panel_->show_studies(look_.studies, minutes_);
+    if (study)
+        study_panel_->select(*study);
+    study_panel_->open_at(chart_toolbar_->indicators_corner());
+}
+
+void KrxQuantScreen::set_anchor(qint64 time) {
+    look_.anchor = time;
+    look_.picking = false;
+    if (const QString& symbol = live_->selected(); !symbol.isEmpty()) {
+        // As a moment in KST (chart_time is KST read as UTC): the bar holding it in any view.
+        const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+        AppConfig::instance().set(krx_quant::prefs_group(symbol) + krx_quant::kPrefsAnchor,
+                                  QDateTime::fromSecsSinceEpoch(time - 9 * 3600, kst).toString(Qt::ISODate));
+    }
+    want_history();
+    fill_chart();
+}
+
+void KrxQuantScreen::want_history() {
+    QDateTime back_to;
+    if (look_.studies.on(krx_quant::Study::AnchoredVwap) && look_.anchor)
+        back_to = QDateTime::fromSecsSinceEpoch(*look_.anchor - 9 * 3600, QTimeZone::fromSecondsAheadOfUtc(9 * 3600));
+    live_->set_history(krx_quant::history_bars(look_.studies, minutes_), back_to);
 }
 
 void KrxQuantScreen::fill_chart() {

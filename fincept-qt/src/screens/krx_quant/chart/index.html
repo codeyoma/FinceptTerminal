@@ -4,11 +4,14 @@
 <meta charset="utf-8">
 <!--
   The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182, #185,
-  #221), drawn with TradingView Lightweight Charts (NOTICE). It only draws what the screen sends
-  over the web channel: the bars in the style chosen and their volumes, the days' first bars
+  #221, #222), drawn with TradingView Lightweight Charts (NOTICE). It only draws what the screen
+  sends over the web channel: the bars in the style chosen and their volumes, the days' first bars
   filled, the consensus icons, each bar's hover box and its four-minute window with two levels
   across it (the touch targets, the range's highest and lowest mid-points, or the barrier's U
-  and L), the theme, and when to fit. It tells the screen where its view is.
+  and L), the indicators (their lines, the fills between two, the fractals' marks, the volume
+  profile's bars, the anchored VWAP's marker) with each pane's legend, the theme, and when to
+  fit. It tells the screen where its view is, the legend's buttons, and the anchored VWAP's bar
+  clicked or dragged to.
 -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #080808; }
@@ -19,6 +22,22 @@
     padding: 4px 8px; border: 1px solid; z-index: 61;
     max-width: calc(100% - 30px); box-sizing: border-box; /* a long line wraps inside the chart */
   }
+  /* Each pane's legend (krx-quant #222): top left, a row per indicator; hovered, its buttons. */
+  .legend { position: absolute; left: 4px; z-index: 62; pointer-events: none; max-width: calc(100% - 80px); }
+  .legend .row {
+    pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; white-space: nowrap;
+    padding: 0 4px; border-radius: 2px; line-height: 1.55; width: max-content; max-width: 100%;
+  }
+  .legend .row.hover { background: var(--hover); }
+  .legend .name { font-weight: 700; }
+  .legend .settings { opacity: 0.7; }
+  .legend .row.hidden .name, .legend .row.hidden .settings { opacity: 0.4; }
+  .legend .note { color: var(--note); }
+  .legend .tools { display: none; gap: 1px; align-items: center; }
+  .legend .row.hover .tools { display: inline-flex; }
+  .legend .tools span { display: inline-flex; padding: 1px 2px; cursor: pointer; border-radius: 2px; opacity: 0.8; }
+  .legend .tools span:hover { opacity: 1; background: var(--hover); }
+  .legend svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.4; }
 </style>
 <script src="lightweight-charts.standalone.production.js"></script>
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
@@ -27,12 +46,15 @@
 <div id="chart"></div>
 <canvas id="links"></canvas>
 <div id="tip"></div>
+<div id="legend0" class="legend"></div>
+<div id="legend1" class="legend"></div>
 <script>
 (function () {
   const L = LightweightCharts;
   const area = document.getElementById('chart');
   const links = document.getElementById('links');
   const tip = document.getElementById('tip');
+  const legendBoxes = [document.getElementById('legend0'), document.getElementById('legend1')];
   const chart = L.createChart(area, {
     autoSize: true,
     layout: { attributionLogo: false }, // the attribution is on the panel title and in the README
@@ -42,7 +64,7 @@
   });
   let colors = {
     tip_background: '#111', tip_border: '#333', tip_text: '#e5e5e5', link: '#f59e0b', up: '#16a34a', down: '#dc2626',
-    band: 'rgba(128,128,128,0.22)',
+    band: 'rgba(128,128,128,0.22)', text: '#999',
   };
 
   // ``color`` (rgba(r,g,b,a) from the screen) at ``alpha``.
@@ -78,6 +100,24 @@
     const view = { zOrder: () => 'bottom', renderer: () => renderer };
     return { paneViews: () => [view], updateAllViews() {} };
   }
+
+  // A layer drawn in the price pane in its own coordinates (krx-quant #222): the fills between two
+  // indicator lines, the volume profile, the anchored VWAP's marker.
+  let redrawPrices = null; // asks the price pane to draw again (a layer's data changed)
+  function layer(zOrder, draw) {
+    const renderer = {
+      draw(target) {
+        target.useMediaCoordinateSpace(function (scope) { draw(scope.context, scope.mediaSize); });
+      },
+    };
+    const view = { zOrder: () => zOrder, renderer: () => renderer };
+    return {
+      paneViews: () => [view],
+      updateAllViews() {},
+      attached(param) { redrawPrices = param.requestUpdate; },
+    };
+  }
+  function repaint() { if (redrawPrices) redrawPrices(); }
 
   // The price series in the style chosen (krx-quant #221): its kind of series and options. A
   // line, an area and a baseline draw the closes.
@@ -120,7 +160,18 @@
   }
 
   let main = null;  // the price series
-  let icons = null; // its markers
+  let icons = null; // its markers: the consensus icons and the fractals
+  let iconMarks = []; // the consensus icons as markers
+  let studyMarks = []; // the fractals as markers (krx-quant #222)
+  // The indicators (krx-quant #222): a line series each in the price pane, kept by id while the
+  // screen sends them again; the fills, the fractals, the volume profile and the anchor are layers.
+  const lines = new Map(); // id -> {series, times: [time…], values: Map(time -> value)}
+  let fills = [];
+  let profile = null;  // {color, rows: [{low, high, volume}]}
+  let anchor = null;   // {time, color}
+  let dragTime = null; // the bar the anchor's marker is dragged to
+  let picking = false; // the next click on the chart anchors the anchored VWAP
+  let legendRows = []; // as sent
   let realLine = null; // a Heikin-Ashi chart's line at the last bar's own close
   function makeMain(kind) {
     style = kind;
@@ -135,6 +186,10 @@
     realLine = null;
     icons = L.createSeriesMarkers(main, []);
     main.attachPrimitive(bandPrimitive());
+    main.attachPrimitive(layer('bottom', drawFills));
+    main.attachPrimitive(layer('bottom', drawProfile));
+    main.attachPrimitive(layer('top', drawAnchor));
+    showMarks();
   }
   function showReal(last) {
     if (style !== 'heikin_ashi' || !last) {
@@ -148,15 +203,30 @@
     if (realLine) realLine.applyOptions(options); else realLine = main.createPriceLine(options);
   }
 
-  const volumes = chart.addSeries(
-    L.HistogramSeries,
-    { priceFormat: { type: 'volume' }, priceLineVisible: false, lastValueVisible: false },
-    1 // the pane below
-  );
-  volumes.attachPrimitive(bandPrimitive());
+  // The volumes in the pane below, while the volume is on (krx-quant #222: an indicator of the
+  // lower list); turned off, its pane goes.
+  let volumes = null;
+  let volumeData = [];
+  let volumeAt = new Map(); // time -> volume, for the legend
+  function showVolume(on, hidden) {
+    if (on && !volumes) {
+      volumes = chart.addSeries(
+        L.HistogramSeries,
+        { priceFormat: { type: 'volume' }, priceLineVisible: false, lastValueVisible: false },
+        1 // the pane below
+      );
+      volumes.attachPrimitive(bandPrimitive());
+      volumes.setData(volumeData);
+      chart.panes()[0].setStretchFactor(0.78);
+      chart.panes()[1].setStretchFactor(0.22);
+    } else if (!on && volumes) {
+      chart.removeSeries(volumes); // its pane goes with it
+      volumes = null;
+    }
+    if (volumes) volumes.applyOptions({ visible: !hidden });
+  }
   makeMain('candle');
-  chart.panes()[0].setStretchFactor(0.78);
-  chart.panes()[1].setStretchFactor(0.22);
+  showVolume(true, false);
 
   let fitRange = null;
   function fit() {
@@ -168,6 +238,11 @@
   let iconAt = new Map(); // time -> icon
   let hoverAt = new Map(); // time -> hover box (krx-quant #159)
   let hovered = null;      // the bar hovered: {time, x}, kept while the data is sent again
+  function showMarks() {
+    const all = iconMarks.concat(studyMarks);
+    all.sort((a, b) => a.time - b.time);
+    icons.setMarkers(all);
+  }
 
   // Fitted since the chart last emptied: another symbol is chosen by emptying the chart
   // first (KrxLive::select), and its first bars are fitted again.
@@ -185,12 +260,15 @@
     barAt = new Map(bars.map((b, i) => [b.time, i]));
     iconAt = new Map(data.icons.map((i) => [String(i.time), i]));
     main.setData(bars.map(point));
-    volumes.setData(data.volumes);
+    volumeData = data.volumes;
+    volumeAt = new Map(volumeData.map((v) => [v.time, v.value]));
+    if (volumes) volumes.setData(volumeData);
     showReal(data.last);
-    icons.setMarkers(data.icons.map((i) => ({
+    iconMarks = data.icons.map((i) => ({
       id: String(i.time), time: i.time, position: i.position, shape: i.shape, color: i.color, size: i.size,
       text: i.text,
-    })));
+    }));
+    showStudies(data.studies || {}, data.profile || {});
     fitRange = data.fit;
     if (!bars.length) {
       shown = false;
@@ -201,6 +279,251 @@
     redraw(); // the box hovered stays, over what was sent now
   }
 
+  function pointOf(p) {
+    return p.length > 1 ? { time: p[0], value: p[1] } : { time: p[0] };
+  }
+  function lineOptions(line) {
+    const options = {
+      color: line.color, lineWidth: line.width, lineVisible: !line.dots, pointMarkersVisible: !!line.dots,
+      priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+      priceFormat: { type: 'price', precision: 0, minMove: 1 },
+    };
+    if (line.dots) options.pointMarkersRadius = line.width + 0.5;
+    return options;
+  }
+
+  function showStudies(s, profileData) {
+    const keep = new Set();
+    for (const line of s.series || []) {
+      keep.add(line.id);
+      let entry = lines.get(line.id);
+      if (!entry) {
+        entry = { series: chart.addSeries(L.LineSeries, lineOptions(line), 0) };
+        lines.set(line.id, entry);
+      } else {
+        entry.series.applyOptions(lineOptions(line));
+      }
+      entry.series.setData(line.points.map(pointOf));
+      entry.times = line.points.map((p) => p[0]);
+      entry.values = new Map();
+      for (const p of line.points) if (p.length > 1) entry.values.set(p[0], p[1]);
+    }
+    for (const [id, entry] of lines) {
+      if (keep.has(id)) continue;
+      chart.removeSeries(entry.series);
+      lines.delete(id);
+    }
+    fills = s.fills || [];
+    studyMarks = (s.marks || []).map((m) => ({
+      id: 'f' + m.time + (m.above ? 'u' : 'd'), time: m.time, position: m.above ? 'aboveBar' : 'belowBar',
+      shape: m.above ? 'arrowUp' : 'arrowDown', color: m.color, size: 1,
+    }));
+    showMarks();
+    profile = profileData && profileData.rows ? profileData : null;
+    anchor = s.anchor || null;
+    picking = !!s.picking;
+    area.style.cursor = picking ? 'crosshair' : '';
+    showVolume(s.volume !== false, !!s.volume_hidden);
+    legendRows = s.legend || [];
+    buildLegend();
+    repaint();
+  }
+
+  // Between two lines, filled: the first's colour where it is above (krx-quant #222).
+  function drawFills(g, size) {
+    const scale = chart.timeScale();
+    for (const f of fills) {
+      const a = lines.get(f.a), b = lines.get(f.b);
+      if (!a || !b) continue;
+      let before = null; // the point before, both lines there: [x, ya, yb, va, vb]
+      for (const time of a.times) {
+        const va = a.values.get(time), vb = b.values.get(time);
+        const x = scale.timeToCoordinate(time);
+        if (va === undefined || vb === undefined || x === null) { before = null; continue; }
+        const ya = main.priceToCoordinate(va), yb = main.priceToCoordinate(vb);
+        if (ya === null || yb === null) { before = null; continue; }
+        if (before && x >= -50 && before[0] <= size.width + 50) {
+          g.fillStyle = va + before[3] >= vb + before[4] ? f.up : f.down;
+          g.beginPath();
+          g.moveTo(before[0], before[1]);
+          g.lineTo(x, ya);
+          g.lineTo(x, yb);
+          g.lineTo(before[0], before[2]);
+          g.closePath();
+          g.fill();
+        }
+        before = [x, ya, yb, va, vb];
+      }
+    }
+  }
+
+  // The volume profile of the bars in view (krx-quant #222): a bar per price row from the right
+  // edge, the longest a quarter of the pane wide.
+  function drawProfile(g, size) {
+    if (!profile || !profile.rows.length) return;
+    const most = Math.max.apply(null, profile.rows.map((r) => r.volume));
+    if (!(most > 0)) return;
+    const widest = size.width * 0.25;
+    g.fillStyle = profile.color;
+    for (const row of profile.rows) {
+      const top = main.priceToCoordinate(row.high), bottom = main.priceToCoordinate(row.low);
+      if (top === null || bottom === null) continue;
+      const width = (row.volume / most) * widest;
+      const height = Math.max(1, bottom - top - 1);
+      g.fillRect(size.width - width, top, width, height);
+    }
+  }
+
+  // The anchored VWAP's bar (krx-quant #222): a dashed line down the price pane with a handle at
+  // its foot. Dragged, it follows the pointer to a bar.
+  function anchorX() {
+    const time = dragTime !== null ? dragTime : anchor ? anchor.time : null;
+    return time === null ? null : chart.timeScale().timeToCoordinate(time);
+  }
+  function drawAnchor(g, size) {
+    if (!anchor) return;
+    const x = anchorX();
+    if (x === null) return;
+    g.strokeStyle = anchor.color;
+    g.globalAlpha = 0.75;
+    g.lineWidth = 1;
+    g.setLineDash([4, 3]);
+    g.beginPath();
+    g.moveTo(x, 0);
+    g.lineTo(x, size.height);
+    g.stroke();
+    g.setLineDash([]);
+    g.globalAlpha = 1;
+    g.fillStyle = anchor.color;
+    g.beginPath(); // a diamond at the foot: the handle
+    g.moveTo(x, size.height - 16);
+    g.lineTo(x + 6, size.height - 10);
+    g.lineTo(x, size.height - 4);
+    g.lineTo(x - 6, size.height - 10);
+    g.closePath();
+    g.fill();
+  }
+  // The bar under ``x``: the nearest, within the bars read.
+  function barTimeAt(x) {
+    const logical = chart.timeScale().coordinateToLogical(x);
+    if (logical === null || !bars.length) return null;
+    return bars[Math.max(0, Math.min(bars.length - 1, Math.round(logical)))].time;
+  }
+  area.addEventListener('mousedown', function (e) {
+    if (!anchor || e.button !== 0) return;
+    const box = area.getBoundingClientRect();
+    const x = e.clientX - box.left, y = e.clientY - box.top;
+    const ax = anchorX();
+    if (ax === null || Math.abs(x - ax) > 6 || y > chart.panes()[0].getHeight()) return;
+    // Grabbed: the chart does not scroll while the marker moves.
+    e.stopPropagation();
+    e.preventDefault();
+    chart.applyOptions({ handleScroll: false, handleScale: false });
+    dragTime = anchor.time;
+    document.body.style.cursor = 'ew-resize';
+    const move = function (m) {
+      const time = barTimeAt(m.clientX - box.left);
+      if (time !== null && time !== dragTime) { dragTime = time; repaint(); }
+    };
+    const up = function () {
+      window.removeEventListener('mousemove', move, true);
+      window.removeEventListener('mouseup', up, true);
+      chart.applyOptions({ handleScroll: true, handleScale: true });
+      document.body.style.cursor = '';
+      if (dragTime !== null && dragTime !== anchor.time && bridge) bridge.anchored(dragTime);
+      if (dragTime !== null) anchor = { time: dragTime, color: anchor.color }; // until the screen sends it
+      dragTime = null;
+      repaint();
+    };
+    window.addEventListener('mousemove', move, true);
+    window.addEventListener('mouseup', up, true);
+  }, true);
+
+  // Each pane's legend (krx-quant #222): a row per indicator with its name, its settings and its
+  // lines' values at the crosshair (or the last bar). Hovered, a row shows its buttons: hide (the
+  // eye), settings and delete; the screen does what they ask.
+  const ICONS = {
+    eye: '<svg viewBox="0 0 16 16"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg>',
+    hidden: '<svg viewBox="0 0 16 16"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><path d="M2.5 13.5l11-11"/></svg>',
+    settings: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M3.6 12.4L5 11M11 5l1.4-1.4"/></svg>',
+    remove: '<svg viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg>',
+  };
+  let valueSpans = []; // [{span, id}] of the rows built
+  function buildLegend() {
+    valueSpans = [];
+    for (const box of legendBoxes) box.textContent = '';
+    for (const row of legendRows) {
+      const box = legendBoxes[row.pane] || legendBoxes[0];
+      const el = document.createElement('div');
+      el.className = 'row' + (row.hidden ? ' hidden' : '');
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = row.title;
+      el.appendChild(name);
+      if (row.settings) {
+        const settings = document.createElement('span');
+        settings.className = 'settings';
+        settings.textContent = row.settings;
+        el.appendChild(settings);
+      }
+      if (!row.hidden) {
+        row.values.forEach(function (id, i) {
+          const span = document.createElement('span');
+          span.style.color = row.colors[i] || colors.text;
+          el.appendChild(span);
+          valueSpans.push({ span: span, id: id });
+        });
+      }
+      if (row.note) {
+        const note = document.createElement('span');
+        note.className = 'note';
+        note.textContent = row.note;
+        el.appendChild(note);
+      }
+      const tools = document.createElement('span');
+      tools.className = 'tools';
+      for (const [action, icon, title] of [
+        ['hide', row.hidden ? ICONS.hidden : ICONS.eye, row.hidden ? '보이기' : '숨기기'],
+        ['settings', ICONS.settings, '설정'],
+        ['remove', ICONS.remove, '삭제'],
+      ]) {
+        const button = document.createElement('span');
+        button.innerHTML = icon;
+        button.title = title;
+        button.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (bridge) bridge.legend(row.key, action);
+        });
+        tools.appendChild(button);
+      }
+      el.appendChild(tools);
+      // Its buttons while hovered (a class, so a synthetic hover shows them too).
+      el.addEventListener('mouseenter', function () { el.classList.add('hover'); });
+      el.addEventListener('mouseleave', function () { el.classList.remove('hover'); });
+      box.appendChild(el);
+    }
+    placeLegend();
+    showLegendValues(legendTime);
+  }
+  // The values at ``time`` (the crosshair's), or at the last bar when there is none.
+  let legendTime = null;
+  function showLegendValues(time) {
+    legendTime = time;
+    const at = time !== null && time !== undefined ? time : bars.length ? bars[bars.length - 1].time : null;
+    for (const { span, id } of valueSpans) {
+      const value = id === 'volume' ? volumeAt.get(at) : (lines.get(id) || { values: new Map() }).values.get(at);
+      span.textContent = value === undefined ? '' : Math.round(value).toLocaleString('en-US');
+      span.style.display = value === undefined ? 'none' : '';
+    }
+  }
+  function placeLegend() {
+    legendBoxes[0].style.top = '4px';
+    const panes = chart.panes();
+    legendBoxes[1].style.display = panes.length > 1 ? '' : 'none';
+    if (panes.length > 1) legendBoxes[1].style.top = (panes[0].getHeight() + 1 + 4) + 'px';
+  }
+  setInterval(placeLegend, 300); // the panes' border dragged
+
   // Hover boxes set and dropped (krx-quant #159): only those changed come.
   function boxes(data) {
     if (data.reset) hoverAt = new Map();
@@ -210,11 +533,13 @@
   }
 
   // The bar being made moved (krx-quant #110): only the last bar is drawn again, or a new
-  // one follows it. One older than the last drawn is not drawn.
+  // one follows it. One older than the last drawn is not drawn. The indicators' points it moves
+  // come with it (krx-quant #222): each the last of its line.
   function live(data) {
     if (!bars.length || data.bar.time < bars[bars.length - 1].time) return;
     main.update(point(data.bar));
-    volumes.update(data.volume);
+    if (volumes) volumes.update(data.volume);
+    volumeAt.set(data.volume.time, data.volume.value);
     showReal(data.last);
     if (data.bar.time === bars[bars.length - 1].time) {
       bars[bars.length - 1] = data.bar;
@@ -222,6 +547,27 @@
       barAt.set(data.bar.time, bars.length);
       bars.push(data.bar);
     }
+    for (const [id, p] of data.studies || []) {
+      const entry = lines.get(id);
+      if (!entry) continue;
+      try {
+        entry.series.update(pointOf(p));
+      } catch (e) {
+        continue; // before its last point: drawn again at the bar close
+      }
+      if (!entry.times.length || entry.times[entry.times.length - 1] < p[0]) entry.times.push(p[0]);
+      if (p.length > 1) entry.values.set(p[0], p[1]); else entry.values.delete(p[0]);
+    }
+    if (data.marks) {
+      studyMarks = data.marks.map((m) => ({
+        id: 'f' + m.time + (m.above ? 'u' : 'd'), time: m.time, position: m.above ? 'aboveBar' : 'belowBar',
+        shape: m.above ? 'arrowUp' : 'arrowDown', color: m.color, size: 1,
+      }));
+      showMarks();
+    }
+    if (data.profile) profile = data.profile.rows ? data.profile : null;
+    showLegendValues(legendTime);
+    repaint();
   }
 
   // The hovered bar's four-minute window (krx-quant #167): the span from its bar close to four
@@ -307,13 +653,16 @@
     drawWindow(null);
   }
 
-  // The box of the bar under the pointer, anywhere on its column (krx-quant #159).
+  // The box of the bar under the pointer, anywhere on its column (krx-quant #159); the legend's
+  // values at it (krx-quant #222).
   function hover(param) {
     if (!param || !param.point || param.time === undefined) {
       hovered = null;
+      showLegendValues(null);
       return hide();
     }
     hovered = { time: param.time, x: param.point.x };
+    showLegendValues(param.time);
     redraw();
   }
 
@@ -338,14 +687,25 @@
   chart.timeScale().subscribeVisibleLogicalRangeChange(function (range) {
     if (range && bars.length && bridge) bridge.moved(range.from);
   });
-  // The bars in view, by time: the score over them (krx-quant #159).
+  // The bars in view, by time: the score over them (krx-quant #159), the volume profile
+  // (krx-quant #222).
   chart.timeScale().subscribeVisibleTimeRangeChange(function (range) {
     if (range && bridge) bridge.range(range.from, range.to);
   });
 
-  // An icon clicked: the screen shows that bar close's judgements (krx-quant #107).
+  // An icon clicked: the screen shows that bar close's judgements (krx-quant #107). While the
+  // anchored VWAP waits for its bar (krx-quant #222), a click anywhere chooses the bar under it.
   let bridge = null;
   chart.subscribeClick(function (param) {
+    if (picking && param && param.point && bars.length && bridge) {
+      const time = barTimeAt(param.point.x);
+      if (time !== null) {
+        picking = false;
+        area.style.cursor = '';
+        bridge.anchored(time);
+      }
+      return;
+    }
     const icon = param && param.hoveredObjectId !== undefined ? iconAt.get(String(param.hoveredObjectId)) : undefined;
     if (icon && bridge) bridge.clicked(icon.bar_close);
   });
@@ -358,6 +718,13 @@
     tip.style.color = t.tip_text;
     tip.style.fontFamily = t.font;
     tip.style.fontSize = (t.size + 1) + 'px';
+    for (const box of legendBoxes) {
+      box.style.color = t.tip_text;
+      box.style.fontFamily = t.font;
+      box.style.fontSize = (t.size + 1) + 'px';
+      box.style.setProperty('--hover', fade(t.tip_background, 0.85));
+      box.style.setProperty('--note', t.link);
+    }
     chart.applyOptions({
       layout: {
         background: { type: 'solid', color: t.background },
@@ -376,6 +743,7 @@
       },
     });
     main.applyOptions(styleOptions(style)[1]);
+    buildLegend();
   }
 
   // The baseline's base moved with the view (krx-quant #221).
@@ -384,9 +752,15 @@
     if (style === 'baseline') main.applyOptions({ baseValue: { type: 'price', price: baseValue } });
   }
 
+  // The volume profile of the bars now in view (krx-quant #222).
+  function reprofile(data) {
+    profile = data && data.rows ? data : null;
+    repaint();
+  }
+
   area.addEventListener('dblclick', fit);
   area.addEventListener('mouseleave', () => hover(null));
-  window.addEventListener('resize', redraw);
+  window.addEventListener('resize', function () { redraw(); placeLegend(); });
 
   new QWebChannel(qt.webChannelTransport, function (channel) {
     bridge = channel.objects.bridge;
@@ -395,6 +769,7 @@
     bridge.hovers_changed.connect(function (json) { boxes(JSON.parse(json)); });
     bridge.live_changed.connect(function (json) { live(JSON.parse(json)); });
     bridge.base_changed.connect(function (json) { rebase(JSON.parse(json)); });
+    bridge.profile_changed.connect(function (json) { reprofile(JSON.parse(json)); });
     bridge.fit_requested.connect(fit);
     bridge.ready();
   });
