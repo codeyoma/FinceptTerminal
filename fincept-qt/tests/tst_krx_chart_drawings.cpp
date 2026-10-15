@@ -252,6 +252,44 @@ class TstKrxChartDrawings : public QObject {
         }
     }
 
+    void a_bar_being_made_is_appended_or_replaces_the_last() {
+        auto bars = view_of(minutes(), 1);
+        ChartBar grown = bars.last();
+        grown.close = 99;
+        QVERIFY(!append_live(bars, grown)); // the same minute: the last one, replaced
+        QCOMPARE(bars.size(), 5);
+        QCOMPARE(bars.last().close, 99.0);
+        ChartBar earlier = bars.first();
+        earlier.close = 1;
+        QVERIFY(!append_live(bars, earlier)); // an earlier one: left out
+        QCOMPARE(bars.first().close, 102.0);
+        const ChartBar next = chart_bars({bar("2026-10-12T09:09:00+09:00", 103, 104, 102, 103)}).first();
+        QVERIFY(append_live(bars, next)); // a later one: appended
+        QCOMPARE(bars.size(), 6);
+        QList<ChartBar> none;
+        QVERIFY(append_live(none, next));
+        QCOMPARE(none.size(), 1);
+    }
+
+    void points_past_the_last_bar_move_onto_a_new_one() {
+        // After a gap without trades: the last bar is 09:06; the next one comes at 09:09.
+        auto bars = view_of(minutes(), 1);
+        const qint64 on_it = at("2026-10-12T09:09:30+09:00");
+        const qint64 after_it = at("2026-10-12T09:10:30+09:00");
+        QVERIFY(near(logical_at(bars, on_it, 1), 7)); // three slots after 09:06's
+        QVERIFY(near(logical_at(bars, after_it, 1), 8));
+        QVERIFY(append_live(bars, chart_bars({bar("2026-10-12T09:09:00+09:00", 103, 104, 102, 103)}).first()));
+        QVERIFY(near(logical_at(bars, on_it, 1), 5));    // the new bar's middle
+        QVERIFY(near(logical_at(bars, after_it, 1), 6)); // the slot after it
+        // After a weekend: Friday's 19:59 bar, then Monday's first trades at 08:03.
+        QList<ChartBar> friday = chart_bars({bar("2026-10-09T19:59:00+09:00", 100, 101, 99, 100)});
+        const qint64 monday = at("2026-10-12T08:03:30+09:00");
+        QVERIFY(near(logical_at(friday, monday, 1), 4)); // Monday 08:00, 08:01, 08:02 estimated before it
+        QVERIFY(append_live(friday, chart_bars({bar("2026-10-12T08:03:00+09:00", 100, 102, 100, 101)}).first()));
+        QVERIFY(near(logical_at(friday, monday, 1), 1));
+        QVERIFY(near(logical_at(friday, at("2026-10-12T08:05:30+09:00"), 1), 3));
+    }
+
     void a_moment_on_the_candle_views() {
         // Day candles on Thursday 10-08, Friday 10-09 and Monday 10-12, each from 00:00 KST.
         const QList<ChartBar> days =

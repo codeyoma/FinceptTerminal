@@ -429,10 +429,7 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
         drawn = krx_quant::heikin_ashi(all).last();
     const QColor color(last->rising ? ui::colors::POSITIVE() : ui::colors::NEGATIVE());
     // The bars as the page has them, the bar being made last: the drawings are placed on them (krx-quant #224).
-    if (!shown_.isEmpty() && shown_.last().time == last->time)
-        shown_.last() = *last;
-    else if (shown_.isEmpty() || shown_.last().time < last->time)
-        shown_.append(*last);
+    const bool grown = krx_quant::append_live(shown_, *last);
     QJsonObject live{{"bar", QJsonObject{{"time", drawn.time},
                                          {"open", drawn.open},
                                          {"high", drawn.high},
@@ -440,6 +437,8 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
                                          {"close", drawn.close}}},
                      {"volume", QJsonObject{{"time", last->time}, {"value", last->volume}, {"color", css(color, 0.5)}}},
                      {"last", QJsonObject{{"close", last->close}, {"rising", last->rising}}}};
+    if (heikin) // the bar as it is, which the magnet picks from (krx-quant #224)
+        live.insert("real", QJsonArray{last->open, last->high, last->low, last->close});
     if (studies && !all.isEmpty()) {
         // Each line's point the bar being made moves: its own, a leading span's displacement on,
         // the lagging span's displacement back. The page moves that one (it is each line's last).
@@ -468,6 +467,10 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
             live.insert("profile", QJsonDocument::fromJson(profile_json().toUtf8()).object());
     }
     emit bridge_->live_changed(compact(live));
+    // A new bar takes the slots up to it: the drawings' points past the old last bar, placed by
+    // their moments, move (krx-quant #224).
+    if (grown && !look_.drawings.isEmpty())
+        emit bridge_->drawings_changed(compact(drawings_json(0)));
 }
 
 QString KrxChart::profile_json() const {

@@ -590,7 +590,6 @@
     const n = bars.length;
     if (!magnet || !n || spot[0] < -0.5 || spot[0] >= n - 0.5) return spot;
     const i = Math.max(0, Math.min(n - 1, Math.floor(spot[0] + 0.5)));
-    // A Heikin-Ashi chart's bar being made (not among the bars sent as they are) goes by its own.
     const b = realBars && realBars[i] ? realBars[i] : [bars[i].open, bars[i].high, bars[i].low, bars[i].close];
     let best = b[0];
     for (const v of b) if (Math.abs(v - spot[1]) < Math.abs(best - spot[1])) best = v;
@@ -1343,6 +1342,9 @@
       barAt.set(data.bar.time, bars.length);
       bars.push(data.bar);
     }
+    // A Heikin-Ashi chart's bar being made as it is, for the magnet (krx-quant #224): in step with
+    // the bars, the last replaced or a new one added.
+    if (realBars && data.real) realBars[bars.length - 1] = data.real;
     for (const [id, p] of data.studies || []) {
       const entry = lines.get(id);
       if (!entry) continue;

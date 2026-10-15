@@ -134,6 +134,13 @@ std::optional<double> logical_at(const QList<ChartBar>& bars, qint64 time, int v
 /// without bars or for a position that is not a finite number.
 std::optional<qint64> time_at(const QList<ChartBar>& bars, double logical, int view);
 
+/// The bar being made (``live``, as the chart draws it) on ``bars``, the bars the page has, oldest
+/// first: one with the last bar's start replaces it; a later one is appended; an earlier one is left
+/// out. Whether it was appended: then the places past the old last bar move (the slots up to the new
+/// bar, a gap without trades or a night or a weekend, are that one bar now), and the drawings are
+/// placed again.
+bool append_live(QList<ChartBar>& bars, const ChartBar& live);
+
 /// ``spot`` with the magnet on: over a bar read (its position within it), that bar's middle and
 /// whichever of its open, high, low and close is nearest the price (the first of them on a tie).
 /// Past the bars (the free space after the last), as it is.

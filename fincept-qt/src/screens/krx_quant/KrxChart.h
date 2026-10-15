@@ -126,7 +126,9 @@ class KrxChart : public QWidget {
     /// Only the last bar of ``bars`` moved (the bar being made, krx-quant #110): it alone is
     /// drawn again, in the view of ``minutes`` and the style last set. A candle view's ``bars``
     /// are its candles. The indicators' values on it move with it (krx-quant #222): the point
-    /// each line takes from it, the fractals and the volume profile.
+    /// each line takes from it, the fractals and the volume profile. A Heikin-Ashi bar comes with its
+    /// own prices, which the magnet picks from; a new bar sends the drawings again, as the places
+    /// past the old last bar move onto it (krx-quant #224).
     void update_live(const QList<krx_quant::Bar>& bars, int minutes);
     /// The drawings to draw (krx-quant #224) and whether the magnet is on, sent at once apart from
     /// the data; ``select``: the drawing to select (0: as it is; -1: none).

@@ -380,6 +380,17 @@ std::optional<qint64> time_at(const QList<ChartBar>& bars, double logical, int v
     return std::clamp<qint64>(at, start, end - 1);
 }
 
+bool append_live(QList<ChartBar>& bars, const ChartBar& live) {
+    if (!bars.isEmpty() && bars.last().time == live.time) {
+        bars.last() = live;
+        return false;
+    }
+    if (!bars.isEmpty() && bars.last().time > live.time)
+        return false;
+    bars.append(live);
+    return true;
+}
+
 ChartSpot magnet_spot(const QList<ChartBar>& bars, ChartSpot spot) {
     const auto n = static_cast<double>(bars.size());
     if (bars.isEmpty() || !std::isfinite(spot.logical) || spot.logical < -0.5 || spot.logical >= n - 0.5)
