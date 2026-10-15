@@ -4,18 +4,23 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QCheckBox>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QMenu>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QSpinBox>
 #include <QStyle>
 #include <QToolButton>
+#include <QWidgetAction>
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 
 namespace fincept::screens {
@@ -95,7 +100,7 @@ QIcon style_icon(ChartStyle style, const Ink& ink) {
                 fill.lineTo(kZigzag.last().x(), 15);
                 fill.closeSubpath();
                 QColor soft = ink.up;
-                soft.setAlphaF(0.35);
+                soft.setAlphaF(0.35f);
                 p.fillPath(fill, soft);
                 polyline(p, kZigzag, ink.up);
                 break;
@@ -158,6 +163,32 @@ QIcon style_icon(ChartStyle style, const Ink& ink) {
             }
         }
     });
+}
+
+/// What a style without a time axis draws (krx-quant #225), on its menu entry.
+QString style_tip(ChartStyle style) {
+    const QString bricks =
+        QObject::tr(" 시간축 없는 차트: 벽돌 순서로 그리고, 축과 십자선에는 벽돌이 끝난 시각을 보인다.");
+    switch (style) {
+        case ChartStyle::Renko:
+            return QObject::tr("종가가 박스만큼 움직일 때마다 벽돌을 쌓는다(되돌 때는 두 칸). 박스는 ATR(14)이고 톱니 "
+                               "메뉴에서 바꾼다.") +
+                   bricks;
+        case ChartStyle::Kagi:
+            return QObject::tr("종가가 반전폭만큼 되돌면 꺾는 선. 앞 어깨를 넘으면 굵게, 앞 허리 아래로 가면 가늘게 "
+                               "그린다. 반전폭은 ATR(14)이고 톱니 메뉴에서 바꾼다.") +
+                   bricks;
+        case ChartStyle::PointFigure:
+            return QObject::tr("종가가 박스를 채울 때마다 X(상승)나 O(하락)를 쌓고, 세 칸 되돌면 다음 칸으로 넘어간다. "
+                               "박스는 ATR(14)이고 톱니 메뉴에서 바꾼다.") +
+                   bricks;
+        case ChartStyle::LineBreak:
+            return QObject::tr("종가가 마지막 줄을 넘으면 줄을 더하고, 마지막 세 줄을 넘어 되돌면 반대 줄을 긋는다. 줄 "
+                               "수는 톱니 메뉴에서 바꾼다.") +
+                   bricks;
+        default:
+            return {};
+    }
 }
 
 QIcon plus_icon(const Ink& ink) {
@@ -414,9 +445,7 @@ KrxChartToolbar::KrxChartToolbar(QWidget* parent) : QWidget(parent) {
         action->setCheckable(true);
         action->setIconVisibleInMenu(true); // macOS hides menu icons by default
         action->setData(krx_quant::style_key(style));
-        action->setEnabled(krx_quant::drawable(style));
-        if (!krx_quant::drawable(style))
-            action->setToolTip(tr("준비 중"));
+        action->setToolTip(style_tip(style)); // the styles without a time axis (krx-quant #225)
         style_group->addAction(action);
         connect(action, &QAction::triggered, this, [this, style]() { emit style_chosen(style); });
     }
@@ -480,6 +509,30 @@ KrxChartToolbar::KrxChartToolbar(QWidget* parent) : QWidget(parent) {
     day_separator_ = options_menu->addAction(tr("날짜 구분선"));
     day_separator_->setCheckable(true);
     connect(day_separator_, &QAction::toggled, this, &KrxChartToolbar::day_separator_toggled);
+    // While a style without a time axis is shown (krx-quant #225), its size: the box, the reversal or
+    // the lines, and ATR(14) for the default.
+    brick_divider_ = options_menu->addSeparator();
+    auto* brick_holder = new QWidget(options_menu);
+    brick_holder->setObjectName("krxBrickRow");
+    auto* brick_line = new QHBoxLayout(brick_holder);
+    brick_line->setContentsMargins(10, 4, 10, 4);
+    brick_line->setSpacing(6);
+    brick_title_ = new QLabel;
+    brick_size_ = new QSpinBox;
+    brick_size_->setKeyboardTracking(false); // said once typed (Enter, or leaving it), or stepped
+    brick_size_->setAccelerated(true);
+    brick_size_->setMinimumWidth(110);
+    brick_atr_ = new QCheckBox;
+    brick_line->addWidget(brick_title_);
+    brick_line->addWidget(brick_size_, 1);
+    brick_line->addWidget(brick_atr_);
+    brick_row_ = new QWidgetAction(options_menu);
+    brick_row_->setDefaultWidget(brick_holder);
+    options_menu->addAction(brick_row_);
+    connect(brick_size_, qOverload<int>(&QSpinBox::valueChanged), this,
+            [this](int value) { emit brick_size_chosen(style_shown_, value); });
+    connect(brick_atr_, &QCheckBox::toggled, this,
+            [this](bool on) { emit brick_size_chosen(style_shown_, on ? 0 : brick_size_->value()); });
     options_->setMenu(options_menu);
     end->addWidget(options_);
 
@@ -502,17 +555,59 @@ void KrxChartToolbar::show_view(int view) {
         action->setChecked(!candles && action->data().toInt() == view);
     for (auto* button : candle_buttons_)
         button->setChecked(button->property("view").toInt() == view);
-    // The day separators are the minute views' (krx-quant #221).
-    day_separator_->setEnabled(!candles);
-    day_separator_->setToolTip(candles ? tr("분봉에서만") : tr("분봉에서 날짜가 바뀐 뒤 첫 봉에 회색 띠를 칠한다."));
+    show_day_separator_state();
     if (!narrow_)
         wide_ = 0; // measured again with the new label
     fit_labels();
     place();
 }
 
+void KrxChartToolbar::show_day_separator_state() {
+    // The day separators are the minute views' (krx-quant #221) with a time axis (krx-quant #225).
+    const bool candles = krx_quant::candle_view(view_);
+    const bool bricks = krx_quant::timeless(style_shown_);
+    day_separator_->setEnabled(!candles && !bricks);
+    day_separator_->setToolTip(bricks    ? tr("분봉에서만. 시간축 없는 차트에서는 쓰지 않는다.")
+                               : candles ? tr("분봉에서만")
+                                         : tr("분봉에서 날짜가 바뀐 뒤 첫 봉에 회색 띠를 칠한다."));
+}
+
+void KrxChartToolbar::show_brick_size(std::optional<double> kept, std::optional<double> atr) {
+    brick_kept_ = kept;
+    brick_atr_value_ = atr;
+    const bool bricks = krx_quant::timeless(style_shown_);
+    brick_divider_->setVisible(bricks);
+    brick_row_->setVisible(bricks);
+    if (!bricks)
+        return;
+    const QSignalBlocker quiet_size(brick_size_); // shown, not chosen
+    const QSignalBlocker quiet_atr(brick_atr_);
+    const bool lines = style_shown_ == ChartStyle::LineBreak;
+    brick_title_->setText(style_shown_ == ChartStyle::Kagi ? tr("반전폭")
+                          : style_shown_ == ChartStyle::PointFigure
+                              ? tr("박스 (반전 %1칸)").arg(krx_quant::kFigureReversal)
+                          : lines ? tr("줄 수")
+                                  : tr("박스"));
+    brick_size_->setRange(lines ? krx_quant::kMinBreakLines : 1,
+                          lines ? krx_quant::kMaxBreakLines : krx_quant::kMaxBrickSize);
+    brick_size_->setSuffix(lines ? tr(" 줄") : tr(" 원"));
+    const double shown = kept.value_or(lines ? krx_quant::kBreakLines : atr.value_or(1));
+    brick_size_->setValue(static_cast<int>(std::lround(shown)));
+    brick_size_->setToolTip(lines ? tr("라인 브레이크가 되돌 때 넘어야 하는 줄 수. 이 종목에 남는다.")
+                                  : tr("이 종목에 남는다. 바꾸면 ATR(14) 대신 이 값을 쓴다."));
+    brick_atr_->setVisible(!lines);
+    brick_atr_->setChecked(!kept);
+    brick_atr_->setText(atr ? tr("ATR(14) %L1원").arg(static_cast<qlonglong>(*atr)) : tr("ATR(14)"));
+    brick_atr_->setToolTip(tr("지금 보기의 봉 중 마지막 봉(만들어지는 중일 수 있다)을 뺀 봉으로 센 ATR(14)의 마지막 "
+                              "값(원 단위로 반올림). 새 봉이 시작되거나 앞의 봉을 더 읽으면 다시 센다. 켜면 이 값을 "
+                              "쓴다."));
+}
+
 void KrxChartToolbar::show_style(ChartStyle style) {
     style_shown_ = style;
+    show_day_separator_state();
+    show_brick_size(brick_kept_, brick_atr_value_);
+    show_drawings(drawings_shown_);
     for (QAction* action : style_menu_->actions())
         action->setChecked(action->data().toString() == krx_quant::style_key(style));
     style_->setToolTip(tr("차트 모양: %1").arg(krx_quant::style_title(style)));
@@ -546,9 +641,13 @@ void KrxChartToolbar::show_magnet(bool on) {
 }
 
 void KrxChartToolbar::show_drawings(int count) {
-    trash_->setEnabled(count > 0);
-    trash_->setToolTip(count > 0 ? tr("그린 것 모두 지우기 (%1개)").arg(count)
-                                 : tr("그린 것 모두 지우기: 그린 것이 없다"));
+    drawings_shown_ = count;
+    // A style without a time axis hides them (krx-quant #225): not removed unseen.
+    const bool bricks = krx_quant::timeless(style_shown_);
+    trash_->setEnabled(count > 0 && !bricks);
+    trash_->setToolTip(bricks ? tr("그린 것 모두 지우기: 시간축 없는 차트에서는 그린 것을 숨긴다")
+                       : count > 0 ? tr("그린 것 모두 지우기 (%1개)").arg(count)
+                                   : tr("그린 것 모두 지우기: 그린 것이 없다"));
 }
 
 QPoint KrxChartToolbar::indicators_corner() const {
@@ -589,7 +688,9 @@ void KrxChartToolbar::restyle() {
                 "QPushButton:disabled,QToolButton:disabled{color:%6;}"
                 "#krxDivider{background:%5;}"
                 "QMenu::item:disabled{color:%6;}"
-                "QMenu::item:checked{color:%2;font-weight:700;}") // with an icon, a menu has no check mark
+                "#krxBrickRow QLabel,#krxBrickRow QCheckBox{color:%3;background:transparent;}"
+                "QMenu::item:checked{color:%2;font-weight:700;}" // with an icon, a menu has no check mark
+                "QMenu::item:checked:disabled{color:%6;font-weight:400;}")
             .arg(ui::colors::TEXT_TERTIARY(), ui::colors::AMBER(), ui::colors::TEXT_PRIMARY(), ui::colors::BG_BASE(),
                  ui::colors::BORDER_MED(), ui::colors::TEXT_DIM()));
     paint_icons();

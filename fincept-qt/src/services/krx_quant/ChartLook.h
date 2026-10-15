@@ -5,6 +5,7 @@
 #include "services/krx_quant/ChartStudies.h"
 
 #include <QList>
+#include <QMap>
 #include <QString>
 #include <QVariant>
 
@@ -46,10 +47,9 @@ std::optional<ChartStyle> parse_style(const QString& key);
 /// The style's name on the menu: 바, 캔들, 라인, 영역, 렌코, 카기, 포인트 앤 피겨, 라인 브레이크,
 /// 하이킨아시, 투명캔들, 베이스라인.
 QString style_title(ChartStyle style);
-/// Whether ``style`` draws bricks in order rather than bars in time.
+/// Whether ``style`` draws bricks in order rather than bars in time (krx-quant #225).
 bool timeless(ChartStyle style);
-/// Whether this build draws ``style``: every style with a time axis (the others come with
-/// krx-quant #225).
+/// Whether this build draws ``style``: every style (those without a time axis since krx-quant #225).
 bool drawable(ChartStyle style);
 
 /// The chart's views (krx-quant #109, #111, #112): kMinuteViews, then the day, week, month and
@@ -66,8 +66,8 @@ struct ChartPrefs {
 /// Where a symbol's chart settings are kept in the app settings: "krx_quant/chart/005930/"
 /// (krx-quant #221), followed by "view" or "style". The settings later issues keep for a symbol
 /// (indicators and the anchored VWAP's anchor, krx-quant #222: kPrefsStudies, kPrefsAnchor; pane
-/// heights, krx-quant #223: kPrefsPaneHeights; drawings, krx-quant #224: kPrefsDrawings) go under
-/// the same group.
+/// heights, krx-quant #223: kPrefsPaneHeights; drawings, krx-quant #224: kPrefsDrawings; the sizes
+/// of the styles without a time axis, krx-quant #225: kPrefsBrickSizes) go under the same group.
 QString prefs_group(const QString& symbol);
 inline constexpr auto kPrefsView = "view";
 inline constexpr auto kPrefsStyle = "style";
@@ -77,6 +77,27 @@ inline constexpr auto kDaySeparatorKey = "krx_quant/chart_day_separator";
 /// A symbol's settings from what was kept (``view``, ``style``: invalid when none): a view not
 /// among the chart's, or a style unknown or not drawn by this build, is its default.
 ChartPrefs parse_prefs(const QVariant& view, const QVariant& style);
+
+/// The sizes a symbol set for the styles without a time axis (krx-quant #225), by style: the renko
+/// and the point and figure box and the kagi reversal in won, the line break's lines. A style not
+/// in it draws with its default: ATR(14) of the view's bars (ChartBricks' atr_size), 3 lines.
+using BrickSizes = QMap<ChartStyle, double>;
+/// Where a symbol keeps them: krx_quant/chart/<symbol>/ + kPrefsBrickSizes, a JSON object of those
+/// set, e.g. {"renko": 150, "line_break": 4} (brick_sizes_value).
+inline constexpr auto kPrefsBrickSizes = "brick_sizes";
+/// The line break's lines by default, and those it may be set to.
+inline constexpr int kBreakLines = 3;
+inline constexpr int kMinBreakLines = 2;
+inline constexpr int kMaxBreakLines = 10;
+/// The largest box or reversal that may be set, in won.
+inline constexpr int kMaxBrickSize = 10'000'000;
+/// Whether ``size`` may be set for ``style``: a whole number of won from 1 to kMaxBrickSize, or of
+/// lines from kMinBreakLines to kMaxBreakLines; never for a style with a time axis.
+bool valid_brick_size(ChartStyle style, double size);
+QString brick_sizes_value(const BrickSizes& sizes);
+/// The sizes kept (a JSON object as above): a key not of a style without a time axis, or a size
+/// valid_brick_size refuses, is dropped (its default).
+BrickSizes parse_brick_sizes(const QVariant& kept);
 
 /// ``bars`` as Heikin-Ashi bars, oldest first: each closes at the mean of its bar's open, high,
 /// low and close, opens halfway between the Heikin-Ashi bar before's open and close (the first
@@ -93,7 +114,8 @@ std::optional<double> baseline_base(const QList<ChartBar>& bars, int view, std::
 
 /// What the chart is drawn as besides its data (krx-quant #221): the style, and whether a minute
 /// view fills its days' first bars; the indicators and the anchored VWAP's anchor (krx-quant #222);
-/// the lower panes' heights (krx-quant #223); the drawings and the magnet (krx-quant #224).
+/// the lower panes' heights (krx-quant #223); the drawings and the magnet (krx-quant #224); the sizes
+/// set for the styles without a time axis (krx-quant #225).
 struct ChartLook {
     ChartStyle style = ChartStyle::Candle;
     bool day_separator = true;
@@ -105,6 +127,7 @@ struct ChartLook {
     PaneHeights pane_heights; ///< those dragged; the others kPaneHeight
     QList<Drawing> drawings;  ///< the symbol's, drawn over the prices but in a style without a time axis
     bool magnet = false;      ///< the points placed and dragged snap to a bar's open, high, low or close
+    BrickSizes brick_sizes;   ///< those set; the others their defaults
 };
 
 /// The bars a minute view's day separators fill (krx-quant #221), by time (chart_time): each

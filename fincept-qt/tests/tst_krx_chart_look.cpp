@@ -47,11 +47,11 @@ class TstKrxChartLook : public QObject {
         QCOMPARE(style_title(ChartStyle::Hollow), QStringLiteral("투명캔들"));
         QVERIFY(!parse_style("candles"));
         QVERIFY(!parse_style(QString()));
-        // The bricks come with krx-quant #225: not drawn yet.
+        // The bricks are drawn since krx-quant #225 (ChartBricks, tst_krx_chart_bricks).
         for (const ChartStyle style :
              {ChartStyle::Renko, ChartStyle::Kagi, ChartStyle::PointFigure, ChartStyle::LineBreak}) {
             QVERIFY(timeless(style));
-            QVERIFY(!drawable(style));
+            QVERIFY(drawable(style));
         }
         QVERIFY(drawable(ChartStyle::Baseline));
         QVERIFY(!timeless(ChartStyle::HeikinAshi));
@@ -71,7 +71,8 @@ class TstKrxChartLook : public QObject {
         QCOMPARE(parse_prefs(7, QStringLiteral("hollow")).view, 1);
         QCOMPARE(parse_prefs(QStringLiteral("abc"), {}).view, 1);
         QCOMPARE(parse_prefs(1, QStringLiteral("nonsense")).style, ChartStyle::Candle);
-        QCOMPARE(parse_prefs(1, QStringLiteral("renko")).style, ChartStyle::Candle); // not drawn yet
+        QCOMPARE(parse_prefs(1, QStringLiteral("renko")).style, ChartStyle::Renko); // drawn since krx-quant #225
+        QCOMPARE(parse_prefs(5, QStringLiteral("point_figure")).style, ChartStyle::PointFigure);
         QVERIFY(valid_view(240) && valid_view(kYearView) && !valid_view(2) && !valid_view(0));
     }
 

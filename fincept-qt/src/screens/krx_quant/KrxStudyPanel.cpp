@@ -53,7 +53,7 @@ QIcon check_icon(bool on, bool enabled) {
     return paint([on, enabled](QPainter& p) {
         QColor ring(on ? ui::colors::AMBER() : ui::colors::TEXT_DIM());
         if (!enabled)
-            ring.setAlphaF(0.4);
+            ring.setAlphaF(0.4f);
         if (on) {
             p.setPen(Qt::NoPen);
             p.setBrush(ring);
@@ -214,10 +214,11 @@ KrxStudyPanel::KrxStudyPanel(QWidget* parent) : QFrame(parent, Qt::Popup) {
     fill_settings();
 }
 
-void KrxStudyPanel::show_studies(const krx_quant::StudySet& set, int view) {
-    const bool differs = !(set == set_) || view != view_;
+void KrxStudyPanel::show_studies(const krx_quant::StudySet& set, int view, bool bricks) {
+    const bool differs = !(set == set_) || view != view_ || bricks != bricks_;
     set_ = set;
     view_ = view;
+    bricks_ = bricks;
     fill_lists();
     if (differs)
         fill_settings();
@@ -263,9 +264,11 @@ void KrxStudyPanel::fill_lists() {
         auto* name = names_.value(static_cast<int>(study));
         if (!check || !name)
             continue;
-        // The VWAP is the minute views' (krx-quant #220): greyed in the others, kept as it is.
-        const bool usable = !(krx_quant::study_spec(study).minute_only && krx_quant::candle_view(view_));
-        const QString tip = usable ? krx_quant::study_spec(study).about : tr("분봉에서만");
+        // The VWAP is the minute views' (krx-quant #220), and neither VWAP is the bricks' (krx-quant
+        // #225): greyed there, kept as it is.
+        const bool usable = krx_quant::study_drawn(study, view_, bricks_);
+        const QString tip =
+            usable ? krx_quant::study_spec(study).about : krx_quant::study_unavailable(study, view_, bricks_);
         check->setIcon(check_icon(set_.on(study), usable));
         check->setEnabled(usable);
         check->setToolTip(usable ? (set_.on(study) ? tr("끄기") : tr("켜기")) : tip);
@@ -330,8 +333,10 @@ void KrxStudyPanel::fill_settings() {
     int row = 0;
     const Study study = selected_;
 
-    if (spec.minute_only && krx_quant::candle_view(view_)) {
-        auto* note = label(tr("분봉에서만 그린다. 켠 것과 설정은 남는다."));
+    if (!krx_quant::study_drawn(study, view_, bricks_)) {
+        auto* note = label(bricks_ ? tr("시간축 없는 차트에서는 그리지 않는다. 켠 것과 설정은 남는다.")
+                                   : tr("분봉에서만 그린다. 켠 것과 설정은 남는다."));
+        note->setWordWrap(true);
         note->setObjectName("krxStudyNote");
         grid->addWidget(note, row++, 0, 1, 4);
     }
@@ -427,9 +432,10 @@ void KrxStudyPanel::fill_settings() {
         again->setObjectName("krxStudyAdd");
         again->setFocusPolicy(Qt::NoFocus);
         // Hidden, nothing of it is drawn, so no click would be waited for (krx-quant #222).
-        const bool pickable = krx_quant::anchor_pickable(set_);
+        const bool pickable = krx_quant::anchor_pickable(set_) && !bricks_;
         again->setEnabled(pickable);
-        again->setToolTip(!settings.on ? tr("켜야 고를 수 있다.")
+        again->setToolTip(bricks_        ? tr("시간축 없는 차트에서는 고를 수 없다.")
+                          : !settings.on ? tr("켜야 고를 수 있다.")
                           : !pickable ? tr("숨긴 동안은 고를 수 없다. 범례의 눈으로 다시 보이게 한다.")
                                       : tr("다음에 차트를 누른 봉이 기준이 된다. 기준 표시를 드래그해도 옮긴다."));
         connect(again, &QPushButton::clicked, this, &KrxStudyPanel::anchor_requested);
