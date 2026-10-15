@@ -124,8 +124,9 @@ int main(int argc, char* argv[]) {
 
     // KRX_CAPTURE_VIEW=<minutes>: as picking that view above the chart (krx-quant #109, #221); 1440
     // is the day view's ("일", krx-quant #111). KRX_CAPTURE_STYLE=<style>: as picking that chart
-    // style (krx-quant #221), e.g. "heikin_ashi". Both once the engine is read and a symbol is
-    // chosen, as each symbol keeps its own: they stay in the scratch settings for that symbol.
+    // style (krx-quant #221), e.g. "heikin_ashi", or one without a time axis (krx-quant #225),
+    // "renko". Both once the engine is read and a symbol is chosen, as each symbol keeps its own:
+    // they stay in the scratch settings for that symbol.
     //
     // KRX_CAPTURE_INDICATORS=<indicator,...>: those indicators on (krx-quant #222), in that order,
     // at their defaults, the others off but the volume, e.g. "ma,bollinger,ichimoku,volume_profile"
@@ -143,6 +144,17 @@ int main(int argc, char* argv[]) {
             emit toolbar->view_chosen(minutes);
         if (const auto style = fincept::krx_quant::parse_style(qEnvironmentVariable("KRX_CAPTURE_STYLE")))
             emit toolbar->style_chosen(*style);
+        // KRX_CAPTURE_BRICK=<size>: the size of the style shown when it has no time axis (krx-quant #225),
+        // as set in the options menu: won, or the line break's lines; 0 back to its default (ATR(14), 3
+        // lines). Kept for that symbol too.
+        if (const QString size = qEnvironmentVariable("KRX_CAPTURE_BRICK"); !size.isEmpty()) {
+            auto* live = screen.findChild<fincept::services::KrxLive*>();
+            const QString group = fincept::krx_quant::prefs_group(live ? live->selected() : QString());
+            const auto prefs = fincept::krx_quant::parse_prefs(
+                fincept::AppConfig::instance().get(group + fincept::krx_quant::kPrefsView),
+                fincept::AppConfig::instance().get(group + fincept::krx_quant::kPrefsStyle));
+            emit toolbar->brick_size_chosen(prefs.style, size.toDouble());
+        }
         auto* panel = screen.findChild<fincept::screens::KrxStudyPanel*>();
         if (const QString on = qEnvironmentVariable("KRX_CAPTURE_INDICATORS"); panel && !on.isEmpty()) {
             fincept::krx_quant::StudySet set = fincept::krx_quant::default_studies();

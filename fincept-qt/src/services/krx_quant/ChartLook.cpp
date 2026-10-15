@@ -1,6 +1,10 @@
 #include "services/krx_quant/ChartLook.h"
 
+#include <QJsonDocument>
+#include <QJsonObject>
+
 #include <algorithm>
+#include <cmath>
 
 namespace fincept::krx_quant {
 
@@ -83,8 +87,8 @@ bool timeless(ChartStyle style) {
            style == ChartStyle::LineBreak;
 }
 
-bool drawable(ChartStyle style) {
-    return !timeless(style);
+bool drawable(ChartStyle) {
+    return true; // the styles without a time axis too, since krx-quant #225
 }
 
 bool valid_view(int view) {
@@ -105,6 +109,33 @@ ChartPrefs parse_prefs(const QVariant& view, const QVariant& style) {
     if (const auto parsed = parse_style(style.toString()); parsed && drawable(*parsed))
         prefs.style = *parsed;
     return prefs;
+}
+
+bool valid_brick_size(ChartStyle style, double size) {
+    if (!timeless(style) || !std::isfinite(size) || size != std::floor(size))
+        return false;
+    if (style == ChartStyle::LineBreak)
+        return size >= kMinBreakLines && size <= kMaxBreakLines;
+    return size >= 1 && size <= kMaxBrickSize;
+}
+
+QString brick_sizes_value(const BrickSizes& sizes) {
+    QJsonObject out;
+    for (auto it = sizes.cbegin(); it != sizes.cend(); ++it)
+        if (valid_brick_size(it.key(), it.value()))
+            out.insert(style_key(it.key()), it.value());
+    return QString::fromUtf8(QJsonDocument(out).toJson(QJsonDocument::Compact));
+}
+
+BrickSizes parse_brick_sizes(const QVariant& kept) {
+    BrickSizes out;
+    const QJsonObject object = QJsonDocument::fromJson(kept.toString().toUtf8()).object();
+    for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
+        const auto style = parse_style(it.key());
+        if (style && it.value().isDouble() && valid_brick_size(*style, it.value().toDouble()))
+            out.insert(*style, it.value().toDouble());
+    }
+    return out;
 }
 
 QList<ChartBar> heikin_ashi(const QList<ChartBar>& bars) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "services/krx_quant/Board.h"
+#include "services/krx_quant/ChartBricks.h"
 #include "services/krx_quant/ChartLook.h"
 #include "services/krx_quant/ChartModel.h"
 #include "services/krx_quant/Signals.h"
@@ -14,6 +15,7 @@
 
 #include <optional>
 
+class QJsonArray;
 class QJsonObject;
 class QJsonValue;
 class QLabel;
@@ -119,7 +121,12 @@ class KrxChart : public QWidget {
     /// minute view fills its days' first bars (krx-quant #221): a Heikin-Ashi chart draws its
     /// bars as Heikin-Ashi bars and its price line at the last bar's own close; a baseline chart
     /// colors the price above and below its base (krx_quant::baseline_base, again as a candle
-    /// view scrolls).
+    /// view scrolls). A style without a time axis (krx-quant #225) draws the bricks of the bars
+    /// (krx_quant::make_bricks) in order, a slot each, its axis and crosshair at the time each ended,
+    /// its volumes and indicators those of the bricks: from a start fixed once for the view's bars
+    /// (krx_quant::brick_start: none drawn until it is), at the size set or ATR(14) of the bars but
+    /// the last (krx_quant::atr_size: not the bar being made). It has no icons, hover boxes,
+    /// four-minute windows, day separators or drawings.
     void set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
                   const QList<krx_quant::BarHover>& hovers = {}, const krx_quant::SignalRule& rule = {},
                   int minutes = 1, const krx_quant::ChartLook& look = {});
@@ -128,7 +135,8 @@ class KrxChart : public QWidget {
     /// are its candles. The indicators' values on it move with it (krx-quant #222): the point
     /// each line takes from it, the fractals and the volume profile. A Heikin-Ashi bar comes with its
     /// own prices, which the magnet picks from; a new bar sends the drawings again, as the places
-    /// past the old last bar move onto it (krx-quant #224).
+    /// past the old last bar move onto it (krx-quant #224). Bricks (krx-quant #225) are made again at
+    /// the start and size last drawn: all of them sent again when they changed, else the price line.
     void update_live(const QList<krx_quant::Bar>& bars, int minutes);
     /// The drawings to draw (krx-quant #224) and whether the magnet is on, sent at once apart from
     /// the data; ``select``: the drawing to select (0: as it is; -1: none).
@@ -172,6 +180,9 @@ class KrxChart : public QWidget {
     void drawing_edit_requested(int id, const QPoint& at);
     /// The tool placed its drawing or was cancelled: back to the cursor.
     void tool_finished();
+    /// The default size of the styles without a time axis changed (krx-quant #225): ATR(14) of the
+    /// view's bars but the last as last drawn, to the won (krx_quant::atr_size); 0 without one.
+    void brick_atr(double size);
 
   protected:
     void showEvent(QShowEvent* event) override;
@@ -183,7 +194,10 @@ class KrxChart : public QWidget {
     void rebase(std::optional<qint64> first_in_view);
     /// The volume profile of the bars in view, as the page takes it ({} when not drawn).
     QString profile_json() const;
-    /// The drawings as the page takes them, on the bars last sent (krx-quant #224).
+    /// What the page draws of ``real`` (the view's bars as they are) in the look last set, the icons
+    /// ``icons`` over them: the bars, or the bricks last made (krx-quant #225); shown_ and drawing_ follow.
+    QJsonObject data_json(const QList<krx_quant::ChartBar>& real, const QJsonArray& icons);
+    /// The drawings as the page takes them, on the bars last sent (krx-quant #224); none on bricks.
     QJsonObject drawings_json(int select) const;
     /// The page's points ([[logical, price]…] on its bars from ``first``) as moments on the bars
     /// last sent; with the magnet on, those of ``snap`` (-1: none, -2: all, else that one). None when
@@ -207,6 +221,12 @@ class KrxChart : public QWidget {
     std::optional<qint64> last_in_view_;  ///< and the last
     krx_quant::StudyDrawing drawing_;     ///< the indicators as last sent (krx-quant #222)
     QString tool_ = QStringLiteral("{}"); ///< the drawing tool as last sent (krx-quant #224)
+    // The styles without a time axis (krx-quant #225).
+    bool timeless_ = false;            ///< the style last set draws bricks
+    std::optional<qint64> brick_from_; ///< the view's bar the bricks start from, fixed once
+    std::optional<double> brick_size_; ///< the box, reversal or lines last drawn with
+    std::optional<double> atr_;        ///< ATR(14) of the view's bars but the last, as last drawn
+    QList<krx_quant::Brick> bricks_;   ///< as last sent
 };
 
 } // namespace fincept::screens

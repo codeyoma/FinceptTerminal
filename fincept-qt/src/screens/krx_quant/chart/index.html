@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <!--
   The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182, #185,
-  #221, #222, #223, #224), drawn with TradingView Lightweight Charts (NOTICE). It only draws what the
-  screen sends over the web channel: the bars in the style chosen, the days' first bars filled,
+  #221, #222, #223, #224, #225), drawn with TradingView Lightweight Charts (NOTICE). It only draws what
+  the screen sends over the web channel: the bars in the style chosen (or the bricks of a style
+  without a time axis, a slot each, named by when each ended), the days' first bars filled,
   the consensus icons, each bar's hover box and its four-minute window with two levels across it
   (the touch targets, the range's highest and lowest mid-points, or the barrier's U and L), the
   indicators (their lines, the fills between two, the fractals' marks, the volume profile's bars,
@@ -84,7 +85,11 @@
     layout: { attributionLogo: false }, // the attribution is on the panel title and in the README
     // The latest target's slot shows on the right; on the left the view stops at the first bar
     // read, where the bars before are read (krx-quant #108).
-    timeScale: { timeVisible: true, secondsVisible: false, rightOffset: 6, fixLeftEdge: true },
+    timeScale: {
+      timeVisible: true, secondsVisible: false, rightOffset: 6, fixLeftEdge: true,
+      // Bricks (krx-quant #225) are on slots: their marks are named by when each brick ended.
+      tickMarkFormatter: function (time) { return bricks ? brickLabel(time) : null; },
+    },
   });
   let colors = {
     tip_background: '#111', tip_border: '#333', tip_text: '#e5e5e5', link: '#f59e0b', up: '#16a34a', down: '#dc2626',
@@ -143,15 +148,123 @@
   }
   function repaint() { if (redrawPrices) redrawPrices(); }
 
+  // The styles without a time axis (krx-quant #225): bricks drawn in order, a slot each. Their
+  // size, and when each ended by slot: {size, ends: Map(slot -> chart time)}; null for bars.
+  const TIMELESS = new Set(['renko', 'kagi', 'point_figure', 'line_break']);
+  let bricks = null;
+  function brickLabel(slot) {
+    const end = bricks ? bricks.ends.get(slot) : undefined;
+    return end === undefined ? '' : timeText(end);
+  }
+
+  // A kagi's lines and a point and figure's columns (krx-quant #225), drawn by hand as a custom
+  // series: each brick on its slot ({open, high, low, close}; a kagi line also thick at its start and
+  // where it turns), its prices for the scale. A kagi line is thick (yang) in the rising colour, thin
+  // (yin) in the falling one, joined to the line before at its end; a column is X boxes rising, O
+  // falling, a box a mark at each multiple of the size from its low to its high.
+  function brickSeries(kind) {
+    let data = null;
+    let options = null;
+    function kagi(g, from, to, priceToY, h, v) {
+      const fat = Math.max(1, Math.round(3 * h)), lean = Math.max(1, Math.round(h));
+      g.lineCap = 'square';
+      const stroke = function (x1, y1, x2, y2, thick) {
+        g.strokeStyle = thick ? options.upColor : options.downColor;
+        g.lineWidth = thick ? fat : lean;
+        g.beginPath();
+        g.moveTo(x1, y1 * v);
+        g.lineTo(x2, y2 * v);
+        g.stroke();
+      };
+      for (let i = from; i < to; ++i) {
+        const d = data.bars[i].originalData, x = Math.round(data.bars[i].x * h);
+        const top = priceToY(d.open), end = priceToY(d.close);
+        if (top === null || end === null) continue;
+        if (i > 0) stroke(Math.round(data.bars[i - 1].x * h), top, x, top, d.thick); // its shoulder or waist
+        const turn = d.turn === undefined ? null : priceToY(d.turn);
+        if (turn === null) {
+          stroke(x, top, x, end, d.thick);
+        } else {
+          stroke(x, top, x, turn, d.thick);
+          stroke(x, turn, x, end, !d.thick);
+        }
+      }
+    }
+    function figure(g, from, to, priceToY, h, v) {
+      const box = bricks ? bricks.size : 0;
+      if (!(box > 0)) return;
+      const half = Math.max(1, data.barSpacing * 0.36) * h; // a mark's half width
+      g.lineWidth = Math.max(1, Math.round(1.3 * h));
+      for (let i = from; i < to; ++i) {
+        const d = data.bars[i].originalData, x = data.bars[i].x * h;
+        const rising = d.close > d.open;
+        const color = rising ? options.upColor : options.downColor;
+        const a = priceToY(d.low - box / 2), b = priceToY(d.low + box / 2);
+        if (a === null || b === null) continue;
+        const cell = Math.abs(a - b) * v; // a box's height
+        const count = Math.round((d.high - d.low) / box) + 1;
+        if (cell < 4 || count > 2000) { // too small for marks: the column filled
+          const top = priceToY(d.high + box / 2);
+          if (top === null) continue;
+          g.fillStyle = fade(color, 0.6);
+          g.fillRect(x - half, top * v, 2 * half, a * v - top * v);
+          continue;
+        }
+        const rx = Math.min(half, cell * 0.42), ry = cell * 0.38;
+        g.strokeStyle = color;
+        for (let k = 0; k < count; ++k) {
+          const y = priceToY(d.low + k * box);
+          if (y === null) continue;
+          const cy = y * v;
+          g.beginPath();
+          if (rising) {
+            g.moveTo(x - rx, cy - ry);
+            g.lineTo(x + rx, cy + ry);
+            g.moveTo(x - rx, cy + ry);
+            g.lineTo(x + rx, cy - ry);
+          } else {
+            g.ellipse(x, cy, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, 2 * Math.PI);
+          }
+          g.stroke();
+        }
+      }
+    }
+    const renderer = {
+      draw(target, priceToY) {
+        if (!data || !data.bars.length || !data.visibleRange || !options) return;
+        target.useBitmapCoordinateSpace(function (scope) {
+          const from = Math.max(0, data.visibleRange.from - 1);
+          const to = Math.min(data.bars.length, data.visibleRange.to + 1);
+          const draw = kind === 'kagi' ? kagi : figure;
+          draw(scope.context, from, to, priceToY, scope.horizontalPixelRatio, scope.verticalPixelRatio);
+        });
+      },
+    };
+    return {
+      renderer: () => renderer,
+      update(d, o) { data = d; options = o; },
+      // A column's marks reach half a box past its first and last.
+      priceValueBuilder(item) {
+        const pad = kind === 'point_figure' && bricks ? bricks.size / 2 : 0;
+        return [item.high + pad, item.low - pad, item.close];
+      },
+      isWhitespace: (item) => item.close === undefined,
+      defaultOptions: () => ({ upColor: colors.up, downColor: colors.down }),
+    };
+  }
+
   // The price series in the style chosen (krx-quant #221): its kind of series and options. A
-  // line, an area and a baseline draw the closes.
+  // line, an area and a baseline draw the closes. Renko and line break bricks are candles without
+  // wicks, kagi and point and figure a custom series (krx-quant #225).
   let style = null;
   let baseValue = 0; // the baseline's base
   function styleOptions(kind) {
+    // A Heikin-Ashi chart's price line is the last bar's own close (realLine), not its own; so is
+    // that of bricks.
+    const real = kind === 'heikin_ashi' || TIMELESS.has(kind);
     const options = {
-      // A Heikin-Ashi chart's price line is the last bar's own close (realLine), not its own.
-      priceLineVisible: kind !== 'heikin_ashi',
-      lastValueVisible: kind !== 'heikin_ashi',
+      priceLineVisible: !real,
+      lastValueVisible: !real,
       priceFormat: { type: 'price', precision: 0, minMove: 1 }, // won, as KRX stocks trade
     };
     const candle = {
@@ -175,6 +288,12 @@
         })];
       case 'hollow': // rising bars as outlines, falling ones filled
         return [L.CandlestickSeries, Object.assign(options, candle, { upColor: 'rgba(0,0,0,0)' })];
+      case 'renko':
+      case 'line_break': // boxes from where each starts to where it ends
+        return [L.CandlestickSeries, Object.assign(options, candle, { wickVisible: false })];
+      case 'kagi':
+      case 'point_figure':
+        return [null, Object.assign(options, { upColor: colors.up, downColor: colors.down }), brickSeries(kind)];
       default: // candles and Heikin-Ashi bars
         return [L.CandlestickSeries, Object.assign(options, candle)];
     }
@@ -217,9 +336,9 @@
   const measure = document.createElement('canvas').getContext('2d');
   function makeMain(kind) {
     style = kind;
-    const [type, options] = styleOptions(kind);
+    const [type, options, custom] = styleOptions(kind);
     // Made before the old one goes, so the price pane is never empty (an empty pane is removed).
-    const made = chart.addSeries(type, options, 0);
+    const made = custom ? chart.addCustomSeries(custom, options, 0) : chart.addSeries(type, options, 0);
     if (main) {
       icons.detach();
       chart.removeSeries(main);
@@ -232,10 +351,30 @@
     main.attachPrimitive(layer('bottom', drawProfile));
     main.attachPrimitive(layer('top', drawAnchor));
     main.attachPrimitive(drawingPrimitive()); // the drawings (krx-quant #224), over all of them
+    main.attachPrimitive(brickAxis()); // the crosshair's time on bricks (krx-quant #225)
     showMarks();
   }
+  // The crosshair's label on the time axis over bricks (krx-quant #225): when the brick under it
+  // ended (the chart's own label is off there: it would name the slot).
+  let crossSlot = null;
+  function brickAxis() {
+    return {
+      paneViews: () => [],
+      timeAxisViews: function () {
+        if (!bricks || crossSlot === null) return [];
+        const x = chart.timeScale().timeToCoordinate(crossSlot);
+        const text = brickLabel(crossSlot);
+        if (x === null || !text) return [];
+        return [{
+          coordinate: () => x, text: () => text, textColor: () => colors.tip_text || '#e5e5e5',
+          backColor: () => colors.label || '#333',
+        }];
+      },
+      updateAllViews() {},
+    };
+  }
   function showReal(last) {
-    if (style !== 'heikin_ashi' || !last) {
+    if ((style !== 'heikin_ashi' && !TIMELESS.has(style)) || !last) {
       if (realLine) main.removePriceLine(realLine);
       realLine = null;
       return;
@@ -396,8 +535,15 @@
   }
 
   function show(data) {
-    // Day candles (krx-quant #111) are dated: the axis and the crosshair show no time.
-    chart.applyOptions({ timeScale: { timeVisible: !data.day } });
+    // Day candles (krx-quant #111) are dated: the axis and the crosshair show no time. Bricks
+    // (krx-quant #225) name their slots by when each ended, the crosshair's too (brickAxis).
+    bricks = data.bricks ? { size: data.bricks.size, ends: new Map() } : null;
+    if (bricks) data.bars.forEach((b, i) => bricks.ends.set(b.time, data.bricks.ends[i]));
+    chart.applyOptions({
+      // A brick's time ("10-12 09:31", "2026-10-12") is longer than the chart's own marks: spaced for it.
+      timeScale: { timeVisible: !data.day, tickMarkMaxCharacterLength: bricks ? 11 : 8 },
+      crosshair: { vertLine: { labelVisible: !bricks } },
+    });
     dated = !!data.day;
     const firstBefore = bars.length ? bars[0].time : null;
     if (data.style !== style) makeMain(data.style);
@@ -1359,6 +1505,10 @@
   // one follows it. One older than the last drawn is not drawn. The indicators' points it moves
   // come with it (krx-quant #222): each the last of its line.
   function live(data) {
+    if (!data.bar) { // bricks (krx-quant #225), unchanged: the price line at the bar's close
+      showReal(data.last);
+      return;
+    }
     if (!bars.length || data.bar.time < bars[bars.length - 1].time) return;
     main.update(point(data.bar));
     if (volumes) volumes.update(data.volume);
@@ -1484,11 +1634,16 @@
   function hover(param) {
     if (!param || !param.point || param.time === undefined) {
       hovered = null;
+      crossSlot = null;
       showLegendValues(null);
       return hide();
     }
     hovered = { time: param.time, x: param.point.x };
     showLegendValues(param.time);
+    if (bricks && crossSlot !== param.time) { // the crosshair's time on bricks (krx-quant #225)
+      crossSlot = param.time;
+      repaint();
+    }
     redraw();
   }
 
