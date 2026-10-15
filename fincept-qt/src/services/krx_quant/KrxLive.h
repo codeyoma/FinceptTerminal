@@ -90,7 +90,9 @@ class KrxLive : public QObject {
     /// week, month, year; krx-quant #111, #112) reads the engine's latest candles of its
     /// period if it has none yet, or none since the engine day changed, and so do its days
     /// for a longer view (its last periods are made of them). The chart's reads call it
-    /// again, so a screen left open past midnight gets the day before's stored candles.
+    /// again, so a screen left open past midnight gets the day before's stored candles. A
+    /// minute view with no bar today (before the open, a holiday) reads the last day's bars,
+    /// however the view was reached; the bars before that the indicators want otherwise.
     void set_view(int minutes);
     /// The chart's indicators want ``bars`` bars of the view (krx-quant #222,
     /// krx_quant::history_bars) and the bars back to ``back_to`` (the anchored VWAP's anchor;
@@ -223,6 +225,7 @@ class KrxLive : public QObject {
     bool shown_ = false;
     QString selected_;
     QList<krx_quant::Bar> bars_;
+    bool day_read_ = false;                      ///< bars_ is the engine's answer: empty means no bar today yet
     std::optional<krx_quant::Bar> live_;         ///< the chosen symbol's bar being made, as last sent
     QList<krx_quant::Bar> older_;                ///< read before the day's, as the chart scrolled back
     bool oldest_ = false;                        ///< the engine has nothing before older_
