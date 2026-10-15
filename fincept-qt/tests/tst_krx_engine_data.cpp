@@ -368,6 +368,13 @@ class TstKrxEngineData : public QObject {
         const auto status = parse_status(json(R"({"special": [{"kind": "circuit_breaker", "symbol": null,
           "start": "2026-10-15T13:10:00+09:00", "end": "2026-10-15T13:30:00+09:00", "detail": "1단계"}]})"));
         QCOMPARE(status.value().special.value(0).detail, QStringLiteral("1단계"));
+        // Today's session (krx-quant #238), none on a holiday.
+        const auto open = parse_status(json(R"({"now": "2026-10-15T13:20:30+09:00", "session":
+          {"open": "2026-10-15T09:00:00+09:00", "close": "2026-10-15T15:30:00+09:00"}})"));
+        QCOMPARE(open.value().session_open, QDateTime::fromString("2026-10-15T09:00:00+09:00", Qt::ISODate));
+        QCOMPARE(open.value().session_close, QDateTime::fromString("2026-10-15T15:30:00+09:00", Qt::ISODate));
+        const auto holiday = parse_status(json(R"({"now": "2026-10-17T10:00:00+09:00", "session": null})"));
+        QVERIFY(!holiday.value().session_open.isValid());
     }
 
     void status_has_the_usd_futures_now() {

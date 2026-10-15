@@ -290,6 +290,43 @@ class TstKrxChartPage : public QObject {
         chart_->set_data(before + after, {}, {}, {}, 5, {}, halt);
         QTRY_COMPARE_WITH_TIMEOUT(slots_drawn(), (std::pair{18, 6}), 10000);
     }
+
+    void a_halt_in_progress_grows_with_the_clock() {
+        // The circuit breaker going on (krx-quant #238): no trade since 13:09. Drawn at 13:20:30 and at
+        // 13:25:30 of the session (09:00–15:30), the minutes over since are empty bars.
+        empty();
+        const QList<Bar> before = minutes("2026-10-15T12:30:00+09:00", 40);
+        const QList<SpecialWindow> halt = {SpecialWindow{"circuit_breaker",
+                                                         {},
+                                                         kst("2026-10-15T13:10:00+09:00"),
+                                                         kst("2026-10-15T13:30:00+09:00"),
+                                                         QStringLiteral("1단계")}};
+        const auto clock = [](const char* now) {
+            return SessionClock{chart_time(kst(now)), chart_time(kst("2026-10-15T09:00:00+09:00")),
+                                chart_time(kst("2026-10-15T15:30:00+09:00"))};
+        };
+        chart_->set_data(before, {}, {}, {}, 1, {}, halt, clock("2026-10-15T13:20:30+09:00"));
+        QTRY_COMPARE_WITH_TIMEOUT(slots_drawn(), (std::pair{50, 10}), 10000);
+        chart_->set_data(before, {}, {}, {}, 1, {}, halt, clock("2026-10-15T13:25:30+09:00"));
+        QTRY_COMPARE_WITH_TIMEOUT(slots_drawn(), (std::pair{55, 15}), 10000);
+        // A late trade read at 13:15: its empty bar becomes a real one.
+        const QList<Bar> late = before + minutes("2026-10-15T13:15:00+09:00", 1);
+        chart_->set_data(late, {}, {}, {}, 1, {}, halt, clock("2026-10-15T13:25:30+09:00"));
+        QTRY_COMPARE_WITH_TIMEOUT(slots_drawn(), (std::pair{55, 14}), 10000);
+        // The bar being made on the last empty slot (13:24) takes it in place, and its box names the band.
+        chart_->update_live(late + minutes("2026-10-15T13:24:00+09:00", 1), 1);
+        QTRY_COMPARE_WITH_TIMEOUT(slots_drawn(), (std::pair{55, 13}), 10000);
+        hover_at(chart_time(kst("2026-10-15T13:24:00+09:00")));
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.tip()").toString(),
+                                  QStringLiteral("서킷브레이커 1단계 13:10–13:30"), 10000);
+        // A trade at 13:27: 13:25 and 13:26 filled before it, at once.
+        chart_->update_live(late + minutes("2026-10-15T13:24:00+09:00", 1) + minutes("2026-10-15T13:27:00+09:00", 1),
+                            1);
+        QTRY_COMPARE_WITH_TIMEOUT(slots_drawn(), (std::pair{58, 15}), 10000);
+        hover_at(chart_time(kst("2026-10-15T13:27:00+09:00")));
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.tip()").toString(),
+                                  QStringLiteral("서킷브레이커 1단계 13:10–13:30"), 10000);
+    }
 };
 
 QTEST_MAIN(TstKrxChartPage)

@@ -478,6 +478,11 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(clock_timer_, &QTimer::timeout, this, [this]() {
         update_countdowns();
         show_dot();
+        // A slot after the last bar is over while the session is open (krx-quant #238): the chart
+        // fills it with an empty bar, so a halt or a quiet stock grows with the clock.
+        if (krx_quant::clock_slot(krx_quant::session_clock(live_->status(), live_->engine_now()), minutes_) !=
+            clock_slot_drawn_)
+            chart_soon_->start();
     });
 
     refresh_theme();
@@ -1125,8 +1130,11 @@ void KrxQuantScreen::fill_chart() {
     // Nothing before the first bar held in this view: its first day's VWAP is drawn, and the AD
     // line's and the OBV's stretch from their 0 is whole (krx-quant #223).
     look_.first_day_whole = live_->reached_start(minutes_);
+    // Today's slots after the last bar fill up to the engine's clock while the session is open (krx-quant #238).
+    const auto clock = krx_quant::session_clock(live_->status(), live_->engine_now());
+    clock_slot_drawn_ = krx_quant::clock_slot(clock, minutes_);
     chart_->set_data(candles ? live_->view_candles(minutes_) : live_->bars(), marks, hovers, rule, minutes_, look_,
-                     live_->special());
+                     live_->special(), clock);
     show_score();
 }
 

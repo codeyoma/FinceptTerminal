@@ -340,7 +340,8 @@ void KrxChart::ensure_view() {
 
 void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
                         const QList<krx_quant::BarHover>& hovers, const krx_quant::SignalRule& rule, int minutes,
-                        const krx_quant::ChartLook& look, const QList<krx_quant::SpecialWindow>& special) {
+                        const krx_quant::ChartLook& look, const QList<krx_quant::SpecialWindow>& special,
+                        const std::optional<krx_quant::SessionClock>& clock) {
     // A candle view's bars are its candles already (krx-quant #111, #112).
     const bool dated = krx_quant::candle_view(minutes); // the axis shows dates only
     const auto real = krx_quant::chart_bars(dated ? bars : krx_quant::group_bars(bars, minutes));
@@ -356,6 +357,7 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
     timeless_ = timeless;
     // The special situations' bands (krx-quant #236): a minute view's with a time axis, while on.
     special_ = look.special && !dated && !timeless ? special : QList<krx_quant::SpecialWindow>{};
+    clock_ = clock; // today's slots after the last bar, up to it (krx-quant #238)
     if (timeless) {
         // The bricks (krx-quant #225): from a start fixed once for the view's bars, at the size set or
         // ATR(14) of the bars before the last, which may be the one being made: the size stays while it
@@ -377,7 +379,7 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
     auto drawn = minute ? krx_quant::chart_icons(marks, rule) : QList<krx_quant::ChartIcon>{};
     if (!drawn.isEmpty()) { // none on an empty bar (krx-quant #236): no bar to sit on
         QSet<qint64> empty;
-        for (const auto& b : krx_quant::fill_slots(real, minutes))
+        for (const auto& b : krx_quant::fill_slots(real, minutes, clock))
             if (b.empty)
                 empty.insert(b.time);
         drawn.removeIf([&empty](const krx_quant::ChartIcon& icon) { return empty.contains(icon.time); });
@@ -393,6 +395,7 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
                                  {"text", icon.result},
                                  {"bar_close", icon.bar_close.toString(Qt::ISODate)}});
     }
+    icons_ = icons;
     data_ = compact(data_json(real, icons));
     emit bridge_->data_changed(data_);
 
@@ -424,7 +427,7 @@ QJsonObject KrxChart::data_json(const QList<krx_quant::ChartBar>& real, const QJ
     const bool dated = krx_quant::candle_view(minutes_);
     // The bricks on their slots, in brick order (krx-quant #225); else the bars, a minute view's with
     // an empty bar for each slot without trades between two of a day (krx-quant #236).
-    shown_ = timeless_ ? krx_quant::brick_bars(bricks_) : krx_quant::fill_slots(real, minutes_);
+    shown_ = timeless_ ? krx_quant::brick_bars(bricks_) : krx_quant::fill_slots(real, minutes_, clock_);
     // What is computed on prices counts the real bars alone: no value changes for the empty ones.
     const QList<krx_quant::ChartBar> priced = krx_quant::real_bars(shown_);
     QJsonArray candles;
@@ -533,7 +536,7 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
     const bool heikin = look_.style == krx_quant::ChartStyle::HeikinAshi;
     const bool studies = !drawing_.series.isEmpty() || !drawing_.marks.isEmpty() || drawing_.profile;
     QList<krx_quant::ChartBar> all;
-    if (heikin || studies)
+    if (heikin || studies || !dated)
         all = krx_quant::chart_bars(dated ? bars : krx_quant::group_bars(bars, minutes));
     if (heikin && !all.isEmpty())
         drawn = krx_quant::heikin_ashi(all).last();
@@ -541,9 +544,17 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
     // The bars as the page has them, the bar being made last: the drawings are placed on them (krx-quant
     // #224). In a minute view a new bar after minutes without trades comes after an empty bar for each
     // (krx-quant #236): the page puts their slots in first.
-    const krx_quant::LiveSlots made = dated ? krx_quant::LiveSlots{krx_quant::append_live(shown_, *last), {}}
+    const krx_quant::LiveSlots made = dated ? krx_quant::LiveSlots{krx_quant::append_live(shown_, *last), {}, {}, false}
                                             : krx_quant::append_live_slots(shown_, *last, minutes_);
     const bool grown = made.appended;
+    if (made.redraw) {
+        // It took a slot before the last (an empty bar filled up to the clock, krx-quant #238): the
+        // page cannot move that one alone, so all is sent again, and the boxes it changed.
+        data_ = compact(data_json(all, icons_));
+        emit bridge_->data_changed(data_);
+        live_boxes(last->time, made);
+        return;
+    }
     QJsonObject live{{"bar", QJsonObject{{"time", drawn.time},
                                          {"open", drawn.open},
                                          {"high", drawn.high},
@@ -559,7 +570,7 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
             gap.append(time);
         live.insert("gap", gap);
     }
-    if (grown && !special_.isEmpty()) // the bands on the slots now (an ongoing one's end)
+    if ((grown || made.replaced) && !special_.isEmpty()) // the bands on the slots now (an ongoing one's end)
         live.insert("special", special_json());
     if (studies && !all.isEmpty()) {
         // Each line's point the bar being made moves: its own, a leading span's displacement on,
@@ -588,27 +599,37 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
             live.insert("profile", QJsonDocument::fromJson(profile_json().toUtf8()).object());
     }
     emit bridge_->live_changed(compact(live));
-    // The empty bars' hover boxes, with the special situations over them (krx-quant #236).
-    if (!made.filled.isEmpty()) {
-        QList<krx_quant::ChartBar> filled;
-        for (const qint64 time : made.filled) {
-            krx_quant::ChartBar b;
-            b.time = time;
-            b.empty = true;
-            filled << b;
-        }
-        QJsonArray set;
-        for (const auto& h : krx_quant::slot_hovers(filled, {}, special_, minutes_)) {
-            const QString box = box_json(h);
-            hovers_.insert(h.time, box);
-            set.append(QJsonDocument::fromJson(box.toUtf8()).object());
-        }
-        emit bridge_->hovers_changed(compact(QJsonObject{{"reset", false}, {"set", set}, {"drop", QJsonArray{}}}));
-    }
+    live_boxes(last->time, made);
     // A new bar takes the slots up to it: the drawings' points past the old last bar, placed by
     // their moments, move (krx-quant #224).
     if (grown && !look_.drawings.isEmpty())
         emit bridge_->drawings_changed(compact(drawings_json(0)));
+}
+
+void KrxChart::live_boxes(qint64 live, const krx_quant::LiveSlots& made) {
+    if (timeless_ || krx_quant::candle_view(minutes_) || (made.filled.isEmpty() && !made.appended && !made.replaced))
+        return;
+    // The empty bars it filled before it, with the special situations over them (krx-quant #236), and
+    // itself when it is new on its slot: the lines of the windows over it until its own box comes
+    // with the next full drawing (a box the screen sent for it stays). An empty bar's box it took
+    // goes.
+    QJsonArray set;
+    QJsonArray drop;
+    bool lined = false;
+    for (const auto& h : krx_quant::live_hovers(shown_, live, made, special_, minutes_)) {
+        if (h.time == live) {
+            lined = true;
+            if (!made.replaced && hovers_.contains(live))
+                continue;
+        }
+        const QString box = box_json(h);
+        hovers_.insert(h.time, box);
+        set.append(QJsonDocument::fromJson(box.toUtf8()).object());
+    }
+    if (made.replaced && !lined && hovers_.remove(live) > 0)
+        drop.append(live);
+    if (!set.isEmpty() || !drop.isEmpty())
+        emit bridge_->hovers_changed(compact(QJsonObject{{"reset", false}, {"set", set}, {"drop", drop}}));
 }
 
 QString KrxChart::profile_json() const {
@@ -671,7 +692,7 @@ QJsonObject KrxChart::drawings_json(int select) const {
 
 QJsonArray KrxChart::special_json() const {
     QJsonArray bands;
-    for (const auto& band : krx_quant::special_bands(shown_, special_, minutes_)) {
+    for (const auto& band : krx_quant::special_bands(shown_, special_, minutes_, clock_)) {
         const QColor color = special_color(band.kind);
         bands.append(QJsonObject{{"from", rounded(band.from)},
                                  {"to", rounded(band.to)},

@@ -38,8 +38,21 @@ QString clock(qint64 time, bool seconds) {
 
 } // namespace
 
-QList<ChartBar> fill_slots(const QList<ChartBar>& bars, int minutes) {
-    if (candle_view(minutes) || bars.size() < 2)
+std::optional<SessionClock> session_clock(const std::optional<EngineStatus>& status, const QDateTime& now) {
+    if (!status || !status->session_open.isValid() || !status->session_close.isValid() || !now.isValid())
+        return std::nullopt;
+    return SessionClock{chart_time(now), chart_time(status->session_open), chart_time(status->session_close)};
+}
+
+std::optional<qint64> clock_slot(const std::optional<SessionClock>& clock, int minutes) {
+    if (!clock || candle_view(minutes) || clock->now < clock->open || clock->now >= clock->close)
+        return std::nullopt;
+    const qint64 step = step_of(minutes);
+    return clock->now - (clock->now % step + step) % step;
+}
+
+QList<ChartBar> fill_slots(const QList<ChartBar>& bars, int minutes, const std::optional<SessionClock>& clock) {
+    if (candle_view(minutes) || bars.isEmpty())
         return bars;
     const qint64 step = step_of(minutes);
     QList<ChartBar> out;
@@ -50,6 +63,10 @@ QList<ChartBar> fill_slots(const QList<ChartBar>& bars, int minutes) {
                 out << empty_bar(t);
         out << bars[i];
     }
+    // Today while the session is open (krx-quant #238): the slots after the last bar that are over.
+    if (clock_slot(clock, minutes) && day_of(bars.last().time) == day_of(clock->now))
+        for (qint64 t = bars.last().time + step; t + step <= clock->now; t += step)
+            out << empty_bar(t);
     return out;
 }
 
@@ -64,12 +81,20 @@ QList<ChartBar> real_bars(const QList<ChartBar>& slotted) {
 
 LiveSlots append_live_slots(QList<ChartBar>& slotted, const ChartBar& live, int minutes) {
     LiveSlots out;
-    if (!slotted.isEmpty() && slotted.last().time == live.time) {
-        slotted.last() = live;
+    if (!slotted.isEmpty() && slotted.last().time >= live.time) {
+        // A slot there: the last bar's, or one before it (an empty bar filled up to the clock,
+        // krx-quant #238). Without one (an earlier minute than shown), it is left out.
+        for (qsizetype i = slotted.size() - 1; i >= 0 && slotted[i].time >= live.time; --i) {
+            if (slotted[i].time != live.time)
+                continue;
+            if (slotted[i].empty)
+                out.replaced = live.time;
+            out.redraw = i != slotted.size() - 1;
+            slotted[i] = live;
+            break;
+        }
         return out;
     }
-    if (!slotted.isEmpty() && slotted.last().time > live.time)
-        return out;
     if (!slotted.isEmpty() && !candle_view(minutes) && day_of(slotted.last().time) == day_of(live.time)) {
         const qint64 step = step_of(minutes);
         for (qint64 t = slotted.last().time + step; t < live.time; t += step) {
@@ -97,7 +122,8 @@ QString special_title(const SpecialWindow& window) {
     return window.detail.isEmpty() ? name : name + ' ' + window.detail;
 }
 
-QList<SpecialBand> special_bands(const QList<ChartBar>& slotted, const QList<SpecialWindow>& windows, int minutes) {
+QList<SpecialBand> special_bands(const QList<ChartBar>& slotted, const QList<SpecialWindow>& windows, int minutes,
+                                 const std::optional<SessionClock>& clock) {
     QList<SpecialBand> out;
     if (candle_view(minutes) || slotted.isEmpty())
         return out;
@@ -106,7 +132,9 @@ QList<SpecialBand> special_bands(const QList<ChartBar>& slotted, const QList<Spe
         if (!w.start.isValid() || !w.end.isValid())
             continue;
         const qint64 start = chart_time(w.start);
-        const qint64 end = chart_time(w.end);
+        qint64 end = chart_time(w.end);
+        if (clock && start < clock->now && end > clock->now) // still going on: up to the clock (krx-quant #238)
+            end = clock->now;
         if (end <= first || end <= start) // over before the bars read
             continue;
         const auto from = logical_at(slotted, start, minutes);
@@ -175,6 +203,15 @@ QList<BarHover> slot_hovers(const QList<ChartBar>& slotted, const QList<BarHover
         out << h;
     std::stable_sort(out.begin(), out.end(), [](const BarHover& a, const BarHover& b) { return a.time < b.time; });
     return out;
+}
+
+QList<BarHover> live_hovers(const QList<ChartBar>& slotted, qint64 live, const LiveSlots& made,
+                            const QList<SpecialWindow>& windows, int minutes) {
+    QList<ChartBar> changed;
+    for (const auto& b : slotted)
+        if (made.filled.contains(b.time) || ((made.appended || made.replaced) && b.time == live))
+            changed << b;
+    return slot_hovers(changed, {}, windows, minutes);
 }
 
 } // namespace fincept::krx_quant

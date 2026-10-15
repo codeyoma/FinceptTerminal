@@ -59,6 +59,10 @@ struct EngineStatus {
     QString mode;  ///< "live", or "demo" for the development engine
     QString phase; ///< the market phase, e.g. "continuous" (see phase_label)
     QDateTime now;
+    /// Today's session (krx-quant #238): continuous trading's start and the closing auction's end;
+    /// invalid on a holiday, or from an engine that does not give it.
+    QDateTime session_open = {};
+    QDateTime session_close = {};
     QString commit;           ///< the code the engine runs, or "unknown" (krx-quant #85); empty from an older engine
     QDateTime started_at;     ///< when it started; invalid from an older engine
     QDateTime last_bar_close; ///< invalid before the first prediction

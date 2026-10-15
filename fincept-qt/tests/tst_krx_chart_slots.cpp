@@ -6,7 +6,9 @@
 // last or between two days; a new bar after a gap fills it at once, and history read before joins
 // the same way. What computes on prices (the indicators) sees the real bars alone, what places by
 // time (the drawings, the bands) counts the slots. Over them, the special situations' bands and
-// hover lines. The expected slots and positions are worked out by hand.
+// hover lines. While today's session is open (krx-quant #238) the slots after the last bar fill up
+// to the engine's clock, so a halt in progress grows a slot a minute and its band with it. The
+// expected slots and positions are worked out by hand.
 
 #include "services/krx_quant/ChartDrawings.h"
 #include "services/krx_quant/ChartSlots.h"
@@ -69,6 +71,11 @@ QList<Bar> halted_day() {
 SpecialWindow window(const char* kind, const char* start, const char* end, const QString& detail = {},
                      const QString& symbol = {}) {
     return SpecialWindow{QString::fromLatin1(kind), symbol, kst(start), kst(end), detail};
+}
+
+/// The 2026-10-15 session (09:00 to 15:30) at ``now``.
+std::optional<SessionClock> session_at(const char* now) {
+    return SessionClock{at(now), at("2026-10-15T09:00:00+09:00"), at("2026-10-15T15:30:00+09:00")};
 }
 
 bool near(const std::optional<double>& got, double want) {
@@ -362,6 +369,156 @@ class TstKrxChartSlots : public QObject {
         QCOMPARE(five[6].time, at("2026-10-15T13:45:00+09:00"));
         // None in a candle view.
         QVERIFY(slot_hovers(slotted, {before}, windows, kDayView).isEmpty());
+    }
+
+    void the_session_and_its_clock() {
+        EngineStatus status;
+        QVERIFY(!session_clock(status, kst("2026-10-15T10:00:00+09:00"))); // no session (a holiday)
+        QVERIFY(!session_clock(std::nullopt, kst("2026-10-15T10:00:00+09:00")));
+        status.session_open = kst("2026-10-15T09:00:00+09:00");
+        status.session_close = kst("2026-10-15T15:30:00+09:00");
+        QCOMPARE(session_clock(status, kst("2026-10-15T13:20:30+09:00")), session_at("2026-10-15T13:20:30+09:00"));
+        // The slot of the clock while the session is open; none before its open or from its close on.
+        QCOMPARE(clock_slot(session_at("2026-10-15T13:20:30+09:00"), 1), at("2026-10-15T13:20:00+09:00"));
+        QCOMPARE(clock_slot(session_at("2026-10-15T13:27:00+09:00"), 5), at("2026-10-15T13:25:00+09:00"));
+        QCOMPARE(clock_slot(session_at("2026-10-15T13:27:00+09:00"), 60), at("2026-10-15T13:00:00+09:00"));
+        QVERIFY(!clock_slot(session_at("2026-10-15T08:30:00+09:00"), 1));
+        QVERIFY(!clock_slot(session_at("2026-10-15T15:30:00+09:00"), 1));
+        QVERIFY(!clock_slot(session_at("2026-10-15T13:20:30+09:00"), kDayView));
+        QVERIFY(!clock_slot(std::nullopt, 1));
+    }
+
+    void a_halt_in_progress_grows_a_slot_a_minute() {
+        // Trades to 13:09, then the circuit breaker: no bar after it yet.
+        const auto real = view_of(run("2026-10-15T13:00:00+09:00", 10), 1);
+        // Without the clock (a completed day), nothing after the last bar.
+        QCOMPARE(fill_slots(real, 1).size(), 10);
+        // 13:10:30: the 13:10 slot is not over yet.
+        QCOMPARE(fill_slots(real, 1, session_at("2026-10-15T13:10:30+09:00")).size(), 10);
+        // 13:11: 13:10 is over, an empty bar; then a slot more each minute.
+        QCOMPARE(empties(fill_slots(real, 1, session_at("2026-10-15T13:11:00+09:00"))),
+                 QList<qint64>{at("2026-10-15T13:10:00+09:00")});
+        QCOMPARE(empties(fill_slots(real, 1, session_at("2026-10-15T13:12:10+09:00"))),
+                 every("2026-10-15T13:10:00+09:00", 2));
+        const auto at_25 = fill_slots(real, 1, session_at("2026-10-15T13:25:30+09:00"));
+        QCOMPARE(empties(at_25), every("2026-10-15T13:10:00+09:00", 15));
+        // Its band grows with the clock: from 13:10 to 13:25:30, not to the 13:30 the engine expects.
+        const QList<SpecialWindow> halt = {window("circuit_breaker", "2026-10-15T13:10:00+09:00",
+                                                  "2026-10-15T13:30:00+09:00", QStringLiteral("1단계"))};
+        const auto bands = special_bands(at_25, halt, 1, session_at("2026-10-15T13:25:30+09:00"));
+        QCOMPARE(bands.size(), 1);
+        QVERIFY(std::abs(bands[0].from - 9.5) < 1e-6);
+        QVERIFY(std::abs(bands[0].to - 25.0) < 1e-6); // 30 s into the 13:25 slot, after the last empty bar
+        // Over (13:40, the clock past its end): its whole length.
+        const auto over = special_bands(fill_slots(real, 1, session_at("2026-10-15T13:40:30+09:00")), halt, 1,
+                                        session_at("2026-10-15T13:40:30+09:00"));
+        QVERIFY(std::abs(over[0].to - 29.5) < 1e-6);
+        // The first trade after it: the bars as read, the slots the same up to it.
+        const auto resumed = fill_slots(view_of(halted_day(), 1), 1, session_at("2026-10-15T13:50:30+09:00"));
+        QCOMPARE(empties(resumed), every("2026-10-15T13:10:00+09:00", 30));
+    }
+
+    void a_quiet_stock_shows_its_quiet_minutes_mid_session() {
+        // Trades at 10:00 and 10:20, none since; at 10:45:10 the minutes up to 10:44 are empty bars.
+        const auto real = view_of(run("2026-10-15T10:00:00+09:00", 1) + run("2026-10-15T10:20:00+09:00", 1), 1);
+        const auto slotted = fill_slots(real, 1, session_at("2026-10-15T10:45:10+09:00"));
+        QCOMPARE(empties(slotted), every("2026-10-15T10:01:00+09:00", 19) + every("2026-10-15T10:21:00+09:00", 24));
+        QCOMPARE(slotted.last().time, at("2026-10-15T10:44:00+09:00"));
+        // A day with a single bar so far grows too.
+        QCOMPARE(fill_slots(view_of(run("2026-10-15T10:00:00+09:00", 1), 1), 1, session_at("2026-10-15T10:03:00+09:00"))
+                     .size(),
+                 3);
+    }
+
+    void nothing_grows_after_the_close_or_before_the_first_bar() {
+        const auto real = view_of(run("2026-10-15T15:00:00+09:00", 1), 1);
+        // After the close (15:30): a completed day, nothing after its last bar.
+        QCOMPARE(fill_slots(real, 1, session_at("2026-10-15T15:45:00+09:00")).size(), 1);
+        // Before today's first bar: yesterday's bars do not grow into today.
+        const auto yesterday = view_of(run("2026-10-14T15:00:00+09:00", 2), 1);
+        QCOMPARE(fill_slots(yesterday, 1, session_at("2026-10-15T10:00:00+09:00")), yesterday);
+        // Before the open: an NXT bar at 08:10 does not grow before 09:00.
+        const auto early = view_of(run("2026-10-15T08:10:00+09:00", 1), 1);
+        QCOMPARE(fill_slots(early, 1, session_at("2026-10-15T08:40:00+09:00")).size(), 1);
+        // A candle view: as it is.
+        const QList<ChartBar> days = {ChartBar{at("2026-10-15T00:00:00+09:00"), 1, 2, 1, 2, 10, true}};
+        QCOMPARE(fill_slots(days, kDayView, session_at("2026-10-15T13:00:00+09:00")), days);
+    }
+
+    void a_wider_view_grows_by_its_own_slots() {
+        // 5 minutes: 13:00 and 13:05 hold trades; at 13:27 the 13:10, 13:15 and 13:20 slots are over.
+        const auto five = view_of(run("2026-10-15T13:00:00+09:00", 10), 5);
+        QCOMPARE(empties(fill_slots(five, 5, session_at("2026-10-15T13:27:00+09:00"))),
+                 every("2026-10-15T13:10:00+09:00", 3, 5));
+        QCOMPARE(empties(fill_slots(five, 5, session_at("2026-10-15T13:24:59+09:00"))),
+                 every("2026-10-15T13:10:00+09:00", 2, 5));
+    }
+
+    void a_real_bar_takes_an_empty_bars_slot() {
+        // Up to the clock at 13:25:30: 13:10 to 13:24 are empty bars.
+        const auto clock = session_at("2026-10-15T13:25:30+09:00");
+        const QList<Bar> traded = run("2026-10-15T13:00:00+09:00", 10);
+        // Read again with a trade at 13:15 (a late one): its slot is a real bar now.
+        const auto read = fill_slots(view_of(traded + run("2026-10-15T13:15:00+09:00", 1), 1), 1, clock);
+        QCOMPARE(read.size(), 25);
+        QVERIFY(!read[15].empty);
+        QCOMPARE(empties(read).size(), 14);
+        // The bar being made on the last empty bar's slot: taken where it is, the page moves it alone.
+        auto slotted = fill_slots(view_of(traded, 1), 1, clock);
+        const ChartBar on_last = view_of(run("2026-10-15T13:24:00+09:00", 1), 1).first();
+        auto made = append_live_slots(slotted, on_last, 1);
+        QVERIFY(!made.appended);
+        QCOMPARE(made.replaced, at("2026-10-15T13:24:00+09:00"));
+        QVERIFY(!made.redraw);
+        QCOMPARE(slotted.last(), on_last);
+        // On an earlier empty bar's: taken, and the page draws again.
+        const ChartBar earlier = view_of(run("2026-10-15T13:15:00+09:00", 1), 1).first();
+        made = append_live_slots(slotted, earlier, 1);
+        QCOMPARE(made.replaced, at("2026-10-15T13:15:00+09:00"));
+        QVERIFY(made.redraw);
+        QCOMPARE(slotted[15], earlier);
+        QCOMPARE(slotted.size(), 25);
+        // A real bar's slot before the last: replaced, drawn again, no empty bar taken.
+        made = append_live_slots(slotted, view_of(run("2026-10-15T13:05:00+09:00", 1, 5), 1).first(), 1);
+        QVERIFY(!made.replaced);
+        QVERIFY(made.redraw);
+        // Before the first: no slot, left out.
+        made = append_live_slots(slotted, view_of(run("2026-10-15T12:00:00+09:00", 1), 1).first(), 1);
+        QVERIFY(!made.replaced && !made.redraw && !made.appended);
+        QCOMPARE(slotted.size(), 25);
+    }
+
+    void a_live_bar_under_a_band_names_it() {
+        // The circuit breaker from 13:10, the clock at 13:12:30: 13:10 and 13:11 are empty bars.
+        const QList<SpecialWindow> halt = {window("circuit_breaker", "2026-10-15T13:10:00+09:00",
+                                                  "2026-10-15T13:30:00+09:00", QStringLiteral("1단계"))};
+        auto slotted =
+            fill_slots(view_of(run("2026-10-15T13:00:00+09:00", 10), 1), 1, session_at("2026-10-15T13:12:30+09:00"));
+        // A trade at 13:14 (the bar being made): 13:12 and 13:13 are filled before it, and the bar itself,
+        // under the band, has the band's line until its own box comes with the next drawing.
+        const qint64 live = at("2026-10-15T13:14:00+09:00");
+        auto made = append_live_slots(slotted, view_of(run("2026-10-15T13:14:00+09:00", 1), 1).first(), 1);
+        QVERIFY(made.appended);
+        auto boxes = live_hovers(slotted, live, made, halt, 1);
+        QCOMPARE(boxes.size(), 3);
+        QCOMPARE(boxes[0].lines, (QStringList{QStringLiteral("13:12–13:13 · 체결 없음"),
+                                              QStringLiteral("서킷브레이커 1단계 13:10–13:30")}));
+        QCOMPARE(boxes[2].time, live);
+        QCOMPARE(boxes[2].lines, QStringList{QStringLiteral("서킷브레이커 1단계 13:10–13:30")});
+        // The bar growing within its minute changes no box.
+        made = append_live_slots(slotted, view_of(run("2026-10-15T13:14:00+09:00", 1, 50), 1).first(), 1);
+        QVERIFY(live_hovers(slotted, live, made, halt, 1).isEmpty());
+        // Taking an empty bar's slot (13:11): its box is the band's line now, not "체결 없음".
+        made = append_live_slots(slotted, view_of(run("2026-10-15T13:11:00+09:00", 1), 1).first(), 1);
+        boxes = live_hovers(slotted, at("2026-10-15T13:11:00+09:00"), made, halt, 1);
+        QCOMPARE(boxes.size(), 1);
+        QCOMPARE(boxes[0].lines, QStringList{QStringLiteral("서킷브레이커 1단계 13:10–13:30")});
+        // Outside any window: an appended bar has no box, the empty bars filled before it have theirs.
+        auto quiet = fill_slots(view_of(run("2026-10-15T10:00:00+09:00", 1), 1), 1);
+        made = append_live_slots(quiet, view_of(run("2026-10-15T10:03:00+09:00", 1), 1).first(), 1);
+        boxes = live_hovers(quiet, at("2026-10-15T10:03:00+09:00"), made, halt, 1);
+        QCOMPARE(boxes.size(), 2);
+        QCOMPARE(boxes[1].lines, QStringList{QStringLiteral("10:02–10:03 · 체결 없음")});
     }
 };
 

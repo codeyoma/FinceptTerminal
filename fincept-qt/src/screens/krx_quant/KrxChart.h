@@ -8,6 +8,7 @@
 #include "services/krx_quant/Signals.h"
 
 #include <QHash>
+#include <QJsonArray>
 #include <QList>
 #include <QObject>
 #include <QPoint>
@@ -16,7 +17,6 @@
 
 #include <optional>
 
-class QJsonArray;
 class QJsonObject;
 class QJsonValue;
 class QLabel;
@@ -135,10 +135,14 @@ class KrxChart : public QWidget {
     /// ``look.special`` it draws ``special`` (the symbol's VIs and the market's circuit breakers and
     /// sidecars) as faint bands over its panes with their names, and the hover box of a bar under
     /// one names it (krx_quant::special_bands, slot_hovers); a wider view's bar has a box then too.
+    /// With ``clock`` (the engine's session and clock, krx-quant #238), today's slots after the last
+    /// bar that are over are empty bars too while the session is open, and a window still going on
+    /// ends at the clock: the screen draws again each time krx_quant::clock_slot moves.
     void set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
                   const QList<krx_quant::BarHover>& hovers = {}, const krx_quant::SignalRule& rule = {},
                   int minutes = 1, const krx_quant::ChartLook& look = {},
-                  const QList<krx_quant::SpecialWindow>& special = {});
+                  const QList<krx_quant::SpecialWindow>& special = {},
+                  const std::optional<krx_quant::SessionClock>& clock = std::nullopt);
     /// Only the last bar of ``bars`` moved (the bar being made, krx-quant #110): it alone is
     /// drawn again, in the view of ``minutes`` and the style last set. A candle view's ``bars``
     /// are its candles. The indicators' values on it move with it (krx-quant #222): the point
@@ -212,6 +216,9 @@ class KrxChart : public QWidget {
     QJsonObject drawings_json(int select) const;
     /// The special situations' bands over the bars last sent (krx-quant #236), as the page takes them.
     QJsonArray special_json() const;
+    /// The hover boxes the bar being made (starting at ``live``) changed (krx-quant #236, #238), sent
+    /// to the page: krx_quant::live_hovers.
+    void live_boxes(qint64 live, const krx_quant::LiveSlots& made);
     /// The page's points ([[logical, price]…] on its bars from ``first``) as moments on the bars
     /// last sent; with the magnet on, those of ``snap`` (-1: none, -2: all, else that one). None when
     /// they cannot be read or placed.
@@ -231,6 +238,8 @@ class KrxChart : public QWidget {
     QList<krx_quant::ChartBar> shown_;
     /// The special situations drawn (krx-quant #236): none while they are off, or not on a minute view.
     QList<krx_quant::SpecialWindow> special_;
+    std::optional<krx_quant::SessionClock> clock_; ///< as last set (krx-quant #238)
+    QJsonArray icons_;                             ///< as last sent: sent again when all is (krx-quant #238)
     int minutes_ = 1;
     krx_quant::ChartLook look_;
     std::optional<double> base_;          ///< the baseline's base last sent

@@ -278,6 +278,10 @@ Result<EngineStatus> parse_status(const QJsonDocument& doc) {
     s.mode = o.value("mode").toString();
     s.phase = o.value("phase").toString();
     s.now = time_of(o.value("now"));
+    if (const QJsonObject session = o.value("session").toObject(); !session.isEmpty()) {
+        s.session_open = time_of(session.value("open"));
+        s.session_close = time_of(session.value("close"));
+    }
     s.commit = o.value("commit").toString();
     s.started_at = time_of(o.value("started_at"));
     s.last_bar_close = time_of(o.value("last_bar_close"));
