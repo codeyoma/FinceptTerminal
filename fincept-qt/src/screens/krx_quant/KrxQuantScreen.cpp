@@ -3,6 +3,7 @@
 #include "core/config/AppConfig.h"
 #include "screens/krx_quant/KrxAlerts.h"
 #include "screens/krx_quant/KrxChart.h"
+#include "screens/krx_quant/KrxChartToolbar.h"
 #include "screens/krx_quant/KrxLeaderboard.h"
 #include "screens/krx_quant/KrxStatsWindow.h"
 #include "screens/krx_quant/KrxTables.h"
@@ -30,9 +31,9 @@ using krx_tables::cell;
 using krx_tables::kNumber;
 
 enum SymbolColumn { kSymbol, kMid, kFinal, kScoring };
-// The chart's view, in minutes (krx-quant #109). Not "krx_quant/chart_minutes": that was the
-// range box's until #134 and is no longer read.
-constexpr auto kChartViewKey = "krx_quant/chart_view_minutes";
+// The chart's view and style are kept for each symbol (krx-quant #221, krx_quant::prefs_group).
+// "krx_quant/chart_view_minutes", the view of every symbol until then (krx-quant #109), and
+// "krx_quant/chart_minutes", the range box's until #134, are no longer read.
 // The models selected for the chart (krx-quant #159), as "gauss,markov".
 constexpr auto kChartSelectionKey = "krx_quant/chart_selection";
 // The kind of prediction shown (krx-quant #182): "direction", "range", …
@@ -171,51 +172,26 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     fit->setToolTip(tr("최근 60봉 보기로 돌아간다. 차트를 두 번 눌러도 된다."));
     chart_header_.controls->addWidget(fit);
     chart_ = new KrxChart;
-    // The view's buttons in a row above the chart (krx-quant #109), as Fincept's portfolio
-    // chart has its periods: checkable, the chosen one filled amber. The choice is kept.
-    // The minute views, then the day, week, month and year views (krx-quant #111, #112).
-    QList<int> chart_views(krx_quant::kMinuteViews.begin(), krx_quant::kMinuteViews.end());
-    chart_views << krx_quant::kDayView << krx_quant::kWeekView << krx_quant::kMonthView << krx_quant::kYearView;
-    const QMap<int, QString> candle_names{{krx_quant::kDayView, tr("일")},
-                                          {krx_quant::kWeekView, tr("주")},
-                                          {krx_quant::kMonthView, tr("월")},
-                                          {krx_quant::kYearView, tr("년")}};
-    const int kept = AppConfig::instance().get(kChartViewKey, 1).toInt();
-    minutes_ = chart_views.contains(kept) ? kept : 1;
-    chart_views_ = new QWidget;
-    // Its width never widens the chart's panel: the buttons past a narrow panel are cut off.
-    chart_views_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
-    auto* views = new QHBoxLayout(chart_views_);
-    views->setContentsMargins(6, 3, 6, 3);
-    views->setSpacing(2);
-    views->addWidget(new QLabel(tr("분")));
-    for (const int minutes : chart_views) {
-        const bool candles = krx_quant::candle_view(minutes);
-        if (minutes == krx_quant::kDayView)
-            views->addSpacing(6); // apart from the minutes
-        // The minute views by their number, after the row's "분".
-        auto* button = new QPushButton(candles ? candle_names.value(minutes) : QString::number(minutes));
-        button->setCheckable(true);
-        button->setChecked(minutes == minutes_);
-        button->setFocusPolicy(Qt::NoFocus);
-        button->setToolTip(
-            minutes == krx_quant::kDayView ? tr("일봉. 오늘 봉은 오늘의 1분봉으로 만든다.")
-            : minutes == krx_quant::kWeekView ? tr("주봉(월요일 시작). 이번 주 봉은 일봉과 오늘의 1분봉으로 만든다.")
-            : minutes == krx_quant::kMonthView ? tr("월봉(1일 시작). 이번 달 봉은 일봉과 오늘의 1분봉으로 만든다.")
-            : minutes == krx_quant::kYearView ? tr("년봉(1월 1일 시작). 올해 봉은 일봉과 오늘의 1분봉으로 만든다.")
-            : minutes == 1 ? tr("1분봉과 최종 합의 아이콘")
-                           : tr("1분봉을 %1분씩 묶은 봉. 아이콘은 1분 보기에만 있다.").arg(minutes));
-        button->setProperty("view", minutes);
-        connect(button, &QPushButton::clicked, this, [this, minutes]() { set_view(minutes); });
-        view_buttons_ << button;
-        views->addWidget(button);
-    }
-    views->addStretch();
+    // The row above the chart (krx-quant #220, #221): the minute views' drop-down, the day, week,
+    // month and year buttons, the chart style, and the options. Each symbol keeps its view and
+    // style; the day separators are every symbol's.
+    chart_toolbar_ = new KrxChartToolbar;
+    look_.day_separator = AppConfig::instance().get(krx_quant::kDaySeparatorKey, true).toBool();
+    chart_toolbar_->show_view(minutes_);
+    chart_toolbar_->show_style(look_.style);
+    chart_toolbar_->show_day_separator(look_.day_separator);
+    connect(chart_toolbar_, &KrxChartToolbar::view_chosen, this, &KrxQuantScreen::set_view);
+    connect(chart_toolbar_, &KrxChartToolbar::style_chosen, this, &KrxQuantScreen::set_style);
+    connect(chart_toolbar_, &KrxChartToolbar::day_separator_toggled, this, [this](bool on) {
+        look_.day_separator = on;
+        AppConfig::instance().set(krx_quant::kDaySeparatorKey, on);
+        fill_chart();
+    });
     auto* chart_body = new QWidget;
     auto* chart_column = new QVBoxLayout(chart_body);
     chart_column->setContentsMargins(0, 0, 0, 0);
     chart_column->setSpacing(0);
-    chart_column->addWidget(chart_views_);
+    chart_column->addWidget(chart_toolbar_);
     chart_column->addWidget(chart_, 1);
     upper->addWidget(krx_panel::panel(chart_header_, chart_body));
 
@@ -281,6 +257,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         const bool candles = krx_quant::candle_view(minutes_);
         chart_->update_live(candles ? live_->view_candles(minutes_) : live_->bars(), minutes_);
     });
+    connect(live_, &services::KrxLive::selected_changed, this, &KrxQuantScreen::show_symbol_prefs);
     connect(live_, &services::KrxLive::chart_changed, this, [this]() {
         chart_failure_->hide();
         fill_chart();
@@ -345,7 +322,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         view_range_ = {from, to};
         show_score();
     });
-    live_->set_view(minutes_); // the view kept from before
+    live_->set_view(minutes_); // 1 minute until a symbol is chosen: then its own (show_symbol_prefs)
     connect(latest_, &QPushButton::clicked, this, [this]() { live_->pin({}); });
     connect(live_, &services::KrxLive::pinned_changed, this, [this]() {
         predictions_header_.title->setToolTip({}); // a failed read's reason, now stale
@@ -428,14 +405,7 @@ void KrxQuantScreen::refresh_theme() {
     chart_->restyle();
     chart_failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
     chart_score_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
-    chart_views_->setStyleSheet(
-        QString("QLabel{color:%1;padding-right:4px;}"
-                "QPushButton{background:transparent;color:%1;border:1px solid transparent;padding:2px 6px;"
-                "font-weight:700;}"
-                "QPushButton:checked{color:%4;background:%2;border:1px solid %2;}"
-                "QPushButton:hover:!checked{color:%3;border-color:%5;}")
-            .arg(ui::colors::TEXT_TERTIARY(), ui::colors::AMBER(), ui::colors::TEXT_PRIMARY(), ui::colors::BG_BASE(),
-                 ui::colors::BORDER_MED()));
+    chart_toolbar_->restyle();
     // The kind selector as the views (krx-quant #182); a kind that cannot be chosen, dim.
     kind_bar_->setStyleSheet(
         QString("QLabel{color:%1;padding-right:4px;}"
@@ -832,12 +802,33 @@ void KrxQuantScreen::fill_predictions() {
 
 void KrxQuantScreen::set_view(int minutes) {
     minutes_ = minutes;
-    AppConfig::instance().set(kChartViewKey, minutes);
-    for (auto* button : view_buttons_)
-        button->setChecked(button->property("view").toInt() == minutes);
+    if (const QString& symbol = live_->selected(); !symbol.isEmpty())
+        AppConfig::instance().set(krx_quant::prefs_group(symbol) + krx_quant::kPrefsView, minutes);
+    chart_toolbar_->show_view(minutes);
     live_->set_view(minutes);
     fill_chart();
     chart_->fit(); // the last 60 bars of the new view
+}
+
+void KrxQuantScreen::set_style(krx_quant::ChartStyle style) {
+    look_.style = style;
+    if (const QString& symbol = live_->selected(); !symbol.isEmpty())
+        AppConfig::instance().set(krx_quant::prefs_group(symbol) + krx_quant::kPrefsStyle, krx_quant::style_key(style));
+    chart_toolbar_->show_style(style);
+    fill_chart();
+}
+
+void KrxQuantScreen::show_symbol_prefs() {
+    const QString group = krx_quant::prefs_group(live_->selected());
+    const auto prefs = krx_quant::parse_prefs(AppConfig::instance().get(group + krx_quant::kPrefsView),
+                                              AppConfig::instance().get(group + krx_quant::kPrefsStyle));
+    look_.style = prefs.style;
+    chart_toolbar_->show_style(prefs.style);
+    chart_toolbar_->show_view(prefs.view);
+    if (prefs.view != minutes_) {
+        minutes_ = prefs.view;
+        live_->set_view(minutes_); // its bars are read next, for this view
+    }
 }
 
 void KrxQuantScreen::fill_chart() {
@@ -872,7 +863,7 @@ void KrxQuantScreen::fill_chart() {
             ? krx_quant::kind_hovers(live_->bars(), live_->kind_board().closes(symbol), *kind, live_->kind_standings())
             : krx_quant::bar_hovers(live_->bars(), live_->board().closes(symbol), live_->selection(),
                                     live_->standings(), rule);
-    chart_->set_data(candles ? live_->view_candles(minutes_) : live_->bars(), marks, hovers, rule, minutes_);
+    chart_->set_data(candles ? live_->view_candles(minutes_) : live_->bars(), marks, hovers, rule, minutes_, look_);
     show_score();
 }
 

@@ -115,8 +115,11 @@ KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
             emit icon_clicked(at);
     });
     connect(bridge_, &KrxChartBridge::view_moved, this, &KrxChart::view_moved);
-    connect(bridge_, &KrxChartBridge::range_moved, this,
-            [this](double from, double to) { emit view_range(static_cast<qint64>(from), static_cast<qint64>(to)); });
+    connect(bridge_, &KrxChartBridge::range_moved, this, [this](double from, double to) {
+        first_in_view_ = static_cast<qint64>(from);
+        rebase(first_in_view_); // a candle view's baseline starts at the first bar in view
+        emit view_range(static_cast<qint64>(from), static_cast<qint64>(to));
+    });
     unavailable_ = new QLabel(tr("차트를 열 수 없음"));
     unavailable_->setAlignment(Qt::AlignCenter);
     unavailable_->setToolTip(tr("이 빌드에 Qt WebEngine이 없거나 그 실행 파일이 빠졌다."));
@@ -148,7 +151,8 @@ void KrxChart::ensure_view() {
 }
 
 void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
-                        const QList<krx_quant::BarHover>& hovers, const krx_quant::SignalRule& rule, int minutes) {
+                        const QList<krx_quant::BarHover>& hovers, const krx_quant::SignalRule& rule, int minutes,
+                        const krx_quant::ChartLook& look) {
     QJsonArray candles;
     QJsonArray volumes;
     const QColor up(ui::colors::POSITIVE());
@@ -156,11 +160,24 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
     // A candle view's bars are its candles already (krx-quant #111, #112).
     const bool dated = krx_quant::candle_view(minutes); // the axis shows dates only
     const auto shown = krx_quant::chart_bars(dated ? bars : krx_quant::group_bars(bars, minutes));
-    for (const auto& b : shown) {
+    shown_ = shown;
+    if (minutes != minutes_)
+        first_in_view_.reset(); // another view's bars were in view
+    minutes_ = minutes;
+    look_ = look;
+    // A Heikin-Ashi chart's bars are drawn as such (krx-quant #221); the volumes stay the bars'.
+    const bool heikin = look.style == krx_quant::ChartStyle::HeikinAshi;
+    for (const auto& b : heikin ? krx_quant::heikin_ashi(shown) : shown)
         candles.append(
             QJsonObject{{"time", b.time}, {"open", b.open}, {"high", b.high}, {"low", b.low}, {"close", b.close}});
+    for (const auto& b : shown)
         volumes.append(QJsonObject{{"time", b.time}, {"value", b.volume}, {"color", css(b.rising ? up : down, 0.5)}});
-    }
+    QJsonArray bands; // the days' first bars, filled (krx-quant #221)
+    if (look.day_separator)
+        for (const qint64 time : krx_quant::day_starts(shown, minutes))
+            bands.append(time);
+    base_ = look.style == krx_quant::ChartStyle::Baseline ? krx_quant::baseline_base(shown, minutes, first_in_view_)
+                                                          : std::nullopt;
     QJsonArray icons;
     // Icons, hover boxes and clicks are the 1-minute view's: a wider bar holds many bar closes.
     const bool minute = minutes == 1;
@@ -177,11 +194,15 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
                                  {"bar_close", icon.bar_close.toString(Qt::ISODate)}});
     }
     const auto [from, to] = krx_quant::fit_range(static_cast<int>(shown.size()));
-    data_ = compact(QJsonObject{{"bars", candles},
-                                {"volumes", volumes},
-                                {"icons", icons},
-                                {"fit", QJsonObject{{"from", from}, {"to", to}}},
-                                {"day", dated}});
+    QJsonObject data{{"bars", candles}, {"volumes", volumes},
+                     {"icons", icons},  {"fit", QJsonObject{{"from", from}, {"to", to}}},
+                     {"day", dated},    {"style", krx_quant::style_key(look.style)},
+                     {"bands", bands}};
+    if (base_)
+        data.insert("base", *base_);
+    if (!shown.isEmpty()) // the last bar's own close, for the price line of a Heikin-Ashi chart
+        data.insert("last", QJsonObject{{"close", shown.last().close}, {"rising", shown.last().rising}});
+    data_ = compact(data);
     emit bridge_->data_changed(data_);
 
     // The hover boxes: only those changed go to the page, and those gone are dropped.
@@ -219,20 +240,39 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
 
 void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
     // A candle view's last candle is its list's own; a minute view's, of its 1-minute bars.
+    const bool dated = krx_quant::candle_view(minutes);
     const auto last =
-        krx_quant::candle_view(minutes)
-            ? (bars.isEmpty() ? std::nullopt : std::optional(krx_quant::chart_bars({bars.last()}).first()))
-            : krx_quant::last_chart_bar(bars, minutes);
+        dated ? (bars.isEmpty() ? std::nullopt : std::optional(krx_quant::chart_bars({bars.last()}).first()))
+              : krx_quant::last_chart_bar(bars, minutes);
     if (!last)
         return;
+    // A Heikin-Ashi bar follows from all those before it (krx-quant #221).
+    krx_quant::ChartBar drawn = *last;
+    if (look_.style == krx_quant::ChartStyle::HeikinAshi) {
+        const auto all =
+            krx_quant::heikin_ashi(krx_quant::chart_bars(dated ? bars : krx_quant::group_bars(bars, minutes)));
+        if (!all.isEmpty())
+            drawn = all.last();
+    }
     const QColor color(last->rising ? ui::colors::POSITIVE() : ui::colors::NEGATIVE());
-    emit bridge_->live_changed(compact(QJsonObject{
-        {"bar", QJsonObject{{"time", last->time},
-                            {"open", last->open},
-                            {"high", last->high},
-                            {"low", last->low},
-                            {"close", last->close}}},
-        {"volume", QJsonObject{{"time", last->time}, {"value", last->volume}, {"color", css(color, 0.5)}}}}));
+    emit bridge_->live_changed(compact(
+        QJsonObject{{"bar", QJsonObject{{"time", drawn.time},
+                                        {"open", drawn.open},
+                                        {"high", drawn.high},
+                                        {"low", drawn.low},
+                                        {"close", drawn.close}}},
+                    {"volume", QJsonObject{{"time", last->time}, {"value", last->volume}, {"color", css(color, 0.5)}}},
+                    {"last", QJsonObject{{"close", last->close}, {"rising", last->rising}}}}));
+}
+
+void KrxChart::rebase(std::optional<qint64> first_in_view) {
+    if (look_.style != krx_quant::ChartStyle::Baseline)
+        return;
+    const auto base = krx_quant::baseline_base(shown_, minutes_, first_in_view);
+    if (!base || base == base_)
+        return;
+    base_ = base;
+    emit bridge_->base_changed(compact(QJsonObject{{"base", *base}}));
 }
 
 void KrxChart::fit() {
@@ -256,6 +296,7 @@ void KrxChart::restyle() {
         {"tip_border", css(QColor(ui::colors::BORDER_MED()))},
         {"tip_text", css(QColor(ui::colors::TEXT_PRIMARY()))},
         {"link", css(QColor(ui::colors::AMBER()))},
+        {"band", css(QColor(ui::colors::TEXT_DIM()), 0.22)}, // the day separators (krx-quant #221)
         {"up", css(QColor(ui::colors::POSITIVE()))},
         {"down", css(QColor(ui::colors::NEGATIVE()))},
         {"font", families.join(", ")},

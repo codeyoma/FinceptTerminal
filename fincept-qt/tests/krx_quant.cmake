@@ -38,6 +38,17 @@ fincept_add_test(tst_krx_chart_model
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
 
+# src/services/krx_quant/ChartLook.{h,cpp} — how the KRX screen's chart looks: its styles, the
+# Heikin-Ashi bars, the baseline's base, the day separators and each symbol's chart settings
+# (codeyoma/krx-quant#221). Qt Core only.
+fincept_add_test(tst_krx_chart_look
+    tst_krx_chart_look.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
+
 # src/services/krx_quant/AppRelease.{h,cpp} — which personal build is newer, and the newest one
 # on the fork's Releases page, for the app's one-click update. Qt Core only.
 fincept_add_test(tst_krx_app_release

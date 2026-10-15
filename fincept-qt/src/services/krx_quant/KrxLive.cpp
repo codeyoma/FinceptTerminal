@@ -321,6 +321,7 @@ void KrxLive::select(const QString& symbol) {
     emit pinned_changed();
     bars_.clear();
     forget_older();
+    emit selected_changed();
     emit chart_changed();
     emit predictions_changed();
     emit kind_predictions_changed();

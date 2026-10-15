@@ -10,6 +10,7 @@
 // theme and font are the app's defaults (Obsidian, Consolas 14px).
 #include "core/config/AppConfig.h"
 #include "screens/krx_quant/KrxChart.h"
+#include "screens/krx_quant/KrxChartToolbar.h"
 #include "screens/krx_quant/KrxLeaderboard.h"
 #include "screens/krx_quant/KrxQuantScreen.h"
 #include "screens/krx_quant/KrxStatsWindow.h"
@@ -20,7 +21,8 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QGuiApplication>
-#include <QPushButton>
+#include <QMenu>
+#include <QToolButton>
 #include <QScreen>
 #include <QTextStream>
 #include <QTimer>
@@ -52,6 +54,10 @@ int main(int argc, char* argv[]) {
     // "direction" goes back. Unset, the scratch settings' last one stays. Shown once the engine says it makes it.
     if (qEnvironmentVariableIsSet("KRX_CAPTURE_KIND"))
         fincept::AppConfig::instance().set("krx_quant/kind", qEnvironmentVariable("KRX_CAPTURE_KIND"));
+    // KRX_CAPTURE_SEPARATOR=<0|1>: the options menu's day separators (krx-quant #221).
+    if (qEnvironmentVariableIsSet("KRX_CAPTURE_SEPARATOR"))
+        fincept::AppConfig::instance().set("krx_quant/chart_day_separator",
+                                           qEnvironmentVariableIntValue("KRX_CAPTURE_SEPARATOR") != 0);
 
     fincept::screens::KrxQuantScreen screen;
     screen.resize(width, height);
@@ -68,13 +74,30 @@ int main(int argc, char* argv[]) {
             QMetaObject::invokeMethod(leaderboard, "detail_requested", Q_ARG(QString, predictor));
     }
 
-    // KRX_CAPTURE_VIEW=<minutes>: as a click on the chart's view button (krx-quant #109); 1440
-    // is the day view's ("일", krx-quant #111). The choice stays in the scratch settings, so
-    // the next capture opens on it.
-    if (const int minutes = qEnvironmentVariableIntValue("KRX_CAPTURE_VIEW"); minutes > 0) {
-        for (auto* button : screen.findChildren<QPushButton*>())
-            if (button->isCheckable() && button->property("view").toInt() == minutes)
-                button->click();
+    // KRX_CAPTURE_VIEW=<minutes>: as picking that view above the chart (krx-quant #109, #221); 1440
+    // is the day view's ("일", krx-quant #111). KRX_CAPTURE_STYLE=<style>: as picking that chart
+    // style (krx-quant #221), e.g. "heikin_ashi". Both once the engine is read and a symbol is
+    // chosen, as each symbol keeps its own: they stay in the scratch settings for that symbol.
+    QTimer::singleShot(seconds * 300, &app, [&screen]() {
+        auto* toolbar = screen.findChild<fincept::screens::KrxChartToolbar*>();
+        if (!toolbar)
+            return;
+        if (const int minutes = qEnvironmentVariableIntValue("KRX_CAPTURE_VIEW"); minutes > 0)
+            emit toolbar->view_chosen(minutes);
+        if (const auto style = fincept::krx_quant::parse_style(qEnvironmentVariable("KRX_CAPTURE_STYLE")))
+            emit toolbar->style_chosen(*style);
+    });
+    // KRX_CAPTURE_MENU=<minutes|style|options>: that menu of the row above the chart opened at 0.9
+    // of the wait, and saved as <out>-menu.png (a menu is a window of its own).
+    QMenu* menu = nullptr;
+    if (const QString which = qEnvironmentVariable("KRX_CAPTURE_MENU"); !which.isEmpty()) {
+        QTimer::singleShot(seconds * 900, &app, [&screen, &menu, which]() {
+            const QString name = which == "style" ? "krxStyle" : which == "options" ? "krxOptions" : "krxMinutes";
+            if (auto* button = screen.findChild<QToolButton*>(name); button && button->menu()) {
+                menu = button->menu();
+                menu->popup(button->mapToGlobal(QPoint(0, button->height())));
+            }
+        });
     }
 
     // KRX_CAPTURE_PIN=<bar close, ISO 8601>: as a click on that bar close's chart icon, once
@@ -140,6 +163,8 @@ int main(int argc, char* argv[]) {
         for (qsizetype i = 0; i < windows.size() && i < details.size(); ++i)
             save(windows[i], file.dir().filePath(
                                  QStringLiteral("%1-%2.%3").arg(file.completeBaseName(), details[i], file.suffix())));
+        if (menu)
+            save(menu, file.dir().filePath(QStringLiteral("%1-menu.%2").arg(file.completeBaseName(), file.suffix())));
         app.quit();
     });
     app.exec();
