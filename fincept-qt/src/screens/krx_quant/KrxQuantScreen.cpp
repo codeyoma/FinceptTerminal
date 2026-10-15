@@ -34,7 +34,8 @@ using krx_tables::kNumber;
 
 enum SymbolColumn { kSymbol, kMid, kFinal, kScoring };
 // The chart's view and style are kept for each symbol (krx-quant #221, krx_quant::prefs_group), and
-// so are its indicators and the anchored VWAP's anchor (krx-quant #222).
+// so are its indicators and the anchored VWAP's anchor (krx-quant #222), and its lower panes'
+// heights (krx-quant #223).
 // "krx_quant/chart_view_minutes", the view of every symbol until then (krx-quant #109), and
 // "krx_quant/chart_minutes", the range box's until #134, are no longer read.
 // The models selected for the chart (krx-quant #159), as "gauss,markov".
@@ -213,6 +214,16 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         krx_quant::StudySet set = look_.studies;
         set.turn(study, false);
         set_studies(set);
+    });
+    // A border between panes dragged (krx-quant #223): the lower panes' heights, kept for the
+    // symbol (those of the indicators off stay, for when they are turned on again).
+    connect(chart_, &KrxChart::pane_heights_changed, this, [this](const krx_quant::PaneHeights& heights) {
+        for (auto it = heights.cbegin(); it != heights.cend(); ++it)
+            look_.pane_heights.insert(it.key(), it.value());
+        if (const QString& symbol = live_->selected(); !symbol.isEmpty())
+            AppConfig::instance().set(krx_quant::prefs_group(symbol) + krx_quant::kPrefsPaneHeights,
+                                      krx_quant::pane_heights_value(look_.pane_heights));
+        fill_chart();
     });
     auto* chart_body = new QWidget;
     auto* chart_column = new QVBoxLayout(chart_body);
@@ -866,6 +877,8 @@ void KrxQuantScreen::show_symbol_prefs() {
         QDateTime::fromString(AppConfig::instance().get(group + krx_quant::kPrefsAnchor).toString(), Qt::ISODate);
     look_.anchor = anchor.isValid() ? std::optional(krx_quant::chart_time(anchor)) : std::nullopt;
     look_.picking = krx_quant::anchor_pickable(look_.studies) && !look_.anchor;
+    // Its lower panes' heights (krx-quant #223): those dragged; the others the default.
+    look_.pane_heights = krx_quant::parse_pane_heights(AppConfig::instance().get(group + krx_quant::kPrefsPaneHeights));
     study_panel_->show_studies(look_.studies, minutes_);
     want_history();
 }

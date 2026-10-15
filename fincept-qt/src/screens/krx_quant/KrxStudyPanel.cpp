@@ -14,7 +14,9 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QScreen>
+#include <QScrollArea>
 #include <QSpinBox>
+#include <QTimer>
 #include <QToolButton>
 #include <QToolTip>
 #include <QVBoxLayout>
@@ -82,8 +84,17 @@ QLabel* label(const QString& text) {
     return l;
 }
 
-/// A box for ``in`` showing ``value``; ``set`` takes each value entered (not each key pressed).
+/// A box for ``in`` showing ``value``; ``set`` takes each value entered (not each key pressed). A
+/// choice's (krx-quant #223) is a list of its names; its value is the index.
 QWidget* number_box(const krx_quant::StudyInput& in, double value, const std::function<void(double)>& set) {
+    if (!in.choices.isEmpty()) {
+        auto* box = new QComboBox;
+        box->setFocusPolicy(Qt::NoFocus);
+        box->addItems(in.choices);
+        box->setCurrentIndex(std::clamp(static_cast<int>(value), 0, static_cast<int>(in.choices.size()) - 1));
+        QObject::connect(box, qOverload<int>(&QComboBox::activated), box, [set](int i) { set(i); });
+        return box;
+    }
     if (in.decimals == 0) {
         auto* box = new QSpinBox;
         box->setRange(static_cast<int>(in.min), static_cast<int>(in.max));
@@ -111,9 +122,16 @@ KrxStudyPanel::KrxStudyPanel(QWidget* parent) : QFrame(parent, Qt::Popup) {
     outer->setContentsMargins(1, 1, 1, 1);
     outer->setSpacing(0);
 
+    // The lists scroll: 12 upper and 25 lower indicators (krx-quant #223) are taller than the panel.
+    auto* lists = lists_ = new QScrollArea;
+    lists->setObjectName("krxStudyListsScroll");
+    lists->setWidgetResizable(true);
+    lists->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    lists->setFrameShape(QFrame::NoFrame);
+    lists->setFixedWidth(206);
+    lists->setMinimumHeight(460);
     auto* left = new QWidget;
     left->setObjectName("krxStudyLists");
-    left->setFixedWidth(190);
     auto* list = new QVBoxLayout(left);
     list->setContentsMargins(8, 10, 8, 10);
     list->setSpacing(1);
@@ -159,7 +177,8 @@ KrxStudyPanel::KrxStudyPanel(QWidget* parent) : QFrame(parent, Qt::Popup) {
     for (const Study study : krx_quant::kLowerStudies)
         add_row(study);
     list->addStretch(1);
-    outer->addWidget(left);
+    lists->setWidget(left);
+    outer->addWidget(lists);
 
     auto* right = new QWidget;
     right->setObjectName("krxStudyRight");
@@ -210,6 +229,12 @@ void KrxStudyPanel::select(Study study) {
     selected_ = study;
     fill_lists();
     fill_settings();
+    show_selected();
+}
+
+void KrxStudyPanel::show_selected() {
+    if (auto* name = names_.value(static_cast<int>(selected_)); name && isVisible())
+        lists_->ensureWidgetVisible(name, 0, 24);
 }
 
 void KrxStudyPanel::open_at(const QPoint& at) {
@@ -223,6 +248,8 @@ void KrxStudyPanel::open_at(const QPoint& at) {
     move(pos);
     show();
     raise();
+    // A lower one picked from its legend is far down the list: shown once the lists are laid out.
+    QTimer::singleShot(0, this, &KrxStudyPanel::show_selected);
 }
 
 void KrxStudyPanel::changed(bool rebuild) {
@@ -418,7 +445,12 @@ void KrxStudyPanel::fill_settings() {
 void KrxStudyPanel::restyle() {
     setStyleSheet(
         QString("#krxStudyPanel{background:%1;border:1px solid %2;}"
-                "#krxStudyLists{background:%3;border-right:1px solid %2;}"
+                "#krxStudyListsScroll{background:%3;border:none;border-right:1px solid %2;}"
+                "#krxStudyLists{background:%3;}"
+                "#krxStudyListsScroll QScrollBar:vertical{background:%3;width:8px;margin:0;}"
+                "#krxStudyListsScroll QScrollBar::handle:vertical{background:%2;min-height:24px;border-radius:4px;}"
+                "#krxStudyListsScroll QScrollBar::add-line:vertical,#krxStudyListsScroll "
+                "QScrollBar::sub-line:vertical{height:0;}"
                 "#krxStudyRight{background:%1;}"
                 "#krxStudySection{color:%4;font-weight:700;padding:6px 4px 4px 4px;}"
                 "#krxStudyName{text-align:left;color:%5;background:transparent;border:none;padding:3px 4px;}"

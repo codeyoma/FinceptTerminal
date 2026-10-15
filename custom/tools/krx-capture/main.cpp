@@ -27,6 +27,8 @@
 #include <QTextStream>
 #include <QTimer>
 #include <QToolButton>
+
+#include <algorithm>
 #ifdef HAS_QT_WEBENGINE
 #    include <QWebEngineView>
 #endif
@@ -82,9 +84,12 @@ int main(int argc, char* argv[]) {
     //
     // KRX_CAPTURE_INDICATORS=<indicator,...>: those indicators on (krx-quant #222), in that order,
     // at their defaults, the others off but the volume, e.g. "ma,bollinger,ichimoku,volume_profile"
-    // (the names of custom/README.md); "none" turns all but the volume off. KRX_CAPTURE_ANCHOR=<ISO
-    // 8601>: the anchored VWAP's bar, as a click on the chart at that moment. Both at the same time,
-    // kept for that symbol too.
+    // (the names of custom/README.md); "none" turns all but the volume off. Naming a lower one
+    // (krx-quant #223) turns the lower ones off too, the volume among them, so that only those
+    // named stack below, in that order: "ma,volume,rsi,macd". KRX_CAPTURE_ANCHOR=<ISO 8601>: the
+    // anchored VWAP's bar, as a click on the chart at that moment. KRX_CAPTURE_PANES=<indicator:
+    // height,...>: the lower panes' heights in CSS pixels, as dragged, e.g. "rsi:180". All at the
+    // same time, kept for that symbol too.
     QTimer::singleShot(seconds * 300, &app, [&screen]() {
         auto* toolbar = screen.findChild<fincept::screens::KrxChartToolbar*>();
         if (!toolbar)
@@ -98,10 +103,28 @@ int main(int argc, char* argv[]) {
             fincept::krx_quant::StudySet set = fincept::krx_quant::default_studies();
             for (const auto study : fincept::krx_quant::kUpperStudies)
                 set.turn(study, false);
-            for (const QString& key : on.split(',', Qt::SkipEmptyParts))
+            const QStringList keys = on.split(',', Qt::SkipEmptyParts);
+            const bool lower = std::any_of(keys.begin(), keys.end(), [](const QString& key) {
+                const auto study = fincept::krx_quant::parse_study(key.trimmed());
+                return study && !fincept::krx_quant::study_spec(*study).upper;
+            });
+            if (lower) // only those named below, in that order
+                for (const auto study : fincept::krx_quant::kLowerStudies)
+                    set.turn(study, false);
+            for (const QString& key : keys)
                 if (const auto study = fincept::krx_quant::parse_study(key.trimmed()))
                     set.turn(*study, true);
             emit panel->studies_changed(set);
+        }
+        if (const QString panes = qEnvironmentVariable("KRX_CAPTURE_PANES"); !panes.isEmpty()) {
+            fincept::krx_quant::PaneHeights heights;
+            for (const QString& pane : panes.split(',', Qt::SkipEmptyParts)) {
+                const QStringList parts = pane.split(':');
+                if (const auto study = fincept::krx_quant::parse_study(parts.value(0).trimmed()); study)
+                    heights.insert(*study, parts.value(1).toInt());
+            }
+            if (auto* chart = screen.findChild<fincept::screens::KrxChart*>(); chart && !heights.isEmpty())
+                emit chart->pane_heights_changed(heights);
         }
         const QDateTime anchor = QDateTime::fromString(qEnvironmentVariable("KRX_CAPTURE_ANCHOR"), Qt::ISODate);
         if (auto* chart = screen.findChild<fincept::screens::KrxChart*>(); chart && anchor.isValid())
@@ -158,23 +181,52 @@ int main(int argc, char* argv[]) {
             });
         }
     }
-    // KRX_CAPTURE_HOVER=<0–1>: as the pointer resting that far across the chart, a third of
-    // the way down, from 0.8 of the wait: the hovered bar's box shows (krx-quant #159).
+    // KRX_CAPTURE_HOVER=<0–1>[,<0–1>]: as the pointer resting that far across the chart, a third of
+    // the way down (or as far as the second, e.g. in a lower pane, krx-quant #223), from 0.8 of the
+    // wait: the hovered bar's box shows (krx-quant #159).
     if (const QString at = qEnvironmentVariable("KRX_CAPTURE_HOVER"); !at.isEmpty()) {
-        QTimer::singleShot(seconds * 800, &app, [&screen, across = at.toDouble()]() {
+        const double down = at.section(',', 1, 1).isEmpty() ? 1.0 / 3 : at.section(',', 1, 1).toDouble();
+        QTimer::singleShot(seconds * 800, &app, [&screen, across = at.section(',', 0, 0).toDouble(), down]() {
             auto* chart = screen.findChild<fincept::screens::KrxChart*>();
             auto* view = chart ? chart->findChild<QWebEngineView*>() : nullptr;
             if (view)
                 view->page()->runJavaScript(
                     QStringLiteral(
-                        "(function(){const x = innerWidth * %1, y = innerHeight / 3;"
+                        "(function(){const x = innerWidth * %1, y = innerHeight * %2;"
                         "const at = document.elementFromPoint(x, y);"
                         "const event = (type, bubbles) => new MouseEvent(type, {clientX: x, clientY: y, "
                         "  pageX: x, pageY: y, bubbles: bubbles, view: window});"
                         "for (let e = at; e; e = e.parentElement) e.dispatchEvent(event('mouseenter', false));"
                         "at.dispatchEvent(event('mousemove', true));"
                         "})();")
-                        .arg(across));
+                        .arg(across)
+                        .arg(down));
+        });
+    }
+    // KRX_CAPTURE_DRAG=<pane>:<pixels>: as dragging the border above that lower pane (1 the top one,
+    // krx-quant #223) that many pixels down (up when negative), at 0.6 of the wait: the panes'
+    // heights change and are kept for the symbol, as a drag with the mouse does.
+    if (const QString drag = qEnvironmentVariable("KRX_CAPTURE_DRAG"); !drag.isEmpty()) {
+        QTimer::singleShot(seconds * 600, &app, [&screen, drag]() {
+            auto* chart = screen.findChild<fincept::screens::KrxChart*>();
+            auto* view = chart ? chart->findChild<QWebEngineView*>() : nullptr;
+            if (view)
+                view->page()->runJavaScript(
+                    QStringLiteral(
+                        "(function(){const handles = [...document.querySelectorAll('div')].filter("
+                        "  (d) => d.style.cursor === 'row-resize' && d.style.zIndex === '50');"
+                        "const h = handles[%1 - 1]; if (!h) return;"
+                        "const r = h.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;"
+                        "const event = (type, dy) => new MouseEvent(type, {clientX: x, clientY: y + dy, screenX: x,"
+                        "  screenY: y + dy, button: 0, buttons: type === 'mouseup' ? 0 : 1, bubbles: true,"
+                        "  cancelable: true, view: window});"
+                        "h.dispatchEvent(event('mousedown', 0));"
+                        "const root = document.documentElement;"
+                        "for (let k = 1; k <= 10; ++k) root.dispatchEvent(event('mousemove', %2 * k / 10));"
+                        "root.dispatchEvent(event('mouseup', %2));"
+                        "})();")
+                        .arg(drag.section(':', 0, 0).toInt())
+                        .arg(drag.section(':', 1, 1).toInt()));
         });
     }
     // KRX_CAPTURE_LEGEND=<row>: as the pointer resting on that row of the price pane's legend

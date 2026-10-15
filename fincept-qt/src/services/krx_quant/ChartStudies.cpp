@@ -31,11 +31,16 @@ qint64 time_of(const QDate& date) {
 }
 
 StudyInput input(const QString& title, double value, double min, double max, double step = 1, int decimals = 0) {
-    return StudyInput{title, value, min, max, step, decimals};
+    return StudyInput{title, value, min, max, step, decimals, {}};
 }
 
 StudyInput period(double value, const QString& title = QStringLiteral("기간")) {
     return input(title, value, 1, kMaxHistoryBars);
+}
+
+/// A lower indicator's period (krx-quant #223): up to 500 bars.
+StudyInput span(double value, const QString& title = QStringLiteral("기간")) {
+    return input(title, value, 1, 500);
 }
 
 /// The colours the moving averages' added lines take, after their own four.
@@ -172,6 +177,229 @@ QList<StudySpec> make_specs() {
             QStringLiteral("봉마다 거래량 막대. 오른 봉은 상승색, 내린 봉은 하락색."),
             QStringLiteral("가격 아래 칸에 봉마다 거래량을 막대로 그린다. 종가가 시가 이상이면 상승색이다."));
     volume->upper = false;
+    volume->volume_scale = true;
+
+    // The lower indicators (krx-quant #223): each in a pane of its own below the prices.
+    auto lower = [&add](Study study, const char* key, const QString& title, const QString& about, const QString& help,
+                        QList<double> guides, int decimals = 2) {
+        StudySpec* spec = add(study, key, title, about, help);
+        spec->upper = false;
+        spec->guides = std::move(guides);
+        spec->decimals = decimals;
+        return spec;
+    };
+    auto* mass = lower(Study::MassIndex, "mass_index", QStringLiteral("매스 인덱스"),
+                       QStringLiteral("고가−저가 폭의 EMA 비율을 더해 추세가 뒤집힐 때를 본다."),
+                       QStringLiteral("봉마다 고가 − 저가의 EMA(EMA 기간)를 그 EMA의 EMA로 나누고, 합 기간 동안 "
+                                      "더한다. 27을 넘었다가 26.5 아래로 내려오면 반전 신호로 본다."),
+                       {27, 26.5});
+    mass->inputs = {span(9, QStringLiteral("EMA 기간")), span(25, QStringLiteral("합 기간"))};
+    mass->lines = {{QStringLiteral("매스 인덱스"), "#F59E0B", 1}};
+
+    auto* momentum = lower(Study::Momentum, "momentum", QStringLiteral("모멘텀"),
+                           QStringLiteral("기준값이 N봉 전보다 얼마나 올랐나."),
+                           QStringLiteral("기준값 − N봉 전 기준값이다."), {}, 0);
+    momentum->source = Source::Close;
+    momentum->inputs = {span(10)};
+    momentum->lines = {{QStringLiteral("모멘텀"), "#38BDF8", 1}};
+
+    auto* vo = lower(Study::VolumeOscillator, "volume_oscillator", QStringLiteral("볼륨 오실레이터"),
+                     QStringLiteral("짧은 거래량 평균이 긴 거래량 평균보다 몇 % 많은가."),
+                     QStringLiteral("100 × (짧은 기간 거래량 EMA − 긴 기간 거래량 EMA) ÷ 긴 기간 거래량 EMA다."), {});
+    vo->inputs = {span(5, QStringLiteral("짧은 기간")), span(10, QStringLiteral("긴 기간"))};
+    vo->lines = {{QStringLiteral("볼륨 오실레이터"), "#2DD4BF", 1}};
+
+    auto* percent_b = lower(Study::PercentB, "bollinger_b", QStringLiteral("볼린저 밴드 %B"),
+                            QStringLiteral("가격이 볼린저 밴드 안 어디에 있나. 하단이 0, 상단이 1."),
+                            QStringLiteral("(기준값 − 하단) ÷ (상단 − 하단). 밴드는 볼린저 밴드와 같다(N봉 단순 평균 ± "
+                                           "배수 × 모표준편차). 상단과 하단이 같으면 비운다."),
+                            {1, 0}, 3);
+    percent_b->source = Source::Close;
+    percent_b->inputs = {span(20), input(QStringLiteral("배수"), 2, 0.1, 10, 0.1, 1)};
+    percent_b->lines = {{QStringLiteral("%B"), "#38BDF8", 1}};
+
+    auto* width = lower(Study::BandWidth, "bollinger_width", QStringLiteral("볼린저 밴드폭"),
+                        QStringLiteral("볼린저 밴드의 폭을 중심선에 대한 %로 본다. 좁으면 변동성이 작다."),
+                        QStringLiteral("100 × (상단 − 하단) ÷ 중심선. 밴드는 볼린저 밴드와 같다."), {});
+    width->source = Source::Close;
+    width->inputs = {span(20), input(QStringLiteral("배수"), 2, 0.1, 10, 0.1, 1)};
+    width->lines = {{QStringLiteral("밴드폭"), "#38BDF8", 1}};
+
+    auto* stochastic =
+        lower(Study::Stochastic, "stochastic", QStringLiteral("스토캐스틱"),
+              QStringLiteral("N봉 범위 안에서 종가가 어디 있나(%). 슬로우 스토캐스틱."),
+              QStringLiteral("%K는 100 × (종가 − N봉 최저 저가) ÷ (N봉 최고 고가 − 최저 저가)를 %K 평활 "
+                             "봉 동안 단순 평균한 것, %D는 %K를 %D 평활 봉 동안 단순 평균한 것이다. 최고와 "
+                             "최저가 같은 봉은 비운다."),
+              {80, 20});
+    stochastic->inputs = {span(14, QStringLiteral("%K 기간")), span(3, QStringLiteral("%K 평활")),
+                          span(3, QStringLiteral("%D 평활"))};
+    stochastic->lines = {{QStringLiteral("%K"), "#38BDF8", 1}, {QStringLiteral("%D"), "#F59E0B", 1}};
+
+    auto* stoch_rsi =
+        lower(Study::StochasticRsi, "stochastic_rsi", QStringLiteral("스토캐스틱 RSI"),
+              QStringLiteral("RSI가 제 N봉 범위 안 어디에 있나(%)."),
+              QStringLiteral("RSI(RSI 기간)가 스토캐스틱 기간 동안의 최고·최저 사이 어디인지(%)를 K 봉 동안 "
+                             "단순 평균한 것이 K, K를 D 봉 동안 단순 평균한 것이 D다."),
+              {80, 20});
+    stoch_rsi->source = Source::Close;
+    stoch_rsi->inputs = {span(14, QStringLiteral("RSI 기간")), span(14, QStringLiteral("스토캐스틱 기간")),
+                         span(3, QStringLiteral("K")), span(3, QStringLiteral("D"))};
+    stoch_rsi->lines = {{QStringLiteral("K"), "#38BDF8", 1}, {QStringLiteral("D"), "#F59E0B", 1}};
+
+    auto* williams =
+        lower(Study::WilliamsR, "williams_r", QStringLiteral("윌리엄스 R"),
+              QStringLiteral("종가가 N봉 최고 고가에서 얼마나 내려와 있나(0~−100)."),
+              QStringLiteral("−100 × (N봉 최고 고가 − 종가) ÷ (N봉 최고 고가 − 최저 저가). −20 위는 과매수, "
+                             "−80 아래는 과매도로 본다."),
+              {-20, -80});
+    williams->inputs = {span(14)};
+    williams->lines = {{QStringLiteral("%R"), "#C084FC", 1}};
+
+    auto* disparity = lower(Study::Disparity, "disparity", QStringLiteral("이격도"),
+                            QStringLiteral("기준값이 이동평균에서 얼마나 떨어져 있나(%). 100이 평균이다."),
+                            QStringLiteral("100 × 기준값 ÷ N봉 단순 평균."), {100});
+    disparity->source = Source::Close;
+    disparity->inputs = {span(20)};
+    disparity->lines = {{QStringLiteral("이격도"), "#FB923C", 1}};
+
+    auto* intensity =
+        lower(Study::IntradayIntensity, "intraday_intensity", QStringLiteral("일중 강도 지수"),
+              QStringLiteral("봉 안에서 종가가 어디서 끝났는지를 거래량으로 가중해 매집과 분산을 본다(%)."),
+              QStringLiteral("봉마다 (2 × 종가 − 고가 − 저가) ÷ (고가 − 저가) × 거래량을 N봉 더해 N봉 거래량의 합으로 "
+                             "나누고 100을 곱한다. 고가와 저가가 같은 봉은 0을 더한다."),
+              {0});
+    intensity->inputs = {span(21)};
+    intensity->lines = {{QStringLiteral("일중 강도"), "#2DD4BF", 1}};
+
+    auto* chaikin = lower(Study::ChaikinOscillator, "chaikin_oscillator", QStringLiteral("체이킨 오실레이터"),
+                          QStringLiteral("AD 라인의 짧은 EMA와 긴 EMA의 차이."),
+                          QStringLiteral("EMA(AD 라인, 짧은 기간) − EMA(AD 라인, 긴 기간). AD 라인이 어디서 0이든 값은 "
+                                         "같다."),
+                          {0}, 0);
+    chaikin->inputs = {span(3, QStringLiteral("짧은 기간")), span(10, QStringLiteral("긴 기간"))};
+    chaikin->lines = {{QStringLiteral("체이킨"), "#F472B6", 1}};
+    chaikin->volume_scale = true;
+
+    auto* trix = lower(Study::Trix, "trix", QStringLiteral("트릭스"),
+                       QStringLiteral("기준값의 삼중 지수이동평균이 봉마다 바뀌는 비율(%)."),
+                       QStringLiteral("기준값에 EMA(기간)를 세 번 씌운 값이 앞 봉보다 바뀐 비율 × 100. 시그널은 그 "
+                                      "EMA(시그널 기간)다."),
+                       {0}, 3);
+    trix->source = Source::Close;
+    trix->inputs = {span(18), span(9, QStringLiteral("시그널"))};
+    trix->lines = {{QStringLiteral("트릭스"), "#38BDF8", 1}, {QStringLiteral("시그널"), "#F59E0B", 1}};
+
+    auto* po = lower(Study::PriceOscillator, "price_oscillator", QStringLiteral("프라이스 오실레이터"),
+                     QStringLiteral("짧은 이동평균이 긴 이동평균보다 몇 % 높은가."),
+                     QStringLiteral("100 × (짧은 기간 평균 − 긴 기간 평균) ÷ 긴 기간 평균. 방식은 단순(이동평균)이나 "
+                                    "지수(EMA)다."),
+                     {0});
+    po->source = Source::Close;
+    StudyInput kind = input(QStringLiteral("방식"), 0, 0, 1);
+    kind.choices = {QStringLiteral("단순"), QStringLiteral("지수")};
+    po->inputs = {span(10, QStringLiteral("짧은 기간")), span(21, QStringLiteral("긴 기간")), kind};
+    po->lines = {{QStringLiteral("프라이스 오실레이터"), "#22C55E", 1}};
+
+    const QString anchored_help = QStringLiteral(
+        " 값은 마지막 봉 날짜의 첫 봉(일·주·월·년 보기는 그 해의 첫 봉)에서 0이고, 그 앞은 거꾸로 센다. 그래서 앞의 "
+        "봉을 더 읽어도 값이 바뀌지 않는다.");
+    auto* ad = lower(
+        Study::AdLine, "ad_line", QStringLiteral("AD 라인"),
+        QStringLiteral("봉 안에서 종가의 자리로 거래량을 가중해 누적한 매집·분산 선."),
+        QStringLiteral("봉마다 (2 × 종가 − 고가 − 저가) ÷ (고가 − 저가) × 거래량을 누적한다.") + anchored_help, {}, 0);
+    ad->volume_scale = true;
+    ad->lines = {{QStringLiteral("AD"), "#60A5FA", 1}};
+
+    auto* adx = lower(Study::Adx, "adx", QStringLiteral("ADX"),
+                      QStringLiteral("추세의 세기. 방향은 보지 않고, 클수록 추세가 강하다."),
+                      QStringLiteral("Wilder의 DMI에서 DX = 100 × |+DI − −DI| ÷ (+DI + −DI)를 N봉 Wilder 평균한 "
+                                     "것이다(+DI, −DI는 DMI와 같다)."),
+                      {});
+    adx->inputs = {span(14)};
+    adx->lines = {{QStringLiteral("ADX"), "#F59E0B", 1}};
+
+    auto* atr = lower(Study::Atr, "atr", QStringLiteral("ATR"), QStringLiteral("봉이 움직이는 폭의 평균."),
+                      QStringLiteral("true range(고가 − 저가, |고가 − 앞 종가|, |저가 − 앞 종가| 중 가장 큰 것)의 N봉 "
+                                     "Wilder 평균이다."),
+                      {}, 1);
+    atr->inputs = {span(14)};
+    atr->lines = {{QStringLiteral("ATR"), "#A78BFA", 1}};
+
+    auto* cci = lower(Study::Cci, "cci", QStringLiteral("CCI"),
+                      QStringLiteral("기준값이 평균에서 평균 편차의 몇 배 떨어졌나. ±100 밖은 과열로 본다."),
+                      QStringLiteral("(기준값 − N봉 단순 평균) ÷ (0.015 × N봉 평균 편차). 평균 편차가 0이면 비운다."),
+                      {100, -100});
+    cci->source = Source::HLC3;
+    cci->inputs = {span(20)};
+    cci->lines = {{QStringLiteral("CCI"), "#FACC15", 1}};
+
+    auto* dmi = lower(Study::Dmi, "dmi", QStringLiteral("DMI"),
+                      QStringLiteral("+DI와 −DI로 추세의 방향을, ADX로 그 세기를 본다."),
+                      QStringLiteral("+DM(고가가 앞 봉보다 오른 폭이 저가가 내린 폭보다 크고 양수면 그 폭, 아니면 "
+                                     "0)과 −DM(거꾸로), true range를 각각 N봉 Wilder 평균해 +DI = 100 × +DM ÷ TR, −DI "
+                                     "= 100 × −DM ÷ TR이다. ADX는 DX = 100 × |+DI − −DI| ÷ (+DI + −DI)의 N봉 Wilder "
+                                     "평균이다."),
+                      {});
+    dmi->inputs = {span(14)};
+    dmi->lines = {{QStringLiteral("+DI"), "#22C55E", 1},
+                  {QStringLiteral("−DI"), "#EF4444", 1},
+                  {QStringLiteral("ADX"), "#F59E0B", 1}};
+
+    auto* macd = lower(Study::Macd, "macd", QStringLiteral("MACD"),
+                       QStringLiteral("짧은 EMA와 긴 EMA의 차이와 그 시그널. 히스토그램은 둘의 차이."),
+                       QStringLiteral("MACD = EMA(짧은 기간) − EMA(긴 기간), 시그널 = MACD의 EMA(시그널 기간), "
+                                      "히스토그램 = MACD − 시그널."),
+                       {0});
+    macd->source = Source::Close;
+    macd->inputs = {span(12, QStringLiteral("짧은 기간")), span(26, QStringLiteral("긴 기간")),
+                    span(9, QStringLiteral("시그널"))};
+    macd->lines = {{QStringLiteral("MACD"), "#38BDF8", 1},
+                   {QStringLiteral("시그널"), "#F59E0B", 1},
+                   {QStringLiteral("히스토그램 +"), "#22C55E", 0},
+                   {QStringLiteral("히스토그램 −"), "#EF4444", 0}};
+
+    auto* mfi = lower(Study::Mfi, "mfi", QStringLiteral("MFI"),
+                      QStringLiteral("거래량을 넣은 RSI. 80 위는 과매수, 20 아래는 과매도로 본다."),
+                      QStringLiteral("봉마다 기준값 × 거래량(돈의 흐름)을 기준값이 앞 봉보다 오르면 양, 내리면 음으로 "
+                                     "나눠 N봉 더하고, 100 × 양 ÷ (양 + 음)이다."),
+                      {80, 20});
+    mfi->source = Source::HLC3;
+    mfi->inputs = {span(14)};
+    mfi->lines = {{QStringLiteral("MFI"), "#E879F9", 1}};
+
+    auto* obv =
+        lower(Study::Obv, "obv", QStringLiteral("OBV"),
+              QStringLiteral("종가가 오른 봉의 거래량은 더하고 내린 봉의 거래량은 빼 누적한다."),
+              QStringLiteral("종가가 앞 봉보다 오르면 거래량을 더하고, 내리면 빼고, 같으면 그대로다.") + anchored_help,
+              {}, 0);
+    obv->volume_scale = true;
+    obv->lines = {{QStringLiteral("OBV"), "#60A5FA", 1}};
+
+    auto* roc = lower(Study::Roc, "roc", QStringLiteral("ROC"), QStringLiteral("기준값이 N봉 전보다 몇 % 바뀌었나."),
+                      QStringLiteral("100 × (기준값 − N봉 전 기준값) ÷ N봉 전 기준값."), {0});
+    roc->source = Source::Close;
+    roc->inputs = {span(9)};
+    roc->lines = {{QStringLiteral("ROC"), "#2DD4BF", 1}};
+
+    auto* rsi =
+        lower(Study::Rsi, "rsi", QStringLiteral("RSI"),
+              QStringLiteral("오른 폭과 내린 폭의 비로 과매수·과매도를 본다. 70 위, 30 아래."),
+              QStringLiteral("봉마다 기준값이 앞 봉보다 오른 폭과 내린 폭을 각각 N봉 Wilder 평균해, RSI = 100 − "
+                             "100 ÷ (1 + 오른 폭 평균 ÷ 내린 폭 평균)이다. 내린 폭이 없으면 100, 오른 폭이 "
+                             "없으면 0이다."),
+              {70, 30});
+    rsi->source = Source::Close;
+    rsi->inputs = {span(14)};
+    rsi->lines = {{QStringLiteral("RSI"), "#C084FC", 1}};
+
+    auto* rmi =
+        lower(Study::Rmi, "rmi", QStringLiteral("RMI"),
+              QStringLiteral("RSI를 앞 봉 대신 모멘텀 봉 전과 견줘 센다. 70 위, 30 아래."),
+              QStringLiteral("RSI와 같되, 오른 폭과 내린 폭을 기준값 − 모멘텀 봉 전 기준값으로 센다."), {70, 30});
+    rmi->source = Source::Close;
+    rmi->inputs = {span(14), span(5, QStringLiteral("모멘텀"))};
+    rmi->lines = {{QStringLiteral("RMI"), "#A78BFA", 1}};
     return specs;
 }
 
@@ -211,6 +439,141 @@ std::optional<double> midpoint(const QList<ChartBar>& bars, qsizetype i, int per
 
 int whole(double value) {
     return static_cast<int>(std::lround(value));
+}
+
+Values to_values(const QList<double>& values) {
+    Values out;
+    out.reserve(values.size());
+    for (const double v : values)
+        out << v;
+    return out;
+}
+
+/// The simple average of the last ``period`` values; none while any of them is none.
+Values average_of(const Values& values, int period) {
+    Values out(values.size());
+    if (period < 1)
+        return out;
+    double sum = 0;
+    int run = 0; // values in a row up to here
+    for (qsizetype i = 0; i < values.size(); ++i) {
+        if (!values[i]) {
+            sum = 0;
+            run = 0;
+            continue;
+        }
+        sum += *values[i];
+        if (++run > period)
+            sum -= *values[i - period];
+        if (run >= period)
+            out[i] = sum / period;
+    }
+    return out;
+}
+
+/// The sum of the last ``period`` values; none while any of them is none.
+Values sum_of(const Values& values, int period) {
+    Values out = average_of(values, period);
+    for (auto& v : out)
+        if (v)
+            *v *= period;
+    return out;
+}
+
+/// An EMA (2 / (period + 1)) or Wilder's average (``wilder``: 1 / period) of ``values``, starting
+/// at the simple average of the first ``period`` of them in a row. A none on the way is none; the
+/// average carries over it.
+Values smoothed(const Values& values, int period, bool wilder) {
+    Values out(values.size());
+    if (period < 1)
+        return out;
+    const double alpha = wilder ? 1.0 / period : 2.0 / (period + 1);
+    std::optional<double> average;
+    double sum = 0;
+    int run = 0;
+    for (qsizetype i = 0; i < values.size(); ++i) {
+        if (!values[i]) {
+            if (!average) {
+                sum = 0;
+                run = 0;
+            }
+            continue;
+        }
+        if (average) {
+            *average += alpha * (*values[i] - *average);
+            out[i] = average;
+            continue;
+        }
+        sum += *values[i];
+        if (++run == period) {
+            average = sum / period;
+            out[i] = average;
+        }
+    }
+    return out;
+}
+
+/// The highest (``high``) or lowest of the last ``period`` values; none while any is none.
+Values extreme_of(const Values& values, int period, bool high) {
+    Values out(values.size());
+    if (period < 1)
+        return out;
+    for (qsizetype i = period - 1; i < values.size(); ++i) {
+        std::optional<double> e;
+        for (qsizetype j = i - period + 1; j <= i; ++j) {
+            if (!values[j]) {
+                e.reset();
+                break;
+            }
+            e = !e ? *values[j] : high ? std::max(*e, *values[j]) : std::min(*e, *values[j]);
+        }
+        out[i] = e;
+    }
+    return out;
+}
+
+/// ``a`` less ``b`` where both are.
+Values difference(const Values& a, const Values& b) {
+    Values out(a.size());
+    for (qsizetype i = 0; i < a.size() && i < b.size(); ++i)
+        if (a[i] && b[i])
+            out[i] = *a[i] - *b[i];
+    return out;
+}
+
+/// Where ``value`` lies from ``low`` (0) to ``high`` (100); none when they are one.
+std::optional<double> place(double value, const std::optional<double>& low, const std::optional<double>& high) {
+    if (!low || !high || *high <= *low)
+        return std::nullopt;
+    return 100 * (value - *low) / (*high - *low);
+}
+
+/// Each bar's (2 × close − high − low) / (high − low) × volume: where it closed within its range,
+/// weighed by its volume (0 for a bar whose high is its low).
+QList<double> money_flow_volumes(const QList<ChartBar>& bars) {
+    QList<double> out;
+    out.reserve(bars.size());
+    for (const auto& b : bars)
+        out << (b.high > b.low ? (2 * b.close - b.high - b.low) / (b.high - b.low) * b.volume : 0.0);
+    return out;
+}
+
+/// A cumulative line of ``steps`` (each bar's) that is 0 at ``anchor``: after it the steps of the
+/// bars up to each, before it less those of the bars after each up to it. A bar's own step counts
+/// from the bar after the anchor on; the first bar's never does, so it may need no bar before.
+Values anchored_sum(const QList<double>& steps, qsizetype anchor) {
+    Values out(steps.size());
+    if (steps.isEmpty())
+        return out;
+    anchor = std::clamp<qsizetype>(anchor, 0, steps.size() - 1);
+    double total = 0;
+    out[anchor] = 0.0;
+    for (qsizetype i = anchor + 1; i < steps.size(); ++i)
+        out[i] = total += steps[i];
+    total = 0;
+    for (qsizetype i = anchor - 1; i >= 0; --i)
+        out[i] = total -= steps[i + 1];
+    return out;
 }
 
 } // namespace
@@ -333,8 +696,12 @@ QString settings_text(const StudySettings& settings) {
     QStringList parts;
     for (qsizetype i = 0; i < settings.inputs.size(); ++i) {
         const StudyInput& in = spec.periods ? spec.inputs.first() : spec.inputs.value(i);
+        if (!in.choices.isEmpty()) { // by its name: 단순, 지수
+            parts << in.choices.value(whole(settings.inputs[i]), in.choices.first());
+            continue;
+        }
         QString text = number_text(settings.inputs[i], in.decimals);
-        if (in.title.contains('%'))
+        if (in.title.endsWith(QStringLiteral("(%)"))) // the envelope's width, "폭(%)"
             text += '%';
         parts << text;
     }
@@ -514,6 +881,26 @@ StudySet parse_studies(const QVariant& kept) {
             set.studies << s;
     std::stable_partition(set.studies.begin(), set.studies.end(), [](const StudySettings& s) { return s.on; });
     return set;
+}
+
+QString pane_heights_value(const PaneHeights& heights) {
+    QJsonObject all;
+    for (auto it = heights.cbegin(); it != heights.cend(); ++it)
+        all.insert(study_key(it.key()), it.value());
+    return QString::fromUtf8(QJsonDocument(all).toJson(QJsonDocument::Compact));
+}
+
+PaneHeights parse_pane_heights(const QVariant& kept) {
+    PaneHeights out;
+    const QJsonObject all = QJsonDocument::fromJson(kept.toString().toUtf8()).object();
+    for (auto it = all.begin(); it != all.end(); ++it) {
+        const auto study = parse_study(it.key());
+        const double height = it.value().toDouble(-1);
+        if (study && !study_spec(*study).upper && it.value().isDouble() && height == std::floor(height) &&
+            height >= kMinPaneHeight && height <= kMaxPaneHeight)
+            out.insert(*study, static_cast<int>(height));
+    }
+    return out;
 }
 
 Values moving_average(const QList<double>& values, int period) {
@@ -740,6 +1127,272 @@ Values parabolic_sar(const QList<ChartBar>& bars, double start, double step, dou
     return out;
 }
 
+Values mass_index(const QList<ChartBar>& bars, int ema_period, int sum_period) {
+    Values ranges;
+    ranges.reserve(bars.size());
+    for (const auto& b : bars)
+        ranges << b.high - b.low;
+    const Values single = smoothed(ranges, ema_period, false);
+    const Values twice = smoothed(single, ema_period, false);
+    Values ratio(bars.size());
+    for (qsizetype i = 0; i < bars.size(); ++i)
+        if (single[i] && twice[i] && *twice[i] != 0)
+            ratio[i] = *single[i] / *twice[i];
+    return sum_of(ratio, sum_period);
+}
+
+Values momentum(const QList<double>& values, int period) {
+    Values out(values.size());
+    for (qsizetype i = std::max(1, period); i < values.size(); ++i)
+        out[i] = values[i] - values[i - period];
+    return out;
+}
+
+Values volume_oscillator(const QList<ChartBar>& bars, int short_period, int long_period) {
+    Values volumes;
+    volumes.reserve(bars.size());
+    for (const auto& b : bars)
+        volumes << b.volume;
+    const Values fast = smoothed(volumes, short_period, false);
+    const Values slow = smoothed(volumes, long_period, false);
+    Values out(bars.size());
+    for (qsizetype i = 0; i < bars.size(); ++i)
+        if (fast[i] && slow[i] && *slow[i] != 0)
+            out[i] = 100 * (*fast[i] - *slow[i]) / *slow[i];
+    return out;
+}
+
+Values percent_b(const QList<double>& values, int period, double deviations) {
+    const Band band = bollinger_band(values, period, deviations);
+    Values out(values.size());
+    for (qsizetype i = 0; i < values.size(); ++i)
+        if (band.upper[i] && band.lower[i] && *band.upper[i] > *band.lower[i])
+            out[i] = (values[i] - *band.lower[i]) / (*band.upper[i] - *band.lower[i]);
+    return out;
+}
+
+Values band_width(const QList<double>& values, int period, double deviations) {
+    const Band band = bollinger_band(values, period, deviations);
+    Values out(values.size());
+    for (qsizetype i = 0; i < values.size(); ++i)
+        if (band.middle[i] && *band.middle[i] != 0)
+            out[i] = 100 * (*band.upper[i] - *band.lower[i]) / *band.middle[i];
+    return out;
+}
+
+SignalLines stochastic(const QList<ChartBar>& bars, int period, int k_smooth, int d_smooth) {
+    Values raw(bars.size());
+    for (qsizetype i = 0; i < bars.size(); ++i)
+        raw[i] = place(bars[i].close, extreme(bars, i, period, false), extreme(bars, i, period, true));
+    SignalLines out;
+    out.line = average_of(raw, k_smooth);
+    out.signal = average_of(out.line, d_smooth);
+    return out;
+}
+
+SignalLines stochastic_rsi(const QList<double>& values, int rsi_period, int period, int k_smooth, int d_smooth) {
+    const Values rsi = relative_strength(values, rsi_period);
+    const Values low = extreme_of(rsi, period, false);
+    const Values high = extreme_of(rsi, period, true);
+    Values raw(values.size());
+    for (qsizetype i = 0; i < values.size(); ++i)
+        if (rsi[i])
+            raw[i] = place(*rsi[i], low[i], high[i]);
+    SignalLines out;
+    out.line = average_of(raw, k_smooth);
+    out.signal = average_of(out.line, d_smooth);
+    return out;
+}
+
+Values williams_r(const QList<ChartBar>& bars, int period) {
+    Values out(bars.size());
+    for (qsizetype i = 0; i < bars.size(); ++i)
+        if (const auto at = place(bars[i].close, extreme(bars, i, period, false), extreme(bars, i, period, true)))
+            out[i] = *at - 100; // −100 × (high − close) / (high − low)
+    return out;
+}
+
+Values disparity(const QList<double>& values, int period) {
+    const Values average = moving_average(values, period);
+    Values out(values.size());
+    for (qsizetype i = 0; i < values.size(); ++i)
+        if (average[i] && *average[i] != 0)
+            out[i] = 100 * values[i] / *average[i];
+    return out;
+}
+
+Values intraday_intensity(const QList<ChartBar>& bars, int period) {
+    Values volumes;
+    volumes.reserve(bars.size());
+    for (const auto& b : bars)
+        volumes << b.volume;
+    const Values weighed = sum_of(to_values(money_flow_volumes(bars)), period);
+    const Values total = sum_of(volumes, period);
+    Values out(bars.size());
+    for (qsizetype i = 0; i < bars.size(); ++i)
+        if (weighed[i] && total[i] && *total[i] > 0)
+            out[i] = 100 * *weighed[i] / *total[i];
+    return out;
+}
+
+qsizetype cumulative_anchor(const QList<ChartBar>& bars, int view) {
+    if (bars.isEmpty())
+        return 0;
+    const QDate last = date_of(bars.last().time);
+    const qint64 zero = time_of(candle_view(view) ? QDate(last.year(), 1, 1) : last);
+    for (qsizetype i = 0; i < bars.size(); ++i)
+        if (bars[i].time >= zero)
+            return i;
+    return bars.size() - 1;
+}
+
+Values accumulation_distribution(const QList<ChartBar>& bars, qsizetype anchor) {
+    return anchored_sum(money_flow_volumes(bars), anchor);
+}
+
+Values chaikin_oscillator(const QList<ChartBar>& bars, qsizetype anchor, int short_period, int long_period) {
+    const Values line = accumulation_distribution(bars, anchor);
+    return difference(smoothed(line, short_period, false), smoothed(line, long_period, false));
+}
+
+SignalLines trix(const QList<double>& values, int period, int signal) {
+    const Values triple = smoothed(smoothed(smoothed(to_values(values), period, false), period, false), period, false);
+    SignalLines out;
+    out.line = Values(values.size());
+    for (qsizetype i = 1; i < values.size(); ++i)
+        if (triple[i] && triple[i - 1] && *triple[i - 1] != 0)
+            out.line[i] = 100 * (*triple[i] - *triple[i - 1]) / *triple[i - 1];
+    out.signal = smoothed(out.line, signal, false);
+    return out;
+}
+
+Values price_oscillator(const QList<double>& values, int short_period, int long_period, bool exponential) {
+    const Values fast =
+        exponential ? smoothed(to_values(values), short_period, false) : moving_average(values, short_period);
+    const Values slow =
+        exponential ? smoothed(to_values(values), long_period, false) : moving_average(values, long_period);
+    Values out(values.size());
+    for (qsizetype i = 0; i < values.size(); ++i)
+        if (fast[i] && slow[i] && *slow[i] != 0)
+            out[i] = 100 * (*fast[i] - *slow[i]) / *slow[i];
+    return out;
+}
+
+Directional directional_movement(const QList<ChartBar>& bars, int period) {
+    const qsizetype n = bars.size();
+    Values plus_moves(n);
+    Values minus_moves(n);
+    Values ranges(n);
+    for (qsizetype i = 1; i < n; ++i) { // each needs the bar before
+        const auto& b = bars[i];
+        const auto& before = bars[i - 1];
+        const double up = b.high - before.high;
+        const double down = before.low - b.low;
+        plus_moves[i] = up > down && up > 0 ? up : 0.0;
+        minus_moves[i] = down > up && down > 0 ? down : 0.0;
+        ranges[i] = std::max({b.high - b.low, std::abs(b.high - before.close), std::abs(b.low - before.close)});
+    }
+    const Values plus = smoothed(plus_moves, period, true);
+    const Values minus = smoothed(minus_moves, period, true);
+    const Values range = smoothed(ranges, period, true);
+    Directional out{Values(n), Values(n), {}};
+    Values dx(n);
+    for (qsizetype i = 0; i < n; ++i) {
+        if (!plus[i] || !minus[i] || !range[i] || *range[i] <= 0)
+            continue;
+        const double p = 100 * *plus[i] / *range[i];
+        const double m = 100 * *minus[i] / *range[i];
+        out.plus[i] = p;
+        out.minus[i] = m;
+        dx[i] = 100 * std::abs(p - m) / (p + m == 0 ? 1 : p + m); // as TradingView's
+    }
+    out.adx = smoothed(dx, period, true);
+    return out;
+}
+
+Values commodity_channel(const QList<double>& values, int period) {
+    const Values average = moving_average(values, period);
+    Values out(values.size());
+    for (qsizetype i = 0; i < values.size(); ++i) {
+        if (!average[i])
+            continue;
+        double deviation = 0;
+        for (qsizetype j = i - period + 1; j <= i; ++j)
+            deviation += std::abs(values[j] - *average[i]);
+        deviation /= period;
+        if (deviation > 0)
+            out[i] = (values[i] - *average[i]) / (0.015 * deviation);
+    }
+    return out;
+}
+
+SignalLines macd(const QList<double>& values, int fast, int slow, int signal) {
+    const Values all = to_values(values);
+    SignalLines out;
+    out.line = difference(smoothed(all, fast, false), smoothed(all, slow, false));
+    out.signal = smoothed(out.line, signal, false);
+    out.histogram = difference(out.line, out.signal);
+    return out;
+}
+
+Values money_flow(const QList<ChartBar>& bars, const QList<double>& prices, int period) {
+    const qsizetype n = std::min(bars.size(), prices.size());
+    Values rising(n);
+    Values falling(n);
+    for (qsizetype i = 1; i < n; ++i) { // each needs the bar before
+        const double flow = prices[i] * bars[i].volume;
+        rising[i] = prices[i] > prices[i - 1] ? flow : 0.0;
+        falling[i] = prices[i] < prices[i - 1] ? flow : 0.0;
+    }
+    const Values up = sum_of(rising, period);
+    const Values down = sum_of(falling, period);
+    Values out(n);
+    for (qsizetype i = 0; i < n; ++i)
+        if (up[i] && down[i] && *up[i] + *down[i] > 0)
+            out[i] = 100 * *up[i] / (*up[i] + *down[i]);
+    return out;
+}
+
+Values on_balance_volume(const QList<ChartBar>& bars, qsizetype anchor) {
+    QList<double> steps;
+    steps.reserve(bars.size());
+    for (qsizetype i = 0; i < bars.size(); ++i) {
+        const double change = i > 0 ? bars[i].close - bars[i - 1].close : 0;
+        steps << (change > 0 ? bars[i].volume : change < 0 ? -bars[i].volume : 0.0);
+    }
+    return anchored_sum(steps, anchor);
+}
+
+Values rate_of_change(const QList<double>& values, int period) {
+    Values out(values.size());
+    for (qsizetype i = std::max(1, period); i < values.size(); ++i)
+        if (values[i - period] != 0)
+            out[i] = 100 * (values[i] - values[i - period]) / values[i - period];
+    return out;
+}
+
+Values relative_strength(const QList<double>& values, int period) {
+    return relative_momentum(values, period, 1);
+}
+
+Values relative_momentum(const QList<double>& values, int period, int momentum) {
+    const qsizetype n = values.size();
+    Values rises(n);
+    Values falls(n);
+    for (qsizetype i = std::max(1, momentum); i < n; ++i) {
+        const double change = values[i] - values[i - momentum];
+        rises[i] = std::max(0.0, change);
+        falls[i] = std::max(0.0, -change);
+    }
+    const Values up = smoothed(rises, period, true);
+    const Values down = smoothed(falls, period, true);
+    Values out(n);
+    for (qsizetype i = 0; i < n; ++i)
+        if (up[i] && down[i]) // as TradingView's: no falls 100, no rises 0
+            out[i] = *down[i] == 0 ? 100 : *up[i] == 0 ? 0 : 100 - 100 / (1 + *up[i] / *down[i]);
+    return out;
+}
+
 Values session_vwap(const QList<ChartBar>& bars, Source source, bool first_day_whole) {
     Values out(bars.size());
     double priced = 0;
@@ -892,6 +1545,46 @@ int warmup(const StudySettings& settings) {
         case Study::AnchoredVwap:
         case Study::Volume:
             return 0;
+        // The lower ones (krx-quant #223): their steps added up. An EMA leaves about e^-8 of its
+        // weight beyond 4 periods, Wilder's average (1 / period) beyond 8.
+        case Study::MassIndex: // two EMAs, then a sum
+            return 4 * at(0) * 2 + std::max(0, at(1) - 1);
+        case Study::Momentum:
+        case Study::Roc:
+            return at(0);
+        case Study::VolumeOscillator:
+        case Study::ChaikinOscillator: // the AD line itself needs none (cumulative_anchor)
+            return 4 * std::max(at(0), at(1));
+        case Study::PercentB:
+        case Study::BandWidth:
+        case Study::WilliamsR:
+        case Study::Disparity:
+        case Study::IntradayIntensity:
+        case Study::Cci:
+            return std::max(0, at(0) - 1);
+        case Study::Stochastic:
+            return std::max(0, at(0) - 1) + std::max(0, at(1) - 1) + std::max(0, at(2) - 1);
+        case Study::StochasticRsi:
+            return 8 * at(0) + std::max(0, at(1) - 1) + std::max(0, at(2) - 1) + std::max(0, at(3) - 1);
+        case Study::Trix: // three EMAs, a change, then the signal's EMA
+            return 4 * (3 * at(0) + at(1));
+        case Study::PriceOscillator:
+            return at(2) == 1 ? 4 * std::max(at(0), at(1)) : std::max(0, std::max(at(0), at(1)) - 1);
+        case Study::AdLine:
+        case Study::Obv:
+            return 0; // 0 at a bar of their own (cumulative_anchor)
+        case Study::Adx:
+        case Study::Dmi: // Wilder's +DI and −DI, then Wilder's ADX of them
+            return 8 * 2 * at(0);
+        case Study::Atr:
+        case Study::Rsi:
+            return 8 * at(0);
+        case Study::Macd:
+            return 4 * std::max(at(0), at(1)) + 4 * at(2);
+        case Study::Mfi:
+            return at(0);
+        case Study::Rmi:
+            return at(1) + 8 * at(0);
     }
     return 0;
 }
@@ -946,12 +1639,90 @@ QString css_color(const QString& color, double alpha) {
         .arg(alpha);
 }
 
+namespace {
+
+/// A lower indicator's lines (krx-quant #223) over ``bars``: its values, each with its look's
+/// index and its id's end ("" for its only line).
+struct LowerLine {
+    QString name;
+    int look = 0;
+    Values values;
+    bool histogram = false;
+};
+
+QList<LowerLine> lower_lines(const QList<ChartBar>& bars, const StudySettings& s, int view) {
+    const auto in = [&s](qsizetype i) { return i < s.inputs.size() ? whole(s.inputs[i]) : 0; };
+    const QList<double> values = source_values(bars, s.source.value_or(Source::Close));
+    switch (s.study) {
+        case Study::MassIndex:
+            return {{"", 0, mass_index(bars, in(0), in(1))}};
+        case Study::Momentum:
+            return {{"", 0, momentum(values, in(0))}};
+        case Study::VolumeOscillator:
+            return {{"", 0, volume_oscillator(bars, in(0), in(1))}};
+        case Study::PercentB:
+            return {{"", 0, percent_b(values, in(0), s.inputs.value(1))}};
+        case Study::BandWidth:
+            return {{"", 0, band_width(values, in(0), s.inputs.value(1))}};
+        case Study::Stochastic: {
+            const SignalLines k = stochastic(bars, in(0), in(1), in(2));
+            return {{"k", 0, k.line}, {"d", 1, k.signal}};
+        }
+        case Study::StochasticRsi: {
+            const SignalLines k = stochastic_rsi(values, in(0), in(1), in(2), in(3));
+            return {{"k", 0, k.line}, {"d", 1, k.signal}};
+        }
+        case Study::WilliamsR:
+            return {{"", 0, williams_r(bars, in(0))}};
+        case Study::Disparity:
+            return {{"", 0, disparity(values, in(0))}};
+        case Study::IntradayIntensity:
+            return {{"", 0, intraday_intensity(bars, in(0))}};
+        case Study::ChaikinOscillator:
+            return {{"", 0, chaikin_oscillator(bars, cumulative_anchor(bars, view), in(0), in(1))}};
+        case Study::Trix: {
+            const SignalLines t = trix(values, in(0), in(1));
+            return {{"trix", 0, t.line}, {"signal", 1, t.signal}};
+        }
+        case Study::PriceOscillator:
+            return {{"", 0, price_oscillator(values, in(0), in(1), in(2) == 1)}};
+        case Study::AdLine:
+            return {{"", 0, accumulation_distribution(bars, cumulative_anchor(bars, view))}};
+        case Study::Adx:
+            return {{"", 0, directional_movement(bars, in(0)).adx}};
+        case Study::Atr:
+            return {{"", 0, average_true_range(bars, in(0))}};
+        case Study::Cci:
+            return {{"", 0, commodity_channel(values, in(0))}};
+        case Study::Dmi: {
+            const Directional d = directional_movement(bars, in(0));
+            return {{"plus", 0, d.plus}, {"minus", 1, d.minus}, {"adx", 2, d.adx}};
+        }
+        case Study::Macd: {
+            const SignalLines m = macd(values, in(0), in(1), in(2));
+            return {{"histogram", 2, m.histogram, true}, {"macd", 0, m.line}, {"signal", 1, m.signal}};
+        }
+        case Study::Mfi:
+            return {{"", 0, money_flow(bars, values, in(0))}};
+        case Study::Obv:
+            return {{"", 0, on_balance_volume(bars, cumulative_anchor(bars, view))}};
+        case Study::Roc:
+            return {{"", 0, rate_of_change(values, in(0))}};
+        case Study::Rsi:
+            return {{"", 0, relative_strength(values, in(0))}};
+        case Study::Rmi:
+            return {{"", 0, relative_momentum(values, in(0), in(1))}};
+        default:
+            return {};
+    }
+}
+
+} // namespace
+
 StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int view, std::optional<qint64> anchor,
-                          bool picking, bool first_day_whole) {
+                          bool picking, bool first_day_whole, const PaneHeights& heights) {
     StudyDrawing out;
     const qsizetype n = bars.size();
-    out.volume = set.on(Study::Volume);
-    out.volume_hidden = set.of(Study::Volume).hidden;
     QList<qint64> future; // the times past the last bar, as many as the lines reach
     const auto slot_time = [&](qsizetype slot) {
         if (slot < n)
@@ -983,7 +1754,7 @@ StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int 
         return id;
     };
     for (const StudySettings& s : set.studies) {
-        if (!s.on || s.study == Study::Volume)
+        if (!s.on)
             continue;
         const StudySpec& spec = study_spec(s.study);
         if (spec.minute_only && candle_view(view))
@@ -997,6 +1768,44 @@ StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int 
             row.values << id;
             row.colors << color;
         };
+        if (!spec.upper) {
+            // A pane of its own below the prices, in the order turned on (krx-quant #223); hidden,
+            // it stays with its legend row and draws nothing.
+            out.panes << DrawnPane{s.study, heights.value(s.study, kPaneHeight), s.hidden, spec.guides};
+            row.pane = static_cast<int>(out.panes.size());
+            if (s.hidden) {
+                out.legend << row;
+                continue;
+            }
+            if (s.study == Study::Volume) { // its bars are the page's own, sent with the bars
+                value(QStringLiteral("volume"), QString());
+            } else {
+                // A histogram is sent first, so its lines are drawn over it, but shown last.
+                QStringList bars_ids;
+                QStringList bars_colors;
+                for (const LowerLine& l : lower_lines(bars, s, view)) {
+                    const QString id = l.name.isEmpty() ? spec.key : spec.key + '.' + l.name;
+                    const StudyLine look = s.lines.value(l.look);
+                    line(id, s.study, look, l.values);
+                    DrawnSeries& drawn = out.series.last();
+                    drawn.pane = row.pane;
+                    drawn.decimals = spec.decimals;
+                    drawn.volume_scale = spec.volume_scale;
+                    if (!l.histogram) {
+                        value(id, look.color);
+                        continue;
+                    }
+                    drawn.histogram = true;
+                    drawn.down_color = s.lines.value(l.look + 1).color;
+                    bars_ids << id;
+                    bars_colors << look.color;
+                }
+                row.values << bars_ids;
+                row.colors << bars_colors;
+            }
+            out.legend << row;
+            continue;
+        }
         const Source source = s.source.value_or(Source::Close);
         const auto in = [&s](qsizetype i) { return i < s.inputs.size() ? s.inputs[i] : 0.0; };
         const auto look = [&s](qsizetype i) { return s.lines.value(i); };
@@ -1089,20 +1898,8 @@ StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int 
                 }
                 break;
             }
-            case Study::Volume:
+            default: // the lower ones, above
                 break;
-        }
-        out.legend << row;
-    }
-    if (out.volume) {
-        LegendRow row;
-        row.study = Study::Volume;
-        row.pane = 1;
-        row.title = study_title(Study::Volume);
-        row.hidden = out.volume_hidden;
-        if (!row.hidden) {
-            row.values << QStringLiteral("volume");
-            row.colors << QString();
         }
         out.legend << row;
     }

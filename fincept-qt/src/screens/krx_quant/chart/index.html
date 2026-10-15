@@ -4,17 +4,25 @@
 <meta charset="utf-8">
 <!--
   The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182, #185,
-  #221, #222), drawn with TradingView Lightweight Charts (NOTICE). It only draws what the screen
-  sends over the web channel: the bars in the style chosen and their volumes, the days' first bars
-  filled, the consensus icons, each bar's hover box and its four-minute window with two levels
-  across it (the touch targets, the range's highest and lowest mid-points, or the barrier's U
-  and L), the indicators (their lines, the fills between two, the fractals' marks, the volume
-  profile's bars, the anchored VWAP's marker) with each pane's legend, the theme, and when to
-  fit. It tells the screen where its view is, the legend's buttons, and the anchored VWAP's bar
-  clicked or dragged to.
+  #221, #222, #223), drawn with TradingView Lightweight Charts (NOTICE). It only draws what the
+  screen sends over the web channel: the bars in the style chosen, the days' first bars filled,
+  the consensus icons, each bar's hover box and its four-minute window with two levels across it
+  (the touch targets, the range's highest and lowest mid-points, or the barrier's U and L), the
+  indicators (their lines, the fills between two, the fractals' marks, the volume profile's bars,
+  the anchored VWAP's marker; below the prices a pane per lower indicator, the volume's among
+  them, with its guide lines) with each pane's legend, the theme, and when to fit. Many panes
+  make the chart taller than the page, which then scrolls. It tells the screen where its view
+  is, the legend's buttons, the anchored VWAP's bar clicked or dragged to, and the lower panes'
+  heights once a border between panes is dragged.
 -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #080808; }
+  /* The chart grows taller than the page when its lower panes need it (krx-quant #223): it scrolls. */
+  #scroller { position: absolute; inset: 0; overflow-x: hidden; overflow-y: auto; }
+  #scroller::-webkit-scrollbar { width: 8px; }
+  #scroller::-webkit-scrollbar-track { background: transparent; }
+  #scroller::-webkit-scrollbar-thumb { background: var(--thumb, #333); border-radius: 4px; }
+  #stage { position: relative; width: 100%; height: 100%; }
   #chart, #links { position: absolute; inset: 0; }
   #links { pointer-events: none; z-index: 60; width: 100%; height: 100%; } /* above the chart's own canvases (z-index up to 50) */
   #tip {
@@ -43,18 +51,32 @@
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
 </head>
 <body>
+<div id="scroller"><div id="stage">
 <div id="chart"></div>
 <canvas id="links"></canvas>
 <div id="tip"></div>
-<div id="legend0" class="legend"></div>
-<div id="legend1" class="legend"></div>
+</div></div>
 <script>
 (function () {
   const L = LightweightCharts;
   const area = document.getElementById('chart');
   const links = document.getElementById('links');
   const tip = document.getElementById('tip');
-  const legendBoxes = [document.getElementById('legend0'), document.getElementById('legend1')];
+  const scroller = document.getElementById('scroller');
+  const stage = document.getElementById('stage');
+  // Each pane's legend box, top down (krx-quant #222, #223): made as panes come.
+  const legendBoxes = [];
+  function legendBox(i) {
+    while (legendBoxes.length <= i) {
+      const box = document.createElement('div');
+      box.className = 'legend';
+      box.id = 'legend' + legendBoxes.length;
+      stage.appendChild(box);
+      legendBoxes.push(box);
+      styleLegend(box);
+    }
+    return legendBoxes[i];
+  }
   const chart = L.createChart(area, {
     autoSize: true,
     layout: { attributionLogo: false }, // the attribution is on the panel title and in the README
@@ -163,9 +185,11 @@
   let icons = null; // its markers: the consensus icons and the fractals
   let iconMarks = []; // the consensus icons as markers
   let studyMarks = []; // the fractals as markers (krx-quant #222)
-  // The indicators (krx-quant #222): a line series each in the price pane, kept by id while the
-  // screen sends them again; the fills, the fractals, the volume profile and the anchor are layers.
-  const lines = new Map(); // id -> {series, times: [time…], values: Map(time -> value)}
+  // The indicators (krx-quant #222, #223): a series each, in the price pane or a lower one, kept by
+  // id while the screen sends them again; the fills, the fractals, the volume profile and the
+  // anchor are layers. id -> {series, pane (a lower pane; null: the prices'), histogram, decimals,
+  // up, down, guides: [price lines], times: [time…], values: Map(time -> value)}
+  const lines = new Map();
   let fills = [];
   let profile = null;  // {color, rows: [{low, high, volume}]}
   let anchor = null;   // {time, color}
@@ -203,30 +227,105 @@
     if (realLine) realLine.applyOptions(options); else realLine = main.createPriceLine(options);
   }
 
-  // The volumes in the pane below, while the volume is on (krx-quant #222: an indicator of the
-  // lower list); turned off, its pane goes.
+  // The panes below the prices (krx-quant #223), top down: a lower indicator's each, in the order
+  // it was turned on, as the screen sends them. Each {key, api, height (CSS pixels), hidden,
+  // guides}. A hidden one stays, empty. Their heights are kept: the price pane takes the rest, at
+  // least its least height; past that the chart grows taller than the page, which scrolls.
+  let lowerPanes = [];
+  let sizes = { min_price: 200, pane_min: 40, pane_max: 1000 };
+  function arrangePanes(sent) {
+    const want = sent.map((p) => p.key);
+    const same = want.length === lowerPanes.length && want.every((key, i) => lowerPanes[i].key === key);
+    if (!same) {
+      // Those kept stay when they come first in the same order (one turned off, or new ones
+      // turned on after them, as usual); otherwise (another symbol's) all are made again.
+      const kept = lowerPanes.filter((p) => want.includes(p.key));
+      const stay = kept.every((p, i) => want[i] === p.key);
+      for (const pane of lowerPanes) {
+        if (stay && want.includes(pane.key)) continue;
+        dropPaneSeries(pane);
+        chart.removePane(pane.api.paneIndex());
+      }
+      const staying = new Map(stay ? kept.map((p) => [p.key, p]) : []);
+      lowerPanes = want.map((key) => staying.get(key) || makePane(key)); // new ones at the bottom, in order
+    }
+    sent.forEach(function (s, i) {
+      Object.assign(lowerPanes[i], { height: s.height, hidden: !!s.hidden, guides: s.guides || [] });
+    });
+    showVolume();
+    layoutPanes();
+  }
+  function makePane(key) {
+    const api = chart.addPane(true); // kept while it has no series: a hidden indicator's
+    api.attachPrimitive(bandPrimitive()); // the days' first bars, its whole height
+    return { key: key, api: api, height: 100, hidden: false, guides: [] };
+  }
+  function dropPaneSeries(pane) {
+    for (const [id, entry] of lines) {
+      if (entry.pane !== pane) continue;
+      chart.removeSeries(entry.series);
+      lines.delete(id);
+    }
+    if (pane.key === 'volume' && volumes) {
+      chart.removeSeries(volumes);
+      volumes = null;
+    }
+  }
+  function layoutPanes() {
+    const borders = lowerPanes.length; // a pixel each
+    const axis = chart.timeScale().height();
+    const lower = lowerPanes.reduce((sum, p) => sum + p.height, 0);
+    const total = Math.max(scroller.clientHeight, sizes.min_price + lower + borders + axis);
+    stage.style.height = total + 'px';
+    chart.panes()[0].setStretchFactor(Math.max(1, total - axis - borders - lower));
+    for (const pane of lowerPanes) pane.api.setStretchFactor(pane.height);
+    placeLegend();
+  }
+  // A border between panes dragged: the lower panes' heights now, kept for the symbol. The
+  // chart's own drag sets them; the price pane keeps its least height after it.
+  let resizing = false;
+  window.addEventListener('mousedown', function (e) {
+    resizing = !!(e.target && e.target.style && e.target.style.cursor === 'row-resize'); // a border's handle
+  }, true);
+  window.addEventListener('mouseup', function () {
+    if (!resizing) return;
+    resizing = false;
+    setTimeout(panesDragged, 0); // after the chart's own handler
+  }, true);
+  function panesDragged() {
+    const heights = {};
+    let moved = false;
+    for (const pane of lowerPanes) {
+      const height = Math.max(sizes.pane_min, Math.min(sizes.pane_max, Math.round(pane.api.getHeight())));
+      if (Math.abs(height - pane.height) > 1) moved = true;
+      heights[pane.key] = height;
+    }
+    if (!moved) return;
+    for (const pane of lowerPanes) pane.height = heights[pane.key];
+    layoutPanes();
+    if (bridge) bridge.panes(JSON.stringify(heights));
+  }
+
+  // The volumes, in their pane while the volume is on (krx-quant #222, #223); hidden, not drawn.
   let volumes = null;
   let volumeData = [];
   let volumeAt = new Map(); // time -> volume, for the legend
-  function showVolume(on, hidden) {
-    if (on && !volumes) {
-      volumes = chart.addSeries(
-        L.HistogramSeries,
-        { priceFormat: { type: 'volume' }, priceLineVisible: false, lastValueVisible: false },
-        1 // the pane below
-      );
-      volumes.attachPrimitive(bandPrimitive());
-      volumes.setData(volumeData);
-      chart.panes()[0].setStretchFactor(0.78);
-      chart.panes()[1].setStretchFactor(0.22);
-    } else if (!on && volumes) {
-      chart.removeSeries(volumes); // its pane goes with it
+  function showVolume() {
+    const pane = lowerPanes.find((p) => p.key === 'volume');
+    if (!pane) {
+      if (volumes) chart.removeSeries(volumes);
       volumes = null;
+      return;
     }
-    if (volumes) volumes.applyOptions({ visible: !hidden });
+    if (!volumes) {
+      volumes = pane.api.addSeries(L.HistogramSeries, {
+        priceFormat: { type: 'volume' }, priceLineVisible: false, lastValueVisible: false,
+      });
+      volumes.setData(volumeData);
+    }
+    volumes.applyOptions({ visible: !pane.hidden });
   }
   makeMain('candle');
-  showVolume(true, false);
 
   let fitRange = null;
   function fit() {
@@ -279,31 +378,85 @@
     redraw(); // the box hovered stays, over what was sent now
   }
 
-  function pointOf(p) {
-    return p.length > 1 ? { time: p[0], value: p[1] } : { time: p[0] };
+  // A point as the series takes it; a histogram's bar in its colour for its sign (krx-quant #223).
+  function pointOf(p, entry) {
+    if (p.length < 2) return { time: p[0] };
+    const point = { time: p[0], value: p[1] };
+    if (entry && entry.histogram) point.color = p[1] >= 0 ? entry.up : entry.down;
+    return point;
   }
-  function lineOptions(line) {
+  function lineOptions(line, guides) {
+    const decimals = line.decimals || 0;
     const options = {
-      color: line.color, lineWidth: line.width, lineVisible: !line.dots, pointMarkersVisible: !!line.dots,
-      priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-      priceFormat: { type: 'price', precision: 0, minMove: 1 },
+      color: line.color, priceLineVisible: false, lastValueVisible: false,
+      priceFormat: line.volume ? { type: 'volume' } : { type: 'price', precision: decimals, minMove: Math.pow(10, -decimals) },
     };
-    if (line.dots) options.pointMarkersRadius = line.width + 0.5;
+    if (!line.histogram) {
+      Object.assign(options, {
+        lineWidth: line.width, lineVisible: !line.dots, pointMarkersVisible: !!line.dots, crosshairMarkerVisible: false,
+      });
+      if (line.dots) options.pointMarkersRadius = line.width + 0.5;
+    }
+    if (guides.length) { // a lower pane keeps its guide lines in view (krx-quant #223)
+      options.autoscaleInfoProvider = function (original) {
+        const range = original();
+        if (!range || !range.priceRange) return range;
+        return {
+          priceRange: {
+            minValue: Math.min(range.priceRange.minValue, ...guides),
+            maxValue: Math.max(range.priceRange.maxValue, ...guides),
+          },
+          margins: range.margins,
+        };
+      };
+    }
     return options;
+  }
+  // A lower pane's guide lines (70 and 30 for the RSI, krx-quant #223): dashed, without labels,
+  // on its first series.
+  function showGuides(entry, guides) {
+    for (const line of entry.guides) entry.series.removePriceLine(line);
+    entry.guides = guides.map((price) => entry.series.createPriceLine({
+      price: price, color: fade(colors.text, 0.5), lineWidth: 1, lineStyle: 2, axisLabelVisible: false,
+    }));
   }
 
   function showStudies(s, profileData) {
+    sizes = { min_price: s.min_price || 200, pane_min: s.pane_min || 40, pane_max: s.pane_max || 1000 };
+    arrangePanes(s.panes || []);
     const keep = new Set();
+    const firsts = new Set(); // each lower pane's first series: it carries the pane's guides
+    const seen = new Set();
+    for (const line of s.series || []) {
+      if (line.pane > 0 && !seen.has(line.pane)) {
+        seen.add(line.pane);
+        firsts.add(line.id);
+      }
+    }
     for (const line of s.series || []) {
       keep.add(line.id);
+      const pane = line.pane > 0 ? lowerPanes[line.pane - 1] || null : null;
+      const guides = pane && firsts.has(line.id) ? pane.guides : [];
       let entry = lines.get(line.id);
+      if (entry && (entry.pane !== pane || entry.histogram !== !!line.histogram)) {
+        chart.removeSeries(entry.series);
+        lines.delete(line.id);
+        entry = null;
+      }
       if (!entry) {
-        entry = { series: chart.addSeries(L.LineSeries, lineOptions(line), 0) };
+        const type = line.histogram ? L.HistogramSeries : L.LineSeries;
+        const options = lineOptions(line, guides);
+        entry = {
+          series: pane ? pane.api.addSeries(type, options) : chart.addSeries(type, options, 0),
+          pane: pane, histogram: !!line.histogram, guides: [],
+        };
         lines.set(line.id, entry);
       } else {
-        entry.series.applyOptions(lineOptions(line));
+        entry.series.applyOptions(lineOptions(line, guides));
       }
-      entry.series.setData(line.points.map(pointOf));
+      Object.assign(entry, { decimals: line.decimals || 0, up: line.color, down: line.down });
+      entry.series.setData(line.points.map((p) => pointOf(p, entry)));
+      showGuides(entry, guides);
       entry.times = line.points.map((p) => p[0]);
       entry.values = new Map();
       for (const p of line.points) if (p.length > 1) entry.values.set(p[0], p[1]);
@@ -323,7 +476,6 @@
     anchor = s.anchor || null;
     picking = !!s.picking;
     area.style.cursor = picking ? 'crosshair' : '';
-    showVolume(s.volume !== false, !!s.volume_hidden);
     legendRows = s.legend || [];
     buildLegend();
     repaint();
@@ -455,7 +607,7 @@
     missingSpans = [];
     for (const box of legendBoxes) box.textContent = '';
     for (const row of legendRows) {
-      const box = legendBoxes[row.pane] || legendBoxes[0];
+      const box = legendBox(row.pane || 0);
       const el = document.createElement('div');
       el.className = 'row' + (row.hidden ? ' hidden' : '');
       const name = document.createElement('span');
@@ -524,19 +676,27 @@
     };
     for (const { span, id } of valueSpans) {
       const value = valueAt(id);
-      span.textContent = value === undefined ? '' : Math.round(value).toLocaleString('en-US');
+      const decimals = id === 'volume' ? 0 : (lines.get(id) || {}).decimals || 0; // a lower one's (krx-quant #223)
+      span.textContent = value === undefined ? ''
+        : value.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
       span.style.display = value === undefined ? 'none' : '';
     }
     for (const { span, ids } of missingSpans)
       span.style.display = ids.some((id) => valueAt(id) !== undefined) ? 'none' : '';
   }
+  // Each at the top left of its pane, the panes top down with a pixel's border between them.
   function placeLegend() {
-    legendBoxes[0].style.top = '4px';
     const panes = chart.panes();
-    legendBoxes[1].style.display = panes.length > 1 ? '' : 'none';
-    if (panes.length > 1) legendBoxes[1].style.top = (panes[0].getHeight() + 1 + 4) + 'px';
+    let top = 0;
+    panes.forEach(function (pane, i) {
+      const box = legendBox(i);
+      box.style.display = '';
+      box.style.top = (top + 4) + 'px';
+      top += pane.getHeight() + 1;
+    });
+    for (let i = panes.length; i < legendBoxes.length; ++i) legendBoxes[i].style.display = 'none';
   }
-  setInterval(placeLegend, 300); // the panes' border dragged
+  setInterval(placeLegend, 300); // a border between panes dragged
 
   // Hover boxes set and dropped (krx-quant #159): only those changed come.
   function boxes(data) {
@@ -565,7 +725,7 @@
       const entry = lines.get(id);
       if (!entry) continue;
       try {
-        entry.series.update(pointOf(p));
+        entry.series.update(pointOf(p, entry));
       } catch (e) {
         continue; // before its last point: drawn again at the bar close
       }
@@ -732,13 +892,8 @@
     tip.style.color = t.tip_text;
     tip.style.fontFamily = t.font;
     tip.style.fontSize = (t.size + 1) + 'px';
-    for (const box of legendBoxes) {
-      box.style.color = t.tip_text;
-      box.style.fontFamily = t.font;
-      box.style.fontSize = (t.size + 1) + 'px';
-      box.style.setProperty('--hover', fade(t.tip_background, 0.85));
-      box.style.setProperty('--note', t.link);
-    }
+    scroller.style.setProperty('--thumb', t.border);
+    for (const box of legendBoxes) styleLegend(box);
     chart.applyOptions({
       layout: {
         background: { type: 'solid', color: t.background },
@@ -760,6 +915,14 @@
     buildLegend();
   }
 
+  function styleLegend(box) {
+    box.style.color = colors.tip_text;
+    if (colors.font) box.style.fontFamily = colors.font;
+    if (colors.size) box.style.fontSize = (colors.size + 1) + 'px';
+    box.style.setProperty('--hover', fade(colors.tip_background, 0.85));
+    box.style.setProperty('--note', colors.link);
+  }
+
   // The baseline's base moved with the view (krx-quant #221).
   function rebase(data) {
     baseValue = data.base;
@@ -774,7 +937,7 @@
 
   area.addEventListener('dblclick', fit);
   area.addEventListener('mouseleave', () => hover(null));
-  window.addEventListener('resize', function () { redraw(); placeLegend(); });
+  window.addEventListener('resize', function () { layoutPanes(); redraw(); });
 
   new QWebChannel(qt.webChannelTransport, function (channel) {
     bridge = channel.objects.bridge;

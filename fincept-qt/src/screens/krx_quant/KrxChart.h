@@ -40,6 +40,9 @@ class KrxChartBridge : public QObject {
     /// A legend row's button (krx-quant #222): ``action`` "hide" (the eye), "settings" or
     /// "remove" on the indicator ``key`` (krx_quant::study_key).
     Q_INVOKABLE void legend(const QString& key, const QString& action);
+    /// A border between panes was dragged (krx-quant #223): the lower panes' heights now, a JSON
+    /// object by indicator ({"rsi": 140}, CSS pixels).
+    Q_INVOKABLE void panes(const QString& heights);
 
   signals:
     void page_ready();
@@ -48,6 +51,7 @@ class KrxChartBridge : public QObject {
     void range_moved(double from, double to);
     void anchor_moved(double time);
     void legend_clicked(const QString& key, const QString& action);
+    void panes_resized(const QString& heights);
     void theme_changed(const QString& json);
     void data_changed(const QString& json);
     /// Hover boxes to set and drop: {"reset", "set": [...], "drop": [times]} (krx-quant #159).
@@ -63,7 +67,8 @@ class KrxChartBridge : public QObject {
 
 /// A symbol's 1-minute bars of the day, drawn by TradingView Lightweight Charts in a web
 /// view (src/screens/krx_quant/chart, bundled as Qt resources): wheel to zoom, drag to
-/// scroll, double-click (or fit()) for the last 60 bars, volumes in a pane below and the
+/// scroll, double-click (or fit()) for the last 60 bars, the lower indicators (the volume among
+/// them) each in a pane below, their borders dragged to resize them (krx-quant #223), and the
 /// last price on the price axis. Over the bars, the final consensus's icons
 /// (ChartModel: ▲▼– and ✓/✗/?, faint for special predictions). Without Qt WebEngine, at
 /// build or at run time, it says the chart cannot open.
@@ -113,6 +118,8 @@ class KrxChart : public QWidget {
     void study_hide_toggled(krx_quant::Study study);
     void study_settings_requested(krx_quant::Study study);
     void study_removed(krx_quant::Study study);
+    /// A border between panes was dragged (krx-quant #223): the lower panes' heights now.
+    void pane_heights_changed(const krx_quant::PaneHeights& heights);
 
   protected:
     void showEvent(QShowEvent* event) override;
