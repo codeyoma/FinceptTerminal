@@ -1,6 +1,7 @@
 #pragma once
 
 #include "screens/krx_quant/KrxPanel.h"
+#include "services/krx_quant/ChartLook.h"
 #include "services/krx_quant/KrxLive.h"
 
 #include <QComboBox>
@@ -23,6 +24,7 @@ namespace fincept::screens {
 
 class KrxAlerts;
 class KrxChart;
+class KrxChartToolbar;
 class KrxLeaderboard;
 class KrxStatsWindow;
 
@@ -64,8 +66,13 @@ class KrxQuantScreen : public QWidget {
     void fill_chart();
     /// The selected consensus's score over the bars in view, on the chart's header (krx-quant #159).
     void show_score();
-    /// Show the chart as bars of ``minutes`` (krx-quant #109), and keep the choice.
+    /// Show the chart as bars of ``minutes`` (krx-quant #109), and keep the choice for the symbol
+    /// chosen (krx-quant #221).
     void set_view(int minutes);
+    /// Draw the chart in ``style`` (krx-quant #221), and keep the choice for the symbol chosen.
+    void set_style(krx_quant::ChartStyle style);
+    /// The symbol chosen now: its chart's view and style as it kept them (krx-quant #221).
+    void show_symbol_prefs();
     void open_detail(const QString& algorithm);
     /// What the engine says about ``algorithm`` (krx-quant #163); none for a baseline or a
     /// consensus, or before it answered.
@@ -96,9 +103,9 @@ class KrxQuantScreen : public QWidget {
     QTimer* chart_soon_ = nullptr;               ///< draws the chart once the chosen symbol's predictions settle
     std::pair<qint64, qint64> view_range_{0, 0}; ///< the bars in view, by time (chart_time)
     KrxChart* chart_ = nullptr;
-    QWidget* chart_views_ = nullptr;       ///< the row of view buttons above the chart
-    QList<QPushButton*> view_buttons_;     ///< the minute views', then the day view's (property "view")
-    int minutes_ = 1;                      ///< the chart's view
+    KrxChartToolbar* chart_toolbar_ = nullptr; ///< the row above the chart (krx-quant #221)
+    int minutes_ = 1;                          ///< the chart's view
+    krx_quant::ChartLook look_;                ///< the chart's style and day separators (krx-quant #221)
     krx_panel::Header predictions_header_; ///< titled with the bar close and the countdown
     QTableWidget* predictions_table_ = nullptr;
     QPushButton* latest_ = nullptr; ///< back to the latest bar close, while one is pinned

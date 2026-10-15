@@ -130,6 +130,9 @@ class KrxLive : public QObject {
     /// The chosen symbol's predictions, the selection or the statuses changed: the chart's
     /// icons and hover boxes (krx-quant #159).
     void marks_changed();
+    /// Another symbol is chosen (krx-quant #221): the chart shows its own view and style. Comes
+    /// before its bars are read.
+    void selected_changed();
     void chart_changed(); ///< the chosen symbol's bars (or none, while they are read)
     /// Only the chosen symbol's last bar moved: the bar being made (krx-quant #110).
     void live_changed();

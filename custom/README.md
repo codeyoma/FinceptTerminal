@@ -94,7 +94,7 @@ secret이 없거나 만료되면 `custom-krx-pointer`가 실패한다. 그래도
 | `fincept-qt/src/ui/navigation/ToolBar.cpp` | Navigate → Trading & Portfolio 메뉴에 "KRX 4분 예측" |
 | `fincept-qt/src/ui/navigation/CommandBar.cpp` | 명령 팔레트에 `krx_quant` ("krx"로 찾는다) |
 | `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`), 윈도우 설치 프로그램의 기본 폴더 `CPACK_IFW_TARGET_DIRECTORY`(사용자 폴더, codeyoma/krx-quant#130), 윈도우 설치 프로그램에 담는 WebEngine 파일에 V8 시작 스냅샷 `resources/v8_context_snapshot.bin`(codeyoma/krx-quant#207), 한국어 언어 팩 `translations/fincept_ko_KR.ts`의 컴파일·리소스 포함, clang-cl(Windows ARM64)에서 GCC/Clang 경고 묶음을 빼고 `-Wno-clang-cl-pch`(codeyoma/krx-quant#136) |
-| `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`, `tst_krx_korean`, `tst_krx_engine_calendar`, `tst_krx_kind_view`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
+| `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`, `tst_krx_korean`, `tst_krx_engine_calendar`, `tst_krx_kind_view`, `tst_krx_chart_look`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
 | `fincept-qt/src/core/i18n/LanguageManager.cpp` | 공용 언어 목록에 `ko_KR`, 언어 이름에 `한국어`를 추가한다(codeyoma/krx-quant#132). 설정 화면과 로그인 언어 선택이 이 목록을 그대로 쓴다 |
 | `fincept-qt/src/core/currency/CurrencyManager.{h,cpp}`, `Currency.h`, 새 `core/currency/fx/` | KRW 목록, 출처 통화를 요구하는 환산 API, ECB 비인증 조회·캐시·갱신 신호(codeyoma/krx-quant#138, #142). 공용 인프라라 KRX 엔진 service 대신 독립 디렉터리에 둔다 |
 | `fincept-qt/src/screens/settings/GeneralSection.{h,cpp}` | 통화 설명, 환율 출처·기준일·갱신 상태·버튼(#142) |
@@ -173,7 +173,7 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
 
 ## KRX 예측 화면 (#20, #21, #68)
 
-- 코드: `fincept-qt/src/screens/krx_quant/`(화면, 차트, 순위표, 상세 통계 창, 알림 설정), `fincept-qt/src/services/krx_quant/`(엔진 API와 스트림 읽기, 응답 해석, 화면 상태, 신호 판정, 통계 표시 문구, 방향 말고 다른 예측 종류의 선택·패널·호버 `KindView`).
+- 코드: `fincept-qt/src/screens/krx_quant/`(화면, 차트, 차트 위 툴바 `KrxChartToolbar`, 순위표, 상세 통계 창, 알림 설정), `fincept-qt/src/services/krx_quant/`(엔진 API와 스트림 읽기, 응답 해석, 화면 상태, 신호 판정, 통계 표시 문구, 방향 말고 다른 예측 종류의 선택·패널·호버 `KindView`, 차트 모양·날짜 구분선·종목별 차트 설정 `ChartLook`).
 - 화면은 그리기와 입력만 맡는다. 엔진을 따라가는 상태(답과 스트림을 합친 `Board`, 신호 판정, 스트림, 읽기 주기, 엔진 시계)는 화면이 가진 `KrxLive`가 맡는다. upstream의 화면 규약(`docs/ARCHITECTURE.md`: 화면은 캐시와 업무 로직을 갖지 않는다)을 따른 것이다. 새 싱글턴은 만들지 않는다.
 - Navigate → Trading & Portfolio → **KRX 4분 예측**(또는 명령 팔레트에서 "krx")으로 연다.
 - 엔진 주소는 화면 위의 **엔진 주소** 칸에 넣는다(처음에는 비어 있다). 값은 QSettings `krx_quant/base_url`에 남는다. 실제 주소는 krx-quant 저장소의 문서에 있다.
@@ -209,17 +209,31 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
   - 지난 날로 스크롤(codeyoma/krx-quant#108): 보기의 왼쪽 끝이 첫 봉에서 30봉 안으로 오면 그 앞의 400봉(`GET …/bars?before=<첫 봉>&limit=400`)과 그 봉들의 최종 합의(`…/predictions?algorithm=consensus-final&before=`)를 읽어 앞에 붙인다. 날을 넘어 어제, 그 전 날로 이어진다. 보기는 보던 봉에 머문다. 왼쪽은 읽은 첫 봉에서 멈추고(빈 칸으로 넘어가지 않는다), 엔진에 더 앞의 봉이 없으면 더 읽지 않는다. 지난 날에도 아이콘, ✓/✗, 호버, 클릭이 된다. 장 시작 전처럼 오늘 봉이 없으면 처음부터 지난 거래일의 봉을 읽는다. 다른 종목을 고르거나 엔진을 읽지 못하면 읽어 둔 지난 봉을 버린다.
   - 장중에 엔진이 재시작했으면 그 전의 오늘 봉은 20:30 백필 뒤에야 보인다(엔진 API의 `bars` 참고).
   - 실시간 봉(codeyoma/krx-quant#110): 지금 만들어지는 봉이 스트림의 `bar` 이벤트(엔진이 1초마다 살펴 바뀌었을 때만 보냄)로 1초마다 움직이고, 오른쪽 현재가 선도 같이 움직인다. 고른 종목의 것만 마지막 봉에 합친다: 같은 분이면 그 봉을 바꾸고, 새 분이면 앞 봉을 끝난 것으로 보고 뒤에 붙인다. 앞선 분이나 보이는 것보다 작은 같은 분(늦게 온 이벤트)은 버린다. N분 보기에서는 묶은 마지막 봉이 움직인다. 페이지는 마지막 봉만 다시 그린다(`update`). 끝난 봉은 새 봉 마감마다 다시 읽고, 그 위에 지금 봉을 다시 얹는다. 스트림이 다시 연결되면 처음처럼 모두 다시 읽는다. 지금 봉에는 아직 아이콘이 없다(봉 마감 뒤에 생긴다).
-  - 분 단위 보기(codeyoma/krx-quant#109): 차트 위 한 줄의 버튼 "분 1 3 5 10 15 30 60 120 240"으로 N분봉 보기를 고른다. Fincept 포트폴리오 차트의 기간 버튼과 같은 모양(납작한 체크 버튼, 고른 것은 주황으로 채움, 테마를 따름)이다. 고른 보기는 앱 설정 `krx_quant/chart_view_minutes`에 남아 다시 켜도 그대로다(없거나 목록 밖이면 1분). 패널이 좁으면 오른쪽 버튼이 잘린다.
+  - **차트 툴바**(codeyoma/krx-quant#220, #221): 차트 위 한 줄이 `[1분 ▾] 일 주 월 년 │ [차트 모양] [+ 보조지표] [그리기]`이고, 오른쪽 끝에 `[휴지통] [톱니]`가 있다. 버튼은 Fincept 포트폴리오 차트의 기간 버튼과 같은 모양(납작한 버튼, 고른 보기는 주황으로 채움, 테마를 따름)이다. 패널이 좁으면 `보조지표`·`그리기`의 글자를 숨기고 아이콘만 남긴다. 더 좁으면 왼쪽 묶음이 오른쪽 끝에서 잘리고, 휴지통과 톱니는 늘 오른쪽 끝에 보인다. `보조지표`(codeyoma/krx-quant#222), `그리기`와 휴지통(codeyoma/krx-quant#224)은 아직 비활성이다(툴팁 "준비 중"). 툴바는 `screens/krx_quant/KrxChartToolbar`이고, 보이기만 하며 고른 것을 화면에 알린다.
+  - **종목별 차트 설정**(codeyoma/krx-quant#221): 보기와 차트 모양은 종목마다 앱 설정 `krx_quant/chart/<종목코드>/view`(분 수: 1–240, 일 1440, 주 10080, 월 44640, 년 527040)와 `krx_quant/chart/<종목코드>/style`(아래 차트 모양의 이름)에 남는다. 종목을 고르면 그 종목의 보기와 모양으로 바뀐다(`KrxLive::selected_changed`). 처음 여는 종목, 목록 밖의 값, 아직 그리지 못하는 모양은 1분·캔들이다(`ChartLook::parse_prefs`). 다음 이슈들(지표, 하단 칸 높이, 그린 것, 고정 VWAP 기준)도 같은 `krx_quant/chart/<종목코드>/` 아래에 남긴다. 종목을 고르기 전에는 1분·캔들이고 남기지 않는다.
+
+    > **바뀜** (2026-10-15, codeyoma/krx-quant#221): 보기는 모든 종목에 하나(`krx_quant/chart_view_minutes`)였다 → 종목마다 남는다. 옛 키는 더 읽지 않는다. 이유: 한 종목에 맞춘 차트가 다른 종목에 그대로 남지 않게(2026-10-15 인터뷰, codeyoma/krx-quant#220).
+  - **차트 모양**(codeyoma/krx-quant#221): 툴바의 차트 모양 버튼(지금 모양의 아이콘)을 누르면 메뉴가 열린다: 바(`bar`), 캔들(`candle`), 라인(`line`), 영역(`area`), 렌코(`renko`), 카기(`kagi`), 포인트 앤 피겨(`point_figure`), 라인 브레이크(`line_break`), 하이킨아시(`heikin_ashi`), 투명캔들(`hollow`), 베이스라인(`baseline`). 괄호는 설정과 페이지에 쓰는 이름이다. 고른 것은 주황 굵은 글씨다.
+    - 바는 OHLC 바, 라인과 영역은 종가 선(테마의 주황, 영역은 선 아래를 칠함), 투명캔들은 오른 봉을 테두리만, 내린 봉을 채워 그린다.
+    - 하이킨아시는 봉을 하이킨아시 봉으로 그린다(종가 = 시가·고가·저가·종가의 평균, 시가 = 앞 하이킨아시 봉의 시가와 종가의 중간, 첫 봉은 제 시가와 종가의 중간, 고가·저가는 봉과 제 시가·종가를 포함). 거래량 색과 가격 축의 현재가 선은 원래 봉의 것이다. 지금 봉이 움직이면 앞 봉들부터 다시 센다.
+    - 베이스라인은 기준값 위를 오름 색, 아래를 내림 색으로 칠한다. 기준값은 분 보기에서 전일 종가(가장 최근 날의 첫 봉 앞, 읽은 마지막 봉의 종가. 그 앞을 읽지 않았으면 첫 봉의 시가), 일·주·월·년 보기에서 화면 첫 봉의 종가(스크롤·줌하면 다시 정한다)다. 바꿀 수 없다.
+    - 렌코·카기·포인트 앤 피겨·라인 브레이크(시간축 없는 차트)는 메뉴에서 흐리게 비활성이다(codeyoma/krx-quant#225에서 그린다).
+    - 시간축 차트 7종 모두에서 아이콘, 호버, 4분 구간, 고정, 선택 합의 성적이 전과 같다(1분 보기).
+    - 무엇을 그릴지(하이킨아시 봉, 베이스라인 기준값, 날짜 구분선의 봉, 설정 해석)는 `services/krx_quant/ChartLook`(순수 함수, `tst_krx_chart_look`)이 정하고, 페이지는 모양마다 시리즈를 바꿔 그리기만 한다.
+  - **날짜 구분선**(codeyoma/krx-quant#221): 톱니 메뉴의 체크 항목 `날짜 구분선`(기본 켬)이다. 모든 종목에 하나이고 앱 설정 `krx_quant/chart_day_separator`에 남는다. 분 보기(모든 N분)에서 KST 날짜가 바뀐 뒤 첫 봉(보통 08:00 NXT 봉) 한 칸 폭을 회색 세로 띠로 봉 뒤에 칠한다. 가격 칸과 거래량 칸의 전체 높이다. 읽은 첫 봉은 09:00 이전에 시작할 때만 날의 첫 봉으로 본다(그날 중간부터 읽은 날은 칠하지 않는다). 일·주·월·년 보기에서는 항목이 비활성이고 툴팁이 "분봉에서만"이다.
+  - 분 단위 보기(codeyoma/krx-quant#109): 툴바의 분 드롭다운 `1분 ▾`(1·3·5·10·15·30·60·120·240분)으로 N분봉 보기를 고른다. 단추 글자는 마지막으로 고른 분이고, 분 보기일 때만 주황으로 채운다. 고른 보기는 종목별로 남는다(위).
+
+    > **바뀜** (2026-10-15, codeyoma/krx-quant#221): 차트 위 한 줄의 버튼 "분 1 3 5 10 15 30 60 120 240" → 드롭다운 하나. 이유: 버튼 9개가 한 줄을 차지해 좁은 패널에서 오른쪽 버튼이 잘렸고, 차트 모양·보조지표·그리기 버튼이 들어갈 자리가 필요했다(codeyoma/krx-quant#220).
     - 1분봉을 화면에서 N분봉으로 묶는다. 시계 기준(KST)이다: 60분봉은 09:00, 10:00…, 240분봉은 08:00, 12:00, 16:00에 시작한다. 모든 N이 하루를 나누므로 봉이 날을 넘지 않는다. 시가는 첫 1분봉의 시가, 고가·저가는 가장 높고 낮은 값, 종가는 마지막 1분봉의 종가, 거래량은 합이다. 거래가 없어 빠진 분은 건너뛰고, 1분봉이 하나도 없는 N분은 봉이 없다.
     - 3분 이상 보기에는 아이콘·호버·클릭이 없다(한 봉에 봉 마감이 여럿이다). 차트 제목은 "005930 · 15분봉"이다. 보기를 바꾸면 최근 60봉에 맞춘다.
     - 왼쪽 끝에 닿으면 그 보기의 100봉만큼 1분봉을 더 읽는다(1분은 400, 5분은 500, 한 번에 최대 1000. 엔진이 한 번에 주는 최종 합의가 1000개까지라서). 넓은 보기는 여러 번 이어 읽는다.
-  - 일 보기(codeyoma/krx-quant#111): 분 버튼 뒤의 **일** 버튼. 엔진이 KIS에서 받아 저장한 일봉(`GET /v1/symbols/{s}/candles?period=day`, 수정주가)을 그린다. 고르면 앱 설정 `krx_quant/chart_view_minutes`에 1440(하루의 분)으로 남는다.
+  - 일 보기(codeyoma/krx-quant#111): 분 드롭다운 뒤의 **일** 버튼. 엔진이 KIS에서 받아 저장한 일봉(`GET /v1/symbols/{s}/candles?period=day`, 수정주가)을 그린다. 고르면 그 종목의 보기에 1440(하루의 분)으로 남는다.
     - 처음에 최근 400개를 읽고, 왼쪽 끝에 닿으면 가장 오래된 봉의 날 앞으로 400개씩 더 읽는다. 엔진에 더 없으면 그만 읽는다. KIS에 있는 만큼(몇 년 전까지) 거슬러 간다.
     - 오늘의 봉은 엔진이 주지 않는다. 화면이 오늘의 1분봉과 실시간 봉으로 만들어, 실시간으로 움직인다. 엔진의 일봉이 통합(`UN`)이면 그날의 모든 1분봉, KRX면 09:00–15:30 봉으로 만든다. KRX일 때 거래량은 통합 1분봉에서 온 근사치다.
     - 아이콘·호버·클릭은 없다. 차트 제목은 "005930 · 일봉"이고, 시간 축과 십자선은 날짜만 보인다.
     - 일·주·월·년봉을 읽지 못하면 머리줄의 "읽지 못함" 툴팁에 "일·주·월·년봉을 읽지 못했습니다"와 이유가 나온다. 그 보기가 읽는 기간의 실패만 보이고, 다음 차트 읽기(60초)에 다시 묻는다. 다른 보기로 옮긴 뒤에 끝난 읽기의 실패는 보이지 않고, 새 보기의 읽기를 바로 시작한다.
     - 엔진의 최신 일봉을 한 번 읽기 전에는 그리지 않는다. 오늘 봉 하나로 먼저 맞추면 그 한 봉의 너비가 굳어, 뒤에 읽은 몇 년치가 몇 개만 보였다(codeyoma/krx-quant#112에서 찾았다).
-  - 주·월·년 보기(codeyoma/krx-quant#112): **일** 뒤의 **주 월 년** 버튼. 앱 설정에는 10080·44640·527040(대략의 분)으로 남는다.
+  - 주·월·년 보기(codeyoma/krx-quant#112): **일** 뒤의 **주 월 년** 버튼. 그 종목의 보기에 10080·44640·527040(대략의 분)으로 남는다.
     - 엔진이 저장한 끝난 주·월·년봉(`candles?period=week|month|year`, 기간의 첫날 날짜)을 읽고, 그 뒤의 기간(이번 주·달·해, 엔진이 아직 저장하지 않은 지난 기간)은 일 보기의 일봉(오늘 봉 포함)을 묶어 만든다. 주는 월요일 시작, 날짜는 KST다. 그래서 지금 봉도 오늘의 1분봉으로 실시간으로 움직인다.
     - 최신 일봉과 그 보기의 최신 봉을 둘 다 읽은 뒤 그린다. 왼쪽 끝에 닿으면 그 기간의 봉을 400개씩 더 읽는다. 엔진 날짜가 바뀌면 둘 다 다시 읽는다.
     - 아이콘·호버·클릭은 없다. 차트 제목은 "005930 · 주봉"(월봉, 년봉)이다.
@@ -364,13 +378,18 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
   - `tst_krx_signals`: 신호 규칙, 다시 알리지 않는 규칙, 구성원을 모를 때 미루기, 엔진의 `votes`로 판단하기.
   - `tst_krx_stats_view`: 순위표와 상세 통계 창이 보이는 문구(비율·평균과 구간, 기준별 lift 줄과 거래일 구간, 시간대, 보정도 곡선과 점, 제외 건수, 조건과 날짜, 순위표 제목 툴팁의 순위 규칙, 열 제목·lift·보정도 툴팁).
   - `tst_krx_chart_model`: 차트가 그릴 봉(KST를 차트의 UTC로), 아이콘의 방향(▲▼–)·결과(✓/✗/?)·흐림·붙는 봉, 맞춤 범위(최근 60봉), 호버 다섯 줄(채점 전·후, `votes` 없음, 막힌 합의), 목표 봉(있음, 오른쪽 빈칸), 신호 강조, 고정한 봉 마감의 표 행(순서, 기준 예측 묶음, 상태, 맞음·틀림, 합의 포함 여부, `pooled` 없음은 "알 수 없음"), 왼쪽 끝에서 다음에 읽을 범위(30봉 안, 첫 봉 앞 400봉, 봉이 없으면 지금 앞, N분 보기는 100봉만큼 최대 1000), 더 읽은 봉 붙이기(중복·순서), N분 묶기(시가·고가·저가·종가·거래량, 240분봉 08:00/12:00/16:00 시작, 날 경계, 빈 분, 다른 오프셋의 시각), 실시간 봉 합치기(같은 분, 새 분, 오래된 이벤트 버리기, 5분 보기의 마지막 봉), 일 보기(오늘 봉을 통합·KRX 기준으로 만들기, 저장된 일봉 뒤에 붙이기·바꾸기, 실시간 봉으로 움직이기, 왼쪽 끝에서 앞의 일봉 읽기), 주·월·년 보기(월요일·1일·1월 1일 시작, 해를 넘는 주, 엔진의 마지막 봉 뒤를 일봉으로 만들기, 저장된 것이 없을 때).
+  - `tst_krx_chart_look`: 차트 모양의 이름(설정 이름과 메뉴 이름, 시간축 없는 모양은 아직 그리지 않음), 종목별 설정(처음 여는 종목은 1분·캔들, 목록 밖의 보기·모르는 모양·아직 못 그리는 모양은 기본값, INI 문자열 값), 하이킨아시 봉(첫 봉, 이어지는 시가, 고가·저가, 시각·거래량은 그대로), 베이스라인 기준값(분 보기의 전일 종가, 오늘만 읽었으면 첫 봉 시가, 일 보기의 화면 첫 봉, 마지막 봉 뒤), 날짜 구분선(1–240분 보기마다 날마다 첫 봉, 중간부터 읽은 날, 09:00에 여는 종목, 일 보기는 없음).
   - 예측 종류(codeyoma/krx-quant#182, 지어낸 값): `tst_krx_engine_data`는 `/v1/kinds`, 종류의 최신 예측과 정답·경로, `kind_prediction`·`kind_answer` 이벤트, 예측과 함께 오는 봉 마감의 k(`flat_ticks`, 없거나 `null`이면 없음, codeyoma/krx-quant#200), 변동폭 순위표의 `kind`와 분위수 통계(`extra`), `/stats`의 `kind`, `/v1/symbols`의 `tick`·`flat_ticks`, 알고리즘의 종류, 장벽(codeyoma/krx-quant#185)의 봉 마감 w(`width_ticks`), 예측과 함께 오는 봉 마감 중간가와 호가단위(`anchor`, `tick`, 없거나 `null`이면 없음, codeyoma/krx-quant#210), 정답 경로(U·L, 처음 닿은 시각과 호가, 따라가지 못한 창과 중간가 없는 창), 스트림의 장벽 정답, 순위표의 장벽 손익(`extra`)과 기준 예측 이름을 읽는 것을, `tst_krx_board`는 `KindBoard`(종목별 최신, 고른 종목의 봉 마감별 기록, 정답 붙이기와 되돌리지 않기, 다른 종류의 이벤트 무시, 되감기, 장벽 정답의 경로가 그 봉 마감의 모든 예측에 붙고 w, 중간가, 호가단위는 남기)를, `tst_krx_stats_view`는 변동폭·장벽 순위표와 상세 창의 열과 칸, 분위수 표와 요약, 장벽 손익 칸·표·요약, 클래스별 보정 곡선(과 그 툴팁의 조사 "을/를"), 기준 예측의 lift 툴팁, 순위 규칙을 본다.
   - `tst_krx_kind_view`: 예측 종류 선택(옛 엔진에서 방향만, 장벽을 예측하지 않는 엔진에서 장벽은 흐림, 장벽을 예측하는 엔진에서 고를 수 있음, 모르는 종류는 버튼 없음), 고른 종류와 보이는 종류(설정은 그대로), 클래스 동률 규칙, 틱 표기, k와 2k(정답의 k, 정답 전에는 예측과 함께 온 봉 마감의 k, 옛 엔진이면 지금 k, codeyoma/krx-quant#200), 정답 문구(장벽은 먼저 닿은 쪽과 시각), 패널 열(변동폭은 전과 같음, 장벽은 세 확률), 장벽 w와 U·L(정답의 w와 U·L, 정답 전에는 예측의 w와 예측과 함께 온 봉 마감 중간가·호가단위로 센 U·L, 그 값이 없는 옛 엔진이면 w만, codeyoma/krx-quant#210), 변동폭·장벽 패널의 행 순서·확률·결과, 호버 줄과 4분 구간의 선(변동폭의 최고·최저 중간가, 장벽의 U·L(정답 전에도)과 각 장벽에 처음 닿은 점), 지난 봉까지 읽을 범위.
   - `tst_krx_app_release`: 개인 빌드 태그 해석과 순서, Release 목록에서 업데이트할 빌드·설치 파일·sha256 고르기.
 - 화면 캡처(codeyoma/krx-quant#103): `custom/tools/krx-capture`는 KRX 화면을 엔진에 붙여 PNG로 저장한다. 화면 PR에 데모 엔진 화면을 남길 때 쓴다. 앱 빌드와 따로인 CMake 프로젝트이고, 설정은 임시 폴더의 `krx-capture.ini`에 쓴다. 같은 컴퓨터의 Fincept 설정(엔진 주소, 알림 설정)은 건드리지 않는다.
   - 빌드: `cmake -S custom/tools/krx-capture -B fincept-qt/build/krx-capture -G Ninja -DCMAKE_PREFIX_PATH=<Qt 6.8.3> && cmake --build fincept-qt/build/krx-capture`
   - 실행: `fincept-qt/build/krx-capture/krx_capture http://127.0.0.1:8090 out.png [초=8] [가로=1600] [세로=1000] [예측,...]`. 그 초만큼 엔진을 읽은 뒤 찍는다. 예측 이름(`gauss` 등)을 주면 그 상세 통계 창도 열어 `out-<예측>.png`로 찍는다. 테마와 글꼴은 앱 기본값(Obsidian, Consolas 14px)이다.
-  - 환경 변수 `KRX_CAPTURE_VIEW=<분>`을 주면 처음에 그 분 단위 보기 버튼을 누른다(codeyoma/krx-quant#109). `1440`은 일 보기, `10080`·`44640`·`527040`은 주·월·년 보기다(codeyoma/krx-quant#111, #112). 고른 보기는 임시 설정에 남아 다음 캡처도 그 보기로 열린다.
+  - 환경 변수 `KRX_CAPTURE_VIEW=<분>`을 주면 기다리는 시간의 0.3 지점(엔진을 읽고 종목이 골라진 뒤)에 툴바에서 그 보기를 고른다(codeyoma/krx-quant#109, #221). `1440`은 일 보기, `10080`·`44640`·`527040`은 주·월·년 보기다(codeyoma/krx-quant#111, #112). 고른 보기는 임시 설정에 그 종목의 것으로 남아 다음 캡처도 그 보기로 열린다.
+  - 환경 변수 `KRX_CAPTURE_STYLE=<모양>`(예: `heikin_ashi`, `baseline`)을 주면 같은 때에 그 차트 모양을 고른다(codeyoma/krx-quant#221). `KRX_CAPTURE_SEPARATOR=0|1`은 날짜 구분선을 끄고 켠 것으로 연다.
+  - 환경 변수 `KRX_CAPTURE_MENU=minutes|style|options`를 주면 기다리는 시간의 0.9 지점에 툴바의 그 메뉴(분 드롭다운, 차트 모양, 톱니)를 열고, 메뉴를 `out-menu.png`로 따로 찍는다(메뉴는 따로 뜨는 창이다).
+
+    > **바뀜** (2026-10-15, codeyoma/krx-quant#221): `KRX_CAPTURE_VIEW`는 처음에 보기 버튼을 눌렀다 → 0.3 지점에 툴바에서 고른다. 이유: 분 보기가 드롭다운이 됐고, 보기가 종목별이라 종목이 골라진 뒤에 골라야 남는다.
   - 환경 변수 `KRX_CAPTURE_BACK=<횟수>`를 주면 기다리는 시간의 4분의 1부터 0.5초마다 차트를 그 횟수만큼 휠로 왼쪽(지난 날)으로 돌린 뒤 찍는다(codeyoma/krx-quant#108).
   - 환경 변수 `KRX_CAPTURE_PIN=<봉 마감, ISO 8601>`(예: `2026-10-12T10:24:00+09:00`)을 주면 기다리는 시간의 절반이 지났을 때 그 봉 마감의 아이콘을 누른 것처럼 예측 패널을 고정하고 찍는다(codeyoma/krx-quant#107).
   - 환경 변수 `KRX_CAPTURE_SELECTION=gauss,markov`를 주면 순위표에서 그 모델들을 체크한 것으로 연다(codeyoma/krx-quant#159). 빈 값이면 해제한다. 주지 않으면 임시 설정의 지난 값이 남는다.

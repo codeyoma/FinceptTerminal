@@ -1,6 +1,7 @@
 #pragma once
 
 #include "services/krx_quant/Board.h"
+#include "services/krx_quant/ChartLook.h"
 #include "services/krx_quant/ChartModel.h"
 #include "services/krx_quant/Signals.h"
 
@@ -9,6 +10,8 @@
 #include <QObject>
 #include <QString>
 #include <QWidget>
+
+#include <optional>
 
 class QLabel;
 class QWebEngineView;
@@ -42,6 +45,8 @@ class KrxChartBridge : public QObject {
     /// Hover boxes to set and drop: {"reset", "set": [...], "drop": [times]} (krx-quant #159).
     void hovers_changed(const QString& json);
     void live_changed(const QString& json);
+    /// The baseline style's base price moved with the view (krx-quant #221): {"base"}.
+    void base_changed(const QString& json);
     void fit_requested();
 };
 
@@ -63,12 +68,17 @@ class KrxChart : public QWidget {
     /// many minutes, and only the 1-minute view has icons and boxes. In a candle view
     /// (krx_quant::candle_view: day, week, month, year; krx-quant #111, #112) ``bars`` are
     /// its candles, drawn as they are, with dates only on the axis. Only the boxes that
-    /// changed are sent again; one shown stays shown.
+    /// changed are sent again; one shown stays shown. ``look`` is the chart's style and whether a
+    /// minute view fills its days' first bars (krx-quant #221): a Heikin-Ashi chart draws its
+    /// bars as Heikin-Ashi bars and its price line at the last bar's own close; a baseline chart
+    /// colors the price above and below its base (krx_quant::baseline_base, again as a candle
+    /// view scrolls).
     void set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
                   const QList<krx_quant::BarHover>& hovers = {}, const krx_quant::SignalRule& rule = {},
-                  int minutes = 1);
+                  int minutes = 1, const krx_quant::ChartLook& look = {});
     /// Only the last bar of ``bars`` moved (the bar being made, krx-quant #110): it alone is
-    /// drawn again, in the view of ``minutes``. A candle view's ``bars`` are its candles.
+    /// drawn again, in the view of ``minutes`` and the style last set. A candle view's ``bars``
+    /// are its candles.
     void update_live(const QList<krx_quant::Bar>& bars, int minutes);
     /// Show the last 60 bars again.
     void fit();
@@ -92,6 +102,8 @@ class KrxChart : public QWidget {
   private:
     /// The web view, made when first shown: only then is the WebEngine runtime started.
     void ensure_view();
+    /// The baseline's base again for the bars in view from ``first_in_view``: sent when it moved.
+    void rebase(std::optional<qint64> first_in_view);
 
     KrxChartBridge* bridge_ = nullptr;
     QWebEngineView* view_ = nullptr;
@@ -99,6 +111,11 @@ class KrxChart : public QWidget {
     QString theme_; ///< the last sent, sent again when the page is ready
     QString data_;
     QHash<qint64, QString> hovers_; ///< the hover boxes sent, by bar time
+    QList<krx_quant::ChartBar> shown_; ///< the bars last sent, as they are (not Heikin-Ashi)
+    int minutes_ = 1;
+    krx_quant::ChartLook look_;
+    std::optional<double> base_;          ///< the baseline's base last sent
+    std::optional<qint64> first_in_view_; ///< the first bar in view, as the page last said
 };
 
 } // namespace fincept::screens

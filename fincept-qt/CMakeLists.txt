@@ -1479,6 +1479,7 @@ set(SERVICE_SOURCES
     src/services/notifications/providers/SMSProvider.cpp
     # KRX prediction engine reader (fork addition, custom/README.md)
     src/services/krx_quant/Board.cpp
+    src/services/krx_quant/ChartLook.cpp
     src/services/krx_quant/ChartModel.cpp
     src/services/krx_quant/EngineData.cpp
     src/services/krx_quant/KindView.cpp
@@ -2089,6 +2090,7 @@ set(SCREEN_SOURCES
     # KRX prediction screen (fork addition, custom/README.md)
     src/screens/krx_quant/KrxAlerts.cpp
     src/screens/krx_quant/KrxChart.cpp
+    src/screens/krx_quant/KrxChartToolbar.cpp
     src/screens/krx_quant/KrxLeaderboard.cpp
     src/screens/krx_quant/KrxQuantScreen.cpp
     src/screens/krx_quant/KrxStatsWindow.cpp
@@ -2646,10 +2648,12 @@ set_source_files_properties(
     src/core/currency/fx/FxRates.cpp
     src/screens/krx_quant/KrxAlerts.cpp
     src/screens/krx_quant/KrxChart.cpp
+    src/screens/krx_quant/KrxChartToolbar.cpp
     src/screens/krx_quant/KrxLeaderboard.cpp
     src/screens/krx_quant/KrxQuantScreen.cpp
     src/screens/krx_quant/KrxStatsWindow.cpp
     src/services/krx_quant/Board.cpp
+    src/services/krx_quant/ChartLook.cpp
     src/services/krx_quant/ChartModel.cpp
     src/services/krx_quant/EngineData.cpp
     src/services/krx_quant/KindView.cpp

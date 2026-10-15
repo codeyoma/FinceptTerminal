@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <!--
-  The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182, #185),
-  drawn with TradingView Lightweight Charts (NOTICE). It only draws what the screen sends over
-  the web channel: the bars and their volumes, the consensus icons, each bar's hover box and its
-  four-minute window with two levels across it (the touch targets, the range's highest and
-  lowest mid-points, or the barrier's U and L), the theme, and when to fit. It tells the screen
-  where its view is.
+  The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182, #185,
+  #221), drawn with TradingView Lightweight Charts (NOTICE). It only draws what the screen sends
+  over the web channel: the bars in the style chosen and their volumes, the days' first bars
+  filled, the consensus icons, each bar's hover box and its four-minute window with two levels
+  across it (the touch targets, the range's highest and lowest mid-points, or the barrier's U
+  and L), the theme, and when to fit. It tells the screen where its view is.
 -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #080808; }
@@ -40,19 +40,123 @@
     // read, where the bars before are read (krx-quant #108).
     timeScale: { timeVisible: true, secondsVisible: false, rightOffset: 6, fixLeftEdge: true },
   });
-  const candles = chart.addSeries(L.CandlestickSeries, {
-    priceLineVisible: true,
-    lastValueVisible: true,
-    priceFormat: { type: 'price', precision: 0, minMove: 1 }, // won, as KRX stocks trade
-  });
+  let colors = {
+    tip_background: '#111', tip_border: '#333', tip_text: '#e5e5e5', link: '#f59e0b', up: '#16a34a', down: '#dc2626',
+    band: 'rgba(128,128,128,0.22)',
+  };
+
+  // ``color`` (rgba(r,g,b,a) from the screen) at ``alpha``.
+  function fade(color, alpha) {
+    const m = /rgba?\(([^)]+)\)/.exec(color);
+    return m ? 'rgba(' + m[1].split(',').slice(0, 3).join(',') + ',' + alpha + ')' : color;
+  }
+
+  // The days' first bars of a minute view, filled grey behind the bars (krx-quant #221): a band a
+  // bar wide, the pane's height, in each pane it is attached to.
+  let bandTimes = [];
+  function bandPrimitive() {
+    const renderer = {
+      draw(target) {
+        if (!bandTimes.length) return;
+        target.useBitmapCoordinateSpace(function (scope) {
+          const scale = chart.timeScale();
+          const a = scale.logicalToCoordinate(0), b = scale.logicalToCoordinate(1);
+          if (a === null || b === null) return;
+          const half = (b - a) / 2;
+          const g = scope.context;
+          g.fillStyle = colors.band;
+          for (const time of bandTimes) {
+            const x = scale.timeToCoordinate(time);
+            if (x === null) continue;
+            const left = Math.round((x - half) * scope.horizontalPixelRatio);
+            const right = Math.round((x + half) * scope.horizontalPixelRatio);
+            g.fillRect(left, 0, Math.max(1, right - left), scope.bitmapSize.height);
+          }
+        });
+      },
+    };
+    const view = { zOrder: () => 'bottom', renderer: () => renderer };
+    return { paneViews: () => [view], updateAllViews() {} };
+  }
+
+  // The price series in the style chosen (krx-quant #221): its kind of series and options. A
+  // line, an area and a baseline draw the closes.
+  let style = null;
+  let baseValue = 0; // the baseline's base
+  function styleOptions(kind) {
+    const options = {
+      // A Heikin-Ashi chart's price line is the last bar's own close (realLine), not its own.
+      priceLineVisible: kind !== 'heikin_ashi',
+      lastValueVisible: kind !== 'heikin_ashi',
+      priceFormat: { type: 'price', precision: 0, minMove: 1 }, // won, as KRX stocks trade
+    };
+    const candle = {
+      upColor: colors.up, downColor: colors.down, borderUpColor: colors.up, borderDownColor: colors.down,
+      wickUpColor: colors.up, wickDownColor: colors.down,
+    };
+    switch (kind) {
+      case 'bar':
+        return [L.BarSeries, Object.assign(options, { upColor: colors.up, downColor: colors.down, thinBars: false })];
+      case 'line':
+        return [L.LineSeries, Object.assign(options, { color: colors.link, lineWidth: 2 })];
+      case 'area':
+        return [L.AreaSeries, Object.assign(options, {
+          lineColor: colors.link, topColor: fade(colors.link, 0.35), bottomColor: fade(colors.link, 0.02), lineWidth: 2,
+        })];
+      case 'baseline':
+        return [L.BaselineSeries, Object.assign(options, {
+          baseValue: { type: 'price', price: baseValue }, lineWidth: 2,
+          topLineColor: colors.up, topFillColor1: fade(colors.up, 0.28), topFillColor2: fade(colors.up, 0.05),
+          bottomLineColor: colors.down, bottomFillColor1: fade(colors.down, 0.05), bottomFillColor2: fade(colors.down, 0.28),
+        })];
+      case 'hollow': // rising bars as outlines, falling ones filled
+        return [L.CandlestickSeries, Object.assign(options, candle, { upColor: 'rgba(0,0,0,0)' })];
+      default: // candles and Heikin-Ashi bars
+        return [L.CandlestickSeries, Object.assign(options, candle)];
+    }
+  }
+  function point(b) {
+    return style === 'line' || style === 'area' || style === 'baseline' ? { time: b.time, value: b.close } : b;
+  }
+
+  let main = null;  // the price series
+  let icons = null; // its markers
+  let realLine = null; // a Heikin-Ashi chart's line at the last bar's own close
+  function makeMain(kind) {
+    style = kind;
+    const [type, options] = styleOptions(kind);
+    // Made before the old one goes, so the price pane is never empty (an empty pane is removed).
+    const made = chart.addSeries(type, options, 0);
+    if (main) {
+      icons.detach();
+      chart.removeSeries(main);
+    }
+    main = made;
+    realLine = null;
+    icons = L.createSeriesMarkers(main, []);
+    main.attachPrimitive(bandPrimitive());
+  }
+  function showReal(last) {
+    if (style !== 'heikin_ashi' || !last) {
+      if (realLine) main.removePriceLine(realLine);
+      realLine = null;
+      return;
+    }
+    const options = {
+      price: last.close, color: last.rising ? colors.up : colors.down, lineWidth: 1, lineStyle: 2, axisLabelVisible: true,
+    };
+    if (realLine) realLine.applyOptions(options); else realLine = main.createPriceLine(options);
+  }
+
   const volumes = chart.addSeries(
     L.HistogramSeries,
     { priceFormat: { type: 'volume' }, priceLineVisible: false, lastValueVisible: false },
     1 // the pane below
   );
+  volumes.attachPrimitive(bandPrimitive());
+  makeMain('candle');
   chart.panes()[0].setStretchFactor(0.78);
   chart.panes()[1].setStretchFactor(0.22);
-  const icons = L.createSeriesMarkers(candles, []);
 
   let fitRange = null;
   function fit() {
@@ -64,9 +168,6 @@
   let iconAt = new Map(); // time -> icon
   let hoverAt = new Map(); // time -> hover box (krx-quant #159)
   let hovered = null;      // the bar hovered: {time, x}, kept while the data is sent again
-  let colors = {
-    tip_background: '#111', tip_border: '#333', tip_text: '#e5e5e5', link: '#f59e0b', up: '#16a34a', down: '#dc2626',
-  };
 
   // Fitted since the chart last emptied: another symbol is chosen by emptying the chart
   // first (KrxLive::select), and its first bars are fitted again.
@@ -74,11 +175,18 @@
   function show(data) {
     // Day candles (krx-quant #111) are dated: the axis and the crosshair show no time.
     chart.applyOptions({ timeScale: { timeVisible: !data.day } });
+    if (data.style !== style) makeMain(data.style);
+    if (data.base !== undefined) {
+      baseValue = data.base;
+      if (style === 'baseline') main.applyOptions({ baseValue: { type: 'price', price: baseValue } });
+    }
+    bandTimes = data.bands;
     bars = data.bars;
     barAt = new Map(bars.map((b, i) => [b.time, i]));
     iconAt = new Map(data.icons.map((i) => [String(i.time), i]));
-    candles.setData(bars);
+    main.setData(bars.map(point));
     volumes.setData(data.volumes);
+    showReal(data.last);
     icons.setMarkers(data.icons.map((i) => ({
       id: String(i.time), time: i.time, position: i.position, shape: i.shape, color: i.color, size: i.size,
       text: i.text,
@@ -105,8 +213,9 @@
   // one follows it. One older than the last drawn is not drawn.
   function live(data) {
     if (!bars.length || data.bar.time < bars[bars.length - 1].time) return;
-    candles.update(data.bar);
+    main.update(point(data.bar));
     volumes.update(data.volume);
+    showReal(data.last);
     if (data.bar.time === bars[bars.length - 1].time) {
       bars[bars.length - 1] = data.bar;
     } else {
@@ -173,7 +282,7 @@
     g.setLineDash(open ? [4, 3] : []);
     for (const [price, color] of [[box.upper, colors.up], [box.lower, colors.down]]) {
       if (price === undefined) continue;
-      const y = candles.priceToCoordinate(price);
+      const y = main.priceToCoordinate(price);
       if (y === null) continue;
       g.strokeStyle = color;
       g.beginPath();
@@ -184,7 +293,7 @@
     g.setLineDash([]);
     for (const [point, color] of [[box.upper_reached, colors.up], [box.lower_reached, colors.down]]) {
       if (!point) continue;
-      const x = xOf(point.time), y = candles.priceToCoordinate(point.price);
+      const x = xOf(point.time), y = main.priceToCoordinate(point.price);
       if (x === null || y === null) continue;
       g.fillStyle = color;
       g.beginPath();
@@ -266,11 +375,13 @@
         horzLine: { color: t.text, labelBackgroundColor: t.label },
       },
     });
-    candles.applyOptions({
-      upColor: t.up, downColor: t.down,
-      borderUpColor: t.up, borderDownColor: t.down,
-      wickUpColor: t.up, wickDownColor: t.down,
-    });
+    main.applyOptions(styleOptions(style)[1]);
+  }
+
+  // The baseline's base moved with the view (krx-quant #221).
+  function rebase(data) {
+    baseValue = data.base;
+    if (style === 'baseline') main.applyOptions({ baseValue: { type: 'price', price: baseValue } });
   }
 
   area.addEventListener('dblclick', fit);
@@ -283,6 +394,7 @@
     bridge.data_changed.connect(function (json) { show(JSON.parse(json)); });
     bridge.hovers_changed.connect(function (json) { boxes(JSON.parse(json)); });
     bridge.live_changed.connect(function (json) { live(JSON.parse(json)); });
+    bridge.base_changed.connect(function (json) { rebase(JSON.parse(json)); });
     bridge.fit_requested.connect(fit);
     bridge.ready();
   });
