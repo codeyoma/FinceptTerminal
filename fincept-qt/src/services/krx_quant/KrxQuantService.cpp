@@ -436,6 +436,23 @@ void KrxQuantService::read_kind_history(const QString& symbol, const QString& ki
     });
 }
 
+void KrxQuantService::read_special(const QString& symbol, const QDate& from, const QDate& to) {
+    if (!begin(kSpecial))
+        return;
+    const QString path =
+        QStringLiteral("/special?from=%1&to=%2").arg(from.toString(Qt::ISODate), to.toString(Qt::ISODate));
+    get(symbol_path(symbol, path), [this, symbol, from, to](Result<QJsonDocument> answer) {
+        end(kSpecial);
+        // An engine before krx-quant #236 has no such answer: no bands, not a failure to show.
+        if (answer.is_err() && HttpClient::status_from_error(answer.error()) == 404)
+            return emit special_ready(symbol, from, to, {});
+        auto windows = parsed(answer, krx_quant::parse_special);
+        if (windows.is_err())
+            return emit special_failed(symbol, from, to, why(windows.error()));
+        emit special_ready(symbol, from, to, windows.value());
+    });
+}
+
 void KrxQuantService::read_macro() {
     if (!begin(kMacro))
         return;
