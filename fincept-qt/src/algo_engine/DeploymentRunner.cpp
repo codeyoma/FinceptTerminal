@@ -11,6 +11,7 @@
 
 using fincept::Database;
 #include "trading/AccountManager.h"
+#include "trading/ActionCenter.h"
 #include "trading/BrokerInterface.h"
 #include "trading/BrokerRegistry.h"
 #include "trading/BrokerTopic.h"
@@ -30,6 +31,9 @@ using fincept::Database;
 #include <cmath>
 
 namespace fincept::algo {
+
+// Minimum gap between a rejected order and the next order attempt (see emit_order_signal).
+static constexpr int64_t kRunnerRejectBackoffMs = 5000;
 
 DeploymentRunner::DeploymentRunner(const services::algo::AlgoDeployment& deployment,
                                    const services::algo::AlgoStrategy& strategy, QObject* parent)
@@ -57,13 +61,16 @@ DeploymentRunner::DeploymentRunner(const services::algo::AlgoDeployment& deploym
 }
 
 DeploymentRunner::~DeploymentRunner() {
+    // Detach every listener first: stop() emits status_changed, and AlgoEngine's
+    // handler would otherwise act on (and deleteLater) an object mid-destruction.
+    QObject::disconnect(this, nullptr, nullptr, nullptr);
     if (running_.load())
         stop();
 }
 
 void DeploymentRunner::start() {
-    if (running_.load())
-        return;
+    if (running_.load() || stop_requested_.load())
+        return; // a stop raced ahead of the queued start
 
     running_ = true;
     paused_ = false;
@@ -196,7 +203,7 @@ void DeploymentRunner::stop_market_data() {
 }
 
 void DeploymentRunner::on_tick_data(const QVariant& data) {
-    if (!running_.load() || paused_.load())
+    if (!running_.load() || paused_.load() || stop_requested_.load())
         return;
 
     last_heartbeat_ms_ = QDateTime::currentMSecsSinceEpoch();
@@ -371,7 +378,7 @@ void DeploymentRunner::emit_live_snapshot(double price, const QString& note) {
 }
 
 void DeploymentRunner::on_candle_closed(const OhlcvCandle& /*candle*/) {
-    if (!running_.load() || paused_.load())
+    if (!running_.load() || paused_.load() || stop_requested_.load())
         return;
     if (position_mgr_->is_paused())
         return;
@@ -516,10 +523,24 @@ void DeploymentRunner::evaluate_exit(const QVector<OhlcvCandle>& candles) {
 }
 
 void DeploymentRunner::emit_order_signal(const AlgoOrderSignal& signal_in) {
+    // A stop was requested (possibly from another thread, before the queued stop()
+    // ran): never place another order.
+    if (stop_requested_.load()) {
+        LOG_WARN("AlgoEngine",
+                 QString("Deployment %1: %2 suppressed - stop requested").arg(deployment_.id, signal_in.reason));
+        return;
+    }
     // Only one order in flight at a time. Position/risk state updates only when a
     // fill arrives, so without this guard a stop-loss re-fires on every tick (and
     // entry/exit on every candle) until the fill lands — flooding duplicate orders.
     if (!pending_orders_.isEmpty())
+        return;
+
+    // Back off after a rejection. A rejected exit leaves the position open, so the very next
+    // tick re-fires the same stop-loss / take-profit and the broker rejects it again — a
+    // sustained rejection (market closed, margin, bad symbol) became one live order attempt
+    // per tick for as long as it lasted.
+    if (last_reject_ms_ > 0 && QDateTime::currentMSecsSinceEpoch() - last_reject_ms_ < kRunnerRejectBackoffMs)
         return;
 
     // Stamp the deployment's mode so the engine routes paper→simulated-fill and
@@ -586,15 +607,25 @@ void DeploymentRunner::on_order_filled(const QString& broker_order_id, double fi
     persist_trade(trade);
     emit trade_executed(trade);
     emit metrics_updated(deployment_.id, position_mgr_->metrics());
-    emit_live_snapshot(fill_price, QStringLiteral("%1 FILLED %2 @ %3")
-                                       .arg(is_entry ? QStringLiteral("ENTRY") : QStringLiteral("EXIT"))
-                                       .arg(fill_qty, 0, 'f', 0)
-                                       .arg(fill_price, 0, 'f', 2));
+    QString fill_note = QStringLiteral("%1 FILLED %2 @ %3")
+                            .arg(is_entry ? QStringLiteral("ENTRY") : QStringLiteral("EXIT"))
+                            .arg(fill_qty, 0, 'f', 0)
+                            .arg(fill_price, 0, 'f', 2);
+    if (!is_entry && position_mgr_->is_paused()) {
+        // The realizing exit tripped the daily-loss limit — say so, otherwise the
+        // card just stops trading with no explanation.
+        LOG_WARN("AlgoEngine", QString("Deployment %1: daily loss limit reached — new entries halted until the next "
+                                       "trading day")
+                                   .arg(deployment_.id));
+        fill_note += QStringLiteral(" — DAILY LOSS LIMIT HIT, entries halted");
+    }
+    emit_live_snapshot(fill_price, fill_note);
 }
 
 void DeploymentRunner::on_order_rejected(const QString& /*broker_order_id*/, const QString& reason) {
     if (!pending_orders_.isEmpty())
         pending_orders_.removeFirst();
+    last_reject_ms_ = QDateTime::currentMSecsSinceEpoch();
     LOG_ERROR("AlgoEngine", QString("Deployment %1: order rejected: %2").arg(deployment_.id, reason));
 }
 
@@ -741,7 +772,14 @@ void DeploymentRunner::finalize_basket_if_complete() {
         pnl = position_mgr_->record_exit_legs(now);
         clear_resolved_legs(); // basket closed — nothing to reattach on restart
         resolved_expiry_.clear();
-        emit_live_snapshot(0, QStringLiteral("EXIT basket closed, P&L %1").arg(pnl, 0, 'f', 2));
+        QString exit_note = QStringLiteral("EXIT basket closed, P&L %1").arg(pnl, 0, 'f', 2);
+        if (position_mgr_->is_paused()) {
+            LOG_WARN("AlgoEngine", QString("Deployment %1: daily loss limit reached — new entries halted until the next "
+                                           "trading day")
+                                       .arg(deployment_.id));
+            exit_note += QStringLiteral(" — DAILY LOSS LIMIT HIT, entries halted");
+        }
+        emit_live_snapshot(0, exit_note);
     }
 
     basket_fills_.clear();
@@ -773,12 +811,15 @@ void DeploymentRunner::on_heartbeat() {
     // Purge orders that never reported a fill/rejection so a lost ack doesn't
     // permanently block new signals (the in-flight guard in emit_order_signal).
     // An order parked in the Semi-Auto approval queue is NOT a lost ack — it is
-    // waiting on a human — so it keeps the guard until ActionCenter's own TTL
-    // (kPendingOrderTtlMinutes = 15) has certainly expired it. Purging it at 60s
-    // would let the runner re-signal and stack duplicate approval requests.
+    // waiting on a human — so it keeps the guard until ActionCenter's approval
+    // window (ActionCenter::pending_ttl_minutes(): 5 min by default, user-
+    // configurable) has certainly expired it, plus a minute of slack. Purging it
+    // earlier would let the runner re-signal and stack duplicate approval requests.
+    const int64_t approval_limit_ms =
+        (static_cast<int64_t>(fincept::trading::ActionCenter::pending_ttl_minutes()) + 1) * 60000;
     for (int i = pending_orders_.size() - 1; i >= 0; --i) {
         const int64_t age = now - pending_orders_[i].submitted_ms;
-        const int64_t limit = pending_orders_[i].awaiting_approval ? 16 * 60000 : 60000;
+        const int64_t limit = pending_orders_[i].awaiting_approval ? approval_limit_ms : 60000;
         if (age > limit) {
             LOG_WARN("AlgoEngine", QString("Deployment %1: pending order timed out (no %2 in %3s), clearing")
                                        .arg(deployment_.id,
@@ -792,7 +833,7 @@ void DeploymentRunner::on_heartbeat() {
     // A paused runner drops every quote by design, so the stale-data watchdog must
     // not treat that silence as a broker outage (it would error the deployment out
     // 30s into any pause, and AlgoEngine tears the runner down on 'error').
-    if (!paused_.load() && now - last_heartbeat_ms_ > 30000) {
+    if (!paused_.load() && !stop_requested_.load() && now - last_heartbeat_ms_ > 30000) {
         const QString msg = deployment_.broker_id.isEmpty()
                                 ? QStringLiteral("No market data in 30s — no broker is attached to this deployment.")
                                 : QString("No market data from broker '%1' in 30s — check the broker is connected "

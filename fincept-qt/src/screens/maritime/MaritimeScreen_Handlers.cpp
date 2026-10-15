@@ -8,8 +8,10 @@
 //
 // Part of the partial-class split of MaritimeScreen.cpp.
 
+#include "auth/AuthTypes.h"
 #include "core/logging/Logger.h"
 #include "core/session/ScreenStateManager.h"
+#include "network/http/HttpClient.h"
 #include "screens/maritime/MaritimeScreen.h"
 #include "screens/maritime/MaritimeScreen_internal.h"
 #include "services/maritime/MaritimeService.h"
@@ -27,6 +29,7 @@
 #include <QHeaderView>
 #include <QJsonObject>
 #include <QLocale>
+#include <QRegularExpression>
 #include <QScrollArea>
 #include <QSet>
 #include <QSplitter>
@@ -81,6 +84,8 @@ QString age_text(const PositionAge& a) {
 
 /// Anything older than this is flagged so the user doesn't trust the fix.
 constexpr qint64 kStaleMinutes = 6 * 60;
+/// Below this balance the credit counter turns red and PLANS appears.
+constexpr double kMaritimeLowCredits = 20.0;
 
 } // namespace
 
@@ -100,7 +105,8 @@ void MaritimeScreen::load_global_sample() {
     // a geographically diverse pool to spread across — the API returns busy
     // lanes first, so a tight server cap would cluster. ~22x less than 45k.
     params.limit = 2000;
-    set_status(tr("LOADING GLOBAL..."), ui::colors::AMBER);
+    set_status(tr("LOADING GLOBAL..."), "amber");
+    auto_refresh_pending_ = false;
     pending_global_sample_ = true;
     filter_to_shapes_ = false; // global view is never shape-filtered
     show_map_loading(tr("LOADING GLOBAL VESSELS"));
@@ -116,7 +122,7 @@ void MaritimeScreen::on_load_vessels() {
 void MaritimeScreen::run_area_search(double min_lat, double max_lat, double min_lng, double max_lng,
                                      bool filter_to_shapes) {
     if (max_lat <= min_lat || max_lng <= min_lng) {
-        set_status(tr("INVALID BBOX"), ui::colors::AMBER);
+        set_status(tr("INVALID BBOX"), "amber");
         return;
     }
     // Filter the next result to drawn shapes only when this search was driven
@@ -141,14 +147,16 @@ void MaritimeScreen::run_area_search(double min_lat, double max_lat, double min_
     // Cap the working set like the global view does — a large place bbox
     // (e.g. an ocean) can still match thousands of vessels.
     params.limit = 2000;
-    set_status(tr("SEARCHING..."), ui::colors::AMBER);
+    set_status(tr("SEARCHING..."), "amber");
+    auto_refresh_pending_ = false;
     pending_global_sample_ = false;
     show_map_loading(tr("SEARCHING AREA"));
     MaritimeService::instance().search_vessels_by_area(params);
 }
 
 void MaritimeScreen::on_places_found(QVector<services::maritime::GeoPlace> places, QString context) {
-    Q_UNUSED(context);
+    if (context != place_req_ctx_)
+        return; // reply to a query the user has already typed past
     place_results_ = places;
     if (!place_table_)
         return;
@@ -212,19 +220,38 @@ void MaritimeScreen::on_shapes_changed() {
 }
 
 void MaritimeScreen::on_places_error(const QString& context, const QString& message) {
-    Q_UNUSED(context);
     LOG_WARN("Maritime", QString("Place search failed: %1").arg(message));
+    if (context != place_req_ctx_)
+        return;
     if (place_status_)
         place_status_->setText(tr("Search failed: %1").arg(message));
 }
 
+bool MaritimeScreen::read_imo(QString* imo_out) {
+    QString raw = imo_edit_->text().trimmed();
+    if (raw.startsWith(QLatin1String("IMO"), Qt::CaseInsensitive))
+        raw = raw.mid(3).trimmed();
+    if (raw.isEmpty())
+        return false;
+    static const QRegularExpression kSevenDigits(QStringLiteral("^\\d{7}$"));
+    if (!kSevenDigits.match(raw).hasMatch()) {
+        search_result_card_->setVisible(false);
+        search_result_label_->setText(tr("IMO numbers are 7 digits (e.g. 9344745)."));
+        search_result_label_->setVisible(true);
+        set_status(tr("INVALID IMO"), "amber");
+        return false;
+    }
+    *imo_out = raw;
+    return true;
+}
+
 void MaritimeScreen::on_search_vessel() {
-    auto imo = imo_edit_->text().trimmed();
-    if (imo.isEmpty())
+    QString imo;
+    if (!read_imo(&imo))
         return;
     search_result_card_->setVisible(false);
     search_result_label_->setVisible(false);
-    set_status(tr("TRACKING..."), ui::colors::AMBER);
+    set_status(tr("TRACKING..."), "amber");
     show_map_loading(tr("TRACKING VESSEL"));
     MaritimeService::instance().get_vessel_position(imo);
 }
@@ -358,7 +385,8 @@ void MaritimeScreen::on_vessels_loaded(VesselsPage page) {
     populate_routes_table();
     // update_map populates rendered_vessels_ + the moving/speed/ports stats;
     // run it before update_intelligence so LOADED = actual pins on the map.
-    update_map(page.vessels.mid(0, kRenderLimit));
+    update_map(page.vessels.mid(0, kRenderLimit), /*fit_camera=*/!auto_refresh_pending_);
+    auto_refresh_pending_ = false;
     update_intelligence(region_total, rendered_vessels_.size());
 
     // Real "UPDATED:" clock in the status bar — every successful load stamps it.
@@ -366,28 +394,14 @@ void MaritimeScreen::on_vessels_loaded(VesselsPage page) {
         sb_refresh_val_->setText(QTime::currentTime().toString(QStringLiteral("HH:mm:ss")));
 
     if (page.vessels.size() > kRenderLimit)
-        set_status(tr("READY (showing %1 of %2)").arg(render_n).arg(page.vessels.size()), ui::colors::AMBER);
+        set_status(tr("READY (showing %1 of %2)").arg(render_n).arg(page.vessels.size()), "amber");
     else
-        set_status(tr("READY"), ui::colors::POSITIVE);
+        set_status(tr("READY"), "positive");
 }
 
 void MaritimeScreen::on_vessel_found(VesselData vessel) {
     hide_map_loading();
-    search_result_card_->setVisible(true);
-    search_result_label_->setVisible(false);
-    sr_name_->setText(vessel.name);
-    sr_imo_->setText(tr("IMO: %1").arg(vessel.imo));
-    // Always state the age of the fix next to the coordinates.
-    const PositionAge age = position_age(vessel.last_updated);
-    sr_position_->setText(tr("Position: %1, %2  ·  %3")
-                              .arg(vessel.latitude, 0, 'f', 4)
-                              .arg(vessel.longitude, 0, 'f', 4)
-                              .arg(age_text(age)));
-    sr_position_->setToolTip(age.known ? tr("Reported %1 UTC").arg(age.when.toString(Qt::ISODate))
-                                       : tr("The API did not report a position timestamp for this vessel."));
-    sr_speed_->setText(tr("Speed: %1 kn").arg(vessel.speed, 0, 'f', 1));
-    sr_from_->setText(tr("From: %1").arg(vessel.from_port.isEmpty() ? QStringLiteral("—") : vessel.from_port));
-    sr_to_->setText(tr("To: %1").arg(vessel.to_port.isEmpty() ? QStringLiteral("—") : vessel.to_port));
+    show_vessel_card(vessel);
 
     // Focus the map on the tracked vessel: drop a single amber pin and zoom in
     // on its current position so TRACK actually takes the user there.
@@ -403,18 +417,39 @@ void MaritimeScreen::on_vessel_found(VesselData vessel) {
         map_widget_->set_pins({pin}); // also clears any old voyage path
         map_widget_->fly_to(vessel.latitude, vessel.longitude);
     }
-    set_status(tr("READY"), ui::colors::POSITIVE);
+    set_status(tr("READY"), "positive");
 }
 
 void MaritimeScreen::on_error(const QString& context, const QString& message) {
+    // The status-bar health probe runs alongside the first vessel load. Its failure
+    // used to cancel that load's global-sample flag, hide its loading overlay and
+    // flip the whole screen to ERROR while vessels were still on the way.
+    if (context == QLatin1String("health")) {
+        LOG_WARN("Maritime", QString("Health check failed: %1").arg(message));
+        if (source_value_)
+            source_value_->setText(tr("UNAVAILABLE"));
+        return;
+    }
     hide_map_loading();
     pending_global_sample_ = false;
+    auto_refresh_pending_ = false;
     if (context == "vessel_position") {
         search_result_card_->setVisible(false);
         search_result_label_->setText(tr("Error: %1").arg(message));
         search_result_label_->setVisible(true);
+    } else if (context == "vessel_history") {
+        search_result_label_->setText(tr("History unavailable: %1").arg(message));
+        search_result_label_->setVisible(true);
     }
-    set_status(tr("ERROR"), ui::colors::NEGATIVE);
+    if (HttpClient::status_from_error(message.toStdString()) == 402) {
+        // Out of credits — a retry cannot help; say so and offer the plans.
+        set_status(tr("OUT OF CREDITS"), "negative");
+        update_credits(0);
+    } else {
+        set_status(tr("ERROR"), "negative");
+    }
+    if (status_label_)
+        status_label_->setToolTip(QStringLiteral("[%1] %2").arg(context, message));
     LOG_ERROR("Maritime", QString("[%1] %2").arg(context, message));
 }
 
@@ -438,6 +473,8 @@ void MaritimeScreen::on_ports_found(QVector<services::maritime::PortRecord> port
         return;
     }
 
+    if (context != ports_req_ctx_)
+        return; // reply to a query the user has already typed past
     port_results_ = ports;
     if (!ports_table_)
         return;
@@ -478,6 +515,11 @@ void MaritimeScreen::on_ports_found(QVector<services::maritime::PortRecord> port
 
 void MaritimeScreen::on_ports_error(const QString& context, const QString& message) {
     LOG_WARN("Maritime", QString("Ports [%1]: %2").arg(context, message));
+    // Voyage origin/destination lookups run behind the scenes; their failures (and
+    // replies for superseded queries) don't belong in the user's ports box.
+    voyage_port_ctx_.remove(context);
+    if (context != ports_req_ctx_)
+        return;
     if (ports_status_)
         ports_status_->setText(tr("Lookup failed: %1").arg(message));
 }
@@ -492,11 +534,8 @@ void MaritimeScreen::on_health_loaded(QJsonObject payload) {
 
     if (source_value_) {
         const QString label = module.isEmpty() ? tr("FINCEPT MARINE API") : module.toUpper();
-        const QString color = status == QStringLiteral("healthy") ? ui::colors::POSITIVE() : ui::colors::AMBER();
         source_value_->setText(label);
-        source_value_->setStyleSheet(QString("color:%1; font-size:10px; font-weight:700; font-family:%2;")
-                                         .arg(color)
-                                         .arg(ui::fonts::DATA_FAMILY));
+        mt_set_tone(source_value_, status == QStringLiteral("healthy") ? "positive" : "amber");
     }
     if (records_value_) {
         const QString formatted = total > 0 ? QLocale(QLocale::English).toString(total) : QStringLiteral("—");
@@ -514,9 +553,11 @@ void MaritimeScreen::on_route_selected(int row) {
     rd_name_->setText(r.name);
     rd_value_->setText(r.value.isEmpty() ? tr("Trade Value: n/a") : tr("Trade Value: %1").arg(r.value));
     rd_status_->setText(tr("Status: %1").arg(r.status.isEmpty() ? QStringLiteral("-") : r.status.toUpper()));
-    rd_status_->setStyleSheet(QString("color:%1; font-size:9px; font-family:%2;")
-                                  .arg(route_status_color(r.status).name())
-                                  .arg(ui::fonts::DATA_FAMILY));
+    const QString st = r.status.toLower();
+    mt_set_tone(rd_status_, st == QLatin1String("critical")  ? "negative"
+                            : st == QLatin1String("delayed") ? "amber"
+                            : st == QLatin1String("active")  ? "positive"
+                                                             : "muted");
     rd_vessels_->setText(tr("Active Vessels: %1").arg(r.vessels));
 }
 
@@ -539,24 +580,17 @@ void MaritimeScreen::update_intelligence(int region_total, int loaded) {
         stat_routes_->setText(QString::number(routes_.size()));
 }
 
-void MaritimeScreen::update_credits(int remaining) {
+void MaritimeScreen::update_credits(double remaining) {
+    // < 0 = not reported (cache hits never report a balance — it would be stale).
     if (!credits_label_ || remaining < 0)
         return;
-    const QString c = remaining < 20    ? ui::colors::NEGATIVE()
-                      : remaining < 100 ? ui::colors::AMBER()
-                                        : ui::colors::POSITIVE();
-    QColor cc(c);
-    auto rgb = QString("%1,%2,%3").arg(cc.red()).arg(cc.green()).arg(cc.blue());
-    credits_label_->setText(tr("CREDITS: %1").arg(remaining));
-    credits_label_->setStyleSheet(QString("color:%1; font-size:9px; font-weight:700; font-family:%2;"
-                                          "padding:3px 10px; background:rgba(%3,0.08); border:1px solid rgba(%3,0.3);"
-                                          "border-radius:2px;")
-                                      .arg(c)
-                                      .arg(ui::fonts::DATA_FAMILY)
-                                      .arg(rgb));
+    credits_label_->setText(tr("CREDITS: %1").arg(auth::format_credits(remaining)));
+    mt_set_tone(credits_label_, remaining < kMaritimeLowCredits ? "negative" : (remaining < 100.0 ? "amber" : "positive"));
+    if (plans_btn_)
+        plans_btn_->setVisible(remaining < kMaritimeLowCredits);
 }
 
-void MaritimeScreen::update_map(const QVector<VesselData>& vessels) {
+void MaritimeScreen::update_map(const QVector<VesselData>& vessels, bool fit_camera) {
     rendered_vessels_.clear();
     rendered_vessels_.reserve(vessels.size());
     QVector<fincept::ui::MapPin> pins;
@@ -596,7 +630,55 @@ void MaritimeScreen::update_map(const QVector<VesselData>& vessels) {
     if (stat_speed_)
         stat_speed_->setText(speed_n > 0 ? QString("%1 kn").arg(speed_sum / speed_n, 0, 'f', 1) : QStringLiteral("—"));
     map_widget_->set_pins(pins);
-    map_widget_->fit_to_pins();
+    if (fit_camera)
+        map_widget_->fit_to_pins();
+}
+
+void MaritimeScreen::show_vessel_card(const VesselData& v) {
+    if (search_result_card_)
+        search_result_card_->setVisible(true);
+    if (search_result_label_)
+        search_result_label_->setVisible(false);
+    if (sr_name_)
+        sr_name_->setText(v.name);
+    if (sr_imo_)
+        sr_imo_->setText(tr("IMO: %1").arg(v.imo));
+    // Always state the age of the fix next to the coordinates.
+    const PositionAge age = position_age(v.last_updated);
+    if (sr_position_) {
+        sr_position_->setText(tr("Position: %1, %2  ·  %3")
+                                  .arg(v.latitude, 0, 'f', 4)
+                                  .arg(v.longitude, 0, 'f', 4)
+                                  .arg(age_text(age)));
+        sr_position_->setToolTip(age.known ? tr("Reported %1 UTC").arg(age.when.toString(Qt::ISODate))
+                                           : tr("The API did not report a position timestamp for this vessel."));
+    }
+    if (sr_speed_)
+        sr_speed_->setText(tr("Speed: %1 kn").arg(v.speed, 0, 'f', 1));
+    if (sr_from_)
+        sr_from_->setText(tr("From: %1").arg(v.from_port.isEmpty() ? QStringLiteral("—") : v.from_port));
+    if (sr_to_)
+        sr_to_->setText(tr("To: %1").arg(v.to_port.isEmpty() ? QStringLiteral("—") : v.to_port));
+    // Sync the IMO field so VOYAGE HISTORY works right after picking a vessel (never
+    // blank the user's own entry when a record carries no IMO).
+    if (imo_edit_ && !v.imo.isEmpty())
+        imo_edit_->setText(v.imo);
+}
+
+void MaritimeScreen::on_vessel_row_picked(int row, bool fly) {
+    if (!vessels_table_ || row < 0)
+        return;
+    auto* imo_item = vessels_table_->item(row, 1); // IMO column
+    if (!imo_item)
+        return;
+    for (const auto& v : std::as_const(rendered_vessels_)) {
+        if (v.imo != imo_item->text())
+            continue;
+        show_vessel_card(v);
+        if (fly && map_widget_ && (v.latitude != 0.0 || v.longitude != 0.0))
+            map_widget_->fly_to(v.latitude, v.longitude);
+        return;
+    }
 }
 
 void MaritimeScreen::rebuild_routes_from_vessels(const QVector<VesselData>& vessels) {
@@ -628,7 +710,7 @@ void MaritimeScreen::on_vessel_history(VesselHistoryPage page) {
     update_credits(page.remaining_credits);
     const auto& history = page.history;
     if (history.isEmpty()) {
-        set_status(tr("NO HISTORY"), ui::colors::AMBER);
+        set_status(tr("NO HISTORY"), "amber");
         return;
     }
 
@@ -671,6 +753,7 @@ void MaritimeScreen::on_vessel_history(VesselHistoryPage page) {
         track.append(QPointF(h.latitude, h.longitude));
     }
 
+    rendered_vessels_.clear();          // the fleet pins are gone; history rows must not resolve to them
     map_widget_->set_pins(pins);        // clears any previous track
     map_widget_->set_track_path(track); // draw the connecting line
     map_widget_->fit_to_pins();
@@ -718,7 +801,7 @@ void MaritimeScreen::on_vessel_history(VesselHistoryPage page) {
     vessels_table_->resizeColumnsToContents();
 
     const int reported = page.total_records > 0 ? page.total_records : total;
-    set_status(tr("HISTORY: %1 (%2 positions)").arg(vessel_name).arg(reported), ui::colors::AMBER);
+    set_status(tr("HISTORY: %1 (%2 positions)").arg(vessel_name).arg(reported), "amber");
     LOG_INFO("Maritime", QString("Vessel history [%1]: %2 / %3 positions").arg(vessel_name).arg(total).arg(reported));
 }
 

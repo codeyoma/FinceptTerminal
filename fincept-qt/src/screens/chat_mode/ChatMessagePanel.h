@@ -51,7 +51,7 @@ class ChatMessagePanel : public QWidget {
     void on_stream_heartbeat();
     void on_insufficient_credits();
     void on_tools_registered(int count);
-    void set_credits(int credits);
+    void set_credits(double credits);
 
   private slots:
     void on_send_clicked();
@@ -92,7 +92,7 @@ class ChatMessagePanel : public QWidget {
     QPushButton* stop_btn_ = nullptr;
     QPushButton* optimize_btn_ = nullptr;
     QLabel* char_lbl_ = nullptr;
-    int last_credits_ = 0;
+    double last_credits_ = 0;
     int last_tools_ = 0;
 
     StreamMode current_mode_ = StreamMode::Lite;
@@ -119,6 +119,8 @@ class ChatMessagePanel : public QWidget {
 
     void add_message_bubble(const QString& role, const QString& content, const QString& timestamp = {});
     QTextEdit* add_streaming_bubble();
+    /// Drop the placeholder row of the in-flight reply (no-op if there is none).
+    void remove_streaming_bubble_row();
     void insert_collapsed_thinking_card(int before_index = -1);
     void resize_bubble(QTextEdit* bubble);
     void scroll_to_bottom();

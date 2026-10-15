@@ -44,7 +44,10 @@ MaritimeScreen::MaritimeScreen(QWidget* parent) : QWidget(parent) {
     // Auto-refresh is opt-in (the AUTO toggle in the map toolbar), so it never
     // silently burns API credits. The timer and the manual button share
     // do_refresh().
-    connect(refresh_timer_, &QTimer::timeout, this, &MaritimeScreen::do_refresh);
+    connect(refresh_timer_, &QTimer::timeout, this, [this]() {
+        do_refresh();
+        auto_refresh_pending_ = true; // after do_refresh(), which clears it for manual loads
+    });
 
     connect(&ui::ThemeManager::instance(), &ui::ThemeManager::theme_changed, this,
             [this](const ui::ThemeTokens&) { apply_theme(); });
@@ -83,6 +86,12 @@ void MaritimeScreen::showEvent(QShowEvent* e) {
 void MaritimeScreen::hideEvent(QHideEvent* e) {
     QWidget::hideEvent(e);
     refresh_timer_->stop();
+    // A typeahead debounce still pending when the screen is left would fire a
+    // geocoder / Wikidata request for a screen nobody is looking at.
+    if (place_debounce_)
+        place_debounce_->stop();
+    if (ports_debounce_)
+        ports_debounce_->stop();
 }
 
 void MaritimeScreen::connect_service() {
@@ -104,86 +113,21 @@ void MaritimeScreen::connect_service() {
 
 // ── Theme apply (called on construction + theme_changed) ─────────────────────
 void MaritimeScreen::apply_theme() {
-    setStyleSheet(QString("background:%1;").arg(ui::colors::BG_BASE()));
-
-    if (top_bar_)
-        top_bar_->setStyleSheet(QString("background:%1; border-bottom:1px solid %2;")
-                                    .arg(C(ui::colors::BG_RAISED), C(ui::colors::BORDER_MED)));
-
-    if (brand_label_)
-        brand_label_->setStyleSheet(
-            QString("color:%1; font-size:%2px; font-weight:700; font-family:%3; letter-spacing:2px;")
-                .arg(ui::colors::AMBER())
-                .arg(ui::fonts::DATA)
-                .arg(ui::fonts::DATA_FAMILY));
-
-    if (classified_label_)
-        classified_label_->setStyleSheet(QString("color:%1; font-size:11px; font-family:%2; letter-spacing:1px;")
-                                             .arg(ui::colors::TEXT_SECONDARY())
-                                             .arg(ui::fonts::DATA_FAMILY));
-
-    if (credits_label_)
-        credits_label_->setStyleSheet(
-            QString("color:%1; font-size:11px; font-weight:700; font-family:%2;"
-                    "padding:4px 10px; background:%3; border:1px solid %4; border-radius:2px;")
-                .arg(ui::colors::TEXT_SECONDARY())
-                .arg(ui::fonts::DATA_FAMILY)
-                .arg(ui::colors::BG_SURFACE())
-                .arg(ui::colors::BORDER_MED()));
-
-    if (vessel_count_label_)
-        vessel_count_label_->setStyleSheet(
-            QString("color:%1; font-size:11px; font-weight:700; font-family:%2;"
-                    "padding:4px 10px; background:%3; border:1px solid %4; border-radius:2px;")
-                .arg(ui::colors::AMBER())
-                .arg(ui::fonts::DATA_FAMILY)
-                .arg(ui::colors::BG_SURFACE())
-                .arg(ui::colors::BORDER_MED()));
-
-    if (left_panel_)
-        left_panel_->setStyleSheet(QString("background:%1; border-right:1px solid %2;")
-                                       .arg(C(ui::colors::BG_SURFACE), C(ui::colors::BORDER_DIM)));
-
-    if (right_panel_)
-        right_panel_->setStyleSheet(QString("background:%1; border-left:1px solid %2;")
-                                        .arg(C(ui::colors::BG_SURFACE), C(ui::colors::BORDER_DIM)));
-
-    if (routes_table_)
-        routes_table_->setStyleSheet(table_ss());
-    if (vessels_table_)
-        vessels_table_->setStyleSheet(table_ss());
-
-    if (status_bar_)
-        status_bar_->setStyleSheet(QString("background:%1; border-top:1px solid %2;")
-                                       .arg(C(ui::colors::BG_SURFACE), C(ui::colors::BORDER_DIM)));
-
+    // ONE stylesheet for the whole screen (see MaritimeScreen_internal.h); widgets
+    // select their rules by objectName / "mtRole" / "tone".
+    setStyleSheet(maritime_root_ss());
     if (status_label_)
-        set_status(tr("READY"), ui::colors::POSITIVE);
-
-    // Both cards scope their border to the container objectName so the border
-    // doesn't cascade onto every child label (which made each row look boxed).
-    if (route_detail_)
-        route_detail_->setStyleSheet(
-            QString("#mtRouteCard { background:%1; border:1px solid %2; border-left:3px solid %2;"
-                    " border-radius:2px; }")
-                .arg(C(ui::colors::BG_SURFACE), C(ui::colors::AMBER)));
-
-    if (search_result_card_)
-        search_result_card_->setStyleSheet(
-            QString("#mtSearchCard { background:%1; border:1px solid %2; border-left:3px solid %2;"
-                    " border-radius:2px; }")
-                .arg(C(ui::colors::BG_SURFACE), C(ui::colors::AMBER)));
-
-    if (imo_edit_)
-        imo_edit_->setStyleSheet(input_ss());
-
-    if (basemap_cap_)
-        basemap_cap_->setStyleSheet(tiny_label_ss());
-    if (map_type_combo_)
-        map_type_combo_->setStyleSheet(combo_ss());
+        set_status(tr("READY"), "positive");
 }
 
 void MaritimeScreen::do_refresh() {
+    // The last load was driven by drawn shapes: re-run it through them so the in-shape
+    // filter survives (a plain bbox reload dropped it and showed every vessel in the
+    // shapes' bounding box).
+    if (filter_to_shapes_ && map_widget_ && !map_widget_->shapes().isEmpty()) {
+        on_shapes_changed();
+        return;
+    }
     // Re-issue whichever mode produced the most recent set: a bbox load if the
     // user had typed/selected one, otherwise the global sample.
     const bool valid_bbox = area_min_lat_ && area_max_lat_ && area_min_lng_ && area_max_lng_ &&
@@ -205,8 +149,6 @@ void MaritimeScreen::retranslateUi() {
     // Top bar
     if (brand_label_)
         brand_label_->setText(tr("FINCEPT MARITIME INTELLIGENCE"));
-    if (classified_label_)
-        classified_label_->setText(tr("VESSEL TRACKING // FINCEPT MARINE API"));
     // credits_label_ / vessel_count_label_ carry live counts and refresh on the
     // next data update; only their idle defaults are re-applied here.
     if (credits_label_ && credits_label_->text() == QStringLiteral("CREDITS: —"))
@@ -247,6 +189,10 @@ void MaritimeScreen::retranslateUi() {
     // Center
     if (center_title_)
         center_title_->setText(tr("LIVE VESSEL MAP"));
+    if (refresh_btn_)
+        refresh_btn_->setText(tr("⟳ REFRESH"));
+    if (auto_refresh_btn_)
+        auto_refresh_btn_->setText(auto_refresh_btn_->isChecked() ? tr("AUTO ⟳ 5m") : tr("AUTO ⟳ OFF"));
     if (basemap_cap_)
         basemap_cap_->setText(tr("BASEMAP"));
     if (vessels_table_)
@@ -300,8 +246,6 @@ void MaritimeScreen::retranslateUi() {
         ports_table_->setHorizontalHeaderLabels({tr("Name"), tr("Country"), tr("Source")});
     if (rd_title_)
         rd_title_->setText(tr("SELECTED ROUTE"));
-    if (classified_footer_)
-        classified_footer_->setText(tr("CLASSIFIED — AUTHORIZED PERSONNEL ONLY"));
 
     // Status bar
     if (sb_source_cap_)
@@ -313,7 +257,7 @@ void MaritimeScreen::retranslateUi() {
     // sb_refresh_val_ holds the live last-update clock — don't reset it here.
     // status_label_ reflects the last operation; re-apply the idle READY label.
     if (status_label_)
-        set_status(tr("READY"), ui::colors::POSITIVE);
+        set_status(tr("READY"), "positive");
 
     // Detail-card rows + table cells + search-result labels are filled from
     // live data and refresh on the next selection / fetch.
@@ -335,12 +279,12 @@ void MaritimeScreen::hide_map_loading() {
         map_loader_->hide_loading();
 }
 
-void MaritimeScreen::set_status(const QString& text, const ui::ColorToken& color) {
+void MaritimeScreen::set_status(const QString& text, const char* tone) {
     if (!status_label_)
         return;
     status_label_->setText(text);
-    status_label_->setStyleSheet(
-        QString("color:%1; font-size:8px; font-weight:700; font-family:%2;").arg(C(color)).arg(ui::fonts::DATA_FAMILY));
+    status_label_->setToolTip(QString()); // drop any earlier error detail
+    mt_set_tone(status_label_, tone);
 }
 
 QVariantMap MaritimeScreen::save_state() const {

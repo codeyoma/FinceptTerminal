@@ -2,13 +2,14 @@
 // FRED Analytics panel — composite dataset views built from multiple FRED series.
 // Requires FRED_API_KEY (same key as FredPanel).
 //
-// Response shapes vary per command:
-//   yield_curve:  { curve:[{maturity, yield, date}], spread_2_10 }
+// Response shapes vary per command (see fred_economic_data.py):
 //   money_supply: { observations:[{date,value}], measure, ... }
 //   credit:       { observations:[{date,value}], series_id }
-//   stress:       { observations:[{date,value}] }
-//   sentiment:    { observations:[{date,value}] }
-//   pce:          { observations:[{date,value}] }
+//   yield_curve:  { yield_curve:{<tenor>:{series_id, observations:[{date,value}]}}, spreads:{...}, ... }
+//   stress:       { stress_indices:{<name>:{series_id, observations:[{date,value}]}}, ... }
+//   sentiment:    { sentiment:{<name>:{...}}, ... }
+//   pce:          { pce:{<name>:{...}}, ... }
+// The last four nest one series per key; flatten_nested_series() turns them into {date, value, series} rows.
 #include "screens/economics/panels/FredAnalyticsPanel.h"
 
 #include "core/logging/Logger.h"
@@ -18,6 +19,9 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLabel>
+
+#include <algorithm>
+#include <utility>
 
 namespace fincept::screens {
 namespace {
@@ -31,18 +35,28 @@ struct FredAnalDataset {
     QString label;
     QString command;
     QStringList args;
+    // Single-series datasets: what the numbers are (FRED series metadata). Empty for the multi-series
+    // groups, whose rows mix units.
+    QString units;
+    QString frequency;
+    QString seasonal;
 };
 
+// "M3 Money Supply" was removed: the Fed discontinued M3 in March 2006, FRED has no current M3
+// series, and the request ("m3") always failed.
 static const QList<FredAnalDataset> kFredAnalDatasets = {
-    {"Yield Curve (Treasury Rates)", "yield_curve", {}},
-    {"M1 Money Supply", "money_supply", {"m1"}},
-    {"M2 Money Supply", "money_supply", {"m2"}},
-    {"M3 Money Supply", "money_supply", {"m3"}},
-    {"Fed Funds Rate (Credit)", "credit", {"fed_funds_rate"}},
-    {"Prime Rate (Credit)", "credit", {"prime_rate"}},
-    {"Financial Stress Index", "stress", {}},
-    {"Consumer Sentiment", "sentiment", {}},
-    {"PCE Price Index", "pce", {}},
+    {"Yield Curve (Treasury Rates)", "yield_curve", {}, "", "", ""},
+    {"M1 Money Supply (M1SL)", "money_supply", {"m1"}, "Billions of Dollars", "Monthly", "Seasonally Adjusted"},
+    {"M2 Money Supply (M2SL)", "money_supply", {"m2"}, "Billions of Dollars", "Monthly", "Seasonally Adjusted"},
+    {"Monetary Base (BOGMBASE)", "money_supply", {"monetary_base"}, "Millions of Dollars", "Monthly",
+     "Not Seasonally Adjusted"},
+    {"M2 Velocity (M2V)", "money_supply", {"m2_velocity"}, "Ratio", "Quarterly", "Seasonally Adjusted"},
+    {"Fed Funds Rate, effective (FEDFUNDS)", "credit", {"fed_funds_rate"}, "Percent", "Monthly",
+     "Not Seasonally Adjusted"},
+    {"Bank Prime Loan Rate (DPRIME)", "credit", {"prime_rate"}, "Percent", "Daily", "Not Seasonally Adjusted"},
+    {"Financial Stress Index", "stress", {}, "", "", ""},
+    {"Consumer Sentiment", "sentiment", {}, "", "", ""},
+    {"PCE Price Index", "pce", {}, "", "", ""},
 };
 
 FredAnalyticsPanel::FredAnalyticsPanel(QWidget* parent)
@@ -59,7 +73,7 @@ void FredAnalyticsPanel::activate() {
 
 void FredAnalyticsPanel::build_controls(QHBoxLayout* thl) {
     dataset_lbl_ = new QLabel(tr("DATASET"));
-    dataset_lbl_->setStyleSheet(ctrl_label_style());
+    dataset_lbl_->setObjectName(QStringLiteral("econCtrlLabel"));
 
     dataset_combo_ = new QComboBox;
     for (const auto& d : kFredAnalDatasets)
@@ -105,6 +119,50 @@ static QJsonArray extract_fred_analytics_rows(const QJsonObject& data) {
     return obs;
 }
 
+// Multi-series datasets (yield curve, stress, sentiment, PCE) return one
+// {series_id, observations:[{date,value}]} object per series, nested under a group key
+// ("yield_curve" + "spreads", "stress_indices", "sentiment", "pce"). Flatten them into
+// {date, value, series} rows — the shape BlsPanel feeds display() — newest first, so the
+// first page shows the latest readings rather than the 1960s. FRED's "." gaps are left
+// for the caller's filter.
+static QJsonArray flatten_nested_series(const QJsonObject& data) {
+    struct Point {
+        QString date;
+        QString series;
+        QJsonValue value;
+    };
+    QList<Point> points;
+    for (auto group = data.begin(); group != data.end(); ++group) {
+        // Scalars and arrays (start_date, available_tenors, ...) convert to an empty object.
+        const QJsonObject members = group.value().toObject();
+        for (auto member = members.begin(); member != members.end(); ++member) {
+            const QString series = member.key();
+            const QJsonObject body = member.value().toObject();
+            // A series that failed to download is {error, error_code} with no observations.
+            // Log the code only: `error` embeds the request URL, api_key included.
+            if (!body.contains("observations")) {
+                if (body.contains("error_code")) {
+                    LOG_WARN("FredAnalyticsPanel",
+                             QString("Series %1 unavailable: %2").arg(series, body["error_code"].toString()));
+                }
+                continue;
+            }
+            const QJsonArray observations = body["observations"].toArray();
+            for (const auto& ov : observations) {
+                const QJsonObject o = ov.toObject();
+                points.append(Point{o["date"].toString(), series, o["value"]});
+            }
+        }
+    }
+    // ISO dates sort lexically; stable, so rows sharing a date keep their series order.
+    std::stable_sort(points.begin(), points.end(), [](const Point& a, const Point& b) { return a.date > b.date; });
+
+    QJsonArray rows;
+    for (const Point& p : std::as_const(points))
+        rows.append(QJsonObject{{"date", p.date}, {"value", p.value}, {"series", p.series}});
+    return rows;
+}
+
 void FredAnalyticsPanel::on_result(const QString& request_id, const services::EconomicsResult& result) {
     if (result.source_id != kFredAnalyticsSourceId)
         return;
@@ -138,6 +196,10 @@ void FredAnalyticsPanel::on_result(const QString& request_id, const services::Ec
 
     // Filter string sentinel values (FRED uses "." for missing)
     QJsonArray raw = extract_fred_analytics_rows(result.data);
+    // Multi-series datasets have no top-level series array: flatten their nested series instead.
+    const bool flattened = raw.isEmpty();
+    if (flattened)
+        raw = flatten_nested_series(result.data);
     QJsonArray rows;
     for (const auto& rv : raw) {
         const QJsonObject r = rv.toObject();
@@ -152,11 +214,26 @@ void FredAnalyticsPanel::on_result(const QString& request_id, const services::Ec
         return;
     }
 
-    const int idx = dataset_combo_->currentIndex();
-    const QString title =
-        "FRED Analytics: " +
-        (idx >= 0 && idx < kFredAnalDatasets.size() ? kFredAnalDatasets[idx].label : request_id.mid(7));
+    // Identify the dataset from the request id ("fredan_<command>[_<args>]"), not the combo.
+    const FredAnalDataset* ds = nullptr;
+    for (const auto& d : kFredAnalDatasets) {
+        if (request_id == "fredan_" + d.command + (d.args.isEmpty() ? QString() : "_" + d.args.join("_"))) {
+            ds = &d;
+            break;
+        }
+    }
+    const QString title = "FRED Analytics: " + (ds ? ds->label : request_id.mid(7));
 
+    // A flattened table mixes series on different scales, so LATEST/CHANGE/MIN/MAX/AVG would
+    // be meaningless (same call as ImfPanel's cross-section view). Single series get them back.
+    set_stats_visible(!flattened);
+    if (ds && !flattened) {
+        SeriesMeta meta;
+        meta.units = ds->units;
+        meta.frequency = ds->frequency;
+        meta.seasonal_adj = ds->seasonal;
+        set_series_meta(meta);
+    }
     display(rows, title);
     LOG_INFO("FredAnalyticsPanel", QString("Displayed %1 rows: %2").arg(rows.size()).arg(title));
 }

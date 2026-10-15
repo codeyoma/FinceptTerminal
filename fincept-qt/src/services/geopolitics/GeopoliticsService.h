@@ -47,6 +47,10 @@ class GeopoliticsService : public QObject, public fincept::datahub::Producer {
     // ── Trade Analysis (Python) ─────────────────────────────────────────────
     void analyze_trade_benefits(const QJsonObject& params);
     void analyze_trade_restrictions(const QJsonObject& params);
+    /// Trading-bloc integration (trade creation vs diversion) — script mode `trading_blocs`.
+    void analyze_trading_blocs(const QJsonObject& params);
+    /// Impact of removing trade barriers (FDI / employment / GDP) — script mode `barrier_removal`.
+    void analyze_barrier_removal(const QJsonObject& params);
 
     // ── Geolocation (Python) ────────────────────────────────────────────────
     void extract_geolocations(const QStringList& headlines);
@@ -68,9 +72,11 @@ class GeopoliticsService : public QObject, public fincept::datahub::Producer {
     void run_python(const QString& script, const QStringList& args, const QString& context,
                     std::function<void(bool, const QString&)> cb);
 
-    // Cache TTLs (used as CacheManager ttl_seconds)
-    static constexpr int kEventsTtlSec = 120;
-    static constexpr int kRefDataTtlSec = 600;
+    // Every news-events call (events page or reference list) costs API credits.
+    /// Hub TTL for the shared `geopolitics:events` topic — the source updates ~every 30 min.
+    static constexpr int kEventsHubTtlSec = 30 * 60;
+    /// Countries / categories / cities lists (CacheManager + hub TTL).
+    static constexpr int kRefDataTtlSec = 6 * 60 * 60;
 
     void publish_hdx_result(const QString& context, const QVector<fincept::services::geo::HDXDataset>& datasets);
     bool hub_registered_ = false;

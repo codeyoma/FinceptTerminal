@@ -5,7 +5,6 @@
 #include "core/logging/Logger.h"
 #include "mcp/AsyncDispatch.h"
 #include "mcp/ToolSchemaBuilder.h"
-#include "mcp/tools/ThreadHelper.h"
 #include "python/PythonRunner.h"
 
 #include <QDir>
@@ -13,48 +12,12 @@
 #include <QPromise>
 #include <QRegularExpression>
 
+#include <algorithm>
 #include <memory>
 
 namespace fincept::mcp::tools {
 
 static constexpr const char* TAG = "PythonTools";
-
-// Synchronously run a Python script. Tool handlers run on a worker thread;
-// PythonRunner's QProcess lives on the main thread. We marshal the run()
-// call onto the runner's thread (see mcp/tools/ThreadHelper.h).
-[[maybe_unused]] static ToolResult run_script_sync(const QString& script, const QStringList& args) {
-    if (!python::PythonRunner::instance().is_available())
-        return ToolResult::fail("Python is not available — run setup first");
-
-    ToolResult out;
-    auto* runner = &python::PythonRunner::instance();
-    detail::run_async_wait(runner, [&](auto signal_done) {
-        runner->run(script, args, [&, signal_done](python::PythonResult result) {
-            if (!result.success) {
-                out = ToolResult::fail("Script failed: " + result.error);
-            } else {
-                QString json_text = python::extract_json(result.output);
-                if (json_text.isEmpty())
-                    json_text = result.output;
-
-                QJsonDocument doc = QJsonDocument::fromJson(json_text.toUtf8());
-                if (!doc.isNull()) {
-                    if (doc.isObject())
-                        out = ToolResult::ok_data(doc.object());
-                    else if (doc.isArray())
-                        out = ToolResult::ok_data(doc.array());
-                    else
-                        out = ToolResult::ok(result.output);
-                } else {
-                    out = ToolResult::ok(result.output);
-                }
-            }
-            signal_done();
-        });
-    });
-
-    return out;
-}
 
 std::vector<ToolDef> get_python_tools() {
     std::vector<ToolDef> tools;
@@ -80,9 +43,11 @@ std::vector<ToolDef> get_python_tools() {
                 .length(1, 128)
                 .array("args", "Array of string arguments to pass to the script", QJsonObject{{"type", "string"}})
                 .build();
-        // Python scripts can take a while; allow a generous default. Override
-        // per-call via _meta.timeout_ms when Phase 6 wires that through.
-        t.default_timeout_ms = 60000;
+        // Match PythonRunner's 5-minute watchdog for top-level scripts (the only
+        // ones this tool can run): a shorter budget gave up on scripts that were
+        // still working. Over 30 s with an async handler, so long calls become a
+        // background job instead of holding the turn open (M1).
+        t.default_timeout_ms = 300000;
         // Phase 6.3: arbitrary script execution must be gated. Even with the
         // regex pattern check on script name, the script can read/write
         // files, hit the network, etc. Always confirm.
@@ -99,16 +64,31 @@ std::vector<ToolDef> get_python_tools() {
             QStringList script_args;
             if (args_obj.contains("args") && args_obj["args"].isArray()) {
                 for (const auto& a : args_obj["args"].toArray()) {
+                    // The schema says "array of strings" but items are not type-checked,
+                    // and models pass numbers/booleans all the time. Numbers and bools
+                    // used to fall into the object branch, where `toObject()` of a scalar
+                    // is an empty object — the script silently received "{}" instead of
+                    // the value. Convert each JSON type to the argv text it stands for.
                     if (a.isString())
                         script_args.append(a.toString());
-                    else
-                        script_args.append(QJsonDocument(QJsonValue(a).toObject()).toJson());
+                    else if (a.isBool())
+                        script_args.append(a.toBool() ? QStringLiteral("true") : QStringLiteral("false"));
+                    else if (a.isDouble())
+                        script_args.append(QString::number(a.toDouble(), 'g', 15));
+                    else if (a.isObject())
+                        script_args.append(QString::fromUtf8(QJsonDocument(a.toObject()).toJson(QJsonDocument::Compact)));
+                    else if (a.isArray())
+                        script_args.append(QString::fromUtf8(QJsonDocument(a.toArray()).toJson(QJsonDocument::Compact)));
+                    // null / undefined: no argv text to pass
                 }
             }
 
             if (!python::PythonRunner::instance().is_available()) {
-                promise->addResult(ToolResult::fail("Python is not available — run setup first"));
-                promise->finish();
+                // Resolve through the shared single-winner guard (ctx.resolve_guard), not a
+                // bare addResult(): the provider's watchdog races the same flag.
+                AsyncDispatch::callback_to_promise(nullptr, ctx, promise, [](auto resolve) {
+                    resolve(ToolResult::fail("Python is not available — run setup first"));
+                });
                 return;
             }
 
@@ -154,22 +134,54 @@ std::vector<ToolDef> get_python_tools() {
     {
         ToolDef t;
         t.name = "list_python_scripts";
-        t.description = "List all available Python analytics scripts in the scripts/ directory.";
+        t.description = "List the runnable Python analytics scripts in the scripts/ directory (there are hundreds — "
+                        "pass `query` to filter by name; results are capped by `limit`).";
         t.category = "analytics";
-        t.handler = [](const QJsonObject&) -> ToolResult {
+        t.input_schema = ToolSchemaBuilder()
+                             .string("query", "Case-insensitive substring to filter script names (e.g. 'yfinance')")
+                             .default_str("")
+                             .length(0, 64)
+                             .integer("limit", "Max scripts to return")
+                             .default_int(100)
+                             .between(1, 500)
+                             .build();
+        t.handler = [](const QJsonObject& args) -> ToolResult {
             QString scripts_dir = python::PythonRunner::instance().scripts_dir();
             QDir dir(scripts_dir);
 
             if (!dir.exists())
                 return ToolResult::fail("Scripts directory not found: " + scripts_dir);
 
+            const QString needle = args["query"].toString().trimmed().toLower();
+            const int limit = std::clamp(args["limit"].toInt(100), 1, 500);
+
+            // Only offer names run_python_script will accept (its `script` pattern), so
+            // the model is never handed a script the validator then refuses.
+            static const QRegularExpression runnable(QStringLiteral("^[a-zA-Z0-9_-]+$"));
+
             QStringList py_files = dir.entryList({"*.py"}, QDir::Files, QDir::Name);
             QJsonArray result;
+            int matched = 0;
             for (const auto& f : py_files) {
                 QString name = f;
                 name.chop(3); // remove .py
-                result.append(QJsonObject{{"name", name}, {"filename", f}});
+                if (!runnable.match(name).hasMatch())
+                    continue;
+                if (!needle.isEmpty() && !name.toLower().contains(needle))
+                    continue;
+                ++matched;
+                if (result.size() < limit)
+                    result.append(QJsonObject{{"name", name}, {"filename", f}});
             }
+            // The unfiltered list is ~365 names — far over the result budget, and the
+            // overflow shaper keeps the alphabetically-first ones. Say so, and tell the
+            // model how to see the rest, rather than letting a clipped list read as complete.
+            if (matched > result.size())
+                return ToolResult::ok(QStringLiteral("Showing %1 of %2 matching scripts — pass `query` to narrow the "
+                                                     "list or raise `limit` (max 500).")
+                                          .arg(result.size())
+                                          .arg(matched),
+                                      result);
             return ToolResult::ok_data(result);
         };
         tools.push_back(std::move(t));

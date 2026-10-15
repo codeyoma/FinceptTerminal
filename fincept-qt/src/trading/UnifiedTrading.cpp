@@ -8,6 +8,7 @@
 #include "trading/AccountManager.h"
 #include "trading/DataStreamManager.h"
 #include "trading/OrderMatcher.h"
+#include "trading/OrderThreadPool.h"
 #include "trading/OrderValidator.h"
 #include "trading/PaperTrading.h"
 #include "trading/RateLimiter.h"
@@ -17,6 +18,7 @@
 #include "trading/brokers/BrokerClientOrderId.h"
 
 #include <QCoreApplication>
+#include <QHash>
 #include <QJsonObject>
 #include <QMutexLocker>
 #include <QPointer>
@@ -180,6 +182,51 @@ QString hydrate_modify_fields(IBroker& broker, const BrokerCredentials& creds, c
                                resting->product_type, resting->order_type));
     return {};
 }
+
+/// True when `account` is in PAPER mode AND that PAPER mode runs on the broker's own paper
+/// venue (Alpaca paper-api) instead of the local pt_* simulator: the broker offers native
+/// paper and the account's stored credentials are positively that venue's paper environment
+/// (IBroker::is_paper_environment).
+///
+/// Fails CLOSED. BrokerProfile::has_native_paper only says the broker OFFERS paper; the
+/// credentials may be live ones (a new account defaults to PAPER mode whatever keys it
+/// holds), and sending those a "paper" ticket would place a real order. Anything uncertain
+/// — live keys, unidentifiable environment, a broker that has not opted in — answers false,
+/// which keeps the local simulator, exactly as before this existed.
+bool native_paper_venue(const BrokerAccount& account) {
+    if (account.trading_mode != "paper")
+        return false;
+    auto* broker = BrokerRegistry::instance().get(account.broker_id);
+    if (!broker || !broker->profile().has_native_paper)
+        return false; // cheap exit before touching secure storage
+    const auto creds = AccountManager::instance().load_credentials(account.account_id);
+    return !creds.api_key.isEmpty() && broker->is_paper_environment(creds);
+}
+
+/// PAPER mode served by the local pt_* simulator. Everything else — LIVE, or PAPER on a
+/// native broker paper venue — goes through the broker adapter.
+bool local_paper(const BrokerAccount& account) {
+    return account.trading_mode == "paper" && !native_paper_venue(account);
+}
+
+/// Guard for every broker call made on behalf of a PAPER-mode account. native_paper_venue()
+/// already decided this, but credentials can change between that decision and the call, and
+/// a PAPER ticket must never reach a live exchange — so re-verify on the exact credentials
+/// about to be used. Returns an empty string when the call may proceed.
+QString paper_venue_refusal(const BrokerAccount& account, const IBroker& broker, const BrokerCredentials& creds) {
+    if (account.trading_mode != "paper")
+        return {};
+    if (!creds.api_key.isEmpty() && broker.is_paper_environment(creds))
+        return {};
+    return QStringLiteral("Refusing to send a PAPER order: this account's credentials are not verified as the "
+                          "broker's paper environment");
+}
+
+/// Mode tag for a response that went through the broker adapter: "paper" for a PAPER account
+/// on the broker's paper venue (the UI mode is preserved), "live" otherwise.
+QString broker_mode_tag(const BrokerAccount& account) {
+    return account.trading_mode == "paper" ? QStringLiteral("paper") : QStringLiteral("live");
+}
 } // namespace
 
 UnifiedTrading& UnifiedTrading::instance() {
@@ -315,6 +362,10 @@ UnifiedOrderResponse UnifiedTrading::place_live_order(const TradingSession& sess
                              .arg(session.broker, blocked));
         return {false, "", "Risk check failed: " + blocked, "live"};
     }
+    // No account id on the legacy path: user limits + sanity check without the
+    // per-account snapshot (unknown P&L fails a configured daily-loss limit closed).
+    if (const auto gate = OrderValidator::pre_trade_risk(QString(), order, /*broker_routed=*/true); !gate.valid)
+        return {false, "", "Risk check failed: " + gate.errors.join("; "), "live"};
 
     rate_limit_broker(session.broker);
     auto result = broker->place_order(creds, order);
@@ -351,6 +402,10 @@ UnifiedOrderResponse UnifiedTrading::cancel_order(const QString& order_id) {
 // Account-Aware Order Routing (new multi-account API)
 // ============================================================================
 
+bool UnifiedTrading::uses_native_paper(const QString& account_id) const {
+    return native_paper_venue(AccountManager::instance().get_account(account_id));
+}
+
 UnifiedOrderResponse UnifiedTrading::place_order(const QString& account_id, const UnifiedOrder& order) {
     auto account = AccountManager::instance().get_account(account_id);
     if (account.account_id.isEmpty())
@@ -381,6 +436,17 @@ UnifiedOrderResponse UnifiedTrading::place_order(const QString& account_id, cons
         return {false, "", "Risk check failed: " + risk_err, account.trading_mode};
     }
 
+    // Settings-driven pre-trade gate (OrderValidator): user risk limits + the
+    // absurd-order sanity check. Same choke point, so it covers the order ticket,
+    // broadcasts, approvals, MCP tools, workflows, algos and the F&O screen.
+    const bool is_local_paper = local_paper(account);
+    const auto gate = OrderValidator::pre_trade_risk(account_id, order, /*broker_routed=*/!is_local_paper);
+    if (!gate.valid) {
+        const QString err = gate.errors.join("; ");
+        publish(OrderFailedEvent{account_id, "PLACE", order.symbol, err, account.trading_mode});
+        return {false, "", "Risk check failed: " + err, account.trading_mode};
+    }
+
     // Quantity freeze check (Phase 3 §17). Exchanges cap the max quantity per
     // single order (e.g. NSE NIFTY futures = 1800). place_order is synchronous;
     // an auto-split is inherently async (place_split_orders runs on a worker
@@ -406,8 +472,11 @@ UnifiedOrderResponse UnifiedTrading::place_order(const QString& account_id, cons
     UnifiedOrder routed = order;
     stamp_client_order_id(routed);
 
-    UnifiedOrderResponse resp = (account.trading_mode == "paper") ? place_paper_order_for_account(account_id, routed)
-                                                                  : place_live_order_for_account(account_id, routed);
+    // PAPER mode normally means the local simulator; for a broker with a verified native
+    // paper venue it means that venue, reached through the same adapter as a live order
+    // (the mode tag stays "paper"). See native_paper_venue().
+    UnifiedOrderResponse resp = is_local_paper ? place_paper_order_for_account(account_id, routed)
+                                               : place_live_order_for_account(account_id, routed);
 
     if (resp.success) {
         publish(OrderPlacedEvent{account_id, resp.order_id, order.symbol, order.exchange, order.side, order.quantity,
@@ -423,7 +492,7 @@ UnifiedOrderResponse UnifiedTrading::cancel_order(const QString& account_id, con
     if (account.account_id.isEmpty())
         return {false, "", "Account not found: " + account_id, ""};
 
-    if (account.trading_mode == "paper") {
+    if (local_paper(account)) {
         try {
             pt_cancel_order(order_id);
             return {true, order_id, "Paper order cancelled", "paper"};
@@ -434,12 +503,14 @@ UnifiedOrderResponse UnifiedTrading::cancel_order(const QString& account_id, con
 
     auto* broker = BrokerRegistry::instance().get(account.broker_id);
     if (!broker)
-        return {false, "", "Broker not found: " + account.broker_id, "live"};
+        return {false, "", "Broker not found: " + account.broker_id, broker_mode_tag(account)};
 
     auto creds = AccountManager::instance().load_credentials(account_id);
+    if (const QString refusal = paper_venue_refusal(account, *broker, creds); !refusal.isEmpty())
+        return {false, order_id, refusal, "paper"};
     rate_limit_broker(account.broker_id);
     auto result = broker->cancel_order(creds, order_id);
-    return {result.success, order_id, result.error, "live"};
+    return {result.success, order_id, result.error, broker_mode_tag(account)};
 }
 
 UnifiedOrderResponse UnifiedTrading::modify_order(const QString& account_id, const QString& order_id,
@@ -448,14 +519,16 @@ UnifiedOrderResponse UnifiedTrading::modify_order(const QString& account_id, con
     if (account.account_id.isEmpty())
         return {false, "", "Account not found: " + account_id, ""};
 
-    if (account.trading_mode == "paper")
+    if (local_paper(account))
         return {false, "", "Modify not supported for paper orders", "paper"};
 
     auto* broker = BrokerRegistry::instance().get(account.broker_id);
     if (!broker)
-        return {false, "", "Broker not found: " + account.broker_id, "live"};
+        return {false, "", "Broker not found: " + account.broker_id, broker_mode_tag(account)};
 
     auto creds = AccountManager::instance().load_credentials(account_id);
+    if (const QString refusal = paper_venue_refusal(account, *broker, creds); !refusal.isEmpty())
+        return {false, order_id, refusal, "paper"};
 
     // Hydrate side/symbol/exchange/product/order_type from the resting order
     // before dispatching. Several brokers replace the whole order on modify, so
@@ -470,12 +543,12 @@ UnifiedOrderResponse UnifiedTrading::modify_order(const QString& account_id, con
     const QString hydrate_err = hydrate_modify_fields(*broker, creds, order_id, mods);
     if (!hydrate_err.isEmpty()) {
         LOG_ERROR(kUtLog, QString("Modify refused on account %1: %2").arg(account_id, hydrate_err));
-        return {false, order_id, hydrate_err, "live"};
+        return {false, order_id, hydrate_err, broker_mode_tag(account)};
     }
 
     rate_limit_broker(account.broker_id);
     auto result = broker->modify_order(creds, order_id, mods);
-    return {result.success, order_id, result.error, "live"};
+    return {result.success, order_id, result.error, broker_mode_tag(account)};
 }
 
 UnifiedOrderResponse UnifiedTrading::place_paper_order_for_account(const QString& account_id,
@@ -538,20 +611,28 @@ UnifiedOrderResponse UnifiedTrading::place_paper_order_for_account(const QString
 UnifiedOrderResponse UnifiedTrading::place_live_order_for_account(const QString& account_id,
                                                                   const UnifiedOrder& order) {
     auto account = AccountManager::instance().get_account(account_id);
+    const QString mode = broker_mode_tag(account);
     auto* broker = BrokerRegistry::instance().get(account.broker_id);
     if (!broker)
-        return {false, "", "Broker not found: " + account.broker_id, "live"};
+        return {false, "", "Broker not found: " + account.broker_id, mode};
 
     auto creds = AccountManager::instance().load_credentials(account_id);
     if (creds.access_token.isEmpty())
-        return {false, "", "No credentials for account " + account.display_name + ". Please authenticate.", "live"};
+        return {false, "", "No credentials for account " + account.display_name + ". Please authenticate.", mode};
+
+    // The one place a single order reaches a broker. A PAPER-mode account only gets here
+    // via a verified native paper venue — re-check on the exact credentials about to be used.
+    if (const QString refusal = paper_venue_refusal(account, *broker, creds); !refusal.isEmpty()) {
+        LOG_ERROR(kUtLog, QString("%1 (account %2)").arg(refusal, account_id));
+        return {false, "", refusal, mode};
+    }
 
     // Space orders out to the broker's published per-second cap. Without this a
     // broadcast / basket / algo loop fires as fast as the network allows and the
     // API key gets throttled or banned mid-batch.
     rate_limit_broker(account.broker_id);
     auto result = broker->place_order(creds, order);
-    return {result.success, result.order_id, result.error, "live"};
+    return {result.success, result.order_id, result.error, mode};
 }
 
 // ============================================================================
@@ -585,7 +666,7 @@ ApiResponse<CancelAllResult> UnifiedTrading::cancel_all_orders(const QString& ac
     if (account.account_id.isEmpty())
         return {false, std::nullopt, "Account not found: " + account_id};
 
-    if (account.trading_mode == "paper") {
+    if (local_paper(account)) {
         CancelAllResult result;
         auto pending = pt_get_orders(account.paper_portfolio_id, "pending");
         for (const auto& order : pending) {
@@ -607,10 +688,12 @@ ApiResponse<CancelAllResult> UnifiedTrading::cancel_all_orders(const QString& ac
         return {false, std::nullopt, "Broker not found: " + account.broker_id};
 
     auto creds = AccountManager::instance().load_credentials(account_id);
+    if (const QString refusal = paper_venue_refusal(account, *broker, creds); !refusal.isEmpty())
+        return {false, std::nullopt, refusal};
     auto resp = broker->cancel_all_orders(creds);
     if (resp.success && resp.data.has_value()) {
         publish(AllOrdersCancelledEvent{account_id, (int)resp.data->canceled_order_ids.size(),
-                                        (int)resp.data->failed.size(), "live"});
+                                        (int)resp.data->failed.size(), broker_mode_tag(account)});
     }
     return resp;
 }
@@ -620,7 +703,7 @@ ApiResponse<CloseAllResult> UnifiedTrading::close_all_positions(const QString& a
     if (account.account_id.isEmpty())
         return {false, std::nullopt, "Account not found: " + account_id};
 
-    if (account.trading_mode == "paper") {
+    if (local_paper(account)) {
         CloseAllResult result;
         auto positions = pt_get_positions(account.paper_portfolio_id);
         for (const auto& pos : positions) {
@@ -631,13 +714,14 @@ ApiResponse<CloseAllResult> UnifiedTrading::close_all_positions(const QString& a
             // positive magnitude with side="long"/"short", so the quantity sign is
             // unreliable (shorts are +) — derive the direction from `side`. Using
             // the sign sold a short instead of buying it back, so it never closed.
-            const QString dir = pos.side.toLower();
-            const bool is_short = dir == QLatin1String("short") || dir == QLatin1String("sell") || pos.quantity < 0;
-            const QString side_str = is_short ? QStringLiteral("buy") : QStringLiteral("sell");
+            const QString side_str =
+                position_is_short(pos.side, pos.quantity) ? QStringLiteral("buy") : QStringLiteral("sell");
             const double fill = pos.current_price > 0.0 ? pos.current_price : pos.entry_price;
             try {
+                // reduce_only: a close may only shrink the position, never flip it.
                 auto paper_order = pt_place_order(account.paper_portfolio_id, pos.symbol, side_str, "market",
-                                                  std::abs(pos.quantity), fill, std::nullopt, false);
+                                                  std::abs(pos.quantity), fill, std::nullopt, /*reduce_only=*/true,
+                                                  QString(), pos.product);
                 pt_fill_order(paper_order.id, fill);
                 result.closed_symbols.append(pos.symbol);
                 LOG_INFO("UnifiedTrading", QString("close_all paper: %1 %2 x%3 @ %4 (was %5)")
@@ -660,10 +744,12 @@ ApiResponse<CloseAllResult> UnifiedTrading::close_all_positions(const QString& a
         return {false, std::nullopt, "Broker not found: " + account.broker_id};
 
     auto creds = AccountManager::instance().load_credentials(account_id);
+    if (const QString refusal = paper_venue_refusal(account, *broker, creds); !refusal.isEmpty())
+        return {false, std::nullopt, refusal};
     auto resp = broker->close_all_positions(creds);
     if (resp.success && resp.data.has_value()) {
         publish(AllPositionsClosedEvent{account_id, (int)resp.data->closed_symbols.size(),
-                                        (int)resp.data->failed.size(), "live"});
+                                        (int)resp.data->failed.size(), broker_mode_tag(account)});
     }
     return resp;
 }
@@ -674,7 +760,7 @@ ApiResponse<OrderPlaceResponse> UnifiedTrading::close_position(const QString& ac
     if (account.account_id.isEmpty())
         return {false, std::nullopt, "Account not found: " + account_id};
 
-    if (account.trading_mode == "paper") {
+    if (local_paper(account)) {
         auto positions = pt_get_positions(account.paper_portfolio_id);
         for (const auto& pos : positions) {
             QString pos_sym = pos.symbol;
@@ -683,13 +769,14 @@ ApiResponse<OrderPlaceResponse> UnifiedTrading::close_position(const QString& ac
                     continue;
                 // Close by the OPPOSITE of the position's `side` (quantity is a
                 // positive magnitude; shorts are +, so the sign is unreliable).
-                const QString dir = pos.side.toLower();
-                const bool is_short = dir == QLatin1String("short") || dir == QLatin1String("sell") || pos.quantity < 0;
-                const QString side_str = is_short ? QStringLiteral("buy") : QStringLiteral("sell");
+                const QString side_str =
+                    position_is_short(pos.side, pos.quantity) ? QStringLiteral("buy") : QStringLiteral("sell");
                 const double fill = pos.current_price > 0.0 ? pos.current_price : pos.entry_price;
                 try {
+                    // reduce_only: a close may only shrink the position, never flip it.
                     auto paper_order = pt_place_order(account.paper_portfolio_id, pos.symbol, side_str, "market",
-                                                      std::abs(pos.quantity), fill, std::nullopt, false);
+                                                      std::abs(pos.quantity), fill, std::nullopt,
+                                                      /*reduce_only=*/true, QString(), pos.product);
                     pt_fill_order(paper_order.id, fill);
                     return {true, OrderPlaceResponse{true, paper_order.id, {}}, {}};
                 } catch (const std::exception& e) {
@@ -705,6 +792,8 @@ ApiResponse<OrderPlaceResponse> UnifiedTrading::close_position(const QString& ac
         return {false, std::nullopt, "Broker not found: " + account.broker_id};
 
     auto creds = AccountManager::instance().load_credentials(account_id);
+    if (const QString refusal = paper_venue_refusal(account, *broker, creds); !refusal.isEmpty())
+        return {false, std::nullopt, refusal};
     return broker->close_position(creds, symbol, exchange, product_type);
 }
 
@@ -733,8 +822,25 @@ ApiResponse<SmartOrderResult> UnifiedTrading::place_smart_order(const QString& a
                              .arg(account_id, risk_err));
         return {false, std::nullopt, "Risk check failed: " + risk_err};
     }
+    {
+        // Settings-driven gate on the same target exposure (see place_order).
+        UnifiedOrder probe;
+        probe.symbol = order.symbol;
+        probe.exchange = order.exchange;
+        probe.side = order.action;
+        probe.quantity = risk_qty;
+        probe.order_type = order.order_type;
+        probe.price = order.price;
+        probe.stop_price = order.trigger_price;
+        probe.product_type = order.product_type;
+        if (probe.quantity > 0) {
+            const auto gate = OrderValidator::pre_trade_risk(account_id, probe, !local_paper(account));
+            if (!gate.valid)
+                return {false, std::nullopt, "Risk check failed: " + gate.errors.join("; ")};
+        }
+    }
 
-    if (account.trading_mode == "paper") {
+    if (local_paper(account)) {
         // Paper mode: get paper positions, calculate delta, place paper order
         auto positions = pt_get_positions(account.paper_portfolio_id);
         double current = 0;
@@ -802,6 +908,8 @@ ApiResponse<SmartOrderResult> UnifiedTrading::place_smart_order(const QString& a
         return {false, std::nullopt, "Broker not found: " + account.broker_id};
 
     auto creds = AccountManager::instance().load_credentials(account_id);
+    if (const QString refusal = paper_venue_refusal(account, *broker, creds); !refusal.isEmpty())
+        return {false, std::nullopt, refusal};
     rate_limit_broker(account.broker_id);
     return SmartOrderEngine::instance().execute(broker, creds, order);
 }
@@ -872,7 +980,11 @@ void UnifiedTrading::place_basket_orders(const QString& account_id, const Basket
         return;
     }
 
-    const bool is_paper = (account.trading_mode == "paper");
+    // is_paper = served by the LOCAL simulator. A PAPER account on a verified native broker
+    // paper venue goes through the broker like a live one, yet stays "paper" for the risk
+    // gate and the completion event (paper_mode).
+    const bool paper_mode = (account.trading_mode == "paper");
+    const bool is_paper = local_paper(account);
 
     // Resolve broker + credentials up front on the calling thread (consistent
     // with the existing place_live_order_for_account helper).
@@ -904,6 +1016,17 @@ void UnifiedTrading::place_basket_orders(const QString& account_id, const Basket
                      false,
                      {},
                      "No credentials for account " + account.display_name + ". Please authenticate."});
+                result.failed++;
+            }
+            if (callback)
+                callback(result);
+            return;
+        }
+        if (const QString refusal = paper_venue_refusal(account, *broker, creds); !refusal.isEmpty()) {
+            BasketOrderResult result;
+            result.total = basket.orders.size();
+            for (const auto& order : basket.orders) {
+                result.results.append({order.symbol, order.exchange, false, {}, refusal});
                 result.failed++;
             }
             if (callback)
@@ -944,8 +1067,11 @@ void UnifiedTrading::place_basket_orders(const QString& account_id, const Basket
     QPointer<UnifiedTrading> self = this;
     const QString basket_strategy = basket.strategy_name;
     const QString broker_id = account.broker_id;
-    (void)QtConcurrent::run([self, account_id, basket_strategy, orders, is_paper, broker, broker_id, creds,
-                             paper_portfolio_id, callback]() {
+    // The batch sleeps between legs (rate-limit spacing), so it runs on the
+    // blocking-jobs pool: never queued behind the global pool, and never holding
+    // an order-pool thread a single BUY/CANCEL needs.
+    (void)QtConcurrent::run(&blocking_thread_pool(), [self, account_id, basket_strategy, orders, is_paper, paper_mode,
+                                                      broker, broker_id, creds, paper_portfolio_id, callback]() {
         BasketOrderResult result;
         result.total = orders.size();
 
@@ -963,7 +1089,12 @@ void UnifiedTrading::place_basket_orders(const QString& account_id, const Basket
             // Basket legs bypass place_order, so the risk gate is applied per leg
             // here. A blocked leg fails on its own; the rest of the basket still
             // goes out, matching how a broker-rejected leg already behaves.
-            const QString leg_risk = risk_block_reason(order.symbol, order.side, order.quantity, order.price, is_paper);
+            QString leg_risk = risk_block_reason(order.symbol, order.side, order.quantity, order.price, paper_mode);
+            if (leg_risk.isEmpty()) {
+                const auto gate = OrderValidator::pre_trade_risk(account_id, order, /*broker_routed=*/!is_paper);
+                if (!gate.valid)
+                    leg_risk = gate.errors.join("; ");
+            }
             if (!leg_risk.isEmpty()) {
                 LOG_INFO(kUtLog, QString("Risk limit rejected basket leg %1 on account %2: %3")
                                      .arg(order.symbol, account_id, leg_risk));
@@ -1029,10 +1160,11 @@ void UnifiedTrading::place_basket_orders(const QString& account_id, const Basket
             return;
         QMetaObject::invokeMethod(
             self,
-            [self, account_id, basket_strategy, is_paper, result, callback]() {
+            [self, account_id, basket_strategy, paper_mode, result, callback]() {
                 // Notify listeners (e.g. TradingNotificationBridge) that the basket finished.
                 publish(BasketCompletedEvent{account_id, basket_strategy, result.successful, result.failed,
-                                             result.total, is_paper ? QStringLiteral("paper") : QStringLiteral("live")});
+                                             result.total,
+                                             paper_mode ? QStringLiteral("paper") : QStringLiteral("live")});
                 if (callback)
                     callback(result);
             },
@@ -1086,9 +1218,15 @@ void UnifiedTrading::place_split_orders(const QString& account_id, const SplitOr
 
     // Risk gate on the FULL quantity (a split is one intent, not N independent
     // orders) — split chunks bypass place_order entirely. Defaults are unlimited.
-    const QString split_risk =
-        risk_block_reason(request.base_order.symbol, request.base_order.side, raw_qty, request.base_order.price,
-                          account.trading_mode == "paper");
+    QString split_risk = risk_block_reason(request.base_order.symbol, request.base_order.side, raw_qty,
+                                           request.base_order.price, account.trading_mode == "paper");
+    if (split_risk.isEmpty()) {
+        // Settings-driven gate on the whole split (one intent). Sanity / value
+        // checks see the full quantity, not one chunk.
+        const auto gate = OrderValidator::pre_trade_risk(account_id, request.base_order, !local_paper(account));
+        if (!gate.valid)
+            split_risk = gate.errors.join("; ");
+    }
     if (!split_risk.isEmpty()) {
         LOG_INFO(kUtLog, QString("Risk limit rejected split order %1 on account %2: %3")
                              .arg(request.base_order.symbol, account_id, split_risk));
@@ -1120,7 +1258,10 @@ void UnifiedTrading::place_split_orders(const QString& account_id, const SplitOr
         return;
     }
 
-    const bool is_paper = (account.trading_mode == "paper");
+    // is_paper = served by the LOCAL simulator; a PAPER account on a verified native broker
+    // paper venue goes through the broker adapter like a live one (the risk gate above
+    // already used the account's actual mode).
+    const bool is_paper = local_paper(account);
 
     IBroker* broker = nullptr;
     BrokerCredentials creds;
@@ -1152,6 +1293,14 @@ void UnifiedTrading::place_split_orders(const QString& account_id, const SplitOr
                 callback(result);
             return;
         }
+        if (const QString refusal = paper_venue_refusal(account, *broker, creds); !refusal.isEmpty()) {
+            SplitOrderResult result;
+            result.results.append({request.base_order.symbol, request.base_order.exchange, false, {}, refusal});
+            result.chunks_failed++;
+            if (callback)
+                callback(result);
+            return;
+        }
     }
 
     // Build the per-chunk quantity list.
@@ -1177,7 +1326,9 @@ void UnifiedTrading::place_split_orders(const QString& account_id, const SplitOr
     const QString broker_id = account.broker_id;
 
     QPointer<UnifiedTrading> self = this;
+    // Sleeps delay_ms between chunks — blocking-jobs pool (see place_basket_orders).
     (void)QtConcurrent::run(
+        &blocking_thread_pool(),
         [self, base, chunk_qtys, delay_ms, is_paper, broker, broker_id, creds, paper_portfolio_id, callback]() {
             SplitOrderResult result;
 
@@ -1256,6 +1407,174 @@ void UnifiedTrading::place_split_orders(const QString& account_id, const SplitOr
                 },
                 Qt::QueuedConnection);
         });
+}
+
+// ============================================================================
+// Basket unwind
+// ============================================================================
+
+namespace {
+bool ut_status_is_open(const QString& raw) {
+    const QString s = raw.trimmed().toLower();
+    return s == "open" || s == "pending" || s == "new" || s == "trigger pending" || s == "trigger_pending" ||
+           s == "ordered" || s == "transit" || s == "accepted" || s == "partially_filled" || s == "partial" ||
+           s == "working" || s == "open pending";
+}
+bool ut_status_is_filled(const QString& raw) {
+    const QString s = raw.trimmed().toLower();
+    return s == "filled" || s == "complete" || s == "completed" || s == "executed" || s == "traded";
+}
+const BrokerOrderInfo* ut_find_order(const QVector<BrokerOrderInfo>& book, const QString& id) {
+    for (const auto& o : book)
+        if (o.order_id == id || (!o.exchange_order_id.isEmpty() && o.exchange_order_id == id))
+            return &o;
+    return nullptr;
+}
+} // namespace
+
+QVector<UnifiedTrading::UnwindLegResult>
+UnifiedTrading::unwind_basket_legs(const QString& account_id, const QVector<BasketOrderResult::OrderResult>& legs) {
+    QVector<UnwindLegResult> out;
+    QVector<BasketOrderResult::OrderResult> placed;
+    for (const auto& l : legs)
+        if (l.success && !l.order_id.isEmpty())
+            placed.append(l);
+    auto fail_all = [&](const QString& why) {
+        for (const auto& l : placed)
+            out.append({l.symbol, l.order_id, false, {}, why});
+        return out;
+    };
+    if (placed.isEmpty())
+        return out;
+
+    const auto account = AccountManager::instance().get_account(account_id);
+    if (account.account_id.isEmpty())
+        return fail_all("Account not found: " + account_id);
+
+    if (local_paper(account)) {
+        const auto book = pt_get_orders(account.paper_portfolio_id);
+        for (const auto& l : placed) {
+            UnwindLegResult r{l.symbol, l.order_id, false, {}, {}};
+            const PtOrder* o = nullptr;
+            for (const auto& po : book)
+                if (po.id == l.order_id)
+                    o = &po;
+            if (!o) {
+                r.error = "paper order not found — check the order book";
+                out.append(r);
+                continue;
+            }
+            QStringList did;
+            try {
+                if (o->status == QLatin1String("pending") || o->status == QLatin1String("partial")) {
+                    pt_cancel_order(o->id);
+                    OrderMatcher::instance().remove_order(o->id);
+                    did << QStringLiteral("cancelled remainder");
+                }
+                if (o->filled_qty > 0.0) {
+                    const double px = o->avg_price.value_or(o->price.value_or(0.0));
+                    if (px <= 0.0)
+                        throw std::runtime_error("no fill price to reverse at");
+                    const QString opp = (o->side == QLatin1String("buy")) ? QStringLiteral("sell") : QStringLiteral("buy");
+                    auto rev = pt_place_order(account.paper_portfolio_id, o->symbol, opp, "market", o->filled_qty, px,
+                                              std::nullopt, /*reduce_only=*/true, l.exchange, QString());
+                    pt_fill_order(rev.id, px);
+                    did << QString("reversed %1 @ %2 (paper)").arg(o->filled_qty).arg(px);
+                }
+                r.ok = true;
+                r.action = did.isEmpty() ? QStringLiteral("nothing filled — nothing to unwind") : did.join("; ");
+            } catch (const std::exception& e) {
+                r.error = QString::fromUtf8(e.what());
+                r.action = did.join("; ");
+            }
+            out.append(r);
+        }
+        return out;
+    }
+
+    auto* broker = BrokerRegistry::instance().get(account.broker_id);
+    if (!broker)
+        return fail_all("Broker not found: " + account.broker_id);
+    const auto creds = AccountManager::instance().load_credentials(account_id);
+    if (const QString refusal = paper_venue_refusal(account, *broker, creds); !refusal.isEmpty())
+        return fail_all(refusal);
+
+    auto book_resp = broker->get_orders(creds);
+    if (!book_resp.success || !book_resp.data.has_value())
+        return fail_all("order book unreadable (" + book_resp.error + ") — nothing unwound; check the broker");
+
+    // Pass 1: cancel unfilled remainders.
+    QHash<QString, QString> cancel_note;
+    bool cancelled_any = false;
+    for (const auto& l : placed) {
+        const BrokerOrderInfo* info = ut_find_order(*book_resp.data, l.order_id);
+        if (info && ut_status_is_open(info->status)) {
+            rate_limit_broker(account.broker_id);
+            const auto c = broker->cancel_order(creds, info->order_id);
+            cancel_note.insert(l.order_id, c.success ? QStringLiteral("cancelled remainder")
+                                                     : QStringLiteral("cancel failed: ") + c.error);
+            cancelled_any = true;
+        }
+    }
+    // Pass 2: re-read so the reversal uses the FINAL filled quantity.
+    if (cancelled_any) {
+        auto again = broker->get_orders(creds);
+        if (!again.success || !again.data.has_value()) {
+            for (const auto& l : placed)
+                out.append({l.symbol, l.order_id, false, cancel_note.value(l.order_id),
+                            "order book unreadable after cancelling — fills unknown, NOT reversed; check the broker"});
+            return out;
+        }
+        book_resp = again;
+    }
+
+    for (const auto& l : placed) {
+        UnwindLegResult r{l.symbol, l.order_id, false, cancel_note.value(l.order_id), {}};
+        const BrokerOrderInfo* info = ut_find_order(*book_resp.data, l.order_id);
+        if (!info) {
+            r.error = "not in the broker order book — cannot verify the fill, NOT reversed";
+            out.append(r);
+            continue;
+        }
+        double filled = info->filled_qty;
+        if (filled <= 0.0 && ut_status_is_filled(info->status))
+            filled = info->quantity; // brokers that report status but not filled_qty
+        if (ut_status_is_open(info->status) && !cancel_note.value(l.order_id).startsWith("cancelled")) {
+            r.error = "still open at the broker (cancel failed) — NOT reversed";
+            out.append(r);
+            continue;
+        }
+        if (filled <= 0.0) {
+            r.ok = true;
+            r.action = (r.action.isEmpty() ? QString() : r.action + "; ") + QStringLiteral("nothing filled");
+            out.append(r);
+            continue;
+        }
+        const auto side = order_side_from_str(info->side);
+        if (!side) {
+            r.error = QString("unrecognised side '%1' — NOT reversed").arg(info->side);
+            out.append(r);
+            continue;
+        }
+        UnifiedOrder rev;
+        rev.symbol = l.symbol;
+        rev.exchange = l.exchange.isEmpty() ? info->exchange : l.exchange;
+        rev.side = (*side == OrderSide::Buy) ? OrderSide::Sell : OrderSide::Buy;
+        rev.quantity = filled;
+        rev.order_type = OrderType::Market;
+        rev.product_type = broker->product_from_wire(info->product_type);
+        const auto resp = place_order(account_id, rev);
+        r.ok = resp.success;
+        const QString step = QString("reversed %1 (%2 %3)")
+                                 .arg(filled)
+                                 .arg(QString::fromLatin1(order_side_str(rev.side)).toUpper(),
+                                      QString::fromLatin1(product_to_broker_str(rev.product_type)));
+        r.action = (r.action.isEmpty() ? QString() : r.action + "; ") + (resp.success ? step : QString());
+        if (!resp.success)
+            r.error = "reversal failed: " + resp.message;
+        out.append(r);
+    }
+    return out;
 }
 
 void UnifiedTrading::place_order_auto_split(const QString& account_id, const UnifiedOrder& order,

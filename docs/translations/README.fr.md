@@ -1,6 +1,17 @@
 > [!IMPORTANT]
-> **Deux éditions.** **[Enterprise](https://fincept.in/enterprise)** est la version privée, à code fermé, destinée aux fonds et desks de recherche — 41 modules, données privées, routage courtier en direct, SSO, à partir de **99 $/utilisateur/mois**. **Ce dépôt** est l'édition libre AGPL-3.0 pour l'apprentissage et l'usage académique, avec une version par mois.
-> [Comparatif](https://fincept.in/comparison) · [Tarifs](https://fincept.in/pricing)
+> ## 🔒 Fincept Terminal **Enterprise** — l'édition privée est désormais disponible.
+> Données en temps réel · Recherche IA multi-agents · Exécution courtier, backtest & algo en direct · Support prioritaire ·
+> Recherche actions · Gestion de portefeuille · Workflows financiers · Quant Research Lab · Maritime · Géopolitique
+>
+> | Offre | Prix |
+> |:--|:--:|
+> | **Exclusive** | **15 $** /utilisateur/mois |
+> | **Exclusive+** | **30 $** /utilisateur/mois |
+> | **Exclusive Pro** ⭐ La plus choisie | **45 $** /utilisateur/mois |
+>
+> [![Obtenir Enterprise →](https://img.shields.io/badge/Obtenir_Enterprise_%E2%86%92-C06524?style=for-the-badge)](https://fincept.in/enterprise/signup) &nbsp; [![Comparer les offres](https://img.shields.io/badge/Comparer_les_offres-1F2328?style=for-the-badge)](https://fincept.in/pricing)
+>
+> <sub>Sans engagement annuel, résiliable à tout moment · Ce dépôt open source reste gratuit sous AGPL-3.0</sub>
 
 # Fincept Terminal
 
@@ -34,10 +45,10 @@ Prenez l'édition ouverte si vous êtes étudiant, amateur ou universitaire. Pre
 | | Open source | **Enterprise** |
 |---|---|---|
 | **Licence** | AGPL-3.0 — copyleft fort | Propriétaire — aucune obligation de copyleft |
-| **Coût** | Gratuit, plus vos factures de données et de LLM | 99 $ / 199 $ / 299 $ par utilisateur/mois |
+| **Coût** | Gratuit, plus vos factures de données et de LLM | **15 $ / 30 $ / 45 $** par utilisateur/mois |
 | **Données** | Flux publics gratuits, vos propres clés | Jeux de données privés, historique plus profond, point-in-time |
 | **IA** | Votre clé LLM | 400–5 000 crédits inclus · recherche multi-agents · data room privée |
-| **Trading** | Papier + intégrations courtier | Routage courtier en direct + déploiement d'algos en direct |
+| **Trading** | Papier + trading en direct via votre courtier | Routage en direct géré, analytique d'exécution, SLA prioritaire |
 | **Contrôles** | — | SSO/SAML, journaux d'audit, RBAC, support adossé à un SLA |
 
 [**Découvrir Enterprise →**](https://fincept.in/enterprise) · [Comparatif complet](https://fincept.in/comparison) · [Tarifs](https://fincept.in/pricing) · [FAQ](https://fincept.in/faq)
@@ -48,14 +59,14 @@ Prenez l'édition ouverte si vous êtes étudiant, amateur ou universitaire. Pre
 
 41 modules répartis sur six desks — recherche agentique, quant lab et backtesting, analyse fondamentale approfondie, marchés et exécution, macro et intelligence globale, et votre propre espace de travail. Le tout dans un [manuel de 700 pages](https://fincept.in/manual).
 
-| | **Exclusive** | **Exclusive+** ★ | **Exclusive Pro** |
+| | **Exclusive** | **Exclusive+** | **Exclusive Pro** ★ |
 |---|---|---|---|
-| | **99 $**/utilisateur/mois | **199 $**/utilisateur/mois | **299 $**/utilisateur/mois |
+| | **15 $**/utilisateur/mois | **30 $**/utilisateur/mois | **45 $**/utilisateur/mois |
 | Crédits IA / mois | 400 | 2 000 | 5 000 |
 | Deep research + équipes d'agents | — | ✓ | ✓ |
 | Trading en direct + algos | — | — | ✓ |
 
-Facturation mensuelle, sans engagement, sans minimum de postes, 15 % de remise au trimestre — **1 188 à 3 588 $ par utilisateur et par an**, contre environ 27 000 $ pour un poste Bloomberg. **Universités :** 5 postes Exclusive Pro pour **699 $/mois**. Ces formules constituent toute la grille tarifaire : aucun tarif négocié, aucune licence commerciale distincte.
+Facturation mensuelle, sans engagement annuel, sans minimum de postes — soit **180 à 540 $ par utilisateur et par an**, contre environ 27 000 $ pour un poste Bloomberg. Les conditions trimestrielles et universitaires figurent sur la [page des tarifs](https://fincept.in/pricing). Aucun tarif négocié, aucune licence commerciale distincte.
 
 Enterprise exige son propre compte — les identifiants Fincept gratuits n'y donnent pas accès.
 
@@ -105,7 +116,7 @@ Nouveaux connecteurs de données, agents IA, modules d'analyse, écrans C++ et d
 ## Également chez Fincept
 
 - **[Fincept Data API](https://docs.fincept.in)** — plus de 500 endpoints REST, plus de 423 000 instruments, plus de 2 000 sources. Palier gratuit inclus avec tout compte.
-- **[Quantcept](https://quantcept.io)** — terminal financier en ligne de commande, open source et propulsé par l'IA (Apache-2.0).
+- **[Quantcept](https://quantcept.io)** — desk de recherche IA pour les marchés : données primaires, backtests, portefeuilles, documents et moniteurs 24h/24. Démarrez gratuitement ; Alpha 14 $ / Apex 24 $ par 30 jours.
 
 ---
 

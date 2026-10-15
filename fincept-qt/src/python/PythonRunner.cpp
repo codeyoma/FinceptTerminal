@@ -150,7 +150,7 @@ static bool route_yfinance_to_daemon(const QStringList& args, std::function<void
 // Python script reads them, and it future-proofs new scripts.
 static const QStringList kManagedCredentialKeys = {
     "ALPHA_VANTAGE_API_KEY", "POLYGON_API_KEY",    "DATABENTO_API_KEY", "FRED_API_KEY",       "NEWSAPI_KEY",
-    "BINANCE_API_KEY",       "BINANCE_SECRET_KEY", "KRAKEN_API_KEY",    "KRAKEN_SECRET_KEY",  "IEX_CLOUD_TOKEN",
+    "BINANCE_API_KEY",       "BINANCE_SECRET_KEY", "KRAKEN_API_KEY",    "KRAKEN_SECRET_KEY",
     "FINNHUB_API_KEY",       "TIINGO_API_KEY",     "QUANDL_API_KEY",    "POLYMARKET_API_KEY", "POLYMARKET_SECRET",
     "POLYMARKET_PASSPHRASE", "POLYMARKET_WALLET",
 // Keyed data-connector provider keys (auto-generated; see MCP data_* tools /
@@ -216,7 +216,6 @@ static bool script_supports_arg_spill(const QString& script, const QStringList& 
     static const QStringList kSpillCapableScripts = {
         // scripts/*.py — resolve_arg()
         QStringLiteral("news_nlp.py"),
-        QStringLiteral("news_correlation.py"),
         QStringLiteral("news_geolocation.py"),
         // scripts/Analytics/options/*.py — resolve_arg(), invoked via
         // MAAnalyticsService::run_python_json()
@@ -226,10 +225,6 @@ static bool script_supports_arg_spill(const QString& script, const QStringList& 
         QStringLiteral("Analytics/options/oi_tracker.py"),
         QStringLiteral("Analytics/options/straddle_simulator.py"),
         QStringLiteral("Analytics/options/strategy_chart.py"),
-        // scripts/agents/finagent_core/main.py — payload_str.startswith("@").
-        // AgentService reaches it via its own stdin QProcess, not through here,
-        // but the reader exists so the flag stays correct for any other caller.
-        QStringLiteral("agents/finagent_core/main.py"),
     };
     return kSpillCapableScripts.contains(script);
 }
@@ -292,7 +287,16 @@ static bool extract_error_envelope(const QJsonDocument& doc, QString* out) {
         return false; // absent, or explicitly "no error"
 
     QString msg;
-    if (err.isString())
+    if (err.isBool()) {
+        // `"error": false` is the "no error" half of a boolean flag (databento_provider.py,
+        // Analytics/options/*) and must not be read as a failure whose text is "false".
+        // `"error": true` is a failure; the explanation, if any, lives in `message`.
+        if (!err.toBool())
+            return false;
+        msg = obj.value(QLatin1String("message")).toString().trimmed();
+        if (msg.isEmpty())
+            msg = QStringLiteral("Script reported an error");
+    } else if (err.isString())
         msg = err.toString();
     else if (err.isObject())
         msg = QString::fromUtf8(QJsonDocument(err.toObject()).toJson(QJsonDocument::Compact));
@@ -306,6 +310,20 @@ static bool extract_error_envelope(const QJsonDocument& doc, QString* out) {
         return false; // `"error": ""` / `{}` is not a failure signal
     *out = msg;
     return true;
+}
+
+// While PythonSetupManager is still installing libraries (first run after an
+// early launch, or a background sync), an import failure means "not installed
+// yet", not "broken" — tell the user that instead of a traceback.
+static bool pyrunner_is_import_error(const QString& text) {
+    return text.contains(QLatin1String("ModuleNotFoundError")) || text.contains(QLatin1String("No module named")) ||
+           text.contains(QLatin1String("ImportError"));
+}
+
+static QString pyrunner_setup_pending_message() {
+    return PythonRunner::tr("Analytics libraries are still installing (%1%). This feature will work when setup "
+                            "finishes.")
+        .arg(PythonSetupManager::instance().overall_percent());
 }
 
 // Scripts that require NumPy 1.x environment
@@ -332,6 +350,29 @@ PythonRunner::PythonRunner() {
         // System python detection requires a process spawn — do it async
         find_python_async();
     }
+
+    // Both signals are emitted on the GUI thread (PythonSetupManager lives
+    // there), and `this` as context makes the slots run on our own thread.
+    auto& setup = PythonSetupManager::instance();
+    connect(&setup, &PythonSetupManager::core_ready, this, &PythonRunner::refresh_interpreter);
+    connect(&setup, &PythonSetupManager::setup_complete, this, [this](bool success, const QString&) {
+        if (success)
+            refresh_interpreter();
+    });
+}
+
+void PythonRunner::refresh_interpreter() {
+    const QString resolved = find_python_sync();
+    if (resolved.isEmpty())
+        return;
+    if (resolved != python_path_)
+        LOG_INFO("Python", "Interpreter re-resolved after setup: " + resolved);
+    python_path_ = resolved;
+    python_init_done_ = true;
+    // PythonWorker restarts its daemon on python_ready; AgentService resumes
+    // requests parked while no interpreter existed.
+    emit python_ready();
+    start_next();
 }
 
 bool PythonRunner::is_available() const {
@@ -470,7 +511,10 @@ void PythonRunner::find_python_async() {
     connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
             [this, proc, sys_python](int exit_code, QProcess::ExitStatus) {
                 proc->deleteLater();
-                if (exit_code == 0) {
+                if (!python_path_.isEmpty()) {
+                    // refresh_interpreter() found the managed venv while this probe
+                    // ran — never downgrade it to the system interpreter.
+                } else if (exit_code == 0) {
                     python_path_ = sys_python;
                     LOG_INFO("Python", "System Python found: " + sys_python);
                 } else {
@@ -509,6 +553,7 @@ QString PythonRunner::find_scripts_dir() const {
     // Mach-Os in MacOS/ makes codesign reject the bundle as malformed.
     QStringList candidates = {
         exe_dir + "/../Resources/scripts", // macOS canonical (.app/Contents/Resources/scripts)
+        exe_dir + "/../share/fincept-terminal/scripts", // Linux FHS / Flatpak (cmake --install)
         exe_dir + "/scripts",
         exe_dir + "/../scripts",
         exe_dir + "/../../scripts",
@@ -577,7 +622,11 @@ void PythonRunner::run_with_options(const QString& script, const QStringList& ar
     }
 
     if (python_init_done_ && python_path_.isEmpty()) {
-        cb({false, {}, "Python not available — run first-time setup from the app", -1});
+        cb({false, {},
+            PythonSetupManager::instance().is_running()
+                ? pyrunner_setup_pending_message()
+                : QStringLiteral("Python not available — run first-time setup from the app"),
+            -1});
         return;
     }
 
@@ -622,14 +671,17 @@ void PythonRunner::run_code(const QString& code, Callback cb) {
     }
 
     if (python_init_done_ && python_path_.isEmpty()) {
-        cb({false, {}, "Python not available — run first-time setup from the app", -1});
+        cb({false, {},
+            PythonSetupManager::instance().is_running()
+                ? pyrunner_setup_pending_message()
+                : QStringLiteral("Python not available — run first-time setup from the app"),
+            -1});
         return;
     }
 
     // Write code to a temp file. The filename must be unique even when several
-    // run_code() calls fire within the same millisecond (e.g. on portfolio load
-    // fetch_correlation + benchmark history + risk-free rate all kick off at
-    // once). A bare millisecond timestamp collided, so one cell's completion
+    // run_code() calls fire within the same millisecond (e.g. several notebook
+    // cells or tool calls started together). A bare millisecond timestamp collided, so one cell's completion
     // would delete the temp file out from under another still-pending cell
     // ("can't open file … No such file or directory"). A UUID guarantees
     // uniqueness regardless of timing.
@@ -646,7 +698,10 @@ void PythonRunner::run_code(const QString& code, Callback cb) {
     file.close();
 
     // Queue as a special request — use the temp file path directly
-    queue_.enqueue({"__code__:" + temp_path, {}, std::move(cb), {}, {}, false});
+    // A watchdog floor here too: an endless cell would otherwise hold one of the
+    // three concurrency slots forever. A notebook cell may legitimately train for
+    // a long time, so use the long-run budget rather than the 5-minute default.
+    queue_.enqueue({"__code__:" + temp_path, {}, std::move(cb), {}, {}, false, true, kLongRunTimeoutMs});
     start_next();
 }
 
@@ -660,7 +715,10 @@ void PythonRunner::start_next() {
 
         if (python_path_.isEmpty()) {
             // Python became unavailable — fail the request
-            req.cb({false, {}, "Python not available", -1});
+            req.cb({false, {},
+                    PythonSetupManager::instance().is_running() ? pyrunner_setup_pending_message()
+                                                                : QStringLiteral("Python not available"),
+                    -1});
             continue;
         }
 
@@ -812,12 +870,15 @@ void PythonRunner::start_next() {
         // invoke `on_line(line, is_stderr)` per line, advance `offset`. Trailing
         // partial line (no \n yet) stays in the buffer for the next read.
         auto drain_lines = [this, proc](bool is_stderr) {
-            auto& bufs = proc_buffers_[proc];
-            if (!bufs.on_line)
-                return;
-            QByteArray& buf = is_stderr ? bufs.stderr_buf : bufs.stdout_buf;
-            int& off = is_stderr ? bufs.stderr_streamed : bufs.stdout_streamed;
             while (true) {
+                // Look the buffers up afresh on every line: the stream callback may
+                // re-enter run() → start_next(), which inserts into proc_buffers_ and
+                // can rehash it, leaving any reference taken before the call dangling.
+                auto it = proc_buffers_.find(proc);
+                if (it == proc_buffers_.end() || !it->on_line)
+                    return;
+                QByteArray& buf = is_stderr ? it->stderr_buf : it->stdout_buf;
+                int& off = is_stderr ? it->stderr_streamed : it->stdout_streamed;
                 int nl = buf.indexOf('\n', off);
                 if (nl < 0)
                     break;
@@ -826,7 +887,8 @@ void PythonRunner::start_next() {
                 if (line.endsWith('\r'))
                     line.chop(1);
                 off = nl + 1;
-                bufs.on_line(QString::fromUtf8(line), is_stderr);
+                const StreamCallback on_line = it->on_line; // copy: the hash entry may move during the call
+                on_line(QString::fromUtf8(line), is_stderr);
             }
         };
 
@@ -840,6 +902,18 @@ void PythonRunner::start_next() {
         connect(proc, &QProcess::readyReadStandardError, this, [this, proc, drain_lines]() {
             proc_buffers_[proc].stderr_buf.append(proc->readAllStandardError());
             drain_lines(true);
+
+            // stderr is only ever used as the error text, so only its tail matters.
+            // A chatty script (tqdm bars, per-row warnings) under a 60-minute
+            // watchdog otherwise grows this buffer without bound. Complete lines were
+            // already streamed above, so dropping the head loses nothing.
+            constexpr qsizetype kStderrKeepBytes = qsizetype{1} << 20;
+            auto it = proc_buffers_.find(proc);
+            if (it != proc_buffers_.end() && it->stderr_buf.size() > 2 * kStderrKeepBytes) {
+                const qsizetype drop = it->stderr_buf.size() - kStderrKeepBytes;
+                it->stderr_buf.remove(0, drop);
+                it->stderr_streamed = static_cast<int>(qMax<qsizetype>(0, it->stderr_streamed - drop));
+            }
         });
 
         // Share cb across both slots and gate on a once-flag so exactly one of
@@ -849,11 +923,15 @@ void PythonRunner::start_next() {
         // Crash, e.g. a broken venv python or a segfault in numpy/torch/faiss.)
         auto cb = std::make_shared<Callback>(std::move(req.cb));
         auto handled = std::make_shared<std::atomic_bool>(false);
+        // Set by the watchdog just before it kills the process, so the completion
+        // handlers can report "timed out" rather than a bare crash with no message.
+        auto timed_out = std::make_shared<std::atomic_bool>(false);
+        const int budget_ms = req.timeout_ms;
         auto script_name = std::move(req.script);
 
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
-                [this, proc, cb, handled, script_name, is_code, temp_file, expect_json = req.expect_json](
-                    int exit_code, QProcess::ExitStatus) {
+                [this, proc, cb, handled, timed_out, budget_ms, script_name, is_code, temp_file,
+                 expect_json = req.expect_json](int exit_code, QProcess::ExitStatus) {
                     if (handled->exchange(true))
                         return; // errorOccurred already handled this proc
                     // Collect any remaining buffered data
@@ -936,6 +1014,16 @@ void PythonRunner::start_next() {
                         }
                     }
 
+                    if (timed_out->load()) {
+                        result.success = false;
+                        if (result.error.isEmpty())
+                            result.error = QString("Script timed out after %1 s and was killed").arg(budget_ms / 1000);
+                    }
+
+                    if (!result.success && PythonSetupManager::instance().is_running() &&
+                        (pyrunner_is_import_error(result.error) || pyrunner_is_import_error(result.output)))
+                        result.error = pyrunner_setup_pending_message();
+
                     if (!result.success && !is_code) {
                         LOG_ERROR("Python", QString("Script %1 failed in %2ms (exit=%3): %4")
                                                 .arg(script_name)
@@ -953,10 +1041,28 @@ void PythonRunner::start_next() {
                 });
 
         connect(proc, &QProcess::errorOccurred, this,
-                [this, proc, cb, handled, is_code, temp_file](QProcess::ProcessError) {
+                [this, proc, cb, handled, timed_out, budget_ms, is_code, temp_file](QProcess::ProcessError err) {
+                    // WriteError (the script exited without reading stdin) and ReadError
+                    // are not fatal: the process is alive or about to emit finished()
+                    // with its real output. Treating them as terminal reported a failure
+                    // for a script that went on to print a good result, and freed the
+                    // concurrency slot while the process still ran.
+                    if (err == QProcess::WriteError || err == QProcess::ReadError || err == QProcess::Timedout) {
+                        LOG_WARN("Python", "Non-fatal process I/O error: " + proc->errorString());
+                        return;
+                    }
                     if (handled->exchange(true))
                         return; // finished already handled this proc
                     QString error_msg = proc->errorString();
+                    // A crash (segfault in numpy/torch, or the watchdog's kill) arrives
+                    // here BEFORE finished(), so the output buffered so far would
+                    // otherwise be discarded — keep stderr's tail for the message.
+                    QString stderr_tail;
+                    const auto bufs_it = proc_buffers_.find(proc);
+                    if (bufs_it != proc_buffers_.end()) {
+                        bufs_it->stderr_buf.append(proc->readAllStandardError());
+                        stderr_tail = QString::fromUtf8(bufs_it->stderr_buf.right(2000)).trimmed();
+                    }
                     proc_buffers_.remove(proc);
                     // Clean up any spilled arg temp files
                     auto spilled = proc->property("spilled_files").toStringList();
@@ -965,7 +1071,14 @@ void PythonRunner::start_next() {
                     proc->deleteLater();
                     if (is_code && !temp_file.isEmpty())
                         QFile::remove(temp_file);
-                    (*cb)({false, {}, "Process error: " + error_msg, -1});
+                    QString message = "Process error: " + error_msg;
+                    if (timed_out->load())
+                        message = QString("Script timed out after %1 s and was killed").arg(budget_ms / 1000);
+                    else if (err == QProcess::FailedToStart && PythonSetupManager::instance().is_running())
+                        message = pyrunner_setup_pending_message(); // venv still being created
+                    else if (err == QProcess::Crashed && !stderr_tail.isEmpty())
+                        message += "\n" + stderr_tail;
+                    (*cb)({false, {}, message, -1});
 
                     --active_count_;
                     start_next(); // drain queue
@@ -1014,12 +1127,14 @@ void PythonRunner::start_next() {
             auto* watchdog = new QTimer(proc);
             watchdog->setSingleShot(true);
             watchdog->setInterval(req.timeout_ms);
-            const QString wd_script = req.script;
+            // req.script was moved into script_name above, so name the script from there.
+            const QString wd_script = script_name;
             const int wd_budget = req.timeout_ms;
-            connect(watchdog, &QTimer::timeout, proc, [proc, wd_script, wd_budget]() {
+            connect(watchdog, &QTimer::timeout, proc, [proc, wd_script, wd_budget, timed_out]() {
                 if (proc->state() == QProcess::NotRunning)
                     return;
                 LOG_ERROR("Python", QString("Killing %1 — exceeded %2 ms watchdog budget").arg(wd_script).arg(wd_budget));
+                timed_out->store(true);
                 proc->kill();
             });
             watchdog->start();

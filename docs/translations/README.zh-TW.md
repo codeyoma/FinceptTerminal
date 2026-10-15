@@ -1,6 +1,17 @@
 > [!IMPORTANT]
-> **兩種版本。** **[Enterprise](https://fincept.in/enterprise)** 是為基金與研究團隊打造的私有閉源版本 —— 41 個模組、專有資料、即時券商路由、SSO，**每位使用者每月 99 美元**起。**本儲存庫**是供學習與學術用途的免費 AGPL-3.0 版本，每月發布一次。
-> [比較](https://fincept.in/comparison) · [價格](https://fincept.in/pricing)
+> ## 🔒 Fincept Terminal **Enterprise** — 私有版本現已推出。
+> 即時數據 · 多代理 AI 研究 · 即時券商、回測與演算法執行 · 優先支援 ·
+> 股票研究 · 投資組合管理 · 金融工作流程 · 量化研究實驗室 · 海事 · 地緣政治
+>
+> | 方案 | 價格 |
+> |:--|:--:|
+> | **Exclusive** | **15 美元** /使用者/月 |
+> | **Exclusive+** | **30 美元** /使用者/月 |
+> | **Exclusive Pro** ⭐ 最受歡迎 | **45 美元** /使用者/月 |
+>
+> [![取得 Enterprise →](https://img.shields.io/badge/%E5%8F%96%E5%BE%97_Enterprise_%E2%86%92-C06524?style=for-the-badge)](https://fincept.in/enterprise/signup) &nbsp; [![比較方案](https://img.shields.io/badge/%E6%AF%94%E8%BC%83%E6%96%B9%E6%A1%88-1F2328?style=for-the-badge)](https://fincept.in/pricing)
+>
+> <sub>無年度綁約，隨時取消 · 本開源儲存庫繼續以 AGPL-3.0 免費提供</sub>
 
 # Fincept Terminal
 
@@ -34,10 +45,10 @@
 | | 開源版 | **Enterprise** |
 |---|---|---|
 | **授權條款** | AGPL-3.0 —— 強傳染性 | 專有 —— 無 copyleft 義務 |
-| **成本** | 免費，另加自付的資料與 LLM 帳單 | 每位使用者每月 99 / 199 / 299 美元 |
+| **成本** | 免費，另加自付的資料與 LLM 帳單 | 每位使用者每月 **15 / 30 / 45 美元** |
 | **資料** | 免費公開資料來源，需自備金鑰 | 專有資料集、更長歷史、時點資料 |
 | **AI** | 自備 LLM 金鑰 | 含 400–5,000 點數 · 多代理研究 · 私有資料室 |
-| **交易** | 模擬交易 + 券商串接 | 即時券商路由 + 即時演算法部署 |
+| **交易** | 模擬交易 + 透過你的券商實盤交易 | 託管即時路由、執行分析、優先 SLA |
 | **管控** | — | SSO/SAML、稽核紀錄、RBAC、SLA 保障支援 |
 
 [**了解 Enterprise →**](https://fincept.in/enterprise) · [完整比較](https://fincept.in/comparison) · [價格](https://fincept.in/pricing) · [常見問題](https://fincept.in/faq)
@@ -48,14 +59,14 @@
 
 六大業務台、41 個模組 —— 代理研究、量化實驗室與回測、深度基本面研究、市場與執行、總體與全球情報，以及你的專屬工作區。全部收錄於一本 [700 頁手冊](https://fincept.in/manual)。
 
-| | **Exclusive** | **Exclusive+** ★ | **Exclusive Pro** |
+| | **Exclusive** | **Exclusive+** | **Exclusive Pro** ★ |
 |---|---|---|---|
-| | **99 美元**/使用者/月 | **199 美元**/使用者/月 | **299 美元**/使用者/月 |
+| | **15 美元**/使用者/月 | **30 美元**/使用者/月 | **45 美元**/使用者/月 |
 | AI 點數 / 月 | 400 | 2,000 | 5,000 |
 | 深度研究 + 代理團隊 | — | ✓ | ✓ |
 | 即時交易 + 演算法 | — | — | ✓ |
 
-按月計費、無綁約、無最低席次、按季付款享 85 折 —— 折合**每位使用者每年 1,188–3,588 美元**，而一個彭博終端機席次約為 27,000 美元。**大專院校：** 5 個 Exclusive Pro 席次每月 **699 美元**。這就是完整價目表：沒有議價報價，也沒有另外販售的商業授權。
+按月計費、無年度綁約、無最低席次 —— 折合**每位使用者每年 180–540 美元**，而一個彭博終端機席次約為 27,000 美元。按季付款與大專院校條款請見[價格頁面](https://fincept.in/pricing)。沒有議價報價，也沒有另外販售的商業授權。
 
 Enterprise 需要獨立帳號 —— 免費 Fincept 帳號無法登入。
 
@@ -105,7 +116,7 @@ Enterprise 需要獨立帳號 —— 免費 Fincept 帳號無法登入。
 ## Fincept 的其他產品
 
 - **[Fincept Data API](https://docs.fincept.in)** —— 500 多個 REST 端點、423,000 多檔標的、2,000 多個資料來源。任何帳號皆含免費額度。
-- **[Quantcept](https://quantcept.io)** —— 開源的 AI 驅動命令列金融終端機（Apache-2.0）。
+- **[Quantcept](https://quantcept.io)** —— 面向市場的 AI 研究工作台：一手資料、回測、投資組合、文件與全天候監控。免費起步；Alpha 14 美元 / Apex 24 美元（30 天）。
 
 ---
 

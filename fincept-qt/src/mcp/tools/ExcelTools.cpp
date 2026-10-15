@@ -545,6 +545,18 @@ std::vector<ToolDef> get_excel_tools() {
                     resolve(ToolResult::fail(kAddressingError));
                     return;
                 }
+                // get_excel_cell range-checks; this path did not. An out-of-range index went
+                // straight to QTableWidget::setItem (an invalid-index warning, and a leaked
+                // item) and the call still answered "Cell updated" for a write that never
+                // happened. A fixed-size sheet needs add_excel_sheet(rows, cols) to grow.
+                if (r >= s->row_count() || c >= s->col_count()) {
+                    resolve(ToolResult::fail(QString("Cell out of range: the sheet is %1 rows x %2 cols (zero-based "
+                                                     "row/col). Use set_excel_sheet_data to extend it, or "
+                                                     "add_excel_sheet with larger rows/cols.")
+                                                 .arg(s->row_count())
+                                                 .arg(s->col_count())));
+                    return;
+                }
                 s->set_cell(r, c, args["text"].toString());
                 resolve(ToolResult::ok("Cell updated"));
             });
@@ -584,6 +596,10 @@ std::vector<ToolDef> get_excel_tools() {
                     resolve(ToolResult::fail(kAddressingError));
                     return;
                 }
+                if (r >= s->row_count() || c >= s->col_count()) {
+                    resolve(ToolResult::fail("Cell out of range"));
+                    return;
+                }
                 s->set_cell(r, c, QString());
                 resolve(ToolResult::ok("Cell cleared"));
             });
@@ -595,11 +611,20 @@ std::vector<ToolDef> get_excel_tools() {
     {
         ToolDef t;
         t.name = "get_excel_sheet_data";
-        t.description = "Get the entire sheet as a 2D array of cell text (rows of strings).";
+        t.description = "Get a sheet's cells as a 2D array of raw cell text (formulas start with '='). By default "
+                        "only the used range is returned (row_count/col_count still report the grid size); set "
+                        "include_values=true to also get `values`, the computed value of every cell.";
         t.category = "excel";
         t.default_timeout_ms = kBulkTimeoutMs;
-        t.input_schema =
-            ToolSchemaBuilder().integer("sheet_index", "Sheet index (-1 = active)").default_int(-1).min(-1).build();
+        t.input_schema = ToolSchemaBuilder()
+                             .integer("sheet_index", "Sheet index (-1 = active)")
+                             .default_int(-1)
+                             .min(-1)
+                             .boolean("include_values", "Also return computed values (formulas evaluated)")
+                             .default_bool(false)
+                             .boolean("full_grid", "Return the whole padded grid instead of the used range")
+                             .default_bool(false)
+                             .build();
         t.input_schema = with_sheet_aliases(std::move(t.input_schema));
         t.async_handler = [](const QJsonObject& args, ToolContext ctx, std::shared_ptr<QPromise<ToolResult>> promise) {
             run_on_ui(std::move(ctx), promise, [args](auto resolve) {
@@ -608,19 +633,31 @@ std::vector<ToolDef> get_excel_tools() {
                     resolve(ToolResult::fail("Sheet not found - call list_excel_sheets for valid sheet_index values"));
                     return;
                 }
-                const auto data = s->get_data();
+                const bool with_values = args["include_values"].toBool(false);
+                const auto data = args["full_grid"].toBool(false) ? s->get_data() : s->get_used_data();
                 QJsonArray rows;
-                for (const auto& row : data) {
-                    QJsonArray r;
-                    for (const auto& cell : row)
-                        r.append(cell);
-                    rows.append(r);
+                QJsonArray values;
+                for (int r = 0; r < data.size(); ++r) {
+                    QJsonArray raw_row;
+                    QJsonArray value_row;
+                    for (int c = 0; c < data[r].size(); ++c) {
+                        raw_row.append(data[r][c]);
+                        if (with_values)
+                            value_row.append(screens::formula::export_text(s->value_at(r, c)));
+                    }
+                    rows.append(raw_row);
+                    if (with_values)
+                        values.append(value_row);
                 }
-                resolve(ToolResult::ok_data(QJsonObject{
+                QJsonObject out{
                     {"rows", rows},
+                    {"used_rows", static_cast<int>(data.size())},
                     {"row_count", s->row_count()},
                     {"col_count", s->col_count()},
-                }));
+                };
+                if (with_values)
+                    out["values"] = values;
+                resolve(ToolResult::ok_data(out));
             });
         };
         tools.push_back(std::move(t));
@@ -658,11 +695,37 @@ std::vector<ToolDef> get_excel_tools() {
                     resolve(ToolResult::fail("Sheet not found - call list_excel_sheets for valid sheet_index values"));
                     return;
                 }
+                // This runs on the UI thread and builds a table item per non-empty cell, so an
+                // unbounded array from the model could freeze the terminal for minutes. A
+                // generous but finite ceiling, reported rather than silently truncated.
+                constexpr int kMaxSheetRows = 20000;
+                constexpr int kMaxSheetCols = 256;
+                const QJsonArray rows_in = args["rows"].toArray();
+                if (rows_in.size() > kMaxSheetRows) {
+                    resolve(ToolResult::fail(QString("Too many rows (%1) — at most %2 per call").arg(rows_in.size()).arg(kMaxSheetRows)));
+                    return;
+                }
                 QVector<QVector<QString>> data;
-                for (const auto& row_v : args["rows"].toArray()) {
+                for (const auto& row_v : rows_in) {
+                    const QJsonArray cells_in = row_v.toArray();
+                    if (cells_in.size() > kMaxSheetCols) {
+                        resolve(ToolResult::fail(QString("A row has %1 cells — at most %2 columns").arg(cells_in.size()).arg(kMaxSheetCols)));
+                        return;
+                    }
                     QVector<QString> row;
-                    for (const auto& cell : row_v.toArray())
-                        row.append(cell.toString());
+                    for (const auto& cell : cells_in) {
+                        // QJsonValue::toString() is "" for a number or bool, so a model that sent
+                        // [[1, 2.5, true]] — the natural thing for a numeric table — wrote a row of
+                        // blank cells and was told the data was replaced.
+                        if (cell.isString())
+                            row.append(cell.toString());
+                        else if (cell.isDouble())
+                            row.append(QString::number(cell.toDouble(), 'g', 15));
+                        else if (cell.isBool())
+                            row.append(cell.toBool() ? QStringLiteral("TRUE") : QStringLiteral("FALSE"));
+                        else
+                            row.append(QString());
+                    }
                     data.append(row);
                 }
                 s->set_data(data);
@@ -910,6 +973,11 @@ std::vector<ToolDef> get_excel_tools() {
                         QStringList parts;
                         for (int c = 0; c <= last_col; ++c) {
                             QString cell = (c < data[r].size()) ? data[r][c] : QString();
+                            // CSV carries values: formulas export their result.
+                            if (cell.startsWith(QLatin1Char('=')))
+                                cell = screens::formula::export_text(s->value_at(r, c));
+                            else if (cell.startsWith(QLatin1Char('\'')))
+                                cell = cell.mid(1);
                             if (cell.contains(',') || cell.contains('"') || cell.contains('\n')) {
                                 cell.replace('"', "\"\"");
                                 cell = '"' + cell + '"';

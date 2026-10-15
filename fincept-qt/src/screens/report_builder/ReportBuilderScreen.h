@@ -17,6 +17,7 @@
 #include <QLabel>
 #include <QPropertyAnimation>
 #include <QPushButton>
+#include <QSet>
 #include <QSplitter>
 #include <QUndoStack>
 #include <QWidget>
@@ -80,6 +81,14 @@ class ReportBuilderScreen : public QWidget, public IStatefulScreen {
     void refresh_canvas();
     void refresh_structure();
 
+    // Live data blocks
+    /// Fetch a fresh quote for `symbol` and write it (with an as-of time) into every
+    /// market_data block showing that symbol. One hub request per symbol, 20 s timeout.
+    void fetch_quote(const QString& symbol);
+    /// Re-fetch every market_data block in the report (before an export, after a template).
+    void refresh_live_data();
+    QSet<QString> pending_quotes_;
+
     // Children
     ComponentToolbar* comp_toolbar_ = nullptr;
     DocumentCanvas* canvas_ = nullptr;
@@ -89,6 +98,12 @@ class ReportBuilderScreen : public QWidget, public IStatefulScreen {
     // Selection — tracked by stable id so it survives mutations from the
     // LLM that shift indices. -1 / 0 = nothing selected.
     int selected_id_ = 0;
+
+    // True while a change that ORIGINATED in the properties panel (a keystroke in one of
+    // its editors) is being pushed through the service. on_component_updated() then skips
+    // rebuilding that panel: rebuilding destroyed the very editor being typed in on every
+    // keystroke, so focus and the caret were lost after each character.
+    bool props_editing_ = false;
 
     // ── Side-panel collapse state ───────────────────────────────────────
     QPushButton* left_toggle_btn_ = nullptr;
@@ -109,12 +124,17 @@ class ReportBuilderScreen : public QWidget, public IStatefulScreen {
     void on_open();
     void on_new();
     void on_export_pdf();
+    void on_export_html();
     void on_preview();
 
   public slots:
     /// MCP-invocable PDF export: skips the file dialog and writes directly to
     /// the given absolute path. Exposed for the `report_export_pdf` tool.
-    void export_pdf_to(const QString& path);
+    /// Returns false when nothing could be written.
+    bool export_pdf_to(const QString& path);
+    /// Self-contained HTML export (charts and images embedded as data URIs, page
+    /// breaks kept for printing). Exposed for the `report_export_html` tool.
+    bool export_html_to(const QString& path);
 
   public:
     /// Returns the currently-constructed Report Builder screen (or nullptr if
@@ -137,6 +157,8 @@ class ReportBuilderScreen : public QWidget, public IStatefulScreen {
     QPushButton* open_btn_ = nullptr;
     QPushButton* save_btn_ = nullptr;
     QPushButton* pdf_btn_ = nullptr;
+    QPushButton* html_btn_ = nullptr;
+    QPushButton* refresh_data_btn_ = nullptr;
     QPushButton* preview_btn_ = nullptr;
 };
 

@@ -31,6 +31,7 @@
 #include "storage/repositories/SettingsRepository.h"
 #include "ui/theme/Theme.h"
 
+#include <QDate>
 #include <QFileDialog>
 #include <QFrame>
 #include <QGraphicsOpacityEffect>
@@ -46,6 +47,7 @@
 #include <QSplitter>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <memory>
 
 namespace fincept::screens {
@@ -60,9 +62,20 @@ void PortfolioScreen::on_portfolios_loaded(QVector<portfolio::Portfolio> portfol
         summary_loaded_ = false;
     } else {
         command_bar_->set_has_portfolios(true);
-        // Auto-select first portfolio if none selected
-        if (selected_id_.isEmpty()) {
+        const auto selected_it =
+            std::find_if(portfolios.begin(), portfolios.end(),
+                         [this](const portfolio::Portfolio& p) { return p.id == selected_id_; });
+        if (selected_id_.isEmpty() || selected_it == portfolios.end()) {
+            // Nothing selected - or the remembered selection (restore_state) names
+            // a portfolio that no longer exists, which would otherwise park the
+            // screen on a permanent "could not load" caption.
             on_portfolio_selected(portfolios.first().id);
+        } else {
+            // restore_state() runs before this list exists, so on_portfolio_selected()
+            // could not look the portfolio up then: the selector still read
+            // "SELECT PORTFOLIO" and the status bar had no name. Sync them now.
+            command_bar_->set_selected_portfolio(*selected_it);
+            status_bar_->set_portfolio_name(selected_it->name);
         }
     }
     update_content_state();
@@ -86,6 +99,7 @@ void PortfolioScreen::on_portfolio_selected(const QString& id) {
     }
     active_detail_ = std::nullopt;
     command_bar_->set_detail_view(std::nullopt);
+    status_bar_->set_analytics_note({}, {}, false); // belonged to the previous portfolio
     if (txn_panel_)
         txn_panel_->clear();
     if (blotter_)
@@ -125,6 +139,14 @@ void PortfolioScreen::on_summary_loaded(portfolio::PortfolioSummary summary) {
     update_main_view_data();
     update_content_state();
 
+    // Keep an open detail view / FFN view live. They were only handed the summary
+    // when first opened, so prices, P&L and weights froze until the user left and
+    // re-entered the tab (and F5 appeared to do nothing there).
+    if (active_detail_.has_value() && detail_wrapper_)
+        detail_wrapper_->update_data(summary, summary.portfolio.currency);
+    if (show_ffn_ && ffn_view_)
+        ffn_view_->set_data(summary, summary.portfolio.currency);
+
     // Auto-select highest weighted holding if none selected
     if (selected_symbol_.isEmpty() && !summary.holdings.isEmpty()) {
         double max_w = -1;
@@ -138,38 +160,65 @@ void PortfolioScreen::on_summary_loaded(portfolio::PortfolioSummary summary) {
         on_symbol_selected(top);
     }
 
-    // Trigger metrics computation
-    services::PortfolioService::instance().compute_metrics(summary);
+    auto& svc = services::PortfolioService::instance();
+
+    // Correlation, benchmark history, risk-free rate and ex-ante risk in ONE
+    // Python call, cached per (portfolio, day, holdings). A cache hit lands
+    // synchronously and recomputes the metrics through on_market_analytics().
+    if (!summary.holdings.isEmpty())
+        svc.fetch_market_analytics(summary);
+
+    // Metrics from what is known right now (realised TWR + last analytics).
+    svc.compute_metrics(summary);
 
     // Load performance history for the chart
-    services::PortfolioService::instance().load_snapshots(summary.portfolio.id);
+    svc.load_snapshots(summary.portfolio.id, kSnapshotHistoryDays);
 
     // Load recent transactions for the history panel
     if (txn_panel_)
-        services::PortfolioService::instance().load_transactions(summary.portfolio.id, 50);
+        svc.load_transactions(summary.portfolio.id, PortfolioTxnPanel::kRecentRows);
+}
 
-    // Fetch real 30-day correlation for the sector panel
-    if (!summary.holdings.isEmpty()) {
-        QStringList syms;
-        for (const auto& h : summary.holdings)
-            syms.append(h.symbol);
-        services::PortfolioService::instance().fetch_correlation(syms);
+void PortfolioScreen::on_market_analytics(bool ok, const QString& error) {
+    auto& svc = services::PortfolioService::instance();
+    const auto a = svc.last_market_analytics(selected_id_);
+    if (!ok && a.portfolio_id.isEmpty()) {
+        status_bar_->set_analytics_note(tr("RISK DATA UNAVAILABLE"),
+                                        tr("Price history for the risk figures could not be downloaded:\n%1\n"
+                                           "Volatility, beta and VaR fall back to the portfolio's own history. "
+                                           "Press ↻ (F5) to retry.")
+                                            .arg(error),
+                                        true);
+        return;
     }
+    if (a.portfolio_id.isEmpty())
+        return;
 
-    // Fetch benchmark history for perf chart overlay. Use the portfolio's
-    // currency to pick a sensible default index (TSX for CAD, SPY for USD,
-    // FTSE for GBP, …). We also always fetch SPY itself because Beta in
-    // compute_metrics() regresses against SPY regardless of currency.
-    {
-        auto& svc = services::PortfolioService::instance();
-        const QString bench = services::PortfolioService::default_benchmark_for_currency(summary.portfolio.currency);
-        svc.fetch_benchmark_history(bench, "1y");
-        if (bench != QStringLiteral("SPY"))
-            svc.fetch_benchmark_history("SPY", "1y");
-    }
+    if (sector_panel_)
+        sector_panel_->set_correlation(a.correlation);
+    if (detail_wrapper_)
+        detail_wrapper_->update_analytics(a);
+    if (perf_chart_)
+        perf_chart_->set_benchmark_history(a.benchmark, a.benchmark_dates, a.benchmark_closes);
+    if (ffn_view_)
+        ffn_view_->set_benchmark(a.benchmark, a.benchmark_closes, svc.risk_free_rate());
 
-    // Fetch live risk-free rate (DGS10) for Sharpe computation — cached 24h
-    services::PortfolioService::instance().fetch_risk_free_rate();
+    QString tip = tr("Risk figures use daily closes up to %1 (%2 observations, %3% of the book by weight).\n"
+                     "Benchmark: %4. Risk-free rate: %5% — %6.")
+                      .arg(a.as_of)
+                      .arg(a.observations)
+                      .arg(QString::number(a.coverage * 100.0, 'f', 0))
+                      .arg(a.benchmark)
+                      .arg(QString::number(svc.risk_free_rate() * 100.0, 'f', 2))
+                      .arg(svc.risk_free_source());
+    if (!a.missing.isEmpty())
+        tip += tr("\nNo price history (excluded): %1").arg(a.missing.join(QStringLiteral(", ")));
+    if (!ok)
+        tip += tr("\nLatest refresh failed — showing the previous result: %1").arg(error);
+    status_bar_->set_analytics_note(tr("RISK DATA %1").arg(a.as_of), tip, !ok || !a.missing.isEmpty());
+
+    if (summary_loaded_)
+        svc.compute_metrics(current_summary_);
 }
 
 void PortfolioScreen::on_summary_error(QString portfolio_id, QString error) {
@@ -209,6 +258,8 @@ void PortfolioScreen::on_summary_error(QString portfolio_id, QString error) {
 void PortfolioScreen::on_metrics_computed(portfolio::ComputedMetrics metrics) {
     current_metrics_ = metrics;
     stats_ribbon_->set_metrics(metrics);
+    if (perf_chart_)
+        perf_chart_->set_twr_series(metrics.twr_series);
     if (heatmap_)
         heatmap_->set_metrics(metrics);
     if (detail_wrapper_)
@@ -252,9 +303,23 @@ void PortfolioScreen::on_portfolio_deleted(QString id) {
 }
 
 void PortfolioScreen::on_asset_changed(QString portfolio_id) {
-    if (portfolio_id == selected_id_) {
-        services::PortfolioService::instance().refresh_summary(portfolio_id);
-    }
+    if (portfolio_id != selected_id_)
+        return;
+    // A burst of add_asset()/sell_asset() calls (the demo portfolio adds twelve in
+    // a row, an import adds one per holding) emits this once per asset. Each
+    // refresh is a quote fetch plus correlation/benchmark/metrics work, and the
+    // earlier ones are immediately superseded - queue one refresh for the burst.
+    if (asset_refresh_queued_)
+        return;
+    asset_refresh_queued_ = true;
+    QMetaObject::invokeMethod(
+        this,
+        [this]() {
+            asset_refresh_queued_ = false;
+            if (!selected_id_.isEmpty())
+                services::PortfolioService::instance().refresh_summary(selected_id_);
+        },
+        Qt::QueuedConnection);
 }
 
 void PortfolioScreen::on_create_requested() {
@@ -384,10 +449,11 @@ void PortfolioScreen::load_demo_portfolio() {
 
     // Connect BEFORE create_portfolio() — create_portfolio() emits portfolio_created
     // synchronously, so the lambda must be connected first or it will never fire.
-    QMetaObject::Connection* conn = new QMetaObject::Connection;
+    // shared_ptr: the handle is also needed after the call (below), and the raw
+    // new/delete pair leaked whenever the create failed.
+    auto conn = std::make_shared<QMetaObject::Connection>();
     *conn = connect(&svc, &services::PortfolioService::portfolio_created, this, [this, conn](portfolio::Portfolio p) {
         disconnect(*conn);
-        delete conn;
 
         auto& svc = services::PortfolioService::instance();
 
@@ -403,8 +469,12 @@ void PortfolioScreen::load_demo_portfolio() {
             {"XOM", 25, 105.30},  {"V", 10, 280.00},    {"UNH", 4, 525.60},   {"PG", 12, 158.90},
         };
 
+        // Dated a year back (like the downloadable template) so the history
+        // replay gives the charts and realised metrics a year to work with —
+        // stamped "today", the demo never had any performance history.
+        const QString buy_date = QDate::currentDate().addYears(-1).toString(Qt::ISODate);
         for (const auto& h : demo) {
-            svc.add_asset(p.id, h.symbol, h.qty, h.price);
+            svc.add_asset(p.id, h.symbol, h.qty, h.price, buy_date);
         }
 
         // portfolios_ may not yet contain the new portfolio since load_portfolios()
@@ -420,6 +490,12 @@ void PortfolioScreen::load_demo_portfolio() {
 
     // Create the demo portfolio (emits portfolio_created synchronously)
     svc.create_portfolio(tr("Demo Portfolio"), tr("Fincept User"), "USD", tr("Sample portfolio for demonstration"));
+
+    // If creation failed nothing was emitted and the one-shot is still armed -
+    // it would then fire for the NEXT portfolio the user creates and stuff twelve
+    // demo holdings into it. Disarm it.
+    if (*conn)
+        disconnect(*conn);
 }
 
 } // namespace fincept::screens

@@ -28,6 +28,17 @@ class UnifiedTrading : public QObject {
     UnifiedOrderResponse place_order(const UnifiedOrder& order);
     UnifiedOrderResponse cancel_order(const QString& order_id);
 
+    // True when `account_id` is in PAPER mode AND that PAPER mode runs on the broker's own
+    // paper venue (e.g. Alpaca paper-api) instead of the local pt_* simulator: the broker
+    // offers native paper and the account's stored credentials are positively its paper
+    // environment (IBroker::is_paper_environment). Every order/cancel/modify/close below
+    // follows this same decision, and the UI mode tag stays "paper".
+    // Fails CLOSED: live keys, an unidentifiable environment or a broker that has not opted
+    // in all answer false and keep the local simulator, so a "paper" ticket can never reach a
+    // real exchange. Reads credentials from secure storage — call from user-action paths,
+    // not per tick.
+    bool uses_native_paper(const QString& account_id) const;
+
     // Account-aware order routing (new — uses AccountManager for credentials)
     UnifiedOrderResponse place_order(const QString& account_id, const UnifiedOrder& order);
     UnifiedOrderResponse cancel_order(const QString& account_id, const QString& order_id);
@@ -74,6 +85,26 @@ class UnifiedTrading : public QObject {
     // transparent freeze handling; use place_order for the strict sync path.
     void place_order_auto_split(const QString& account_id, const UnifiedOrder& order,
                                 std::function<void(const SplitOrderResult&)> callback);
+
+    // --- Basket unwind (partial-failure recovery) ---
+    // A multi-leg basket is NOT atomic: legs go out one by one, so a failure part
+    // way leaves the placed legs as naked exposure (e.g. the short leg of a spread
+    // without its hedge). unwind_basket_legs() undoes the legs that were placed:
+    // for each successful leg it reads the broker's order book (truth, not our
+    // request), cancels any unfilled remainder, re-reads the book, then sends an
+    // opposite-side MARKET order for exactly the FILLED quantity in the same
+    // product, through place_order() (validation + risk gate + rate limit).
+    // Never reverses a leg whose fill it cannot verify — it reports it instead.
+    // BLOCKING (broker round-trips): call from a worker thread.
+    struct UnwindLegResult {
+        QString symbol;
+        QString order_id;
+        bool ok = false;
+        QString action; // what was done, e.g. "cancelled remainder; reversed 50"
+        QString error;
+    };
+    QVector<UnwindLegResult> unwind_basket_legs(const QString& account_id,
+                                                const QVector<BasketOrderResult::OrderResult>& legs);
 
     UnifiedTrading(const UnifiedTrading&) = delete;
     UnifiedTrading& operator=(const UnifiedTrading&) = delete;

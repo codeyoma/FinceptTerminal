@@ -1,10 +1,14 @@
 #include "screens/news/NewsDetailPanel.h"
 
+#include "auth/AuthTypes.h"
 #include "core/logging/Logger.h"
+#include "network/http/HttpClient.h"
+#include "screens/news/NewsFeedPanel.h"
 #include "services/file_manager/FileManagerService.h"
 #include "storage/repositories/NewsArticleRepository.h"
 #include "ui/theme/Theme.h"
 #include "ui/theme/ThemeManager.h"
+#include "ui/widgets/EnterprisePromo.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -12,7 +16,9 @@
 #include <QDesktopServices>
 #include <QFile>
 #include <QFileInfo>
+#include <QCursor>
 #include <QGridLayout>
+#include <QMenu>
 #include <QPointer>
 #include <QRegularExpression>
 #include <QScrollArea>
@@ -30,6 +36,8 @@ namespace {
 // unwrapped width — otherwise revealing the AI-analysis section balloons the
 // panel's size hint and pushes it past the screen edge.
 constexpr int kPanelWidth = 420;
+/// Below this balance the credit footer turns amber and offers Plans & Pricing.
+constexpr double kNewsLowCreditThreshold = 20.0;
 } // namespace
 
 NewsDetailPanel::NewsDetailPanel(QWidget* parent) : QWidget(parent) {
@@ -166,9 +174,32 @@ QWidget* NewsDetailPanel::build_content_view() {
     impact_label_->setObjectName("newsDetailImpact");
     layout->addWidget(impact_label_);
 
-    // Tickers
+    // Tickers — each one is a link that opens the shared ticker menu (Equity
+    // Research / Equity Trading / Backtesting / watchlist / filter). Tickers are
+    // A-Z tokens extracted by the parser, but the label is still built from
+    // escaped / percent-encoded parts.
     tickers_label_ = new QLabel(content);
     tickers_label_->setObjectName("newsDetailTickers");
+    tickers_label_->setTextFormat(Qt::RichText);
+    tickers_label_->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    tickers_label_->setOpenExternalLinks(false);
+    tickers_label_->setWordWrap(true);
+    tickers_label_->setToolTip(tr("Click a ticker for research, chart, backtest and watchlist actions"));
+    connect(tickers_label_, &QLabel::linkActivated, this, [this](const QString& link) {
+        // Only ever act on our own scheme.
+        if (!link.startsWith(QLatin1String("sym:")))
+            return;
+        const QString symbol = QUrl::fromPercentEncoding(link.mid(4).toUtf8());
+        if (symbol.isEmpty())
+            return;
+        QMenu menu(this);
+        QPointer<NewsDetailPanel> self = this;
+        NewsFeedPanel::add_ticker_actions(&menu, symbol, this, [self](const QString& t) {
+            if (self)
+                emit self->ticker_filter_requested(t);
+        });
+        menu.exec(QCursor::pos());
+    });
     layout->addWidget(tickers_label_);
 
     // Action buttons — a 3-column grid so the row wraps within the fixed
@@ -188,6 +219,8 @@ QWidget* NewsDetailPanel::build_content_view() {
     copy_title_btn_->setToolTip(tr("Copy article headline to clipboard"));
     analyze_btn_ = new QPushButton(tr("ANALYZE"), content);
     analyze_btn_->setObjectName("newsDetailAnalyzeBtn");
+    analyze_btn_->setToolTip(tr("Fincept AI analysis of the full article — uses Fincept API credits "
+                                "(the cost and remaining balance are shown after each run)"));
     save_btn_ = new QPushButton(tr("SAVE"), content);
     save_btn_->setObjectName("newsDetailSaveBtn");
     save_btn_->setToolTip(tr("Save article to File Manager"));
@@ -218,9 +251,22 @@ QWidget* NewsDetailPanel::build_content_view() {
         action_layout->setColumnStretch(c, 1);
     layout->addWidget(actions);
 
+    // Plans & Pricing shortcut — only shown when the analysis credits ran out / run low.
+    plans_btn_ = new QPushButton(content);
+    plans_btn_->setObjectName("newsDetailOpenBtn");
+    plans_btn_->setFixedHeight(24);
+    plans_btn_->setCursor(Qt::PointingHandCursor);
+    plans_btn_->hide();
+    connect(plans_btn_, &QPushButton::clicked, this, [this]() { ui::billing::open_plans(this); });
+    layout->addWidget(plans_btn_);
+
     connect(open_btn_, &QPushButton::clicked, this, [this]() {
-        if (has_article_)
-            QDesktopServices::openUrl(QUrl(current_article_.link));
+        if (!has_article_)
+            return;
+        // Feed links are untrusted — never hand a non-web scheme to the shell.
+        const QUrl url(current_article_.link);
+        if (url.isValid() && (url.scheme() == QLatin1String("http") || url.scheme() == QLatin1String("https")))
+            QDesktopServices::openUrl(url);
     });
     connect(copy_btn_, &QPushButton::clicked, this, [this]() {
         if (has_article_)
@@ -253,6 +299,8 @@ QWidget* NewsDetailPanel::build_content_view() {
         safe.replace(' ', '_');
         if (safe.length() > 60)
             safe = safe.left(60);
+        if (safe.isEmpty()) // non-Latin headlines are stripped to nothing above
+            safe = QStringLiteral("article");
         QString ts = QString::number(QDateTime::currentMSecsSinceEpoch());
         QString stored_name = "news_" + safe + "_" + ts + ".txt";
         QString dest = services::FileManagerService::instance().storage_dir() + "/" + stored_name;
@@ -268,7 +316,13 @@ QWidget* NewsDetailPanel::build_content_view() {
             services::FileManagerService::instance().register_file(stored_name, safe + ".txt", QFileInfo(dest).size(),
                                                                    "text/plain", "news");
             LOG_INFO("News", "Saved article: " + stored_name);
+            save_btn_->setText(tr("SAVED"));
+        } else {
+            LOG_WARN("News", "Could not save article to " + dest + ": " + f.errorString());
+            save_btn_->setText(tr("FAILED"));
         }
+        // Brief confirmation, then revert (parented to the button so it dies with it).
+        QTimer::singleShot(1500, save_btn_, [this]() { save_btn_->setText(tr("SAVE")); });
     });
     connect(bookmark_btn_, &QPushButton::clicked, this, [this]() {
         if (!has_article_)
@@ -286,17 +340,33 @@ QWidget* NewsDetailPanel::build_content_view() {
         // article id so a late result can't overwrite a different article.
         QPointer<NewsDetailPanel> self = this;
         const QString for_article = current_article_.id;
+        const QString source_text = current_article_.headline + "\n\n" + current_article_.summary;
         services::NewsNlpService::instance().translate_text(
-            current_article_.headline + "\n\n" + current_article_.summary, "en",
-            [self, for_article](bool ok, QString translated, QString detected_lang) {
+            source_text, "en", [self, for_article, source_text](bool ok, QString translated, QString detected_lang) {
                 if (!self)
                     return;
-                self->translate_btn_->setText(self->tr("TRANSLATE"));
                 self->translate_btn_->setEnabled(true);
-                if (self->current_article_.id != for_article)
+                if (self->current_article_.id != for_article) {
+                    self->translate_btn_->setText(self->tr("TRANSLATE"));
                     return; // user moved on to another article
-                if (ok && !translated.isEmpty())
+                }
+                // Say what happened instead of silently resetting the button.
+                QString result_label = self->tr("TRANSLATE");
+                if (!ok || translated.isEmpty()) {
+                    result_label = self->tr("FAILED");
+                } else if (translated.trimmed() == source_text.trimmed()) {
+                    result_label = self->tr("ALREADY EN"); // nothing to translate
+                } else {
                     self->summary_label_->setText(self->tr("[%1 -> EN] %2").arg(detected_lang, translated));
+                }
+                self->translate_btn_->setText(result_label);
+                if (result_label != self->tr("TRANSLATE")) {
+                    QPointer<NewsDetailPanel> guard = self;
+                    QTimer::singleShot(1500, self->translate_btn_, [guard]() {
+                        if (guard)
+                            guard->translate_btn_->setText(guard->tr("TRANSLATE"));
+                    });
+                }
             });
     });
 
@@ -410,8 +480,7 @@ QWidget* NewsDetailPanel::build_content_view() {
 
     // Credits footer (e.g. "Credits used: 1 / remaining: 9").
     ai_credits_ = new QLabel(analysis_section_);
-    ai_credits_->setObjectName("newsDetailAiCredits");
-    ai_credits_->setStyleSheet("color:#94a3b8; font-size:10px;");
+    ai_credits_->setObjectName("newsDetailAiCredits"); // colours: rules in the news screen sheet
     ai_credits_->hide();
     analysis_layout->addWidget(ai_credits_);
 
@@ -566,15 +635,29 @@ void NewsDetailPanel::show_article(const services::NewsArticle& article) {
         impact_label_->setStyleSheet("background: transparent;");
     }
 
-    if (!article.tickers.isEmpty())
-        tickers_label_->setText("$" + article.tickers.join("  $"));
-    else
+    if (!article.tickers.isEmpty()) {
+        QStringList links;
+        links.reserve(article.tickers.size());
+        for (const auto& t : article.tickers) {
+            links << QString("<a href=\"sym:%1\" style=\"color:%2;text-decoration:none;\">$%3</a>")
+                         .arg(QString::fromLatin1(QUrl::toPercentEncoding(t)), ui::colors::WARNING(),
+                              t.toHtmlEscaped());
+        }
+        tickers_label_->setText(links.join("&nbsp;&nbsp;"));
+    } else {
         tickers_label_->clear();
+    }
 
     // Reset analysis
     analysis_section_->hide();
     analyze_btn_->setText(tr("ANALYZE"));
-    analyze_btn_->setEnabled(true);
+    // Link-less items (the parser drops non-web links) have nothing to open,
+    // copy or send to the analysis endpoint.
+    const bool has_link = !article.link.isEmpty();
+    analyze_btn_->setEnabled(has_link);
+    plans_btn_->hide();
+    open_btn_->setEnabled(has_link);
+    copy_btn_->setEnabled(has_link);
     analyze_timeout_->stop();
 
     // Reflect saved state from DB. load_saved() is a SQLite read; running it
@@ -583,37 +666,57 @@ void NewsDetailPanel::show_article(const services::NewsArticle& article) {
     // stamp the wrong article's bookmark state (P8).
     bookmark_btn_->setChecked(false);
     bookmark_btn_->setText(tr("BOOKMARK"));
-    {
-        QPointer<NewsDetailPanel> self = this;
-        const QString article_id = article.id;
-        (void)QtConcurrent::run([self, article_id]() {
-            auto r = fincept::NewsArticleRepository::instance().load_saved();
-            bool is_saved = false;
-            if (r.is_ok()) {
-                for (const auto& a : r.value()) {
-                    if (a.id == article_id) {
-                        is_saved = true;
-                        break;
-                    }
-                }
-            }
-            if (!self)
-                return;
-            QMetaObject::invokeMethod(
-                self,
-                [self, article_id, is_saved]() {
-                    if (!self || self->current_article_.id != article_id)
-                        return;
-                    self->bookmark_btn_->setChecked(is_saved);
-                    self->bookmark_btn_->setText(is_saved ? self->tr("BOOKMARKED") : self->tr("BOOKMARK"));
-                },
-                Qt::QueuedConnection);
-        });
-    }
+    refresh_bookmark_state();
 
     // Clear related and monitors
     show_related({});
     monitor_section_->hide();
+}
+
+void NewsDetailPanel::refresh_bookmark_state() {
+    if (!has_article_)
+        return;
+    QPointer<NewsDetailPanel> self = this;
+    const QString article_id = current_article_.id;
+    (void)QtConcurrent::run([self, article_id]() {
+        auto r = fincept::NewsArticleRepository::instance().load_saved();
+        bool is_saved = false;
+        if (r.is_ok()) {
+            for (const auto& a : r.value()) {
+                if (a.id == article_id) {
+                    is_saved = true;
+                    break;
+                }
+            }
+        }
+        if (!self)
+            return;
+        QMetaObject::invokeMethod(
+            self,
+            [self, article_id, is_saved]() {
+                if (!self || self->current_article_.id != article_id)
+                    return;
+                self->bookmark_btn_->setChecked(is_saved);
+                self->bookmark_btn_->setText(is_saved ? self->tr("BOOKMARKED") : self->tr("BOOKMARK"));
+            },
+            Qt::QueuedConnection);
+    });
+}
+
+void NewsDetailPanel::show_analysis_failed(const QString& error) {
+    analyze_timeout_->stop();
+    analyze_btn_->setEnabled(true);
+    // Out of credits: retrying cannot help — say so and offer the plans.
+    if (HttpClient::status_from_error(error.toStdString()) == 402) {
+        analyze_btn_->setText(tr("NO CREDITS"));
+        analyze_btn_->setToolTip(HttpClient::message_from_error(error.toStdString()));
+        plans_btn_->setText(tr("INSUFFICIENT CREDITS — SEE PLANS"));
+        plans_btn_->show();
+        return;
+    }
+    analyze_btn_->setText(tr("FAILED - RETRY"));
+    if (!error.isEmpty())
+        analyze_btn_->setToolTip(tr("Analysis failed: %1").arg(error.left(200)));
 }
 
 void NewsDetailPanel::show_analysis(const services::NewsAnalysis& analysis) {
@@ -801,12 +904,26 @@ void NewsDetailPanel::show_analysis(const services::NewsAnalysis& analysis) {
         ai_keywords_->hide();
     }
 
-    // Credits footer — only shown when the backend reported a credit
-    // count (zero/zero means the API didn't surface it).
-    if (analysis.credits_used > 0 || analysis.credits_remaining > 0) {
-        ai_credits_->setText(
-            tr("Credits used: %1  •  remaining: %2").arg(analysis.credits_used).arg(analysis.credits_remaining));
+    // Credits footer — fractional balances (one call can cost 0.35 credits), shown
+    // only when the backend reported them (negative = not reported).
+    if (analysis.credits_used >= 0 || analysis.credits_remaining >= 0) {
+        QStringList parts;
+        if (analysis.credits_used >= 0)
+            parts << tr("Credits used: %1").arg(auth::format_credits(analysis.credits_used));
+        if (analysis.credits_remaining >= 0)
+            parts << tr("remaining: %1").arg(auth::format_credits(analysis.credits_remaining));
+        ai_credits_->setText(parts.join(QStringLiteral("  •  ")));
+        const bool low = analysis.credits_remaining >= 0 && analysis.credits_remaining < kNewsLowCreditThreshold;
+        ai_credits_->setProperty("low", low);
+        ai_credits_->style()->unpolish(ai_credits_);
+        ai_credits_->style()->polish(ai_credits_);
         ai_credits_->show();
+        if (low) {
+            plans_btn_->setText(tr("LOW CREDITS — SEE PLANS"));
+            plans_btn_->show();
+        } else {
+            plans_btn_->hide();
+        }
     } else {
         ai_credits_->hide();
     }
@@ -984,6 +1101,8 @@ void NewsDetailPanel::retranslateUi() {
         translate_btn_->setText(tr("TRANSLATE"));
     if (bookmark_btn_)
         bookmark_btn_->setToolTip(tr("Bookmark article"));
+    if (tickers_label_)
+        tickers_label_->setToolTip(tr("Click a ticker for research, chart, backtest and watchlist actions"));
     // analyze_btn_ / bookmark_btn_ labels are state-dependent and refresh when
     // the next article is shown — intentionally not forced here. Per-row dynamic
     // content (badges, metrics, entities) re-renders from live data.

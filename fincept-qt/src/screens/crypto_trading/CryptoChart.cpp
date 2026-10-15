@@ -28,6 +28,7 @@
 
 #include "screens/crypto_trading/CryptoChart.h"
 
+#include "screens/crypto_trading/CryptoTypes.h"
 #include "ui/charts/CandleData.h"
 #include "ui/charts/ChartOverlayManager.h"
 #include "ui/charts/IndicatorPicker.h"
@@ -422,7 +423,6 @@ void CryptoChart::set_active_tf(int idx) {
             st->polish(tf_buttons_[i]);
         }
     }
-    pending_tf_ = TF_LABELS[idx];
     active_tf_ = idx;
     emit timeframe_changed(TF_LABELS[idx]);
 }
@@ -440,80 +440,87 @@ void CryptoChart::set_candles(const QVector<trading::Candle>& candles) {
     overlay_mgr_->set_candles(fincept::ui::CandleData::from_candles(candles_));
     apply_tf_axis_format();
     update_last_price_marker();
-
-    if (!pending_tf_.isEmpty()) {
-        const QString tf = pending_tf_;
-        pending_tf_.clear();
-        emit timeframe_changed(tf);
-    }
+    // (A "pending timeframe" re-emit used to live here: every timeframe click
+    // fired timeframe_changed twice — once on click and again when the candles
+    // landed — doubling the REST fetch and WS re-point and resetting the view.
+    // The screen now re-issues a dropped fetch itself, see async_fetch_candles.)
 }
 
-void CryptoChart::append_candle(const trading::Candle& candle) {
-    if (candle.open <= 0.0 || candle.high <= 0.0 || candle.low <= 0.0 || candle.close <= 0.0 || candle.timestamp <= 0)
-        return;
-    if (candle.low > candle.high)
-        return;
+void CryptoChart::append_candles(const QVector<trading::Candle>& candles) {
+    // Candles that pass validation, in order — fed to the indicator overlays in
+    // one batch at the end (it used to be one full recompute per WS candle).
+    QVector<fincept::ui::CandleData> accepted;
+    accepted.reserve(candles.size());
 
-    const auto sets = series_->sets();
-    const bool is_update = !candles_.isEmpty() && candles_.last().timestamp == candle.timestamp;
+    for (const auto& candle : candles) {
+        if (candle.open <= 0.0 || candle.high <= 0.0 || candle.low <= 0.0 || candle.close <= 0.0 ||
+            candle.timestamp <= 0)
+            continue;
+        if (candle.low > candle.high)
+            continue;
+        accepted.append(fincept::ui::CandleData::from(candle));
 
-    if (is_update) {
-        const trading::Candle prev = candles_.last();
-        candles_.last() = candle;
-        if (!sets.isEmpty()) {
-            auto* last_set = sets.last();
-            last_set->setOpen(candle.open);
-            last_set->setHigh(candle.high);
-            last_set->setLow(candle.low);
-            last_set->setClose(candle.close);
-        }
-        if (!bounds_dirty_) {
-            if (prev.high >= cached_max_price_ || prev.low <= cached_min_price_) {
-                bounds_dirty_ = true;
-            } else {
+        const auto sets = series_->sets();
+        const bool is_update = !candles_.isEmpty() && candles_.last().timestamp == candle.timestamp;
+
+        if (is_update) {
+            const trading::Candle prev = candles_.last();
+            candles_.last() = candle;
+            if (!sets.isEmpty()) {
+                auto* last_set = sets.last();
+                last_set->setOpen(candle.open);
+                last_set->setHigh(candle.high);
+                last_set->setLow(candle.low);
+                last_set->setClose(candle.close);
+            }
+            if (!bounds_dirty_) {
+                if (prev.high >= cached_max_price_ || prev.low <= cached_min_price_) {
+                    bounds_dirty_ = true;
+                } else {
+                    cached_max_price_ = std::max(cached_max_price_, candle.high);
+                    cached_min_price_ = std::min(cached_min_price_, candle.low);
+                }
+            }
+        } else {
+            candles_.append(candle);
+            if (candles_.size() > MAX_VISIBLE * 2) {
+                // Trim and re-seed the series (re-fits both axes).
+                candles_.remove(0, candles_.size() - MAX_VISIBLE);
+                rebuild_chart();
+                continue;
+            }
+            if (sets.size() >= MAX_VISIBLE) {
+                const auto* oldest = sets.first();
+                if (!bounds_dirty_ && (oldest->low() <= cached_min_price_ || oldest->high() >= cached_max_price_)) {
+                    bounds_dirty_ = true;
+                }
+                series_->remove(sets.first());
+            }
+            series_->append(
+                new QCandlestickSet(candle.open, candle.high, candle.low, candle.close, candle.timestamp));
+
+            if (!bounds_dirty_) {
                 cached_max_price_ = std::max(cached_max_price_, candle.high);
                 cached_min_price_ = std::min(cached_min_price_, candle.low);
             }
         }
-    } else {
-        candles_.append(candle);
-        if (candles_.size() > MAX_VISIBLE * 2) {
-            candles_.remove(0, candles_.size() - MAX_VISIBLE);
-            rebuild_chart();
-            apply_tf_axis_format();
-            update_last_price_marker();
-            return;
-        }
-        if (sets.size() >= MAX_VISIBLE) {
-            const auto* oldest = sets.first();
-            if (!bounds_dirty_ && (oldest->low() <= cached_min_price_ || oldest->high() >= cached_max_price_)) {
-                bounds_dirty_ = true;
-            }
-            series_->remove(sets.first());
-        }
-        series_->append(new QCandlestickSet(candle.open, candle.high, candle.low, candle.close, candle.timestamp));
-
-        if (!bounds_dirty_) {
-            cached_max_price_ = std::max(cached_max_price_, candle.high);
-            cached_min_price_ = std::min(cached_min_price_, candle.low);
-        }
     }
 
-    const auto& visible_sets = series_->sets();
-    if (visible_sets.isEmpty())
+    if (accepted.isEmpty())
         return;
 
-    if (bounds_dirty_)
-        recompute_bounds();
-
-    const qint64 min_time = static_cast<qint64>(visible_sets.first()->timestamp());
-    const qint64 max_time = static_cast<qint64>(visible_sets.last()->timestamp());
-    update_axes(cached_min_price_, cached_max_price_, min_time, max_time);
+    const auto& visible_sets = series_->sets();
+    if (!visible_sets.isEmpty()) {
+        if (bounds_dirty_)
+            recompute_bounds();
+        const qint64 min_time = static_cast<qint64>(visible_sets.first()->timestamp());
+        const qint64 max_time = static_cast<qint64>(visible_sets.last()->timestamp());
+        update_axes(cached_min_price_, cached_max_price_, min_time, max_time);
+    }
     apply_tf_axis_format();
     update_last_price_marker();
 
-    if (!candles_.isEmpty())
-        overlay_mgr_->append_candle(fincept::ui::CandleData::from(candles_.last()));
+    overlay_mgr_->append_candles(accepted);
 }
 
 void CryptoChart::recompute_bounds() {
@@ -564,6 +571,9 @@ void CryptoChart::update_axes(double min_price, double max_price, qint64 min_tim
     const double p_max = max_price + padding;
 
     if (p_min != last_min_price_ || p_max != last_max_price_) {
+        // Axis tick labels follow the price magnitude too ("%.2f" rendered every
+        // tick of a sub-cent pair as 0.00).
+        price_axis_->setLabelFormat(QStringLiteral("%.%1f").arg(price_decimals(p_max)));
         price_axis_->setRange(p_min, p_max);
         last_min_price_ = p_min;
         last_max_price_ = p_max;
@@ -671,13 +681,17 @@ void CryptoChart::rebuild_chart() {
     double min_price = 1e18, max_price = 0;
     qint64 min_time = INT64_MAX, max_time = 0;
 
+    // Collect the sets and add them in ONE append() — one chart relayout
+    // instead of one per candle.
+    QList<QCandlestickSet*> sets;
+    sets.reserve(candles_.size() - start);
     for (int i = start; i < candles_.size(); ++i) {
         const auto& c = candles_[i];
         if (c.open <= 0.0 || c.high <= 0.0 || c.low <= 0.0 || c.close <= 0.0 || c.timestamp <= 0)
             continue;
         if (c.low > c.high || c.open > c.high || c.close > c.high)
             continue;
-        series_->append(new QCandlestickSet(c.open, c.high, c.low, c.close, c.timestamp));
+        sets.append(new QCandlestickSet(c.open, c.high, c.low, c.close, c.timestamp));
         min_price = std::min(min_price, c.low);
         max_price = std::max(max_price, c.high);
         if (c.timestamp < min_time)
@@ -685,6 +699,8 @@ void CryptoChart::rebuild_chart() {
         if (c.timestamp > max_time)
             max_time = c.timestamp;
     }
+    if (!sets.isEmpty())
+        series_->append(sets);
 
     if (min_price < max_price) {
         cached_min_price_ = min_price;
@@ -706,9 +722,10 @@ void CryptoChart::update_last_price_marker() {
     const auto& last = candles_.last();
     const double price = last.close;
     const bool up = last.close >= last.open;
-    last_price_line_->clear();
-    last_price_line_->append(QDateTime::fromMSecsSinceEpoch(last_min_time_).toMSecsSinceEpoch(), price);
-    last_price_line_->append(QDateTime::fromMSecsSinceEpoch(last_max_time_).toMSecsSinceEpoch(), price);
+    // One replace() instead of clear() + 2x append(): each of those re-laid-out
+    // the line, three times per live candle.
+    last_price_line_->replace(QList<QPointF>{QPointF(static_cast<qreal>(last_min_time_), price),
+                                             QPointF(static_cast<qreal>(last_max_time_), price)});
 
     QPen pen = last_price_line_->pen();
     pen.setColor(QColor(up ? colors::POSITIVE() : colors::NEGATIVE()));
@@ -717,7 +734,8 @@ void CryptoChart::update_last_price_marker() {
     // Update the always-visible "last price" tag on the right axis.
     if (last_tag_bg_ && last_tag_txt_ && chart_) {
         const QPointF anchor = chart_->mapToPosition(QPointF(last_max_time_, price), series_);
-        const QString text = QString::number(price, 'f', 2);
+        // Magnitude-scaled precision — a fixed 2 dp printed every sub-cent pair as 0.00.
+        const QString text = format_price_plain(price);
         last_tag_txt_->setText(text);
         const QRectF tb = last_tag_txt_->boundingRect();
         const qreal pad_x = 6, pad_y = 2;
@@ -771,7 +789,7 @@ void CryptoChart::on_hover_position(const QPointF& chart_value_pos, const QPoint
     // Clamp Y so the tag never extends past the plot edges into the time tag.
     {
         const double price = chart_value_pos.y();
-        price_tag_txt_->setText(QString::number(price, 'f', 2));
+        price_tag_txt_->setText(format_price_plain(price));
         const QRectF tb = price_tag_txt_->boundingRect();
         const qreal w = tb.width() + 2 * kPadX;
         const qreal h = tb.height() + 2 * kPadY;
@@ -859,13 +877,13 @@ void CryptoChart::on_hover_position(const QPointF& chart_value_pos, const QPoint
         ohlc_tooltip_->setText(tpl.arg(dim)                                  // %1 dim/label colour
                                    .arg(time_str)                            // %2 timestamp
                                    .arg(fg)                                  // %3 open colour
-                                   .arg(QString::number(hit->open, 'f', 2))  // %4
+                                   .arg(format_price_plain(hit->open))       // %4
                                    .arg(green)                               // %5 high colour
-                                   .arg(QString::number(hit->high, 'f', 2))  // %6
+                                   .arg(format_price_plain(hit->high))       // %6
                                    .arg(red)                                 // %7 low colour
-                                   .arg(QString::number(hit->low, 'f', 2))   // %8
+                                   .arg(format_price_plain(hit->low))        // %8
                                    .arg(dir_color)                           // %9 close + Δ%
-                                   .arg(QString::number(hit->close, 'f', 2)) // %10
+                                   .arg(format_price_plain(hit->close))      // %10
                                    .arg(chg));                               // %11
         ohlc_tooltip_->adjustSize();
         ohlc_tooltip_->setVisible(true);

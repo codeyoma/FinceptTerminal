@@ -13,11 +13,23 @@
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
+#include <QStyle>
 
 namespace fincept::screens::widgets {
 
 namespace {
 const QStringList kDefaultSymbols = {"AAPL", "MSFT", "GOOGL", "AMZN", "NVDA"};
+
+// Colour of the change label comes from a "dir" property matched in the rows
+// host's stylesheet; re-polish only when the sign flips instead of re-parsing
+// CSS on every quote (CLAUDE.md P7).
+void quote_strip_set_dir(QLabel* label, const char* dir) {
+    if (label->property("dir").toString() == QLatin1String(dir))
+        return;
+    label->setProperty("dir", QString::fromLatin1(dir));
+    label->style()->unpolish(label);
+    label->style()->polish(label);
+}
 } // namespace
 
 MarketQuoteStripWidget::MarketQuoteStripWidget(const QJsonObject& cfg, QWidget* parent)
@@ -45,7 +57,10 @@ void MarketQuoteStripWidget::apply_config(const QJsonObject& cfg) {
     const QJsonArray arr = cfg.value("symbols").toArray();
     for (const auto& v : arr) {
         const QString s = v.toString().trimmed().toUpper();
-        if (!s.isEmpty())
+        // De-duplicate: rows_ is keyed by symbol, so a repeat produced a second
+        // visible row that never updated (and a loading overlay that could not
+        // reach 100%).
+        if (!s.isEmpty() && !next.contains(s))
             next.append(s);
     }
     if (next.isEmpty())
@@ -78,7 +93,11 @@ void MarketQuoteStripWidget::build_rows() {
     rows_.clear();
     quote_cache_.clear();
 
-    auto* grid = new QGridLayout();
+    // One host carries the stylesheet for every row label (objectName + "dir"
+    // property selectors) — see apply_styles().
+    rows_host_ = new QWidget(this);
+    rows_host_->setObjectName("quoteStripRows");
+    auto* grid = new QGridLayout(rows_host_);
     grid->setContentsMargins(0, 0, 0, 0);
     grid->setHorizontalSpacing(10);
     grid->setVerticalSpacing(3);
@@ -86,21 +105,24 @@ void MarketQuoteStripWidget::build_rows() {
     for (int i = 0; i < symbols_.size(); ++i) {
         const QString& sym = symbols_[i];
         Row r;
-        r.symbol = new QLabel(sym);
+        r.symbol = new QLabel(sym, rows_host_);
         r.symbol->setObjectName("quoteStripSymbol");
-        r.price = new QLabel("—");
+        r.price = new QLabel("—", rows_host_);
         r.price->setObjectName("quoteStripPrice");
         r.price->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        r.change = new QLabel("—");
+        r.change = new QLabel("—", rows_host_);
         r.change->setObjectName("quoteStripChange");
         r.change->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
         grid->addWidget(r.symbol, i, 0);
         grid->addWidget(r.price, i, 1);
         grid->addWidget(r.change, i, 2);
+        link_symbol(r.symbol, sym);
+        link_symbol(r.price, sym);
+        link_symbol(r.change, sym);
         rows_.insert(sym, r);
     }
-    vl->addLayout(grid);
+    vl->addWidget(rows_host_);
     vl->addStretch(1);
     apply_styles();
 }
@@ -149,8 +171,7 @@ void MarketQuoteStripWidget::on_quote(const fincept::services::QuoteData& q) {
     r.price->setText(services::MarketDataService::instance().display_price(q.symbol, q.price));
     const QString sign = q.change_pct >= 0 ? "+" : "";
     r.change->setText(QString("%1%2%").arg(sign).arg(q.change_pct, 0, 'f', 2));
-    const QColor col = q.change_pct >= 0 ? ui::colors::POSITIVE() : ui::colors::NEGATIVE();
-    r.change->setStyleSheet(QString("color:%1;font-size:11px;font-weight:600;background:transparent;").arg(col.name()));
+    quote_strip_set_dir(r.change, q.change_pct >= 0 ? "up" : "down");
     received_.insert(q.symbol);
     set_loading_progress(received_.size(), symbols_.size());
 }
@@ -197,26 +218,25 @@ void MarketQuoteStripWidget::on_theme_changed() {
 }
 
 void MarketQuoteStripWidget::apply_styles() {
-    const QString sym_css =
-        QString("color:%1;font-size:11px;font-weight:700;background:transparent;").arg(ui::colors::TEXT_PRIMARY());
-    const QString price_css =
-        QString("color:%1;font-size:11px;font-weight:600;background:transparent;").arg(ui::colors::TEXT_PRIMARY());
-    const QString chg_css =
-        QString("color:%1;font-size:11px;font-weight:600;background:transparent;").arg(ui::colors::TEXT_TERTIARY());
-    for (auto it = rows_.begin(); it != rows_.end(); ++it) {
-        if (it->symbol)
-            it->symbol->setStyleSheet(sym_css);
-        if (it->price)
-            it->price->setStyleSheet(price_css);
-        if (it->change && it->change->text() == "—")
-            it->change->setStyleSheet(chg_css);
-    }
+    if (!rows_host_)
+        return; // ctor runs this before the first build_rows()
+    // A change label with no "dir" yet (still "—") keeps the tertiary colour.
+    rows_host_->setStyleSheet(
+        QString("QLabel#quoteStripSymbol{color:%1;font-size:11px;font-weight:700;background:transparent;}"
+                "QLabel#quoteStripPrice{color:%1;font-size:11px;font-weight:600;background:transparent;}"
+                "QLabel#quoteStripChange{color:%2;font-size:11px;font-weight:600;background:transparent;}"
+                "QLabel#quoteStripChange[dir=\"up\"]{color:%3;}"
+                "QLabel#quoteStripChange[dir=\"down\"]{color:%4;}")
+            .arg(ui::colors::TEXT_PRIMARY(), ui::colors::TEXT_TERTIARY(), ui::colors::POSITIVE(),
+                 ui::colors::NEGATIVE()));
 }
 
 void MarketQuoteStripWidget::retranslateUi() {
     BaseWidget::retranslateUi();
     set_title(tr("QUOTE STRIP"));
-    build_rows(); // re-renders any placeholder text in the new language
+    // Rows carry only symbols and numbers — nothing to translate. Rebuilding
+    // them here (as this used to) blanked every price back to "—" until the
+    // next hub publish, without re-delivering the cached quotes.
 }
 
 } // namespace fincept::screens::widgets

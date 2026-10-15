@@ -439,7 +439,7 @@ void SwapPanel::on_wallet_connected(const QString& pubkey, const QString& /*labe
         if (current_balance_topic_.isEmpty()) {
             current_balance_topic_ = QStringLiteral("wallet:balance:%1").arg(pubkey);
             hub.subscribe(this, current_balance_topic_, [this](const QVariant& v) { on_balance_update(v); });
-            hub.request(current_balance_topic_, /*force=*/true);
+            hub.request(current_balance_topic_, /*force=*/false);
         }
         resubscribe_prices();
     }
@@ -479,7 +479,7 @@ void SwapPanel::showEvent(QShowEvent* e) {
     if (!current_pubkey_.isEmpty() && current_balance_topic_.isEmpty()) {
         current_balance_topic_ = QStringLiteral("wallet:balance:%1").arg(current_pubkey_);
         hub.subscribe(this, current_balance_topic_, [this](const QVariant& v) { on_balance_update(v); });
-        hub.request(current_balance_topic_, /*force=*/true);
+        hub.request(current_balance_topic_, /*force=*/false); // coalesced via hub min_interval
     }
     resubscribe_prices();
     slippage_label_->setText(format_bps(slippage_pct() * 100));
@@ -791,6 +791,14 @@ void SwapPanel::update_balance_label() {
 }
 
 void SwapPanel::recompute_estimate() {
+    // While a swap is in flight (building / simulating / awaiting the wallet /
+    // polling for confirmation) the ticket is frozen. A background price tick
+    // used to land here and overwrite the status line with "Ready. Click SWAP to
+    // build the transaction." — and clear the error strip — so a swap that was
+    // already signed and broadcast looked like nothing had been sent. The
+    // terminal handlers call set_busy(false) and write their own final status.
+    if (busy_)
+        return;
     bool ok = false;
     const double ui_amount = QLocale::system().toDouble(amount_input_->text(), &ok);
     if (!ok || ui_amount <= 0.0) {

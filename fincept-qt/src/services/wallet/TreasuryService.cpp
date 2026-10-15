@@ -24,16 +24,33 @@ constexpr const char* kKeyMonthlyOpexUsd = "fincept.treasury_monthly_opex_usd";
 constexpr const char* kKeyMultisigLabel = "fincept.treasury_multisig_label";
 constexpr const char* kKeyMultisigUrl = "fincept.treasury_multisig_url";
 
-// Defaults used when keys aren't configured. Conservative — better to
-// over-state runway pressure than to under-state it.
-constexpr double kDefaultMonthlyOpexUsd = 100'000.0;
-constexpr const char* kDefaultMultisigLabel = "3-of-5";
+// Sample-mode (no treasury pubkey) figures. Used ONLY for is_mock payloads:
+// in real mode an unconfigured opex / multisig label is reported as unknown —
+// inventing "$100k/mo" or "3-of-5" for a real treasury states facts about its
+// burn rate and custody that nobody configured.
+constexpr double kSampleMonthlyOpexUsd = 100'000.0;
+constexpr const char* kSampleMultisigLabel = "sample";
 constexpr const char* kDefaultMultisigUrl = "https://app.squads.so/";
+constexpr double kSampleSolUi = 234.0;
+constexpr double kSampleSolPriceUsd = 84.28;
+constexpr double kSampleUsdc = 1'840'000.0;
 
 // Fetch the live SOL price by peeking the hub. Returns 0 if unavailable.
 double sol_price_usd_from_hub() {
     auto& hub = fincept::datahub::DataHub::instance();
-    const auto v = hub.peek(QStringLiteral("market:price:token:") + QString::fromLatin1(kWrappedSolMint));
+    const auto topic = QStringLiteral("market:price:token:") + QString::fromLatin1(kWrappedSolMint);
+    // peek() honours the topic TTL (60 s) and returns an invalid QVariant for an
+    // aged-out value. The treasury refresh cadence is slower than that TTL, so
+    // peek() routinely missed and the SOL leg was valued at $0, understating
+    // total reserves and runway. A SOL quote a few minutes old is far closer
+    // to the truth than zero — fall back to the last-known-good value.
+    auto v = hub.peek(topic);
+    if (!v.isValid())
+        v = hub.peek_raw(topic);
+    if (!v.isValid()) {
+        // Nothing cached at all: warm the topic so the next refresh has a price.
+        hub.request(topic, /*force=*/false);
+    }
     if (v.canConvert<TokenPrice>()) {
         const auto p = v.value<TokenPrice>();
         if (p.valid)
@@ -42,7 +59,8 @@ double sol_price_usd_from_hub() {
     return 0.0;
 }
 
-double monthly_opex_usd_or_default() {
+/// Configured monthly opex, or 0 when unset (runway then reports unknown).
+double configured_monthly_opex_usd() {
     auto r = SecureStorage::instance().retrieve(QString::fromLatin1(kKeyMonthlyOpexUsd));
     if (r.is_ok()) {
         bool ok = false;
@@ -50,14 +68,15 @@ double monthly_opex_usd_or_default() {
         if (ok && v > 0.0)
             return v;
     }
-    return kDefaultMonthlyOpexUsd;
+    return 0.0;
 }
 
-QString multisig_label_or_default() {
+/// Configured multisig label ("3-of-5"), or empty when unset.
+QString configured_multisig_label() {
     auto r = SecureStorage::instance().retrieve(QString::fromLatin1(kKeyMultisigLabel));
     if (r.is_ok() && !r.value().trimmed().isEmpty())
         return r.value();
-    return QString::fromLatin1(kDefaultMultisigLabel);
+    return {};
 }
 
 QString multisig_url_or_default(const QString& pubkey) {
@@ -111,9 +130,9 @@ void TreasuryService::refresh(const QStringList& topics) {
         if (reserves_requested)
             publish_mock_reserves();
         if (runway_requested) {
-            // Mock runway uses the same total as the mock reserves.
-            const double mock_total = (8.34 * 84.28) + 1'840'000.0; // hand-tuned
-            publish_mock_runway(mock_total);
+            // Same total as the sample reserves (it used 8.34 SOL against the
+            // reserves' 234 SOL, so the two sample cards disagreed).
+            publish_mock_runway(kSampleSolUi * kSampleSolPriceUsd + kSampleUsdc);
         }
         return;
     }
@@ -163,14 +182,18 @@ void TreasuryService::refresh_real(const QString& treasury_pubkey) {
                 r.usdc_amount = usdc_amount;
                 r.sol_usd_price = sol_price;
                 r.total_usd = total_usd;
-                r.multisig_label = multisig_label_or_default();
+                r.multisig_label = configured_multisig_label();
                 r.multisig_url = multisig_url_or_default(treasury_pubkey);
                 r.ts_ms = QDateTime::currentMSecsSinceEpoch();
                 r.is_mock = false;
                 hub.publish(QString::fromLatin1(kTopicReserves), QVariant::fromValue(r));
 
                 // Derive runway from the same total — single source of truth.
-                self->publish_runway(total_usd, /*is_mock=*/false);
+                // With SOL on the books but no SOL price the total is only the
+                // USDC leg; a runway computed from it would be a confident
+                // under-estimate, so report "unavailable" (months = 0) instead.
+                const bool sol_unpriced = sol_lamports > 0 && sol_price <= 0.0;
+                self->publish_runway(sol_unpriced ? 0.0 : total_usd, /*is_mock=*/false);
             });
     });
 }
@@ -179,16 +202,19 @@ void TreasuryService::refresh_real(const QString& treasury_pubkey) {
 
 void TreasuryService::publish_mock_reserves() {
     // Hand-tuned numbers consistent with the mock buyback epoch.
-    const double sol_price = 84.28;
-    const double sol_ui = 234.0;
-    const double usdc = 1'840'000.0;
+    const double sol_price = kSampleSolPriceUsd;
+    const double sol_ui = kSampleSolUi;
+    const double usdc = kSampleUsdc;
     TreasuryReserves r;
-    r.pubkey_b58 = QStringLiteral("FinceptTreasuryMockVaultXXXXXXXXXXXXXXXXXXXX");
+    // Deliberately empty: a placeholder base58-looking string would be
+    // indistinguishable from a real vault address to any consumer that
+    // ignores is_mock.
+    r.pubkey_b58.clear();
     r.sol_lamports = static_cast<quint64>(sol_ui * 1e9);
     r.usdc_amount = usdc;
     r.sol_usd_price = sol_price;
     r.total_usd = (sol_ui * sol_price) + usdc;
-    r.multisig_label = multisig_label_or_default();
+    r.multisig_label = QString::fromLatin1(kSampleMultisigLabel);
     r.multisig_url = multisig_url_or_default(QString());
     r.ts_ms = QDateTime::currentMSecsSinceEpoch();
     r.is_mock = true;
@@ -200,7 +226,9 @@ void TreasuryService::publish_mock_runway(double total_usd_for_runway) {
 }
 
 void TreasuryService::publish_runway(double total_usd, bool is_mock) {
-    const double opex = monthly_opex_usd_or_default();
+    // months stays 0 (panel: "opex not configured") when a real treasury has
+    // no configured burn rate.
+    const double opex = is_mock ? kSampleMonthlyOpexUsd : configured_monthly_opex_usd();
     TreasuryRunway w;
     w.total_usd = total_usd;
     w.monthly_opex_usd = opex;

@@ -7,6 +7,7 @@ Each endpoint works independently with isolated error handling
 
 import sys
 import json
+import math
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
@@ -448,46 +449,90 @@ class FederalReserveWrapper:
 
     def get_central_bank_holdings(self, holding_type: str = "all_treasury", summary: bool = False,
                                  date: Optional[str] = None) -> Dict[str, Any]:
-        """Get Federal Reserve Central Bank Holdings (SOMA) data"""
+        """Get Federal Reserve Central Bank Holdings (SOMA - System Open Market Account).
+
+        Source: NY Fed Markets API /soma/summary.json (weekly, as of each Wednesday).
+        Values are USD billions. `data` rows: {date, bills, notes_bonds, tips, frn, mbs, cmbs,
+        agencies, tips_inflation_compensation, total}.
+
+        Args:
+            holding_type: all_treasury (default, every asset class) or one of
+                          all_agency/agency_debts/mbs/cmbs/bills/notesbonds/frn/tips - narrows the
+                          columns to that class plus the total
+            summary:      True returns only the latest weekly observation
+            date:         YYYY-MM-DD - return just that as-of date (nearest earlier week);
+                          default is the last 5 years of weekly rows
+        """
         try:
             if holding_type not in HOLDING_TYPES:
                 return FederalReserveError('central_bank_holdings', f'Invalid holding type: {holding_type}').to_dict()
 
-            # For now, return a simplified implementation
-            # Full implementation would require the complex NY Fed API from OpenBB
-            if summary:
-                # Return summary data structure
-                return {
-                    "success": True,
-                    "endpoint": "central_bank_holdings",
-                    "data": {
-                        "message": "Central bank holdings summary - requires NY Fed API implementation",
-                        "holding_type": holding_type,
-                        "note": "This endpoint requires the full NY Fed SOMA API implementation"
-                    },
-                    "parameters": {
-                        "holding_type": holding_type,
-                        "summary": summary,
-                        "date": date
-                    },
-                    "timestamp": int(datetime.now().timestamp())
-                }
+            result = self._make_request(f"{self.ny_fed_url}/soma/summary.json")
+            if "error" in result:
+                return FederalReserveError('central_bank_holdings', result["error"], result.get("status_code")).to_dict()
+
+            payload = result.get("data") or {}
+            raw_rows = (payload.get("soma") or {}).get("summary") or []
+            if not raw_rows:
+                return FederalReserveError('central_bank_holdings', 'NY Fed SOMA summary returned no data').to_dict()
+
+            def to_billions(value):
+                try:
+                    return round(float(value) / 1e9, 3) if value not in (None, "") else None
+                except (TypeError, ValueError):
+                    return None
+
+            rows = []
+            for r in raw_rows:
+                rows.append({
+                    "date": r.get("asOfDate"),
+                    "bills": to_billions(r.get("bills")),
+                    "notes_bonds": to_billions(r.get("notesbonds")),
+                    "tips": to_billions(r.get("tips")),
+                    "frn": to_billions(r.get("frn")),
+                    "mbs": to_billions(r.get("mbs")),
+                    "cmbs": to_billions(r.get("cmbs")),
+                    "agencies": to_billions(r.get("agencies")),
+                    "tips_inflation_compensation": to_billions(r.get("tipsInflationCompensation")),
+                    "total": to_billions(r.get("total")),
+                })
+            rows.sort(key=lambda row: row["date"] or "")
+
+            if date:
+                rows = [row for row in rows if row["date"] and row["date"] <= date][-1:]
+            elif summary:
+                rows = rows[-1:]
             else:
-                return {
-                    "success": True,
-                    "endpoint": "central_bank_holdings",
-                    "data": {
-                        "message": "Central bank holdings detailed data - requires NY Fed API implementation",
-                        "holding_type": holding_type,
-                        "note": "This endpoint requires the full NY Fed SOMA API implementation"
-                    },
-                    "parameters": {
-                        "holding_type": holding_type,
-                        "summary": summary,
-                        "date": date
-                    },
-                    "timestamp": int(datetime.now().timestamp())
-                }
+                rows = rows[-260:]
+
+            columns_by_type = {
+                "all_treasury": None,
+                "bills": ["bills"],
+                "notesbonds": ["notes_bonds"],
+                "frn": ["frn"],
+                "tips": ["tips", "tips_inflation_compensation"],
+                "mbs": ["mbs"],
+                "cmbs": ["cmbs"],
+                "agency_debts": ["agencies"],
+                "all_agency": ["agencies", "mbs", "cmbs"],
+            }
+            keep = columns_by_type.get(holding_type)
+            if keep:
+                rows = [{k: row[k] for k in ["date"] + keep + ["total"]} for row in rows]
+
+            return {
+                "success": True,
+                "endpoint": "central_bank_holdings",
+                "data": rows,
+                "unit": "USD billions",
+                "parameters": {
+                    "holding_type": holding_type,
+                    "summary": summary,
+                    "date": date
+                },
+                "total_records": len(rows),
+                "timestamp": int(datetime.now().timestamp())
+            }
 
         except Exception as e:
             return FederalReserveError('central_bank_holdings', str(e)).to_dict()
@@ -611,6 +656,19 @@ class FederalReserveWrapper:
 
 # ===== CLI INTERFACE =====
 
+def _json_safe(obj: Any) -> Any:
+    """Replace NaN / +-Inf (pandas gaps) with None. json.dumps writes them as bare NaN / Infinity,
+    which is not JSON: the terminal's parser rejected the whole money_measures payload because of
+    one empty cell."""
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    return obj
+
+
 def main():
     """CLI interface for Federal Reserve Data Fetcher"""
     if len(sys.argv) < 2:
@@ -639,54 +697,54 @@ def main():
             start_date = sys.argv[2] if len(sys.argv) > 2 else None
             end_date = sys.argv[3] if len(sys.argv) > 3 else None
             result = wrapper.get_federal_funds_rate(start_date, end_date)
-            print(json.dumps(result, indent=2))
+            print(json.dumps(_json_safe(result), indent=2, allow_nan=False))
 
         elif command == "sofr_rate":
             start_date = sys.argv[2] if len(sys.argv) > 2 else None
             end_date = sys.argv[3] if len(sys.argv) > 3 else None
             result = wrapper.get_sofr_rate(start_date, end_date)
-            print(json.dumps(result, indent=2))
+            print(json.dumps(_json_safe(result), indent=2, allow_nan=False))
 
         elif command == "treasury_rates":
             start_date = sys.argv[2] if len(sys.argv) > 2 else None
             end_date = sys.argv[3] if len(sys.argv) > 3 else None
             result = wrapper.get_treasury_rates(start_date, end_date)
-            print(json.dumps(result, indent=2))
+            print(json.dumps(_json_safe(result), indent=2, allow_nan=False))
 
         elif command == "yield_curve":
             date = sys.argv[2] if len(sys.argv) > 2 else None
             result = wrapper.get_yield_curve(date)
-            print(json.dumps(result, indent=2))
+            print(json.dumps(_json_safe(result), indent=2, allow_nan=False))
 
         elif command == "money_measures":
             start_date = sys.argv[2] if len(sys.argv) > 2 else None
             end_date = sys.argv[3] if len(sys.argv) > 3 else None
             adjusted = sys.argv[4].lower() == "true" if len(sys.argv) > 4 else False
             result = wrapper.get_money_measures(start_date, end_date, adjusted)
-            print(json.dumps(result, indent=2))
+            print(json.dumps(_json_safe(result), indent=2, allow_nan=False))
 
         elif command == "central_bank_holdings":
             holding_type = sys.argv[2] if len(sys.argv) > 2 else "all_treasury"
             summary = sys.argv[3].lower() == "true" if len(sys.argv) > 3 else False
             date = sys.argv[4] if len(sys.argv) > 4 else None
             result = wrapper.get_central_bank_holdings(holding_type, summary, date)
-            print(json.dumps(result, indent=2))
+            print(json.dumps(_json_safe(result), indent=2, allow_nan=False))
 
         elif command == "overnight_bank_funding_rate":
             start_date = sys.argv[2] if len(sys.argv) > 2 else None
             end_date = sys.argv[3] if len(sys.argv) > 3 else None
             result = wrapper.get_overnight_bank_funding_rate(start_date, end_date)
-            print(json.dumps(result, indent=2))
+            print(json.dumps(_json_safe(result), indent=2, allow_nan=False))
 
         elif command == "comprehensive_monetary_data":
             start_date = sys.argv[2] if len(sys.argv) > 2 else None
             end_date = sys.argv[3] if len(sys.argv) > 3 else None
             result = wrapper.get_comprehensive_monetary_data(start_date, end_date)
-            print(json.dumps(result, indent=2))
+            print(json.dumps(_json_safe(result), indent=2, allow_nan=False))
 
         elif command == "market_overview":
             result = wrapper.get_market_overview()
-            print(json.dumps(result, indent=2))
+            print(json.dumps(_json_safe(result), indent=2, allow_nan=False))
 
         else:
             print(json.dumps({

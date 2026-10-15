@@ -234,7 +234,6 @@ QWidget* DBnomicsSelectionPanel::build_search_section() {
         const QString dataset_code = item->data(Qt::UserRole + 1).toString();
         selected_provider_ = provider_code;
         selected_dataset_ = dataset_code;
-        emit search_result_selected(provider_code, dataset_code);
         emit provider_selected(provider_code);
         emit dataset_selected(dataset_code);
     });
@@ -525,8 +524,18 @@ void DBnomicsSelectionPanel::add_comparison_slot() {
     const int slot_idx = slot_count_++;
 
     auto* slot_widget = new QWidget();
+    slot_widget->setObjectName("dbnSlot");
+    // Selector-scoped: the old bare "QWidget { border ... }" boxed every label and row inside the slot.
+    // The per-series rows added later by update_slot_series() are styled here too, by objectName, so
+    // that loop needs no setStyleSheet() of its own.
     slot_widget->setStyleSheet(
-        QString("QWidget { background: %1; border: 1px solid %2; }").arg(col::BG_SURFACE()).arg(col::BORDER_DIM()));
+        QString("QWidget#dbnSlot { background: %1; border: 1px solid %2; }"
+                "QLabel#dbnSlotSeriesName { color: %3; font-size: 10px;"
+                "  font-family: 'Consolas','Courier New',monospace; background: transparent; border: none; }"
+                "QLabel#dbnSlotSeriesDot { font-size: 8px; background: transparent; border: none; }"
+                "QPushButton#dbnSlotSeriesRemove { background: transparent; color: %4; border: none; font-size: 10px; }"
+                "QPushButton#dbnSlotSeriesRemove:hover { color: %5; }")
+            .arg(col::BG_SURFACE(), col::BORDER_DIM(), col::TEXT_SECONDARY(), col::TEXT_TERTIARY(), col::NEGATIVE()));
 
     auto* slot_layout = new QVBoxLayout(slot_widget);
     slot_layout->setContentsMargins(4, 4, 4, 4);
@@ -646,6 +655,14 @@ void DBnomicsSelectionPanel::populate_providers(const QVector<services::DbnProvi
         provider_list_->addItem(item);
     }
 
+    // Highlight the remembered provider (state restore) — setCurrentItem emits no itemClicked.
+    for (int i = 0; i < provider_list_->count() && !selected_provider_.isEmpty(); ++i) {
+        if (provider_list_->item(i)->data(Qt::UserRole).toString() == selected_provider_) {
+            provider_list_->setCurrentRow(i);
+            break;
+        }
+    }
+
     set_status(tr("%1 providers").arg(providers.size()));
 }
 
@@ -661,6 +678,13 @@ void DBnomicsSelectionPanel::populate_datasets(const QVector<services::DbnDatase
         item->setData(Qt::UserRole, ds.code);
         item->setToolTip(ds.code);
         dataset_list_->addItem(item);
+    }
+
+    for (int i = 0; i < dataset_list_->count() && !selected_dataset_.isEmpty(); ++i) {
+        if (dataset_list_->item(i)->data(Qt::UserRole).toString() == selected_dataset_) {
+            dataset_list_->setCurrentRow(i);
+            break;
+        }
     }
 
     datasets_next_offset_ = page.offset + page.limit;
@@ -683,6 +707,13 @@ void DBnomicsSelectionPanel::populate_series(const QVector<services::DbnSeriesIn
         item->setData(Qt::UserRole, s.code);
         item->setToolTip(s.code + " \u2014 " + s.name);
         series_list_->addItem(item);
+    }
+
+    for (int i = 0; i < series_list_->count() && !selected_series_.isEmpty(); ++i) {
+        if (series_list_->item(i)->data(Qt::UserRole).toString() == selected_series_) {
+            series_list_->setCurrentRow(i);
+            break;
+        }
     }
 
     series_next_offset_ = page.offset + page.limit;
@@ -717,12 +748,6 @@ void DBnomicsSelectionPanel::populate_search_results(const QVector<services::Dbn
         search_load_more_btn_->show();
     } else {
         search_load_more_btn_->hide();
-    }
-}
-
-void DBnomicsSelectionPanel::set_loading(bool loading) {
-    if (loading) {
-        status_label_->setText(tr("LOADING..."));
     }
 }
 
@@ -811,17 +836,6 @@ void DBnomicsSelectionPanel::update_slot_series(int slot_index, const QVector<se
         }
     }
 
-    // Row chrome is identical for every series \u2014 build the two stylesheet
-    // strings once instead of re-formatting them per row.
-    const QString name_style = QString("color: %1; font-size: 10px; "
-                                       "font-family: 'Consolas','Courier New',monospace;")
-                                   .arg(col::TEXT_SECONDARY());
-    const QString remove_style =
-        QString("QPushButton { background: transparent; color: %1; border: none; font-size: 10px; }"
-                "QPushButton:hover { color: %2; }")
-            .arg(col::TEXT_TERTIARY())
-            .arg(col::NEGATIVE());
-
     for (int i = 0; i < series.size(); ++i) {
         const auto& dp = series[i];
 
@@ -834,8 +848,10 @@ void DBnomicsSelectionPanel::update_slot_series(int slot_index, const QVector<se
         // pulled from a second, different hard-coded palette, so from the 2nd
         // series onward the sidebar legend named the wrong colour for the
         // wrong line in the chart.
-        auto* dot = new QLabel("\u25CF");
-        dot->setStyleSheet(QString("color: %1; font-size: 8px; background: transparent;").arg(dp.color.name()));
+        // Rich-text colour: no stylesheet parse per row (size/background come from the slot sheet).
+        auto* dot = new QLabel(QStringLiteral("<span style='color:%1'>\u25CF</span>").arg(dp.color.name()));
+        dot->setObjectName("dbnSlotSeriesDot");
+        dot->setTextFormat(Qt::RichText);
         dot->setFixedWidth(12);
         row_layout->addWidget(dot);
 
@@ -845,7 +861,7 @@ void DBnomicsSelectionPanel::update_slot_series(int slot_index, const QVector<se
             name = name.left(19) + "...";
         }
         auto* name_label = new QLabel(name);
-        name_label->setStyleSheet(name_style);
+        name_label->setObjectName("dbnSlotSeriesName");
         name_label->setToolTip(dp.series_name);
         row_layout->addWidget(name_label, 1);
 
@@ -855,7 +871,7 @@ void DBnomicsSelectionPanel::update_slot_series(int slot_index, const QVector<se
         remove_btn->setFixedSize(14, 14);
         remove_btn->setAccessibleName(tr("Remove %1 from this slot").arg(dp.series_name));
         remove_btn->setToolTip(tr("Remove %1").arg(dp.series_name));
-        remove_btn->setStyleSheet(remove_style);
+        remove_btn->setObjectName("dbnSlotSeriesRemove");
         connect(remove_btn, &QPushButton::clicked, this, [this, slot_widget, series_id]() {
             const int idx = slots_layout_->indexOf(slot_widget);
             if (idx >= 0)
@@ -865,6 +881,13 @@ void DBnomicsSelectionPanel::update_slot_series(int slot_index, const QVector<se
 
         slot_layout->addWidget(row);
     }
+}
+
+void DBnomicsSelectionPanel::restore_selection(const QString& provider, const QString& dataset,
+                                               const QString& series) {
+    selected_provider_ = provider;
+    selected_dataset_ = dataset;
+    selected_series_ = series;
 }
 
 // ── Search text accessors (for state persistence) ────────────────────────────

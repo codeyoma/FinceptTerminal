@@ -1,6 +1,33 @@
 > [!IMPORTANT]
-> **Two editions.** **[Enterprise](https://fincept.in/enterprise)** is the private, closed-source build for funds and research desks — 41 modules, private data, live broker routing, SSO, from **$99/user/month**. **This repo** is the free AGPL-3.0 edition for learning and academic use, one release a month.
-> [Compare](https://fincept.in/comparison) · [Pricing](https://fincept.in/pricing)
+> ## 🔒 Fincept Terminal **Enterprise** — the private edition is now available.
+> RealTime data · Multi-agent AI research · Live broker, Backtest & Algo execution · Priority support ·
+> Equity Research · Portfolio Management · Financial Workflows · Quant Research Lab · Maritime · Geopolitics
+>
+> | Plan | Price |
+> |:--|:--:|
+> | **Exclusive** | **$15** /user/mo |
+> | **Exclusive+** | **$30** /user/mo |
+> | **Exclusive Pro** ⭐ Most popular | **$45** /user/mo |
+>
+> [![Get Enterprise](https://img.shields.io/badge/Get_Enterprise_%E2%86%92-C06524?style=for-the-badge)](https://fincept.in/enterprise/signup) &nbsp; [![Compare plans](https://img.shields.io/badge/Compare_plans-1F2328?style=for-the-badge)](https://fincept.in/pricing)
+>
+> <sub>No annual lock-in, cancel anytime · This open-source repo stays free under AGPL-3.0</sub>
+
+
+> [!TIP]
+> ## Quantcept — the AI research desk that never closes.
+> Markets · Backtests · Portfolios · Watchlists · Memory — 800+ primary data sources, running around the clock.
+>
+> | Plan | Price |
+> |:--|:--:|
+> | **Free** | **$0** · 350 credits, no card |
+> | **Alpha** | **$3** / 30 days |
+> | **Apex** | **$8** / 30 days |
+>
+> [![Start free](https://img.shields.io/badge/Start_free_%E2%86%92-0E7490?style=for-the-badge)](https://quantcept.io/register) &nbsp; [![See the desk](https://img.shields.io/badge/See_the_desk-1F2328?style=for-the-badge)](https://quantcept.io)
+>
+> <sub>30-day passes — nothing auto-renews · Students: Apex for $5 · Free to start at [quantcept.io](https://quantcept.io)</sub>
+
 
 # Fincept Terminal
 
@@ -26,7 +53,7 @@
 
 State-of-the-art financial intelligence platform with institutional-grade financial analytics, AI automation, and unlimited data connectivity.
 
-[📥 Download](https://github.com/Fincept-Corporation/FinceptTerminal/releases) · [🏢 Enterprise](https://fincept.in/enterprise) · [💳 Pricing](https://fincept.in/pricing) · [📖 Manual](https://fincept.in/manual) · [💬 Discussions](https://github.com/Fincept-Corporation/FinceptTerminal/discussions) · [💬 Discord](https://discord.gg/ae87a8ygbN)
+[📥 Download](https://github.com/Fincept-Corporation/FinceptTerminal/releases) · [🏢 Enterprise](https://fincept.in/enterprise) · [💳 Pricing](https://fincept.in/pricing) · [📖 Manual](https://fincept.in/manual) · [💬 Discussions](https://github.com/Fincept-Corporation/FinceptTerminal/discussions) · [💬 Discord](https://discord.gg/ae87a8ygbN) · [📈 Quantcept](https://quantcept.io)
 
 <sub>English · [Deutsch](docs/translations/README.de.md) · [Español](docs/translations/README.es.md) · [Français](docs/translations/README.fr.md) · [हिन्दी](docs/translations/README.hi.md) · [日本語](docs/translations/README.ja.md) · [한국어](docs/translations/README.ko.md) · [简体中文](docs/translations/README.zh-CN.md) · [繁體中文](docs/translations/README.zh-TW.md)</sub>
 
@@ -53,13 +80,15 @@ Two editions run on one data core. **[Enterprise](https://fincept.in/enterprise)
 
 Use the open build if you're a student, hobbyist or academic. Use Enterprise if you're a firm, or if the terminal is how you earn: AGPL copyleft won't apply, and the open build's real cost is your own data and LLM bills, charged per token with no ceiling.
 
+Fincept account (this terminal): Free, or Pro at $10/month for monthly cloud credits, higher API limits and priority support.
+
 | | Open Source | **Enterprise** |
 |---|---|---|
 | **Licence** | AGPL-3.0 — strong copyleft | Proprietary — no copyleft to manage |
-| **Cost** | Free, plus your own data and LLM bills | $99 / $199 / $299 per user/month |
+| **Cost** | Free, plus your own data and LLM bills | **$15 / $30 / $45** per user/month |
 | **Data** | Free public feeds, your own API keys | Private datasets, deeper history, point-in-time |
 | **AI** | Bring your own LLM key | 400–5,000 credits included · multi-agent research · private dataroom |
-| **Trading** | Paper trading + broker integrations | Live broker routing + live algo deployment |
+| **Trading** | Paper + live trading via your broker | Managed live routing, execution analytics, priority SLA |
 | **Controls** | — | SSO/SAML, audit logs, RBAC, SLA-backed support |
 
 [**See Enterprise →**](https://fincept.in/enterprise) · [Full comparison](https://fincept.in/comparison) · [Pricing](https://fincept.in/pricing) · [FAQ](https://fincept.in/faq)
@@ -70,14 +99,14 @@ Use the open build if you're a student, hobbyist or academic. Use Enterprise if 
 
 41 modules across six desks — agentic research, quant lab and backtesting, deep fundamental research, markets and execution, macro and global intelligence, and your own workspace. All of it in a [700-page manual](https://fincept.in/manual).
 
-| | **Exclusive** | **Exclusive+** ★ | **Exclusive Pro** |
+| | **Exclusive** | **Exclusive+** | **Exclusive Pro** ★ |
 |---|---|---|---|
-| | **$99**/user/mo | **$199**/user/mo | **$299**/user/mo |
+| | **$15**/user/mo | **$30**/user/mo | **$45**/user/mo |
 | AI credits / month | 400 | 2,000 | 5,000 |
 | Deep research + agent teams | — | ✓ | ✓ |
 | Live broker trading + algo | — | — | ✓ |
 
-Monthly billing, no lock-in, no seat minimum, 15% off quarterly — **$1,188–$3,588 per user per year**, against roughly $27,000 for a Bloomberg seat. **Universities:** 5 Exclusive Pro seats for **$699/month**. These plans are the whole price list: no negotiated pricing, no separate commercial licence.
+Monthly billing, no annual lock-in, no seat minimum — **$180–$540 per user per year**, against roughly $27,000 for a Bloomberg seat. Quarterly and university terms are on the [pricing page](https://fincept.in/pricing). There is no negotiated pricing and no separate commercial licence.
 
 Enterprise needs its own account — free Fincept logins don't sign in to it.
 
@@ -88,15 +117,15 @@ Enterprise needs its own account — free Fincept logins don't sign in to it.
 ## Install
 
 <!-- DOWNLOAD-TABLE-START -->
-Latest release: **v4.4.1** — [View all releases](https://github.com/Fincept-Corporation/FinceptTerminal/releases/tag/v4.4.1)
+Latest release: **v4.5.0** — [View all releases](https://github.com/Fincept-Corporation/FinceptTerminal/releases/tag/v4.5.0)
 
 | Platform | Download | Run |
 |----------|----------|-----|
-| **Windows x64** | [FinceptTerminal-Windows-x64-setup.exe](https://github.com/Fincept-Corporation/FinceptTerminal/releases/download/v4.4.1/FinceptTerminal-4.4.1-windows-x64-setup.exe) | Run installer → launch `FinceptTerminal.exe` |
-| **Linux x64 (AppImage)** | [FinceptTerminal-Linux-x64.run](https://github.com/Fincept-Corporation/FinceptTerminal/releases/download/v4.4.1/FinceptTerminal-4.4.1-linux-x64-setup.run) | `chmod +x` → run installer |
-| **Linux x64 (Debian/Ubuntu)** | [FinceptTerminal-Linux-x64.deb](https://github.com/Fincept-Corporation/FinceptTerminal/releases/download/v4.4.1/FinceptTerminal-4.4.1-linux-x64.deb) | `sudo apt install ./FinceptTerminal-*.deb` |
-| **Linux x64 (Fedora/RHEL)** | [FinceptTerminal-Linux-x64.rpm](https://github.com/Fincept-Corporation/FinceptTerminal/releases/download/v4.4.1/FinceptTerminal-4.4.1-linux-x64.rpm) | `sudo dnf install ./FinceptTerminal-*.rpm` |
-| **macOS Apple Silicon** | [FinceptTerminal-macOS-arm64.dmg](https://github.com/Fincept-Corporation/FinceptTerminal/releases/download/v4.4.1/FinceptTerminal-4.4.1-macos-arm64-setup.dmg) | Open DMG → drag to Applications |
+| **Windows x64** | [FinceptTerminal-Windows-x64-setup.exe](https://github.com/Fincept-Corporation/FinceptTerminal/releases/download/v4.5.0/FinceptTerminal-4.5.0-windows-x64-setup.exe) | Run installer → launch `FinceptTerminal.exe` |
+| **Linux x64 (AppImage)** | [FinceptTerminal-Linux-x64.run](https://github.com/Fincept-Corporation/FinceptTerminal/releases/download/v4.5.0/FinceptTerminal-4.5.0-linux-x64-setup.run) | `chmod +x` → run installer |
+| **Linux x64 (Debian/Ubuntu)** | [FinceptTerminal-Linux-x64.deb](https://github.com/Fincept-Corporation/FinceptTerminal/releases/download/v4.5.0/FinceptTerminal-4.5.0-linux-x64.deb) | `sudo apt install ./FinceptTerminal-*.deb` |
+| **Linux x64 (Fedora/RHEL)** | [FinceptTerminal-Linux-x64.rpm](https://github.com/Fincept-Corporation/FinceptTerminal/releases/download/v4.5.0/FinceptTerminal-4.5.0-linux-x64.rpm) | `sudo dnf install ./FinceptTerminal-*.rpm` |
+| **macOS Apple Silicon** | [FinceptTerminal-macOS-arm64.dmg](https://github.com/Fincept-Corporation/FinceptTerminal/releases/download/v4.5.0/FinceptTerminal-4.5.0-macos-arm64-setup.dmg) | Open DMG → drag to Applications |
 <!-- DOWNLOAD-TABLE-END -->
 
 **Build from source** — Linux/macOS: `git clone … && ./setup.sh`. Windows and manual builds, the pinned toolchain (**CMake 3.27.7 · Ninja 1.11.1 · Qt 6.8.3 · Python 3.11.9**) and troubleshooting live in **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)**. Versions are pinned — newer or older ones are unsupported.
@@ -137,7 +166,7 @@ New data connectors, AI agents, analytics modules, C++ screens and documentation
 ## Also from Fincept
 
 - **[Fincept Data API](https://docs.fincept.in)** — 500+ REST endpoints, 423,000+ instruments, 2,000+ sources. Free tier included with any account.
-- **[Quantcept](https://quantcept.io)** — open-source, AI-powered command-line finance terminal (Apache-2.0).
+- **[Quantcept](https://quantcept.io)** — AI research desk for markets: primary data, backtests, portfolios, documents and 24/7 monitors. Free to start; Alpha $14 / Apex $24 per 30 days.
 
 ---
 

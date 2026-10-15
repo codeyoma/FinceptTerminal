@@ -619,7 +619,10 @@ void MarketDataService::fetch_info(const QString& symbol, InfoCallback cb) {
                                              shared->info.pe_ratio = o["peRatio"].toDouble();
                                              shared->info.forward_pe = o["forwardPE"].toDouble();
                                              shared->info.price_to_book = o["priceToBook"].toDouble();
-                                             shared->info.dividend_yield = o["dividendYield"].toDouble();
+                                             // yfinance (pinned 0.2.66) reports dividendYield in percent
+                                             // (0.33 = 0.33%). InfoData holds it as a fraction like the
+                                             // other ratios below, which is what consumers' ×100 expects.
+                                             shared->info.dividend_yield = o["dividendYield"].toDouble() / 100.0;
                                              shared->info.roe = o["returnOnEquity"].toDouble();
                                              shared->info.profit_margin = o["profitMargin"].toDouble();
                                              shared->info.debt_to_equity = o["debtToEquity"].toDouble();
@@ -956,7 +959,6 @@ void MarketDataService::enrich_quote(QuoteData& quote) {
 void MarketDataService::resolve_names(const QStringList& symbols, NamesCallback cb) {
     load_name_cache();
 
-    // Build the cached subset for the requested symbols only.
     auto subset_for = [this](const QStringList& syms) {
         QHash<QString, QString> m;
         for (const auto& s : syms)
@@ -969,75 +971,139 @@ void MarketDataService::resolve_names(const QStringList& symbols, NamesCallback 
     if (cb)
         cb(subset_for(symbols));
 
-    // Names alone do not prove currency metadata was resolved (old disk caches
-    // contain names without types). Deduplicate in-flight work and back off
-    // unavailable metadata instead of launching .info requests on every tick.
-    QStringList missing;
+    // Symbols whose metadata is still incomplete that nobody has asked for yet
+    // this session. A symbol yfinance cannot resolve is asked once, not on every
+    // panel refresh. Fork hook (codeyoma/krx-quant#142): names alone do not prove
+    // currency metadata was resolved (old disk caches contain names without
+    // types), and a failed call backs off for a minute instead of retrying on
+    // every tick.
+    QStringList waiting_on;
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
     for (const auto& s : symbols) {
+        if (s.isEmpty())
+            continue;
         const QString type = quote_type_cache_.value(s);
         const bool incomplete = !name_cache_.contains(s) || type.isEmpty() || type == QLatin1String("UNKNOWN") ||
                                 (monetary_type(type) && currency_cache_.value(s).isEmpty());
-        if (!s.isEmpty() && incomplete && !metadata_in_flight_.contains(s) && metadata_retry_after_.value(s) <= now) {
-            missing.append(s);
-            metadata_in_flight_.insert(s);
-            metadata_retry_after_.insert(s, now + 60000);
+        if (!incomplete)
+            continue;
+        if (names_queued_.contains(s) || names_inflight_.contains(s)) {
+            waiting_on.append(s);
+        } else if (!names_attempted_.contains(s) && metadata_retry_after_.value(s) <= now) {
+            names_queued_.insert(s);
+            waiting_on.append(s);
         }
     }
-    if (missing.isEmpty())
+    if (waiting_on.isEmpty())
+        return;
+    if (cb)
+        name_waiters_.append({waiting_on, std::move(cb)});
+
+    if (!names_flush_scheduled_ && !names_queued_.isEmpty()) {
+        names_flush_scheduled_ = true;
+        // Long enough to gather every panel of a screen that is being built.
+        QTimer::singleShot(250, this, &MarketDataService::flush_name_requests);
+    }
+}
+
+void MarketDataService::flush_name_requests() {
+    names_flush_scheduled_ = false;
+    if (names_queued_.isEmpty())
         return;
 
+    QStringList batch = names_queued_.values();
+    batch.sort();
+    names_queued_.clear();
+    for (const auto& s : batch) {
+        names_inflight_.insert(s);
+        names_attempted_.insert(s);
+    }
+
+    LOG_INFO("MarketData", QString("Resolving display names for %1 symbol(s) in one call").arg(batch.size()));
+
     QStringList args;
-    args << "quote_names" << missing;
+    args << "quote_names" << batch;
 
     QPointer<MarketDataService> self = this;
-    python::PythonRunner::instance().run(
-        "yfinance_data.py", args, [self, symbols, missing, cb, subset_for](python::PythonResult result) {
-            if (!self)
-                return;
-            for (const auto& symbol : missing)
-                self->metadata_in_flight_.remove(symbol);
-            if (result.success && !result.output.trimmed().isEmpty()) {
-                auto doc = QJsonDocument::fromJson(result.output.trimmed().toUtf8());
-                if (doc.isObject()) {
-                    const QJsonObject root = doc.object();
-                    const QJsonObject names = root.value("names").toObject();
-                    const QJsonObject currs = root.value("currencies").toObject();
-                    const QJsonObject types = root.value("quote_types").toObject();
-                    bool changed = false;
-                    for (auto it = names.begin(); it != names.end(); ++it) {
-                        const QString name = it.value().toString().trimmed();
-                        if (!name.isEmpty()) {
-                            self->name_cache_.insert(it.key(), name);
-                            changed = true;
-                        }
-                    }
-                    for (auto it = currs.begin(); it != currs.end(); ++it) {
-                        const QString code = it.value().toString().trimmed();
-                        if (!code.isEmpty()) {
-                            self->currency_cache_.insert(it.key(), code);
-                            changed = true;
-                        }
-                    }
-                    for (auto it = types.begin(); it != types.end(); ++it) {
-                        const QString type = it.value().toString().trimmed().toUpper();
-                        if (!type.isEmpty() && self->quote_type_cache_.value(it.key()) != type) {
-                            self->quote_type_cache_.insert(it.key(), type);
-                            changed = true;
-                        }
-                    }
-                    if (changed) {
-                        self->persist_name_cache();
-                        emit self->metadata_changed();
+    python::PythonRunner::instance().run("yfinance_data.py", args, [self, batch](python::PythonResult result) {
+        if (!self)
+            return;
+        if (result.success && !result.output.trimmed().isEmpty()) {
+            auto doc = QJsonDocument::fromJson(result.output.trimmed().toUtf8());
+            if (doc.isObject()) {
+                const QJsonObject root = doc.object();
+                const QJsonObject names = root.value("names").toObject();
+                const QJsonObject currs = root.value("currencies").toObject();
+                const QJsonObject types = root.value("quote_types").toObject();
+                bool changed = false;
+                for (auto it = names.begin(); it != names.end(); ++it) {
+                    const QString name = it.value().toString().trimmed();
+                    if (!name.isEmpty()) {
+                        self->name_cache_.insert(it.key(), name);
+                        changed = true;
                     }
                 }
-            } else if (!result.success) {
-                LOG_WARN("MarketData", "quote_names failed: " + result.error.left(200));
+                for (auto it = currs.begin(); it != currs.end(); ++it) {
+                    const QString code = it.value().toString().trimmed();
+                    if (!code.isEmpty()) {
+                        self->currency_cache_.insert(it.key(), code);
+                        changed = true;
+                    }
+                }
+                for (auto it = types.begin(); it != types.end(); ++it) {
+                    const QString type = it.value().toString().trimmed().toUpper();
+                    if (!type.isEmpty() && self->quote_type_cache_.value(it.key()) != type) {
+                        self->quote_type_cache_.insert(it.key(), type);
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    self->persist_name_cache();
+                    emit self->metadata_changed();
+                }
             }
-            // Re-deliver with whatever resolved (cached subset now richer).
-            if (cb)
-                cb(subset_for(symbols));
-        });
+        } else if (!result.success) {
+            LOG_WARN("MarketData", "quote_names failed: " + result.error.left(200));
+            // A failed call (network down, rate limit) is not "unresolvable":
+            // allow these symbols to be asked again, after a minute's back-off.
+            const qint64 retry_at = QDateTime::currentMSecsSinceEpoch() + 60000;
+            for (const auto& s : batch) {
+                self->names_attempted_.remove(s);
+                self->metadata_retry_after_.insert(s, retry_at);
+            }
+        }
+        for (const auto& s : batch)
+            self->names_inflight_.remove(s);
+
+        // Re-deliver to every waiter that was waiting on this batch; keep a
+        // waiter only while some of its symbols are still queued or in flight.
+        const QSet<QString> done(batch.cbegin(), batch.cend());
+        QVector<NameWaiter> still_waiting;
+        QVector<NameWaiter> to_notify;
+        for (auto& w : self->name_waiters_) {
+            bool touched = false;
+            bool pending = false;
+            for (const auto& s : w.symbols) {
+                if (done.contains(s))
+                    touched = true;
+                if (self->names_queued_.contains(s) || self->names_inflight_.contains(s))
+                    pending = true;
+            }
+            if (touched)
+                to_notify.append(w);
+            if (pending)
+                still_waiting.append(std::move(w));
+        }
+        self->name_waiters_ = std::move(still_waiting);
+        for (const auto& w : to_notify) {
+            QHash<QString, QString> m;
+            for (const auto& s : w.symbols)
+                if (self->name_cache_.contains(s))
+                    m.insert(s, self->name_cache_.value(s));
+            if (w.cb)
+                w.cb(m);
+        }
+    });
 }
 
 } // namespace fincept::services

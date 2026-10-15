@@ -33,7 +33,9 @@ struct AltCategory {
 struct AltField {
     QString key;   // JSON key sent to Python
     QString label; // Display label
-    enum Type { Text, Spin, Combo } type = Spin;
+    /// Series: comma-separated numbers -> JSON array (divide_100 applies per value).
+    /// CashFlows: "YYYY-MM-DD:amount; ..." -> [{date, amount}].
+    enum Type { Text, Spin, Combo, Series, CashFlows } type = Spin;
     double default_val = 0.0;
     double min_val = 0.0;
     double max_val = 1e9;
@@ -74,6 +76,9 @@ class AltInvestmentsScreen : public QWidget, public IStatefulScreen {
     QWidget* create_right_panel();
     QWidget* create_status_bar();
     void rebuild_form(int cat, int ana);
+    /// Fill method_combo_ with the analysis methods of `analyzer_id` that the CLI can actually run
+    /// (hidden when there is only one).
+    void populate_methods(const QString& analyzer_id);
 
     // Data / execution
     void run_analysis(const QString& command, const QJsonObject& data);
@@ -84,7 +89,7 @@ class AltInvestmentsScreen : public QWidget, public IStatefulScreen {
     void display_error(const QString& error);
     void set_loading(bool loading);
     void append_metric_row(QWidget* parent, QVBoxLayout* vl, const QString& key, const QJsonValue& val, int depth = 0);
-    QString format_value(const QJsonValue& v) const;
+    QString format_value(const QString& key, const QJsonValue& v) const;
 
     // Category/analyzer data
     QList<AltCategory> categories_;
@@ -98,6 +103,7 @@ class AltInvestmentsScreen : public QWidget, public IStatefulScreen {
     QLabel* header_badge_ = nullptr;
     QLabel* left_title_ = nullptr;
     QLabel* combo_label_ = nullptr;
+    QLabel* method_label_ = nullptr;
     QLabel* form_title_ = nullptr;
     QLabel* right_title_ = nullptr;
     QLabel* status_left_ = nullptr;
@@ -109,6 +115,7 @@ class AltInvestmentsScreen : public QWidget, public IStatefulScreen {
     QLabel* center_title_ = nullptr;
     QLabel* center_desc_ = nullptr;
     QComboBox* analyzer_combo_ = nullptr;
+    QComboBox* method_combo_ = nullptr; // cli.py --method for the selected analyzer
     QWidget* form_container_ = nullptr; // holds dynamic form rows
     QVBoxLayout* form_layout_ = nullptr;
     QPushButton* analyze_btn_ = nullptr;

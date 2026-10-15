@@ -86,6 +86,70 @@ QWidget* DocsScreen::page_crypto_trading() {
     return scroll;
 }
 
+QWidget* DocsScreen::page_crypto_center() {
+    return make_page(
+        tr("CRYPTO CENTER"), tr("Wallet hub with holdings, trading and activity"),
+        {
+            {tr("OVERVIEW"), tr("Crypto Center is the wallet-centred companion to Crypto Trading. Connect a wallet "
+                                "with CONNECT WALLET and a holdings bar stays visible above the tabs while you work.")},
+            {tr("TABS"), tr("■  HOME — Holdings and token overview panels\n"
+                            "■  TRADE — Swap tokens from the connected wallet\n"
+                            "■  ACTIVITY — History of the actions taken from this wallet\n"
+                            "■  MARKETS, STAKE, ROADMAP — Market list, staking and what is coming next\n"
+                            "■  SETTINGS — Mode toggle, data-provider key and slippage")},
+            {tr("SAFETY"), tr("■  Wallet actions open a confirmation summary before anything is signed — read it\n"
+                              "■  If the connection is not completed the screen tells you why and stays disconnected")},
+        });
+}
+
+QWidget* DocsScreen::page_equity_trading() {
+    return make_page(
+        tr("EQUITY TRADING"), tr("Multi-account broker trading terminal"),
+        {
+            {tr("OVERVIEW"), tr("Equity Trading connects to one or more broker accounts at the same time. Every "
+                                "connected account keeps its own market-data stream, portfolio and credentials, and "
+                                "orders are routed per account in either PAPER or LIVE mode.")},
+            {tr("CONNECTING A BROKER"),
+             tr("■  Click ACCOUNTS to add a broker account, enter its API credentials (or complete the broker's "
+                "sign-in) and press CONNECT\n"
+                "■  The connection chip shows how many accounts are connected; a TOKEN EXPIRED notice means the "
+                "broker session needs renewing — click ACCOUNTS again\n"
+                "■  20+ brokers are supported, including Zerodha, Angel One, Upstox, Fyers, Dhan, Interactive "
+                "Brokers, Alpaca and Tradier")},
+            {tr("PANELS"), tr("■  Ticker bar and symbol search (Ctrl+Shift+F focuses the symbol box)\n"
+                              "■  Watchlist, chart and order book for the selected symbol\n"
+                              "■  Order entry — a BUY/SELL form tailored to the broker you are using\n"
+                              "■  Bottom panel — Positions, Holdings, Orders, Funds and Stats tabs")},
+            {tr("MULTI-ACCOUNT TOOLS"),
+             tr("■  UNIFIED — a portfolio view across every connected account\n"
+                "■  FEEDS — monitor the market-data streams\n"
+                "■  Basket orders — build named baskets of order legs and execute them on one or several accounts\n"
+                "■  Broadcast order — place the same order on every account you tick\n"
+                "■  Portfolio replication — copy a broker account's portfolio into a PAPER account 1:1\n"
+                "■  Cancel All Orders — cancels pending orders on the focused account (asks first)")},
+            {tr("SYMBOL LINKING"), tr("Click the coloured dot in the panel header to join a link group: picking a "
+                                      "symbol in a linked Watchlist, News or Research panel loads it here.")},
+        });
+}
+
+QWidget* DocsScreen::page_fno() {
+    return make_page(
+        tr("F&O"), tr("Futures & options analytics in seven sub-tabs"),
+        {
+            {tr("OVERVIEW"), tr("The F&O screen is a Sensibull-style analytics workspace for index and stock "
+                                "derivatives. Each sub-tab is built the first time you open it, so the screen "
+                                "starts quickly with the option chain.")},
+            {tr("SUB-TABS"), tr("■  Chain — option chain with strike-level quotes and open interest\n"
+                                "■  Builder — assemble multi-leg strategies from templates and see the payoff chart\n"
+                                "■  OI Analytics — open-interest build-up, max pain, intraday and multi-strike OI\n"
+                                "■  Multi-Straddle — compare straddle premiums side by side\n"
+                                "■  FII/DII — institutional flow charts\n"
+                                "■  Screener — scan the derivatives universe for set-ups\n"
+                                "■  Positions — your open F&O positions")},
+            {tr("SYMBOL LINKING"), tr("F&O joins colour link groups, so the underlying follows the linked panels.")},
+        });
+}
+
 QWidget* DocsScreen::page_paper_trading() {
     return make_page(
         tr("PAPER TRADING"), tr("Risk-free simulated trading engine"),
@@ -415,24 +479,21 @@ QWidget* DocsScreen::page_agent_config() {
 
 QWidget* DocsScreen::page_alpha_arena() {
     return make_page(
-        tr("ALPHA ARENA"), tr("Competitive alpha research and strategy ranking"),
+        tr("ALPHA ARENA"), tr("AI models compete as traders on the same market"),
         {
-            {tr("OVERVIEW"), tr("Alpha Arena is a competitive environment where trading strategies are ranked "
-                                "by performance. Submit strategies, compare against peers, and discover new "
-                                "alpha sources through community insights.")},
-            {tr("KEY FEATURES"), tr("■  Strategy leaderboard with real-time rankings\n"
-                                    "■  Performance metrics comparison (Sharpe, returns, drawdown)\n"
-                                    "■  Strategy submission and backtesting\n"
-                                    "■  Community insights and discussion\n"
-                                    "■  Historical performance tracking")},
-            {tr("REAL-WORLD USAGE"), tr("■  Benchmark your strategies against others\n"
-                                        "■  Discover new trading ideas from top performers\n"
-                                        "■  Competitive motivation to improve strategy quality\n"
-                                        "■  Community learning through shared insights")},
-            {tr("SKILL LEVELS"), tr("BEGINNER: Browse the leaderboard, study top strategies\n"
-                                    "INTERMEDIATE: Submit your first strategy, analyze performance metrics\n"
-                                    "ADVANCED: Optimize strategies for ranking, study factor exposures\n"
-                                    "PRO: Multi-strategy submission, alpha decay analysis, ensemble approaches")},
+            {tr("OVERVIEW"), tr("Alpha Arena runs a trading competition between AI models: each model receives the "
+                                "same market data on a fixed cadence, decides its own trades and is scored on the "
+                                "results. Competitions run on a paper exchange by default; live trading on "
+                                "Hyperliquid is an explicit opt-in.")},
+            {tr("KEY FEATURES"), tr("■  NEW COMPETITION wizard — pick models, symbols, starting capital and cadence\n"
+                                    "■  Leaderboard — equity, return %, max drawdown, Sharpe, unrealised P&L, "
+                                    "positions and tokens used per model\n"
+                                    "■  Equity curves for every model\n"
+                                    "■  Per-model MODEL CHAT (its reasoning), POSITIONS, TRADES, RISK and AUDIT tabs\n"
+                                    "■  Keeps running while the screen is closed; a PAPER / LIVE badge shows the venue")},
+            {tr("REAL-WORLD USAGE"), tr("■  Compare how different models trade the same conditions\n"
+                                        "■  Study model reasoning next to the trades it produced\n"
+                                        "■  Stress-test an AI trading idea on paper before any capital is at risk")},
         });
 }
 

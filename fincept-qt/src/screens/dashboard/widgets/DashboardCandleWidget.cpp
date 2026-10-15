@@ -37,6 +37,13 @@ void CandleCanvas::clear() {
     update();
 }
 
+void CandleCanvas::refresh_theme() {
+    // The pixmap is painted with token colours at build time; without this it
+    // kept the previous theme until the tile happened to be resized.
+    dirty_ = true;
+    update();
+}
+
 void CandleCanvas::resizeEvent(QResizeEvent* e) {
     QWidget::resizeEvent(e);
     dirty_ = true;
@@ -209,6 +216,7 @@ DashboardCandleWidget::DashboardCandleWidget(const QJsonObject& cfg, QWidget* pa
     canvas_ = new CandleCanvas(this);
     canvas_->set_symbol(symbol_);
     vl->addWidget(canvas_, 1);
+    link_symbol(canvas_, symbol_); // double-click the chart -> Equity Research
 
     set_configurable(true);
     connect(this, &BaseWidget::refresh_requested, this, &DashboardCandleWidget::refresh_data);
@@ -232,6 +240,7 @@ void DashboardCandleWidget::apply_config(const QJsonObject& cfg) {
         return;
     symbol_ = next;
     set_title(tr("CANDLE \xc2\xb7 %1").arg(symbol_));
+    link_symbol(canvas_, symbol_);
     canvas_->clear();
     canvas_->set_symbol(symbol_);
     if (isVisible()) {
@@ -262,6 +271,11 @@ QDialog* DashboardCandleWidget::make_config_dialog(QWidget* parent) {
     });
     connect(buttons, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
     return dlg;
+}
+
+void DashboardCandleWidget::on_theme_changed() {
+    if (canvas_)
+        canvas_->refresh_theme();
 }
 
 void DashboardCandleWidget::showEvent(QShowEvent* e) {

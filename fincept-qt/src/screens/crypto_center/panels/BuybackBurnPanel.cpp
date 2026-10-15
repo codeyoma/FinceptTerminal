@@ -156,11 +156,13 @@ void BuybackBurnPanel::build_ui() {
         bl->addWidget(revenue_split_);
 
         // The 50/25/25 split (plan §5.4) — show all three so the value loop
-        // is visible end-to-end. The numbers come from the worker; the
-        // panel just renders.
-        add_kv(bl, tr("BUYBACK (50%)"), buyback_caption_, buyback_usd_);
-        add_kv(bl, tr("STAKER YIELD (25%)"), staker_caption_, staker_yield_usd_);
-        add_kv(bl, tr("TREASURY TOPUP (25%)"), treasury_caption_, treasury_topup_usd_);
+        // is visible end-to-end. The numbers come from the worker; the panel
+        // just renders. The captions carry no hard-coded percentage: the worker
+        // is free to choose any distribution and each value cell prints the
+        // actual share of revenue, so a "(50%)" caption could contradict it.
+        add_kv(bl, tr("BUYBACK"), buyback_caption_, buyback_usd_);
+        add_kv(bl, tr("STAKER YIELD"), staker_caption_, staker_yield_usd_);
+        add_kv(bl, tr("TREASURY TOPUP"), treasury_caption_, treasury_topup_usd_);
         add_kv(bl, tr("$FNCPT BOUGHT"), bought_caption_, fncpt_bought_);
         add_kv(bl, tr("$FNCPT BURNED"), burned_caption_, fncpt_burned_, QStringLiteral("buybackBurnValueAmber"));
 
@@ -311,17 +313,17 @@ void BuybackBurnPanel::retranslateUi() {
     // epoch_window_ is data-driven once an epoch publishes; the placeholder
     // is only visible pre-publish, so it is not re-applied here.
     if (epoch_section_title_)
-        epoch_section_title_->setText(tr("THIS EPOCH"));
+        epoch_section_title_->setText(epoch_is_mock_ ? tr("THIS EPOCH · SAMPLE DATA") : tr("THIS EPOCH"));
     if (alltime_section_title_)
-        alltime_section_title_->setText(tr("ALL-TIME"));
+        alltime_section_title_->setText(burn_total_is_mock_ ? tr("ALL-TIME · SAMPLE DATA") : tr("ALL-TIME"));
     if (revenue_caption_)
         revenue_caption_->setText(tr("REVENUE"));
     if (buyback_caption_)
-        buyback_caption_->setText(tr("BUYBACK (50%)"));
+        buyback_caption_->setText(tr("BUYBACK"));
     if (staker_caption_)
-        staker_caption_->setText(tr("STAKER YIELD (25%)"));
+        staker_caption_->setText(tr("STAKER YIELD"));
     if (treasury_caption_)
-        treasury_caption_->setText(tr("TREASURY TOPUP (25%)"));
+        treasury_caption_->setText(tr("TREASURY TOPUP"));
     if (bought_caption_)
         bought_caption_->setText(tr("$FNCPT BOUGHT"));
     if (burned_caption_)
@@ -334,8 +336,11 @@ void BuybackBurnPanel::retranslateUi() {
         supply_caption_->setText(tr("SUPPLY REMAINING"));
     if (spent_caption_)
         spent_caption_->setText(tr("SPENT ON BUYBACK"));
-    if (burn_signature_link_)
-        burn_signature_link_->setToolTip(tr("Open burn transaction in Solscan"));
+    if (burn_signature_link_) {
+        burn_signature_link_->setToolTip(epoch_is_mock_ ? tr("Demo data — no such transaction exists on-chain. "
+                                                             "Configure fincept.treasury_endpoint for real burn data.")
+                                                        : tr("Open burn transaction in Solscan"));
+    }
     // Re-render the LIVE/DEMO pill in the new locale.
     update_demo_chip(epoch_is_mock_ || burn_total_is_mock_);
 }
@@ -355,6 +360,9 @@ void BuybackBurnPanel::on_epoch_update(const QVariant& v) {
     const QString window_text =
         QStringLiteral("epoch %1 · %2").arg(e.epoch_no).arg(format_window(e.start_ts_ms, e.end_ts_ms));
     epoch_window_->setText(e.is_mock ? tr("SAMPLE DATA · %1").arg(window_text) : window_text);
+    // Badge the section the dollar figures sit in, not only the head caption.
+    if (epoch_section_title_)
+        epoch_section_title_->setText(e.is_mock ? tr("THIS EPOCH · SAMPLE DATA") : tr("THIS EPOCH"));
 
     revenue_total_->setText(format_usd(e.revenue_total_usd));
     revenue_split_->setText(tr("subs %1 · pred-mkt %2 · misc %3")
@@ -378,8 +386,17 @@ void BuybackBurnPanel::on_epoch_update(const QVariant& v) {
     fncpt_burned_->setText(QStringLiteral("%1 $FNCPT").arg(format_token_compact(e.fncpt_burned_raw, e.fncpt_decimals)));
 
     current_burn_signature_ = e.burn_signature;
-    burn_signature_link_->setText(e.burn_signature.isEmpty() ? QStringLiteral("—")
-                                                             : truncate_signature(e.burn_signature));
+    if (e.is_mock) {
+        // No transaction exists behind demo data; an underlined link-looking
+        // placeholder that does nothing when clicked reads as a broken link.
+        burn_signature_link_->setText(tr("demo — no on-chain tx"));
+        burn_signature_link_->setToolTip(tr("Demo data — no such transaction exists on-chain. "
+                                            "Configure fincept.treasury_endpoint for real burn data."));
+    } else {
+        burn_signature_link_->setText(e.burn_signature.isEmpty() ? QStringLiteral("—")
+                                                                 : truncate_signature(e.burn_signature));
+        burn_signature_link_->setToolTip(tr("Open burn transaction in Solscan"));
+    }
 
     clear_error_strip();
 }
@@ -390,6 +407,11 @@ void BuybackBurnPanel::on_burn_total_update(const QVariant& v) {
     const auto t = v.value<fincept::wallet::BurnTotal>();
     burn_total_is_mock_ = t.is_mock;
     update_demo_chip(epoch_is_mock_ || burn_total_is_mock_);
+    // The all-time figures (burned, remaining supply, spend) are the most
+    // quotable numbers on the screen — state the sample status in their title,
+    // not only in the pill at the far edge of the head.
+    if (alltime_section_title_)
+        alltime_section_title_->setText(burn_total_is_mock_ ? tr("ALL-TIME · SAMPLE DATA") : tr("ALL-TIME"));
 
     total_burned_->setText(QStringLiteral("%1 $FNCPT").arg(format_token_compact(t.total_burned_raw, t.decimals)));
     supply_remaining_->setText(

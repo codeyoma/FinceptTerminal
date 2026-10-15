@@ -3,6 +3,7 @@
 // in this TU so the main file stays smaller.
 
 #include "services/llm/LlmContentExtractors.h"
+#include "services/llm/LlmRequestPolicy.h"
 #include "services/llm/LlmService.h"
 
 #include <QCoreApplication>
@@ -16,10 +17,38 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QString>
+#include <QThreadStorage>
 #include <QTimer>
 #include <QUrl>
 
 namespace fincept::ai_chat {
+
+// ── Per-thread QNetworkAccessManager ───────────────────────────────────────
+// Every request used to build (and tear down) its own QNAM — which means its
+// own internal HTTP thread and a fresh TCP + TLS handshake (~100-300 ms) for
+// every chat turn, every tool-loop round and every Fincept status poll. One QNAM
+// per thread keeps keep-alive connections across all of those: a tool loop
+// re-posts to the same host from the same worker thread round after round.
+//
+// QThreadStorage owns it: the QNAM is deleted on its own thread when that thread
+// exits, from QThreadPrivate::finish() BEFORE the thread's event dispatcher is
+// destroyed, so socket teardown happens while a dispatcher still exists (the
+// constraint the old heap-allocate + deleteLater + drain dance existed for).
+//
+// Cookies are neither sent nor stored on requests through it (see
+// prepare_thread_nam_request) — a fresh per-request QNAM never carried any, and
+// a shared jar must not start replaying cookies from earlier responses.
+QNetworkAccessManager* LlmService::thread_nam() {
+    static QThreadStorage<QNetworkAccessManager*> tls_nam;
+    if (!tls_nam.hasLocalData())
+        tls_nam.setLocalData(new QNetworkAccessManager);
+    return tls_nam.localData();
+}
+
+void LlmService::prepare_thread_nam_request(QNetworkRequest& req) {
+    req.setAttribute(QNetworkRequest::CookieLoadControlAttribute, QNetworkRequest::Manual);
+    req.setAttribute(QNetworkRequest::CookieSaveControlAttribute, QNetworkRequest::Manual);
+}
 
 // ── Provider error-body → message ──────────────────────────────────────────
 // Shared by the blocking (eventloop_request) and streaming (do_streaming_request)
@@ -59,14 +88,34 @@ QString parse_server_error_message(const QByteArray& body) {
     return server_msg;
 }
 
+// HTTP statuses that mean "the provider did not process this request": rate
+// limiting and transient upstream/overload errors (529 is Anthropic's
+// "overloaded"). A tool loop re-posts the whole transcript every round, so one
+// blip on round 7 used to throw away six rounds of tool work; one retry after a
+// short backoff recovers the common case without hiding a persistent failure.
+static bool llm_http_is_transient_status(int status) {
+    return status == 429 || status == 500 || status == 502 || status == 503 || status == 504 || status == 529;
+}
+
 // ── Blocking POST ──────────────────────────────────────────────────────────
 // Background-thread only. Delegates to eventloop_request which works for
 // Cloudflare-protected endpoints (the old waitForReadyRead() path failed
-// during TLS negotiation behind Cloudflare).
+// during TLS negotiation behind Cloudflare). Retries once on a transient
+// status (see above).
 LlmService::HttpResult LlmService::blocking_post(const QString& url, const QJsonObject& body,
                                                  const QMap<QString, QString>& headers, int timeout_ms) {
     QByteArray json_data = QJsonDocument(body).toJson(QJsonDocument::Compact);
-    return eventloop_request("POST", url, json_data, headers, timeout_ms);
+    HttpResult r = eventloop_request("POST", url, json_data, headers, timeout_ms);
+    if (!r.success && !r.cancelled && llm_http_is_transient_status(r.status)) {
+        // Honour Retry-After when the provider sends one, within sane bounds.
+        const int backoff_ms = std::clamp(r.retry_after_s * 1000, 2000, 15000);
+        LOG_WARN("LlmService", QString("POST failed with HTTP %1 — retrying once in %2 ms").arg(r.status).arg(backoff_ms));
+        if (detail::cancellable_sleep(backoff_ms))
+            r = eventloop_request("POST", url, json_data, headers, timeout_ms);
+        else
+            r.cancelled = true;
+    }
+    return r;
 }
 
 // ── Blocking GET ───────────────────────────────────────────────────────────
@@ -84,20 +133,21 @@ LlmService::HttpResult LlmService::eventloop_request(const QString& method, cons
     HttpResult result;
 
     // ── Lifetime note ─────────────────────────────────────────────────────────
-    // The QNetworkAccessManager and its QNetworkReply MUST outlive the local
-    // QEventLoop *and* drain pending DeferredDelete events before this
-    // function returns. A stack-allocated QNAM here used to crash the main
-    // thread hours later (issue: KERN_INVALID_ADDRESS @ 0x3f inside
-    // QIODevice::channelReadyRead via qt_mac_socket_callback) — Qt's macOS
-    // CFSocket bridge fires runloop callbacks against socket QObjects whose
-    // d_ptr has been torn down with the NAM. Heap-allocate and explicitly
-    // process DeferredDelete so the socket-notifier teardown completes
-    // before the function returns.
-    auto* nam = new QNetworkAccessManager;
+    // The QNetworkReply MUST outlive the local QEventLoop *and* its
+    // DeferredDelete must be drained before this function returns. A
+    // stack-allocated QNAM here used to crash the main thread hours later
+    // (issue: KERN_INVALID_ADDRESS @ 0x3f inside QIODevice::channelReadyRead
+    // via qt_mac_socket_callback) — Qt's macOS CFSocket bridge fires runloop
+    // callbacks against socket QObjects whose d_ptr has been torn down with the
+    // NAM. The NAM is now the thread's long-lived one (thread_nam(), deleted at
+    // thread exit while the dispatcher still exists); the reply is still
+    // deleteLater'd and drained here.
+    QNetworkAccessManager* nam = thread_nam();
     QNetworkRequest req{QUrl(url)};
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     for (auto it = headers.constBegin(); it != headers.constEnd(); ++it)
         req.setRawHeader(it.key().toUtf8(), it.value().toUtf8());
+    prepare_thread_nam_request(req);
 
     QNetworkReply* reply = (method == "GET") ? nam->get(req) : nam->post(req, body);
 
@@ -107,19 +157,29 @@ LlmService::HttpResult LlmService::eventloop_request(const QString& method, cons
     timer.start(timeout_ms);
     QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
     QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    // A POST to a slow reasoning model can sit here for the full timeout; poll the
+    // cancel flag so a user's Stop takes effect within ~100 ms instead.
+    QTimer cancel_poll;
+    cancel_poll.setInterval(100);
+    QObject::connect(&cancel_poll, &QTimer::timeout, &loop, [&loop]() {
+        if (detail::cancel_requested())
+            loop.quit();
+    });
+    cancel_poll.start();
     loop.exec();
+    cancel_poll.stop();
 
     auto drain = [&]() {
         reply->deleteLater();
-        nam->deleteLater();
-        // Drain DeferredDelete events on the current thread so the NAM and
-        // its socket subscribers tear down while a dispatcher still exists.
+        // Drain DeferredDelete events on the current thread so the reply tears
+        // down while a dispatcher still exists.
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     };
 
     if (!reply->isFinished()) {
         reply->abort();
-        result.error = "Request timed out";
+        result.cancelled = detail::cancel_requested();
+        result.error = result.cancelled ? QStringLiteral("Request cancelled") : QStringLiteral("Request timed out");
         drain();
         return result;
     }
@@ -128,9 +188,17 @@ LlmService::HttpResult LlmService::eventloop_request(const QString& method, cons
     result.body = reply->readAll();
     result.success = (result.status >= 200 && result.status < 300);
     if (!result.success) {
+        bool ok = false;
+        const int retry_after = QString::fromLatin1(reply->rawHeader("Retry-After")).trimmed().toInt(&ok);
+        result.retry_after_s = ok && retry_after > 0 ? retry_after : 0;
         const QString server_msg = parse_server_error_message(result.body);
-        result.error = server_msg.isEmpty() ? QString("HTTP %1: %2").arg(result.status).arg(reply->errorString())
-                                            : QString("HTTP %1: %2").arg(result.status).arg(server_msg);
+        // status == 0 is a transport failure (DNS, refused, TLS) — "HTTP 0:" in
+        // front of Qt's message read as a server reply that never happened.
+        if (server_msg.isEmpty())
+            result.error = result.status > 0 ? QString("HTTP %1: %2").arg(result.status).arg(reply->errorString())
+                                             : reply->errorString();
+        else
+            result.error = QString("HTTP %1: %2").arg(result.status).arg(server_msg);
     }
     drain();
     return result;
@@ -207,6 +275,14 @@ LlmService::SseDelta LlmService::parse_sse_chunk(const QString& data, const QStr
 
 // ── Token usage extraction ─────────────────────────────────────────────────
 void LlmService::parse_usage(LlmResponse& resp, const QJsonObject& rj, const QString& provider) {
+    if (rj.contains("usageMetadata")) { // Gemini generateContent
+        const QJsonObject g = rj["usageMetadata"].toObject();
+        resp.prompt_tokens = g["promptTokenCount"].toInt();
+        resp.completion_tokens = g["candidatesTokenCount"].toInt();
+        resp.total_tokens = g.contains("totalTokenCount") ? g["totalTokenCount"].toInt()
+                                                          : resp.prompt_tokens + resp.completion_tokens;
+        return;
+    }
     if (!rj.contains("usage"))
         return;
     QJsonObject u = rj["usage"].toObject();

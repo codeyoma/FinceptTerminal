@@ -34,6 +34,9 @@
 #include <QVBoxLayout>
 #include <QVariant>
 
+#include <cmath>
+#include <limits>
+
 namespace fincept::surface {
 
 using namespace fincept::ui;
@@ -121,13 +124,23 @@ void SurfaceAnalyticsScreen::load_demo_data() {
 // ── Chart routing ─────────────────────────────────────────────────────────────
 void SurfaceAnalyticsScreen::update_chart() {
     auto minmax = [](const std::vector<std::vector<float>>& z, float& mn, float& mx) {
-        mn = 9999;
-        mx = -9999;
+        // Seeded with +/-infinity, not +/-9999: a grid whose values all sit above 9999
+        // (index-futures prices, NQ ~20,000) never lowered a 9999 minimum, so the
+        // surface was scaled from a floor that isn't in the data. Non-finite cells are
+        // skipped; an empty / all-NaN grid falls back to a unit range.
+        mn = std::numeric_limits<float>::infinity();
+        mx = -std::numeric_limits<float>::infinity();
         for (const auto& row : z)
             for (float v : row) {
+                if (!std::isfinite(v))
+                    continue;
                 mn = std::min(mn, v);
                 mx = std::max(mx, v);
             }
+        if (mn > mx) {
+            mn = 0.0f;
+            mx = 1.0f;
+        }
     };
 
     auto fmt_strikes = [](const std::vector<float>& s) {
@@ -291,9 +304,31 @@ void SurfaceAnalyticsScreen::update_chart() {
                 break;
             case ChartType::MonetaryPolicyPath:
                 r_labels = monetary_data_.central_banks;
-                for (int m : monetary_data_.meetings_ahead)
-                    c_labels.push_back("Mtg" + std::to_string(m));
+                if (!monetary_data_.step_labels.empty()) {
+                    c_labels = monetary_data_.step_labels; // fetched: contract months
+                } else {
+                    for (int m : monetary_data_.meetings_ahead)
+                        c_labels.push_back("Mtg" + std::to_string(m));
+                }
                 zptr = &monetary_data_.z;
+                break;
+            case ChartType::ForwardRate:
+                for (int st : fwd_rate_data_.start_tenors)
+                    r_labels.push_back("+" + std::to_string(st) + "M");
+                for (int w : fwd_rate_data_.forward_periods)
+                    c_labels.push_back(std::to_string(w) + "M");
+                zptr = &fwd_rate_data_.z;
+                break;
+            case ChartType::FXForwardPoints:
+                r_labels = fx_fwd_data_.pairs;
+                if (!fx_fwd_data_.tenor_labels.empty()) {
+                    c_labels = fx_fwd_data_.tenor_labels; // fetched: deferred contracts
+                } else {
+                    for (int t : fx_fwd_data_.tenors)
+                        c_labels.push_back(std::to_string(t) + "M");
+                }
+                zptr = &fx_fwd_data_.z;
+                div = true;
                 break;
             default:
                 break;
@@ -370,7 +405,10 @@ void SurfaceAnalyticsScreen::update_chart() {
                 std::snprintf(b, 16, "%dM", m);
                 ml.push_back(b);
             }
-            surface_3d_->set_surface(yield_data_.z, "MATURITY", "YIELD %", "TIME", mn, mx, false, &ml, nullptr);
+            // Fetched data labels its rows with settlement dates; the sample has none.
+            const bool dated = yield_data_.time_labels.size() == yield_data_.z.size();
+            surface_3d_->set_surface(yield_data_.z, "MATURITY", "YIELD %", dated ? "DATE" : "TIME", mn, mx, false,
+                                     &ml, dated ? &yield_data_.time_labels : nullptr);
             break;
         }
         case ChartType::SwaptionVol: {
@@ -431,8 +469,12 @@ void SurfaceAnalyticsScreen::update_chart() {
         }
         case ChartType::FXForwardPoints: {
             minmax(fx_fwd_data_.z, mn, mx);
-            auto tl = fmt_months(fx_fwd_data_.tenors);
-            surface_3d_->set_surface(fx_fwd_data_.z, "TENOR", "FWD PTS", "PAIR", mn, mx, true, &tl, nullptr);
+            // Fetched futures data counts deferred contracts (C+1 ...), not months.
+            const bool contracts = fx_fwd_data_.tenor_labels.size() == fx_fwd_data_.tenors.size() &&
+                                   !fx_fwd_data_.tenor_labels.empty();
+            auto tl = contracts ? fx_fwd_data_.tenor_labels : fmt_months(fx_fwd_data_.tenors);
+            surface_3d_->set_surface(fx_fwd_data_.z, contracts ? "CONTRACT" : "TENOR", "FWD PTS", "PAIR", mn, mx, true,
+                                     &tl, &fx_fwd_data_.pairs);
             break;
         }
         case ChartType::CrossCurrencyBasis: {
@@ -584,14 +626,22 @@ void SurfaceAnalyticsScreen::update_chart() {
         }
         case ChartType::MonetaryPolicyPath: {
             minmax(monetary_data_.z, mn, mx);
+            // Fetched futures data steps by contract month ("Oct 26"); the sample steps by meeting.
+            const bool monthly = monetary_data_.step_labels.size() == monetary_data_.meetings_ahead.size() &&
+                                 !monetary_data_.step_labels.empty();
             std::vector<std::string> ml;
-            for (int m : monetary_data_.meetings_ahead) {
-                char b[8];
-                std::snprintf(b, 8, "Mtg%d", m);
-                ml.push_back(b);
+            if (monthly) {
+                ml = monetary_data_.step_labels;
+            } else {
+                for (int m : monetary_data_.meetings_ahead) {
+                    char b[8];
+                    std::snprintf(b, 8, "Mtg%d", m);
+                    ml.push_back(b);
+                }
             }
-            surface_3d_->set_surface(monetary_data_.z, "MEETING", "RATE %", "CENTRAL BANK", mn, mx, false, &ml,
-                                     nullptr);
+            surface_3d_->set_surface(monetary_data_.z, monthly ? "MONTH" : "MEETING", "RATE %",
+                                     monthly ? "SERIES" : "CENTRAL BANK", mn, mx, false, &ml,
+                                     &monetary_data_.central_banks);
             break;
         }
         default:
@@ -611,7 +661,10 @@ void SurfaceAnalyticsScreen::update_metrics() {
         control_panel_->update_metrics({});
     // The panel's "Spot:" readout had no writer at all — it always showed a
     // dash. Fill it from the same resolver the fetch path uses.
-    control_panel_->set_spot(double(spot_for(current_symbol_or_default())));
+    // Show only a REAL quote - the 100.0 placeholder is not a price, and this label
+    // sits next to the FETCH button as the "spot" a fetch will use.
+    const QString sym = current_symbol_or_default();
+    control_panel_->set_spot(has_live_spot(sym) ? double(spot_for(sym)) : 0.0);
 }
 
 const std::vector<std::vector<float>>* SurfaceAnalyticsScreen::active_z_grid() const {
@@ -716,6 +769,10 @@ void SurfaceAnalyticsScreen::update_inspector_lineage() {
     // metadata.get_cost takes a single schema. Use the first listed.
     if (cap.tier == SurfaceTier::DEMO || !control_panel_)
         return;
+    // The rates/FX curves query a fixed set of continuous futures symbols, not the panel's symbol,
+    // so a cost quote built from the panel state would price the wrong request.
+    if (QString::fromUtf8(cap.symbology) == QLatin1String("continuous"))
+        return;
     auto& svc = DatabentoService::instance();
     if (!svc.has_api_key())
         return;
@@ -776,7 +833,12 @@ void SurfaceAnalyticsScreen::update_line_view() {
                 xs.push_back((float)yield_data_.maturities[i]);
                 ys.push_back(yield_data_.z[0].size() > i ? yield_data_.z[0][i] : 0.0f);
             }
-            surface_line_->set_curve("YIELD CURVE", xs, ys, fmt_months_str(yield_data_.maturities), "Maturity (months)",
+            // Fetched data: row 0 is the newest settlement date — name it.
+            const QString title = yield_data_.time_labels.empty()
+                                      ? QStringLiteral("YIELD CURVE")
+                                      : QStringLiteral("YIELD CURVE  %1")
+                                            .arg(QString::fromStdString(yield_data_.time_labels.front()));
+            surface_line_->set_curve(title, xs, ys, fmt_months_str(yield_data_.maturities), "Maturity (months)",
                                      "Yield %", QColor(63, 185, 80));
             return;
         }
@@ -841,7 +903,10 @@ void SurfaceAnalyticsScreen::update_line_view() {
                 s.color = palette[i % 4];
                 series.push_back(s);
             }
-            surface_line_->set_series("FX FORWARD POINTS", series, "Tenor (months)", "Fwd points");
+            surface_line_->set_series("FX FORWARD POINTS", series,
+                                      fx_fwd_data_.tenor_labels.empty() ? "Tenor (months)"
+                                                                        : "Deferred contract (C+n, expiry order)",
+                                      "Fwd points");
             return;
         }
         case ChartType::InflationExpectations: {
@@ -872,7 +937,10 @@ void SurfaceAnalyticsScreen::update_line_view() {
                 s.color = palette[i % 4];
                 series.push_back(s);
             }
-            surface_line_->set_series("RATE PATH", series, "Meetings ahead", "Rate %");
+            surface_line_->set_series("RATE PATH", series,
+                                      monetary_data_.step_labels.empty() ? "Meetings ahead"
+                                                                         : "Contract months ahead (0 = current month)",
+                                      "Rate %");
             return;
         }
         default:

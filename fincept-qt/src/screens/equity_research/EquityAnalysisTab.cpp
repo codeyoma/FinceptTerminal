@@ -15,6 +15,7 @@
 
 #include "core/currency/Currency.h"
 #include "screens/equity_research/EquityValuationUnits.h"
+#include "screens/equity_research/EquityResearchFormat.h"
 #include "services/equity/EquityResearchService.h"
 #include "ui/theme/Theme.h"
 
@@ -204,8 +205,17 @@ EquityAnalysisTab::EquityAnalysisTab(QWidget* parent) : QWidget(parent) {
     // fetch left "LOADING ANALYSIS…" spinning over the tab forever.
     connect(&svc, &services::equity::EquityResearchService::error_occurred, this,
             [this](const QString& ctx, const QString&) {
-                if (ctx == QLatin1String("Info") && loading_overlay_)
+                if (ctx != QLatin1String("Info"))
+                    return;
+                if (loading_overlay_)
                     loading_overlay_->hide_loading();
+                // No fundamentals arrived for this symbol: render the "no data" verdicts rather
+                // than leaving the previous symbol's ratings under the new symbol's name.
+                if (!info_loaded_ && !current_symbol_.isEmpty()) {
+                    services::equity::StockInfo none;
+                    none.symbol = current_symbol_;
+                    on_info_loaded(none);
+                }
             });
 }
 
@@ -215,6 +225,8 @@ void EquityAnalysisTab::set_symbol(const QString& symbol) {
     current_symbol_ = symbol;
     info_loaded_ = false;
     loading_overlay_->show_loading(tr("LOADING ANALYSIS…"));
+    // Shown lazily: the info the header bar already loaded is re-emitted from cache.
+    services::equity::EquityResearchService::instance().load_info_only(symbol);
 }
 
 void EquityAnalysisTab::build_ui() {
@@ -655,6 +667,8 @@ EquityAnalysisTab::Verdict EquityAnalysisTab::assess_growth_(const services::equ
 
     v.line1 = tr("Revenue %1").arg(fmt_pct(s.revenue_growth));
     v.line2 = tr("Earnings %1").arg(fmt_pct(s.earnings_growth));
+    // yfinance growth fields compare the latest quarter with the year-ago quarter.
+    v.line3 = tr("latest quarter, YoY");
 
     const double g = s.revenue_growth != 0.0 ? s.revenue_growth : s.earnings_growth;
     if (g > 0.20) {
@@ -668,11 +682,11 @@ EquityAnalysisTab::Verdict EquityAnalysisTab::assess_growth_(const services::equ
     } else if (g >= -0.02) {
         v.rating_key = QT_TR_NOOP("FLAT");
         v.tone = Tone::Neutral;
-        v.rationale = tr("Revenue is roughly unchanged year over year.");
+        v.rationale = tr("Latest-quarter revenue is roughly unchanged year over year.");
     } else {
         v.rating_key = QT_TR_NOOP("DECLINING");
         v.tone = Tone::Bad;
-        v.rationale = tr("Revenue is contracting year over year.");
+        v.rationale = tr("Latest-quarter revenue is below the year-ago quarter.");
     }
     return v;
 }

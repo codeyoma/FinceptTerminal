@@ -1,14 +1,18 @@
 #include "screens/info/ContactScreen.h"
 
+#include "core/events/EventBus.h"
 #include "ui/theme/Theme.h"
+#include "ui/widgets/EnterprisePromo.h"
 
 #include <QDesktopServices>
 #include <QEvent>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMetaMethod>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QShowEvent>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -33,7 +37,9 @@ static QLabel* make_header(const QString& icon, const QString& title, const QStr
     return lbl;
 }
 
-static QWidget* make_contact_card(const QString& title, const QString& value, const QString& detail) {
+/// `url` (optional) turns the value into a link that opens in the browser.
+static QWidget* make_contact_card(const QString& title, const QString& value, const QString& detail,
+                                  const QString& url = {}) {
     auto* card = new QWidget(nullptr);
     card->setStyleSheet(PANEL());
     auto* vl = new QVBoxLayout(card);
@@ -46,7 +52,18 @@ static QWidget* make_contact_card(const QString& title, const QString& value, co
                          .arg(colors::TEXT_SECONDARY(), MF));
     vl->addWidget(t);
 
-    auto* v = new QLabel(value);
+    auto* v = new QLabel;
+    if (url.isEmpty()) {
+        v->setText(value);
+    } else {
+        v->setTextFormat(Qt::RichText);
+        v->setText(QStringLiteral("<a href=\"%1\" style=\"color:%2;text-decoration:none;\">%3</a>")
+                       .arg(url.toHtmlEscaped(), QString(colors::AMBER()), value.toHtmlEscaped()));
+        v->setTextInteractionFlags(Qt::LinksAccessibleByMouse | Qt::LinksAccessibleByKeyboard);
+        v->setCursor(Qt::PointingHandCursor);
+        v->setToolTip(url);
+        QObject::connect(v, &QLabel::linkActivated, v, [](const QString& link) { enterprise::open_url(link); });
+    }
     v->setStyleSheet(QString("color: %1; font-size: 13px; font-weight: 600; background: transparent; %2")
                          .arg(colors::TEXT_PRIMARY(), MF));
     vl->addWidget(v);
@@ -73,8 +90,19 @@ ContactScreen::ContactScreen(QWidget* parent) : QWidget(parent) {
     scroll_ = new QScrollArea;
     scroll_->setWidgetResizable(true);
     scroll_->setStyleSheet("QScrollArea { border: none; background: transparent; }");
-    scroll_->setWidget(build_page());
     root->addWidget(scroll_, 1);
+    // The page itself is built on first show (see showEvent): this screen is
+    // constructed eagerly for the pre-login info stack, and a full page of
+    // labels with per-widget stylesheets is wasted work for a screen that is
+    // usually never opened.
+}
+
+void ContactScreen::showEvent(QShowEvent* event) {
+    QWidget::showEvent(event);
+    if (!page_built_) {
+        page_built_ = true;
+        scroll_->setWidget(build_page());
+    }
 }
 
 // ── Re-translation ────────────────────────────────────────────────────────────
@@ -83,7 +111,7 @@ ContactScreen::ContactScreen(QWidget* parent) : QWidget(parent) {
 // QScrollArea::setWidget() takes ownership and deletes the previous content.
 
 void ContactScreen::changeEvent(QEvent* event) {
-    if (event->type() == QEvent::LanguageChange && scroll_) {
+    if (event->type() == QEvent::LanguageChange && scroll_ && page_built_) {
         scroll_->setWidget(build_page());
     }
     QWidget::changeEvent(event);
@@ -98,14 +126,22 @@ QWidget* ContactScreen::build_page() {
     vl->setContentsMargins(24, 24, 24, 24);
     vl->setSpacing(12);
 
+    // The pre-login info stack connects navigate_back to "return to login". A
+    // docked copy (opened from the Help menu once signed in) has no listener, so
+    // a BACK button there would be dead — omit it and let the dock tab's own
+    // close button do the job.
+    const bool in_auth_stack = isSignalConnected(QMetaMethod::fromSignal(&ContactScreen::navigate_back));
+
     // ── Header ───────────────────────────────────────────────────────────────
-    auto* back_btn = new QPushButton(tr("< BACK"));
-    back_btn->setCursor(Qt::PointingHandCursor);
-    back_btn->setStyleSheet(QString("QPushButton { color: %1; background: transparent; border: none; "
-                                    "font-size: 12px; %2 } QPushButton:hover { color: %3; }")
-                                .arg(colors::TEXT_SECONDARY(), MF, colors::TEXT_PRIMARY()));
-    connect(back_btn, &QPushButton::clicked, this, &ContactScreen::navigate_back);
-    vl->addWidget(back_btn, 0, Qt::AlignLeft);
+    if (in_auth_stack) {
+        auto* back_btn = new QPushButton(tr("< BACK"));
+        back_btn->setCursor(Qt::PointingHandCursor);
+        back_btn->setStyleSheet(QString("QPushButton { color: %1; background: transparent; border: none; "
+                                        "font-size: 12px; %2 } QPushButton:hover { color: %3; }")
+                                    .arg(colors::TEXT_SECONDARY(), MF, colors::TEXT_PRIMARY()));
+        connect(back_btn, &QPushButton::clicked, this, &ContactScreen::navigate_back);
+        vl->addWidget(back_btn, 0, Qt::AlignLeft);
+    }
 
     auto* title = new QLabel(tr("CONTACT US"));
     title->setStyleSheet(QString("color: %1; font-size: 20px; font-weight: 700; letter-spacing: 1px; "
@@ -155,6 +191,11 @@ QWidget* ContactScreen::build_page() {
         grid->addWidget(make_contact_card(tr("IN-APP TICKETS"), tr("Support tab"),
                                           tr("Open a tracked ticket from inside the terminal")),
                         1, 1);
+        grid->addWidget(make_contact_card(tr("ENTERPRISE DEMO"), tr("Book a walkthrough ↗"),
+                                          tr("Fincept Terminal Enterprise — the private edition for funds, family "
+                                             "offices and research desks. Separate product, separate account."),
+                                          enterprise::demo_url()),
+                        2, 0, 1, 2);
 
         pvl->addWidget(body);
         vl->addWidget(panel);
@@ -206,6 +247,18 @@ QWidget* ContactScreen::build_page() {
             QDesktopServices::openUrl(QUrl("https://github.com/Fincept-Corporation/FinceptTerminal/issues"));
         });
         hl->addWidget(github_btn);
+
+        // Signed in (docked copy): the "IN-APP TICKETS" channel above is one click
+        // away, so offer it instead of leaving it as a description.
+        if (!in_auth_stack) {
+            auto* tickets_btn = make_action(tr("Open Support Tab"));
+            tickets_btn->setAccessibleName(tr("Open the in-app support tickets tab"));
+            connect(tickets_btn, &QPushButton::clicked, this, []() {
+                EventBus::instance().publish(QStringLiteral("nav.switch_screen"),
+                                             QVariantMap{{QStringLiteral("screen_id"), QStringLiteral("support")}});
+            });
+            hl->addWidget(tickets_btn);
+        }
 
         hl->addStretch();
         setTabOrder(email_btn, discord_btn);

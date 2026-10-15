@@ -3,6 +3,8 @@
 #include <QJsonArray>
 #include <QLabel>
 #include <QLineEdit>
+#include <QList>
+#include <QPair>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSplitter>
@@ -27,6 +29,9 @@ class SupportScreen : public QWidget {
 
   protected:
     void changeEvent(QEvent* event) override;
+    /// Refresh the ticket list when the panel is shown again after a while —
+    /// replies from the support team otherwise only appeared on a manual ↻.
+    void showEvent(QShowEvent* event) override;
 
   private:
     // ── Layout ────────────────────────────────────────────────────────────────
@@ -77,20 +82,27 @@ class SupportScreen : public QWidget {
     QPushButton* close_btn_ = nullptr;
     QPushButton* reopen_btn_ = nullptr;
     QWidget* reply_box_ = nullptr;
-    QWidget* demo_box_ = nullptr;
     QWidget* closed_box_ = nullptr;
 
     // ── State ─────────────────────────────────────────────────────────────────
     int selected_ticket_id_ = -1;
-    bool selected_is_demo_ = false;
     bool selected_is_closed_ = false;
     QPushButton* active_row_btn_ = nullptr; // currently highlighted sidebar row
 
-    /// Last successfully-fetched ticket set (plus the demo row). Cached so the
-    /// search box and status filter can re-render the sidebar without a network
-    /// round-trip.
+    /// Last successfully-fetched ticket set. Cached so the search box and status
+    /// filter can re-render the sidebar without a network round-trip, and kept
+    /// (last-known-good) when a refresh fails.
     QJsonArray all_tickets_;
     bool load_failed_ = false;
+    /// Wall-clock ms of the last load_tickets() call; showEvent() only refetches
+    /// when the data is older than a minute.
+    qint64 last_load_ms_ = 0;
+    /// Categories the support API returned as (display text, API key) pairs.
+    /// Kept so a language switch — which rebuilds the create page with its
+    /// default category list — can restore the server-provided set.
+    QList<QPair<QString, QString>> server_categories_;
+    /// Fill category_combo_ from server_categories_ (no-op until the API answered).
+    void populate_category_combo();
 
     // ── Builders ─────────────────────────────────────────────────────────────
     QWidget* build_sidebar();
@@ -111,6 +123,13 @@ class SupportScreen : public QWidget {
     /// and the status filter combo. Called by load_tickets() and whenever
     /// either control changes — no refetch.
     void rebuild_ticket_rows();
+
+    /// Show a ticket from the cached list in the detail pane, then fetch its
+    /// full record (description + conversation) from the API.
+    void open_ticket(const QJsonObject& ticket);
+    void load_ticket_details(int ticket_id);
+    /// Header / meta / reply-box state for `status` ("open", "resolved", …).
+    void apply_detail_status(const QString& status);
 
     // ── Slots ─────────────────────────────────────────────────────────────────
     void load_tickets();

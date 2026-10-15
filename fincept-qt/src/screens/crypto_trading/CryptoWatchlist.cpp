@@ -1,12 +1,18 @@
 // CryptoWatchlist.cpp — compact watchlist, 3-column, no horizontal scroll
 #include "screens/crypto_trading/CryptoWatchlist.h"
 
+#include "core/events/EventBus.h"
 #include "core/symbol/SymbolDragSource.h"
 #include "core/symbol/SymbolRef.h"
+#include "screens/crypto_trading/CryptoTypes.h"
 #include "ui/theme/Theme.h"
 
+#include <QApplication>
+#include <QClipboard>
 #include <QHBoxLayout>
+#include <QHash>
 #include <QHeaderView>
+#include <QMenu>
 #include <QMutexLocker>
 #include <QVBoxLayout>
 
@@ -79,6 +85,11 @@ CryptoWatchlist::CryptoWatchlist(QWidget* parent) : QWidget(parent) {
     connect(filter_edit_, &QLineEdit::textChanged, this, &CryptoWatchlist::on_filter_changed);
     layout->addWidget(filter_edit_);
 
+    search_timer_ = new QTimer(this); // UI-only debounce, not a data-refresh timer
+    search_timer_->setSingleShot(true);
+    search_timer_->setInterval(250);
+    connect(search_timer_, &QTimer::timeout, this, [this]() { emit search_requested(pending_search_); });
+
     // Table — 3 columns: Symbol | Price | Chg%
     // No horizontal scrollbar — all 3 columns fit the watchlist width.
     table_ = new QTableWidget;
@@ -99,6 +110,8 @@ CryptoWatchlist::CryptoWatchlist(QWidget* parent) : QWidget(parent) {
     table_->verticalHeader()->setDefaultSectionSize(22);
 
     connect(table_, &QTableWidget::cellClicked, this, &CryptoWatchlist::on_cell_clicked);
+    table_->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(table_, &QTableWidget::customContextMenuRequested, this, &CryptoWatchlist::show_row_menu);
     layout->addWidget(table_, 1);
 
     // Drag-out: hold-and-drag a pair row to ship it to any drop target — drop
@@ -216,16 +229,9 @@ void CryptoWatchlist::update_prices(const QVector<trading::TickerData>& tickers)
         if (!sym_item || !price_item || !chg_item)
             continue;
 
-        // Format price — fewer decimals for large prices to save width
-        QString price_str;
-        if (e.price >= 1000.0)
-            price_str = QString::number(e.price, 'f', 2);
-        else if (e.price >= 1.0)
-            price_str = QString::number(e.price, 'f', 4);
-        else
-            price_str = QString::number(e.price, 'f', 6);
-
-        price_item->setText(price_str);
+        // Magnitude-scaled precision (same as the rest of the screen) — the old
+        // fixed 6 dp rendered a 0.0000085 pair as "0.000009".
+        price_item->setText(format_price_plain(e.price));
         price_item->setForeground(kColorPrimary());
 
         chg_item->setText(QString("%1%").arg(e.change_pct, 0, 'f', 2));
@@ -262,11 +268,59 @@ void CryptoWatchlist::on_cell_clicked(int row, int /*col*/) {
         emit symbol_selected(item->text());
 }
 
+void CryptoWatchlist::show_row_menu(const QPoint& pos) {
+    auto* item = table_->itemAt(pos);
+    if (!item)
+        return;
+    auto* sym_item = table_->item(item->row(), 0);
+    const QString pair = sym_item ? sym_item->text().trimmed() : QString();
+    if (pair.isEmpty())
+        return;
+    // News is a substring search over headlines: coin names ("Bitcoin") appear there far more
+    // often than tickers ("BTC"), so search the name for the majors and the ticker otherwise.
+    const QString base = pair.section(QLatin1Char('/'), 0, 0).section(QLatin1Char(':'), 0, 0).toUpper();
+    static const QHash<QString, QString> kCoinNames = {
+        {QStringLiteral("BTC"), QStringLiteral("Bitcoin")},   {QStringLiteral("XBT"), QStringLiteral("Bitcoin")},
+        {QStringLiteral("ETH"), QStringLiteral("Ethereum")},  {QStringLiteral("SOL"), QStringLiteral("Solana")},
+        {QStringLiteral("XRP"), QStringLiteral("XRP")},       {QStringLiteral("DOGE"), QStringLiteral("Dogecoin")},
+        {QStringLiteral("XDG"), QStringLiteral("Dogecoin")},  {QStringLiteral("ADA"), QStringLiteral("Cardano")},
+        {QStringLiteral("AVAX"), QStringLiteral("Avalanche")}, {QStringLiteral("DOT"), QStringLiteral("Polkadot")},
+        {QStringLiteral("LINK"), QStringLiteral("Chainlink")}, {QStringLiteral("LTC"), QStringLiteral("Litecoin")},
+        {QStringLiteral("TRX"), QStringLiteral("Tron")},      {QStringLiteral("TON"), QStringLiteral("Toncoin")},
+        {QStringLiteral("SHIB"), QStringLiteral("Shiba")},    {QStringLiteral("BNB"), QStringLiteral("BNB")},
+    };
+    const QString news_query = kCoinNames.value(base, base);
+
+    auto open_in = [](const QString& screen_id, const QString& symbol, const QString& asset_class) {
+        EventBus::instance().publish(QStringLiteral("nav.open_symbol"),
+                                     {{QStringLiteral("screen_id"), screen_id},
+                                      {QStringLiteral("symbol"), symbol},
+                                      {QStringLiteral("asset_class"), asset_class}});
+    };
+    QMenu menu(this);
+    connect(menu.addAction(tr("Open in News (\"%1\")").arg(news_query)), &QAction::triggered, this,
+            [open_in, news_query]() { open_in(QStringLiteral("news"), news_query, QStringLiteral("equity")); });
+    // Equity Research maps a crypto pair onto its yfinance symbol (BTC/USDT -> BTC-USD); drop a
+    // perpetual's settlement suffix ("BTC/USDC:USDC") first.
+    const QString research_pair = pair.section(QLatin1Char(':'), 0, 0);
+    connect(menu.addAction(tr("Open in Equity Research")), &QAction::triggered, this, [open_in, research_pair]() {
+        open_in(QStringLiteral("equity_research"), research_pair, QStringLiteral("crypto"));
+    });
+    menu.addSeparator();
+    connect(menu.addAction(tr("Copy Symbol")), &QAction::triggered, this,
+            [pair]() { QApplication::clipboard()->setText(pair); });
+    menu.exec(table_->viewport()->mapToGlobal(pos));
+}
+
 void CryptoWatchlist::on_filter_changed(const QString& text) {
     const QString filter = text.trimmed().toUpper();
     showing_search_ = (filter.length() >= 2);
-    if (showing_search_)
-        emit search_requested(filter);
+    if (showing_search_) {
+        pending_search_ = filter;
+        search_timer_->start(); // restarts the debounce window on every keystroke
+    } else {
+        search_timer_->stop();
+    }
     rebuild_table();
 }
 
@@ -352,14 +406,8 @@ void CryptoWatchlist::rebuild_table() {
 
         // Price — adaptive decimal places
         QString price_str = "--";
-        if (e.has_data) {
-            if (e.price >= 1000.0)
-                price_str = QString::number(e.price, 'f', 2);
-            else if (e.price >= 1.0)
-                price_str = QString::number(e.price, 'f', 4);
-            else
-                price_str = QString::number(e.price, 'f', 6);
-        }
+        if (e.has_data)
+            price_str = format_price_plain(e.price);
         ensure(1, price_str, e.has_data ? kColorPrimary() : kColorDim(), Qt::AlignRight | Qt::AlignVCenter);
 
         ensure(2, e.has_data ? QString("%1%").arg(e.change_pct, 0, 'f', 2) : QString("--"),

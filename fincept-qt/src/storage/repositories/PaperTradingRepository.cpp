@@ -136,13 +136,34 @@ Result<void> PaperTradingRepository::update_balance(const QString& id, double ne
 }
 
 Result<void> PaperTradingRepository::delete_portfolio(const QString& id) {
-    // Cascade via foreign keys, but be explicit for safety
-    exec_write("DELETE FROM pt_trades WHERE portfolio_id = ?", {id});
-    exec_write("DELETE FROM pt_positions WHERE portfolio_id = ?", {id});
-    exec_write("DELETE FROM pt_orders WHERE portfolio_id = ?", {id});
-    exec_write("DELETE FROM pt_margin_blocks WHERE portfolio_id = ?", {id});
-    exec_write("DELETE FROM pt_holdings WHERE portfolio_id = ?", {id});
-    return exec_write("DELETE FROM pt_portfolios WHERE id = ?", {id});
+    // Cascade via foreign keys, but be explicit for safety. Six statements whose
+    // results used to be discarded: a failure part-way left a half-deleted
+    // portfolio (orders gone, positions still there). All-or-nothing now; if the
+    // caller already holds a transaction, BEGIN fails and we join theirs.
+    const bool own_tx = db().begin_transaction().is_ok();
+    Result<void> r = Result<void>::ok();
+    for (const char* sql : {"DELETE FROM pt_trades WHERE portfolio_id = ?",
+                            "DELETE FROM pt_positions WHERE portfolio_id = ?",
+                            "DELETE FROM pt_orders WHERE portfolio_id = ?",
+                            "DELETE FROM pt_margin_blocks WHERE portfolio_id = ?",
+                            "DELETE FROM pt_holdings WHERE portfolio_id = ?",
+                            "DELETE FROM pt_portfolios WHERE id = ?"}) {
+        r = exec_write(QString::fromLatin1(sql), {id});
+        if (r.is_err())
+            break;
+    }
+    if (own_tx) {
+        if (r.is_ok()) {
+            auto c = db().commit();
+            if (c.is_err()) {
+                db().rollback();
+                return c;
+            }
+        } else {
+            db().rollback();
+        }
+    }
+    return r;
 }
 
 // ── Orders ───────────────────────────────────────────────────────────────────
@@ -177,6 +198,22 @@ Result<QVector<PtOrder>> PaperTradingRepository::get_orders(const QString& portf
     }
     sql += " ORDER BY created_at DESC";
     auto r = db().execute(sql, params);
+    if (r.is_err())
+        return Result<QVector<PtOrder>>::err(r.error());
+    QVector<PtOrder> result;
+    auto& q = r.value();
+    while (q.next())
+        result.append(map_order(q));
+    return Result<QVector<PtOrder>>::ok(std::move(result));
+}
+
+Result<QVector<PtOrder>> PaperTradingRepository::get_open_orders(const QString& portfolio_id) {
+    // Same ordering as get_orders(); idx_pt_orders_portfolio / idx_pt_orders_status
+    // (v001) serve the filter.
+    auto r = db().execute(QString("SELECT %1 FROM pt_orders WHERE portfolio_id = ? AND status IN ('pending', "
+                                  "'partial') ORDER BY created_at DESC")
+                              .arg(kOrderCols),
+                          {portfolio_id});
     if (r.is_err())
         return Result<QVector<PtOrder>>::err(r.error());
     QVector<PtOrder> result;

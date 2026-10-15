@@ -251,9 +251,11 @@ class StrategyService:
             # Risk parity optimization
             weights = self._calculate_risk_parity_weights(cov_matrix)
 
-            # Scale to target risk
-            portfolio_vol = np.sqrt(weights @ cov_matrix @ weights)
-            scale = target_risk / portfolio_vol
+            # Scale to target risk. target_risk is an ANNUAL volatility (docstring) but
+            # the covariance of periodic returns is per-period: annualise it (daily
+            # data, 252 periods) or the scale -- and the leverage -- is ~16x too high.
+            portfolio_vol = np.sqrt(weights @ cov_matrix.values @ weights) * np.sqrt(252)
+            scale = target_risk / portfolio_vol if portfolio_vol > 0 else 1.0
             scaled_weights = weights * scale
 
             strategy_id = f"risk_parity_{int(target_risk*100)}"
@@ -263,6 +265,8 @@ class StrategyService:
                 "strategy_id": strategy_id,
                 "strategy_type": "Risk Parity",
                 "weights": dict(zip(returns.columns, scaled_weights)),
+                "unscaled_weights": dict(zip(returns.columns, weights)),
+                "gross_exposure": float(np.sum(scaled_weights)),
                 "target_risk": target_risk,
                 "rebalance_frequency": rebalance_frequency,
                 "description": "Equal risk contribution from each asset",
@@ -366,31 +370,34 @@ class StrategyService:
     def _calculate_risk_parity_weights(self, cov_matrix: pd.DataFrame) -> np.ndarray:
         """Calculate risk parity weights using optimization"""
         n_assets = cov_matrix.shape[0]
+        cov = np.asarray(cov_matrix, dtype=float)
+        vols = np.sqrt(np.clip(np.diag(cov), 1e-18, None))
 
-        def risk_budget_objective(weights):
-            # Risk parity: minimize difference in risk contributions
-            portfolio_vol = np.sqrt(weights @ cov_matrix @ weights)
-            marginal_contrib = cov_matrix @ weights
-            risk_contrib = weights * marginal_contrib / portfolio_vol
+        # Equal risk contribution via the convex log-barrier problem (Spinu 2013;
+        # Maillard, Roncalli & Teiletche 2010):
+        #     min_y  0.5 * y' S y - (1/n) * sum(log y),   y > 0
+        # Its unique optimum has y_i (S y)_i = 1/n for every i, i.e. equal risk
+        # shares; w = y / sum(y). The previous SLSQP least-squares fit on risk
+        # shares stalled on non-convex ground: with a hedging (negatively
+        # correlated) asset it returned e.g. 50% / 50% / -0.05% risk shares for a
+        # 3-asset book and still reported it as risk parity.
+        def objective(y):
+            return 0.5 * y @ cov @ y - np.sum(np.log(y)) / n_assets
 
-            # Objective: minimize variance of risk contributions
-            target_risk_contrib = 1.0 / n_assets
-            return np.sum((risk_contrib - target_risk_contrib)**2)
-
-        # Constraints
-        cons = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1}]
-        bounds = tuple((0.001, 1) for _ in range(n_assets))
-        init_weights = np.array([1.0/n_assets] * n_assets)
+        def gradient(y):
+            return cov @ y - 1.0 / (n_assets * y)
 
         result = optimize.minimize(
-            risk_budget_objective,
-            init_weights,
-            method='SLSQP',
-            bounds=bounds,
-            constraints=cons
+            objective,
+            1.0 / vols,
+            jac=gradient,
+            method='L-BFGS-B',
+            bounds=[(1e-12, None)] * n_assets,
+            options={'ftol': 1e-15, 'gtol': 1e-12, 'maxiter': 10000},
         )
-
-        return result.x
+        y = result.x if result.success and np.all(np.isfinite(result.x)) else 1.0 / vols
+        # Inverse-volatility is the documented fallback (exact ERC when correlations are equal).
+        return y / np.sum(y)
 
     def _calculate_risk_contributions(self, weights: np.ndarray, cov_matrix: pd.DataFrame) -> Dict[str, float]:
         """Calculate risk contribution of each asset"""
@@ -429,13 +436,18 @@ class StrategyService:
 
             # Maximum drawdown
             cumulative = (1 + returns).cumprod()
-            running_max = cumulative.expanding().max()
+            # Peak includes the starting capital, so a first-day loss counts.
+            running_max = cumulative.expanding().max().clip(lower=1.0)
             drawdown = (cumulative - running_max) / running_max
             max_drawdown = drawdown.min()
 
-            # Sortino ratio (downside deviation)
-            downside_returns = returns[returns < 0]
-            downside_std = downside_returns.std() * np.sqrt(252)
+            # Sortino ratio: downside deviation below the (daily) risk-free rate,
+            # sqrt(mean(min(r - rf, 0)^2)) over ALL days, annualised. It used the
+            # std of the negative days only — a dispersion measure that ignores how
+            # often losses happen and inflates/deflates Sortino arbitrarily.
+            rf_daily = risk_free_rate / 252.0
+            shortfall = np.minimum(returns.values - rf_daily, 0.0)
+            downside_std = np.sqrt(np.mean(shortfall ** 2)) * np.sqrt(252)
             sortino = (annual_return - risk_free_rate) / downside_std if downside_std > 0 else 0
 
             # Calmar ratio
@@ -500,6 +512,21 @@ class StrategyService:
         }
 
 
+def _json_safe(obj):
+    """Replace NaN / +-Infinity with None before json.dumps.
+
+    Python emits them as bare ``NaN`` / ``Infinity`` tokens, which are not JSON: the
+    terminal's parser rejects the WHOLE payload ("malformed JSON") over one empty cell.
+    """
+    if isinstance(obj, float):
+        return obj if obj == obj and obj not in (float('inf'), float('-inf')) else None
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    return obj
+
+
 def main():
     """CLI interface for Strategy service"""
     if len(sys.argv) < 2:
@@ -518,7 +545,8 @@ def main():
                 "qlib_available": QLIB_AVAILABLE,
                 "pandas_available": pd is not None,
                 "numpy_available": np is not None,
-                "scipy_available": 'optimize' in dir()
+                # dir() inside main() lists main's locals, so this was always False
+                "scipy_available": 'optimize' in globals() and optimize is not None
             }
 
         elif command == "create_topk_dropout":
@@ -553,8 +581,15 @@ def main():
             result = service.list_strategies()
 
         elif command == "create_risk_parity":
+            rp_returns = pd.DataFrame(params.get("returns", []))
+            if rp_returns.shape[0] < 2 or rp_returns.shape[1] < 2:
+                raise ValueError("Risk parity needs a returns matrix with at least 2 periods (rows) "
+                                 "and 2 assets (columns)")
+            names = params.get("assets")
+            rp_returns.columns = (list(names) if names and len(names) == rp_returns.shape[1]
+                                  else [f"Asset {i + 1}" for i in range(rp_returns.shape[1])])
             result = service.create_risk_parity_strategy(
-                returns=pd.DataFrame(params.get("returns", [])),
+                returns=rp_returns,
                 target_risk=params.get("target_risk", 0.10),
                 rebalance_frequency=params.get("rebalance_frequency", "monthly")
             )
@@ -583,7 +618,7 @@ def main():
         else:
             result = {"success": False, "error": f"Unknown command: {command}"}
 
-        print(json.dumps(result))
+        print(json.dumps(_json_safe(result)))
 
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}))

@@ -95,7 +95,8 @@ class PortfolioOptimizationService:
                     asset_idx = assets.index(asset)
                     # Lower confidence = higher uncertainty
                     view_var = (1 - confidence) * tau * cov_matrix.iloc[asset_idx, asset_idx]
-                    Omega[i, i] = view_var
+                    # confidence == 1 would make Omega singular (np.linalg.inv raises)
+                    Omega[i, i] = max(view_var, 1e-12)
 
             # Step 3: Black-Litterman formula
             # Posterior returns = equilibrium + adjustment from views
@@ -175,8 +176,15 @@ class PortfolioOptimizationService:
             return {"success": False, "error": "SciPy not available"}
 
         try:
-            # Step 1: Tree clustering
-            corr_matrix = cov_matrix.corr()
+            # Step 1: Tree clustering on the correlation IMPLIED by the covariance
+            # (corr_ij = cov_ij / (sd_i * sd_j)). This used cov_matrix.corr(), which
+            # treats the covariance matrix's columns as data series and correlates
+            # THEM -- a different matrix -- so the clustering (and the weights) were
+            # built on the wrong distances.
+            sd = np.sqrt(np.clip(np.diag(cov_matrix.values), 1e-18, None))
+            corr_matrix = pd.DataFrame(np.clip(cov_matrix.values / np.outer(sd, sd), -1.0, 1.0),
+                                       index=cov_matrix.index, columns=cov_matrix.columns)
+            np.fill_diagonal(corr_matrix.values, 1.0)
             dist_matrix = np.sqrt((1 - corr_matrix) / 2)  # Distance metric
             link = linkage(squareform(dist_matrix.values), method='single')
 
@@ -219,11 +227,15 @@ class PortfolioOptimizationService:
                     weights[cluster_0] *= alpha
                     weights[cluster_1] *= (1 - alpha)
 
-            # Normalize
+            # Normalize, and put the weights back in the covariance's asset order:
+            # they were built in the clustered (quasi-diagonal) order, and the
+            # volatility below multiplied that vector against the UN-reordered
+            # covariance -- pairing each weight with another asset's variance.
             weights /= weights.sum()
+            weights = weights.reindex(cov_matrix.columns)
 
             # Calculate portfolio stats
-            port_vol = np.sqrt(weights.values @ cov_matrix @ weights.values)
+            port_vol = np.sqrt(weights.values @ cov_matrix.values @ weights.values)
 
             return {
                 "success": True,
@@ -468,11 +480,26 @@ class PortfolioOptimizationService:
             j = df.values - num_items
             sorted_items[i] = link[j, 0]
             df = pd.Series(link[j, 1], index=i+1)
-            sorted_items = sorted_items.append(df)
+            sorted_items = pd.concat([sorted_items, df])  # Series.append was removed in pandas 2
             sorted_items = sorted_items.sort_index()
             sorted_items.index = range(sorted_items.shape[0])
 
         return sorted_items.tolist()
+
+
+def _json_safe(obj):
+    """Replace NaN / +-Infinity with None before json.dumps.
+
+    Python emits them as bare ``NaN`` / ``Infinity`` tokens, which are not JSON: the
+    terminal's parser rejects the WHOLE payload ("malformed JSON") over one empty cell.
+    """
+    if isinstance(obj, float):
+        return obj if obj == obj and obj not in (float('inf'), float('-inf')) else None
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    return obj
 
 
 def main():
@@ -500,11 +527,28 @@ def main():
         elif command == "black_litterman":
             cov_raw = params.get("cov_matrix", [])
             assets = params.get("assets", [f"A{i}" for i in range(len(cov_raw))])
+            # The panel sends views / confidences as flat lists, one entry per asset in
+            # the order the assets were typed. The model wants {asset: value} dicts --
+            # passing the raw arrays failed with "'numpy.ndarray' object has no
+            # attribute 'items'" on every run.
+            def as_asset_map(value, field):
+                if isinstance(value, dict):
+                    return {str(k): float(v) for k, v in value.items()}
+                values = [float(v) for v in (value or [])]
+                if len(values) > len(assets):
+                    raise ValueError(f"{field} has {len(values)} entries but only {len(assets)} assets were given")
+                return dict(zip(assets, values))
+
+            views_map = as_asset_map(params.get("views"), "views")
+            conf_map = as_asset_map(params.get("view_confidences"), "view_confidences")
+            if len(conf_map) != len(views_map):
+                raise ValueError("Each view needs exactly one confidence "
+                                 f"(got {len(views_map)} view(s) and {len(conf_map)} confidence(s))")
             result = service.black_litterman(
                 market_caps=pd.Series(params.get("market_caps", []), index=assets),
                 cov_matrix=pd.DataFrame(cov_raw, index=assets, columns=assets),
-                views=np.array(params.get("views", [])),
-                view_confidences=np.array(params.get("view_confidences", [])),
+                views=views_map,
+                view_confidences=conf_map,
                 risk_free_rate=params.get("risk_free_rate", 0.02),
                 tau=params.get("tau", 0.025),
                 risk_aversion=params.get("risk_aversion", 2.5)
@@ -547,7 +591,7 @@ def main():
         else:
             result = {"success": False, "error": f"Unknown command: {command}"}
 
-        print(json.dumps(result))
+        print(json.dumps(_json_safe(result)))
 
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}))

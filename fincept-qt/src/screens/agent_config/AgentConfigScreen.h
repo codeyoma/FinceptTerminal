@@ -30,6 +30,7 @@ class AgentConfigScreen : public QWidget, public IStatefulScreen {
     Q_OBJECT
   public:
     explicit AgentConfigScreen(QWidget* parent = nullptr);
+    ~AgentConfigScreen() override;
 
     // IStatefulScreen — persists the currently active sub-view so users
     // return to the same panel after restart.
@@ -51,6 +52,9 @@ class AgentConfigScreen : public QWidget, public IStatefulScreen {
     QPushButton* make_nav_btn(const QString& text, services::AgentViewMode mode);
 
     void ensure_panel_built(services::AgentViewMode mode);
+    /// Hand a panel the draft restore_state() stashed for it (panels are built
+    /// lazily, so it may not exist yet when the state is restored).
+    void apply_pending_draft(services::AgentViewMode mode);
     QWidget* panel_widget(services::AgentViewMode mode) const;
     void wire_cross_panel_signals();
 
@@ -79,6 +83,11 @@ class AgentConfigScreen : public QWidget, public IStatefulScreen {
     SystemViewPanel* system_panel_ = nullptr;
     AgenticTasksPanel* agentic_panel_ = nullptr;
 
+    // Drafts from restore_state() whose panel has not been built yet. They are
+    // applied when the panel is built and, until then, written back by save_state()
+    // so an unvisited tab's draft is not lost after one more restart.
+    QVariantMap pending_state_;
+
     // Track which stack slots have been populated (one per AgentViewMode value).
     bool panel_built_[9] = {};
     // Nav-button index for the AGENTIC tab — kept so the visibility toggle
@@ -89,6 +98,9 @@ class AgentConfigScreen : public QWidget, public IStatefulScreen {
 
     services::AgentViewMode current_view_ = services::AgentViewMode::Agents;
     bool first_show_ = true;
+    /// Whether this instance has told AgentService it is visible (keeps the
+    /// service's visible-screen count balanced across show/hide/destroy).
+    bool reported_visible_ = false;
 };
 
 } // namespace fincept::screens

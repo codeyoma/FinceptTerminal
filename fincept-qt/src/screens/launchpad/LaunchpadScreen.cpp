@@ -15,6 +15,7 @@
 #include "storage/workspace/WorkspaceDb.h"
 #include "storage/workspace/WorkspaceSnapshotRing.h"
 #include "ui/theme/Theme.h"
+#include "ui/widgets/EnterprisePromo.h"
 
 #include <QApplication>
 #include <QCloseEvent>
@@ -34,6 +35,7 @@
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QMessageBox>
+#include <QPointer>
 #include <QProcess>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -204,6 +206,9 @@ LaunchpadScreen::LaunchpadScreen(QWidget* parent) : QMainWindow(parent) {
     recent_layouts_ = new QListWidget;
     recent_layouts_->setStyleSheet(lp_list_ss());
     recent_layouts_->setAccessibleName(tr("Recent layouts"));
+    // Double-clicking a row opens it, like the "Open Saved Layout…" button / Enter
+    // (a double-click only moved the selection before — it was never wired).
+    connect(recent_layouts_, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem*) { on_open_layout(); });
     vl->addWidget(recent_layouts_, /*stretch=*/1);
     refresh_recent_layouts();
 
@@ -241,6 +246,13 @@ LaunchpadScreen::LaunchpadScreen(QWidget* parent) : QMainWindow(parent) {
     picker_root->addStretch();
 
     vl->addWidget(template_picker_, /*stretch=*/1);
+
+    // Footer: muted pointer to the private edition (text in retranslateUi()).
+    auto* ent_link = ui::enterprise::make_cta_button(
+        QString(), ui::enterprise::url_with_ref(ui::enterprise::site_url(), QStringLiteral("launchpad")),
+        ui::enterprise::CtaStyle::Quiet, central);
+    ent_link->setObjectName("launchpadEnterpriseLink");
+    vl->addWidget(ent_link, 0, Qt::AlignLeft);
 
     setCentralWidget(central);
 
@@ -313,6 +325,8 @@ void LaunchpadScreen::retranslateUi() {
         filter_edit_->setPlaceholderText(tr("Type to filter layouts…"));
     if (template_picker_label_)
         template_picker_label_->setText(tr("Pick a starting template:"));
+    if (auto* ent_link = findChild<QPushButton*>(QStringLiteral("launchpadEnterpriseLink")))
+        ent_link->setText(tr("Fincept Terminal Enterprise — the private edition for firms ↗"));
 }
 
 void LaunchpadScreen::surface() {
@@ -466,7 +480,13 @@ void LaunchpadScreen::on_switch_profile() {
     // Process-level switch today (set_active + relaunch). In-process switch
     // lands with Phase 1b's auth lift.
     const QString exe = QCoreApplication::applicationFilePath();
-    QProcess::startDetached(exe, {"--profile", target});
+    if (!QProcess::startDetached(exe, {"--profile", target})) {
+        // Quitting anyway would leave the user with no app at all.
+        LOG_WARN(kLaunchpadTag, QString("Switch Profile: could not start '%1'").arg(exe));
+        QMessageBox::warning(this, tr("Switch Profile"),
+                             tr("Could not restart Fincept Terminal with profile \"%1\".").arg(target));
+        return;
+    }
     QCoreApplication::quit();
 }
 
@@ -474,8 +494,10 @@ void LaunchpadScreen::on_open_layout() {
     if (!recent_layouts_)
         return;
     auto* item = recent_layouts_->currentItem();
-    if (!item) {
-        LOG_INFO(kLaunchpadTag, "Open Layout: no item selected");
+    // The type-to-filter box only hides rows; the current row can still be one
+    // the filter has hidden, and Enter must not open a layout the user cannot see.
+    if (!item || item->isHidden()) {
+        LOG_INFO(kLaunchpadTag, "Open Layout: no visible item selected");
         return;
     }
     const QString id_str = item->data(Qt::UserRole).toString();
@@ -547,6 +569,8 @@ void LaunchpadScreen::refresh_recent_layouts() {
     }
     if (btn_open_layout_)
         btn_open_layout_->setEnabled(!r.value().isEmpty());
+    // Pre-select the newest layout so the button and Enter have something to open.
+    recent_layouts_->setCurrentRow(0);
 }
 
 void LaunchpadScreen::on_continue() {
@@ -571,6 +595,12 @@ void LaunchpadScreen::on_continue() {
 }
 
 void LaunchpadScreen::on_template_picked(const QString& persona_id) {
+    // A double-click on a card would otherwise save the template layout twice and
+    // apply it twice. refresh_first_run_picker() re-enables the picker on surface().
+    if (template_picker_ && !template_picker_->isEnabled())
+        return;
+    if (template_picker_)
+        template_picker_->setEnabled(false);
     LOG_INFO(kLaunchpadTag, QString("Template picked: %1").arg(persona_id));
     layout::Workspace ws = layout::LayoutTemplates::make(persona_id);
     auto sr = LayoutCatalog::instance().save_workspace(ws);
@@ -581,6 +611,8 @@ void LaunchpadScreen::on_template_picked(const QString& persona_id) {
         // that appeared to do nothing at all.
         QMessageBox::warning(this, tr("Cannot start from this template"),
                              tr("The template could not be saved:\n%1").arg(QString::fromStdString(sr.error())));
+        if (template_picker_)
+            template_picker_->setEnabled(true); // let the user pick another / retry
         return;
     }
     // save_workspace mints a fresh id if one wasn't set; pull the saved id
@@ -642,6 +674,7 @@ void LaunchpadScreen::refresh_first_run_picker() {
     }
 
     const bool first_run = !has_anything;
+    template_picker_->setEnabled(true); // on_template_picked() disables it while applying
     template_picker_->setVisible(first_run);
     if (recent_layouts_)
         recent_layouts_->setVisible(!first_run);

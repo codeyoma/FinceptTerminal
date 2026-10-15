@@ -25,13 +25,16 @@ class DBnomicsSelectionPanel : public QWidget {
                          bool append);
     void populate_search_results(const QVector<services::DbnSearchResult>& results, const services::DbnPagination& page,
                                  bool append);
-    void set_loading(bool loading);
     void set_status(const QString& message);
     void update_slot_series(int slot_index, const QVector<services::DbnDataPoint>& series);
 
     QString selected_provider() const { return selected_provider_; }
     QString selected_dataset() const { return selected_dataset_; }
     QString selected_series() const { return selected_series_; }
+
+    /// Seed the remembered provider/dataset/series (state restore). The lists fill asynchronously;
+    /// the populate_*() calls highlight the matching row once it arrives.
+    void restore_selection(const QString& provider, const QString& dataset, const QString& series);
 
     QString global_search_text() const;
     QString provider_filter_text() const;
@@ -55,7 +58,6 @@ class DBnomicsSelectionPanel : public QWidget {
     void add_to_slot_clicked(int slot_index);
     void remove_from_slot_clicked(int slot_index, const QString& series_id);
     void remove_slot_clicked(int slot_index);
-    void search_result_selected(const QString& provider_code, const QString& dataset_code);
 
   public:
     void set_providers_loading(bool on);

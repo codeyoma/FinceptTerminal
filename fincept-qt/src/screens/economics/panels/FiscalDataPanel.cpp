@@ -28,8 +28,10 @@ struct FiscalSeries {
 };
 
 static const QList<FiscalSeries> kFiscalDataSeries = {
-    {"Debt to the Penny", "debt-to-penny", {"--all"}},   {"Avg Interest Rates", "avg-interest-rates", {"--all"}},
-    {"Interest Expense", "interest-expense", {"--all"}}, {"US Treasury Exchange Rates", "exchange-rates", {}},
+    {"Debt to the Penny", "debt-to-penny", {"--all"}},
+    {"Avg Interest Rates", "avg-interest-rates", {"--all"}},
+    {"Interest Expense", "interest-expense", {"--all"}},
+    {"US Treasury Exchange Rates", "exchange-rates", {"--limit=250"}},
     {"Record-Setting Auction Debt", "record-debt", {}},
 };
 
@@ -47,7 +49,7 @@ void FiscalDataPanel::activate() {
 
 void FiscalDataPanel::build_controls(QHBoxLayout* thl) {
     dataset_lbl_ = new QLabel(tr("DATASET"));
-    dataset_lbl_->setStyleSheet(ctrl_label_style());
+    dataset_lbl_->setObjectName(QStringLiteral("econCtrlLabel"));
 
     series_combo_ = new QComboBox;
     for (const auto& s : kFiscalDataSeries)

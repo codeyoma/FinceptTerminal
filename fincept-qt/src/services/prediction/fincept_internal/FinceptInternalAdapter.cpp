@@ -39,13 +39,13 @@ struct DemoMarketSeed {
     const char* category;
     double yes_price; ///< 0..1
     double volume;
-    const char* end_date_iso;
+    int days_until_end; ///< relative to today, so the sample never shows as expired
 };
 
 constexpr DemoMarketSeed kDemoMarkets[] = {
-    {"fincept-fed-cuts-2026-05", "Fed cuts in May 2026", "Macro", 0.62, 1'200'000.0, "2026-05-07"},
-    {"fincept-nyc-80f-2026-05-01", "NYC max 80F+ on May 1", "Weather", 0.71, 83'000.0, "2026-05-01"},
-    {"fincept-fncpt-1bp-2026-05-31", "$FNCPT > $0.0001 by month end", "Crypto", 0.45, 421'000.0, "2026-05-31"},
+    {"fincept-demo-fed-cut", "Fed cuts rates at the next meeting (sample)", "Macro", 0.62, 1'200'000.0, 30},
+    {"fincept-demo-nyc-heat", "NYC max 80F+ next Monday (sample)", "Weather", 0.71, 83'000.0, 7},
+    {"fincept-demo-fncpt-1bp", "$FNCPT > $0.0001 by month end (sample)", "Crypto", 0.45, 421'000.0, 21},
 };
 
 QString trim_trailing_slash(QString s) {
@@ -65,7 +65,7 @@ PredictionMarket build_demo_market(const DemoMarketSeed& seed) {
     };
     m.question = QString::fromUtf8(seed.question);
     m.category = QString::fromUtf8(seed.category);
-    m.end_date_iso = QString::fromLatin1(seed.end_date_iso);
+    m.end_date_iso = QDate::currentDate().addDays(seed.days_until_end).toString(Qt::ISODate);
     m.volume = seed.volume;
     m.liquidity = seed.volume * 0.05; // illustrative
     m.active = true;
@@ -435,8 +435,14 @@ void FinceptInternalAdapter::emit_mock_tags() {
 
 void FinceptInternalAdapter::emit_demo_unavailable(const QString& context) {
     QPointer<FinceptInternalAdapter> self = this;
-    const auto msg = QStringLiteral("Fincept Internal markets are in demo mode — set "
-                                    "`fincept.markets_endpoint` in SecureStorage to enable live data.");
+    // Be honest about WHY there is no data: the "set fincept.markets_endpoint" hint was
+    // shown even when an endpoint was already configured (only the live HTTP path is
+    // missing), sending the user off to fix a setting that was not the problem.
+    const auto msg = is_demo_mode()
+                         ? QStringLiteral("Fincept Internal markets are in demo mode — set "
+                                          "`fincept.markets_endpoint` in SecureStorage to enable live data.")
+                         : QStringLiteral("Fincept Internal live markets are not available yet — an endpoint is "
+                                          "configured, but the live HTTP client has not been implemented in this build.");
     QTimer::singleShot(0, this, [self, context, msg]() {
         if (!self)
             return;

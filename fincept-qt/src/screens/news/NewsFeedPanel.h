@@ -7,10 +7,13 @@
 #include <QEvent>
 #include <QLabel>
 #include <QListView>
+#include <QMenu>
 #include <QStackedWidget>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
+
+#include <functional>
 
 namespace fincept::screens {
 
@@ -34,10 +37,21 @@ class NewsFeedPanel : public QWidget {
     void select_next();
     void select_previous();
 
+    /// Append the "act on this ticker" entries for `ticker` to `menu`: open it in
+    /// Equity Research / Equity Trading (chart + order ticket) / Backtesting via the
+    /// app-wide nav.open_symbol event, add it to a watchlist, filter the feed by it
+    /// (`filter_cb`), copy it. Shared by the feed's context menu and the detail
+    /// panel's ticker links. `host` scopes the actions' lifetime and anchors tooltips.
+    static void add_ticker_actions(QMenu* menu, const QString& ticker, QWidget* host,
+                                   const std::function<void(const QString&)>& filter_cb);
+
   signals:
     void article_clicked(const services::NewsArticle& article);
     void cluster_clicked(const services::NewsCluster& cluster);
     void near_bottom();
+    /// Context-menu "filter feed by $TICKER" — the screen routes it through the
+    /// same path as a typed search.
+    void ticker_filter_requested(const QString& ticker);
 
   protected:
     void changeEvent(QEvent* event) override;
@@ -45,6 +59,7 @@ class NewsFeedPanel : public QWidget {
   private slots:
     void on_item_clicked(const QModelIndex& index);
     void check_scroll_position();
+    void show_context_menu(const QPoint& pos);
 
   private:
     void build_breaking_banner();

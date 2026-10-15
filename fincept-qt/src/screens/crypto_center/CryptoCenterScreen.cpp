@@ -39,6 +39,10 @@ CryptoCenterScreen::CryptoCenterScreen(QWidget* parent) : QWidget(parent) {
     connect(&svc, &fincept::wallet::WalletService::wallet_connected, this, &CryptoCenterScreen::on_wallet_connected);
     connect(&svc, &fincept::wallet::WalletService::wallet_disconnected, this,
             &CryptoCenterScreen::on_wallet_disconnected);
+    // connect_failed had no listener: a rejected signature, a browser callback
+    // that never arrived or a failed loopback bind all closed the dialog and
+    // left the empty page looking untouched.
+    connect(&svc, &fincept::wallet::WalletService::connect_failed, this, &CryptoCenterScreen::on_connect_failed);
 
     apply_theme();
 
@@ -153,6 +157,12 @@ void CryptoCenterScreen::build_empty_page() {
     empty_security_text_->setObjectName(QStringLiteral("cryptoCenterSecurityText"));
     body_l->addWidget(empty_security_text_);
 
+    empty_error_ = new QLabel(QString(), body);
+    empty_error_->setObjectName(QStringLiteral("cryptoCenterEmptyError"));
+    empty_error_->setWordWrap(true);
+    empty_error_->hide();
+    body_l->addWidget(empty_error_);
+
     body_l->addSpacing(6);
 
     connect_button_ = new QPushButton(tr("CONNECT WALLET"), body);
@@ -167,8 +177,10 @@ void CryptoCenterScreen::build_empty_page() {
     layout->addLayout(center_row);
     layout->addStretch(2);
 
-    connect(connect_button_, &QPushButton::clicked, this,
-            [this]() { fincept::wallet::WalletService::instance().connect_with_dialog(this); });
+    connect(connect_button_, &QPushButton::clicked, this, [this]() {
+        empty_error_->hide();
+        fincept::wallet::WalletService::instance().connect_with_dialog(this);
+    });
 
     stack_->addWidget(empty_page_);
 }
@@ -194,14 +206,15 @@ void CryptoCenterScreen::build_connected_page() {
     activity_tab_ = new ActivityTab(tab_widget_);
     settings_tab_ = new SettingsTab(tab_widget_);
 
-    // Phase 3 ships the real STAKE tab (veFNCPT lock + active locks + tier).
-    // Until the fincept_lock Anchor program is deployed, the producers ship
-    // mock data with `is_mock=true` and the panel pills read "DEMO".
+    // STAKE tab (veFNCPT lock calculator + active locks + planned tiers).
+    // On-chain staking is not live (StakingService::staking_live() == false):
+    // LOCK / EXTEND / WITHDRAW are disabled and labelled COMING SOON, and no
+    // lock position or tier is ever shown as the wallet's own.
     stake_tab_ = new StakeTab(tab_widget_);
     // Phase 4 §4.2: internal prediction markets. Ships in demo mode (curated
     // 3-market dataset) until `fincept.markets_endpoint` is configured and
-    // the `fincept_market` Anchor program is deployed. The status pill on
-    // MarketsListPanel reads "DEMO" until then.
+    // the `fincept_market` Anchor program is deployed. MarketsListPanel shows
+    // an amber DEMO pill and prefixes every sample row with "SAMPLE ·".
     markets_tab_ = new MarketsTab(tab_widget_);
     // Phase 5 ships the real roadmap dashboard (buyback ticker, supply
     // chart, treasury card). Until the buyback worker is deployed, the
@@ -228,6 +241,13 @@ void CryptoCenterScreen::build_connected_page() {
         const int trade_idx = tab_widget_->indexOf(trade_tab_);
         if (trade_idx >= 0)
             tab_widget_->setCurrentIndex(trade_idx);
+    });
+
+    // The holdings bar's RPC chip only re-read its provider on show/connect;
+    // refresh it when the user leaves SETTINGS (where the Helius key is saved).
+    connect(tab_widget_, &QTabWidget::currentChanged, this, [this](int) {
+        if (holdings_bar_)
+            holdings_bar_->refresh_rpc_indicator();
     });
 
     root->addWidget(tab_widget_, 1);
@@ -274,6 +294,8 @@ void CryptoCenterScreen::apply_theme() {
                            "  font-weight:700; letter-spacing:1.5px; background:transparent; }"
                            "QLabel#cryptoCenterSecurityText { color:%11; font-family:%5; font-size:11px;"
                            "  background:transparent; }"
+                           "QLabel#cryptoCenterEmptyError { color:%13; font-family:%5; font-size:11px;"
+                           "  background:transparent; }"
 
                            // Primary connect button
                            "QPushButton#cryptoCenterPrimaryButton { background:rgba(217,119,6,0.10); color:%4;"
@@ -302,14 +324,24 @@ void CryptoCenterScreen::apply_theme() {
                                 POSITIVE())                 // %9
                            .arg(BG_RAISED(),                // %10
                                 TEXT_SECONDARY(),           // %11
-                                QStringLiteral("#78350f")); // %12 darker amber
+                                QStringLiteral("#78350f"),  // %12 darker amber
+                                NEGATIVE());                // %13
 
     setStyleSheet(ss);
 }
 
 // ── State handlers ─────────────────────────────────────────────────────────
 
+void CryptoCenterScreen::on_connect_failed(const QString& reason) {
+    if (!empty_error_)
+        return;
+    empty_error_->setText(tr("Connection not completed: %1").arg(reason));
+    empty_error_->show();
+}
+
 void CryptoCenterScreen::on_wallet_connected(const QString& /*pubkey*/, const QString& /*label*/) {
+    if (empty_error_)
+        empty_error_->hide();
     header_status_->setText(tr("● CONNECTED"));
     header_status_->setObjectName(QStringLiteral("cryptoCenterHeaderStatusOn"));
     header_status_->style()->unpolish(header_status_);

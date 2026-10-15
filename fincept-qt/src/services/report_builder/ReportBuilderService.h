@@ -6,7 +6,7 @@
 //   • LLM/MCP tools can mutate the document even when the screen isn't open.
 //   • State survives screen open/close (factory-registered screen recreates).
 //   • Manual edits and LLM-driven edits go through the same undo stack.
-//   • Autosave runs regardless of UI visibility.
+//   • Autosave runs regardless of UI visibility — but only after an edit.
 //
 // Threading: the service object lives on the main thread. All public mutators
 // must be invoked there. Workers (e.g. LLM tool handlers running on
@@ -25,6 +25,8 @@
 #include <QTimer>
 #include <QUndoStack>
 #include <QVector>
+
+#include <cstddef>
 
 namespace fincept::services {
 
@@ -119,6 +121,8 @@ class ReportBuilderService : public QObject {
     // ── Autosave ─────────────────────────────────────────────────────────────
 
     QString autosave_path() const;
+    /// Write the recovery copy now (normally armed by the first edit after a save and
+    /// run once, 60 s later — never on a timer while the report is unchanged).
     void trigger_autosave();
 
   signals:
@@ -132,6 +136,8 @@ class ReportBuilderService : public QObject {
     void component_moved(int id, int from_index, int to_index);
     void metadata_changed();
     void theme_changed();
+    // Fired after load_from() (path = the file) and after replace_document() / a template
+    // is applied (path empty). Views rebuild everything — canvas, structure, selection.
     void document_loaded(const QString& path);
     void document_cleared();
     void current_file_changed(const QString& path);
@@ -153,6 +159,7 @@ class ReportBuilderService : public QObject {
     void load_recent() const;
     void save_recent() const;
     void persist_current_file();
+    void write_autosave(const QString& json);
 
     mutable QMutex mutex_;
     report::ReportDocument doc_;
@@ -162,6 +169,8 @@ class ReportBuilderService : public QObject {
     int macro_depth_ = 0;
     QString current_file_;
     QString autosave_path_;
+    std::size_t autosave_hash_ = 0; // hash of the JSON last written to the autosave file
+    bool autosave_dirty_ = false;   // an edit is waiting for the autosave timer
     mutable QStringList recent_cache_;
     mutable bool recent_loaded_ = false;
 };

@@ -21,6 +21,8 @@
 #include <QLabel>
 #include <QVBoxLayout>
 
+#include <initializer_list>
+
 namespace fincept::screens {
 namespace {
 
@@ -110,7 +112,7 @@ void CftcPanel::activate() {
 void CftcPanel::build_controls(QHBoxLayout* thl) {
     auto make_lbl = [](const QString& text) {
         auto* l = new QLabel(text);
-        l->setStyleSheet(ctrl_label_style());
+        l->setObjectName(QStringLiteral("econCtrlLabel"));
         return l;
     };
 
@@ -327,25 +329,64 @@ void CftcPanel::on_result(const QString& request_id, const services::EconomicsRe
     // (the raw records have 40+ fields — we pick the key ones)
     if (request_id.startsWith("cftc_cot_")) {
         QJsonArray clean;
+        // CFTC's column names differ per report type — legacy: comm_*/noncomm_*, disaggregated:
+        // prod_merc_*/m_money_*, financial (TFF): dealer_*/lev_money_*. Take the first one present.
+        const auto pick = [](const QJsonObject& o, std::initializer_list<const char*> names) {
+            for (const char* name : names) {
+                const QJsonValue v = o[QLatin1String(name)];
+                if (!v.isUndefined())
+                    return v;
+            }
+            return QJsonValue();
+        };
         for (const auto& v : rows) {
             const auto obj = v.toObject();
             QJsonObject row;
             row["date"] = obj["report_date_as_yyyy_mm_dd"];
             row["market"] = obj["market_and_exchange_names"];
             row["open_interest"] = obj["open_interest_all"];
-            row["comm_long"] =
-                obj["comm_long_all"].isUndefined() ? obj["comm_positions_long_all"] : obj["comm_long_all"];
-            row["comm_short"] =
-                obj["comm_short_all"].isUndefined() ? obj["comm_positions_short_all"] : obj["comm_short_all"];
-            row["noncomm_long"] =
-                obj["noncomm_long_all"].isUndefined() ? obj["noncomm_positions_long_all"] : obj["noncomm_long_all"];
-            row["noncomm_short"] =
-                obj["noncomm_short_all"].isUndefined() ? obj["noncomm_positions_short_all"] : obj["noncomm_short_all"];
+            row["comm_long"] = pick(obj, {"comm_long_all", "comm_positions_long_all", "prod_merc_positions_long",
+                                          "dealer_positions_long_all"});
+            row["comm_short"] = pick(obj, {"comm_short_all", "comm_positions_short_all", "prod_merc_positions_short",
+                                           "dealer_positions_short_all"});
+            row["noncomm_long"] = pick(obj, {"noncomm_long_all", "noncomm_positions_long_all",
+                                             "m_money_positions_long_all", "lev_money_positions_long"});
+            row["noncomm_short"] = pick(obj, {"noncomm_short_all", "noncomm_positions_short_all",
+                                              "m_money_positions_short_all", "lev_money_positions_short"});
+            // Speculative net position — the number a COT reader actually tracks week to week.
+            const auto as_num = [](const QJsonValue& v, bool* ok) {
+                if (v.isDouble()) {
+                    *ok = true;
+                    return v.toDouble();
+                }
+                return v.toString().toDouble(ok);
+            };
+            bool ok_l = false;
+            bool ok_s = false;
+            const double nl = as_num(row.value(QStringLiteral("noncomm_long")), &ok_l);
+            const double ns = as_num(row.value(QStringLiteral("noncomm_short")), &ok_s);
+            if (ok_l && ok_s)
+                row["noncomm_net"] = nl - ns;
             clean.append(row);
         }
-        display(clean, "CFTC COT: " + market_combo_->currentText() + " (" + report_type_combo_->currentText() + ")");
+        SeriesMeta meta;
+        meta.units = tr("Contracts");
+        meta.frequency = tr("Weekly");
+        meta.percent = 0;
+        meta.value_column = QStringLiteral("noncomm_net");
+        meta.note = tr("Positions as of Tuesday, published Friday · net = non-commercial long − short");
+        set_series_meta(meta);
+        display(clean, "CFTC COT: " + market_combo_->currentText() + " (" + report_type_combo_->currentText() + ")",
+                {QStringLiteral("date"), QStringLiteral("noncomm_net"), QStringLiteral("noncomm_long"),
+                 QStringLiteral("noncomm_short"), QStringLiteral("comm_long"), QStringLiteral("comm_short"),
+                 QStringLiteral("open_interest"), QStringLiteral("market")});
     } else {
         // Historical trend — rows already have clean keys
+        SeriesMeta meta;
+        meta.units = tr("Contracts");
+        meta.frequency = tr("Weekly");
+        meta.percent = 0;
+        set_series_meta(meta);
         display(rows, "CFTC Historical Trend: " + market_combo_->currentText());
     }
 

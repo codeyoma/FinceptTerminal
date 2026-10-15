@@ -4,6 +4,7 @@ Fetches real-time stock quotes and historical data using yfinance
 Returns JSON output for Qt/C++ integration
 """
 
+import math
 import os
 import sys
 import json
@@ -38,8 +39,37 @@ except (TypeError, ValueError):
     _NET_TIMEOUT = 15.0
 
 
-def _num(value, digits=2):
+def _price_digits(value):
+    """Decimal places that keep a price's significant digits.
+
+    A flat 2 dp suits most equities but destroys FX rates (EURUSD 1.0812 ->
+    1.08, a 12-pip error) and low-priced crypto (SHIB 0.0000123 -> 0.0, DOGE
+    0.0987 -> 0.1). Scale with magnitude instead: 2 dp from 1000 up, 4 dp from
+    1, and ~5 significant figures below 1. Keys and types are unchanged; prices
+    simply stop being truncated.
+    """
+    try:
+        a = abs(float(value))
+    except (TypeError, ValueError):
+        return 2
+    if not math.isfinite(a) or a == 0 or a >= 1000:
+        return 2
+    if a >= 1:
+        return 4
+    return min(12, 4 - int(math.floor(math.log10(a))))
+
+
+def _px(value, digits=None):
+    """round() a price to `digits`, or to _price_digits(value) when omitted."""
+    v = float(value)
+    return round(v, _price_digits(v) if digits is None else digits)
+
+
+def _num(value, digits=None):
     """`round(float(value), digits)`, or None when the cell is NaN / NA / None.
+
+    `digits=None` (the default; every caller passes a price) picks the
+    precision from the value's magnitude — see _price_digits.
 
     yfinance returns NaN cells routinely: halted sessions, missing intraday
     bars, thinly-traded tickers, futures roll gaps. `round(float(nan), 2)` is
@@ -51,7 +81,7 @@ def _num(value, digits=2):
     try:
         if pd.isna(value):
             return None
-        return round(float(value), digits)
+        return _px(value, digits)
     except (TypeError, ValueError):
         return None
 
@@ -440,23 +470,36 @@ def get_quote_names(symbols):
     names = {}
     currencies = {}
     quote_types = {}
+
+    def _fetch(symbol):
+        try:
+            return symbol, (yf.Ticker(symbol).info or {})
+        except Exception:
+            return symbol, None
+
+    # .info is one HTTP round trip per symbol; run them concurrently. A screen
+    # asks for 50-80 symbols at once and sequential lookups took 30 s+. stdout
+    # is redirected once around the whole pool: swapping sys.stdout from
+    # several threads would race and could leave it pointing at a buffer.
+    from concurrent.futures import ThreadPoolExecutor
+    unique = list(dict.fromkeys(s for s in symbols if s))
     try:
-        for symbol in symbols:
-            try:
-                _buf = io.StringIO()
-                with contextlib.redirect_stdout(_buf), contextlib.redirect_stderr(_buf):
-                    info = yf.Ticker(symbol).info
-                info = info or {}
-                name = _clean_display_name(symbol, info)
-                if name:
-                    names[symbol] = name
-                metadata = _quote_metadata(symbol, info)
-                _quote_metadata_cache[symbol] = metadata
-                quote_types[symbol] = metadata["quote_type"]
-                if metadata["currency"]:
-                    currencies[symbol] = metadata["currency"]
-            except Exception:
+        _buf = io.StringIO()
+        with contextlib.redirect_stdout(_buf), contextlib.redirect_stderr(_buf):
+            with ThreadPoolExecutor(max_workers=min(8, max(1, len(unique)))) as pool:
+                results = list(pool.map(_fetch, unique))
+        for symbol, info in results:
+            # A failed lookup records nothing; an empty info still records UNKNOWN.
+            if info is None:
                 continue
+            name = _clean_display_name(symbol, info)
+            if name:
+                names[symbol] = name
+            metadata = _quote_metadata(symbol, info)
+            _quote_metadata_cache[symbol] = metadata
+            quote_types[symbol] = metadata["quote_type"]
+            if metadata["currency"]:
+                currencies[symbol] = metadata["currency"]
     finally:
         yf_logger.setLevel(prev_level)
     return {"names": names, "currencies": currencies, "quote_types": quote_types}

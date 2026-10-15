@@ -43,6 +43,7 @@ struct ChatMessage {
     int response_time_ms = 0;
     QString provider;
     QString model;
+    QString session_uuid; // owning session — present on /chat/search hits
 
     static ChatMessage from_json(const QJsonObject& o) {
         ChatMessage m;
@@ -195,8 +196,9 @@ struct McpTool {
 // ── MCP server ────────────────────────────────────────────────────────────────
 struct McpServer {
     QString name;
-    QString transport; // "stdio" | "sse"
+    QString transport; // "sse" | "streamable_http" (private); global servers may also be "stdio"
     QString status;    // "connected" | "disconnected" | "error"
+    QString error;     // backend's connection error (only sent for your own / admin servers)
     int tools_count = 0;
     QStringList tool_names;
     QVector<McpTool> tools;
@@ -207,6 +209,7 @@ struct McpServer {
         s.name = o["name"].toString();
         s.transport = o["transport"].toString();
         s.status = o["status"].toString();
+        s.error = o["error"].toString();
         s.tools_count = o["tools_count"].toInt();
         s.config = o["config"].toObject();
         for (const auto& v : o["tool_names"].toArray())

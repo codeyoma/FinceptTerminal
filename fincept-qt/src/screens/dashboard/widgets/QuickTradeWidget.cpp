@@ -2,6 +2,7 @@
 
 #include "datahub/DataHub.h"
 #include "datahub/DataHubMetaTypes.h"
+#include "screens/dashboard/widgets/DashboardFormat.h"
 #include "ui/theme/Theme.h"
 
 #include <QCoreApplication>
@@ -32,7 +33,8 @@ static QString combo_style() {
         .arg(ui::colors::BORDER_MED());
 }
 
-QuickTradeWidget::QuickTradeWidget(QWidget* parent) : BaseWidget(tr("QUICK TRADE"), parent, ui::colors::AMBER()) {
+QuickTradeWidget::QuickTradeWidget(const QJsonObject& cfg, QWidget* parent)
+    : BaseWidget(tr("QUICK TRADE"), parent, ui::colors::AMBER()) {
     auto* vl = content_layout();
     vl->setContentsMargins(10, 10, 10, 10);
     vl->setSpacing(8);
@@ -157,15 +159,56 @@ QuickTradeWidget::QuickTradeWidget(QWidget* parent) : BaseWidget(tr("QUICK TRADE
         price_input_->setPlaceholderText(idx == 0 ? tr("market") : QStringLiteral("0.00"));
         update_estimate();
     });
-    connect(qty_input_, &QLineEdit::textChanged, this, &QuickTradeWidget::update_estimate);
-    connect(price_input_, &QLineEdit::textChanged, this, &QuickTradeWidget::update_estimate);
+    price_input_->setValidator(new QDoubleValidator(0, 1e9, 6, price_input_));
+    // The estimate used to follow only the quantity box and always priced at
+    // the last trade — wrong for a LIMIT/STOP order with a price entered.
+    connect(qty_input_, &QLineEdit::textChanged, this, [this](const QString&) { update_estimate(); });
+    connect(price_input_, &QLineEdit::textChanged, this, [this](const QString&) { update_estimate(); });
     connect(this, &BaseWidget::refresh_requested, this, &QuickTradeWidget::lookup_symbol);
 
     apply_styles();
+    apply_config(cfg);
 
     // Initial lookup
     set_loading(true);
     // Hub path: initial lookup happens from showEvent.
+}
+
+QJsonObject QuickTradeWidget::config() const {
+    QJsonObject o;
+    const QString sym = current_symbol_.isEmpty() ? symbol_input_->text().trimmed().toUpper() : current_symbol_;
+    if (!sym.isEmpty())
+        o.insert("symbol", sym);
+    return o;
+}
+
+void QuickTradeWidget::apply_config(const QJsonObject& cfg) {
+    const QString sym = cfg.value("symbol").toString().trimmed().toUpper();
+    if (sym.isEmpty() || sym == symbol_input_->text().trimmed().toUpper())
+        return;
+    symbol_input_->setText(sym);
+    if (isVisible())
+        lookup_symbol();
+}
+
+void QuickTradeWidget::update_estimate() {
+    const double qty = qty_input_->text().toDouble();
+    const bool priced_order = order_type_->currentIndex() != 0;
+    const double entered = price_input_->text().toDouble();
+    const double px = (priced_order && entered > 0) ? entered : current_price_;
+    if (qty <= 0 || px <= 0) {
+        est_total_->setText(tr("EST. TOTAL  --"));
+        return;
+    }
+    // codeyoma/krx-quant#142: the order is in native units; the display currency is shown beside it.
+    auto& market = services::MarketDataService::instance();
+    const double total = qty * px;
+    // native_price() already ends with the marker for futures and unknown units: once only.
+    QString native = market.native_price(current_symbol_, total);
+    const QString marker = QCoreApplication::translate("Currency", "(native)");
+    if (!native.endsWith(marker))
+        native += QLatin1Char(' ') + marker;
+    est_total_->setText(tr("EST. TOTAL %1 · display %2").arg(native, market.display_price(current_symbol_, total)));
 }
 
 void QuickTradeWidget::showEvent(QShowEvent* e) {
@@ -195,6 +238,7 @@ void QuickTradeWidget::apply_styles() {
                                   .arg(ui::colors::TEXT_PRIMARY()));
     change_label_->setStyleSheet(
         QString("color: %1; font-size: 10px; background: transparent;").arg(ui::colors::TEXT_TERTIARY()));
+    reset_css_cache(change_label_);
     price_label_->setStyleSheet(QString("color: %1; font-size: 20px; font-weight: bold; background: transparent;")
                                     .arg(ui::colors::TEXT_PRIMARY()));
     bid_label_->setStyleSheet(
@@ -232,9 +276,17 @@ void QuickTradeWidget::lookup_symbol() {
         return;
     }
 
+    // The first lookup on show just confirms the configured symbol.
+    const bool symbol_changed = !current_symbol_.isEmpty() && sym != current_symbol_;
     last_quote_ = {};
     current_price_ = 0;
     current_symbol_ = sym;
+    if (symbol_changed)
+        emit config_changed(config());
+    // Subscribing while hidden (e.g. an MCP "refresh all") would keep the
+    // topic polled until the next hide; showEvent() looks up again.
+    if (!isVisible())
+        return;
     auto& hub = datahub::DataHub::instance();
     // Swap subscription to the new symbol; drop the old one first.
     hub.unsubscribe(this);
@@ -265,13 +317,13 @@ void QuickTradeWidget::apply_quote(const services::QuoteData& q) {
     price_lbl_->setText(source.isEmpty() ? tr("PRICE (native)") : tr("PRICE (%1 native)").arg(source));
     price_input_->setToolTip(tr("Enter the instrument's native price. Display currency does not change order units."));
 
-    double chg = q.change_pct;
-    QString chg_str = QString("%1%2%").arg(chg >= 0 ? "▲ +" : "▼ ").arg(chg, 0, 'f', 2);
+    const double chg = q.change_pct;
+    const QString arrow = chg > 0 ? QStringLiteral("▲ ") : chg < 0 ? QStringLiteral("▼ ") : QString();
     QString chg_col = chg > 0   ? ui::colors::POSITIVE()
                       : chg < 0 ? ui::colors::NEGATIVE()
                                 : ui::colors::TEXT_SECONDARY();
-    change_label_->setText(chg_str);
-    change_label_->setStyleSheet(QString("color: %1; font-size: 10px; background: transparent;").arg(chg_col));
+    change_label_->setText(arrow + dash_fmt::signed_pct(chg));
+    set_css_cached(change_label_, QString("color: %1; font-size: 10px; background: transparent;").arg(chg_col));
 
     // QuoteData from yfinance has no bid/ask — show em-dashes rather than
     // a fabricated spread (the previous price*0.0005 placeholder was
@@ -282,23 +334,6 @@ void QuickTradeWidget::apply_quote(const services::QuoteData& q) {
     ask_label_->setText(tr("ASK  —"));
 
     update_estimate();
-}
-
-void QuickTradeWidget::update_estimate() {
-    const double qty = qty_input_->text().toDouble();
-    const double price = order_type_->currentIndex() == 0 ? current_price_ : price_input_->text().toDouble();
-    if (qty <= 0 || price <= 0) {
-        est_total_->setText(tr("EST. TOTAL  --"));
-        return;
-    }
-    auto& market = services::MarketDataService::instance();
-    const double total = qty * price;
-    // native_price() already ends with the marker for futures and unknown units: once only.
-    QString native = market.native_price(current_symbol_, total);
-    const QString marker = QCoreApplication::translate("Currency", "(native)");
-    if (!native.endsWith(marker))
-        native += QLatin1Char(' ') + marker;
-    est_total_->setText(tr("EST. TOTAL %1 · display %2").arg(native, market.display_price(current_symbol_, total)));
 }
 
 void QuickTradeWidget::hub_unsubscribe_all() {
@@ -339,14 +374,25 @@ void QuickTradeWidget::submit_order() {
     // entry (Equity/Crypto Trading), which has account selection, paper/live
     // routing and an explicit confirmation. (Wiring Quick Trade to an account is
     // tracked as a follow-up.)
-    QMessageBox::information(
-        this, tr("Quick Trade"),
-        tr("Quick Trade is a preview widget and is not connected to a trading account — no order was placed.\n\n"
-           "To place %1 %2 %3, use the Equity Trading or Crypto Trading screen, which routes the order to your "
-           "selected broker/paper account with confirmation.")
-            .arg(side)
-            .arg(qty, 0, 'f', 0)
-            .arg(sym));
+    // The dialog now offers a one-click hand-off: "Open Equity Trading" selects
+    // this symbol there via nav.open_symbol. That is navigation only - it never
+    // creates or sends an order; the order is still entered and confirmed on
+    // the trading screen.
+    QMessageBox box(QMessageBox::Information, tr("Quick Trade"),
+                    tr("Quick Trade is a preview widget and is not connected to a trading account — no order was "
+                       "placed.\n\n"
+                       "To place %1 %2 %3, use the Equity Trading or Crypto Trading screen, which routes the order to "
+                       "your selected broker/paper account with confirmation.")
+                        .arg(side)
+                        .arg(dash_fmt::quantity(qty))
+                        .arg(sym),
+                    QMessageBox::NoButton, this);
+    QPushButton* open_btn = box.addButton(tr("Open Equity Trading"), QMessageBox::AcceptRole);
+    box.addButton(QMessageBox::Close);
+    box.setDefaultButton(QMessageBox::Close);
+    box.exec();
+    if (box.clickedButton() == open_btn)
+        open_symbol(sym, QStringLiteral("equity_trading"));
 }
 
 void QuickTradeWidget::retranslateUi() {
@@ -384,7 +430,7 @@ void QuickTradeWidget::retranslateUi() {
         ask_label_->setText(current_price_ > 0 ? tr("ASK  —") : tr("ASK --"));
     if (!last_quote_.symbol.isEmpty())
         apply_quote(last_quote_);
-    else if (est_total_)
+    else if (est_total_ && qty_input_ && order_type_ && price_input_)
         update_estimate();
     // submit_btn_ text is side-aware ("PLACE BUY ORDER" etc.) — let on_side_changed re-derive it.
     if (side_combo_)

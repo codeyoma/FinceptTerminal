@@ -5,6 +5,7 @@
 //
 // Part of the partial-class split of ReportBuilderScreen.cpp.
 
+#include "core/logging/Logger.h"
 #include "core/session/ScreenStateManager.h"
 #include "datahub/DataHub.h"
 #include "datahub/DataHubMetaTypes.h"
@@ -29,6 +30,7 @@
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QMessageBox>
+#include <QAbstractTextDocumentLayout>
 #include <QPageLayout>
 #include <QPageSize>
 #include <QPainter>
@@ -37,10 +39,15 @@
 #include <QPrinter>
 #include <QPropertyAnimation>
 #include <QPushButton>
+#include <QRegularExpression>
+#include <QSaveFile>
 #include <QShowEvent>
+#include <QUrl>
 #include <QTextDocument>
 #include <QTextFrame>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace fincept::screens {
 
@@ -102,6 +109,12 @@ void ReportBuilderScreen::show_recent_dialog() {
 }
 
 void ReportBuilderScreen::show_template_dialog() {
+    // Applying a template replaces the whole document and clears the undo stack (it goes
+    // through replace_document), so — unlike New/Open/Recent, which ask — it used to wipe
+    // unsaved work with no warning and no way back.
+    if (!confirm_replace_document(tr("Report Templates")))
+        return;
+
     struct TemplateEntry {
         QString name;
         QString description;
@@ -474,122 +487,303 @@ void ReportBuilderScreen::on_export_pdf() {
         return;
     if (!path.endsWith(QLatin1String(".pdf"), Qt::CaseInsensitive))
         path += QLatin1String(".pdf");
-    export_pdf_to(path);
-    // export_pdf_to can fail without throwing (painter-begin failure, unwritable
-    // path, disk full) — verify a non-empty PDF actually landed before claiming
-    // success, instead of always reporting success.
+    // Trust the painter's result AND the file: checking the file alone reported success
+    // when an older PDF of the same name was left in place by a failed export.
+    const bool ok = export_pdf_to(path);
     const QFileInfo out(path);
-    if (out.exists() && out.size() > 0) {
+    if (ok && out.exists() && out.size() > 0) {
         QMessageBox::information(this, tr("Export PDF"), tr("Report exported successfully to:\n%1").arg(path));
     } else {
         QMessageBox::warning(this, tr("Export PDF"), tr("Failed to export the report to:\n%1").arg(path));
     }
 }
 
-void ReportBuilderScreen::export_pdf_to(const QString& path) {
+// Paints every canvas page document onto `printer`. Shared by PDF export and print preview.
+//
+// Why this exists instead of QTextDocument::print():
+//   * The canvas keeps ONE QTextDocument PER PHYSICAL PAGE (a page_break component starts a
+//     new QTextEdit). print() paints only the document it is called on, and the export used
+//     the LAST page's — so any report containing a page break (the shipped "Financial
+//     Statement" template has two) exported only what followed the final break.
+//   * print() cannot draw a running header/footer or page numbers.
+//   * Painting a QTextDocument straight onto a high-resolution printer without telling its
+//     layout about the device lays the text out at screen DPI, so it comes out ~12x too
+//     small. Each clone therefore gets setPaintDevice(printer), exactly as print() does
+//     internally; all geometry below is then in printer device pixels.
+//
+// The page is painted full-bleed (setFullPage) so the theme's paper colour covers the whole
+// sheet — the dark themes use light text that would otherwise print invisibly on white.
+// Returns false if the painter could not be started (unwritable path, no printer).
+static bool rb_paint_report_pages(const QVector<QTextDocument*>& page_docs, QPrinter* printer,
+                                  const rep::ReportMetadata& m, const rep::ReportTheme& theme, QObject* clone_parent) {
+    if (!printer || page_docs.isEmpty())
+        return false;
+
+    printer->setFullPage(true);
+    QPainter painter;
+    if (!painter.begin(printer))
+        return false;
+
+    const double dpi = printer->logicalDpiY();
+    auto mm = [dpi](double v) { return v * dpi / 25.4; };
+
+    const bool has_header = !m.header_left.isEmpty() || !m.header_center.isEmpty() || !m.header_right.isEmpty();
+    const bool has_footer =
+        !m.footer_left.isEmpty() || !m.footer_center.isEmpty() || !m.footer_right.isEmpty() || m.show_page_numbers;
+
+    const double page_w = printer->width();
+    const double page_h = printer->height();
+    const double margin_x = mm(15);
+    const double margin_y = mm(18);
+    const double band_h = mm(8); // header / footer strip, inside the vertical margin's inner edge
+    const double top = margin_y + (has_header ? band_h : 0);
+    const double bottom = margin_y + (has_footer ? band_h : 0);
+    const QSizeF content_size(page_w - 2 * margin_x, page_h - top - bottom);
+
+    QVector<QTextDocument*> docs;
+    docs.reserve(page_docs.size());
+    int total_pages = 0;
+    for (const QTextDocument* src : page_docs) {
+        QTextDocument* d = src->clone(clone_parent);
+        d->documentLayout()->setPaintDevice(printer);
+        d->setPageSize(content_size);
+        total_pages += std::max(1, d->pageCount());
+        docs.append(d);
+    }
+
+    const QColor paper(theme.page_bg);
+    const QColor ink(theme.text_color);
+
+    auto draw_band = [&](int page, bool is_header) {
+        QString left = is_header ? m.header_left : m.footer_left;
+        QString center = is_header ? m.header_center : m.footer_center;
+        QString right = is_header ? m.header_right : m.footer_right;
+        auto tokens = [&](QString s) {
+            s.replace("{page}", QString::number(page));
+            s.replace("{total}", QString::number(total_pages));
+            return s;
+        };
+        left = tokens(left);
+        center = tokens(center);
+        right = tokens(right);
+        // "Show page numbers" only reserved footer space before: unless the user typed
+        // "{page}" into a footer field, ticking the box produced an empty footer band.
+        if (!is_header && m.show_page_numbers && left.isEmpty() && center.isEmpty() && right.isEmpty())
+            center = QStringLiteral("%1 / %2").arg(page).arg(total_pages);
+
+        const double y = is_header ? margin_y - mm(1) : page_h - margin_y - band_h + mm(1);
+        const QRectF r(margin_x, y, page_w - 2 * margin_x, band_h - mm(2));
+        QFont f;
+        f.setPointSizeF(8);
+        painter.setFont(f);
+        const QColor meta = paper.lightness() < 128 ? QColor("#888888") : QColor("#666666");
+        painter.setPen(meta);
+        if (!left.isEmpty())
+            painter.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, left);
+        if (!center.isEmpty())
+            painter.drawText(r, Qt::AlignHCenter | Qt::AlignVCenter, center);
+        if (!right.isEmpty())
+            painter.drawText(r, Qt::AlignRight | Qt::AlignVCenter, right);
+        painter.setPen(QPen(paper.lightness() < 128 ? QColor("#444444") : QColor("#cccccc"), std::max(1.0, mm(0.2))));
+        const double rule_y = is_header ? r.bottom() + mm(1) : r.top() - mm(1);
+        painter.drawLine(QPointF(margin_x, rule_y), QPointF(page_w - margin_x, rule_y));
+    };
+
+    int page_no = 0;
+    for (QTextDocument* d : docs) {
+        const int pages = std::max(1, d->pageCount());
+        for (int p = 0; p < pages; ++p) {
+            if (page_no > 0)
+                printer->newPage();
+            ++page_no;
+
+            painter.fillRect(QRectF(0, 0, page_w, page_h), paper);
+
+            painter.save();
+            painter.translate(margin_x, top - p * content_size.height());
+            QAbstractTextDocumentLayout::PaintContext ctx;
+            ctx.clip = QRectF(0, p * content_size.height(), content_size.width(), content_size.height());
+            painter.setClipRect(ctx.clip);
+            ctx.palette.setColor(QPalette::Text, ink); // for runs with no explicit colour
+            d->documentLayout()->draw(&painter, ctx);
+            painter.restore();
+
+            if (has_header)
+                draw_band(page_no, true);
+            if (has_footer)
+                draw_band(page_no, false);
+        }
+    }
+    painter.end();
+    qDeleteAll(docs);
+    return true;
+}
+
+bool ReportBuilderScreen::export_pdf_to(const QString& path) {
     if (path.isEmpty())
-        return;
-    auto m = Service::instance().metadata();
+        return false;
+    auto& svc = Service::instance();
 
     QPrinter printer(QPrinter::HighResolution);
     printer.setOutputFormat(QPrinter::PdfFormat);
     printer.setOutputFileName(path);
     printer.setPageSize(QPageSize(QPageSize::A4));
-    printer.setPageMargins(QMarginsF(15, 20, 15, 20), QPageLayout::Millimeter);
 
-    bool has_header = !m.header_left.isEmpty() || !m.header_center.isEmpty() || !m.header_right.isEmpty();
-    bool has_footer =
-        !m.footer_left.isEmpty() || !m.footer_center.isEmpty() || !m.footer_right.isEmpty() || m.show_page_numbers;
+    // Render once WITHOUT a selected component: the canvas highlights the selection with a
+    // background fill baked into the document, and that highlight used to be printed into
+    // every exported PDF on whichever block happened to be selected.
+    canvas_->render(svc.components(), svc.metadata(), svc.theme(), -1);
+    const bool painted = rb_paint_report_pages(canvas_->page_documents(), &printer, svc.metadata(), svc.theme(), this);
+    refresh_canvas(); // put the on-screen selection highlight back
 
-    if (!has_header && !has_footer) {
-        canvas_->text_edit()->document()->print(&printer);
-    } else {
-        QTextDocument* doc = canvas_->text_edit()->document()->clone(this);
-
-        QTextFrameFormat root_fmt = doc->rootFrame()->frameFormat();
-        root_fmt.setTopMargin(has_header ? 24 : root_fmt.topMargin());
-        root_fmt.setBottomMargin(has_footer ? 24 : root_fmt.bottomMargin());
-        doc->rootFrame()->setFrameFormat(root_fmt);
-
-        QPainter painter;
-        if (!painter.begin(&printer)) {
-            QMessageBox::warning(this, tr("Export PDF"), tr("Failed to start PDF painter."));
-            doc->deleteLater();
-            return;
-        }
-
-        QRectF page_rect = printer.pageRect(QPrinter::DevicePixel);
-        doc->setPageSize(page_rect.size());
-        int total_pages = doc->pageCount();
-
-        auto draw_hf_line = [&](int page, bool is_header) {
-            QString left = is_header ? m.header_left : m.footer_left;
-            QString center = is_header ? m.header_center : m.footer_center;
-            QString right = is_header ? m.header_right : m.footer_right;
-
-            auto replace_tokens = [&](QString s) {
-                s.replace("{page}", QString::number(page));
-                s.replace("{total}", QString::number(total_pages));
-                return s;
-            };
-            left = replace_tokens(left);
-            center = replace_tokens(center);
-            right = replace_tokens(right);
-
-            // "Show page numbers" only reserved footer space before: unless the
-            // user happened to type "{page}" into a footer field, ticking the
-            // box produced an empty footer band and no page numbers.
-            if (!is_header && m.show_page_numbers && left.isEmpty() && center.isEmpty() && right.isEmpty())
-                center = QStringLiteral("%1 / %2").arg(page).arg(total_pages);
-
-            double y = is_header ? 4 : page_rect.height() - 16;
-            QFont hf_font;
-            hf_font.setPointSizeF(7);
-            painter.setFont(hf_font);
-            painter.setPen(QColor("#888888"));
-
-            QRectF r(page_rect.left() + 8, y, page_rect.width() - 16, 14);
-            if (!left.isEmpty())
-                painter.drawText(r, Qt::AlignLeft | Qt::AlignVCenter, left);
-            if (!center.isEmpty())
-                painter.drawText(r, Qt::AlignHCenter | Qt::AlignVCenter, center);
-            if (!right.isEmpty())
-                painter.drawText(r, Qt::AlignRight | Qt::AlignVCenter, right);
-
-            painter.setPen(QPen(QColor("#cccccc"), 0.5));
-            double rule_y = is_header ? y + 14 : y - 2;
-            painter.drawLine(QPointF(page_rect.left() + 8, rule_y), QPointF(page_rect.right() - 8, rule_y));
-        };
-
-        for (int page = 1; page <= total_pages; ++page) {
-            if (page > 1)
-                printer.newPage();
-            painter.save();
-            double content_top = has_header ? 20 : 0;
-            double content_bottom = has_footer ? page_rect.height() - 20 : page_rect.height();
-            painter.setClipRect(QRectF(page_rect.left(), content_top, page_rect.width(), content_bottom - content_top));
-            painter.translate(0, -(page - 1) * page_rect.height() + content_top);
-            doc->drawContents(&painter);
-            painter.restore();
-            if (has_header)
-                draw_hf_line(page, true);
-            if (has_footer)
-                draw_hf_line(page, false);
-        }
-
-        painter.end();
-        doc->deleteLater();
+    // No modal here: this is also the entry point of the MCP report_export_pdf tool, where a
+    // dialog would block the tool call. The interactive caller (on_export_pdf) verifies the
+    // file and reports failure itself.
+    if (!painted) {
+        LOG_ERROR("ReportBuilder", "PDF export failed: could not start painting to the output file");
+        return false;
     }
 
     services::FileManagerService::instance().import_file(path, "report_builder");
+    return true;
+}
+
+// ── HTML export ──────────────────────────────────────────────────────────────
+
+namespace {
+
+QString rb_html_escape(const QString& s) {
+    return s.toHtmlEscaped();
+}
+
+// The <body> contents of a QTextDocument::toHtml() page, with every <img src="file">
+// replaced by an embedded data: URI so the page is self-contained.
+QString rb_page_body_with_embedded_images(const QString& html) {
+    int b0 = html.indexOf(QLatin1String("<body"));
+    b0 = b0 < 0 ? 0 : html.indexOf(QLatin1Char('>'), b0) + 1;
+    int b1 = html.lastIndexOf(QLatin1String("</body>"));
+    if (b1 < 0)
+        b1 = html.size();
+    QString body = html.mid(b0, b1 - b0);
+
+    static const QRegularExpression img_re(QStringLiteral("<img src=\"([^\"]+)\""));
+    QString out;
+    int last = 0;
+    auto it = img_re.globalMatch(body);
+    while (it.hasNext()) {
+        const auto m = it.next();
+        out += body.mid(last, m.capturedStart() - last);
+        QString src = m.captured(1);
+        QString local = src.startsWith(QLatin1String("file:")) ? QUrl(src).toLocalFile() : src;
+        QFile f(local);
+        if (f.open(QIODevice::ReadOnly)) {
+            const QString mime = local.endsWith(QLatin1String(".jpg"), Qt::CaseInsensitive) ||
+                                         local.endsWith(QLatin1String(".jpeg"), Qt::CaseInsensitive)
+                                     ? QStringLiteral("image/jpeg")
+                                 : local.endsWith(QLatin1String(".svg"), Qt::CaseInsensitive)
+                                     ? QStringLiteral("image/svg+xml")
+                                 : local.endsWith(QLatin1String(".gif"), Qt::CaseInsensitive)
+                                     ? QStringLiteral("image/gif")
+                                     : QStringLiteral("image/png");
+            out += QStringLiteral("<img src=\"data:%1;base64,%2\"")
+                       .arg(mime, QString::fromLatin1(f.readAll().toBase64()));
+        } else {
+            out += m.captured(0); // leave it; the browser shows a broken image rather than nothing
+        }
+        last = m.capturedEnd();
+    }
+    out += body.mid(last);
+    return out;
+}
+
+} // namespace
+
+bool ReportBuilderScreen::export_html_to(const QString& path) {
+    if (path.isEmpty())
+        return false;
+    auto& svc = Service::instance();
+    const auto meta = svc.metadata();
+    const auto theme = svc.theme();
+
+    canvas_->render(svc.components(), meta, theme, -1); // no selection highlight
+    QStringList pages;
+    for (QTextDocument* d : canvas_->page_documents())
+        pages << rb_page_body_with_embedded_images(d->toHtml());
+    refresh_canvas();
+
+    auto band = [](const QString& l, const QString& c, const QString& r) {
+        if (l.isEmpty() && c.isEmpty() && r.isEmpty())
+            return QString();
+        return QStringLiteral("<div class=\"band\"><span>%1</span><span>%2</span><span>%3</span></div>")
+            .arg(rb_html_escape(l), rb_html_escape(c), rb_html_escape(r));
+    };
+    // Running headers/footers have no page numbers in a web page — drop the tokens.
+    auto strip = [](QString s) {
+        s.remove(QStringLiteral("{page}"));
+        s.remove(QStringLiteral("{total}"));
+        return s.trimmed();
+    };
+
+    QString html;
+    html += QStringLiteral("<!DOCTYPE html>\n<html><head><meta charset=\"utf-8\">");
+    html += QStringLiteral("<title>%1</title>").arg(rb_html_escape(meta.title));
+    html += QStringLiteral("<style>body{background:%1;color:%2;max-width:820px;margin:24px auto;padding:0 24px;"
+                           "font-family:'Segoe UI',Arial,sans-serif;}"
+                           ".band{display:flex;justify-content:space-between;color:#888;font-size:9pt;"
+                           "border-bottom:1px solid #ccc;margin:8px 0;}"
+                           ".band.footer{border-top:1px solid #ccc;border-bottom:none;}"
+                           ".page-break{page-break-before:always;break-before:page;height:0;}"
+                           "img{max-width:100%;height:auto;}"
+                           "table{border-collapse:collapse;}</style></head><body>")
+                .arg(theme.page_bg, theme.text_color);
+    html += band(strip(meta.header_left), strip(meta.header_center), strip(meta.header_right));
+    html += pages.join(QStringLiteral("<div class=\"page-break\"></div>"));
+    QString footer = band(strip(meta.footer_left), strip(meta.footer_center), strip(meta.footer_right));
+    footer.replace(QStringLiteral("class=\"band\""), QStringLiteral("class=\"band footer\""));
+    html += footer;
+    html += QStringLiteral("</body></html>\n");
+
+    QSaveFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        LOG_ERROR("ReportBuilder", "HTML export failed: cannot open " + path);
+        return false;
+    }
+    const QByteArray bytes = html.toUtf8();
+    if (f.write(bytes) != bytes.size() || !f.commit()) {
+        LOG_ERROR("ReportBuilder", "HTML export failed: could not write " + path);
+        return false;
+    }
+    services::FileManagerService::instance().import_file(path, "report_builder");
+    return true;
+}
+
+void ReportBuilderScreen::on_export_html() {
+    const auto m = Service::instance().metadata();
+    QString path = QFileDialog::getSaveFileName(this, tr("Export HTML"), m.title, tr("Web page (*.html)"));
+    if (path.isEmpty())
+        return;
+    if (!path.endsWith(QLatin1String(".html"), Qt::CaseInsensitive) &&
+        !path.endsWith(QLatin1String(".htm"), Qt::CaseInsensitive))
+        path += QLatin1String(".html");
+    if (export_html_to(path))
+        QMessageBox::information(this, tr("Export HTML"), tr("Report exported successfully to:\n%1").arg(path));
+    else
+        QMessageBox::warning(this, tr("Export HTML"), tr("Failed to export the report to:\n%1").arg(path));
 }
 
 void ReportBuilderScreen::on_preview() {
     QPrinter printer(QPrinter::HighResolution);
     printer.setPageSize(QPageSize(QPageSize::A4));
     QPrintPreviewDialog preview(&printer, this);
-    connect(&preview, &QPrintPreviewDialog::paintRequested, this,
-            [this](QPrinter* p) { canvas_->text_edit()->document()->print(p); });
+    // Same painter as the PDF export, so the preview shows the page header/footer, the
+    // theme background and EVERY page — it used to print only the last canvas page's
+    // document without header or footer.
+    connect(&preview, &QPrintPreviewDialog::paintRequested, this, [this](QPrinter* p) {
+        auto& svc = Service::instance();
+        canvas_->render(svc.components(), svc.metadata(), svc.theme(), -1); // no selection highlight
+        rb_paint_report_pages(canvas_->page_documents(), p, svc.metadata(), svc.theme(), this);
+        refresh_canvas();
+    });
     preview.exec();
 }
 

@@ -195,7 +195,8 @@ void HoldingsTable::refresh_subscription() {
         return;
     current_balance_topic_ = QStringLiteral("wallet:balance:%1").arg(current_pubkey_);
     hub.subscribe(this, current_balance_topic_, [this](const QVariant& v) { on_balance_update(v); });
-    hub.request(current_balance_topic_, /*force=*/true);
+    // force=false: coalesce with the holdings bar / other panels (hub min_interval).
+    hub.request(current_balance_topic_, /*force=*/false);
 }
 
 void HoldingsTable::on_balance_update(const QVariant& v) {
@@ -235,7 +236,7 @@ void HoldingsTable::resubscribe_prices() {
         const auto topic = QStringLiteral("market:price:token:%1").arg(mint);
         price_topic_.insert(mint, topic);
         hub.subscribe(this, topic, [this, mint](const QVariant& v) { on_price_update(mint, v); });
-        hub.request(topic, /*force=*/true);
+        hub.request(topic, /*force=*/false);
     }
 }
 
@@ -371,6 +372,17 @@ void HoldingsTable::rebuild_table() {
 
 void HoldingsTable::showEvent(QShowEvent* e) {
     QWidget::showEvent(e);
+    // SETTINGS has its own "show unverified tokens" checkbox that writes the
+    // same persisted flag, but this table only read it once in the constructor
+    // — toggling it on SETTINGS did nothing until the next app start. Re-sync
+    // whenever the table becomes visible (it is hidden while SETTINGS is open).
+    auto flag = SecureStorage::instance().retrieve(QStringLiteral("wallet.show_unverified_tokens"));
+    const bool persisted = flag.is_ok() && flag.value().compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0;
+    if (persisted != show_unverified_) {
+        show_unverified_ = persisted;
+        show_all_button_->setText(show_unverified_ ? tr("Hide unverified") : tr("Show all"));
+        rebuild_table();
+    }
     if (!current_pubkey_.isEmpty()) {
         refresh_subscription();
     }

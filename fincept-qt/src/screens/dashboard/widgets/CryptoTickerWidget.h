@@ -55,6 +55,7 @@ class CryptoTickerWidget : public BaseWidget {
 
     QString exchange_;
     QStringList pairs_;
+    QWidget* rows_host_ = nullptr; // owns the rows + the one stylesheet styling them
     QHash<QString, Row> rows_;
     QHash<QString, trading::TickerData> ticker_cache_;
     QSet<QString> received_; // pairs that have published at least once

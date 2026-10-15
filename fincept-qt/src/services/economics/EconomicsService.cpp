@@ -9,8 +9,26 @@
 
 #include <QJsonDocument>
 #include <QJsonParseError>
+#include <QRegularExpression>
 
 namespace fincept::services {
+
+namespace {
+
+/// Mask credentials a provider (or the HTTP library, which echoes the full request URL in its
+/// exception text) copied into an error message before it reaches the UI or the log: query-string
+/// keys ("...&api_key=SECRET&...") and BLS-style "The key:SECRET provided by the User is invalid".
+QString econ_svc_redact_secrets(QString text) {
+    static const QRegularExpression kQueryKey(
+        QStringLiteral("\\b(api[_-]?key|apikey|access[_-]?token|token|key|userid|subscription-key|password|secret)=[^&\\s\"']+"),
+        QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression kBlsKey(QStringLiteral("(the key:)\\S+"), QRegularExpression::CaseInsensitiveOption);
+    text.replace(kQueryKey, QStringLiteral("\\1=***"));
+    text.replace(kBlsKey, QStringLiteral("\\1***"));
+    return text;
+}
+
+} // namespace
 
 EconomicsService& EconomicsService::instance() {
     static EconomicsService inst;
@@ -21,12 +39,10 @@ EconomicsService::EconomicsService(QObject* parent) : QObject(parent) {}
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
 
+// "v2" entries are {"fetched_at": <ISO UTC>, "data": {...}} so a cache hit can report when the data
+// was actually retrieved. The prefix keeps pre-v2 entries (bare data objects) from being misread.
 QString EconomicsService::cache_key(const QString& script, const QString& command, const QStringList& args) const {
-    return "economics:" + script + ":" + command + ":" + args.join(",");
-}
-
-void EconomicsService::invalidate(const QString& request_id) {
-    fincept::CacheManager::instance().remove(request_id);
+    return "economics:v2:" + script + ":" + command + ":" + args.join(",");
 }
 
 // ── Execute ───────────────────────────────────────────────────────────────────
@@ -43,9 +59,12 @@ void EconomicsService::execute(const QString& source_id, const QString& script, 
         const QVariant cached = fincept::CacheManager::instance().get(key);
         if (!cached.isNull()) {
             LOG_DEBUG("EconomicsService", "Cache hit: " + key);
+            const QJsonObject wrapper = QJsonDocument::fromJson(cached.toString().toUtf8()).object();
             EconomicsResult res;
             res.success = true;
-            res.data = QJsonDocument::fromJson(cached.toString().toUtf8()).object();
+            res.data = wrapper.value(QStringLiteral("data")).toObject();
+            res.fetched_at = QDateTime::fromString(wrapper.value(QStringLiteral("fetched_at")).toString(), Qt::ISODate);
+            res.from_cache = true;
             res.source_id = source_id;
             emit result_ready(request_id, res);
             if (hub_registered_)
@@ -67,12 +86,23 @@ void EconomicsService::execute(const QString& source_id, const QString& script, 
 
             EconomicsResult res;
             res.source_id = source_id;
+            res.fetched_at = QDateTime::currentDateTimeUtc();
+
+            // A failed refresh must clear the hub's in_flight flag, or the topic stays "busy" until the
+            // scheduler's refresh_timeout fires and a retry is silently refused.
+            auto report_failure = [self, &res, &source_id, &request_id]() {
+                emit self->result_ready(request_id, res);
+                if (self->hub_registered_)
+                    fincept::datahub::DataHub::instance().publish_error(
+                        EconomicsService::hub_topic(source_id, request_id), res.error);
+            };
 
             if (!py.success) {
                 res.success = false;
-                res.error = py.error.isEmpty() ? QString("Script exited with code %1").arg(py.exit_code) : py.error;
+                res.error = econ_svc_redact_secrets(
+                    py.error.isEmpty() ? QString("Script exited with code %1").arg(py.exit_code) : py.error);
                 LOG_ERROR("EconomicsService", "Script failed: " + res.error);
-                emit self->result_ready(request_id, res);
+                report_failure();
                 return;
             }
 
@@ -81,7 +111,7 @@ void EconomicsService::execute(const QString& source_id, const QString& script, 
                 res.success = false;
                 res.error = "No JSON output from script";
                 LOG_ERROR("EconomicsService", res.error);
-                emit self->result_ready(request_id, res);
+                report_failure();
                 return;
             }
 
@@ -91,7 +121,7 @@ void EconomicsService::execute(const QString& source_id, const QString& script, 
                 res.success = false;
                 res.error = "JSON parse error: " + err.errorString();
                 LOG_ERROR("EconomicsService", res.error);
-                emit self->result_ready(request_id, res);
+                report_failure();
                 return;
             }
 
@@ -100,6 +130,14 @@ void EconomicsService::execute(const QString& source_id, const QString& script, 
                 res.data = QJsonObject{{"data", doc.array()}};
             else
                 res.data = doc.object();
+
+            // Scripts echo provider/HTTP-library errors verbatim — scrub credentials before the text
+            // is shown, logged or cached.
+            for (const char* field : {"error", "message"}) {
+                const QJsonValue v = res.data.value(QLatin1String(field));
+                if (v.isString())
+                    res.data[QLatin1String(field)] = econ_svc_redact_secrets(v.toString());
+            }
 
             // Treat script-level error field as failure
             if (res.data.contains("error") && !res.data["error"].isNull() && !res.data["error"].toString().isEmpty() &&
@@ -110,13 +148,15 @@ void EconomicsService::execute(const QString& source_id, const QString& script, 
                 // Prefix with [CODE] so panels can branch on it without a schema change.
                 res.error = error_code.isEmpty() ? message
                                                  : (QStringLiteral("[") + error_code + QStringLiteral("] ") + message);
-                emit self->result_ready(request_id, res);
+                report_failure();
                 return;
             }
 
             res.success = true;
+            const QJsonObject wrapper{{QStringLiteral("fetched_at"), res.fetched_at.toString(Qt::ISODate)},
+                                      {QStringLiteral("data"), res.data}};
             fincept::CacheManager::instance().put(
-                key, QVariant(QString::fromUtf8(QJsonDocument(res.data).toJson(QJsonDocument::Compact))), kCacheTtlSec,
+                key, QVariant(QString::fromUtf8(QJsonDocument(wrapper).toJson(QJsonDocument::Compact))), kCacheTtlSec,
                 "economics");
             LOG_INFO("EconomicsService", "Result ready: " + request_id);
             emit self->result_ready(request_id, res);

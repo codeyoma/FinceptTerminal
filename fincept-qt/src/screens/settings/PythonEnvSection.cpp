@@ -6,17 +6,12 @@
 #include "ui/theme/Theme.h"
 
 #include <QCheckBox>
-#include <QCoreApplication>
-#include <QDir>
-#include <QFile>
 #include <QFileInfo>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
-#include <QProcessEnvironment>
-#include <QRegularExpression>
-#include <QScrollArea>
+#include <QMessageBox>
 #include <QShowEvent>
 #include <QVBoxLayout>
 
@@ -80,15 +75,6 @@ static QString progress_ss() {
     return QString("QProgressBar{background:%1;border:1px solid %2;border-radius:3px;}"
                    "QProgressBar::chunk{background:%3;border-radius:3px;}")
         .arg(ui::colors::BG_RAISED(), ui::colors::BORDER_DIM(), ui::colors::AMBER());
-}
-
-// ── Canonical name normalisation (mirrors PythonSetupManager logic) ───────────
-
-QString PythonEnvSection::canonicalise(const QString& name) {
-    QString n = name.toLower();
-    n.replace('-', '_');
-    n.replace('.', '_');
-    return n;
 }
 
 // ── Constructor ───────────────────────────────────────────────────────────────
@@ -267,6 +253,17 @@ void PythonEnvSection::build_ui() {
     root->addWidget(install_log_);
 
     // ── Signal connections ────────────────────────────────────────────────────
+    // The banner above warns that upgrades can break the terminal, but the bulk
+    // actions used to run on a single click with no confirmation.
+    auto confirm_upgrade = [this](int package_count) {
+        return QMessageBox::warning(this, tr("Upgrade Packages"),
+                                    tr("Upgrade %1 package(s) to the newest versions their requirement specs "
+                                       "allow?\n\nIncompatible versions can make analytics scripts crash or "
+                                       "return wrong results, and this panel cannot roll them back.")
+                                        .arg(package_count),
+                                    QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel) == QMessageBox::Yes;
+    };
+
     connect(refresh_btn_, &QPushButton::clicked, this, &PythonEnvSection::load_packages);
 
     connect(search_input_, &QLineEdit::textChanged, this, &PythonEnvSection::apply_filter);
@@ -295,7 +292,7 @@ void PythonEnvSection::build_ui() {
             start_action(q);
     });
 
-    connect(upgrade_all_btn_, &QPushButton::clicked, this, [this]() {
+    connect(upgrade_all_btn_, &QPushButton::clicked, this, [this, confirm_upgrade]() {
         ActionBatch b1, b2;
         b1.venv = "venv-numpy1";
         b1.upgrade = true;
@@ -314,14 +311,24 @@ void PythonEnvSection::build_ui() {
             q << b1;
         if (!b2.packages.isEmpty())
             q << b2;
-        if (!q.isEmpty())
+        if (!q.isEmpty() && confirm_upgrade(static_cast<int>(b1.packages.size() + b2.packages.size())))
             start_action(q);
     });
 
-    connect(batch_action_btn_, &QPushButton::clicked, this, [this]() {
+    connect(batch_action_btn_, &QPushButton::clicked, this, [this, confirm_upgrade]() {
         auto batches = build_batches_for_selected();
-        if (!batches.isEmpty())
-            start_action(batches);
+        if (batches.isEmpty())
+            return;
+        // Only upgrades need the warning; installing missing packages is the
+        // normal repair path.
+        int upgrade_count = 0;
+        for (const auto& b : std::as_const(batches)) {
+            if (b.upgrade)
+                upgrade_count += static_cast<int>(b.packages.size());
+        }
+        if (upgrade_count > 0 && !confirm_upgrade(upgrade_count))
+            return;
+        start_action(batches);
     });
 }
 
@@ -337,80 +344,28 @@ void PythonEnvSection::reload() {
     load_packages();
 }
 
-// ── Requirements file resolution ──────────────────────────────────────────────
-// Mirrors PythonSetupManager::find_requirements_file() — walks up from exe dir.
-
-QString PythonEnvSection::find_req_file(const QString& filename) const {
-    QString exe_dir = QCoreApplication::applicationDirPath();
-
-    // Direct candidate beside the exe
-    QStringList candidates = {
-        exe_dir + "/resources/" + filename,
-        exe_dir + "/../resources/" + filename,
-        exe_dir + "/../../resources/" + filename,
-    };
-
-    // Walk up from exe dir
-    QDir dir(exe_dir);
-    while (dir.cdUp()) {
-        QString c = dir.filePath("resources/" + filename);
-        if (QFileInfo::exists(c))
-            return QDir::cleanPath(c);
-        if (dir.isRoot())
-            break;
-    }
-
-    for (const auto& c : candidates) {
-        if (QFileInfo::exists(c))
-            return QDir::cleanPath(c);
-    }
-
-    LOG_WARN("PythonEnv", "Requirements file not found: " + filename);
-    return {};
-}
-
 // ── parse_requirements ────────────────────────────────────────────────────────
 // Reads one requirements file, appends PackageRow entries to all_packages_.
-// Mirrors PythonSetupManager::read_packages_from_file() parsing rules.
+// Lookup and parsing are PythonSetupManager's — the same rules the installer uses.
 
 void PythonEnvSection::parse_requirements(const QString& req_file, const QString& venv_name,
                                           const QString& venv_label) {
-    QString path = find_req_file(req_file);
+    using python::PythonSetupManager;
+    const QString path = PythonSetupManager::instance().find_requirements_file(req_file);
     if (path.isEmpty()) {
         LOG_ERROR("PythonEnv", "Cannot load requirements: " + req_file);
         return;
     }
 
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        LOG_ERROR("PythonEnv", "Cannot open: " + path);
-        return;
-    }
-
-    // Version specifier regex — strips ">=1.2,<3.0" and extras "[torch]" from name
-    static const QRegularExpression kVerRe(R"([><=!~\s\[].*)");
-
-    while (!f.atEnd()) {
-        QString line = QString::fromUtf8(f.readLine()).trimmed();
-        if (line.isEmpty() || line.startsWith('#') || line.startsWith('-'))
-            continue;
-        int comment = line.indexOf('#');
-        if (comment > 0)
-            line = line.left(comment).trimmed();
-        if (line.isEmpty())
-            continue;
-
+    const QStringList specs = PythonSetupManager::read_requirement_lines(path);
+    for (const QString& spec : specs) {
         PackageRow row;
-        row.required_spec = line;
+        row.required_spec = spec;
         row.venv = venv_name;
         row.venv_label = venv_label;
-
-        QString base = line;
-        base.remove(kVerRe);
-        row.display_name = base.trimmed();
-        row.name = canonicalise(row.display_name);
+        row.display_name = PythonSetupManager::requirement_name(spec);
+        row.name = PythonSetupManager::canonical_package_name(row.display_name);
         row.missing = true;
-
         if (!row.name.isEmpty())
             all_packages_ << row;
     }
@@ -426,11 +381,15 @@ void PythonEnvSection::load_packages() {
         return;
     }
 
+    // A refresh clicked while a listing is still running would clear the data
+    // and re-arm list_proc_ underneath it (the old run's `finished` is
+    // disconnected), leaving the table stuck on "Loading..." forever.
+    if (list_proc_->state() != QProcess::NotRunning)
+        return;
+
     all_packages_.clear();
     installed_v1_.clear();
     installed_v2_.clear();
-    v1_loaded_ = false;
-    v2_loaded_ = false;
     pkg_table_->setRowCount(0);
     show_status(tr("Loading..."));
 
@@ -457,9 +416,8 @@ void PythonEnvSection::start_list_venv(const QString& venv_name) {
 
     list_stdout_buf_.clear();
 
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    env.insert("UV_PYTHON_INSTALL_DIR", mgr.install_dir() + "/python");
-    list_proc_->setProcessEnvironment(env);
+    // Same uv environment as setup: shared cache, managed Python only, no user uv.toml.
+    list_proc_->setProcessEnvironment(mgr.uv_environment());
 
     list_proc_->disconnect();
 
@@ -468,6 +426,16 @@ void PythonEnvSection::start_list_venv(const QString& venv_name) {
 
     connect(list_proc_, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
             [this, venv_name](int exit_code, QProcess::ExitStatus) { on_list_finished(venv_name, exit_code); });
+
+    // `finished` is never emitted when the process cannot even start (uv missing
+    // or not executable), which left the panel on "Loading..." with no way out.
+    connect(list_proc_, &QProcess::errorOccurred, this, [this, venv_name](QProcess::ProcessError err) {
+        if (err != QProcess::FailedToStart)
+            return;
+        LOG_WARN("PythonEnv", "uv pip list could not start for " + venv_name);
+        QMetaObject::invokeMethod(
+            this, [this, venv_name]() { on_list_finished(venv_name, -1); }, Qt::QueuedConnection);
+    });
 
     list_proc_->start(mgr.uv_path(), {"pip", "list", "--python", python});
     LOG_DEBUG("PythonEnv", "Started uv pip list for " + venv_name);
@@ -484,7 +452,7 @@ void PythonEnvSection::on_list_finished(const QString& venv_name, int exit_code)
             QStringList parts = line.split(' ', Qt::SkipEmptyParts);
             if (parts.size() < 2)
                 continue;
-            QString pkg_name = canonicalise(parts.value(0));
+            QString pkg_name = python::PythonSetupManager::canonical_package_name(parts.value(0));
             QString version = parts.value(1);
             if (!pkg_name.isEmpty() && !version.isEmpty())
                 target.insert(pkg_name, version);
@@ -497,13 +465,10 @@ void PythonEnvSection::on_list_finished(const QString& venv_name, int exit_code)
 
     list_stdout_buf_.clear();
 
-    if (venv_name == "venv-numpy1") {
-        v1_loaded_ = true;
+    if (venv_name == "venv-numpy1")
         start_list_venv("venv-numpy2");
-    } else {
-        v2_loaded_ = true;
+    else
         merge_and_populate_table();
-    }
 }
 
 // ── merge_and_populate_table ──────────────────────────────────────────────────
@@ -694,11 +659,9 @@ void PythonEnvSection::run_next_batch() {
         args << "--upgrade";
     args << batch.packages;
 
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    env.insert("UV_PYTHON_INSTALL_DIR", mgr.install_dir() + "/python");
-    env.insert("PEEWEE_NO_SQLITE_EXTENSIONS", "1");
-    env.insert("PEEWEE_NO_C_EXTENSION", "1");
-    action_proc_->setProcessEnvironment(env);
+    // Same uv environment as setup (shared UV_CACHE_DIR — no second cache — and
+    // the peewee build flags).
+    action_proc_->setProcessEnvironment(mgr.uv_environment());
 
     action_stdout_buf_.clear();
     action_proc_->disconnect();
@@ -720,6 +683,17 @@ void PythonEnvSection::run_next_batch() {
                     on_action_finished(exit_code);
                 }
             });
+
+    // Same as the listing process: a failed launch emits no `finished`, which
+    // would leave every button on this panel disabled for the rest of the session.
+    connect(action_proc_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err != QProcess::FailedToStart)
+            return;
+        LOG_ERROR("PythonEnv", "uv pip install could not start");
+        action_queue_.clear();
+        QMetaObject::invokeMethod(
+            this, [this]() { on_action_finished(-1); }, Qt::QueuedConnection);
+    });
 
     LOG_INFO("PythonEnv", QString("uv pip install: venv=%1  upgrade=%2  packages=%3")
                               .arg(batch.venv)

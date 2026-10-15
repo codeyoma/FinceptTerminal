@@ -30,23 +30,23 @@ void UserApi::request(const QString& method, const QString& endpoint, const QJso
             }
             switch (status) {
                 case 401:
-                    msg = "Session expired. Please log in again.";
+                    msg = tr("Session expired. Please log in again.");
                     break;
                 case 403:
-                    msg = "Access denied.";
+                    msg = tr("Access denied.");
                     break;
                 case 404:
-                    msg = "Resource not found.";
+                    msg = tr("Resource not found.");
                     break;
                 case 422:
-                    msg = "Invalid request data.";
+                    msg = tr("Invalid request data.");
                     break;
                 case 500:
-                    msg = "Server error. Please try again.";
+                    msg = tr("Server error. Please try again.");
                     break;
                 default:
-                    msg = status > 0 ? QString("Request failed (HTTP %1)").arg(status)
-                                     : "Network error. Check your connection.";
+                    msg = status > 0 ? tr("Request failed (HTTP %1)").arg(status)
+                                     : tr("Network error. Check your connection.");
             }
             cb({false, {}, msg, status});
             return;
@@ -54,7 +54,7 @@ void UserApi::request(const QString& method, const QString& endpoint, const QJso
 
         auto obj = result.value().object();
         if (obj.contains("success") && !obj["success"].toBool()) {
-            QString msg = obj.value("message").toString(obj.value("detail").toString("Request failed"));
+            QString msg = obj.value("message").toString(obj.value("detail").toString(tr("Request failed")));
             cb({false, obj, msg, 200});
             return;
         }
@@ -92,7 +92,30 @@ void UserApi::regenerate_api_key(Callback cb, const QObject* context) {
     request("POST", "/user/regenerate-api-key", {}, cb, context);
 }
 void UserApi::get_user_credits(Callback cb, const QObject* context) {
-    request("GET", "/user/credits", {}, cb, context);
+    // The API has no /user/credits route (it always answered 404). The balance,
+    // plan and expiry are part of the profile, so read them from there and hand
+    // back just the credit fields in the usual {"success","data"} envelope.
+    request(
+        "GET", "/user/profile", {},
+        [cb](ApiResponse r) {
+            if (!r.success) {
+                cb(r);
+                return;
+            }
+            const QJsonObject profile =
+                r.data.value("data").isObject() ? r.data.value("data").toObject() : r.data;
+            // Fractional: one AI call can cost 0.35 credits.
+            const double balance = profile.value("credit_balance").toDouble();
+            QJsonObject credits;
+            credits.insert("credit_balance", balance);
+            credits.insert("credit_balance_display", format_credits(balance));
+            credits.insert("account_type", profile.value("account_type"));
+            credits.insert("effective_plan", profile.value("effective_plan"));
+            credits.insert("credits_expire_at", profile.value("credits_expire_at"));
+            r.data = QJsonObject{{"success", true}, {"data", credits}};
+            cb(r);
+        },
+        context);
 }
 void UserApi::delete_user_account(const QString& confirm_email, const QString& password, Callback cb,
                                   const QObject* context) {
@@ -125,13 +148,20 @@ void UserApi::disable_mfa(Callback cb, const QObject* context) {
 // ── Subscriptions ────────────────────────────────────────────────────────────
 
 void UserApi::get_user_subscription(Callback cb, const QObject* context) {
-    request("GET", "/user/subscriptions", {}, cb, context);
+    // The plan record (account_type, credit_balance, credits_expire_at,
+    // support_type — the UserSubscription fields). /user/subscriptions is a
+    // different thing: the list of DATABASE subscriptions, which carries none of
+    // these, so the Billing tab used to blank its plan and show 0.00 credits.
+    request("GET", "/cashfree/subscription", {}, cb, context);
 }
 
 // ── Payment ──────────────────────────────────────────────────────────────────
 
 void UserApi::get_payment_history(int page, int limit, Callback cb, const QObject* context) {
-    request("GET", QString("/user/transactions?page=%1&limit=%2").arg(page).arg(limit), {}, cb, context);
+    // Plan payments: {payments:[{plan_name, amount_usd, credits_purchased, status, …}], pagination}.
+    // /user/transactions is the credit LEDGER (grants and adjustments at $0) and
+    // ignores page/limit — not a payment history.
+    request("GET", QString("/cashfree/payments?page=%1&limit=%2").arg(page).arg(limit), {}, cb, context);
 }
 
 // ── Support ──────────────────────────────────────────────────────────────────

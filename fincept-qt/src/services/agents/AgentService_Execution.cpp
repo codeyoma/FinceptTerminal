@@ -20,6 +20,7 @@
 #include "storage/repositories/LlmConfigRepository.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QElapsedTimer>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -30,6 +31,7 @@
 #include <QUuid>
 #include <QVariant>
 
+#include <algorithm>
 #include <memory>
 
 namespace fincept::services {
@@ -81,8 +83,18 @@ QString AgentService::run_agent_streaming(const QString& query, const QJsonObjec
         r.request_id = req_id;
         r.success = false;
         r.error = "Python not available";
-        emit agent_stream_done(r);
-        publish_agent_result(r, /*final=*/true);
+        // Deferred: the caller stores the returned request id after this returns,
+        // so a synchronous emit would be dropped by its request-id guard.
+        QPointer<AgentService> unavailable_self = this;
+        QMetaObject::invokeMethod(
+            this,
+            [unavailable_self, r]() {
+                if (!unavailable_self)
+                    return;
+                emit unavailable_self->agent_stream_done(r);
+                unavailable_self->publish_agent_result(r, /*final=*/true);
+            },
+            Qt::QueuedConnection);
         return req_id;
     }
 
@@ -91,6 +103,10 @@ QString AgentService::run_agent_streaming(const QString& query, const QJsonObjec
 
     QJsonObject payload = build_payload("run", params, config);
     QByteArray payload_bytes = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    // Run-scoped bridge token minted by build_payload — retired when the process
+    // exits (the non-streaming path already does this in run_python_stdin).
+    const QString run_token =
+        payload.value("config").toObject().value("terminal_mcp_token").toString();
 
     QString python_path = py.python_path();
     QString script_path = py.scripts_dir() + "/agents/finagent_core/main.py";
@@ -98,8 +114,8 @@ QString AgentService::run_agent_streaming(const QString& query, const QJsonObjec
     auto* proc = new QProcess(this);
     // Share the standard Python env + cwd + Windows console suppression with
     // PythonRunner so every finagent spawn sees the same FINCEPT_DATA_DIR,
-    // FINAGENT_DATA_DIR, and PYTHONPATH.
-    proc->setProcessEnvironment(py.build_python_env());
+    // FINAGENT_DATA_DIR, PYTHONPATH and FINCEPT_AGENT_DATA_DIR.
+    proc->setProcessEnvironment(agent_process_env());
     proc->setWorkingDirectory(py.scripts_dir());
 #ifdef _WIN32
     proc->setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments* cpa) {
@@ -112,6 +128,10 @@ QString AgentService::run_agent_streaming(const QString& query, const QJsonObjec
     auto final_json_line = std::make_shared<QString>();
     auto done_emitted = std::make_shared<bool>(false);
     timer->start();
+    active_runs_.insert(req_id, ActiveRun{proc, done_emitted});
+    // Started from Agent Studio → notify on finish if the user has moved on.
+    if (visible_agent_screens_ > 0)
+        notify_runs_.insert(req_id);
 
     // Read stdout line by line as process writes
     connect(proc, &QProcess::readyReadStandardOutput, this,
@@ -175,7 +195,9 @@ QString AgentService::run_agent_streaming(const QString& query, const QJsonObjec
 
     connect(
         proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
-        [self, proc, accumulated, final_json_line, done_emitted, timer, req_id](int exit_code, QProcess::ExitStatus) {
+        [self, proc, accumulated, final_json_line, done_emitted, timer, req_id, run_token](int exit_code,
+                                                                                           QProcess::ExitStatus) {
+            mcp::TerminalMcpBridge::instance().end_run(run_token);
             int elapsed = timer->elapsed();
 
             // Drain any remaining stdout
@@ -183,7 +205,10 @@ QString AgentService::run_agent_streaming(const QString& query, const QJsonObjec
             QString stderr_str = QString::fromUtf8(proc->readAllStandardError());
             proc->deleteLater();
 
-            if (!self || *done_emitted)
+            if (!self)
+                return;
+            self->active_runs_.remove(req_id);
+            if (*done_emitted)
                 return;
             *done_emitted = true;
 
@@ -217,10 +242,18 @@ QString AgentService::run_agent_streaming(const QString& query, const QJsonObjec
         });
 
     connect(proc, &QProcess::errorOccurred, this,
-            [self, proc, accumulated, final_json_line, done_emitted, timer, req_id](QProcess::ProcessError) {
+            [self, proc, done_emitted, req_id, run_token](QProcess::ProcessError e) {
+                // Only a failed spawn has no finished() signal; a crash is reported
+                // by the finished handler with the child's stderr attached.
+                if (e != QProcess::FailedToStart)
+                    return;
+                mcp::TerminalMcpBridge::instance().end_run(run_token);
                 QString err = proc->errorString();
                 proc->deleteLater();
-                if (!self || *done_emitted)
+                if (!self)
+                    return;
+                self->active_runs_.remove(req_id);
+                if (*done_emitted)
                     return;
                 *done_emitted = true;
                 AgentExecutionResult r;
@@ -236,6 +269,36 @@ QString AgentService::run_agent_streaming(const QString& query, const QJsonObjec
     proc->write(payload_bytes);
     proc->closeWriteChannel();
     return req_id;
+}
+
+// ── Cancellation ─────────────────────────────────────────────────────────────
+
+bool AgentService::cancel_run(const QString& request_id) {
+    const auto it = active_runs_.constFind(request_id);
+    if (it == active_runs_.cend())
+        return false; // finished already, or not a streaming run
+    const ActiveRun run = it.value();
+    active_runs_.remove(request_id);
+    auto* proc = qobject_cast<QProcess*>(run.proc.data());
+    if (!proc || !run.done || *run.done)
+        return false;
+
+    // Claim the result first: the process-exit handlers see done == true and stay
+    // silent, so the UI gets exactly one terminal event for this request.
+    *run.done = true;
+    LOG_INFO("AgentService", QString("Cancelling run [%1]").arg(request_id.left(8)));
+    // kill(), not terminate(): the child is a console-less python.exe, which
+    // ignores WM_CLOSE on Windows. The finished() handler still runs and retires
+    // the bridge token / schedules the QProcess for deletion.
+    proc->kill();
+
+    AgentExecutionResult r;
+    r.request_id = request_id;
+    r.success = false;
+    r.error = QString::fromLatin1(kCancelledError);
+    emit agent_stream_done(r);
+    publish_agent_result(r, /*final=*/true);
+    return true;
 }
 
 // ── Query routing ────────────────────────────────────────────────────────────
@@ -281,8 +344,18 @@ QString AgentService::run_team(const QString& query, const QJsonObject& team_con
         r.request_id = req_id;
         r.success = false;
         r.error = "Python not available";
-        emit agent_stream_done(r);
-        publish_agent_result(r, /*final=*/true);
+        // Deferred: the caller stores the returned request id after this returns,
+        // so a synchronous emit would be dropped by its request-id guard.
+        QPointer<AgentService> unavailable_self = this;
+        QMetaObject::invokeMethod(
+            this,
+            [unavailable_self, r]() {
+                if (!unavailable_self)
+                    return;
+                emit unavailable_self->agent_stream_done(r);
+                unavailable_self->publish_agent_result(r, /*final=*/true);
+            },
+            Qt::QueuedConnection);
         return req_id;
     }
 
@@ -297,6 +370,9 @@ QString AgentService::run_team(const QString& query, const QJsonObject& team_con
 
     QJsonObject payload = build_payload("run_team", params, coord_config);
     QByteArray payload_bytes = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    // Run-scoped bridge token minted by build_payload — retired on process exit.
+    const QString run_token =
+        payload.value("config").toObject().value("terminal_mcp_token").toString();
 
     QString python_path = py.python_path();
     QString script_path = py.scripts_dir() + "/agents/finagent_core/main.py";
@@ -304,8 +380,8 @@ QString AgentService::run_team(const QString& query, const QJsonObject& team_con
     auto* proc = new QProcess(this);
     // Share the standard Python env + cwd + Windows console suppression with
     // PythonRunner so every finagent spawn sees the same FINCEPT_DATA_DIR,
-    // FINAGENT_DATA_DIR, and PYTHONPATH.
-    proc->setProcessEnvironment(py.build_python_env());
+    // FINAGENT_DATA_DIR, PYTHONPATH and FINCEPT_AGENT_DATA_DIR.
+    proc->setProcessEnvironment(agent_process_env());
     proc->setWorkingDirectory(py.scripts_dir());
 #ifdef _WIN32
     proc->setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments* cpa) {
@@ -318,6 +394,10 @@ QString AgentService::run_team(const QString& query, const QJsonObject& team_con
     auto final_json = std::make_shared<QString>();
     auto done_emitted = std::make_shared<bool>(false);
     timer->start();
+    active_runs_.insert(req_id, ActiveRun{proc, done_emitted});
+    // Started from Agent Studio → notify on finish if the user has moved on.
+    if (visible_agent_screens_ > 0)
+        notify_runs_.insert(req_id);
 
     connect(proc, &QProcess::readyReadStandardOutput, this,
             [self, proc, accumulated, final_json, done_emitted, req_id]() {
@@ -370,13 +450,18 @@ QString AgentService::run_team(const QString& query, const QJsonObject& team_con
             });
 
     connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
-            [self, proc, accumulated, final_json, done_emitted, timer, req_id](int exit_code, QProcess::ExitStatus) {
+            [self, proc, accumulated, final_json, done_emitted, timer, req_id, run_token](int exit_code,
+                                                                                           QProcess::ExitStatus) {
+                mcp::TerminalMcpBridge::instance().end_run(run_token);
                 int elapsed = timer->elapsed();
                 QString remaining = QString::fromUtf8(proc->readAllStandardOutput());
                 QString stderr_str = QString::fromUtf8(proc->readAllStandardError());
                 proc->deleteLater();
 
-                if (!self || *done_emitted)
+                if (!self)
+                    return;
+                self->active_runs_.remove(req_id);
+                if (*done_emitted)
                     return;
                 *done_emitted = true;
 
@@ -408,10 +493,17 @@ QString AgentService::run_team(const QString& query, const QJsonObject& team_con
                 self->publish_agent_result(r, /*final=*/true);
             });
 
-    connect(proc, &QProcess::errorOccurred, this, [self, proc, done_emitted, timer, req_id](QProcess::ProcessError) {
+    connect(proc, &QProcess::errorOccurred, this, [self, proc, done_emitted, req_id, run_token](QProcess::ProcessError e) {
+        // Only a failed spawn has no finished() signal (see run_agent_streaming).
+        if (e != QProcess::FailedToStart)
+            return;
+        mcp::TerminalMcpBridge::instance().end_run(run_token);
         QString err = proc->errorString();
         proc->deleteLater();
-        if (!self || *done_emitted)
+        if (!self)
+            return;
+        self->active_runs_.remove(req_id);
+        if (*done_emitted)
             return;
         *done_emitted = true;
         AgentExecutionResult r;
@@ -524,12 +616,15 @@ QString AgentService::run_agentic_streaming(const QString& action, const QJsonOb
 
     QJsonObject payload = build_payload(action, params, config);
     QByteArray payload_bytes = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    // Run-scoped bridge token minted by build_payload — retired on process exit.
+    const QString run_token =
+        payload.value("config").toObject().value("terminal_mcp_token").toString();
 
     QString python_path = py.python_path();
     QString script_path = py.scripts_dir() + "/agents/finagent_core/main.py";
 
     auto* proc = new QProcess(this);
-    proc->setProcessEnvironment(py.build_python_env());
+    proc->setProcessEnvironment(agent_process_env());
     proc->setWorkingDirectory(py.scripts_dir());
 #ifdef _WIN32
     proc->setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments* cpa) {
@@ -575,7 +670,8 @@ QString AgentService::run_agentic_streaming(const QString& action, const QJsonOb
     });
 
     connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
-            [self, proc, resolved_task_id, done_emitted, req_id](int exit_code, QProcess::ExitStatus) {
+            [self, proc, resolved_task_id, done_emitted, req_id, run_token](int exit_code, QProcess::ExitStatus) {
+                mcp::TerminalMcpBridge::instance().end_run(run_token);
                 QString stderr_str = QString::fromUtf8(proc->readAllStandardError());
                 // Drain any remaining stdout in case the last events arrived
                 // in the same chunk as exit.
@@ -621,7 +717,12 @@ QString AgentService::run_agentic_streaming(const QString& action, const QJsonOb
             });
 
     connect(proc, &QProcess::errorOccurred, this,
-            [self, proc, resolved_task_id, done_emitted, req_id](QProcess::ProcessError) {
+            [self, proc, resolved_task_id, done_emitted, req_id, run_token](QProcess::ProcessError e) {
+                // Only a failed spawn has no finished() signal; a crash is
+                // reported by the finished handler (with stderr).
+                if (e != QProcess::FailedToStart)
+                    return;
+                mcp::TerminalMcpBridge::instance().end_run(run_token);
                 QString err = proc->errorString();
                 proc->deleteLater();
                 if (!self || *done_emitted)
@@ -646,17 +747,37 @@ QString AgentService::start_task(const QString& query, const QJsonObject& config
     return run_agentic_streaming(QStringLiteral("agentic_start_task"), params, config);
 }
 
-QString AgentService::resume_task(const QString& task_id) {
+namespace {
+/// The stored task config minus everything that is minted per run. Python
+/// never persists credentials or bridge wiring (AgenticRunner strips them), but
+/// `model` IS kept without its key — dropping it here makes build_payload
+/// re-resolve a model WITH credentials (agent profile, else the active LLM),
+/// exactly as when the task was started.
+QJsonObject agent_svc_resume_config(const QJsonObject& task_config) {
+    QJsonObject cfg = task_config;
+    cfg.remove(QStringLiteral("model"));
+    cfg.remove(QStringLiteral("terminal_tools"));
+    for (const QString& k : cfg.keys()) {
+        if (k.startsWith(QLatin1String("terminal_mcp_")))
+            cfg.remove(k);
+    }
+    return cfg;
+}
+} // namespace
+
+QString AgentService::resume_task(const QString& task_id, const QJsonObject& task_config) {
     QJsonObject params;
     params["task_id"] = task_id;
-    return run_agentic_streaming(QStringLiteral("agentic_resume_task"), params, {}, task_id);
+    return run_agentic_streaming(QStringLiteral("agentic_resume_task"), params, agent_svc_resume_config(task_config),
+                                 task_id);
 }
 
-QString AgentService::reply_to_question(const QString& task_id, const QString& answer) {
+QString AgentService::reply_to_question(const QString& task_id, const QString& answer, const QJsonObject& task_config) {
     QJsonObject params;
     params["task_id"] = task_id;
     params["answer"] = answer;
-    return run_agentic_streaming(QStringLiteral("agentic_reply_question"), params, {}, task_id);
+    return run_agentic_streaming(QStringLiteral("agentic_reply_question"), params, agent_svc_resume_config(task_config),
+                                 task_id);
 }
 
 // ── Scheduled recurring tasks ────────────────────────────────────────────────
@@ -674,13 +795,15 @@ QString AgentService::schedule_create_task(const QString& name, const QString& q
     run_python_stdin(QStringLiteral("agentic_schedule_create"), params, {}, [self](bool ok, QJsonObject result) {
         if (!self)
             return;
-        if (ok)
+        if (ok) {
             emit self->schedule_created(result.value("schedule_id").toString());
-        else
+            // Python reports the earliest due time across all schedules, so the
+            // new one (start_now included) arms the timer without a re-list.
+            self->apply_schedule_due(static_cast<qint64>(result.value("next_run_epoch_ms").toDouble()));
+        } else {
             emit self->error_occurred("schedule_create", result["error"].toString());
+        }
     });
-    // Make sure the polling timer is on now that there might be schedules.
-    ensure_schedule_timer();
     return req_id;
 }
 
@@ -690,10 +813,15 @@ QString AgentService::schedule_list() {
     run_python_stdin(QStringLiteral("agentic_schedule_list"), {}, {}, [self](bool ok, QJsonObject result) {
         if (!self)
             return;
-        if (ok)
-            emit self->schedules_listed(result.value("schedules").toArray());
-        else
+        if (ok) {
+            const QJsonArray schedules = result.value("schedules").toArray();
+            // Every listing re-syncs the due-time timer (create / enable /
+            // disable / delete all end in a list), so it always reflects the DB.
+            self->apply_schedule_due(static_cast<qint64>(result.value("next_run_epoch_ms").toDouble()));
+            emit self->schedules_listed(schedules);
+        } else {
             emit self->error_occurred("schedule_list", result["error"].toString());
+        }
     });
     return req_id;
 }
@@ -717,6 +845,7 @@ QString AgentService::schedule_delete(const QString& schedule_id) {
         if (!self || !ok)
             return;
         emit self->schedule_deleted(schedule_id);
+        self->schedule_list(); // refresh listeners and disarm the tick timer if that was the last one
     });
     return req_id;
 }
@@ -726,15 +855,33 @@ QString AgentService::schedule_set_enabled(const QString& schedule_id, bool enab
     QJsonObject params;
     params["schedule_id"] = schedule_id;
     params["enabled"] = enabled;
-    run_python_stdin(QStringLiteral("agentic_schedule_set_enabled"), params, {}, [](bool, QJsonObject) {});
+    QPointer<AgentService> self = this;
+    // Re-list on success: schedules_listed is the only completion signal the UI
+    // gets, and listing also re-arms / disarms the tick timer.
+    run_python_stdin(QStringLiteral("agentic_schedule_set_enabled"), params, {}, [self](bool ok, QJsonObject) {
+        if (self && ok)
+            self->schedule_list();
+    });
     return req_id;
 }
 
 void AgentService::tick_schedules() {
+    if (schedule_tick_in_flight_)
+        return;
+    schedule_tick_in_flight_ = true;
     QPointer<AgentService> self = this;
     run_python_stdin(QStringLiteral("agentic_schedule_tick"), {}, {}, [self](bool ok, QJsonObject result) {
-        if (!self || !ok)
+        if (!self)
             return;
+        self->schedule_tick_in_flight_ = false;
+        if (!ok) {
+            // Keep the schedule alive: retry on the safety re-check instead of
+            // dropping it (a transient Python failure must not stop a cadence).
+            LOG_WARN("AgentService", "Schedule tick failed: " + result.value("error").toString().left(200));
+            self->next_schedule_due_ms_ = QDateTime::currentMSecsSinceEpoch() + 60 * 1000;
+            self->rearm_schedule_timer();
+            return;
+        }
         const QJsonArray due = result.value("due").toArray();
         for (const auto& v : due) {
             QJsonObject row = v.toObject();
@@ -749,7 +896,56 @@ void AgentService::tick_schedules() {
             const QString task_req = self->start_task(query, cfg);
             emit self->scheduled_task_fired(sid, name, task_req);
         }
+        self->apply_schedule_due(static_cast<qint64>(result.value("next_run_epoch_ms").toDouble()));
     });
+}
+
+// Longest single sleep. The timer is re-armed from the cached due time when it
+// wakes early, WITHOUT spawning Python, so this only bounds drift from sleep /
+// clock changes; it never costs a process.
+static constexpr qint64 kScheduleRecheckMs = 15LL * 60 * 1000;
+
+void AgentService::apply_schedule_due(qint64 next_due_ms) {
+    next_schedule_due_ms_ = next_due_ms > 0 ? next_due_ms : 0;
+    rearm_schedule_timer();
+}
+
+void AgentService::rearm_schedule_timer() {
+    if (!schedule_timer_) {
+        schedule_timer_ = new QTimer(this);
+        schedule_timer_->setSingleShot(true);
+        QPointer<AgentService> self = this;
+        connect(schedule_timer_, &QTimer::timeout, this, [self]() {
+            if (self)
+                self->on_schedule_timer();
+        });
+    }
+    if (next_schedule_due_ms_ <= 0) {
+        schedule_timer_->stop();
+        return;
+    }
+    const qint64 delay =
+        std::clamp<qint64>(next_schedule_due_ms_ - QDateTime::currentMSecsSinceEpoch(), 0, kScheduleRecheckMs);
+    schedule_timer_->start(static_cast<int>(delay));
+}
+
+void AgentService::on_schedule_timer() {
+    if (next_schedule_due_ms_ <= 0)
+        return;
+    // Agentic Mode switched off since the timer was armed: fire nothing. The
+    // schedules stay in the DB; initialize_deferred / the AGENTIC tab re-arm
+    // them once it is back on.
+    if (!agentic_mode_enabled()) {
+        apply_schedule_due(0);
+        return;
+    }
+    // Woke for the periodic re-check rather than a due schedule: re-arm from
+    // the cached time, no Python. (1 s slack absorbs timer coarseness.)
+    if (QDateTime::currentMSecsSinceEpoch() + 1000 < next_schedule_due_ms_) {
+        rearm_schedule_timer();
+        return;
+    }
+    tick_schedules();
 }
 
 // ── Library inspection (Phase 3 management UI) ───────────────────────────────
@@ -806,29 +1002,6 @@ QString AgentService::reflexion_list() {
         emit self->reflexion_listed(result.value("reflections").toArray());
     });
     return req_id;
-}
-
-void AgentService::ensure_schedule_timer() {
-    if (schedule_timer_)
-        return;
-    auto* t = new QTimer(this);
-    t->setInterval(30 * 1000); // 30s — finer than this is overkill at the minute granularity DSL
-    QPointer<AgentService> self = this;
-    QObject::connect(t, &QTimer::timeout, this, [self]() {
-        if (self)
-            self->tick_schedules();
-    });
-    t->start();
-    schedule_timer_ = t;
-    // Fire one immediate tick so a freshly-created `start_now=true` schedule
-    // doesn't wait the full 30s.
-    QMetaObject::invokeMethod(
-        this,
-        [self]() {
-            if (self)
-                self->tick_schedules();
-        },
-        Qt::QueuedConnection);
 }
 
 QString AgentService::pause_task(const QString& task_id) {

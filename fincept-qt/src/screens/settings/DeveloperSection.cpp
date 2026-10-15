@@ -3,6 +3,7 @@
 #include "screens/settings/DeveloperSection.h"
 
 #include "core/events/EventBus.h"
+#include "core/logging/Logger.h"
 #include "screens/devtools/DataHubInspector.h"
 #include "screens/settings/SettingsStyles.h"
 #include "storage/repositories/SettingsRepository.h"
@@ -11,6 +12,7 @@
 #include <QCheckBox>
 #include <QFrame>
 #include <QLabel>
+#include <QSignalBlocker>
 #include <QString>
 #include <QVBoxLayout>
 #include <QVariantMap>
@@ -25,28 +27,34 @@ DeveloperSection::DeveloperSection(QWidget* parent) : QWidget(parent) {
     vl->setSpacing(12);
 
     // ── Agentic Mode toggle ──────────────────────────────────────────────────
-    agentic_title_ = new QLabel(tr("Agentic Mode (Experimental)"));
+    agentic_title_ = new QLabel(tr("Agentic Mode"));
     agentic_title_->setStyleSheet(section_title_ss());
     vl->addWidget(agentic_title_);
 
-    agentic_desc_ = new QLabel(tr("Enable durable, long-running autonomous tasks. When on, AGENT STUDIO shows "
-                                  "an extra AGENTIC tab listing in-flight tasks (plan, step log, pause/resume/"
-                                  "cancel) and the chat panel offers a \"Run as background task\" checkbox. "
-                                  "All state is checkpointed to SQLite so tasks survive process restarts. "
-                                  "Leave off for standard chatbot behavior."));
+    agentic_desc_ = new QLabel(tr("Durable, long-running autonomous tasks (on by default). AGENT STUDIO shows an "
+                                  "AGENTIC tab listing tasks (plan, step log, pause/resume/cancel, recurring "
+                                  "schedules) and the agent chat offers a \"RUN AS TASK\" toggle. Task state is "
+                                  "checkpointed per profile, so tasks survive restarts and schedules keep firing. "
+                                  "Turn off to hide the tab and stop scheduled tasks."));
     agentic_desc_->setWordWrap(true);
     agentic_desc_->setStyleSheet(QString("color:%1;font-size:11px;").arg(ui::colors::TEXT_SECONDARY()));
     vl->addWidget(agentic_desc_);
 
     agentic_toggle_ = new QCheckBox(tr("Enable Agentic Mode"));
     agentic_toggle_->setStyleSheet(QString("color:%1;font-size:12px;padding:4px 0;").arg(ui::colors::TEXT_PRIMARY()));
-    {
-        auto r = SettingsRepository::instance().get(QStringLiteral("agentic_mode_enabled"), QStringLiteral("false"));
-        agentic_toggle_->setChecked(r.is_ok() && r.value() == QStringLiteral("true"));
-    }
-    connect(agentic_toggle_, &QCheckBox::toggled, this, [](bool checked) {
+    sync_agentic_toggle();
+    connect(agentic_toggle_, &QCheckBox::toggled, this, [this](bool checked) {
         const QString v = checked ? QStringLiteral("true") : QStringLiteral("false");
-        SettingsRepository::instance().set(QStringLiteral("agentic_mode_enabled"), v, QStringLiteral("features"));
+        const auto saved =
+            SettingsRepository::instance().set(QStringLiteral("agentic_mode_enabled"), v, QStringLiteral("features"));
+        if (saved.is_err()) {
+            // Don't announce (or show) a mode that was never stored.
+            LOG_ERROR("Settings", QString("Could not store agentic_mode_enabled: %1")
+                                      .arg(QString::fromStdString(saved.error())));
+            const QSignalBlocker revert(agentic_toggle_);
+            agentic_toggle_->setChecked(!checked);
+            return;
+        }
         QVariantMap payload;
         payload["enabled"] = checked;
         EventBus::instance().publish(QStringLiteral("settings.agentic_mode_changed"), payload);
@@ -74,6 +82,25 @@ DeveloperSection::DeveloperSection(QWidget* parent) : QWidget(parent) {
     vl->addWidget(new devtools::DataHubInspector(this), 1);
 }
 
+void DeveloperSection::sync_agentic_toggle() {
+    if (!agentic_toggle_)
+        return;
+    const auto r = SettingsRepository::instance().get(QStringLiteral("agentic_mode_enabled"), QStringLiteral("true"));
+    // A failed read is not "off": leave the checkbox as it is rather than showing
+    // a state the stored value may contradict.
+    if (r.is_err()) {
+        LOG_ERROR("Settings", QString("Could not read agentic_mode_enabled: %1").arg(QString::fromStdString(r.error())));
+        return;
+    }
+    const QSignalBlocker block(agentic_toggle_);
+    agentic_toggle_->setChecked(r.value() == QStringLiteral("true"));
+}
+
+void DeveloperSection::showEvent(QShowEvent* e) {
+    QWidget::showEvent(e);
+    sync_agentic_toggle();
+}
+
 void DeveloperSection::changeEvent(QEvent* event) {
     if (event->type() == QEvent::LanguageChange)
         retranslateUi();
@@ -82,13 +109,13 @@ void DeveloperSection::changeEvent(QEvent* event) {
 
 void DeveloperSection::retranslateUi() {
     if (agentic_title_)
-        agentic_title_->setText(tr("Agentic Mode (Experimental)"));
+        agentic_title_->setText(tr("Agentic Mode"));
     if (agentic_desc_)
-        agentic_desc_->setText(tr("Enable durable, long-running autonomous tasks. When on, AGENT STUDIO shows "
-                                  "an extra AGENTIC tab listing in-flight tasks (plan, step log, pause/resume/"
-                                  "cancel) and the chat panel offers a \"Run as background task\" checkbox. "
-                                  "All state is checkpointed to SQLite so tasks survive process restarts. "
-                                  "Leave off for standard chatbot behavior."));
+        agentic_desc_->setText(tr("Durable, long-running autonomous tasks (on by default). AGENT STUDIO shows an "
+                                  "AGENTIC tab listing tasks (plan, step log, pause/resume/cancel, recurring "
+                                  "schedules) and the agent chat offers a \"RUN AS TASK\" toggle. Task state is "
+                                  "checkpointed per profile, so tasks survive restarts and schedules keep firing. "
+                                  "Turn off to hide the tab and stop scheduled tasks."));
     if (agentic_toggle_)
         agentic_toggle_->setText(tr("Enable Agentic Mode"));
     if (inspector_title_)

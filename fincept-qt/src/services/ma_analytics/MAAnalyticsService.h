@@ -242,10 +242,6 @@ class MAAnalyticsService : public QObject, public fincept::datahub::Producer {
     void run_vision_backtest(const QJsonObject& params);                       // backtester.py: backtest
     void run_vision_index(const QString& command, const QJsonObject& params);  // setup_index.py: build|status
 
-    // ── Data connectors — keyless *_data.py CLIs (positional: command + args) ──
-    // Array-safe variant of run_python (wraps a top-level JSON array as {data:[…]}).
-    void run_data_connector(const QString& script, const QStringList& args, const QString& context);
-
   signals:
     // Generic result signal — module panels connect to this filtered by context
     void result_ready(QString context, QJsonObject data);
@@ -258,9 +254,12 @@ class MAAnalyticsService : public QObject, public fincept::datahub::Producer {
     /// Run a Python script in the Analytics/corporateFinance/ tree.
     void run_python(const QString& script, const QStringList& args, const QString& context);
 
-    /// Run with JSON payload piped via args
+    /// Run with JSON payload piped via args.
+    /// `bool_error_flag`: the script reports failure as `{"error": true, "message": "..."}` and success as
+    /// `{"error": false, ...}` (the options analytics scripts). PythonRunner's script-level error envelope reads
+    /// that `false` as the error text "false", so these calls bypass it and interpret the flag here instead.
     void run_python_json(const QString& script, const QString& command, const QJsonObject& params,
-                         const QString& context);
+                         const QString& context, bool bool_error_flag = false);
 
     static constexpr int kResultTtlSec = 120;
 

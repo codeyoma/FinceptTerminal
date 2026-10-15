@@ -143,7 +143,9 @@ secret이 없거나 만료되면 `custom-krx-pointer`가 실패한다. 그래도
 - **환율:** [ECB 일일 참고환율](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html)의 [XML](https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml)을 앱 시작과 6시간마다 읽는다. 설정에서 수동 새로고침도 할 수 있다. 원 금액 × 대상 통화의 EUR당 값 ÷ 원 통화의 EUR당 값으로 환산한다. 설정에 기준일·캐시 여부·조회 상태와 `100 USD` 환산 예시를 보인다. 주문 체결이나 결제 환율이 아닌 표시용 참고환율이다.
 - **실패:** 마지막 검증 자료를 쓰되 기준일로부터 7일을 넘으면 환산하지 않는다. 1분마다 만료를 확인한다. 미래 날짜·0/음수/무한 환율·중복 통화·손상 응답을 거부하고, 실패한 조회는 유효한 캐시를 덮어쓰지 않는다. 출처 통화가 없거나 환율이 없으면 **원래 숫자와 통화/원 단위 표시**를 유지한다. 1:1 환율을 만들어 쓰지 않는다. 동일 통화 표시는 환율 없이 가능하다.
 - **통화 구별:** `GBp`/`GBX`는 GBP의 1/100이다. USDT/USDC는 USD로 취급하지 않는다. KRW/JPY는 기본 소수 자릿수 0이며 아주 작은 금액은 0으로 사라지지 않도록 자릿수를 늘린다. 화면이 가격 정밀도를 명시한 경우에는 그 자릿수를 따른다. 기호가 같은 USD/CAD/AUD도 통화 코드로 구별한다.
-- **시세 메타데이터:** `QuoteData`와 시세 캐시 JSON은 `currency`, `quote_type`을 원 값과 함께 보관한다. 이름이 이미 있어도 통화/유형이 없으면 다시 조회한다. SQLite settings의 `market_symbol_names`, `market_symbol_currencies`에 더해 `market_symbol_quote_types`를 쓴다. 회사 정보는 시세 통화와 재무제표 `financial_currency`를 구별한다. 지수·수익률·환율쌍·거래량·수량·퍼센트는 금액처럼 환산하지 않는다.
+- **시세 메타데이터:** `QuoteData`와 시세 캐시 JSON은 `currency`, `quote_type`을 원 값과 함께 보관한다. 이름이 이미 있어도 통화/유형이 없으면 조회한다. 여러 화면의 요청은 250ms 동안 모아 `quote_names` 한 번으로 묻고(upstream v4.5.1, Python 쪽은 8개씩 동시에 묻는다), 종목마다 한 세션에 한 번만 묻는다. 호출 자체가 실패하면 1분 뒤 다시 묻는다. SQLite settings의 `market_symbol_names`, `market_symbol_currencies`에 더해 `market_symbol_quote_types`를 쓴다. 회사 정보는 시세 통화와 재무제표 `financial_currency`를 구별한다. 지수·수익률·환율쌍·거래량·수량·퍼센트는 금액처럼 환산하지 않는다.
+
+> **바뀜** (2026-10-15, upstream v4.5.1 merge, codeyoma/FinceptTerminal#36): 정보가 빠진 종목을 요청마다 따로 묻고, 1분 안에는 같은 종목을 다시 묻지 않았다 → upstream v4.5.1의 묶음 조회(250ms 모아 한 번, 종목마다 한 세션에 한 번)를 따르고, 호출이 실패했을 때만 1분 뒤 다시 묻는다. 이유: upstream이 같은 함수를 묶음 조회로 바꿔 merge 충돌이 났고, 화면마다 Python 호출을 띄우던 문제를 upstream 방식이 함께 고친다. 빠진 것을 판단하는 기준(이름·유형·통화)은 fork 규칙 그대로다.
 
 | 화면 | 환산 범위와 원 단위 유지 범위 |
 |---|---|
@@ -156,6 +158,8 @@ secret이 없거나 만료되면 `custom-krx-pointer`가 실패한다. 그래도
 | 계산기·기타 분석 | 출처 통화 계약이 없는 수동 계산기는 기존 선택 통화 단위를 사용한다. 크기가 큰 숫자라고 금액으로 추정해 환산하지 않는다. 기존 CSV 내보내기는 원 값이다 |
 
 환율/표시 통화/시세 통화 정보가 바뀌면 원본에서 화면을 다시 그린다. 환산된 값을 원본·주문·저장소로 돌려쓰지 않으며 새 환율이 도착했다고 가격을 재구독하거나 분석을 다시 실행하지 않는다.
+
+> **바뀜** (2026-10-15, upstream v4.5.1 merge, codeyoma/FinceptTerminal#36): 주식 리서치 가치평가 탭의 DCF·Altman·Piotroski·Beneish는 QuantLib 호출에서 앱 안 계산으로 바뀌었다(upstream). upstream이 넣은 통화 불일치 검사는 대소문자를 무시하고 보고 통화가 없으면 시세 통화로 보았는데, fork 규칙(대소문자 구별: GBp는 GBP의 1/100, 보고 통화가 없으면 비교하지 않음, `EquityValuationUnits.h`)으로 덮었다. 금액은 표시 통화로 보이고, 환율이 바뀌면 계산을 다시 하지 않고 마지막 결과를 다시 그린다. 이유: upstream이 탭을 새로 썼다. 대시보드는 upstream의 `DashboardFormat.h`(통화 기호 없는 숫자)를 쓰되, 출처 통화가 확인된 금액은 그대로 `display_price`로 환산한다.
 
 > **바뀜** (2026-10-13, codeyoma/FinceptTerminal#26): KRW 옵션은 계산기·분석의 기호만 바꿨다 → 출처 통화가 확인되는 위의 금액 표시에 날짜가 명시된 일일 참고환율을 적용한다. 이유: 기호 교체가 아니라 실제 원화 금액 표시를 요청했다. 원본 시세·주문·저장 값은 유지한다.
 
@@ -467,7 +471,8 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
   - `uv run krx-quant demo-engine`: 10:30에 멈춘 아침이다. 스트림에는 연결할 때의 KIS 상태 하나만 온다.
   - `uv run krx-quant demo-engine --pace 2`: 10:00에 열고 10:30까지 1분을 2초마다 이어 재생하며 스트림을 보낸다. 차트, 패널, 채점이 움직이는 것을 볼 수 있다. 데모 아침의 최종 합의는 50%를 거의 넘지 않아 신호는 나오지 않는다. 알림은 **시험 알림**으로 본다.
 - 테스트(Qt Core만): `cmake -B build -DFINCEPT_BUILD_TESTS=ON … && cmake --build build --target tst_krx_engine_data tst_krx_board tst_krx_signals tst_krx_stats_view tst_krx_chart_model tst_krx_kind_view tst_krx_app_release && ctest --test-dir build -R krx`.
-  - CI는 경고를 오류로 빌드한다(`-Werror`, 환경 변수 `CI`가 있을 때). 로컬에서 같은 조건으로 보려면 `CI=1 cmake -B build …`로 설정한다. 그러지 않으면 구조체에 필드를 더하고 테스트의 초기화 목록을 그대로 두는 것 같은 경고를 놓친다(`custom-v4.5.0-krx.4` 맥 빌드가 이것으로 실패했다). 이 경고는 clang(맥)에서만 나고, 이 fork의 PR에는 빌드 검사가 돌지 않는다(`build-pr.yml`은 꺼져 있다). 그래서 KRX 구조체에 필드를 더하는 PR은 머지 전에 맥에서 `CI=1`로 KRX 테스트를 빌드한다. `custom-v4.5.0-krx.30`부터 `krx.37`까지 맥 빌드가 모두 이것으로 실패해 Release가 없다(`Mark`, `Outcome`, `AlgorithmCard`의 새 필드).
+  - CI는 경고를 오류로 빌드한다(`-Werror`, 환경 변수 `CI`가 있을 때). 로컬에서 같은 조건으로 보려면 `CI=1 cmake -B build …`로 설정한다. 그러지 않으면 구조체에 필드를 더하고 테스트의 초기화 목록을 그대로 두는 것 같은 경고를 놓친다(`custom-v4.5.0-krx.4` 맥 빌드가 이것으로 실패했다). 이 경고는 clang(맥)에서만 나고, 이 fork의 PR에는 빌드 검사가 돌지 않는다(upstream이 v4.5.1에서 `build-pr.yml`을 지웠다). 그래서 KRX 구조체에 필드를 더하는 PR은 머지 전에 맥에서 `CI=1`로 KRX 테스트를 빌드한다. `custom-v4.5.0-krx.30`부터 `krx.37`까지 맥 빌드가 모두 이것으로 실패해 Release가 없다(`Mark`, `Outcome`, `AlgorithmCard`의 새 필드).
+    > **바뀜** (2026-10-15, upstream v4.5.1 merge, codeyoma/FinceptTerminal#36): `build-pr.yml`은 꺼져 있었다 → upstream v4.5.1이 파일을 지웠다. 이유 기록 없음(upstream). 대신: 위처럼 머지 전에 맥에서 `CI=1`로 빌드한다.
   - `tst_krx_engine_data`: 엔진 API와 스트림 메시지 해석(일봉과 그 시장, `bar` 이벤트, 합의의 `pooled`, `/v1/algorithms`의 수명 상태, 상세 통계의 기준별 lift와 그 거래일 단위 값, 보정 곡선, 나눠 본 통계 포함), 한국어 이름(방향의 기준 예측 넷, `baseline-climate` 포함), 시각·가격 표기, 머리줄 엔진 점의 상태와 툴팁.
   - `tst_krx_board`: 답과 스트림을 합친 화면 상태(최신 봉 마감, 차트 표시, 합의 구성원, 신호가 볼 예측, 실패와 되감기).
   - `tst_krx_signals`: 신호 규칙, 다시 알리지 않는 규칙, 구성원을 모를 때 미루기, 엔진의 `votes`로 판단하기.

@@ -10,6 +10,8 @@ namespace fincept::ui {
 class NotifToast;
 } // namespace fincept::ui
 
+class QLabel;
+
 #include <QHash>
 #include <QHideEvent>
 #include <QScrollArea>
@@ -37,20 +39,29 @@ class DashboardScreen : public QWidget {
     void hideEvent(QHideEvent* event) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
 
+  private slots:
+    // A slot (not a plain method) so WindowFrame's F5 / View ▸ Refresh probe,
+    // which looks the handler up by name, can reach it.
+    void on_refresh_clicked();
+
   private:
     void refresh_theme();
     void build_default_layout();
     void save_layout();
     void restore_layout();
     void refresh_ticker();
-    void on_refresh_clicked();
 
-    void hub_resubscribe_ticker();
+    void hub_resubscribe_ticker(bool force_fetch);
     void hub_unsubscribe_ticker();
     void rebuild_ticker_from_cache();
+    /// Slim, dismissible Fincept Terminal Enterprise strip under the ticker.
+    /// Fixed height; dismissal lasts until the next release.
+    QWidget* build_enterprise_strip();
 
     DashboardToolBar* toolbar_ = nullptr;
     TickerBar* ticker_bar_ = nullptr;
+    QWidget* ent_strip_ = nullptr;
+    QLabel* ent_strip_text_ = nullptr;
     QScrollArea* scroll_area_ = nullptr;
     DashboardCanvas* canvas_ = nullptr;
     QSplitter* content_split_ = nullptr;

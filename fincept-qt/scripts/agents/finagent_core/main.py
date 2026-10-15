@@ -33,6 +33,10 @@ logging.basicConfig(
     stream=sys.stderr,
     force=True
 )
+# Module logger — main() references `logger` when an agent-card lookup fails;
+# without this definition that except-handler itself raised NameError and the
+# whole run aborted instead of falling back to the supplied config.
+logger = logging.getLogger("finagent_core.main")
 
 # Add parent directory to path
 parent_dir = str(Path(__file__).parent.parent)
@@ -57,8 +61,16 @@ def _strip_emoji(text: str) -> str:
     return _EMOJI_RE.sub("", text)
 
 def stream_print(chunk_type: str, content: str):
-    """Print a streaming chunk with immediate flush for real-time output"""
-    print(f"{chunk_type.upper()}: {_strip_emoji(content)}", flush=True)
+    """Print a streaming chunk with immediate flush for real-time output.
+
+    The host reads stdout line by line, so a newline inside `content` (a native
+    token such as "\n\n", or a multi-line DONE payload) would split the chunk and
+    the continuation lines would be dropped. Newlines are therefore written as the
+    two characters backslash-n; AgentService's extract() turns them back into
+    newlines.
+    """
+    text = _strip_emoji(content).replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\\n")
+    print(f"{chunk_type.upper()}: {text}", flush=True)
 
 
 def _extract_workflow_response(result: Any) -> str:
@@ -77,6 +89,11 @@ def _extract_workflow_response(result: Any) -> str:
         content = result.content
         if content:
             return str(content)
+    # FinancialWorkflowTemplates workflows return {"success": True, "response": "<text>"}.
+    # That text is the answer — without this it fell through to the JSON dump below,
+    # so the UI showed the whole envelope (escaped newlines and all) as the "response".
+    if isinstance(result, dict) and isinstance(result.get("response"), str) and result["response"].strip():
+        return result["response"]
     # SimpleWorkflowExecutor dict: {"success": True, "results": [...], "context": {...}}
     if isinstance(result, dict):
         # Collect all step results into a readable string
@@ -91,6 +108,54 @@ def _extract_workflow_response(result: Any) -> str:
     return str(result)
 
 
+def _portfolio_params(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Fallback portfolio payload: the caller's params minus host bookkeeping keys.
+
+    Older callers pass portfolio fields at the top level of `params`. The whole dict
+    used to be handed to the workflow as the "portfolio", bookkeeping included
+    (workflow_type / user_id / llm_profile_id) — noise in the LLM prompt.
+    """
+    skip = ("workflow_type", "user_id", "llm_profile_id")
+    return {k: v for k, v in params.items() if k not in skip}
+
+
+def _run_error_text(response: Any):
+    """Return the error text when an Agno run failed, else None.
+
+    Agno reports a failed run (missing/invalid API key, provider error, ...) as an
+    ordinary RunOutput with status ERROR whose `content` is the error message. It
+    used to be wrapped as {"success": True, "response": "<error message>"}, so the
+    UI showed an API-key error as a successful answer.
+    """
+    status = getattr(response, "status", None)
+    value = getattr(status, "value", status)
+    if isinstance(value, str) and value.upper() == "ERROR":
+        content = getattr(response, "content", None)
+        return str(content) if content else "Agent run failed"
+    return None
+
+
+def _ui_guardrails_config(ui_cfg: Any):
+    """Translate the CREATE tab's guardrail checkboxes into GuardrailsModule.from_config keys.
+
+    The editor saves `guardrails: true` plus `guardrails_config` =
+    {pii_detection, injection_check, financial_compliance}. Nothing read that block,
+    so ticking a single protection still enabled the full default set. Returns None
+    (-> default_financial, the previous behaviour) unless at least one box is ticked.
+    """
+    if not isinstance(ui_cfg, dict):
+        return None
+    pii = bool(ui_cfg.get("pii_detection"))
+    injection = bool(ui_cfg.get("injection_check"))
+    compliance = bool(ui_cfg.get("financial_compliance"))
+    if not (pii or injection or compliance):
+        return None
+    cfg: Dict[str, Any] = {"pii_protection": pii, "injection_protection": injection}
+    if compliance:
+        cfg["trading_compliance"] = {"max_position_pct": 0.10}
+    return cfg
+
+
 def _setup_agent_modules(agent, config: Dict[str, Any], params: Dict[str, Any]):
     """
     Setup ALL optional CoreAgent modules from config/params.
@@ -101,6 +166,8 @@ def _setup_agent_modules(agent, config: Dict[str, Any], params: Dict[str, Any]):
     guardrails_cfg = config.get("guardrails") or params.get("guardrails")
     if guardrails_cfg:
         cfg = guardrails_cfg if isinstance(guardrails_cfg, dict) else None
+        if cfg is None:
+            cfg = _ui_guardrails_config(config.get("guardrails_config"))
         agent.setup_guardrails(cfg)
 
     # Tracing
@@ -135,9 +202,39 @@ def _setup_agent_modules(agent, config: Dict[str, Any], params: Dict[str, Any]):
         agent.setup_evaluation(cfg)
 
 
+# Keys of the caller's config that must survive when a registry agent card is
+# applied: the per-run bridge wiring (endpoint / run token / destructive token /
+# tool catalogue), the resolved model, and run-level switches. Replacing the
+# whole config with the card's (the previous behaviour) silently dropped the
+# terminal tools for every card-based agent.
+_RUN_CONFIG_KEYS = ("model", "agent_id", "user_id", "tools_dry_run", "agent_data_dir")
+
+
+def _apply_agent_card(config: Dict[str, Any]):
+    """If config names a registry agent (agent_id) whose card carries
+    instructions, return (card config + this run's wiring, card name); otherwise
+    (config, None). DB-saved agents are already expanded by the host."""
+    agent_id = config.get("agent_id", "")
+    if not agent_id:
+        return config, None
+    try:
+        from finagent_core.agent_loader import get_loader
+        card = get_loader().registry.get(agent_id)
+    except Exception as e:
+        logger.warning(f"Could not load agent card '{agent_id}': {e}")
+        return config, None
+    if not card or not card.config.get("instructions"):
+        return config, None
+    merged = {**card.config}
+    for key, value in config.items():
+        if key in _RUN_CONFIG_KEYS or key.startswith("terminal_"):
+            merged[key] = value
+    return merged, card.name
+
+
 def main(args=None):
     """
-    Main entry point - accepts single JSON payload from C++.
+    Main entry point - accepts single JSON payload from C++ on stdin.
 
     Payload format:
     {
@@ -146,13 +243,25 @@ def main(args=None):
         "params": {...}
     }
 
-    Actions:
-    - Core agent: run, run_team, run_workflow, run_structured
-    - Dynamic loading: discover_agents, list_agents, create_agent
-    - SuperAgent: route_query, execute_query
-    - Execution planner: create_plan, execute_plan, get_plan_status
-    - Paper trading: execute_trade, get_portfolio_value, get_positions_summary
+    Actions (each one has a caller in src/services/agents/AgentService*.cpp):
+    - Core agent: run, run_team, run_structured
+    - Discovery: discover_agents
+    - SuperAgent: route_query, execute_query, execute_multi_query
+    - Execution planner: create_stock_plan, create_portfolio_plan, execute_plan,
+      generate_dynamic_plan
+    - Workflows (AgentService::workflow_types): stock_analysis, portfolio_rebal,
+      risk_assessment, macro_scan, earnings_brief, sector_rotation,
+      options_scan, sentiment_scan, custom_query
+    - Repositories / memory: save_session, get_session, add_message,
+      save_memory, search_memories, save_trade_decision, get_decisions,
+      store_memory, recall_memories, search_knowledge
     - System: system_info, list_tools, list_models
+    - Agentic Mode: agentic_start_task / agentic_resume_task /
+      agentic_reply_question (streaming), agentic_pause_task,
+      agentic_cancel_task, get_task, list_tasks, delete_task, agentic_startup,
+      agentic_schedule_*, agentic_skills_list, agentic_skill_delete,
+      agentic_memory_list, agentic_memory_delete, agentic_reflexion_list
+    (Paper trading is not here: agents use the terminal's pt_* MCP tools.)
 
     Streaming mode:
     - Pass --stream flag to enable streaming output
@@ -164,25 +273,19 @@ def main(args=None):
 
     # Check for streaming mode
     streaming = "--stream" in args
-    use_stdin = "--stdin" in args
     args = [a for a in args if a not in ("--stream", "--stdin")]
 
     try:
-        if use_stdin or len(args) == 0:
-            # Read payload from stdin (used when payload is too large for argv)
-            payload_str = sys.stdin.read().strip()
-            if not payload_str:
-                return json.dumps({"success": False, "error": "No payload provided"})
-        else:
-            payload_str = args[0]
-            if payload_str.startswith("@"):
-                fpath = payload_str[1:]
-                with open(fpath, "r", encoding="utf-8") as f:
-                    payload_str = f.read()
-                try:
-                    os.remove(fpath)
-                except OSError:
-                    pass
+        # The payload carries every configured API key and the bridge tokens, so
+        # it is accepted on stdin ONLY — argv is readable by any same-user
+        # process (and the old "@file" spill left it on disk). The terminal
+        # always passes --stdin; for manual use: echo '{...}' | python main.py --stdin
+        if args:
+            return json.dumps({"success": False,
+                               "error": "Pass the JSON payload on stdin (python main.py --stdin)"})
+        payload_str = sys.stdin.read().strip()
+        if not payload_str:
+            return json.dumps({"success": False, "error": "No payload provided"})
 
         payload = json.loads(payload_str)
         action = payload.get("action")
@@ -190,6 +293,14 @@ def main(args=None):
         params = payload.get("params", {})
         config = payload.get("config", {})
         active_llm = payload.get("active_llm", {})
+
+        # Per-profile durable agent state (agent_tasks.db). AgentService also
+        # sets the env var on spawn; the payload copy wins so a run is correct
+        # however main.py was started. Must happen before any store is opened.
+        agent_data_dir = payload.get("agent_data_dir")
+        if isinstance(agent_data_dir, str) and agent_data_dir.strip():
+            from finagent_core.paths import AGENT_DATA_DIR_ENV
+            os.environ[AGENT_DATA_DIR_ENV] = agent_data_dir.strip()
 
         # Inject active_llm into config["model"] so every code path picks it up.
         # This carries the full resolved config (provider, model_id, api_key,
@@ -283,18 +394,7 @@ def dispatch_action(
             return {"success": False, "error": "Missing 'query' in params"}
 
         # Load selected agent's card config (instructions, tools, persona)
-        agent_id = config.get("agent_id", "")
-        if agent_id:
-            try:
-                from finagent_core.agent_loader import get_loader
-                card = get_loader().registry.get(agent_id)
-                if card and card.config.get("instructions"):
-                    agent_card_cfg = {**card.config}
-                    if config.get("model"):
-                        agent_card_cfg["model"] = config["model"]
-                    config = agent_card_cfg
-            except Exception as _e:
-                logger.warning(f"Could not load agent card '{agent_id}': {_e}")
+        config, _card_name = _apply_agent_card(config)
 
         # Create agent with API keys and user context
         agent = CoreAgent(api_keys=api_keys, user_id=params.get("user_id"))
@@ -330,6 +430,11 @@ def dispatch_action(
                 agent.start_trace("agent_run", {"query": query[:100], "session_id": session_id})
 
             response = agent.run(query, full_config, session_id, stream)
+            run_err = _run_error_text(response)
+            if run_err:
+                if agent._tracing:
+                    agent.end_trace()
+                return {"success": False, "error": run_err}
             result = {"success": True, "response": agent.get_response_content(response)}
 
             # Check guardrails on output if enabled
@@ -362,16 +467,10 @@ def dispatch_action(
                 return {"success": False, "error": "Input rejected by guardrails", "violations": guard_result["violations"]}
             query = guard_result["text"]
         response = agent.run_team(query, team_config, params.get("session_id"))
+        team_err = _run_error_text(response)
+        if team_err:
+            return {"success": False, "error": team_err}
         return {"success": True, "response": agent.get_response_content(response)}
-
-    if action == "run_workflow":
-        from finagent_core.core_agent import CoreAgent
-        agent = CoreAgent(api_keys=api_keys, user_id=params.get("user_id"))
-        _setup_agent_modules(agent, config, params)
-        workflow_config = params.get("workflow_config", config)
-        input_data = params.get("input_data", {})
-        result = agent.run_workflow(workflow_config, input_data)
-        return {"success": True, "result": result if isinstance(result, dict) else str(result)}
 
     if action == "run_structured":
         from finagent_core.core_agent import CoreAgent
@@ -398,28 +497,6 @@ def dispatch_action(
             return {"success": True, "agents": [], "count": 0, "warning": "Discovery timed out"}
         except Exception as e:
             return {"success": False, "error": f"Discovery failed: {str(e)}", "agents": []}
-
-    if action == "list_agents":
-        from finagent_core.agent_loader import list_agents, list_categories
-        category = params.get("category")
-        agents = list_agents(category)
-        return {
-            "success": True,
-            "agents": agents,
-            "count": len(agents),
-            "categories": list_categories()
-        }
-
-    if action == "create_agent":
-        from finagent_core.agent_loader import create_agent
-        agent_id = params.get("agent_id")
-        if not agent_id:
-            return {"success": False, "error": "Missing 'agent_id'"}
-        try:
-            agent = create_agent(agent_id, api_keys, config)
-            return {"success": True, "agent_id": agent_id, "created": True}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
 
     # =========================================================================
     # SuperAgent Routing
@@ -469,10 +546,15 @@ def dispatch_action(
 
     if action == "create_portfolio_plan":
         from finagent_core.execution_planner import ExecutionPlanner
-        portfolio_id = params.get("portfolio_id")
-        if not portfolio_id:
-            return {"success": False, "error": "Missing 'portfolio_id'"}
-        plan = ExecutionPlanner.portfolio_rebalance_plan(portfolio_id)
+        # The C++ caller (AgentService::create_portfolio_plan / the MCP
+        # create_portfolio_plan tool) sends optional `goals`, not a portfolio id —
+        # so requiring `portfolio_id` made every such call fail. Accept an id from
+        # either place and fall back to the default portfolio.
+        goals = params.get("goals") if isinstance(params.get("goals"), dict) else {}
+        portfolio_id = params.get("portfolio_id") or goals.get("portfolio_id") or "default"
+        plan = ExecutionPlanner.portfolio_rebalance_plan(str(portfolio_id))
+        if goals:
+            plan.context["goals"] = goals
         return {"success": True, "plan": plan.to_dict()}
 
     if action == "execute_plan":
@@ -480,7 +562,10 @@ def dispatch_action(
         plan_dict = params.get("plan")
         if not plan_dict:
             return {"success": False, "error": "Missing 'plan'"}
-        return execute_plan(plan_dict, api_keys)
+        # `config` carries the resolved LLM (active_llm → config["model"]) so the
+        # plan's agent steps run on the user's model, not a provider guessed from
+        # whichever API key happens to be present.
+        return execute_plan(plan_dict, api_keys, config)
 
     if action == "generate_dynamic_plan":
         from finagent_core.execution_planner import generate_dynamic_plan
@@ -488,35 +573,6 @@ def dispatch_action(
         if not query:
             return {"success": False, "error": "Missing 'query'"}
         return generate_dynamic_plan(query, api_keys, config)
-
-    # =========================================================================
-    # Paper Trading Bridge
-    # =========================================================================
-
-    if action == "paper_execute_trade":
-        from finagent_core.paper_trading_bridge import execute_trade
-        portfolio_id = params.get("portfolio_id")
-        symbol = params.get("symbol")
-        trade_action = params.get("action")
-        quantity = params.get("quantity", 1)
-        price = params.get("price")
-        if not all([portfolio_id, symbol, trade_action, price]):
-            return {"success": False, "error": "Missing required params: portfolio_id, symbol, action, price"}
-        return execute_trade(portfolio_id, symbol, trade_action, quantity, price)
-
-    if action == "paper_get_portfolio":
-        from finagent_core.paper_trading_bridge import get_portfolio_value
-        portfolio_id = params.get("portfolio_id")
-        if not portfolio_id:
-            return {"success": False, "error": "Missing 'portfolio_id'"}
-        return get_portfolio_value(portfolio_id)
-
-    if action == "paper_get_positions":
-        from finagent_core.paper_trading_bridge import get_positions_summary
-        portfolio_id = params.get("portfolio_id")
-        if not portfolio_id:
-            return {"success": False, "error": "Missing 'portfolio_id'"}
-        return get_positions_summary(portfolio_id)
 
     # =========================================================================
     # Repository Operations
@@ -556,14 +612,19 @@ def dispatch_action(
         from finagent_core.repositories import RepositoryFactory, AgentMemory
         import uuid
         repo = RepositoryFactory.get_memory_repository()
+        # AgentService::save_memory_repo sends `options` (type / metadata / importance)
+        # and calls the type `memory_type`; both used to be dropped, so every saved
+        # memory came out as a plain "fact" with default importance.
+        opts = params.get("options") if isinstance(params.get("options"), dict) else {}
         memory = AgentMemory(
             id=str(uuid.uuid4()),
             agent_id=params.get("agent_id", "default"),
             user_id=params.get("user_id"),
-            memory_type=params.get("type", "fact"),
+            memory_type=(params.get("type") or params.get("memory_type")
+                         or opts.get("type") or opts.get("memory_type") or "fact"),
             content=params.get("content"),
-            metadata=params.get("metadata", {}),
-            importance=params.get("importance", 0.5)
+            metadata=params.get("metadata") or opts.get("metadata") or {},
+            importance=params.get("importance", opts.get("importance", 0.5))
         )
         memory_id = repo.create(memory)
         return {"success": True, "memory_id": memory_id}
@@ -650,7 +711,7 @@ def dispatch_action(
         from finagent_core.core_agent import CoreAgent
         agent = CoreAgent(api_keys=api_keys, user_id=params.get("user_id"))
         _setup_agent_modules(agent, config, params)
-        portfolio_data = params.get("portfolio_data", params)
+        portfolio_data = params.get("portfolio_data") or _portfolio_params(params)
         result = agent.run_portfolio_rebalancing(portfolio_data, config)
         response_text = _extract_workflow_response(result)
         return {"success": True, "response": response_text, "result": result if isinstance(result, dict) else None}
@@ -659,7 +720,7 @@ def dispatch_action(
         from finagent_core.core_agent import CoreAgent
         agent = CoreAgent(api_keys=api_keys, user_id=params.get("user_id"))
         _setup_agent_modules(agent, config, params)
-        portfolio_data = params.get("portfolio_data", params)
+        portfolio_data = params.get("portfolio_data") or _portfolio_params(params)
         result = agent.run_risk_assessment(portfolio_data, config)
         response_text = _extract_workflow_response(result)
         return {"success": True, "response": response_text, "result": result if isinstance(result, dict) else None}
@@ -672,6 +733,9 @@ def dispatch_action(
                  "GDP growth trajectory, central bank policy stance and yield curve shape, "
                  "key upcoming economic releases, and the overall macro risk environment for equities.")
         result = agent.run(query, config)
+        run_err = _run_error_text(result)
+        if run_err:
+            return {"success": False, "error": run_err}
         response_text = _extract_workflow_response(result)
         return {"success": True, "response": response_text}
 
@@ -686,6 +750,9 @@ def dispatch_action(
                  f"latest EPS vs consensus estimate, revenue beat/miss, key guidance changes, "
                  f"margin trends, management commentary highlights, and post-earnings price reaction.")
         result = agent.run(query, config)
+        run_err = _run_error_text(result)
+        if run_err:
+            return {"success": False, "error": run_err}
         response_text = _extract_workflow_response(result)
         return {"success": True, "symbol": symbol, "response": response_text}
 
@@ -698,6 +765,9 @@ def dispatch_action(
                  "key macro drivers behind the rotation, and specific sector ETF recommendations "
                  "to overweight and underweight in the current regime.")
         result = agent.run(query, config)
+        run_err = _run_error_text(result)
+        if run_err:
+            return {"success": False, "error": run_err}
         response_text = _extract_workflow_response(result)
         return {"success": True, "response": response_text}
 
@@ -712,6 +782,9 @@ def dispatch_action(
                  f"implied volatility skew changes, and what the options flow signals "
                  f"directionally for the underlying.")
         result = agent.run(query, config)
+        run_err = _run_error_text(result)
+        if run_err:
+            return {"success": False, "error": run_err}
         response_text = _extract_workflow_response(result)
         return {"success": True, "symbol": symbol, "response": response_text}
 
@@ -727,6 +800,9 @@ def dispatch_action(
                  f"social media buzz and trending topics, analyst rating changes, "
                  f"insider activity, and an overall sentiment score with directional bias.")
         result = agent.run(query, config)
+        run_err = _run_error_text(result)
+        if run_err:
+            return {"success": False, "error": run_err}
         response_text = _extract_workflow_response(result)
         return {"success": True, "symbol": symbol, "response": response_text}
 
@@ -738,6 +814,9 @@ def dispatch_action(
         if not query:
             return {"success": False, "error": "Missing 'query' in params"}
         result = agent.run(query, config)
+        run_err = _run_error_text(result)
+        if run_err:
+            return {"success": False, "error": run_err}
         response_text = _extract_workflow_response(result)
         return {"success": True, "response": response_text}
 
@@ -754,7 +833,9 @@ def dispatch_action(
         content = params.get("content")
         if not content:
             return {"success": False, "error": "Missing 'content' in params"}
-        memory_id = agent.store_memory(content, params.get("type", "fact"), params.get("metadata"))
+        # C++ (AgentService::store_memory) names the bucket `memory_type`; accept both.
+        memory_id = agent.store_memory(content, params.get("type") or params.get("memory_type") or "fact",
+                                       params.get("metadata"))
         return {"success": True, "memory_id": memory_id}
 
     if action == "recall_memories":
@@ -763,39 +844,9 @@ def dispatch_action(
         am_cfg = dict(params.get("agentic_memory") or config.get("agentic_memory") or {"user_id": params.get("user_id", "default")})
         am_cfg.setdefault("agent_id", params.get("agent_id") or config.get("id") or config.get("agent_id") or "unnamed")
         agent.setup_agentic_memory(am_cfg)
-        memories = agent.recall_memories(params.get("query"), params.get("type"), params.get("limit", 5))
+        memories = agent.recall_memories(params.get("query"), params.get("type") or params.get("memory_type"),
+                                         params.get("limit", 5))
         return {"success": True, "memories": memories, "count": len(memories)}
-
-    # =========================================================================
-    # Guardrails Check
-    # =========================================================================
-
-    if action == "check_guardrails":
-        from finagent_core.core_agent import CoreAgent
-        agent = CoreAgent(api_keys=api_keys)
-        agent.setup_guardrails(config.get("guardrails"))
-        if params.get("check_type") == "output":
-            result = agent.check_output(params.get("output", {}))
-            return {"success": True, "check_type": "output", **result}
-        text = params.get("text")
-        if not text:
-            return {"success": False, "error": "Missing 'text' in params"}
-        result = agent.check_input(text, params.get("context"))
-        return {"success": True, "check_type": "input", **result}
-
-    # =========================================================================
-    # Evaluation
-    # =========================================================================
-
-    if action == "evaluate":
-        from finagent_core.core_agent import CoreAgent
-        agent = CoreAgent(api_keys=api_keys)
-        agent.setup_evaluation(config.get("evaluation"))
-        if params.get("type") == "prediction":
-            result = agent.evaluate_prediction(params.get("prediction", {}), params.get("actual", {}))
-        else:
-            result = agent.evaluate_response(params.get("query", ""), params.get("response", ""), params.get("context"))
-        return {"success": True, **result}
 
     # =========================================================================
     # Knowledge Search
@@ -824,11 +875,15 @@ def dispatch_action(
         from finagent_core.core_agent import CoreAgent
         agent = CoreAgent(api_keys=api_keys)
         tools = agent.list_available_tools()
+        total = sum(len(v) for v in tools.values())
         return {
             "success": True,
             "tools": tools,
             "categories": list(tools.keys()),
-            "total": sum(len(v) for v in tools.values())
+            "total": total,
+            # The C++ AgentToolsInfo parser reads `total_count`; `total` is kept
+            # for existing consumers (additive — never rename an output key).
+            "total_count": total
         }
 
     if action == "list_models":
@@ -837,47 +892,9 @@ def dispatch_action(
         providers = agent.list_available_models()
         return {"success": True, "providers": providers, "count": len(providers)}
 
-    if action == "list_output_models":
-        from finagent_core.core_agent import CoreAgent
-        agent = CoreAgent(api_keys=api_keys)
-        models = agent.list_output_models()
-        return {"success": True, "models": models}
-
     # =========================================================================
     # Resumable Multi-Step Agentic Tasks
     # =========================================================================
-
-    if action == "start_task":
-        """
-        Start a multi-step autonomous task with full checkpoint persistence.
-        The agent plans its own steps, executes each one with tools,
-        and saves state after every step so it can be resumed if interrupted.
-
-        Params: { query, session_id? }
-        Config: standard agent config (model, tools, instructions, etc.)
-        Returns: { success, task_id, response, steps_completed, steps }
-        """
-        from finagent_core.task_state import ResumableTaskRunner
-        query = params.get("query")
-        if not query:
-            return {"success": False, "error": "Missing 'query' in params"}
-        runner = ResumableTaskRunner(api_keys=api_keys)
-        return runner.start_task(query, config)
-
-    if action == "resume_task":
-        """
-        Resume a failed or interrupted multi-step task from its last checkpoint.
-        Skips steps that already completed; continues from where it left off.
-
-        Params: { task_id }
-        Returns: { success, task_id, response, resumed_from_step, steps_completed }
-        """
-        from finagent_core.task_state import ResumableTaskRunner
-        task_id = params.get("task_id")
-        if not task_id:
-            return {"success": False, "error": "Missing 'task_id' in params"}
-        runner = ResumableTaskRunner(api_keys=api_keys)
-        return runner.resume_task(task_id)
 
     if action == "get_task":
         """Get the current state of a task."""
@@ -927,7 +944,15 @@ def dispatch_action(
         task_id = params.get("task_id")
         if not task_id:
             return {"success": False, "error": "Missing 'task_id' in params"}
-        get_state_manager().update_status(task_id, "cancel_requested")
+        mgr = get_state_manager()
+        current = mgr.get_task(task_id)
+        if current and current.get("status") in ("paused", "paused_for_input"):
+            # Nothing is running to observe a cooperative `cancel_requested` flag
+            # (the subprocess exited when the task paused), so the row would sit in
+            # that state forever. Cancel it outright.
+            mgr.update_status(task_id, "cancelled")
+            return {"success": True, "task_id": task_id, "signal": "cancelled"}
+        mgr.update_status(task_id, "cancel_requested")
         return {"success": True, "task_id": task_id, "signal": "cancel_requested"}
 
     # ── Agentic Mode — Scheduled recurring tasks ────────────────────────────
@@ -941,20 +966,26 @@ def dispatch_action(
         if not query or not schedule_expr:
             return {"success": False, "error": "Missing 'query' or 'schedule' in params"}
         try:
-            sid = ScheduledTaskStore().create(
+            store = ScheduledTaskStore()
+            sid = store.create(
                 name=name, query=query, schedule_expr=schedule_expr,
                 config=sched_config, start_now=bool(params.get("start_now")),
             )
         except ValueError as e:
             return {"success": False, "error": f"Invalid schedule: {e}"}
-        return {"success": True, "schedule_id": sid}
+        # Earliest due time across ALL enabled schedules — the host re-arms its
+        # single due-time timer from it (see AgentService::apply_schedule_due).
+        return {"success": True, "schedule_id": sid,
+                "next_run_epoch_ms": store.next_due_epoch_ms()}
 
     if action == "agentic_schedule_list":
         from finagent_core.agentic.scheduler import ScheduledTaskStore
+        store = ScheduledTaskStore()
         return {"success": True,
-                "schedules": ScheduledTaskStore().list(
+                "schedules": store.list(
                     enabled_only=bool(params.get("enabled_only")),
-                    limit=int(params.get("limit", 200)))}
+                    limit=int(params.get("limit", 200))),
+                "next_run_epoch_ms": store.next_due_epoch_ms()}
 
     if action == "agentic_schedule_delete":
         from finagent_core.agentic.scheduler import ScheduledTaskStore
@@ -978,8 +1009,20 @@ def dispatch_action(
         # the firing on the C++ side means the streaming subprocess is owned
         # by AgentService and emits events on task:event:* directly.
         from finagent_core.agentic.scheduler import ScheduledTaskStore
-        due = ScheduledTaskStore().take_due()
-        return {"success": True, "due": due}
+        store = ScheduledTaskStore()
+        due = store.take_due()
+        return {"success": True, "due": due, "next_run_epoch_ms": store.next_due_epoch_ms()}
+
+    if action == "agentic_startup":
+        # Called once when the terminal starts (AgentService::initialize_deferred).
+        # No runner of the new session exists yet, so any task still marked
+        # running was orphaned by the last shutdown/crash: make it resumable.
+        # Also report the next scheduled run so the host can arm its timer.
+        from finagent_core.agentic.scheduler import ScheduledTaskStore
+        from finagent_core.task_state import get_state_manager
+        recovered = get_state_manager().recover_interrupted()
+        return {"success": True, "recovered": recovered,
+                "next_run_epoch_ms": ScheduledTaskStore().next_due_epoch_ms()}
 
     # ── Agentic Mode — Library inspection (read-only UI surface) ────────────
 
@@ -1077,23 +1120,11 @@ def dispatch_action_streaming(
         # If a specific agent_id is selected, load that agent's card config
         # (instructions, tools, persona, etc.) and merge it as the base,
         # letting active_llm/model still override the model provider.
-        agent_id = config.get("agent_id", "")
-        if agent_id:
-            try:
-                from finagent_core.agent_loader import get_loader
-                loader = get_loader()
-                card = loader.registry.get(agent_id)
-                if card and card.config.get("instructions"):
-                    # Agent card config is the base; active_llm model takes priority
-                    agent_card_cfg = {**card.config}
-                    # Preserve the resolved model from active_llm — don't let the
-                    # card's provider override what the user configured in Settings
-                    if config.get("model"):
-                        agent_card_cfg["model"] = config["model"]
-                    config = agent_card_cfg
-                    stream_print("thinking", f"Using agent: {card.name}")
-            except Exception as _e:
-                logger.warning(f"Could not load agent card '{agent_id}': {_e}")
+        # The card is the base; the resolved model (active_llm) and this run's
+        # terminal-bridge wiring stay on top (see _apply_agent_card).
+        config, card_name = _apply_agent_card(config)
+        if card_name:
+            stream_print("thinking", f"Using agent: {card_name}")
 
         # Build config
         full_config = {**config}
@@ -1131,13 +1162,18 @@ def dispatch_action_streaming(
                 resp_content = ""
                 try:
                     response = core_agent.run(query, full_config, session_id, stream=False)
+                    fallback_run_err = _run_error_text(response)
+                    if fallback_run_err:
+                        raise RuntimeError(fallback_run_err)
                     resp_content = core_agent.get_response_content(response) or ""
                     if resp_content:
                         words = resp_content.split()
                         chunk_size = 5
                         for i in range(0, len(words), chunk_size):
                             chunk = ' '.join(words[i:i+chunk_size])
-                            stream_print("token", chunk)
+                            # Leading space between chunks (the host keeps one leading
+                            # space of a token) so concatenated tokens read as words.
+                            stream_print("token", (" " if i else "") + chunk)
                 except Exception as fallback_err:
                     stream_print("error", str(fallback_err))
 
@@ -1183,6 +1219,10 @@ def dispatch_action_streaming(
                 stream_print("thinking", f"Agent '{name}' processing...")
 
             response = agent.run_team(query, team_config, params.get("session_id"))
+            team_stream_err = _run_error_text(response)
+            if team_stream_err:
+                stream_print("error", team_stream_err)
+                return {"success": False, "error": team_stream_err}
             content = agent.get_response_content(response)
 
             if content:
@@ -1190,7 +1230,7 @@ def dispatch_action_streaming(
                 chunk_size = 5
                 for i in range(0, len(words), chunk_size):
                     chunk = ' '.join(words[i:i+chunk_size])
-                    stream_print("token", chunk)
+                    stream_print("token", (" " if i else "") + chunk)
 
             stream_print("done", "completed")
             return {"success": True, "response": content}
@@ -1215,6 +1255,7 @@ def dispatch_action_streaming(
             stream_print("error", "Missing 'query' in params")
             return {"success": False, "error": "Missing 'query' in params"}
 
+        config, _card_name = _apply_agent_card(config)
         runner = AgenticRunner(api_keys=api_keys, emit=make_emitter())
         result = runner.start_task(query, config)
         stream_print("done", "completed")
@@ -1229,8 +1270,10 @@ def dispatch_action_streaming(
             stream_print("error", "Missing 'task_id' in params")
             return {"success": False, "error": "Missing 'task_id' in params"}
 
+        # `config` is this run's payload config: fresh bridge token/catalogue and
+        # resolved model. The stored task config supplies the rest.
         runner = AgenticRunner(api_keys=api_keys, emit=make_emitter())
-        result = runner.resume_task(task_id)
+        result = runner.resume_task(task_id, live_config=config)
         stream_print("done", "completed")
         return result
 
@@ -1250,8 +1293,10 @@ def dispatch_action_streaming(
             return {"success": False, "error": "Missing 'task_id' in params"}
 
         get_state_manager().save_answer(task_id, answer)
+        # `config` is this run's payload config: fresh bridge token/catalogue and
+        # resolved model. The stored task config supplies the rest.
         runner = AgenticRunner(api_keys=api_keys, emit=make_emitter())
-        result = runner.resume_task(task_id)
+        result = runner.resume_task(task_id, live_config=config)
         stream_print("done", "completed")
         return result
 

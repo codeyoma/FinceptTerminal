@@ -155,9 +155,10 @@ void ConflictMonitorPanel::build_ui() {
         if (row < 0)
             return;
         if (auto* it = events_table_->item(row, 3)) {
-            const QString url = it->data(Qt::UserRole + 1).toString();
-            if (!url.isEmpty())
-                QDesktopServices::openUrl(QUrl(url));
+            // API-supplied link: web URLs only, never another scheme handed to the shell.
+            const QUrl url(it->data(Qt::UserRole + 1).toString());
+            if (url.isValid() && (url.scheme() == QLatin1String("http") || url.scheme() == QLatin1String("https")))
+                QDesktopServices::openUrl(url);
         }
     });
 
@@ -549,8 +550,9 @@ QWidget* ConflictMonitorPanel::build_event_details_section(QWidget* parent) {
                                             .arg(neg.darker(120).name()));
     }
     connect(detail_open_btn_, &QPushButton::clicked, this, [this]() {
-        if (!current_url_.isEmpty())
-            QDesktopServices::openUrl(QUrl(current_url_));
+        const QUrl url(current_url_);
+        if (url.isValid() && (url.scheme() == QLatin1String("http") || url.scheme() == QLatin1String("https")))
+            QDesktopServices::openUrl(url);
     });
     dvl->addWidget(detail_open_btn_);
 
@@ -558,8 +560,12 @@ QWidget* ConflictMonitorPanel::build_event_details_section(QWidget* parent) {
     return w;
 }
 
-void ConflictMonitorPanel::set_events(const QVector<NewsEvent>& events) {
+void ConflictMonitorPanel::set_events(const QVector<NewsEvent>& events, bool fit_map) {
     events_table_->setSortingEnabled(false);
+    // The previous selection points at a row that is about to be replaced; drop it
+    // so the detail card never describes an event that is no longer in the table.
+    events_table_->setCurrentCell(-1, -1);
+    events_table_->clearSelection();
     events_table_->setRowCount(events.size());
 
     for (int i = 0; i < events.size(); ++i) {
@@ -594,9 +600,14 @@ void ConflictMonitorPanel::set_events(const QVector<NewsEvent>& events) {
     }
 
     events_table_->setSortingEnabled(true);
+    if (detail_panel_)
+        detail_panel_->setVisible(false);
+    if (empty_state_)
+        empty_state_->setVisible(true);
+    current_url_.clear();
     update_stats(events);
     update_hotspots(events);
-    update_map(events);
+    update_map(events, fit_map);
 
     // Overview tiles
     if (stat_total_)
@@ -615,7 +626,7 @@ void ConflictMonitorPanel::set_events(const QVector<NewsEvent>& events) {
         stat_countries_->setText(QString::number(countries.size()));
 }
 
-void ConflictMonitorPanel::update_map(const QVector<NewsEvent>& events) {
+void ConflictMonitorPanel::update_map(const QVector<NewsEvent>& events, bool fit_map) {
     QVector<fincept::ui::MapPin> pins;
     pins.reserve(events.size());
 
@@ -655,7 +666,8 @@ void ConflictMonitorPanel::update_map(const QVector<NewsEvent>& events) {
                                 .arg(coord_counts.size()));
 
     map_widget_->set_pins(pins);
-    map_widget_->fit_to_pins();
+    if (fit_map)
+        map_widget_->fit_to_pins();
 }
 
 void ConflictMonitorPanel::update_stats(const QVector<NewsEvent>& events) {

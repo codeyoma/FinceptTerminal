@@ -18,6 +18,8 @@
 #include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QKeySequence>
+#include <QShortcut>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPointer>
@@ -78,7 +80,13 @@ QWidget* AltInvestmentsScreen::create_header() {
     tc->setSpacing(1);
     header_title_ = new QLabel(tr("ALTERNATIVE INVESTMENTS"));
     header_title_->setObjectName("altHeaderTitle");
-    header_sub_ = new QLabel(tr("27 ANALYZERS  \xB7  10 ASSET CLASSES  \xB7  MULTI-ASSET ANALYTICS"));
+    // Counts come from the catalog: the label used to hard-code "27 ANALYZERS" while only 24 exist.
+    int analyzer_total = 0;
+    for (const auto& cat : categories_)
+        analyzer_total += static_cast<int>(cat.analyzers.size());
+    header_sub_ = new QLabel(tr("%1 ANALYZERS  \xB7  %2 ASSET CLASSES  \xB7  MULTI-ASSET ANALYTICS")
+                                 .arg(analyzer_total)
+                                 .arg(categories_.size()));
     header_sub_->setObjectName("altHeaderSub");
     tc->addWidget(header_title_);
     tc->addWidget(header_sub_);
@@ -156,6 +164,19 @@ QWidget* AltInvestmentsScreen::create_center_panel() {
     combo_col->addWidget(combo_label_);
     combo_col->addWidget(analyzer_combo_);
     tbl->addLayout(combo_col);
+
+    // Analysis method (cli.py --method). Previously every analyzer ran only its default method; the others
+    // were unreachable from the UI.
+    auto* method_col = new QVBoxLayout;
+    method_col->setSpacing(3);
+    method_label_ = new QLabel(tr("METHOD"));
+    method_label_->setObjectName("altComboLabel");
+    method_combo_ = new QComboBox;
+    method_combo_->setFixedWidth(210);
+    method_combo_->setAccessibleName(tr("Analysis method"));
+    method_col->addWidget(method_label_);
+    method_col->addWidget(method_combo_);
+    tbl->addLayout(method_col);
     vl->addWidget(title_bar);
 
     // ── Form panel ────────────────────────────────────────────────────────────
@@ -184,6 +205,13 @@ QWidget* AltInvestmentsScreen::create_center_panel() {
     fpvl->addWidget(fhdr);
 
     form_container_ = new QWidget(this);
+    // Enter in any field (spin boxes and combos included) runs the analyzer.
+    for (const auto key : {Qt::Key_Return, Qt::Key_Enter}) {
+        auto* sc = new QShortcut(QKeySequence(key), form_container_);
+        sc->setContext(Qt::WidgetWithChildrenShortcut);
+        connect(sc, &QShortcut::activated, this, &AltInvestmentsScreen::on_analyze);
+    }
+    analyze_btn_->setToolTip(tr("Run the analyzer (Enter)"));
     form_layout_ = new QVBoxLayout(form_container_);
     form_layout_->setContentsMargins(12, 12, 12, 12);
     form_layout_->setSpacing(8);

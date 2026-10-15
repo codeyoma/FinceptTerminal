@@ -7,12 +7,17 @@
 #include "core/logging/Logger.h"
 #include "mcp/AsyncDispatch.h"
 #include "mcp/tools/ThreadHelper.h"
+#include "services/connectors/ConnectorCatalog.h"
+#include "services/connectors/ConnectorService.h"
 #include "services/ma_analytics/MAAnalyticsService.h"
 
+#include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QProcess>
 #include <QPromise>
 
+#include <algorithm>
 #include <memory>
 
 namespace fincept::mcp::tools {
@@ -32,44 +37,54 @@ static constexpr const char* TAG = "MAAnalyticsTools";
 //                   Cancellation observed via ctx.cancelled before resolve.
 //                   Trigger MUST capture inputs by value — it runs on the
 //                   service thread after the calling lambda has returned.
-static ToolResult run_ma_sync(const QString& context, std::function<void()> trigger) {
-    QJsonObject result_data;
-    QString error_msg;
+
+// State shared between the waiting worker and the service-thread callbacks. It lives on
+// the heap (shared_ptr captured by value) because run_async_wait gives up after its bound
+// (120 s) while a Python run can legitimately take longer — Monte Carlo, regressions,
+// backtests, the VisionQuant index build. With the old reference captures the callback that
+// finally arrived wrote into a stack frame that had long since been unwound.
+struct MaSyncWaitState {
+    QJsonObject data;
+    QString error;
     bool got_result = false;
+};
+
+static ToolResult run_ma_sync(const QString& context, std::function<void()> trigger) {
+    auto st = std::make_shared<MaSyncWaitState>();
 
     auto& svc = fincept::services::ma::MAAnalyticsService::instance();
 
-    detail::run_async_wait(&svc, [&](auto signal_done) {
+    detail::run_async_wait(&svc, [&svc, st, context, trigger = std::move(trigger)](auto signal_done) {
         auto* gate = new QObject;
         QObject::connect(&svc, &fincept::services::ma::MAAnalyticsService::result_ready, gate,
-                         [&, gate, signal_done](const QString& ctx, const QJsonObject& data) {
+                         [st, gate, context, signal_done](const QString& ctx, const QJsonObject& data) {
                              if (ctx != context)
                                  return;
-                             result_data = data;
-                             got_result = true;
+                             st->data = data;
+                             st->got_result = true;
                              gate->deleteLater();
                              signal_done();
                          });
         QObject::connect(&svc, &fincept::services::ma::MAAnalyticsService::error_occurred, gate,
-                         [&, gate, signal_done](const QString& ctx, const QString& msg) {
+                         [st, gate, context, signal_done](const QString& ctx, const QString& msg) {
                              if (ctx != context)
                                  return;
-                             error_msg = msg;
-                             got_result = true;
+                             st->error = msg;
+                             st->got_result = true;
                              gate->deleteLater();
                              signal_done();
                          });
         trigger();
     });
 
-    if (!got_result)
-        return ToolResult::fail("M&A result missing: " + context);
-    if (!error_msg.isEmpty())
-        return ToolResult::fail(error_msg);
-    return ToolResult::ok_data(result_data);
+    if (!st->got_result)
+        return ToolResult::fail("M&A result missing: " + context +
+                                " (no response from the analytics service within the wait bound)");
+    if (!st->error.isEmpty())
+        return ToolResult::fail(st->error);
+    return ToolResult::ok_data(st->data);
 }
 
-[[maybe_unused]]
 static void run_ma_async(const QString& context, std::function<void()> trigger, ToolContext ctx,
                          std::shared_ptr<QPromise<ToolResult>> promise) {
     auto* svc = &fincept::services::ma::MAAnalyticsService::instance();
@@ -102,18 +117,36 @@ static void run_ma_async(const QString& context, std::function<void()> trigger, 
 // valuation, …). Each forwards its args straight to the Python analytic and
 // waits on `context`, which matches the service method's run_python_json result
 // context (so results route unambiguously).
+//
+// `async_timeout_ms` > 0 opts the tool into the async/job protocol (§M1): it gets an
+// async_handler and that declared budget, so a run that outlasts the grace window is
+// backgrounded instead of holding the provider's HTTP turn — and a pool thread — for as long
+// as the Python process takes. Leave it 0 for the quick analytics, which stay on the
+// bounded synchronous path. The budget should track what PythonRunner allows the script:
+// 5 min by default, 60 min under vision_quant/ and Analytics/backtesting/.
 using MaMethod = void (fincept::services::ma::MAAnalyticsService::*)(const QJsonObject&);
 static ToolDef make_ma_tool(const char* name, const char* desc, const QString& context, MaMethod method,
-                            QJsonObject props, QStringList required) {
+                            QJsonObject props, QStringList required, int async_timeout_ms = 0) {
     ToolDef t;
     t.name = name;
     t.description = desc;
     t.category = "ma-analytics";
     t.input_schema.properties = std::move(props);
     t.input_schema.required = std::move(required);
+    if (async_timeout_ms > 0) {
+        t.default_timeout_ms = async_timeout_ms;
+        t.async_handler = [method, context](const QJsonObject& args, ToolContext ctx,
+                                            std::shared_ptr<QPromise<ToolResult>> promise) {
+            run_ma_async(
+                context,
+                [args, method]() { (fincept::services::ma::MAAnalyticsService::instance().*method)(args); },
+                std::move(ctx), promise);
+        };
+        return t;
+    }
     t.handler = [method, context](const QJsonObject& args) -> ToolResult {
         return run_ma_sync(context,
-                           [&, method]() { (fincept::services::ma::MAAnalyticsService::instance().*method)(args); });
+                           [args, method]() { (fincept::services::ma::MAAnalyticsService::instance().*method)(args); });
     };
     return t;
 }
@@ -122,88 +155,232 @@ static ToolDef make_ma_tool(const char* name, const char* desc, const QString& c
 // a fixed `command` and forwards the tool args as that command's params.
 using MaCmdMethod = void (fincept::services::ma::MAAnalyticsService::*)(const QString&, const QJsonObject&);
 static ToolDef make_ma_cmd_tool(const char* name, const char* desc, const QString& context, MaCmdMethod method,
-                                const QString& command, QJsonObject props, QStringList required) {
+                                const QString& command, QJsonObject props, QStringList required,
+                                int async_timeout_ms = 0) {
     ToolDef t;
     t.name = name;
     t.description = desc;
     t.category = "ma-analytics";
     t.input_schema.properties = std::move(props);
     t.input_schema.required = std::move(required);
+    if (async_timeout_ms > 0) { // see make_ma_tool: opt into the async/job protocol with a real budget
+        t.default_timeout_ms = async_timeout_ms;
+        t.async_handler = [method, context, command](const QJsonObject& args, ToolContext ctx,
+                                                     std::shared_ptr<QPromise<ToolResult>> promise) {
+            run_ma_async(
+                context,
+                [args, method, command]() {
+                    (fincept::services::ma::MAAnalyticsService::instance().*method)(command, args);
+                },
+                std::move(ctx), promise);
+        };
+        return t;
+    }
     t.handler = [method, context, command](const QJsonObject& args) -> ToolResult {
-        return run_ma_sync(context, [&, method, command]() {
+        return run_ma_sync(context, [args, method, command]() {
             (fincept::services::ma::MAAnalyticsService::instance().*method)(command, args);
         });
     };
     return t;
 }
 
-// The data-connector manifest (auto-generated). Defines kDataConnectorManifest
-// (127 keyed + 63 keyless = 190 connectors; the loop below iterates all of them).
-#include "mcp/tools/DataConnectorManifest.inc"
+// ════════════════════════════════════════════════════════════════════
+// DATA CONNECTORS — one `data_*` tool per catalogue connector
+// ════════════════════════════════════════════════════════════════════
+// The catalogue is resources/data_connectors.json, generated by
+// .github/scripts/gen_data_connectors.py from scripts/*.py (+ scripts/connector_overrides.json).
+// Calls run through ConnectorService — the same runner, in-flight de-dupe and TTL cache the
+// Data Sources › CATALOG tab uses — so the AI and the UI never fetch the same thing twice.
+// Connectors marked `mcp:false` (a dedicated tool already covers them) or `broken` (their
+// upstream did not answer when last checked) get no tool.
 
-// Build one dispatcher tool per `scripts/*_data.py` connector from the
-// embedded manifest. Each connector shares the uniform positional ABI
-// `python <script> <command> [args…] → JSON`; the tool exposes the command as an
-// enum and forwards optional positional args. Category "data-connectors".
+static constexpr int kDataConnectorToolTimeoutMs = 120000; // == ConnectorService::kRunTimeoutMs
+static constexpr int kDataConnectorDefaultMaxRows = 200;
+static constexpr int kDataConnectorMaxRowsCap = 5000;
+static constexpr int kDataConnectorCommandListChars = 1100;
+
+static QString data_connector_tool_description(const fincept::services::connectors::ConnectorInfo& c) {
+    QString d = c.title;
+    if (!c.description.isEmpty() && c.description != c.title)
+        d += QStringLiteral(" — ") + c.description;
+    d += QStringLiteral(" [%1; %2] ").arg(c.category, c.region);
+    d += fincept::services::connectors::key_requirement_text(c);
+
+    QStringList parts;
+    int used = 0;
+    int listed = 0;
+    for (const auto& cmd : c.commands) {
+        const QString item = cmd.args_hint.isEmpty() ? cmd.name : cmd.name + QLatin1Char(' ') + cmd.args_hint;
+        if (used + item.size() > kDataConnectorCommandListChars)
+            break;
+        parts << item;
+        used += int(item.size()) + 2;
+        ++listed;
+    }
+    d += QStringLiteral(" Commands (args): ") + parts.join(QStringLiteral("; "));
+    if (listed < c.commands.size()) {
+        QStringList rest;
+        for (int i = listed; i < c.commands.size(); ++i)
+            rest << c.commands[i].name;
+        d += QStringLiteral("; also: ") + rest.join(QStringLiteral(", "));
+    }
+    const int ttl_min =
+        (c.ttl_sec > 0 ? c.ttl_sec : fincept::services::connectors::ConnectorService::kDefaultTtlSec) / 60;
+    d += QStringLiteral(". <arg> = required, [arg=default] = optional, positional. Results are cached %1 min "
+                        "(force_refresh=true fetches fresh data).")
+             .arg(std::max(1, ttl_min));
+    return d;
+}
+
+/// Keep at most `max_rows` elements of the array at `path` ("(root)", "[1]" or a dotted object
+/// path, as ConnectorResult::table_path reports it). Returns the input unchanged when the path
+/// does not resolve to an array.
+static QJsonValue data_connector_trim_at(const QJsonValue& v, const QStringList& path, int max_rows) {
+    if (path.isEmpty()) {
+        if (!v.isArray())
+            return v;
+        QJsonArray a = v.toArray();
+        while (a.size() > max_rows)
+            a.removeLast();
+        return a;
+    }
+    if (!v.isObject())
+        return v;
+    QJsonObject o = v.toObject();
+    const QString head = path.first();
+    if (!o.contains(head))
+        return v;
+    o.insert(head, data_connector_trim_at(o.value(head), path.mid(1), max_rows));
+    return o;
+}
+
+static QJsonObject data_connector_tool_payload(const fincept::services::connectors::ConnectorResult& r, int max_rows) {
+    QJsonArray args;
+    for (const QString& a : r.args)
+        args.append(a);
+    QJsonObject out{{"connector", r.connector}, {"command", r.command}, {"args", args}};
+
+    QJsonValue data = r.data;
+    const int total = int(r.table.size());
+    const bool array_table = r.table_kind == QLatin1String("records") || r.table_kind == QLatin1String("values") ||
+                             r.table_kind == QLatin1String("rows");
+    if (array_table && total > max_rows) {
+        if (r.table_path == QLatin1String("(root)")) {
+            data = data_connector_trim_at(data, {}, max_rows);
+        } else if (r.table_path == QLatin1String("[1]") && data.isArray()) {
+            QJsonArray root = data.toArray();
+            root[1] = data_connector_trim_at(root.at(1), {}, max_rows);
+            data = root;
+        } else {
+            data = data_connector_trim_at(data, r.table_path.split(QLatin1Char('.')), max_rows);
+        }
+        // §M4: never trim silently — say where, how much, and how to get the rest.
+        out["truncated"] = QStringLiteral("'%1' trimmed to the first %2 of %3 rows; pass max_rows (<= %4) or narrow "
+                                          "the arguments for more")
+                               .arg(r.table_path)
+                               .arg(max_rows)
+                               .arg(total)
+                               .arg(kDataConnectorMaxRowsCap);
+    }
+    out["data"] = data;
+    out["rows_total"] = total;
+    if (!r.columns.isEmpty() && array_table)
+        out["columns"] = QJsonArray::fromStringList(r.columns);
+    if (!r.warning.isEmpty())
+        out["upstream_warning"] = r.warning;
+    out["cached"] = r.from_cache;
+    if (r.from_cache && r.fetched_at_ms > 0)
+        out["cached_age_s"] = double((QDateTime::currentMSecsSinceEpoch() - r.fetched_at_ms) / 1000);
+    return out;
+}
+
 static void append_data_connector_tools(std::vector<ToolDef>& tools) {
-    using MASvc = fincept::services::ma::MAAnalyticsService;
-    const auto doc = QJsonDocument::fromJson(QByteArray(kDataConnectorManifest));
-    const QJsonArray entries = doc.array();
-    for (const auto& ev : entries) {
-        const QJsonObject e = ev.toObject();
-        const QString name = e.value("name").toString();
-        const QString script = e.value("script").toString();
-        const QString base_desc = e.value("desc").toString();
-        const QJsonArray commands = e.value("commands").toArray();
-        const QJsonArray env_keys = e.value("env_keys").toArray();
-        if (name.isEmpty() || script.isEmpty())
+    using fincept::services::connectors::ConnectorCatalog;
+    using fincept::services::connectors::ConnectorResult;
+    using fincept::services::connectors::ConnectorService;
+
+    auto& catalog = ConnectorCatalog::instance();
+    if (!catalog.ensure_loaded()) {
+        LOG_WARN(TAG, "Data connector tools not registered: " + catalog.load_error());
+        return;
+    }
+    int added = 0;
+    for (const auto& c : catalog.connectors()) {
+        if (!c.mcp || !c.broken.isEmpty())
             continue;
 
-        QStringList clist;
-        for (const auto& c : commands)
-            clist << c.toString();
-        const QString base_ctx = QStringLiteral("dc_") + name;
-
-        QString key_note;
-        if (!env_keys.isEmpty()) {
-            QStringList keys;
-            for (const auto& k : env_keys)
-                keys << k.toString();
-            key_note = QStringLiteral(" Requires an API key (") + keys.join(QStringLiteral(", ")) +
-                       QStringLiteral(") set in Settings › Credentials; without it the connector returns a "
-                                      "missing-key error.");
-        }
-
         ToolDef t;
-        t.name = name;
-        t.description = base_desc + QStringLiteral(" Data connector; pick an endpoint. Endpoints: ") +
-                        clist.join(QStringLiteral(", ")) + QStringLiteral(".") + key_note;
+        t.name = c.name;
+        t.description = data_connector_tool_description(c);
         t.category = QStringLiteral("data-connectors");
-        QJsonObject cmd_prop{{"type", "string"},
-                             {"description", QStringLiteral("Endpoint/command to call for this connector.")}};
-        if (!commands.isEmpty())
-            cmd_prop.insert("enum", commands);
         t.input_schema.properties = QJsonObject{
-            {"command", cmd_prop},
+            {"command",
+             QJsonObject{{"type", "string"},
+                         {"description", QStringLiteral("Command to run (default: %1).").arg(c.default_command)},
+                         {"enum", QJsonArray::fromStringList(c.command_names())}}},
             {"args", QJsonObject{{"type", "array"},
                                  {"items", QJsonObject{{"type", "string"}}},
-                                 {"description", "Optional positional arguments after the command (strings), such as "
-                                                 "a country code or date range, if the endpoint requires them."}}}};
+                                 {"description", "Positional arguments for the command, in order (see the "
+                                                 "per-command list in the tool description)."}}},
+            {"max_rows", QJsonObject{{"type", "integer"},
+                                     {"description", QStringLiteral("Rows of the main result table to return "
+                                                                    "(default %1, max %2).")
+                                                         .arg(kDataConnectorDefaultMaxRows)
+                                                         .arg(kDataConnectorMaxRowsCap)}}},
+            {"force_refresh",
+             QJsonObject{{"type", "boolean"}, {"description", "Bypass the cache and fetch fresh data."}}}};
         t.input_schema.required = {"command"};
-        t.handler = [script, base_ctx](const QJsonObject& args) -> ToolResult {
-            const QString command = args.value("command").toString();
-            if (command.isEmpty())
-                return ToolResult::fail("'command' is required");
-            QStringList full;
-            full << command;
-            for (const auto& v : args.value("args").toArray())
-                full << v.toVariant().toString();
-            const QString ctx = base_ctx + QStringLiteral("_") + command;
-            return run_ma_sync(ctx, [&]() { MASvc::instance().run_data_connector(script, full, ctx); });
+        // Real budget (§M1): a slow upstream is backgrounded as a job instead of holding the turn.
+        t.default_timeout_ms = kDataConnectorToolTimeoutMs;
+        t.async_handler = [name = c.name](const QJsonObject& a, ToolContext ctx,
+                                          std::shared_ptr<QPromise<ToolResult>> promise) {
+            const QString command = a.value("command").toString().trimmed();
+            QStringList list;
+            const QJsonValue raw_args = a.value("args");
+            if (raw_args.isString()) {
+                list = QProcess::splitCommand(raw_args.toString()); // tolerate "AAPL 2024-01-01"
+            } else {
+                for (const auto& v : raw_args.toArray()) {
+                    if (v.isString())
+                        list << v.toString();
+                    else if (v.isDouble())
+                        list << QString::number(v.toDouble(), 'g', 15);
+                    else if (v.isBool())
+                        list << (v.toBool() ? QStringLiteral("true") : QStringLiteral("false"));
+                    else if (v.isObject())
+                        list << QString::fromUtf8(QJsonDocument(v.toObject()).toJson(QJsonDocument::Compact));
+                    else if (v.isArray())
+                        list << QString::fromUtf8(QJsonDocument(v.toArray()).toJson(QJsonDocument::Compact));
+                }
+            }
+            const int max_rows =
+                std::clamp(a.value("max_rows").toInt(kDataConnectorDefaultMaxRows), 1, kDataConnectorMaxRowsCap);
+            const bool force = a.value("force_refresh").toBool(false);
+            if (command.isEmpty()) {
+                AsyncDispatch::callback_to_promise(
+                    nullptr, ctx, promise, [](auto resolve) { resolve(ToolResult::fail("'command' is required")); });
+                return;
+            }
+            AsyncDispatch::callback_to_promise(
+                &ConnectorService::instance(), ctx, promise, [name, command, list, force, max_rows, ctx](auto resolve) {
+                    ConnectorService::instance().run(
+                        name, command, list, force, [resolve, max_rows, ctx](const ConnectorResult& r) {
+                            if (ctx.cancelled()) {
+                                resolve(ToolResult::fail("cancelled"));
+                                return;
+                            }
+                            if (!r.success) {
+                                resolve(ToolResult::fail(r.error));
+                                return;
+                            }
+                            resolve(ToolResult::ok_data(data_connector_tool_payload(r, max_rows)));
+                        });
+                });
         };
         tools.push_back(std::move(t));
+        ++added;
     }
-    LOG_DEBUG(TAG, QString("Registered %1 data-connector tools").arg(entries.size()));
+    LOG_DEBUG(TAG, QString("Registered %1 data-connector tools from %2").arg(added).arg(catalog.source_path()));
 }
 
 std::vector<ToolDef> get_ma_analytics_tools() {
@@ -764,6 +941,7 @@ std::vector<ToolDef> get_ma_analytics_tools() {
         t.name = "ma_create_deal";
         t.description = "Add a new deal record to the M&A deal database.";
         t.category = "ma-analytics";
+        t.is_destructive = true; // writes to the persistent deal database
         t.input_schema.properties = QJsonObject{
             {"acquirer", QJsonObject{{"type", "string"}, {"description", "Acquirer company name"}}},
             {"target", QJsonObject{{"type", "string"}, {"description", "Target company name"}}},
@@ -786,6 +964,7 @@ std::vector<ToolDef> get_ma_analytics_tools() {
         t.name = "ma_update_deal";
         t.description = "Update an existing deal record in the M&A database.";
         t.category = "ma-analytics";
+        t.is_destructive = true; // rewrites a persisted deal record
         t.input_schema.properties =
             QJsonObject{{"deal_id", QJsonObject{{"type", "string"}, {"description", "Deal ID to update"}}},
                         {"updates", QJsonObject{{"type", "object"},
@@ -1097,9 +1276,14 @@ std::vector<ToolDef> get_ma_analytics_tools() {
             {"wacc_mean", QJsonObject{{"type", "number"}, {"description", "Mean WACC"}}},
             {"wacc_std", QJsonObject{{"type", "number"}, {"description", "Std dev of WACC"}}}};
         t.input_schema.required = {"base_value", "std_dev_pct"};
-        t.handler = [](const QJsonObject& args) -> ToolResult {
-            return run_ma_sync("monte_carlo",
-                               [&]() { fincept::services::ma::MAAnalyticsService::instance().run_monte_carlo(args); });
+        // Up to 100K simulations in Python: this can run for minutes, well past what the
+        // synchronous path will wait for (and the process itself is allowed 5 min).
+        t.default_timeout_ms = 300000;
+        t.async_handler = [](const QJsonObject& args, ToolContext ctx, std::shared_ptr<QPromise<ToolResult>> promise) {
+            run_ma_async(
+                "monte_carlo",
+                [args]() { fincept::services::ma::MAAnalyticsService::instance().run_monte_carlo(args); },
+                std::move(ctx), promise);
         };
         tools.push_back(std::move(t));
     }
@@ -1739,15 +1923,25 @@ std::vector<ToolDef> get_ma_analytics_tools() {
                             {"resolution", str("daily or hourly (default daily).")},
                             {"strategy_params", obj("Optional strategy-specific parameters.")}};
             t.input_schema.required = {"provider", "strategy_id", "symbols", "start_date", "end_date", "initial_cash"};
-            t.handler = [](const QJsonObject& args) -> ToolResult {
+            // A backtest over multi-year data (Analytics/backtesting/ scripts are allowed up to
+            // 60 min by PythonRunner) - minutes is normal. Async so a long run is backgrounded
+            // instead of pinning a tool thread, and the late result is never written to an
+            // unwound stack frame.
+            t.default_timeout_ms = 900000;
+            t.async_handler = [](const QJsonObject& args, ToolContext ctx,
+                                 std::shared_ptr<QPromise<ToolResult>> promise) {
                 const QString provider = args.value("provider").toString("bt");
                 const QString strategy_id = args.value("strategy_id").toString();
                 QJsonObject params = args;
                 params.remove("provider");
                 params.remove("strategy_id");
-                return run_ma_sync("backtest_" + provider, [&]() {
-                    fincept::services::ma::MAAnalyticsService::instance().run_backtest(provider, strategy_id, params);
-                });
+                run_ma_async(
+                    "backtest_" + provider,
+                    [provider, strategy_id, params]() {
+                        fincept::services::ma::MAAnalyticsService::instance().run_backtest(provider, strategy_id,
+                                                                                           params);
+                    },
+                    std::move(ctx), promise);
             };
             tools.push_back(std::move(t));
         }
@@ -1776,7 +1970,9 @@ std::vector<ToolDef> get_ma_analytics_tools() {
                         {"date", str("As-of date YYYY-MM-DD (default latest).")},
                         {"top_k", num("Number of similar patterns to return (default 10).")},
                         {"lookback", num("Chart lookback window in bars (default 60).")}},
-            {"symbol"}));
+            {"symbol"},
+            // Loads the CNN + FAISS index on a cold start - tens of seconds, not milliseconds.
+            120000));
         tools.push_back(
             make_ma_cmd_tool("vq_encode", "VisionQuant: encode a chart image file into its pattern embedding vector.",
                              "vq_engine_encode", &MASvc::run_vision_engine, "encode",
@@ -1821,13 +2017,16 @@ std::vector<ToolDef> get_ma_analytics_tools() {
                         {"entry_rsi", num("RSI entry threshold (default 40).")},
                         {"exit_rsi", num("RSI exit threshold (default 70).")},
                         {"ma_period", num("Moving-average period (default 60).")}},
-            {"symbol", "start", "end"}));
+            {"symbol", "start", "end"},
+            // vision_quant/ scripts get PythonRunner's long-run budget (a CNN + FAISS backtest).
+            900000));
 
         // setup_index.py — status | build (build trains the CNN + builds FAISS: long-running)
         tools.push_back(make_ma_cmd_tool("vq_index_status",
                                          "VisionQuant: status of the pattern model + FAISS index build.",
                                          "vq_index_status", &MASvc::run_vision_index, "status", QJsonObject{}, {}));
-        tools.push_back(make_ma_cmd_tool(
+        {
+        ToolDef build_index = make_ma_cmd_tool(
             "vq_build_index",
             "VisionQuant: build the pattern index — download charts, train the CNN autoencoder, and build the FAISS "
             "index. LONG-RUNNING (minutes). Run once before vq_search / vq_score.",
@@ -1838,7 +2037,17 @@ std::vector<ToolDef> get_ma_analytics_tools() {
                         {"window", num("Chart window in bars (default 60).")},
                         {"epochs", num("Training epochs (default 30).")},
                         {"batch_size", num("Training batch size (default 32).")}},
-            {}));
+            {},
+            // "LONG-RUNNING (minutes)": it trains a CNN. This was a sync tool, so the call gave
+            // up after the 120 s wait bound ("result missing") while training carried on, and
+            // the late result then landed in a dead stack frame. PythonRunner allows
+            // vision_quant/ scripts 60 min; match it so the call is backgrounded, not abandoned.
+            3600000);
+        // Downloads data, trains a model for minutes and rewrites the on-disk index — an
+        // expensive, state-changing operation the user should have to allow (§M7).
+        build_index.is_destructive = true;
+        tools.push_back(std::move(build_index));
+        }
     }
 
     // Data-source connectors (auto-generated dispatcher tools; keyless + keyed).

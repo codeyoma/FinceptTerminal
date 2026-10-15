@@ -10,13 +10,38 @@
 #include <QCoreApplication>
 #include <QDate>
 #include <QJsonArray>
+#include <QPushButton>
 #include <QRegularExpression>
 #include <QString>
 #include <QStringList>
+#include <QWidget>
 
 #include <cmath>
 
 namespace fincept::screens::quant_common {
+
+// Enable / disable every "run" button of a panel. make_run_button() tags them all with the
+// objectName "quantRunButton". Used to keep a second click from launching a duplicate Python
+// process (a second multi-minute training run, a second RD-Agent task) while one is in flight.
+inline void set_run_buttons_enabled(QWidget* panel, bool enabled) {
+    const bool retrain_busy = panel->property("rrBusy").toBool();
+    for (auto* b : panel->findChildren<QPushButton*>(QStringLiteral("quantRunButton"))) {
+        // A rolling retrain in flight keeps its own launch buttons disabled (see set_retrain_busy).
+        if (enabled && retrain_busy && b->property("rrRetrain").toBool())
+            continue;
+        b->setEnabled(enabled);
+    }
+}
+
+// Rolling retrain has several launch buttons (the Execute tab and one "Run Now" per schedule card)
+// that share one in-flight state, kept as a property on the panel so cards rebuilt mid-run come
+// up disabled too. Buttons opt in by carrying the "rrRetrain" property.
+inline void set_retrain_busy(QWidget* panel, bool busy) {
+    panel->setProperty("rrBusy", busy);
+    for (auto* b : panel->findChildren<QPushButton*>())
+        if (b->property("rrRetrain").toBool())
+            b->setEnabled(!busy);
+}
 
 // Parse a CSV / whitespace / newline string into a JSON array of doubles.
 // Returns false on any non-numeric token (sets bad_token to the offender).
@@ -37,6 +62,28 @@ inline bool parse_doubles(const QString& text, QJsonArray& out, QString* bad_tok
         out.append(v);
     }
     return true;
+}
+
+// Validate a JSON 2-D numeric matrix: every row an array of `cols` numbers
+// (cols < 0: take the first row's width). Returns "" when valid, otherwise a
+// user-facing reason. Ragged rows / strings used to reach the Python side and
+// come back as an unrelated numpy traceback.
+inline QString check_numeric_matrix(const QJsonArray& rows, int cols = -1) {
+    const auto tr_ = [](const char* s) { return QCoreApplication::translate("QuantModulePanel", s); };
+    if (rows.isEmpty())
+        return tr_("The matrix is empty.");
+    const int want = cols >= 0 ? cols : static_cast<int>(rows.first().toArray().size());
+    for (int r = 0; r < rows.size(); ++r) {
+        if (!rows.at(r).isArray())
+            return tr_("Row %1 is not an array.").arg(r + 1);
+        const QJsonArray row = rows.at(r).toArray();
+        if (row.size() != want)
+            return tr_("Row %1 has %2 values; expected %3.").arg(r + 1).arg(row.size()).arg(want);
+        for (const auto& v : row)
+            if (!v.isDouble())
+                return tr_("Row %1 contains a non-numeric value.").arg(r + 1);
+    }
+    return {};
 }
 
 // Split a comma-separated string into a JSON array of trimmed, non-empty

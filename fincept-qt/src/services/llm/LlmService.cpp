@@ -1,5 +1,6 @@
 // Multi-provider LLM API client. Sync paths block on QEventLoop and must run on a worker thread.
 
+#include "services/llm/LlmToolActivity.h"
 #include "services/llm/LlmService.h"
 
 #include "auth/AuthManager.h"
@@ -12,14 +13,13 @@
 #include "mcp/McpService.h"
 #include "services/llm/LlmContentExtractors.h"
 #include "services/llm/LlmRequestPolicy.h"
-
-#include <vector>
 #include "services/llm/ModelCatalog.h"
 #include "services/llm/ProviderCatalog.h"
 #include "storage/repositories/LlmConfigRepository.h"
 #include "storage/repositories/SettingsRepository.h"
 
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QEvent>
 #include <QEventLoop>
 #include <QJsonDocument>
@@ -30,18 +30,134 @@
 #include <QNetworkRequest>
 #include <QPointer>
 #include <QRegularExpression>
+#include <QScopeGuard>
+#include <QSemaphore>
 #include <QSet>
 #include <QThread>
+#include <QThreadPool>
 #include <QTimer>
 #include <QUuid>
 #include <QVariant>
 #include <QtConcurrent/QtConcurrent>
 
 #include <algorithm>
+#include <memory>
+#include <vector>
 
 namespace fincept::ai_chat {
 
 static constexpr const char* kLlmSvcTag = "LlmService";
+
+// The whole conversation is re-posted with every request, and nothing bounded it:
+// a long AI Chat session eventually exceeded the model's context window and every
+// further message failed with a context-length 400 until the user opened a new
+// session. Drop the OLDEST turns once the transcript passes a character budget
+// (~4 chars/token, so the 200k default is ~50k tokens — under a 128k window with
+// room for the system prompt, tool schemas and the reply). Leading system
+// messages are never dropped, the newest turn is always kept, and the kept
+// transcript is made to open on a user turn because Anthropic and Gemini reject
+// an assistant-first array. `llm/history_max_chars` overrides; 0 disables.
+static std::vector<ConversationMessage> llm_svc_trim_history(const std::vector<ConversationMessage>& history) {
+    const qsizetype budget = std::max(0, AppConfig::instance().get("llm/history_max_chars", QVariant(200000)).toInt());
+    if (budget == 0 || history.empty())
+        return history;
+
+    std::size_t first_turn = 0;
+    qsizetype system_chars = 0;
+    while (first_turn < history.size() && history[first_turn].role == QLatin1String("system")) {
+        system_chars += history[first_turn].content.size();
+        ++first_turn;
+    }
+    qsizetype total = system_chars;
+    for (std::size_t i = first_turn; i < history.size(); ++i)
+        total += history[i].content.size();
+    if (total <= budget)
+        return history;
+
+    std::size_t keep_from = history.size();
+    qsizetype used = system_chars;
+    while (keep_from > first_turn) {
+        const qsizetype sz = history[keep_from - 1].content.size();
+        if (keep_from < history.size() && used + sz > budget)
+            break;
+        used += sz;
+        --keep_from;
+    }
+    while (keep_from < history.size() && history[keep_from].role == QLatin1String("assistant"))
+        ++keep_from;
+
+    LOG_WARN(kLlmSvcTag, QString("Conversation history is %1 chars (budget %2) — dropping the %3 oldest message(s)")
+                             .arg(total)
+                             .arg(budget)
+                             .arg(keep_from - first_turn));
+    std::vector<ConversationMessage> out(history.begin(), history.begin() + static_cast<std::ptrdiff_t>(first_turn));
+    out.insert(out.end(), history.begin() + static_cast<std::ptrdiff_t>(keep_from), history.end());
+    return out;
+}
+
+// Executor for chat_streaming() requests. A turn can hold its thread for minutes
+// (reasoning model + multi-round tool loop); on QThreadPool::globalInstance() that
+// starved every other QtConcurrent user. Threads never expire, so each keeps its
+// thread_nam() — and its warm TLS connection to the provider — between chat turns.
+// Deliberately leaked: it must outlive every singleton a request touches, and a
+// static pool would block process exit on an in-flight request.
+static QThreadPool& llm_svc_request_pool() {
+    static QThreadPool* const pool = []() {
+        auto* p = new QThreadPool();
+        p->setObjectName(QStringLiteral("fincept-llm"));
+        p->setMaxThreadCount(6);
+        p->setExpiryTimeout(-1);
+        return p;
+    }();
+    return *pool;
+}
+
+// Soft cap on concurrent blocking chat() requests (workflow / agent nodes, the
+// non-streaming AI Chat path), so a workflow fanning out many agent nodes can't
+// hammer the provider into 429s. Interactive chat_streaming() requests never wait
+// on it. Soft because chat() can legitimately be called while another request
+// waits on it (a tool inside a running turn that itself calls chat()); a hard
+// semaphore would deadlock that nesting once the cap is reached, so after
+// kLlmSvcSlotWaitMs a request proceeds without a slot.
+constexpr int kLlmSvcMaxConcurrentChats = 4;
+constexpr int kLlmSvcSlotWaitMs = 30000;
+
+class LlmSvcChatSlot {
+  public:
+    LlmSvcChatSlot() = default;
+    ~LlmSvcChatSlot() {
+        if (held_)
+            semaphore().release();
+    }
+    LlmSvcChatSlot(const LlmSvcChatSlot&) = delete;
+    LlmSvcChatSlot& operator=(const LlmSvcChatSlot&) = delete;
+
+    /// Waits for a slot (or the soft-cap timeout). Returns false only when a
+    /// request armed on this thread was cancelled while waiting.
+    bool acquire() {
+        QElapsedTimer waited;
+        waited.start();
+        while (!semaphore().tryAcquire(1, 100)) {
+            if (detail::cancel_requested())
+                return false;
+            if (waited.elapsed() >= kLlmSvcSlotWaitMs) {
+                LOG_WARN(kLlmSvcTag, QString("All %1 chat() slots busy for %2 s — proceeding without one")
+                                         .arg(kLlmSvcMaxConcurrentChats)
+                                         .arg(kLlmSvcSlotWaitMs / 1000));
+                return true;
+            }
+        }
+        held_ = true;
+        return true;
+    }
+
+  private:
+    static QSemaphore& semaphore() {
+        static QSemaphore s(kLlmSvcMaxConcurrentChats);
+        return s;
+    }
+    bool held_ = false;
+};
 
 LlmService::LlmService() = default;
 
@@ -229,6 +345,39 @@ void LlmService::ensure_config() const {
                              .arg(max_tokens_)
                              .arg(catalog_cap)
                              .arg(resolved));
+}
+
+LlmService::ConfigSnapshot LlmService::snapshot_config_locked() const {
+    // Called with mutex_ held, after ensure_config().
+    ConfigSnapshot s;
+    s.provider = provider_;
+    s.api_key = api_key_;
+    s.base_url = base_url_;
+    s.model = model_;
+    s.system_prompt = system_prompt_;
+    s.temperature = temperature_;
+    s.max_tokens = max_tokens_;
+    s.max_tool_rounds = max_tool_rounds_;
+    s.tools_enabled = tools_enabled_;
+    s.tool_filter = tool_filter_;
+    return s;
+}
+
+void LlmService::adopt_config_snapshot(const ConfigSnapshot& snap) {
+    // Only ever called on a private per-request instance, before its request
+    // starts and on the thread that runs it.
+    QMutexLocker lock(&mutex_);
+    provider_ = snap.provider;
+    api_key_ = snap.api_key;
+    base_url_ = snap.base_url;
+    model_ = snap.model;
+    system_prompt_ = snap.system_prompt;
+    temperature_ = snap.temperature;
+    max_tokens_ = snap.max_tokens;
+    max_tool_rounds_ = snap.max_tool_rounds;
+    tools_enabled_ = snap.tools_enabled;
+    tool_filter_ = snap.tool_filter;
+    config_loaded_ = true; // never re-read the DB; Fincept still refreshes its key
 }
 
 // ============================================================================
@@ -481,6 +630,11 @@ LlmResponse LlmService::do_request(const QString& user_message, const std::vecto
                 QJsonObject block = block_val.toObject();
                 if (block["type"].toString() != "tool_use")
                     continue;
+                if (detail::cancel_requested()) {
+                    resp.cancelled = true;
+                    resp.error = "Request cancelled";
+                    return resp;
+                }
                 QString tool_id = block["id"].toString();
                 QString tool_name = block["name"].toString();
                 QJsonObject input = block["input"].toObject();
@@ -488,7 +642,10 @@ LlmResponse LlmService::do_request(const QString& user_message, const std::vecto
                 LOG_INFO(kLlmSvcTag, "Executing Anthropic tool: " + tool_name);
                 const QString bare = mcp::McpProvider::parse_openai_function_name(tool_name).second;
                 detail::emit_tool_progress(bare, input);
+                QElapsedTimer tool_timer;
+                tool_timer.start();
                 auto tr = mcp::McpService::instance().execute_openai_function(tool_name, input, /*allow_defer=*/true);
+                emit_tool_done(bare, input, tr, tool_timer.elapsed());
                 detail::note_tool_activations(bare, input, tr, activated);
                 tool_results.append(
                     QJsonObject{{"type", "tool_result"},
@@ -511,6 +668,11 @@ LlmResponse LlmService::do_request(const QString& user_message, const std::vecto
             // Rounds cap the token spend; the deadline caps the wait. See ToolLoopBudget.
             detail::ToolLoopBudget ant_budget(kMaxRounds);
             for (int round = 0; !ant_budget.exhausted(); ++round) {
+                if (detail::cancel_requested()) {
+                    resp.cancelled = true;
+                    resp.error = "Request cancelled";
+                    return resp;
+                }
                 ant_budget.note_round();
                 const QJsonArray ant_tools = build_anthropic_tools(activated.names());
                 QJsonObject fu;
@@ -559,7 +721,14 @@ LlmResponse LlmService::do_request(const QString& user_message, const std::vecto
                     detail::emit_tool_progress(c.display, c.args);
                     calls.push_back(std::move(c));
                 }
+                QElapsedTimer batch_timer;
+                batch_timer.start();
                 const auto results = detail::execute_tool_calls(calls);
+                {
+                    const qint64 ms = batch_timer.elapsed();
+                    for (std::size_t k = 0; k < calls.size(); ++k)
+                        emit_tool_done(calls[k].display, calls[k].args, results[k], ms, calls.size() > 1);
+                }
                 QJsonArray more_results;
                 for (std::size_t k = 0; k < calls.size(); ++k) {
                     // tool_result blocks are appended in the model's order: an
@@ -628,6 +797,11 @@ LlmResponse LlmService::do_request(const QString& user_message, const std::vecto
                 QJsonArray model_parts = parts;
                 QJsonArray last_response_parts;
                 for (int round = 0; !gem_budget.exhausted(); ++round) {
+                    if (detail::cancel_requested()) {
+                        resp.cancelled = true;
+                        resp.error = "Request cancelled";
+                        return resp;
+                    }
                     gem_budget.note_round();
                     fu_contents.append(QJsonObject{{"role", "model"}, {"parts", model_parts}});
 
@@ -654,7 +828,14 @@ LlmResponse LlmService::do_request(const QString& user_message, const std::vecto
                         detail::emit_tool_progress(c.display, c.args);
                         calls.push_back(std::move(c));
                     }
+                    QElapsedTimer batch_timer;
+                    batch_timer.start();
                     const auto results = detail::execute_tool_calls(calls);
+                    {
+                        const qint64 ms = batch_timer.elapsed();
+                        for (std::size_t k = 0; k < calls.size(); ++k)
+                            emit_tool_done(calls[k].display, calls[k].args, results[k], ms, calls.size() > 1);
+                    }
                     QJsonArray fn_response_parts;
                     for (std::size_t k = 0; k < calls.size(); ++k) {
                         const auto& c = calls[k];
@@ -790,6 +971,11 @@ LlmResponse LlmService::do_request(const QString& user_message, const std::vecto
                 detail::ActivationTracker activated;
 
                 for (const auto& tc_val : tcs) {
+                    if (detail::cancel_requested()) {
+                        resp.cancelled = true;
+                        resp.error = "Request cancelled";
+                        return resp;
+                    }
                     QJsonObject tc = tc_val.toObject();
                     QString call_id = tc["id"].toString();
                     QString fn_name = tc["function"].toObject()["name"].toString();
@@ -802,12 +988,19 @@ LlmResponse LlmService::do_request(const QString& user_message, const std::vecto
                         QString("Executing tool: %1 args=%2")
                             .arg(fn_name,
                                  QString::fromUtf8(QJsonDocument(fn_args).toJson(QJsonDocument::Compact)).left(200)));
+                    const QString bare = mcp::McpProvider::parse_openai_function_name(fn_name).second;
+                    // The Anthropic and Gemini first rounds and every later OpenAI round announce
+                    // their tool calls on the progress channel; this one did not, so the chat's
+                    // Tools card only started at round 2 and the opening step was invisible.
+                    detail::emit_tool_progress(bare, fn_args);
+                    QElapsedTimer tool_timer;
+                    tool_timer.start();
                     auto tr =
                         mcp::McpService::instance().execute_openai_function(fn_name, fn_args, /*allow_defer=*/true);
+                    emit_tool_done(bare, fn_args, tr, tool_timer.elapsed());
                     LOG_INFO(kLlmSvcTag,
                              QString("Tool %1 -> %2 (msg=%3 err=%4)")
                                  .arg(fn_name, tr.success ? "OK" : "FAIL", tr.message.left(120), tr.error.left(120)));
-                    const QString bare = mcp::McpProvider::parse_openai_function_name(fn_name).second;
                     detail::note_tool_activations(bare, fn_args, tr, activated);
                     loop_msgs.append(QJsonObject{{"role", "tool"},
                                                  {"tool_call_id", call_id},
@@ -815,7 +1008,15 @@ LlmResponse LlmService::do_request(const QString& user_message, const std::vecto
                 }
 
                 resp = do_tool_loop(loop_msgs, url, hdr, activated.names());
-                parse_usage(resp, rj, provider_);
+                // do_tool_loop sums the follow-up rounds; add round 1 instead of
+                // overwriting the total with it.
+                {
+                    LlmResponse r1;
+                    parse_usage(r1, rj, provider_);
+                    resp.prompt_tokens += r1.prompt_tokens;
+                    resp.completion_tokens += r1.completion_tokens;
+                    resp.total_tokens += r1.total_tokens;
+                }
                 return resp;
 
             } else {
@@ -836,7 +1037,7 @@ LlmResponse LlmService::do_request(const QString& user_message, const std::vecto
         auto text_tool_result = try_extract_and_execute_text_tool_calls(resp.content, user_message, url, hdr);
         if (text_tool_result.has_value()) {
             resp = text_tool_result.value();
-            if (resp.success)
+            if (resp.success || resp.cancelled)
                 return resp;
         }
     }
@@ -880,12 +1081,14 @@ LlmResponse LlmService::do_streaming_request(const QString& user_message,
     QJsonObject req_body = (provider_ == "anthropic") ? build_anthropic_request(user_message, history, true)
                                                       : build_openai_request(user_message, history, true, true);
 
-    // Heap-allocate the QNAM so we can deleteLater() it and drain
-    // DeferredDelete before this function returns — a stack QNAM here used
-    // to leak socket-notifier teardown work onto the main runloop and crash
-    // hours later inside qt_mac_socket_callback. See eventloop_request().
-    auto* nam = new QNetworkAccessManager;
+    // The thread's long-lived QNAM (keep-alive TLS reuse across turns and tool
+    // rounds); the reply is deleteLater'd and DeferredDelete is drained before
+    // this function returns — a stack QNAM here used to leak socket-notifier
+    // teardown work onto the main runloop and crash hours later inside
+    // qt_mac_socket_callback. See eventloop_request() / thread_nam().
+    QNetworkAccessManager* nam = thread_nam();
     QNetworkRequest req{QUrl(url)};
+    prepare_thread_nam_request(req);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Accept", "text/event-stream");
     req.setRawHeader("Cache-Control", "no-cache");
@@ -900,10 +1103,15 @@ LlmResponse LlmService::do_streaming_request(const QString& user_message,
     QNetworkReply* reply = nam->post(req, json_data);
 
     QByteArray partial_line;
+    QByteArray non_sse_body; // lines outside the SSE framing — the JSON error body on a non-2xx reply
     QString accumulated;
     QJsonObject final_usage_obj;
     bool done = false;
     bool tool_call_detected = false;
+    bool saw_finish = false;      // the model reported a terminal finish_reason / message_stop
+    bool timed_out = false;       // idle watchdog fired
+    QString stream_error;         // {"error": …} event delivered inside a 200 stream
+    int anthropic_input_tokens = 0; // Anthropic reports these in message_start, not in the final usage event
 
     // <think>…</think> reasoning filter. Reasoning models (MiniMax M2.7,
     // DeepSeek-R1 derivatives, …) stream their chain-of-thought inline in
@@ -954,17 +1162,35 @@ LlmResponse LlmService::do_streaming_request(const QString& user_message,
         return out;
     };
 
+    // IDLE watchdog, not a wall-clock cap: it is re-armed on every byte received
+    // (readyRead below). The old fixed 120 s from request start cut off any
+    // reasoning model that legitimately streams for longer — and because the
+    // reply was still healthy at that point, the truncated text was returned as a
+    // *successful* answer.
+    constexpr int kStreamIdleTimeoutMs = 120000;
     QEventLoop loop;
     QTimer timeout;
     timeout.setSingleShot(true);
-    timeout.start(120000);
+    timeout.start(kStreamIdleTimeoutMs);
+    // Polls the cancel flag (cancel_active_request) so Stop lands within ~100 ms.
+    QTimer cancel_poll;
+    cancel_poll.setInterval(100);
 
-    QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
+    QObject::connect(&timeout, &QTimer::timeout, &loop, [&]() {
+        timed_out = true;
+        loop.quit();
+    });
+    QObject::connect(&cancel_poll, &QTimer::timeout, &loop, [&]() {
+        if (detail::cancel_requested())
+            loop.quit();
+    });
+    cancel_poll.start();
     QObject::connect(reply, &QNetworkReply::finished, &loop, [&]() {
         done = true;
         loop.quit();
     });
     QObject::connect(reply, &QNetworkReply::readyRead, &loop, [&]() {
+        timeout.start(kStreamIdleTimeoutMs);
         partial_line += reply->readAll();
         while (true) {
             int nl = partial_line.indexOf('\n');
@@ -977,10 +1203,21 @@ LlmResponse LlmService::do_streaming_request(const QString& user_message,
                 raw_line.chop(1);
 
             QString line = QString::fromUtf8(raw_line).trimmed();
-            if (line.isEmpty() || !line.startsWith("data: "))
+            // "data:" with or without the optional space — both are valid SSE.
+            if (line.isEmpty() || !line.startsWith(QLatin1String("data:"))) {
+                // Keep anything that isn't SSE framing: on a 4xx/5xx the body is a plain
+                // (often pretty-printed, multi-line) JSON document, and only its last line
+                // used to survive for parse_server_error_message().
+                if (!line.isEmpty() && !line.startsWith(QLatin1String("event:")) &&
+                    !line.startsWith(QLatin1Char(':')) && !line.startsWith(QLatin1String("id:")) &&
+                    !line.startsWith(QLatin1String("retry:")) && non_sse_body.size() < 16384) {
+                    non_sse_body += raw_line;
+                    non_sse_body += '\n';
+                }
                 continue;
+            }
 
-            QString data = line.mid(6); // strip "data: "
+            QString data = line.mid(5).trimmed(); // strip "data:"
             if (data == "[DONE]") {
                 if (!tool_call_detected)
                     on_chunk("", true);
@@ -996,6 +1233,31 @@ LlmResponse LlmService::do_streaming_request(const QString& user_message,
                     QJsonObject uobj = usage_doc.object();
                     if (uobj.contains("usage") && uobj["usage"].isObject())
                         final_usage_obj = uobj["usage"].toObject();
+                    // A provider can fail AFTER the 200 has gone out (OpenRouter and
+                    // Anthropic both do: {"error":{...}} / {"type":"error",...} as a
+                    // data event). Nothing read it, so the turn "succeeded" with
+                    // whatever had streamed — usually an empty reply.
+                    // (Non-null only: some gateways put "error": null on every normal chunk.)
+                    const QJsonValue err_val = uobj.value(QLatin1String("error"));
+                    if (stream_error.isEmpty() &&
+                        (err_val.isObject() || (err_val.isString() && !err_val.toString().trimmed().isEmpty()))) {
+                        stream_error = parse_server_error_message(data.toUtf8());
+                        if (stream_error.isEmpty())
+                            stream_error = QStringLiteral("The provider reported an error mid-stream");
+                    }
+                    // Terminal markers — lets an idle timeout after a complete answer
+                    // still count as success (some gateways never close the socket).
+                    if (uobj["type"].toString() == QLatin1String("message_stop"))
+                        saw_finish = true;
+                    if (uobj["type"].toString() == QLatin1String("message_start"))
+                        anthropic_input_tokens =
+                            uobj["message"].toObject()["usage"].toObject()["input_tokens"].toInt();
+                    const QJsonArray fin_choices = uobj["choices"].toArray();
+                    if (!fin_choices.isEmpty()) {
+                        const QString fr = fin_choices[0].toObject()["finish_reason"].toString();
+                        if (!fr.isEmpty() && fr != QLatin1String("tool_calls"))
+                            saw_finish = true;
+                    }
                 }
             }
 
@@ -1098,6 +1360,7 @@ LlmResponse LlmService::do_streaming_request(const QString& user_message,
 
     loop.exec();
     timeout.stop();
+    cancel_poll.stop();
 
     if (!in_think && !think_pending.isEmpty())
         on_chunk(think_pending, false);
@@ -1105,12 +1368,28 @@ LlmResponse LlmService::do_streaming_request(const QString& user_message,
 
     auto drain_nam = [&]() {
         reply->deleteLater();
-        nam->deleteLater();
-        // Pump DeferredDelete on this thread so socket-notifier teardown
-        // completes while a dispatcher still exists — prevents the
-        // qt_mac_socket_callback use-after-free on the main thread later.
+        // Pump DeferredDelete on this thread so the reply's teardown completes
+        // while a dispatcher still exists — prevents the qt_mac_socket_callback
+        // use-after-free on the main thread later.
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     };
+
+    // The user pressed Stop. Hand back what streamed so far (flagged cancelled)
+    // rather than a success or a generic error, and skip the tool-loop fallback
+    // below — a cancelled turn must not go on to execute tools.
+    // (A Stop that lands just after the stream finished on its own — terminal marker
+    // seen, socket closed — is not a cancellation: the answer is complete.)
+    const bool stream_completed = done && saw_finish && !tool_call_detected;
+    if (detail::cancel_requested() && !stream_completed) {
+        LOG_INFO(kLlmSvcTag, QString("Stream cancelled by user after %1 chars").arg(accumulated.size()));
+        reply->abort();
+        drain_nam();
+        resp.content = strip_think_blocks(accumulated);
+        resp.cancelled = true;
+        resp.error = QStringLiteral("Request cancelled");
+        on_chunk("", true);
+        return resp;
+    }
 
     if (tool_call_detected) {
         LOG_INFO(kLlmSvcTag, "Tool call detected in stream — falling back to tool loop");
@@ -1131,31 +1410,64 @@ LlmResponse LlmService::do_streaming_request(const QString& user_message,
     }
 
     int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    if (reply->error() != QNetworkReply::NoError) {
+    // Only "the provider did not run this" failures that produced no output are
+    // safe for the caller to resubmit (chat_streaming does so once).
+    auto transient_status = [](int s) { return s == 429 || s == 500 || s == 502 || s == 503 || s == 504 || s == 529; };
+    if (timed_out && !done && status == 0) {
+        // The watchdog fired before any response headers arrived (hung connect / TLS).
+        resp.error = QStringLiteral("No response from the provider (timed out after %1 s)").arg(kStreamIdleTimeoutMs / 1000);
+        resp.retryable = true;
+        LOG_WARN(kLlmSvcTag, resp.error);
+    } else if (reply->error() != QNetworkReply::NoError) {
         // A non-2xx (e.g. 400 from AIHubMix routing to a model that rejects a
         // param) carries a JSON error body that explains why. The SSE reader
         // never parses it because it isn't a "data:" line, so pull it from the
-        // unconsumed buffer + any remainder and surface the real reason instead
-        // of Qt's opaque "server replied: Bad Request".
-        const QByteArray err_body = partial_line + reply->readAll();
+        // lines kept aside + the unconsumed buffer + any remainder and surface
+        // the real reason instead of Qt's opaque "server replied: Bad Request".
+        // (OpenAI pretty-prints its error JSON across many lines; only the last
+        // one used to survive, so its message was never found.)
+        const QByteArray err_body = non_sse_body + partial_line + reply->readAll();
         const QString server_msg = parse_server_error_message(err_body);
         if (!server_msg.isEmpty())
             resp.error = status > 0 ? QString("HTTP %1: %2").arg(status).arg(server_msg) : server_msg;
         else
             resp.error = reply->errorString();
+        resp.content = strip_think_blocks(accumulated);
+        resp.retryable = accumulated.isEmpty() &&
+                         (transient_status(status) || reply->error() == QNetworkReply::RemoteHostClosedError);
         LOG_ERROR(kLlmSvcTag, "Stream request failed: " + resp.error);
     } else if (status >= 200 && status < 300) {
-        // `accumulated` holds only answer deltas (reasoning_content was routed to
-        // the Thinking channel and never added here). Strip any inline <think>…
-        // </think> blocks so the persisted/replayed content is the answer alone.
-        resp.content = strip_think_blocks(accumulated);
-        resp.success = true;
-        if (!final_usage_obj.isEmpty()) {
-            QJsonObject wrap{{"usage", final_usage_obj}};
-            parse_usage(resp, wrap, provider_);
+        if (!stream_error.isEmpty()) {
+            // The 200 was followed by an error event: report it, keep any partial text.
+            resp.error = stream_error;
+            resp.content = strip_think_blocks(accumulated);
+            resp.retryable = accumulated.isEmpty();
+            LOG_ERROR(kLlmSvcTag, "Stream failed mid-flight: " + resp.error);
+        } else if (timed_out && !done && !saw_finish) {
+            // No bytes for the whole idle window and no terminal marker: the stream
+            // died. Say so instead of presenting the partial text as a finished reply.
+            resp.error = QStringLiteral("The response stalled — no data received for %1 s").arg(kStreamIdleTimeoutMs / 1000);
+            resp.content = strip_think_blocks(accumulated);
+            resp.retryable = accumulated.isEmpty();
+            LOG_WARN(kLlmSvcTag, resp.error);
+        } else {
+            // `accumulated` holds only answer deltas (reasoning_content was routed to
+            // the Thinking channel and never added here). Strip any inline <think>…
+            // </think> blocks so the persisted/replayed content is the answer alone.
+            resp.content = strip_think_blocks(accumulated);
+            resp.success = true;
+            // The closing Anthropic usage event carries output_tokens only; the prompt side
+            // arrived in message_start. Without it the token counter showed output alone.
+            if (provider_ == "anthropic" && anthropic_input_tokens > 0 && !final_usage_obj.contains("input_tokens"))
+                final_usage_obj["input_tokens"] = anthropic_input_tokens;
+            if (!final_usage_obj.isEmpty()) {
+                QJsonObject wrap{{"usage", final_usage_obj}};
+                parse_usage(resp, wrap, provider_);
+            }
         }
     } else {
-        resp.error = QString("HTTP %1").arg(status);
+        const QString server_msg = parse_server_error_message(non_sse_body + partial_line + reply->readAll());
+        resp.error = server_msg.isEmpty() ? QString("HTTP %1").arg(status) : QString("HTTP %1: %2").arg(status).arg(server_msg);
     }
 
     // On the timeout path we fall straight out of `loop.exec()` with the reply
@@ -1177,27 +1489,56 @@ LlmResponse LlmService::do_streaming_request(const QString& user_message,
 
 LlmResponse LlmService::chat(const QString& user_message, const std::vector<ConversationMessage>& history,
                              bool use_tools) {
-    // INTERIM serialization guard (see request_serialize_mutex_): held until return
-    // because do_request() reads provider_/api_key_/base_url_/model_ lock-free across
-    // the network call — a concurrent chat()/chat_streaming() worker rewriting them
-    // mid-flight could send one provider's API key to another provider's base_url.
-    // We run on a background thread, so this serializes LLM workers, not the UI.
-    // Proper fix (deferred): thread a per-request config context through do_request.
-    QMutexLocker request_lock(&request_serialize_mutex_);
+    // Snapshot the config under mutex_; the request then runs on a private
+    // instance holding that snapshot (see "Request concurrency" in the header),
+    // so it runs concurrently with every other request and a reload_config()
+    // mid-request can't hand it another provider's key or URL.
+    ConfigSnapshot cfg;
     {
         QMutexLocker lock(&mutex_);
         ensure_config();
         if (provider_.isEmpty())
             return LlmResponse{.content = {}, .error = "No LLM provider configured"};
+        cfg = snapshot_config_locked();
     }
-    // Helpers read members directly. ensure_config() already wrote them under
-    // mutex_, and request_lock keeps other workers from rewriting them before we
-    // return. Reassigning a local snapshot back to the members after unlocking
-    // mutex_ would clobber any reload_config() that landed in the gap.
 
+    // No session id → not cancellable via cancel_active_request(), so no
+    // CancelScope is armed here (arming one would let an AI Chat Stop abort this
+    // request too). A chat() nested inside an armed request on the same thread
+    // still observes that request's cancellation.
+    LlmSvcChatSlot slot;
+    if (!slot.acquire())
+        return LlmResponse{.content = {}, .error = QStringLiteral("Request cancelled"), .cancelled = true};
+
+    LlmService request;
+    request.adopt_config_snapshot(cfg);
     // thread_local guard avoids racing with concurrent chat_streaming calls from the floating bubble.
     detail::ToolPolicyGuard guard(use_tools ? ToolPolicy::All : ToolPolicy::None);
-    return do_request(user_message, history);
+    LlmResponse resp = request.do_request(user_message, llm_svc_trim_history(history));
+    if (!resp.success && detail::cancel_requested()) {
+        resp.cancelled = true;
+        resp.error = QStringLiteral("Request cancelled");
+    }
+    return resp;
+}
+
+void LlmService::cancel_active_request(const QString& chat_session_id) {
+    QMutexLocker lock(&mutex_);
+    if (session_lane_busy_ && (chat_session_id.isEmpty() || chat_session_id == active_chat_session_)) {
+        LOG_INFO(kLlmSvcTag, "Cancelling the active LLM request");
+        // Bumped with mutex_ held: the lane cannot change hands in between, so
+        // the bump reaches the request that holds it and no later one (a new
+        // holder captures its CancelScope baseline under mutex_, after this).
+        detail::g_llm_cancel_generation.fetch_add(1, std::memory_order_acq_rel);
+        return;
+    }
+    // Still queued behind another session's request: it finishes cancelled
+    // without being sent once it is woken.
+    if (!chat_session_id.isEmpty() && session_lane_waiters_.value(chat_session_id) > 0) {
+        LOG_INFO(kLlmSvcTag, "Cancelling a queued LLM request before it is sent");
+        session_lane_cancelled_.insert(chat_session_id);
+        session_lane_cv_.wakeAll();
+    }
 }
 
 void LlmService::chat_streaming(const QString& user_message, const std::vector<ConversationMessage>& history,
@@ -1207,24 +1548,19 @@ void LlmService::chat_streaming(const QString& user_message, const std::vector<C
 
 void LlmService::chat_streaming(const QString& user_message, const std::vector<ConversationMessage>& history,
                                 StreamCallback on_chunk, ToolPolicy policy, const QString& chat_session_id) {
-    QString p, k, b, m, sp;
-    double t;
-    int mx;
+    // The request runs with the config as of this call, on a private instance
+    // (see "Request concurrency" in the header).
+    ConfigSnapshot cfg;
     {
         QMutexLocker lock(&mutex_);
         ensure_config();
-        p = provider_;
-        k = api_key_;
-        b = base_url_;
-        m = model_;
-        sp = system_prompt_;
-        t = temperature_;
-        mx = max_tokens_;
+        cfg = snapshot_config_locked();
     }
 
-    if (p.isEmpty()) {
+    if (cfg.provider.isEmpty()) {
         on_chunk("", true);
-        emit finished_streaming(LlmResponse{.content = {}, .error = "No LLM provider configured"});
+        emit finished_streaming(
+            LlmResponse{.content = {}, .error = "No LLM provider configured", .origin_session_id = chat_session_id});
         return;
     }
 
@@ -1263,36 +1599,13 @@ void LlmService::chat_streaming(const QString& user_message, const std::vector<C
         }
     };
     (void)QtConcurrent::run(
-        [self, p, k, b, m, sp, t, mx, user_message, history_copy, guarded_chunk, policy, chat_session_id]() {
+        &llm_svc_request_pool(), [self, cfg, user_message, history_copy, guarded_chunk, policy, chat_session_id]() {
             if (!self)
                 return;
-
-            // INTERIM serialization guard (see request_serialize_mutex_): held until
-            // this worker finishes so a concurrent chat()/chat_streaming() worker
-            // can't rewrite the shared provider/key/url/model members below while
-            // do_streaming_request() reads them lock-free — that could send one
-            // provider's API key to another provider's base_url. QtConcurrent thread
-            // only; the UI is never blocked. Proper fix (deferred): thread a
-            // per-request config context through do_streaming_request.
-            QMutexLocker request_lock(&self->request_serialize_mutex_);
-
-            // Snapshot under mutex so do_*_request see consistent state and don't race with reload_config().
-            {
-                QMutexLocker lock(&self->mutex_);
-                self->provider_ = p;
-                self->api_key_ = k;
-                self->base_url_ = b;
-                self->model_ = m;
-                self->system_prompt_ = sp;
-                self->temperature_ = t;
-                self->max_tokens_ = mx;
-            }
-
-            detail::ToolPolicyGuard guard(policy);
-            detail::ChatSessionGuard session_guard(chat_session_id);
-            auto resp = self->do_streaming_request(user_message, history_copy, guarded_chunk);
-
-            if (self) {
+            const auto finish = [self, &chat_session_id](LlmResponse resp) {
+                resp.origin_session_id = chat_session_id;
+                if (!self)
+                    return;
                 QMetaObject::invokeMethod(
                     self,
                     [self, resp]() {
@@ -1300,7 +1613,75 @@ void LlmService::chat_streaming(const QString& user_message, const std::vector<C
                             emit self->finished_streaming(resp);
                     },
                     Qt::QueuedConnection);
+            };
+
+            // Session lane — only requests carrying a chat_session_id (the AI Chat
+            // tab) are cancellable, and they run one at a time so the process-wide
+            // cancel generation can only ever reach the caller's own request. The
+            // CancelScope baseline is captured under mutex_, in the same critical
+            // section that hands over the lane, so a Stop aimed at the previous
+            // holder can never leak into this request.
+            const bool session_lane = !chat_session_id.isEmpty();
+            std::optional<detail::CancelScope> cancel_scope;
+            if (session_lane) {
+                QMutexLocker lock(&self->mutex_);
+                ++self->session_lane_waiters_[chat_session_id];
+                while (self->session_lane_busy_ && !self->session_lane_cancelled_.contains(chat_session_id))
+                    self->session_lane_cv_.wait(&self->mutex_);
+                if (--self->session_lane_waiters_[chat_session_id] <= 0)
+                    self->session_lane_waiters_.remove(chat_session_id);
+                if (self->session_lane_cancelled_.remove(chat_session_id)) {
+                    lock.unlock();
+                    LOG_INFO(kLlmSvcTag, "Queued LLM request cancelled before it was sent");
+                    guarded_chunk("", true);
+                    LlmResponse cancelled;
+                    cancelled.cancelled = true;
+                    cancelled.error = QStringLiteral("Request cancelled");
+                    finish(cancelled);
+                    return;
+                }
+                self->session_lane_busy_ = true;
+                self->active_chat_session_ = chat_session_id;
+                cancel_scope.emplace();
             }
+            [[maybe_unused]] const auto lane_done = qScopeGuard([self, session_lane]() {
+                if (!session_lane || !self)
+                    return;
+                QMutexLocker lock(&self->mutex_);
+                self->session_lane_busy_ = false;
+                self->active_chat_session_.clear();
+                self->session_lane_cv_.wakeAll();
+            });
+
+            LlmService request;
+            request.adopt_config_snapshot(cfg);
+            detail::ToolPolicyGuard guard(policy);
+            detail::ChatSessionGuard session_guard(chat_session_id);
+
+            // Retry ONCE when the provider rejected the request as transient (429 / 5xx /
+            // connection dropped) before a single chunk reached the UI. Anything that
+            // already produced output — including tool-progress chunks — is never
+            // replayed: a retry there would show duplicate text or, worse, re-run tools.
+            auto emitted_output = std::make_shared<bool>(false);
+            const StreamCallback tracked_chunk = [guarded_chunk, emitted_output](const QString& chunk, bool done) {
+                if (!chunk.isEmpty())
+                    *emitted_output = true;
+                guarded_chunk(chunk, done);
+            };
+            const std::vector<ConversationMessage> trimmed_history = llm_svc_trim_history(history_copy);
+            auto resp = request.do_streaming_request(user_message, trimmed_history, tracked_chunk);
+            // (Fincept already resubmits once inside fincept_async_request.)
+            if (!resp.success && resp.retryable && !*emitted_output && cfg.provider != QLatin1String("fincept") &&
+                !detail::cancel_requested()) {
+                LOG_WARN(kLlmSvcTag, "Streaming request failed before any output (" + resp.error + ") — retrying once");
+                if (detail::cancellable_sleep(2000))
+                    resp = request.do_streaming_request(user_message, trimmed_history, tracked_chunk);
+            }
+            if (!resp.success && detail::cancel_requested()) {
+                resp.cancelled = true;
+                resp.error = QStringLiteral("Request cancelled");
+            }
+            finish(resp);
         });
 }
 

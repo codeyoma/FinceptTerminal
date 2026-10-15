@@ -2,8 +2,10 @@
 
 #include "datahub/DataHub.h"
 #include "datahub/DataHubMetaTypes.h"
+#include "screens/dashboard/widgets/DashboardFormat.h"
 #include "ui/theme/Theme.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace fincept::screens::widgets {
@@ -18,7 +20,16 @@ QuoteTableWidget::QuoteTableWidget(const QString& title, const QStringList& symb
     table_ = new ui::DataTable;
     table_->set_headers({tr("SYMBOL"), tr("PRICE"), tr("CHG"), tr("CHG%")});
     table_->set_column_widths({130, 100, 80, 70});
+    table_->setToolTip(tr("Double-click a row to open it in Equity Research · right-click for more"));
     content_layout()->addWidget(table_);
+
+    // Row → symbol link. The raw symbol rides on the SYMBOL cell (the cell text
+    // is the display label, e.g. "S&P 500" for ^GSPC).
+    connect(table_, &QTableWidget::cellDoubleClicked, this, [this](int row, int /*col*/) {
+        if (auto* it = table_->item(row, 0))
+            open_symbol(it->data(Qt::UserRole).toString());
+    });
+    install_symbol_menu(table_, 0, Qt::UserRole);
 
     connect(this, &BaseWidget::refresh_requested, this, &QuoteTableWidget::refresh_data);
 
@@ -95,17 +106,23 @@ void QuoteTableWidget::render_from_cache() {
         if (it == row_cache_.constEnd())
             continue;
         const auto& q = it.value();
-        QString display_name = label_map_.value(q.symbol, q.symbol);
-        QString price_str = services::MarketDataService::instance().display_price(q.symbol, q.price, price_decimals_);
-        double chg_abs = q.change;
-        QString chg_str =
-            QString("%1%2")
-                .arg(chg_abs >= 0 ? "+" : "")
-                .arg(services::MarketDataService::instance().display_price(q.symbol, chg_abs, price_decimals_));
-        QString pct_str = QString("%1%2%").arg(q.change_pct >= 0 ? "+" : "").arg(q.change_pct, 0, 'f', 2);
+        // Look the label up by the subscribed symbol, not the one echoed back
+        // by the feed (which may differ in case / normalisation).
+        const QString display_name = label_map_.value(sym, sym);
+        // Never fewer decimals than the preset asked for — but FX keeps its
+        // pips and sub-unit prices their significant digits.
+        const int decimals = std::max(price_decimals_, dash_fmt::price_decimals(q.price, sym));
+        // codeyoma/krx-quant#142: prices and changes in the display currency.
+        auto& market = services::MarketDataService::instance();
+        const QString price_str = q.price > 0 ? market.display_price(sym, q.price, decimals) : QStringLiteral("--");
+        const QString chg_str =
+            (q.change >= 0 ? QStringLiteral("+") : QString()) + market.display_price(sym, q.change, decimals);
+        const QString pct_str = dash_fmt::signed_pct(q.change_pct);
 
         table_->add_row({display_name, price_str, chg_str, pct_str});
         int row = table_->rowCount() - 1;
+        if (auto* sym_item = table_->item(row, 0))
+            sym_item->setData(Qt::UserRole, sym);
         table_->set_cell_color(row, 2, ui::change_color(q.change_pct));
         table_->set_cell_color(row, 3, ui::change_color(q.change_pct));
     }

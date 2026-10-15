@@ -76,6 +76,44 @@ using namespace fincept::screens::equity;
 
 static const QString TAG = "EquityTrading";
 
+namespace {
+
+// A link-group symbol this screen must NOT adopt. Watchlist / Research / News /
+// Markets share link group A with this screen, and several of them publish
+// Yahoo-style DATA tickers — indices (^GSPC), FX (EURUSD=X), futures (GC=F),
+// crypto (BTC-USD) — or another market's equities. Retargeting the order ticket
+// to one of those would pre-fill an order for an instrument the focused broker
+// cannot trade. Two checks:
+//   1. the ticker form / asset class says it is not a broker equity, and
+//   2. when the focused broker's instrument master is loaded, the symbol must
+//      exist on one of that broker's exchanges (an unloaded master proves
+//      nothing either way, so it does not block — the broker still validates
+//      the symbol at order time).
+bool eq_link_symbol_untradeable(const SymbolRef& ref, const QString& broker_id, const QStringList& exchanges) {
+    const QString sym = ref.symbol.trimmed();
+    if (sym.isEmpty() || sym.startsWith(QLatin1Char('^')) || sym.contains(QLatin1Char('=')))
+        return true;
+    const QString ac = ref.asset_class.trimmed().toLower();
+    if (!ac.isEmpty() && ac != QLatin1String("equity") && ac != QLatin1String("stock") &&
+        ac != QLatin1String("etf"))
+        return true;
+    if (broker_id.isEmpty())
+        return false;
+    auto& svc = trading::InstrumentService::instance();
+    if (!svc.is_loaded(broker_id))
+        return false;
+    const QString upper = sym.toUpper();
+    if (!ref.exchange.isEmpty() && svc.find(upper, ref.exchange.toUpper(), broker_id).has_value())
+        return false;
+    for (const auto& ex : exchanges) {
+        if (svc.find(upper, ex, broker_id).has_value())
+            return false;
+    }
+    return true;
+}
+
+} // namespace
+
 EquityTradingScreen::EquityTradingScreen(QWidget* parent) : QWidget(parent) {
     watchlist_symbols_ = DEFAULT_WATCHLIST;
     setup_ui();
@@ -163,6 +201,12 @@ void EquityTradingScreen::showEvent(QShowEvent* event) {
     DataStreamManager::instance().start_all_active();
     DataStreamManager::instance().resume_all();
 
+    // Credentials can change while this screen is hidden (ACCOUNTS dialog elsewhere), which
+    // flips an account between the local simulator and a broker paper venue — re-derive
+    // that before subscribing so the hub topics match.
+    if (!focused_account_id_.isEmpty())
+        sync_native_paper();
+
     // Hub subscriptions for streaming data (D4)
     hub_subscribe_streaming();
 
@@ -171,7 +215,7 @@ void EquityTradingScreen::showEvent(QShowEvent* event) {
     // portfolio. Force an immediate live refresh so Holdings/Positions/Orders show
     // current broker data right away instead of staying stale (or blank) until the
     // 5-min poll. Paper data is repainted by refresh_paper_panels() just below.
-    if (initialized_ && !focused_is_paper_ && !focused_account_id_.isEmpty())
+    if (initialized_ && !focused_is_paper_ && !focused_native_paper_ && !focused_account_id_.isEmpty())
         DataStreamManager::instance().refresh_portfolio(focused_account_id_);
 
     // Catch up intraday auto-square for paper portfolios (e.g. the app was closed
@@ -915,6 +959,21 @@ void EquityTradingScreen::update_connection_status() {
 void EquityTradingScreen::on_group_symbol_changed(const SymbolRef& ref) {
     if (!ref.is_valid() || ref.symbol == selected_symbol_)
         return;
+    // Never retarget the order ticket to something the focused broker can't
+    // trade (index / FX / future / crypto data tickers, other-market equities).
+    QString broker_id;
+    QStringList exchanges;
+    if (!focused_account_id_.isEmpty()) {
+        broker_id = AccountManager::instance().get_account(focused_account_id_).broker_id;
+        if (auto* broker = BrokerRegistry::instance().get(broker_id))
+            exchanges = broker->profile().exchanges;
+    }
+    if (eq_link_symbol_untradeable(ref, broker_id, exchanges)) {
+        LOG_INFO(TAG, QString("Ignoring linked symbol %1 (%2) — not tradable on the focused broker %3")
+                          .arg(ref.symbol, ref.asset_class.isEmpty() ? QStringLiteral("?") : ref.asset_class,
+                               broker_id.isEmpty() ? QStringLiteral("(none)") : broker_id));
+        return;
+    }
     // Route through the existing selection path so sub-panels sync.
     on_symbol_selected(ref.symbol);
 }

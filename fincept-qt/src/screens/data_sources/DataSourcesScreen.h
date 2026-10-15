@@ -10,6 +10,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QPoint>
 #include <QPushButton>
 #include <QResizeEvent>
 #include <QShowEvent>
@@ -19,6 +20,8 @@
 #include <QWidget>
 
 namespace fincept::screens::datasources {
+
+class ConnectorCatalogPanel;
 
 class DataSourcesScreen : public QWidget, public fincept::screens::IStatefulScreen {
     Q_OBJECT
@@ -60,7 +63,6 @@ class DataSourcesScreen : public QWidget, public fincept::screens::IStatefulScre
     void on_download_template();
     void on_stat_box_clicked(int stat_index);
     void on_connections_search_changed(const QString& text);
-    void on_view_mode_toggle();
     void on_poll_timer();
     void refresh_connections();
     void update_clock();
@@ -74,6 +76,8 @@ class DataSourcesScreen : public QWidget, public fincept::screens::IStatefulScre
     QWidget* build_tab_bar();
     QWidget* build_browse_page();
     QWidget* build_connections_page();
+    /// Switches the page stack + tab highlight (0 BROWSE, 1 CONNECTIONS, 2 CATALOG).
+    void select_page(int page_idx);
     QWidget* build_category_panel();
     QWidget* build_connector_panel();
     QWidget* build_detail_panel();
@@ -94,6 +98,9 @@ class DataSourcesScreen : public QWidget, public fincept::screens::IStatefulScre
     void show_config_dialog(const ConnectorConfig& config, const QString& edit_id = "", bool duplicate = false);
     void update_connection_status_cell(const QString& conn_id, bool ok, const QString& msg);
     void apply_stat_filter(int stat_index);
+    /// Right-click menu for one saved connection: edit / duplicate / test / delete.
+    /// These slots existed but nothing in the UI could reach them.
+    void show_connection_menu(const QString& conn_id, const QPoint& global_pos);
 
     QVector<ConnectorConfig> filtered_connectors() const;
     QVector<DataSource> filtered_connection_rows() const;
@@ -158,6 +165,9 @@ class DataSourcesScreen : public QWidget, public fincept::screens::IStatefulScre
     QLabel* auth_stat_label_ = nullptr;
     QPushButton* browse_tab_ = nullptr;
     QPushButton* conns_tab_ = nullptr;
+    QPushButton* catalog_tab_ = nullptr;
+    /// Data Sources › CATALOG — every Python data connector (resources/data_connectors.json).
+    ConnectorCatalogPanel* catalog_panel_ = nullptr;
     QLabel* category_hdr_title_ = nullptr;
     QLabel* provider_hdr_title_ = nullptr;
     QLabel* connector_panel_title_ = nullptr;
@@ -188,14 +198,11 @@ class DataSourcesScreen : public QWidget, public fincept::screens::IStatefulScre
     QTimer* search_debounce_ = nullptr;
 
     // ── State ─────────────────────────────────────────────────────────────────
-    enum class ViewMode { Gallery, Connections };
-
     QVector<DataSource> connections_cache_;
     QString selected_connector_id_;
     QString selected_connection_id_;
     Category active_category_ = Category::Database;
     bool show_all_categories_ = true;
-    ViewMode view_mode_ = ViewMode::Gallery;
     int stat_filter_ = -1; // -1 = none, 0-3 = stat box index
     QString conn_search_text_;
     QMap<QString, QPair<bool, QString>> live_status_cache_;

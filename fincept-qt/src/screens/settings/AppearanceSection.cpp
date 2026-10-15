@@ -2,6 +2,7 @@
 
 #include "screens/settings/AppearanceSection.h"
 
+#include "core/events/EventBus.h"
 #include "core/logging/Logger.h"
 #include "screens/settings/SettingsRowHelpers.h"
 #include "screens/settings/SettingsStyles.h"
@@ -218,7 +219,7 @@ void AppearanceSection::build_ui() {
     ticker_bar_toggle_->setChecked(true);
     ticker_bar_toggle_->setStyleSheet(check_ss());
     auto* ticker_bar_row =
-        make_row(tr("Ticker Bar"), ticker_bar_toggle_, tr("Live price ticker at the bottom of the screen."));
+        make_row(tr("Ticker Bar"), ticker_bar_toggle_, tr("Scrolling price ticker on the Dashboard. Applies the next time the Dashboard is shown."));
     capture_row_labels(ticker_bar_row, &ticker_bar_label_, &ticker_bar_desc_);
     vl->addWidget(ticker_bar_row);
 
@@ -226,7 +227,7 @@ void AppearanceSection::build_ui() {
     animations_toggle_->setChecked(true);
     animations_toggle_->setStyleSheet(check_ss());
     auto* animations_row =
-        make_row(tr("Animations"), animations_toggle_, tr("Fade and transition effects throughout the UI."));
+        make_row(tr("Animations"), animations_toggle_, tr("Scrolls the Dashboard ticker; when off the ticker shows its symbols without moving."));
     capture_row_labels(animations_row, &animations_label_, &animations_desc_);
     vl->addWidget(animations_row);
 
@@ -258,7 +259,15 @@ void AppearanceSection::build_ui() {
         repo.set("appearance.font_size", app_font_size_->currentText(), "appearance");
         repo.set("appearance.font_family", app_font_family_->currentText(), "appearance");
         repo.set("appearance.density", app_density_->currentText(), "appearance");
-        repo.set("appearance.show_chat_bubble", chat_bubble_toggle_->isChecked() ? "true" : "false", "appearance");
+        const QString bubble = chat_bubble_toggle_->isChecked() ? "true" : "false";
+        const auto prev_bubble = repo.get("appearance.show_chat_bubble");
+        const bool bubble_changed = !prev_bubble.is_ok() || prev_bubble.value() != bubble;
+        repo.set("appearance.show_chat_bubble", bubble, "appearance");
+        // Every WindowFrame re-applies its chat bubble on this event, so the toggle
+        // takes effect now instead of on the next screen change.
+        if (bubble_changed)
+            EventBus::instance().publish("settings.changed",
+                                         {{"key", QStringLiteral("appearance.show_chat_bubble")}, {"value", bubble}});
         repo.set("appearance.show_ticker_bar", ticker_bar_toggle_->isChecked() ? "true" : "false", "appearance");
         repo.set("appearance.animations", animations_toggle_->isChecked() ? "true" : "false", "appearance");
 
@@ -352,7 +361,8 @@ void AppearanceSection::reload() {
         save_btn_->setToolTip(read_failed ? tr("Your saved appearance settings could not be read — saving is "
                                                "disabled so the defaults shown cannot overwrite them. Reopen "
                                                "Settings to retry.")
-                                          : QString());
+                                          : tr("Font and density changes preview immediately; Save keeps them — "
+                                               "and the toggles — across restarts."));
     }
 }
 
@@ -396,14 +406,14 @@ void AppearanceSection::retranslateUi() {
     if (ticker_bar_toggle_)
         ticker_bar_toggle_->setText(tr("Show Ticker Bar"));
     if (ticker_bar_desc_)
-        ticker_bar_desc_->setText(tr("Live price ticker at the bottom of the screen."));
+        ticker_bar_desc_->setText(tr("Scrolling price ticker on the Dashboard. Applies the next time the Dashboard is shown."));
 
     if (animations_label_)
         animations_label_->setText(tr("Animations"));
     if (animations_toggle_)
         animations_toggle_->setText(tr("Enable Animations"));
     if (animations_desc_)
-        animations_desc_->setText(tr("Fade and transition effects throughout the UI."));
+        animations_desc_->setText(tr("Scrolls the Dashboard ticker; when off the ticker shows its symbols without moving."));
 
     // Save button.
     if (save_btn_)

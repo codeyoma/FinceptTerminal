@@ -2,7 +2,8 @@
 //
 // Repository / persistence tools: planner CRUD + execute, memory + knowledge,
 // AgentConfigRepository CRUD, WorkflowRepository CRUD, memory repo variants,
-// session management, paper trading, trade decisions.
+// session management, trade decisions. (Agents paper-trade through the C++
+// engine's pt_* tools — PaperTradingTools.cpp.)
 //
 // Part of the topic-based split of AgentsTools.cpp.
 
@@ -11,6 +12,7 @@
 #include "mcp/ToolSchemaBuilder.h"
 #include "mcp/tools/AgentsTools.h"
 #include "mcp/tools/AgentsTools_internal.h"
+#include "mcp/tools/ThreadHelper.h"
 #include "screens/node_editor/NodeEditorTypes.h"
 #include "services/agents/AgentService.h"
 #include "storage/repositories/AgentConfigRepository.h"
@@ -46,8 +48,11 @@ void agents_internal::register_repos_tools(std::vector<ToolDef>& tools) {
                                                                     resolve(ToolResult::ok_data(plan_to_json(p)));
                                                                     holder->deleteLater();
                                                                 });
+                                               // error_occurred carries a category, not a request id — only take our own (create_plan, create_stock_plan, create_portfolio_plan).
                                                QObject::connect(svc, &services::AgentService::error_occurred, holder,
-                                                                [resolve, holder](QString, QString msg) {
+                                                                [resolve, holder](QString err_ctx, QString msg) {
+                                                                    if (err_ctx != QLatin1String("create_plan") && err_ctx != QLatin1String("create_stock_plan") && err_ctx != QLatin1String("create_portfolio_plan"))
+                                                                        return;
                                                                     resolve(ToolResult::fail(msg));
                                                                     holder->deleteLater();
                                                                 });
@@ -148,8 +153,11 @@ void agents_internal::register_repos_tools(std::vector<ToolDef>& tools) {
                                          resolve(ToolResult::ok_data(plan_to_json(p)));
                                      holder->deleteLater();
                                  });
+                // error_occurred carries a category, not a request id — only take our own (execute_plan).
                 QObject::connect(svc, &services::AgentService::error_occurred, holder,
-                                 [resolve, holder](QString, QString msg) {
+                                 [resolve, holder](QString err_ctx, QString msg) {
+                                     if (err_ctx != QLatin1String("execute_plan"))
+                                         return;
                                      resolve(ToolResult::fail(msg));
                                      holder->deleteLater();
                                  });
@@ -193,11 +201,8 @@ void agents_internal::register_repos_tools(std::vector<ToolDef>& tools) {
                                          resolve(ok ? ToolResult::ok(msg) : ToolResult::fail(msg));
                                          holder->deleteLater();
                                      });
-                    QObject::connect(svc, &services::AgentService::error_occurred, holder,
-                                     [resolve, holder](QString, QString msg) {
-                                         resolve(ToolResult::fail(msg));
-                                         holder->deleteLater();
-                                     });
+                    // No error_occurred listener for store_memory(): it reports failure through its own
+                    // result signal, and that signal's category-keyed errors belong to other calls.
                     svc->store_memory(content, type, meta, agent_id);
                 });
         };
@@ -238,8 +243,11 @@ void agents_internal::register_repos_tools(std::vector<ToolDef>& tools) {
                                                                         resolve(ToolResult::ok_data(arr));
                                                                         holder->deleteLater();
                                                                     });
-                                                   QObject::connect(svc, &services::AgentService::error_occurred,
-                                                                    holder, [resolve, holder](QString, QString msg) {
+                                                   // error_occurred carries a category, not a request id — only take our own (recall_memories).
+                                                   QObject::connect(svc, &services::AgentService::error_occurred, holder,
+                                                                    [resolve, holder](QString err_ctx, QString msg) {
+                                                                        if (err_ctx != QLatin1String("recall_memories"))
+                                                                            return;
                                                                         resolve(ToolResult::fail(msg));
                                                                         holder->deleteLater();
                                                                     });
@@ -274,8 +282,11 @@ void agents_internal::register_repos_tools(std::vector<ToolDef>& tools) {
                                      resolve(ToolResult::ok_data(arr));
                                      holder->deleteLater();
                                  });
+                // error_occurred carries a category, not a request id — only take our own (search_knowledge).
                 QObject::connect(svc, &services::AgentService::error_occurred, holder,
-                                 [resolve, holder](QString, QString msg) {
+                                 [resolve, holder](QString err_ctx, QString msg) {
+                                     if (err_ctx != QLatin1String("search_knowledge"))
+                                         return;
                                      resolve(ToolResult::fail(msg));
                                      holder->deleteLater();
                                  });
@@ -385,9 +396,37 @@ void agents_internal::register_repos_tools(std::vector<ToolDef>& tools) {
             c.category = args["category"].toString("agent");
             c.config_json = args["config_json"].toString();
             c.is_default = args["is_default"].toBool(false);
-            const auto r = AgentConfigRepository::instance().save(c);
-            if (r.is_err())
-                return ToolResult::fail(QString::fromStdString(r.error()));
+
+            // A config_json that is not a JSON object cannot be run later (and cannot be
+            // scrubbed of credentials), so refuse it here rather than persisting it.
+            QJsonParseError perr{};
+            const QJsonDocument cfg_doc = QJsonDocument::fromJson(c.config_json.toUtf8(), &perr);
+            if (perr.error != QJsonParseError::NoError || !cfg_doc.isObject())
+                return ToolResult::fail("'config_json' must be a JSON object serialised as a string");
+
+            // Save through AgentService, not AgentConfigRepository directly: the service
+            // strips model.api_key before it reaches the plain-SQLite table (which is synced
+            // to the cloud) and emits config_saved(), so the Agent Config screen refreshes.
+            // Writing the repository from here skipped both. save_config() works and signals
+            // synchronously, so run it on the service's thread and read the outcome there.
+            auto* svc = &services::AgentService::instance();
+            bool saved = false;
+            QString err;
+            detail::run_async_wait(svc, [svc, c, &saved, &err](auto signal_done) {
+                const auto h_ok = QObject::connect(svc, &services::AgentService::config_saved, svc,
+                                                   [&saved]() { saved = true; });
+                const auto h_err = QObject::connect(svc, &services::AgentService::error_occurred, svc,
+                                                    [&err](QString err_ctx, QString msg) {
+                                                        if (err_ctx == QLatin1String("save_config"))
+                                                            err = msg;
+                                                    });
+                svc->save_config(c);
+                QObject::disconnect(h_ok);
+                QObject::disconnect(h_err);
+                signal_done();
+            });
+            if (!saved)
+                return ToolResult::fail(err.isEmpty() ? QStringLiteral("Failed to save config") : err);
             return ToolResult::ok("Config saved", QJsonObject{{"id", c.id}});
         };
         tools.push_back(std::move(t));
@@ -403,9 +442,26 @@ void agents_internal::register_repos_tools(std::vector<ToolDef>& tools) {
         t.input_schema = ToolSchemaBuilder().string("id", "Config id").required().length(1, 128).build();
         t.handler = [](const QJsonObject& args) -> ToolResult {
             const QString id = args["id"].toString();
-            const auto r = AgentConfigRepository::instance().remove(id);
-            if (r.is_err())
-                return ToolResult::fail(QString::fromStdString(r.error()));
+            // Through the service so config_deleted() fires and open Agent Config panels refresh
+            // (a direct repository write left them listing a config that no longer exists).
+            auto* svc = &services::AgentService::instance();
+            bool deleted = false;
+            QString err;
+            detail::run_async_wait(svc, [svc, id, &deleted, &err](auto signal_done) {
+                const auto h_ok = QObject::connect(svc, &services::AgentService::config_deleted, svc,
+                                                   [&deleted]() { deleted = true; });
+                const auto h_err = QObject::connect(svc, &services::AgentService::error_occurred, svc,
+                                                    [&err](QString err_ctx, QString msg) {
+                                                        if (err_ctx == QLatin1String("delete_config"))
+                                                            err = msg;
+                                                    });
+                svc->delete_config(id);
+                QObject::disconnect(h_ok);
+                QObject::disconnect(h_err);
+                signal_done();
+            });
+            if (!deleted)
+                return ToolResult::fail(err.isEmpty() ? QStringLiteral("Failed to delete config") : err);
             return ToolResult::ok("Config deleted", QJsonObject{{"id", id}});
         };
         tools.push_back(std::move(t));
@@ -542,11 +598,8 @@ void agents_internal::register_repos_tools(std::vector<ToolDef>& tools) {
                                          resolve(ok ? ToolResult::ok(msg) : ToolResult::fail(msg));
                                          holder->deleteLater();
                                      });
-                    QObject::connect(svc, &services::AgentService::error_occurred, holder,
-                                     [resolve, holder](QString, QString msg) {
-                                         resolve(ToolResult::fail(msg));
-                                         holder->deleteLater();
-                                     });
+                    // No error_occurred listener for save_memory_repo(): it reports failure through its own
+                    // result signal, and that signal's category-keyed errors belong to other calls.
                     svc->save_memory_repo(content, agent_id, options);
                 });
         };
@@ -583,8 +636,11 @@ void agents_internal::register_repos_tools(std::vector<ToolDef>& tools) {
                                                                         resolve(ToolResult::ok_data(arr));
                                                                         holder->deleteLater();
                                                                     });
-                                                   QObject::connect(svc, &services::AgentService::error_occurred,
-                                                                    holder, [resolve, holder](QString, QString msg) {
+                                                   // error_occurred carries a category, not a request id — only take our own (search_memories).
+                                                   QObject::connect(svc, &services::AgentService::error_occurred, holder,
+                                                                    [resolve, holder](QString err_ctx, QString msg) {
+                                                                        if (err_ctx != QLatin1String("search_memories"))
+                                                                            return;
                                                                         resolve(ToolResult::fail(msg));
                                                                         holder->deleteLater();
                                                                     });
@@ -615,11 +671,8 @@ void agents_internal::register_repos_tools(std::vector<ToolDef>& tools) {
                     resolve(ok ? ToolResult::ok("Session saved") : ToolResult::fail("Session save failed"));
                     holder->deleteLater();
                 });
-                QObject::connect(svc, &services::AgentService::error_occurred, holder,
-                                 [resolve, holder](QString, QString msg) {
-                                     resolve(ToolResult::fail(msg));
-                                     holder->deleteLater();
-                                 });
+                // No error_occurred listener for save_session(): it reports failure through its own
+                // result signal, and that signal's category-keyed errors belong to other calls.
                 svc->save_session(data);
             });
         };
@@ -643,8 +696,11 @@ void agents_internal::register_repos_tools(std::vector<ToolDef>& tools) {
                                      resolve(ToolResult::ok_data(s));
                                      holder->deleteLater();
                                  });
+                // error_occurred carries a category, not a request id — only take our own (get_session).
                 QObject::connect(svc, &services::AgentService::error_occurred, holder,
-                                 [resolve, holder](QString, QString msg) {
+                                 [resolve, holder](QString err_ctx, QString msg) {
+                                     if (err_ctx != QLatin1String("get_session"))
+                                         return;
                                      resolve(ToolResult::fail(msg));
                                      holder->deleteLater();
                                  });
@@ -683,123 +739,9 @@ void agents_internal::register_repos_tools(std::vector<ToolDef>& tools) {
                     resolve(ok ? ToolResult::ok("Message appended") : ToolResult::fail("Message append failed"));
                     holder->deleteLater();
                 });
-                QObject::connect(svc, &services::AgentService::error_occurred, holder,
-                                 [resolve, holder](QString, QString msg) {
-                                     resolve(ToolResult::fail(msg));
-                                     holder->deleteLater();
-                                 });
+                // No error_occurred listener for add_session_message(): it reports failure through its own
+                // result signal, and that signal's category-keyed errors belong to other calls.
                 svc->add_session_message(sid, role, content);
-            });
-        };
-        tools.push_back(std::move(t));
-    }
-
-    // ── Paper trading (agent-side, distinct from PaperTradingTools) ────
-    // All three emit the same `trade_executed` signal — concurrent calls
-    // can cross results. Caller is responsible for serialising calls per
-    // portfolio_id if precise ordering matters.
-    {
-        ToolDef t;
-        t.name = "agent_paper_execute_trade";
-        t.description = "Execute a paper trade via the agent backend (buy/sell qty @ price).";
-        t.category = "agents";
-        t.is_destructive = true;
-        t.auth_required = AuthLevel::ExplicitConfirm;
-        t.default_timeout_ms = 30000;
-        t.input_schema = ToolSchemaBuilder()
-                             .string("portfolio_id", "Portfolio id")
-                             .required()
-                             .length(1, 128)
-                             .string("symbol", "Ticker symbol")
-                             .required()
-                             .length(1, 32)
-                             .string("action", "buy / sell")
-                             .required()
-                             .enums({"buy", "sell"})
-                             .number("quantity", "Quantity to trade")
-                             .required()
-                             .min(0)
-                             .number("price", "Execution price")
-                             .required()
-                             .min(0)
-                             .build();
-        t.async_handler = [](const QJsonObject& args, ToolContext ctx, std::shared_ptr<QPromise<ToolResult>> promise) {
-            const QString pid = args["portfolio_id"].toString();
-            const QString sym = args["symbol"].toString();
-            const QString action = args["action"].toString();
-            const double qty = args["quantity"].toDouble();
-            const double px = args["price"].toDouble();
-            auto* svc = &services::AgentService::instance();
-            AsyncDispatch::callback_to_promise(svc, std::move(ctx), promise,
-                                               [svc, pid, sym, action, qty, px](auto resolve) {
-                                                   auto* holder = new QObject(svc);
-                                                   QObject::connect(svc, &services::AgentService::trade_executed,
-                                                                    holder, [resolve, holder](QJsonObject r) {
-                                                                        resolve(ToolResult::ok_data(r));
-                                                                        holder->deleteLater();
-                                                                    });
-                                                   QObject::connect(svc, &services::AgentService::error_occurred,
-                                                                    holder, [resolve, holder](QString, QString msg) {
-                                                                        resolve(ToolResult::fail(msg));
-                                                                        holder->deleteLater();
-                                                                    });
-                                                   svc->paper_execute_trade(pid, sym, action, qty, px);
-                                               });
-        };
-        tools.push_back(std::move(t));
-    }
-
-    {
-        ToolDef t;
-        t.name = "agent_paper_get_portfolio";
-        t.description = "Get an agent-side paper-trading portfolio snapshot by id.";
-        t.category = "agents";
-        t.default_timeout_ms = 30000;
-        t.input_schema = ToolSchemaBuilder().string("portfolio_id", "Portfolio id").required().length(1, 128).build();
-        t.async_handler = [](const QJsonObject& args, ToolContext ctx, std::shared_ptr<QPromise<ToolResult>> promise) {
-            const QString pid = args["portfolio_id"].toString();
-            auto* svc = &services::AgentService::instance();
-            AsyncDispatch::callback_to_promise(svc, std::move(ctx), promise, [svc, pid](auto resolve) {
-                auto* holder = new QObject(svc);
-                QObject::connect(svc, &services::AgentService::trade_executed, holder,
-                                 [resolve, holder](QJsonObject r) {
-                                     resolve(ToolResult::ok_data(r));
-                                     holder->deleteLater();
-                                 });
-                QObject::connect(svc, &services::AgentService::error_occurred, holder,
-                                 [resolve, holder](QString, QString msg) {
-                                     resolve(ToolResult::fail(msg));
-                                     holder->deleteLater();
-                                 });
-                svc->paper_get_portfolio(pid);
-            });
-        };
-        tools.push_back(std::move(t));
-    }
-
-    {
-        ToolDef t;
-        t.name = "agent_paper_get_positions";
-        t.description = "Get current positions for an agent-side paper-trading portfolio.";
-        t.category = "agents";
-        t.default_timeout_ms = 30000;
-        t.input_schema = ToolSchemaBuilder().string("portfolio_id", "Portfolio id").required().length(1, 128).build();
-        t.async_handler = [](const QJsonObject& args, ToolContext ctx, std::shared_ptr<QPromise<ToolResult>> promise) {
-            const QString pid = args["portfolio_id"].toString();
-            auto* svc = &services::AgentService::instance();
-            AsyncDispatch::callback_to_promise(svc, std::move(ctx), promise, [svc, pid](auto resolve) {
-                auto* holder = new QObject(svc);
-                QObject::connect(svc, &services::AgentService::trade_executed, holder,
-                                 [resolve, holder](QJsonObject r) {
-                                     resolve(ToolResult::ok_data(r));
-                                     holder->deleteLater();
-                                 });
-                QObject::connect(svc, &services::AgentService::error_occurred, holder,
-                                 [resolve, holder](QString, QString msg) {
-                                     resolve(ToolResult::fail(msg));
-                                     holder->deleteLater();
-                                 });
-                svc->paper_get_positions(pid);
             });
         };
         tools.push_back(std::move(t));

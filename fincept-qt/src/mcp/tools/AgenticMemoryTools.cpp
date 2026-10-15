@@ -4,15 +4,17 @@
 //   archival_memory_save(content, type?, metadata?)
 //   archival_memory_search(query, k?, user_id?)
 //
-// Storage: agent_tasks.db sibling to the Python module. FTS5 search with a
-// LIKE fallback for builds without FTS5. We open a fresh per-handler
+// Storage: agent_tasks.db in the per-profile agent data dir
+// (AgentService::agent_data_dir(), shared with the Python agents through
+// FINCEPT_AGENT_DATA_DIR). FTS5 search with a LIKE fallback for builds
+// without FTS5. We open a fresh per-handler
 // connection (tagged by thread id) so MCP's worker-thread invocations don't
 // clash with the Qt main-thread.
 
 #include "mcp/tools/AgenticMemoryTools.h"
 
 #include "core/logging/Logger.h"
-#include "python/PythonRunner.h"
+#include "services/agents/AgentService.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -27,15 +29,19 @@
 #include <QUuid>
 #include <QVariant>
 
+#include <algorithm>
+
 namespace fincept::mcp::tools {
 
 namespace {
 constexpr const char* TAG = "AgenticMemoryTools";
 
 QString db_path() {
-    // Mirrors archival_memory.py:_DEFAULT_DB → <scripts>/agents/agent_tasks.db
-    const QString scripts = python::PythonRunner::instance().scripts_dir();
-    return QDir(scripts).filePath("agents/agent_tasks.db");
+    // Same file the Python agents use: finagent_core/paths.py resolves
+    // agent_tasks.db inside FINCEPT_AGENT_DATA_DIR, which AgentService sets to
+    // agent_data_dir() on every spawn. The old <scripts>/agent_tasks.db location
+    // was pruned by dev builds and read-only in installs.
+    return QDir(services::AgentService::agent_data_dir()).filePath(QStringLiteral("agent_tasks.db"));
 }
 
 QSqlDatabase open_conn() {
@@ -127,7 +133,10 @@ std::vector<ToolDef> get_agentic_memory_tools() {
         t.category = "agentic_memory";
         t.input_schema.properties = QJsonObject{
             {"query", QJsonObject{{"type", "string"}, {"description", "What to look for"}}},
-            {"k", QJsonObject{{"type", "integer"}, {"description", "Max results (default 5)"}}},
+            {"k", QJsonObject{{"type", "integer"},
+                              {"description", "Max results (default 5, max 50)"},
+                              {"minimum", 1},
+                              {"maximum", 50}}},
             {"user_id", QJsonObject{{"type", "string"}, {"description", "Filter to a specific owner (optional)"}}},
         };
         t.input_schema.required = {"query"};
@@ -135,7 +144,9 @@ std::vector<ToolDef> get_agentic_memory_tools() {
             const QString query = args["query"].toString().trimmed();
             if (query.isEmpty())
                 return ToolResult::fail("Missing 'query'");
-            const int k = args.value("k").toInt(5);
+            // `k` goes straight into SQL as LIMIT: a negative value means "no limit" to SQLite
+            // and a huge one is an unbounded dump of the archive into the model's context.
+            const int k = std::clamp(args.value("k").toInt(5), 1, 50);
             const QString user_id = args.value("user_id").toString();
 
             QSqlDatabase db = open_conn();

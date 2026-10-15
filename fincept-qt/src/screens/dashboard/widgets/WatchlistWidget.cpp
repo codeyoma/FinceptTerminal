@@ -2,6 +2,7 @@
 
 #include "datahub/DataHub.h"
 #include "datahub/DataHubMetaTypes.h"
+#include "screens/dashboard/widgets/DashboardFormat.h"
 #include "ui/theme/Theme.h"
 
 #include <QJsonArray>
@@ -43,7 +44,14 @@ WatchlistWidget::WatchlistWidget(QWidget* parent)
     table_ = new ui::DataTable;
     table_->set_headers({tr("SYMBOL"), tr("PRICE"), tr("CHG"), tr("CHG%")});
     table_->set_column_widths({100, 90, 80, 70});
+    table_->setToolTip(tr("Double-click a row to open it in Equity Research · right-click for more"));
     vl->addWidget(table_);
+    install_symbol_menu(table_, 0);
+
+    connect(table_, &QTableWidget::cellDoubleClicked, this, [this](int row, int /*col*/) {
+        if (auto* it = table_->item(row, 0))
+            open_symbol(it->text());
+    });
 
     connect(this, &BaseWidget::refresh_requested, this, &WatchlistWidget::refresh_data);
 
@@ -180,11 +188,12 @@ void WatchlistWidget::render_from_cache() {
         if (it == row_cache_.constEnd())
             continue;
         const auto& q = it.value();
-        table_->add_row({q.symbol, services::MarketDataService::instance().display_price(q.symbol, q.price),
-                         QString("%1%2")
-                             .arg(q.change >= 0 ? "+" : "")
-                             .arg(services::MarketDataService::instance().display_price(q.symbol, q.change)),
-                         QString("%1%2%").arg(q.change_pct >= 0 ? "+" : "").arg(q.change_pct, 0, 'f', 2)});
+        // codeyoma/krx-quant#142: prices and changes go through the display
+        // currency; symbols without a known source currency stay in native units.
+        auto& md = services::MarketDataService::instance();
+        table_->add_row({sym, md.display_price(sym, q.price),
+                         QString("%1%2").arg(q.change >= 0 ? "+" : "").arg(md.display_price(sym, q.change)),
+                         dash_fmt::signed_pct(q.change_pct)});
         int row = table_->rowCount() - 1;
         table_->set_cell_color(row, 2, ui::change_color(q.change_pct));
         table_->set_cell_color(row, 3, ui::change_color(q.change_pct));

@@ -57,22 +57,10 @@ QWidget* QuantModulePanel::build_gs_quant_panel() {
     tabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
 
     // Helper: small "load sample" link button next to a CSV input
+    // Shared helper: synthetic-sample button styled by the panel sheet; runs
+    // fed with its data are flagged SAMPLE INPUT on the results.
     auto add_sample_btn = [this](QLineEdit* edit, QWidget* parent, unsigned seed, const QString& tip) -> QPushButton* {
-        auto* btn = new QPushButton(tr("LOAD SAMPLE"), parent);
-        btn->setCursor(Qt::PointingHandCursor);
-        btn->setFixedHeight(22);
-        btn->setToolTip(tip);
-        btn->setStyleSheet(
-            QString("QPushButton { color:%1; background:transparent; border:1px solid %2;"
-                    "padding:0 8px; font-size:9px; font-weight:700; letter-spacing:0.5px; border-radius:2px; }"
-                    "QPushButton:hover { color:%3; border-color:%3; background:rgba(255,255,255,0.04); }")
-                .arg(ui::colors::TEXT_TERTIARY(), ui::colors::BORDER_DIM(), module_.color.name()));
-        QPointer<QLineEdit> guard(edit);
-        connect(btn, &QPushButton::clicked, this, [guard, seed]() {
-            if (guard)
-                guard->setText(sample_returns(seed));
-        });
-        return btn;
+        return make_sample_button(edit, parent, tip, [seed]() { return sample_returns(seed); });
     };
 
     // ── Risk Metrics ──
@@ -103,7 +91,7 @@ QWidget* QuantModulePanel::build_gs_quant_panel() {
         }
         if (rets.size() < 5) {
             display_error(tr("Need at least 5 daily returns; you provided %1. "
-                             "Click LOAD SAMPLE to insert 252 synthetic values.")
+                             "Click LOAD SYNTHETIC SAMPLE to insert 252 synthetic values.")
                               .arg(rets.size()));
             return;
         }
@@ -640,11 +628,16 @@ void QuantModulePanel::display_gs_result(const QString& command, const QJsonObje
         };
         results_layout_->addWidget(gs_card_row(amounts, this));
 
-        // VaR as % of position
+        // VaR as % of position. The parametric figure comes back positive but the historical /
+        // Monte Carlo ones negative (a loss), so the cards disagreed in sign for the same
+        // quantity; show every VaR as a positive loss percentage, like CVaR already did.
         QList<QWidget*> pcts = {
-            gs_make_card(tr("PARAMETRIC %"), gs_fmt_num(parm.value("var_percentage").toDouble(), 2) + "%", this),
-            gs_make_card(tr("HISTORICAL %"), gs_fmt_num(hist.value("var_percentage").toDouble(), 2) + "%", this),
-            gs_make_card(tr("MONTE CARLO %"), gs_fmt_num(mc.value("var_percentage").toDouble(), 2) + "%", this),
+            gs_make_card(tr("PARAMETRIC %"), gs_fmt_num(std::abs(parm.value("var_percentage").toDouble()), 2) + "%",
+                         this),
+            gs_make_card(tr("HISTORICAL %"), gs_fmt_num(std::abs(hist.value("var_percentage").toDouble()), 2) + "%",
+                         this),
+            gs_make_card(tr("MONTE CARLO %"), gs_fmt_num(std::abs(mc.value("var_percentage").toDouble()), 2) + "%",
+                         this),
             gs_make_card(tr("CVaR %"), gs_fmt_num(std::abs(cv.value("var_percentage").toDouble()), 2) + "%", this,
                          ui::colors::NEGATIVE()),
         };
@@ -674,7 +667,7 @@ void QuantModulePanel::display_gs_result(const QString& command, const QJsonObje
             amt_item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             table->setItem(r, 1, amt_item);
             auto* pct_item =
-                new QTableWidgetItem(QString::number(obj.value("var_percentage").toDouble(), 'f', 3) + "%");
+                new QTableWidgetItem(QString::number(std::abs(obj.value("var_percentage").toDouble()), 'f', 3) + "%");
             pct_item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             table->setItem(r, 2, pct_item);
             table->setItem(r, 3, new QTableWidgetItem(obj.value("method").toString()));

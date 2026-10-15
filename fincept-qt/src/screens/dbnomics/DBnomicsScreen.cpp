@@ -3,6 +3,7 @@
 
 #include "core/logging/Logger.h"
 #include "core/session/ScreenStateManager.h"
+#include "datahub/DataHub.h"
 #include "screens/dbnomics/DBnomicsChartWidget.h"
 #include "screens/dbnomics/DBnomicsDataTable.h"
 #include "screens/dbnomics/DBnomicsSelectionPanel.h"
@@ -40,8 +41,10 @@ DBnomicsScreen::DBnomicsScreen(QWidget* parent) : QWidget(parent) {
     connect(&svc, &services::DBnomicsService::providers_loaded, this, &DBnomicsScreen::on_providers_loaded);
     connect(&svc, &services::DBnomicsService::datasets_loaded, this, &DBnomicsScreen::on_datasets_loaded);
     connect(&svc, &services::DBnomicsService::series_loaded, this, &DBnomicsScreen::on_series_loaded);
-    connect(&svc, &services::DBnomicsService::observations_loaded, this, &DBnomicsScreen::on_observations_loaded);
+    // Observations arrive through the DataHub (watch_series()), not the service's broadcast signal:
+    // that signal also fires for MCP-tool fetches and hub refreshes of other series.
     connect(&svc, &services::DBnomicsService::search_results_loaded, this, &DBnomicsScreen::on_search_results_loaded);
+    connect(&svc, &services::DBnomicsService::observations_failed, this, &DBnomicsScreen::on_observations_failed);
     connect(&svc, &services::DBnomicsService::error_occurred, this, &DBnomicsScreen::on_service_error);
 
     // ── Connect selection_panel_ signals ──────────────────────────────────────
@@ -99,11 +102,70 @@ void DBnomicsScreen::showEvent(QShowEvent* event) {
         selection_panel_->set_providers_loading(true);
         services::DBnomicsService::instance().fetch_providers();
     }
+    // Visibility-driven hub lifecycle (P3 / D3): resume the series this screen shows. A cached,
+    // still-fresh observation set is delivered immediately on subscribe.
+    const QSet<QString> watched = watched_series_;
+    for (const QString& series_id : watched)
+        watch_series(series_id);
 }
 
 void DBnomicsScreen::hideEvent(QHideEvent* event) {
     QWidget::hideEvent(event);
+    datahub::DataHub::instance().unsubscribe(this);
     LOG_INFO("DBnomicsScreen", "Screen hidden");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DataHub subscriptions for observations
+// ─────────────────────────────────────────────────────────────────────────────
+QString DBnomicsScreen::series_topic(const QString& series_id) {
+    const QStringList parts = series_id.split('/');
+    if (parts.size() != 3 || parts[0].isEmpty() || parts[1].isEmpty() || parts[2].isEmpty())
+        return {};
+    // The producer splits the topic on ':' into exactly 4 segments, so a code containing ':' cannot
+    // be addressed through the hub.
+    if (series_id.contains(':'))
+        return {};
+    return QStringLiteral("dbnomics:") + parts.join(':');
+}
+
+void DBnomicsScreen::watch_series(const QString& series_id) {
+    watched_series_.insert(series_id);
+    const QString topic = series_topic(series_id);
+    if (topic.isEmpty() || !isVisible())
+        return; // hidden: showEvent() subscribes everything in watched_series_
+    auto& hub = datahub::DataHub::instance();
+    hub.unsubscribe(this, topic); // idempotent re-subscribe (no duplicate delivery)
+    hub.subscribe<services::DbnDataPoint>(
+        this, topic, [this](const services::DbnDataPoint& point) { on_observations_loaded(point); });
+}
+
+void DBnomicsScreen::unwatch_unused_series() {
+    QSet<QString> in_use;
+    if (!pending_series_id_.isEmpty())
+        in_use.insert(pending_series_id_);
+    for (const auto& id : std::as_const(restore_single_))
+        in_use.insert(id);
+    for (const auto& ids : std::as_const(restore_slots_))
+        for (const auto& id : ids)
+            in_use.insert(id);
+    for (const auto& s : std::as_const(single_series_))
+        in_use.insert(s.series_id);
+    for (const auto& slot : std::as_const(slots_))
+        for (const auto& s : slot.series)
+            in_use.insert(s.series_id);
+
+    auto& hub = datahub::DataHub::instance();
+    for (auto it = watched_series_.begin(); it != watched_series_.end();) {
+        if (in_use.contains(*it)) {
+            ++it;
+            continue;
+        }
+        const QString topic = series_topic(*it);
+        if (!topic.isEmpty())
+            hub.unsubscribe(this, topic);
+        it = watched_series_.erase(it);
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -495,15 +557,24 @@ void DBnomicsScreen::on_providers_loaded(const QVector<services::DbnProvider>& p
     LOG_INFO("DBnomicsScreen", QString("Providers loaded: %1").arg(provider_count_));
 }
 
-void DBnomicsScreen::on_datasets_loaded(const QVector<services::DbnDataset>& datasets,
+void DBnomicsScreen::on_datasets_loaded(const QString& provider_code, const QVector<services::DbnDataset>& datasets,
                                         const services::DbnPagination& page, bool append) {
+    // Broadcast signal: a slow answer for a provider the user already left (or an MCP tool's request)
+    // must not replace the list shown under the current provider.
+    if (provider_code != selection_panel_->selected_provider())
+        return;
     if (!append)
         selection_panel_->set_datasets_loading(false);
     selection_panel_->populate_datasets(datasets, page, append);
 }
 
-void DBnomicsScreen::on_series_loaded(const QVector<services::DbnSeriesInfo>& series,
+void DBnomicsScreen::on_series_loaded(const QString& provider_code, const QString& dataset_code, const QString& query,
+                                      const QVector<services::DbnSeriesInfo>& series,
                                       const services::DbnPagination& page, bool append) {
+    if (provider_code != selection_panel_->selected_provider() ||
+        dataset_code != selection_panel_->selected_dataset() ||
+        query != selection_panel_->series_search_text().trimmed())
+        return; // superseded selection / search text, or another caller's request
     if (!append)
         selection_panel_->set_series_loading(false);
     selection_panel_->populate_series(series, page, append);
@@ -511,21 +582,30 @@ void DBnomicsScreen::on_series_loaded(const QVector<services::DbnSeriesInfo>& se
 }
 
 void DBnomicsScreen::on_observations_loaded(const services::DbnDataPoint& point) {
-    last_loaded_data_ = point;
-    has_pending_data_ = true;
-
-    // Always stop loading spinners — data has arrived
-    chart_widget_->set_loading(false);
-    data_table_->set_loading(false);
+    // Hub deliveries also cover refreshes of series that are already on screen. Only the series the
+    // user just picked becomes the "current" one for ADD TO SINGLE VIEW / ADD TO SLOT, and only its
+    // arrival ends the loading spinner.
+    const bool is_selection = point.series_id == pending_series_id_;
+    if (is_selection) {
+        last_loaded_data_ = point;
+        has_pending_data_ = true;
+        chart_widget_->set_loading(false);
+        data_table_->set_loading(false);
+    }
 
     // Update every place this series is already shown — single view AND any
     // comparison slot (slots used to be skipped, so REFRESH silently left
     // stale numbers on screen in COMPARE mode).
+    // Refresh replaces the whole data point (observations AND metadata) but keeps the colour.
+    auto refresh_into = [&point](services::DbnDataPoint& s) {
+        const QColor color = s.color;
+        s = point;
+        s.color = color;
+    };
     bool in_view = false;
     for (auto& s : single_series_) {
         if (s.series_id == point.series_id) {
-            s.observations = point.observations;
-            s.series_name = point.series_name;
+            refresh_into(s);
             in_view = true;
         }
     }
@@ -533,31 +613,74 @@ void DBnomicsScreen::on_observations_loaded(const services::DbnDataPoint& point)
     for (auto& slot : slots_) {
         for (auto& s : slot.series) {
             if (s.series_id == point.series_id) {
-                s.observations = point.observations;
-                s.series_name = point.series_name;
+                refresh_into(s);
                 in_slot = true;
             }
+        }
+    }
+    // Series remembered from the last session come back into their view as their data arrives.
+    if (!in_view && restore_single_.removeAll(point.series_id) > 0) {
+        single_series_.append(point);
+        assign_series_colors();
+        in_view = true;
+    }
+    for (int i = 0; i < restore_slots_.size() && i < slots_.size(); ++i) {
+        if (restore_slots_[i].removeAll(point.series_id) > 0) {
+            slots_[i].series.append(point);
+            for (int k = 0; k < slots_[i].series.size(); ++k)
+                slots_[i].series[k].color = services::DBnomicsService::chart_color(k);
+            selection_panel_->update_slot_series(i, slots_[i].series);
+            in_slot = true;
         }
     }
     if (in_view)
         render_single_view();
     if (in_slot)
         rebuild_comparison_view();
-    if (in_view || in_slot)
+    if (in_view || in_slot || !is_selection)
         return;
 
-    // Not yet in view — prompt user
-    set_status(tr("Loaded: %1  •  Click ADD TO SINGLE VIEW").arg(point.series_name));
+    // Not yet in view — say what arrived (vintage included), then prompt the user.
+    QString latest;
+    for (auto it = point.observations.crbegin(); it != point.observations.crend(); ++it) {
+        if (it->valid) {
+            latest = it->period;
+            break;
+        }
+    }
+    set_status(tr("Loaded: %1  •  %2 obs, latest %3  •  DBnomics indexed %4  •  Click ADD TO SINGLE VIEW")
+                   .arg(point.series_name)
+                   .arg(point.observations.size())
+                   .arg(latest.isEmpty() ? QStringLiteral("—") : latest,
+                        point.indexed_at.isEmpty() ? QStringLiteral("—") : point.indexed_at.left(10)));
     LOG_INFO("DBnomicsScreen", QString("Observations loaded for: %1").arg(point.series_id));
 }
 
-void DBnomicsScreen::on_search_results_loaded(const QVector<services::DbnSearchResult>& results,
+void DBnomicsScreen::on_search_results_loaded(const QString& query,
+                                              const QVector<services::DbnSearchResult>& results,
                                               const services::DbnPagination& page, bool append) {
+    if (query.trimmed() != selection_panel_->global_search_text().trimmed())
+        return; // results for text the user has since changed
     selection_panel_->set_search_loading(false);
     selection_panel_->populate_search_results(results, page, append);
 }
 
+void DBnomicsScreen::on_observations_failed(const QString& series_id, const QString& message) {
+    // Only the series the user is waiting for ends the spinner; a failed background refresh of a series
+    // already on screen keeps its last good data and just says so.
+    if (series_id == pending_series_id_) {
+        chart_widget_->set_loading(false);
+        data_table_->set_loading(false);
+        set_status(tr("ERROR loading %1: %2").arg(series_id, message));
+    } else {
+        set_status(tr("Refresh of %1 failed (%2) — showing the last loaded data").arg(series_id, message));
+    }
+    LOG_WARN("DBnomicsScreen", QString("Observations failed for %1: %2").arg(series_id, message));
+}
+
 void DBnomicsScreen::on_service_error(const QString& context, const QString& message) {
+    if (context == QLatin1String("observations"))
+        return; // handled per series by on_observations_failed()
     LOG_ERROR("DBnomicsScreen", QString("[%1] %2").arg(context, message));
     set_status(tr("ERROR [%1]: %2").arg(context, message));
     // Stop any active loading spinners so they don't hang on error
@@ -565,8 +688,6 @@ void DBnomicsScreen::on_service_error(const QString& context, const QString& mes
     selection_panel_->set_datasets_loading(false);
     selection_panel_->set_series_loading(false);
     selection_panel_->set_search_loading(false);
-    chart_widget_->set_loading(false);
-    data_table_->set_loading(false);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -582,17 +703,16 @@ void DBnomicsScreen::on_refresh_clicked() {
     // Refresh every loaded series, in BOTH views — comparison slots used to be
     // ignored entirely, so REFRESH looked like a no-op in COMPARE mode.
     QSet<QString> seen;
-    int n = 0;
+    QStringList topics;
     auto refresh_one = [&](const services::DbnDataPoint& s) {
         if (seen.contains(s.series_id))
             return;
         seen.insert(s.series_id);
-        // series_id format: "PROV/DS/CODE"
-        const QStringList parts = s.series_id.split('/');
-        if (parts.size() == 3) {
-            services::DBnomicsService::instance().fetch_observations(parts[0], parts[1], parts[2]);
-            ++n;
-        }
+        const QString topic = series_topic(s.series_id);
+        if (topic.isEmpty())
+            return;
+        watch_series(s.series_id);
+        topics << topic;
     };
 
     for (const auto& s : std::as_const(single_series_))
@@ -601,11 +721,14 @@ void DBnomicsScreen::on_refresh_clicked() {
         for (const auto& s : slot.series)
             refresh_one(s);
 
-    if (n == 0) {
+    if (topics.isEmpty()) {
         set_status(tr("Nothing to refresh — add a series first"));
         return;
     }
-    set_status(tr("Refreshing %1 series…").arg(n));
+    // force=true: a user-driven refresh bypasses the topic's min_interval (per-producer rate
+    // limiting still applies).
+    datahub::DataHub::instance().request(topics, /*force=*/true);
+    set_status(tr("Refreshing %1 series…").arg(topics.size()));
 }
 
 void DBnomicsScreen::on_export_csv() {
@@ -725,9 +848,20 @@ void DBnomicsScreen::on_dataset_selected(const QString& code) {
 
 void DBnomicsScreen::on_series_selected(const QString& prov, const QString& ds, const QString& code) {
     set_status(tr("Fetching observations..."));
+    const QString series_id = prov + "/" + ds + "/" + code;
+    const QString topic = series_topic(series_id);
+    if (topic.isEmpty()) {
+        set_status(tr("ERROR [observations]: unsupported series id %1").arg(series_id));
+        LOG_WARN("DBnomicsScreen", "Series id cannot be addressed through the hub: " + series_id);
+        return;
+    }
+    pending_series_id_ = series_id;
+    unwatch_unused_series(); // a previously browsed series that never made it into a view stops refreshing
     chart_widget_->set_loading(true);
     data_table_->set_loading(true);
-    services::DBnomicsService::instance().fetch_observations(prov, ds, code);
+    // Subscribe first (a still-fresh cached set is delivered at once), then ask for a refresh.
+    watch_series(series_id);
+    datahub::DataHub::instance().request(topic, /*force=*/true);
     ScreenStateManager::instance().notify_changed(this);
 }
 
@@ -788,7 +922,11 @@ void DBnomicsScreen::on_add_to_single_view() {
 void DBnomicsScreen::on_clear_all() {
     single_series_.clear();
     slots_.clear();
+    restore_single_.clear();
+    restore_slots_.clear();
     has_pending_data_ = false;
+    pending_series_id_.clear();
+    unwatch_unused_series();
     chart_widget_->clear();
     data_table_->clear();
     selection_panel_->clear_slots();
@@ -851,6 +989,7 @@ void DBnomicsScreen::on_remove_from_slot(int slot_index, const QString& series_i
 
     selection_panel_->update_slot_series(slot_index, slot.series);
     rebuild_comparison_view();
+    unwatch_unused_series();
 
     set_status(tr("Removed series from slot %1").arg(slot_index + 1));
     LOG_INFO("DBnomicsScreen", QString("Removed %1 from slot %2").arg(series_id).arg(slot_index));
@@ -860,8 +999,11 @@ void DBnomicsScreen::on_remove_slot(int slot_index) {
     if (slot_index < 0 || slot_index >= slots_.size())
         return;
     slots_.removeAt(slot_index);
+    if (slot_index < restore_slots_.size())
+        restore_slots_.removeAt(slot_index);
     selection_panel_->remove_comparison_slot(slot_index);
     rebuild_comparison_view();
+    unwatch_unused_series();
     set_status(tr("Slot removed. %1 slot(s) remaining").arg(slots_.size()));
     LOG_INFO("DBnomicsScreen", QString("Slot %1 removed. Remaining: %2").arg(slot_index + 1).arg(slots_.size()));
 }
@@ -901,7 +1043,27 @@ void DBnomicsScreen::rebuild_comparison_view() {
 
     // ── 2-column grid: up to 2 rows × 2 cols fit on screen without scrolling ─
     auto* grid_widget = new QWidget(comparison_content_);
-    grid_widget->setStyleSheet(QString("background:%1;").arg(ui::colors::BG_BASE()));
+    grid_widget->setObjectName("dbnSlotGrid");
+    // One stylesheet for every card (objectName selectors) — it used to be six setStyleSheet() calls
+    // per card inside the loop, a full CSS parse each, on every rebuild.
+    grid_widget->setStyleSheet(
+        QString("QWidget#dbnSlotGrid { background:%1; }"
+                "QWidget#slotCard { background:%2; border:1px solid %3; }"
+                "QWidget#cardHeader { background:%4; border-bottom:1px solid %3; }"
+                "QLabel#dbnCardSlotLabel { color:%5; font-family:%6; font-size:12px; font-weight:700;"
+                "  background:transparent; border:none; }"
+                "QLabel#dbnCardCountLabel { color:%7; font-family:%6; font-size:10px; background:transparent;"
+                "  border:none; }"
+                "QComboBox#dbnCardCombo { background:%8; color:%9; border:1px solid %10; font-family:%6;"
+                "  font-size:10px; padding:0 4px; }"
+                "QComboBox#dbnCardCombo::drop-down { border:none; }"
+                "QComboBox#dbnCardCombo QAbstractItemView { background:%8; color:%9; border:1px solid %10; }"
+                "QSplitter#dbnCardSplitter::handle:vertical { background:%3; height:4px; }"
+                "QSplitter#dbnCardSplitter::handle:vertical:hover { background:%5; }")
+            .arg(ui::colors::BG_BASE(), ui::colors::BG_SURFACE(), ui::colors::BORDER_DIM(), ui::colors::BG_RAISED(),
+                 ui::colors::AMBER(), QString(ui::fonts::DATA_FAMILY), ui::colors::TEXT_TERTIARY(),
+                 ui::colors::BG_HOVER(), ui::colors::TEXT_PRIMARY())
+            .arg(ui::colors::BORDER_MED()));
     auto* grid = new QGridLayout(grid_widget);
     grid->setContentsMargins(6, 6, 6, 6);
     grid->setSpacing(6);
@@ -921,8 +1083,6 @@ void DBnomicsScreen::rebuild_comparison_view() {
         card->setMinimumHeight(260);
         card->setMinimumWidth(320); // ensure Y-axis labels always have room
         card->setObjectName("slotCard");
-        card->setStyleSheet(QString("QWidget#slotCard { background:%1; border:1px solid %2; }")
-                                .arg(ui::colors::BG_SURFACE(), ui::colors::BORDER_DIM()));
 
         auto* card_vl = new QVBoxLayout(card);
         card_vl->setContentsMargins(0, 0, 0, 0);
@@ -932,8 +1092,6 @@ void DBnomicsScreen::rebuild_comparison_view() {
         auto* header = new QWidget(card);
         header->setFixedHeight(32);
         header->setObjectName("cardHeader");
-        header->setStyleSheet(QString("QWidget#cardHeader { background:%1; border-bottom:1px solid %2; }")
-                                  .arg(ui::colors::BG_RAISED(), ui::colors::BORDER_DIM()));
 
         auto* header_hl = new QHBoxLayout(header);
         header_hl->setContentsMargins(10, 0, 8, 0);
@@ -941,18 +1099,10 @@ void DBnomicsScreen::rebuild_comparison_view() {
 
         auto* slot_label = new QLabel(tr("SLOT %1").arg(i + 1), header);
         slot_label->setObjectName("dbnCardSlotLabel");
-        slot_label->setStyleSheet(QString("color:%1; font-family:%2; font-size:12px; font-weight:700;"
-                                          " background:transparent; border:none;")
-                                      .arg(ui::colors::AMBER())
-                                      .arg(ui::fonts::DATA_FAMILY));
         header_hl->addWidget(slot_label);
 
         auto* count_label = new QLabel(tr("(%1 series)").arg(slot.series.size()), header);
         count_label->setObjectName("dbnCardCountLabel");
-        count_label->setStyleSheet(QString("color:%1; font-family:%2; font-size:10px;"
-                                           " background:transparent; border:none;")
-                                       .arg(ui::colors::TEXT_TERTIARY())
-                                       .arg(ui::fonts::DATA_FAMILY));
         header_hl->addWidget(count_label);
         header_hl->addStretch();
 
@@ -960,15 +1110,7 @@ void DBnomicsScreen::rebuild_comparison_view() {
         chart_combo->addItems({tr("LINE"), tr("AREA"), tr("BAR"), tr("SCATTER")});
         chart_combo->setCurrentIndex(static_cast<int>(slot.chart_type));
         chart_combo->setFixedHeight(22);
-        chart_combo->setStyleSheet(
-            QString("QComboBox { background:%1; color:%2; border:1px solid %3;"
-                    " font-family:%4; font-size:10px; padding:0 4px; }"
-                    "QComboBox::drop-down { border:none; }"
-                    "QComboBox QAbstractItemView { background:%1; color:%2; border:1px solid %3; }")
-                .arg(ui::colors::BG_HOVER())
-                .arg(ui::colors::TEXT_PRIMARY())
-                .arg(ui::colors::BORDER_MED())
-                .arg(ui::fonts::DATA_FAMILY));
+        chart_combo->setObjectName("dbnCardCombo");
         header_hl->addWidget(chart_combo);
         card_vl->addWidget(header);
 
@@ -976,9 +1118,7 @@ void DBnomicsScreen::rebuild_comparison_view() {
         auto* card_splitter = new QSplitter(Qt::Vertical, card);
         card_splitter->setHandleWidth(4);
         card_splitter->setChildrenCollapsible(false);
-        card_splitter->setStyleSheet(QString("QSplitter::handle:vertical { background:%1; height:4px; }"
-                                             "QSplitter::handle:vertical:hover { background:%2; }")
-                                         .arg(ui::colors::BORDER_DIM(), ui::colors::AMBER()));
+        card_splitter->setObjectName("dbnCardSplitter");
 
         auto* chart = new DBnomicsChartWidget(card_splitter);
         chart->set_compact(true); // tighter margins + no legend for grid slots
@@ -1049,6 +1189,23 @@ QVariantMap DBnomicsScreen::save_state() const {
         state["provider_filter"] = selection_panel_->provider_filter_text();
         state["series_search"] = selection_panel_->series_search_text();
     }
+    // The views themselves (series ids + chart types) — not just the last selection — so a restart
+    // brings the chart set back. Ids still waiting to be restored are kept.
+    QStringList single_ids = restore_single_;
+    for (const auto& dp : single_series_)
+        if (!single_ids.contains(dp.series_id))
+            single_ids << dp.series_id;
+    state["single_series"] = single_ids;
+    state["single_chart_type"] = static_cast<int>(single_chart_type_);
+    QVariantList slot_list;
+    for (int i = 0; i < slots_.size(); ++i) {
+        QStringList ids = i < restore_slots_.size() ? restore_slots_[i] : QStringList{};
+        for (const auto& dp : slots_[i].series)
+            if (!ids.contains(dp.series_id))
+                ids << dp.series_id;
+        slot_list << QVariantMap{{"series", ids}, {"chart_type", static_cast<int>(slots_[i].chart_type)}};
+    }
+    state["slots"] = slot_list;
     return state;
 }
 
@@ -1064,6 +1221,10 @@ void DBnomicsScreen::restore_state(const QVariantMap& state) {
     if (mode == 1 && compare_btn_)
         compare_btn_->click();
 
+    // The handlers below read the panel's remembered provider/dataset (on_dataset_selected() asks it
+    // for the provider), which a fresh panel doesn't have — seed it first, otherwise the dataset
+    // and series requests were issued with an empty provider.
+    selection_panel_->restore_selection(prov, ds, ser);
     if (!prov.isEmpty())
         on_provider_selected(prov);
     if (!ds.isEmpty())
@@ -1079,6 +1240,37 @@ void DBnomicsScreen::restore_state(const QVariantMap& state) {
         if (state.contains("series_search"))
             selection_panel_->set_series_search_text(state.value("series_search").toString());
     }
+
+    // Views: recreate the slots, then re-add each remembered series as its observations arrive
+    // (on_observations_loaded); subscribing delivers a still-fresh cached copy immediately.
+    if (state.contains("single_chart_type") && chart_type_combo_)
+        chart_type_combo_->setCurrentIndex(std::clamp(state.value("single_chart_type").toInt(), 0, 3));
+    restore_single_ = state.value("single_series").toStringList();
+    restore_slots_.clear();
+    const QVariantList slot_list = state.value("slots").toList();
+    for (const auto& sv : slot_list) {
+        const QVariantMap m = sv.toMap();
+        on_add_slot();
+        slots_.last().chart_type =
+            static_cast<services::DbnChartType>(std::clamp(m.value("chart_type").toInt(), 0, 3));
+        restore_slots_.append(m.value("series").toStringList());
+    }
+    QStringList topics;
+    auto want = [this, &topics](const QString& id) {
+        const QString topic = series_topic(id);
+        if (topic.isEmpty())
+            return;
+        watch_series(id);
+        if (!topics.contains(topic))
+            topics << topic;
+    };
+    for (const auto& id : std::as_const(restore_single_))
+        want(id);
+    for (const auto& ids : std::as_const(restore_slots_))
+        for (const auto& id : ids)
+            want(id);
+    if (!topics.isEmpty())
+        datahub::DataHub::instance().request(topics, /*force=*/false);
 }
 
 } // namespace fincept::screens

@@ -24,6 +24,7 @@
 #include <QSizePolicy>
 #include <QSpinBox>
 #include <QString>
+#include <QStyle>
 #include <QWidget>
 
 #include <cmath>
@@ -97,9 +98,25 @@ inline void apply_pill_geometry(QWidget* w) {
     w->setContentsMargins(0, 0, 0, 0);
 }
 
+/// Set a dynamic property that a root-stylesheet selector keys on and re-polish
+/// the widget so the new rule applies (Qt does not re-evaluate on its own).
+inline void set_style_prop(QWidget* w, const char* name, const QVariant& value) {
+    if (!w || w->property(name) == value)
+        return;
+    w->setProperty(name, value);
+    w->style()->unpolish(w);
+    w->style()->polish(w);
+    w->update();
+}
+
 inline QString fmt_metric(const QString& key, const QJsonValue& val) {
     using namespace fincept::services::backtest;
 
+    // JSON has no Infinity, so the providers' sanitiser turns a profit factor with
+    // winners but ZERO losing trades (gross-loss denominator 0) into null. Showing "—" or
+    // dropping the card hides the best possible result; say what it is.
+    if (val.isNull() && (key == QLatin1String("profitFactor") || key == QLatin1String("profit_factor")))
+        return QString::fromUtf8("∞");
     if (val.isString())
         return val.toString();
     if (val.isBool())

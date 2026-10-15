@@ -25,6 +25,7 @@
 #include <QHeaderView>
 #include <QJsonObject>
 #include <QLineSeries>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QScrollArea>
@@ -39,6 +40,13 @@
 namespace fincept::screens {
 
 using namespace financials_internal;
+
+namespace {
+// metric_card() builds the subtitle line only for a NON-null initial text. The cards below used
+// to pass the default `{}` (null), so their "x% YoY" / "x% margin" lines were never created and
+// every computed growth/margin subtitle was silently dropped.
+const QString kFinViewsWithSubtitle = QString("");
+} // namespace
 
 void EquityFinancialsTab::build_ui() {
     setStyleSheet(QString("background:%1;").arg(ui::colors::BG_BASE()));
@@ -78,6 +86,13 @@ void EquityFinancialsTab::build_ui() {
     btn_income_->setChecked(true);
     btn_hl->addStretch();
 
+    // Which statements these are: yfinance's ANNUAL statements (fiscal years) in the
+    // company's reporting currency — the tab said none of this, and "YoY" read as TTM.
+    period_note_ = new QLabel(btn_bar);
+    period_note_->setStyleSheet(
+        QString("color:%1; font-size:10px; border:0; background:transparent;").arg(ui::colors::TEXT_TERTIARY()));
+    btn_hl->addWidget(period_note_);
+
     btn_export_csv_ = new QPushButton(tr("EXPORT CSV"));
     btn_export_csv_->setStyleSheet(QString(R"(
         QPushButton {
@@ -106,17 +121,22 @@ void EquityFinancialsTab::build_ui() {
         if (!tbl)
             return;
 
-        // Build sanitised ticker prefix from object name or use generic
-        QString ticker = objectName().isEmpty() ? "equity" : objectName();
-        ticker.remove(QRegularExpression(R"([^A-Za-z0-9_\-])"));
+        // Sanitised ticker prefix. This used the tab's objectName(), which nothing ever
+        // sets, so every export was called "equity_income_….csv" whatever the symbol.
+        QString ticker = current_symbol_.isEmpty() ? QStringLiteral("equity") : current_symbol_;
+        ticker.replace(QRegularExpression(R"([^A-Za-z0-9_\-])"), QStringLiteral("_"));
 
         QString filename =
             QString("%1_%2_%3.csv").arg(ticker, label, QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
         QString dest = services::FileManagerService::instance().storage_dir() + "/" + filename;
 
         QFile f(dest);
-        if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            // Used to return silently — the click appeared to do nothing.
+            QMessageBox::warning(this, tr("Export failed"),
+                                 tr("Could not write the CSV file:\n%1\n%2").arg(dest, f.errorString()));
             return;
+        }
         QTextStream out(&f);
 
         // Header row
@@ -133,16 +153,30 @@ void EquityFinancialsTab::build_ui() {
             for (int c = 0; c < tbl->columnCount(); ++c) {
                 auto* item = tbl->item(r, c);
                 QString cell = item ? item->text() : "";
+                // Statement cells display "391.04B"; export the raw figure instead (and an
+                // empty cell, not a "—" glyph, for a line the filing does not carry).
+                if (item && item->data(Qt::UserRole).isValid())
+                    cell = QString::number(item->data(Qt::UserRole).toDouble(), 'f', 2);
+                else if (c > 0 && cell == QStringLiteral("—"))
+                    cell.clear();
                 if (cell.contains(',') || cell.contains('"') || cell.contains('\n'))
                     cell = "\"" + cell.replace("\"", "\"\"") + "\"";
                 row << cell;
             }
             out << row.join(",") << "\n";
         }
+        out.flush();
+        const bool write_ok = (out.status() == QTextStream::Ok) && (f.error() == QFile::NoError);
         f.close();
+        if (!write_ok) {
+            QMessageBox::warning(this, tr("Export failed"), tr("Writing the CSV file failed:\n%1").arg(dest));
+            return;
+        }
 
         services::FileManagerService::instance().register_file(dest, QFileInfo(dest).fileName(), QFileInfo(dest).size(),
                                                                "text/csv", "equity_research");
+        QMessageBox::information(this, tr("Export complete"),
+                                 tr("Saved %n row(s) to:\n%1", "", tbl->rowCount()).arg(dest));
     });
 
     vl->addWidget(btn_bar);
@@ -186,16 +220,16 @@ QWidget* EquityFinancialsTab::build_income_view() {
         // Row 1: 4 large cards
         auto* r1 = new QHBoxLayout;
         r1->setSpacing(8);
-        r1->addWidget(metric_card(tr("TOTAL REVENUE"), inc_revenue_val_, inc_revenue_sub_, kGreen));
-        r1->addWidget(metric_card(tr("GROSS PROFIT"), inc_gross_val_, inc_gross_sub_, kCyan));
-        r1->addWidget(metric_card(tr("OPERATING INCOME"), inc_opincome_val_, inc_opincome_sub_, kBlue));
-        r1->addWidget(metric_card(tr("NET INCOME"), inc_netincome_val_, inc_netincome_sub_, kGreen));
+        r1->addWidget(metric_card(tr("TOTAL REVENUE"), inc_revenue_val_, inc_revenue_sub_, kGreen, QStringLiteral("—"), kFinViewsWithSubtitle));
+        r1->addWidget(metric_card(tr("GROSS PROFIT"), inc_gross_val_, inc_gross_sub_, kCyan, QStringLiteral("—"), kFinViewsWithSubtitle));
+        r1->addWidget(metric_card(tr("OPERATING INCOME"), inc_opincome_val_, inc_opincome_sub_, kBlue, QStringLiteral("—"), kFinViewsWithSubtitle));
+        r1->addWidget(metric_card(tr("NET INCOME"), inc_netincome_val_, inc_netincome_sub_, kGreen, QStringLiteral("—"), kFinViewsWithSubtitle));
         svl->addLayout(r1);
 
         // Row 2: EBITDA + margins
         auto* r2 = new QHBoxLayout;
         r2->setSpacing(8);
-        r2->addWidget(metric_card(tr("EBITDA"), inc_ebitda_val_, inc_ebitda_sub_, kPurple));
+        r2->addWidget(metric_card(tr("EBITDA"), inc_ebitda_val_, inc_ebitda_sub_, kPurple, QStringLiteral("—"), kFinViewsWithSubtitle));
 
         // Margin cards (no subtitle needed)
         QLabel* dummy = nullptr;
@@ -447,7 +481,7 @@ QWidget* EquityFinancialsTab::build_cashflow_view() {
         r1->addWidget(metric_card(tr("OPERATING CF"), cf_operating_val_, dummy1, kGreen));
         r1->addWidget(metric_card(tr("INVESTING CF"), cf_investing_val_, dummy1, kOrange));
         r1->addWidget(metric_card(tr("FINANCING CF"), cf_financing_val_, dummy1, kPurple));
-        r1->addWidget(metric_card(tr("FREE CASH FLOW"), cf_fcf_val_, cf_fcf_sub_, kCyan));
+        r1->addWidget(metric_card(tr("FREE CASH FLOW"), cf_fcf_val_, cf_fcf_sub_, kCyan, QStringLiteral("—"), kFinViewsWithSubtitle));
         svl->addLayout(r1);
 
         auto* r2 = new QHBoxLayout;
@@ -466,7 +500,7 @@ QWidget* EquityFinancialsTab::build_cashflow_view() {
 
     // ── Cash Flow Trend Chart ─────────────────────────────────────────────────
     {
-        auto* sec = section_frame(tr("CASH FLOW TREND (BILLIONS $)"), kGreen);
+        auto* sec = section_frame(tr("CASH FLOW TREND (REPORTING CURRENCY)"), kGreen);
         cf_chart_ = make_chart_view(200);
         static_cast<QVBoxLayout*>(sec->layout())->addWidget(cf_chart_);
         vl->addWidget(sec);

@@ -31,24 +31,26 @@ namespace fincept::screens::panels {
 ///
 /// Subscribes (visibility-driven, P3):
 ///   - `wallet:balance:<pubkey>`     for AVAILABLE
+///   - `market:price:fncpt`          for $FNCPT → USD conversion
+/// and, only while `StakingService::staking_live()`:
 ///   - `wallet:vefncpt:<pubkey>`     for current weight (tier preview)
 ///   - `treasury:revenue`            for EST. YIELD (terminal-wide)
-///   - `market:price:fncpt`          for $FNCPT → USD conversion
 ///   - `billing:tier:<pubkey>`       for current tier
 ///
-/// LOCK click:
-///   1. Calls `StakingService::build_lock_tx(...)` — fails fast in mock mode.
+/// While staking is not live (this build) the panel is a calculator: WEIGHT
+/// and the planned tier for the typed amount are shown, EST. YIELD reads
+/// "n/a", and LOCK is disabled and labelled COMING SOON — no number on the
+/// panel is presented as the wallet's own staking position.
+///
+/// LOCK click (live mode):
+///   1. Calls `StakingService::build_lock_tx(...)`.
 ///   2. On success, opens `WalletActionConfirmDialog` with decoded summary.
 ///   3. On confirm, forwards to `WalletService::sign_and_send`.
-///   4. **Not implemented yet:** unlike `SwapPanel`, this panel does NOT poll
-///      `getSignatureStatuses`. The status line reads "Sent … (not yet
-///      confirmed on-chain)" and the balance is refreshed optimistically. A
-///      lock that is rejected on-chain therefore shows no failure here — the
-///      user has to check the explorer. Wire `start_status_poll` (copy the
-///      SwapPanel implementation) when the fincept_lock program ships.
-///
-/// In mock mode the LOCK button is disabled with status "DEMO — fincept_lock
-/// not deployed yet" and clicking it shows the explanation in the error strip.
+///   4. Polls `getSignatureStatuses` (`start_status_poll`, same cadence as
+///      `SwapPanel`) until the lock is confirmed, reverted on-chain, or the
+///      attempt cap is hit. The panel stays busy for the duration so a second
+///      lock can't be queued behind an unconfirmed one; on confirmation the
+///      balance and the locks / veFNCPT topics are force-refreshed.
 class LockPanel : public QWidget {
     Q_OBJECT
   public:
@@ -81,6 +83,10 @@ class LockPanel : public QWidget {
 
     void resubscribe();
     void recompute_preview();
+    /// Poll `getSignatureStatuses` after `sign_and_send` until the lock tx is
+    /// confirmed, reverted, or the attempt cap is reached. Timer and RPC client
+    /// are parented to the panel and torn down on every terminal outcome.
+    void start_status_poll(const QString& sig);
     void show_error_strip(const QString& msg);
     void clear_error_strip();
     void set_busy(bool busy);

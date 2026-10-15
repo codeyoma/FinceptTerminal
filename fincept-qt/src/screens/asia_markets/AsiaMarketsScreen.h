@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/symbol/IGroupLinked.h"
 #include "screens/common/IStatefulScreen.h"
 
 #include <QComboBox>
@@ -30,8 +31,14 @@ struct StockCategory {
 /// Chinese A/B shares, Hong Kong, and US markets.
 /// 8 categories: Realtime, Historical, Financial, Holdings,
 /// Fund Flow, Boards, Margin/HSGT, Hot & News.
-class AsiaMarketsScreen : public QWidget, public IStatefulScreen {
+///
+/// Symbol-group linked whenever a result carries a security-code column: selecting a row publishes
+/// its yfinance symbol (600519 -> 600519.SS), a linked A-share/HK symbol fills the SYMBOL parameter
+/// and is highlighted when listed, and rows offer "Open in…" (Research, Trading, News, Backtest,
+/// Watchlist).
+class AsiaMarketsScreen : public QWidget, public IStatefulScreen, public fincept::IGroupLinked {
     Q_OBJECT
+    Q_INTERFACES(fincept::IGroupLinked)
   public:
     explicit AsiaMarketsScreen(QWidget* parent = nullptr);
 
@@ -39,6 +46,12 @@ class AsiaMarketsScreen : public QWidget, public IStatefulScreen {
     QVariantMap save_state() const override;
     QString state_key() const override { return "asia_markets"; }
     int state_version() const override { return 1; }
+
+    // IGroupLinked
+    void set_group(fincept::SymbolGroup g) override { link_group_ = g; }
+    fincept::SymbolGroup group() const override { return link_group_; }
+    void on_group_symbol_changed(const fincept::SymbolRef& ref) override;
+    fincept::SymbolRef current_symbol() const override;
 
   protected:
     void showEvent(QShowEvent* e) override;
@@ -51,6 +64,7 @@ class AsiaMarketsScreen : public QWidget, public IStatefulScreen {
     void on_search_changed(const QString& text);
     void on_execute();
     void on_view_toggle();
+    void on_refresh();
 
   private:
     void setup_ui();
@@ -67,11 +81,22 @@ class AsiaMarketsScreen : public QWidget, public IStatefulScreen {
 
     void load_endpoints(int cat_index);
     void populate_endpoint_list(const QJsonObject& result);
-    void execute_query(const QString& endpoint, const QStringList& extra_args);
-    void display_table(const QJsonArray& data);
+    /// `force` skips (and evicts) the 2-minute result cache — used by REFRESH.
+    void execute_query(const QString& endpoint, const QStringList& extra_args, bool force = false);
+    void run_query(bool force);
+    void display_table(const QJsonArray& data, const QStringList& columns = {});
     void display_json(const QJsonArray& data);
     void display_error(const QString& error);
     void set_loading(bool loading);
+
+    // Symbol linking (see class comment)
+    QString yf_symbol_at_row(int row) const; // "" when the row has no recognisable security code
+    QString name_at_row(int row) const;
+    void publish_selection_to_group();
+    void show_row_menu(const QPoint& pos);
+    int symbol_col_ = -1; // security-code column of the current result, -1 if none
+    int name_col_ = -1;
+    fincept::SymbolGroup link_group_ = fincept::SymbolGroup::None;
 
     // Categories
     QList<StockCategory> categories_;
@@ -118,6 +143,12 @@ class AsiaMarketsScreen : public QWidget, public IStatefulScreen {
     bool is_table_view_ = true;
     bool loading_ = false;
     QJsonArray last_data_;
+
+    // Bumped whenever the category or the query changes; an async callback that finds a different
+    // value is stale (e.g. category A's endpoint list arriving after the user moved on to B, which
+    // used to auto-run A's endpoint through B's script) and must not touch the UI.
+    int request_seq_ = 0;
+    QString pending_endpoint_; // endpoint to re-select once the list is populated (restore_state)
 };
 
 } // namespace fincept::screens

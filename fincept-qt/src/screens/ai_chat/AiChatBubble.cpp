@@ -14,12 +14,16 @@
 
 #include "screens/ai_chat/AiChatBubble.h"
 
+#include "core/events/EventBus.h"
 #include "screens/ai_chat/ChatBubbleFactory.h"
+#include "services/llm/LlmErrors.h"
+#include "services/llm/LlmToolActivity.h"
 #include "services/stt/SpeechService.h"
 #include "services/tts/TtsService.h"
 #include "services/voice_trigger/ClapDetectorService.h"
 #include "ui/theme/Theme.h"
 #include "ui/theme/ThemeManager.h"
+#include "ui/widgets/EnterprisePromo.h"
 
 #include <QDateTime>
 #include <QEvent>
@@ -103,6 +107,14 @@ AiChatBubble::AiChatBubble(QWidget* parent) : QWidget(parent) {
             open_panel();
         if (!is_listening_ && !is_speaking_)
             start_listening();
+    });
+    // The detector's failures (no mic, stream died) used to go only to the log, so
+    // "clap to start" just stopped working with no sign why. Show them in the
+    // status strip the panel already has for STT/TTS problems.
+    connect(&clap, &services::ClapDetectorService::error_occurred, this, [this](const QString& msg) {
+        LOG_WARN("AiChatBubble", QString("Clap-to-start error: %1").arg(msg));
+        error_msg_ = tr("Clap-to-start: %1").arg(msg);
+        render_status();
     });
     if (services::ClapDetectorService::is_enabled_in_config())
         clap.start();
@@ -605,7 +617,12 @@ void AiChatBubble::on_stream_chunk(const QString& chunk, bool done) {
     // bury the conversation.
     const QString tool_prefix = ai_chat::tool_stream_prefix();
     if (chunk.startsWith(tool_prefix)) {
-        const QString label = chunk.mid(tool_prefix.size()).trimmed();
+        const QString payload = chunk.mid(tool_prefix.size());
+        // Completion records (outcome + duration) are for the AI Chat tab's
+        // Tools card; the compact bubble only lists what is being called.
+        if (payload.startsWith(ai_chat::tool_done_marker()))
+            return;
+        const QString label = payload.trimmed();
         if (label.isEmpty() || label == last_tool_label_)
             return;
         last_tool_label_ = label;
@@ -621,8 +638,36 @@ void AiChatBubble::on_stream_chunk(const QString& chunk, bool done) {
 }
 
 void AiChatBubble::on_streaming_done(ai_chat::LlmResponse response) {
+    // finished_streaming() is process-wide: it also fires for the AI Chat tab's
+    // requests (which carry a session id; the bubble sends none) and there is one
+    // bubble per window. Every tab answer used to be added here — a phantom reply with
+    // no question, an unread badge, and spoken aloud in voice mode. Only react to a
+    // response that is ours: we are waiting for one and it has no session id.
+    if (!streaming_ || !response.origin_session_id.isEmpty())
+        return;
+
     streaming_ = false;
     set_input_enabled(true);
+
+    namespace cbf = fincept::ai_chat;
+    // Out of Fincept credits / sign-in rejected: an actionable notice instead of
+    // "Error: …" — with the plans and settings one click away.
+    if (!response.success && ai_chat::classify_llm_error(response.error) != ai_chat::LlmErrorKind::Other) {
+        const QString partial =
+            streaming_bubble_ ? cbf::ChatBubbleFactory::streaming_text(streaming_bubble_).trimmed() : QString();
+        if (streaming_bubble_ && !partial.isEmpty())
+            cbf::ChatBubbleFactory::finalize_streaming(streaming_bubble_, partial);
+        else if (streaming_bubble_)
+            cbf::ChatBubbleFactory::finalize_streaming(streaming_bubble_, tr("*No answer.*"));
+        streaming_bubble_ = nullptr;
+        add_fincept_notice(response.error);
+        if (!is_open_)
+            update_unread(1);
+        if (voice_mode_)
+            start_listening();
+        render_status();
+        return;
+    }
 
     const QString content = response.success ? response.content : tr("Error: %1").arg(response.error);
 
@@ -630,13 +675,18 @@ void AiChatBubble::on_streaming_done(ai_chat::LlmResponse response) {
         streaming_bubble_ = add_streaming_bubble();
 
     if (streaming_bubble_) {
-        const QString acc = streaming_bubble_->property("acc").toString();
+        // streaming_text() flushes the coalescing buffer — reading the raw
+        // property would miss the last few chunks of the answer.
+        const QString acc = cbf::ChatBubbleFactory::streaming_text(streaming_bubble_);
         const QString final_text = acc.isEmpty() ? content : acc;
-        fincept::ai_chat::ChatBubbleFactory::finalize_streaming(streaming_bubble_, final_text);
+        cbf::ChatBubbleFactory::finalize_streaming(streaming_bubble_, final_text);
         streaming_bubble_ = nullptr;
     }
 
-    chat_history_.push_back({"assistant", content});
+    // Only a real answer belongs in the history that is re-sent with the next
+    // question — "Error: HTTP 401…" is not something the model said.
+    if (response.success && !content.isEmpty())
+        chat_history_.push_back({"assistant", content});
 
     if (!is_open_)
         update_unread(1);
@@ -647,6 +697,39 @@ void AiChatBubble::on_streaming_done(ai_chat::LlmResponse response) {
         start_listening();
     }
     render_status();
+}
+
+// ── Fincept credits / sign-in notice ──────────────────────────────────────────
+void AiChatBubble::add_fincept_notice(const QString& error) {
+    const bool credits = ai_chat::classify_llm_error(error) == ai_chat::LlmErrorKind::FinceptOutOfCredits;
+    fincept::ai_chat::ChatBubbleFactory::Options opts;
+    opts.role = "system";
+    opts.content = credits ? tr("**You're out of Fincept credits.** Top up, or add your own provider API key in "
+                                "**Settings → LLM Configuration**.")
+                           : tr("**Fincept did not accept your sign-in.** Sign in again, or add your own provider "
+                                "API key in **Settings → LLM Configuration**.");
+    opts.show_footer = true;
+    opts.user_col_max_width = kBubbleColMaxWidth;
+    opts.ai_col_max_width = kBubbleColMaxWidth;
+    auto b = fincept::ai_chat::ChatBubbleFactory::build(opts);
+    if (b.footer_layout) {
+        if (credits) {
+            auto* plans = fincept::ai_chat::ChatBubbleFactory::make_footer_button(tr("View plans"),
+                                                                                  tr("Open Plans & Pricing"));
+            connect(plans, &QPushButton::clicked, this, [this]() { ui::billing::open_plans(this); });
+            b.footer_layout->addWidget(plans);
+        }
+        auto* settings = fincept::ai_chat::ChatBubbleFactory::make_footer_button(
+            tr("LLM settings"), tr("Open Settings to add your own provider API key"));
+        connect(settings, &QPushButton::clicked, this, []() {
+            EventBus::instance().publish(QStringLiteral("nav.switch_screen"),
+                                         QVariantMap{{"screen_id", QStringLiteral("settings")}});
+        });
+        b.footer_layout->addWidget(settings);
+        b.footer_layout->addStretch();
+    }
+    msg_layout_->insertWidget(msg_layout_->count() - 1, b.row);
+    scroll_to_bottom();
 }
 
 // ── Message bubbles ───────────────────────────────────────────────────────────
@@ -935,7 +1018,8 @@ bool AiChatBubble::eventFilter(QObject* obj, QEvent* e) {
     }
     if (obj == input_box_ && e->type() == QEvent::KeyPress) {
         auto* ke = static_cast<QKeyEvent*>(e);
-        if (ke->key() == Qt::Key_Return && !(ke->modifiers() & Qt::ShiftModifier)) {
+        // Enter sends (main and numpad keys); Shift+Enter inserts a newline.
+        if ((ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter) && !(ke->modifiers() & Qt::ShiftModifier)) {
             on_send();
             return true;
         }

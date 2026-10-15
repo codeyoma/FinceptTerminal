@@ -30,7 +30,7 @@ class MarketsTab;
 ///   TRADE (Stage 2.2)
 ///   ACTIVITY (Stage 2.4)
 ///   SETTINGS (mode toggle + Helius key + slippage)
-///   STAKE / MARKETS / ROADMAP — placeholders shown via ComingSoonTab.
+///   STAKE (veFNCPT lock + tiers) / MARKETS (prediction markets, demo mode) / ROADMAP (buyback dashboard).
 ///
 /// The screen itself owns no data subscriptions — those live in HoldingsBar
 /// and the individual tabs. CryptoCenterScreen orchestrates the connect /
@@ -53,6 +53,7 @@ class CryptoCenterScreen : public QWidget {
 
     void on_wallet_connected(const QString& pubkey, const QString& label);
     void on_wallet_disconnected();
+    void on_connect_failed(const QString& reason);
 
     // Header
     QWidget* header_ = nullptr;
@@ -75,6 +76,7 @@ class CryptoCenterScreen : public QWidget {
     QLabel* empty_lede_ = nullptr;
     QLabel* empty_security_label_ = nullptr;
     QLabel* empty_security_text_ = nullptr;
+    QLabel* empty_error_ = nullptr; ///< reason the last connect attempt failed (hidden until then)
     QPushButton* connect_button_ = nullptr;
 
     // Connected state
@@ -86,7 +88,7 @@ class CryptoCenterScreen : public QWidget {
     TradeTab* trade_tab_ = nullptr;
     ActivityTab* activity_tab_ = nullptr;
     SettingsTab* settings_tab_ = nullptr;
-    StakeTab* stake_tab_ = nullptr;     // Phase 3 — veFNCPT lock + tier
+    StakeTab* stake_tab_ = nullptr;     // Phase 3 — veFNCPT lock + tier (not live: coming soon)
     MarketsTab* markets_tab_ = nullptr; // Phase 4 — internal prediction markets
     RoadmapTab* roadmap_tab_ = nullptr; // Phase 5 — buyback & burn dashboard
 };

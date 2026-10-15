@@ -38,7 +38,31 @@ OpenPositionsWidget::OpenPositionsWidget(const QJsonObject& cfg, QWidget* parent
     table_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     table_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
     table_->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+    table_->setToolTip(tr("Double-click a position to open it in Equity Trading"));
     vl->addWidget(table_, 1);
+
+    // Row → symbol link. The exchange rides on the SYMBOL cell; the "No open
+    // positions" placeholder row carries none and is ignored.
+    connect(table_, &QTableWidget::cellDoubleClicked, this, [this](int row, int /*col*/) {
+        auto* it = table_->item(row, 0);
+        if (it && it->data(Qt::UserRole).isValid())
+            open_symbol(it->text(), QStringLiteral("equity_trading"), QStringLiteral("equity"),
+                        it->data(Qt::UserRole).toString());
+    });
+
+    // Title-bar refresh = "retry". It used to be wired to nothing, so the 20 s
+    // "No data yet - click refresh to retry" prompt pointed at a dead button.
+    // The account stream polls on its own cadence, so the only thing a retry can
+    // do is (re)start that stream, show the loading state again, and ask the hub.
+    connect(this, &BaseWidget::refresh_requested, this, [this]() {
+        if (broker_id_.isEmpty() || account_id_.isEmpty())
+            return;
+        ensure_stream_running();
+        if (table_->rowCount() == 0)
+            set_loading(true);
+        datahub::DataHub::instance().request(
+            trading::broker_topic(broker_id_, account_id_, QStringLiteral("positions")), /*force=*/true);
+    });
 
     set_configurable(true);
     apply_styles();
@@ -90,6 +114,10 @@ void OpenPositionsWidget::hub_resubscribe() {
     if (broker_id_.isEmpty() || account_id_.isEmpty())
         return;
     const QString topic = trading::broker_topic(broker_id_, account_id_, QStringLiteral("positions"));
+    // Nothing on screen yet → show the loading state, so a disconnected account
+    // ends in "No data yet" (BaseWidget watchdog) instead of a silent blank grid.
+    if (table_->rowCount() == 0)
+        set_loading(true);
     hub.subscribe(this, topic, [this](const QVariant& v) {
         if (!v.canConvert<QVector<trading::BrokerPosition>>())
             return;
@@ -119,39 +147,59 @@ void OpenPositionsWidget::hideEvent(QHideEvent* e) {
 }
 
 void OpenPositionsWidget::populate(const QVector<trading::BrokerPosition>& rows) {
+    // Cell items are reused between publishes (setText & co. skip unchanged
+    // values) instead of allocating 5 per row per publish. Switching between the
+    // empty-state message and data rows starts from clean cells, so no cell
+    // keeps the other mode's alignment / colour / data.
+    const bool want_empty = rows.isEmpty();
+    if (want_empty != showing_empty_) {
+        table_->clearContents();
+        showing_empty_ = want_empty;
+    }
+    auto cell = [this](int row, int col) {
+        QTableWidgetItem* item = table_->item(row, col);
+        if (!item) {
+            item = new QTableWidgetItem;
+            table_->setItem(row, col, item);
+        }
+        return item;
+    };
+
     // Empty state — a flat account previously rendered an empty grid with no
     // explanation, which reads the same as a failed load.
     table_->clearSpans();
-    if (rows.isEmpty()) {
+    if (want_empty) {
         table_->setRowCount(1);
-        auto* msg = new QTableWidgetItem(tr("No open positions"));
+        auto* msg = cell(0, 0);
+        msg->setText(tr("No open positions"));
         msg->setTextAlignment(Qt::AlignCenter);
         msg->setForeground(QColor(ui::colors::TEXT_TERTIARY()));
-        table_->setItem(0, 0, msg);
         table_->setSpan(0, 0, 1, table_->columnCount());
         set_loading(false);
         return;
     }
 
     table_->setRowCount(static_cast<int>(rows.size()));
+    const QColor pos_color(ui::colors::POSITIVE());
+    const QColor neg_color(ui::colors::NEGATIVE());
     for (int i = 0; i < rows.size(); ++i) {
         const auto& p = rows[i];
-        auto* sym = new QTableWidgetItem(p.symbol);
-        auto* qty = new QTableWidgetItem(QString::number(p.quantity, 'f', 0));
-        auto* avg = new QTableWidgetItem(QString::number(p.avg_price, 'f', 2));
-        auto* ltp = new QTableWidgetItem(QString::number(p.ltp, 'f', 2));
-        auto* pnl = new QTableWidgetItem(QString("%1%2").arg(p.pnl >= 0 ? "+" : "").arg(p.pnl, 0, 'f', 2));
-        const QColor pnl_color(p.pnl >= 0 ? ui::colors::POSITIVE() : ui::colors::NEGATIVE());
-        pnl->setForeground(pnl_color);
+        auto* sym = cell(i, 0);
+        sym->setText(p.symbol);
+        sym->setData(Qt::UserRole, p.exchange);
+        auto* qty = cell(i, 1);
+        qty->setText(QString::number(p.quantity, 'f', 0));
         qty->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        auto* avg = cell(i, 2);
+        avg->setText(QString::number(p.avg_price, 'f', 2));
         avg->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        auto* ltp = cell(i, 3);
+        ltp->setText(QString::number(p.ltp, 'f', 2));
         ltp->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        auto* pnl = cell(i, 4);
+        pnl->setText(QString("%1%2").arg(p.pnl >= 0 ? "+" : "").arg(p.pnl, 0, 'f', 2));
+        pnl->setForeground(p.pnl >= 0 ? pos_color : neg_color);
         pnl->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        table_->setItem(i, 0, sym);
-        table_->setItem(i, 1, qty);
-        table_->setItem(i, 2, avg);
-        table_->setItem(i, 3, ltp);
-        table_->setItem(i, 4, pnl);
     }
     set_loading(false);
 }

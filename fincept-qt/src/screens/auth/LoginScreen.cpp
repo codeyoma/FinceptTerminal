@@ -3,6 +3,7 @@
 #include "auth/AuthManager.h"
 #include "auth/AuthTypes.h"
 #include "ui/theme/Theme.h"
+#include "ui/widgets/EnterprisePromo.h"
 #include "ui/widgets/LanguageSwitcher.h"
 
 #include <QEvent>
@@ -199,6 +200,24 @@ LoginScreen::LoginScreen(QWidget* parent) : QWidget(parent) {
     connect(&auth, &auth::AuthManager::login_active_session, this, &LoginScreen::on_active_session);
     connect(&auth, &auth::AuthManager::mfa_verified, this, &LoginScreen::on_mfa_verified);
     connect(&auth, &auth::AuthManager::mfa_failed, this, &LoginScreen::on_mfa_failed);
+    // AuthManager can end a login attempt without emitting login_succeeded /
+    // login_failed: when the post-login profile fetch is rejected (401/403) it
+    // clears the session and only announces auth_state_changed. Without this
+    // the form would sit on "SIGNING IN..." with every control disabled.
+    connect(&auth, &auth::AuthManager::auth_state_changed, this, [this]() {
+        if (!login_btn_ || login_btn_->isEnabled())
+            return; // no sign-in in flight
+        if (auth::AuthManager::instance().is_authenticated())
+            return; // success path — on_login_succeeded() resets the form
+        set_loading(false);
+        for (auto* b : conflict_page_->findChildren<QPushButton*>())
+            b->setEnabled(true);
+        const QString msg = tr("Sign-in could not be completed. Please try again.");
+        if (pages_->currentIndex() == 2)
+            conflict_msg_->setText(msg);
+        else
+            show_error(msg);
+    });
     connect(&auth, &auth::AuthManager::logged_out, this, [this]() {
         if (email_input_)
             email_input_->clear();
@@ -422,6 +441,14 @@ void LoginScreen::build_login_page() {
     rrl->addWidget(signup_btn_);
     vl->addWidget(reg_row);
 
+    // Enterprise customers sometimes try their Enterprise login here. Point
+    // them at the right product instead of a failed sign-in. Text is set in
+    // retranslateUi().
+    auto* ent_hint = ui::enterprise::make_mention_label(page);
+    ent_hint->setObjectName("loginEnterpriseHint");
+    ent_hint->setAlignment(Qt::AlignCenter);
+    vl->addWidget(ent_hint);
+
     connect(password_input_, &QLineEdit::returnPressed, this, &LoginScreen::on_login);
     connect(email_input_, &QLineEdit::returnPressed, this, [this]() { password_input_->setFocus(); });
 
@@ -643,6 +670,11 @@ void LoginScreen::retranslateUi() {
         no_account_lbl_->setText(tr("No account?"));
     if (signup_btn_)
         signup_btn_->setText(tr("SIGN UP"));
+    if (auto* ent_hint = findChild<QLabel*>(QStringLiteral("loginEnterpriseHint")))
+        ui::enterprise::set_mention_text(
+            ent_hint, tr("Enterprise customer? Enterprise has its own sign-in and installer"),
+            tr("fincept.in/enterprise ↗"),
+            ui::enterprise::url_with_ref(ui::enterprise::site_url(), QStringLiteral("login")));
 
     if (mfa_title_)
         mfa_title_->setText(tr("TWO-FACTOR AUTH"));
@@ -670,12 +702,19 @@ void LoginScreen::retranslateUi() {
 // ── Actions ──────────────────────────────────────────────────────────────────
 
 void LoginScreen::on_login() {
+    // Enter on the email/password fields and the button all land here; ignore a
+    // second submit while the first request is still in flight.
+    if (!login_btn_->isEnabled())
+        return;
+
     QString email = email_input_->text().trimmed();
     QString password = password_input_->text();
 
+    // validate_email() returns untranslated English text, so map its two
+    // outcomes onto tr() strings here instead of showing v.error verbatim.
     auto v = auth::validate_email(email);
     if (!v.valid) {
-        show_error(v.error);
+        show_error(email.isEmpty() ? tr("Email is required") : tr("Invalid email format"));
         return;
     }
     if (password.isEmpty()) {
@@ -689,6 +728,11 @@ void LoginScreen::on_login() {
 }
 
 void LoginScreen::on_mfa_verify() {
+    // Enter on the code field fires this even while the button is disabled for
+    // an in-flight verification — don't submit the same code twice.
+    if (!mfa_verify_btn_->isEnabled())
+        return;
+
     QString code = mfa_input_->text().trimmed();
     if (code.isEmpty()) {
         mfa_error_->setText(tr("Please enter the code"));
@@ -703,6 +747,9 @@ void LoginScreen::on_mfa_verify() {
 void LoginScreen::on_force_login() {
     for (auto* b : conflict_page_->findChildren<QPushButton*>())
         b->setEnabled(false);
+    // Marks a sign-in as in flight so the auth_state_changed fallback above can
+    // release the conflict page if the attempt dies without a login_* signal.
+    set_loading(true);
     auth::AuthManager::instance().login(email_input_->text().trimmed(), password_input_->text(), true);
 }
 
@@ -730,10 +777,18 @@ void LoginScreen::on_login_failed(const QString& error) {
     set_loading(false);
     for (auto* b : conflict_page_->findChildren<QPushButton*>())
         b->setEnabled(true);
-    if (pages_->currentIndex() == 2)
+    if (pages_->currentIndex() == 2) {
+        // Keep the password: the conflict page re-submits it for a retry.
         conflict_msg_->setText(error);
-    else
+    } else {
         show_error(error);
+        // Don't leave a rejected password sitting in the field.
+        password_input_->clear();
+        password_input_->setEchoMode(QLineEdit::Password);
+        if (show_pw_btn_)
+            show_pw_btn_->setText(tr("SHOW"));
+        password_input_->setFocus();
+    }
 }
 
 void LoginScreen::on_mfa_required() {
@@ -760,6 +815,9 @@ void LoginScreen::on_mfa_failed(const QString& error) {
     mfa_verify_btn_->setEnabled(true);
     mfa_error_->setText(error);
     mfa_error_->show();
+    // A rejected one-time code is useless for a retry — clear it and refocus.
+    mfa_input_->clear();
+    mfa_input_->setFocus();
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

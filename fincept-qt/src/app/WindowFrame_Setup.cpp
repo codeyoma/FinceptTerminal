@@ -1,8 +1,7 @@
 // src/app/WindowFrame_Setup.cpp
 //
-// Initial setup helpers — auth stack, docking mode, dock screens, and the
-// (currently-stub) app/navigation hooks. Called from the WindowFrame
-// constructor in WindowFrame.cpp.
+// Initial setup helpers — auth stack, docking mode and dock-screen
+// registration. Called from the WindowFrame constructor in WindowFrame.cpp.
 //
 // Part of the partial-class split of WindowFrame.cpp.
 
@@ -20,6 +19,7 @@
 #include "core/session/SessionManager.h"
 #include "screens/about/AboutScreen.h"
 #include "screens/agent_config/AgentConfigScreen.h"
+#include "screens/agent_workbench/AgentWorkbenchScreen.h"
 #include "screens/ai_chat/AiChatScreen.h"
 #include "screens/ai_quant_lab/AIQuantLabScreen.h"
 #include "screens/akshare/AkShareScreen.h"
@@ -35,7 +35,6 @@
 #include "screens/backtesting/BacktestingScreen.h"
 #include "screens/chat_mode/ChatModeScreen.h"
 #include "screens/code_editor/CodeEditorScreen.h"
-#include "screens/common/ComingSoonScreen.h"
 #include "screens/crypto_center/CryptoCenterScreen.h"
 #include "screens/crypto_trading/CryptoTradingScreen.h"
 #include "screens/dashboard/DashboardScreen.h"
@@ -50,7 +49,6 @@
 #include "screens/excel/ExcelScreen.h"
 #include "screens/file_manager/FileManagerScreen.h"
 #include "screens/fno/FnoScreen.h"
-#include "screens/forum/ForumScreen.h"
 #include "screens/geopolitics/GeopoliticsScreen.h"
 #include "screens/gov_data/GovDataScreen.h"
 #include "screens/info/ContactScreen.h"
@@ -124,11 +122,7 @@ void WindowFrame::setup_auth_screens() {
     connect(login, &screens::LoginScreen::navigate_forgot_password, this, &WindowFrame::show_forgot_password);
     connect(reg, &screens::RegisterScreen::navigate_login, this, &WindowFrame::show_login);
     connect(forgot, &screens::ForgotPasswordScreen::navigate_login, this, &WindowFrame::show_login);
-    connect(pricing, &screens::PricingScreen::navigate_dashboard, this, [this]() {
-        set_shell_visible(true);
-        stack_->setCurrentIndex(1);
-        dock_router_->navigate("dashboard");
-    });
+    // PricingScreen::back_requested is wired in WindowFrame.cpp (leave_pricing).
 
     // ── Info screen navigation ───────────────────────────────────────────────
     // Back from info → return to previous auth screen (login by default)
@@ -233,7 +227,6 @@ void WindowFrame::setup_dock_screens() {
     dock_router_->register_factory("markets", []() { return new screens::MarketsScreen; });
     dock_router_->register_factory("crypto_trading", []() { return new screens::CryptoTradingScreen; });
     dock_router_->register_factory("news", []() { return new screens::NewsScreen; });
-    dock_router_->register_factory("forum", []() { return new screens::ForumScreen; });
     dock_router_->register_factory("watchlist", []() { return new screens::WatchlistScreen; });
 
     // Lazily constructed on first navigation — deferred to avoid startup cost.
@@ -272,6 +265,7 @@ void WindowFrame::setup_dock_screens() {
     dock_router_->register_factory("maritime", []() { return new screens::MaritimeScreen; });
     dock_router_->register_factory("surface_analytics", []() { return new fincept::surface::SurfaceAnalyticsScreen; });
     dock_router_->register_factory("agent_config", []() { return new screens::AgentConfigScreen; });
+    dock_router_->register_factory("agent_workbench", []() { return new screens::AgentWorkbenchScreen; });
     dock_router_->register_factory("mcp_servers", []() { return new screens::McpServersScreen; });
     dock_router_->register_factory("data_mapping", []() { return new screens::DataMappingScreen; });
     dock_router_->register_factory("data_sources", []() { return new screens::DataSourcesScreen; });
@@ -294,13 +288,13 @@ void WindowFrame::setup_dock_screens() {
     dock_router_->register_factory("trade_viz", []() { return new screens::TradeVizScreen; });
     dock_router_->register_factory("docs", []() { return new screens::DocsScreen; });
 
-    // Info/legal pages. Static content, but "static" is not "free": setup_auth_screens()
-    // above already builds one of each for info_stack_, so register_screen() here made
-    // a SECOND instance of all five per window, none of them visible at startup.
-    // HelpScreen::build_page() alone is ~110-130 widgets each carrying an inline
-    // setStyleSheet — roughly 1,100 widgets and 1,100 CSS parses per window, paid on
-    // the cold-start path. Factories make the dock copies cost nothing until the user
-    // actually opens the panel; the auth-stack copies stay the only eager instances.
+    // Info/legal pages. setup_auth_screens() above already builds one of each for
+    // info_stack_, so an eager register_screen() here would create a SECOND instance
+    // of all five per window, none of them visible at startup. The info screens now
+    // build their page content on first show (e.g. HelpScreen::showEvent), so an
+    // unshown copy is only a shell — but it is still a pointless one per window.
+    // Factories construct the dock copy only when the user actually opens the panel;
+    // the auth-stack copies stay the only eager instances.
     dock_router_->register_factory("contact", []() { return new screens::ContactScreen; });
     dock_router_->register_factory("terms", []() { return new screens::TermsScreen; });
     dock_router_->register_factory("privacy", []() { return new screens::PrivacyScreen; });

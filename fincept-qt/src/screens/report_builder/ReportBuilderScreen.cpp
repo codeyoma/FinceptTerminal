@@ -42,6 +42,7 @@
 #include <QPrintPreviewDialog>
 #include <QPrinter>
 #include <QPushButton>
+#include <QScopedValueRollback>
 #include <QShortcut>
 #include <QTextDocument>
 #include <QTextFrame>
@@ -120,10 +121,12 @@ ReportBuilderScreen::ReportBuilderScreen(QWidget* parent) : QWidget(parent) {
     connect(comp_toolbar_, &ComponentToolbar::move_down, this, &ReportBuilderScreen::move_down_at);
 
     // ── Properties panel wiring ───────────────────────────────────────────
-    connect(properties_, &PropertiesPanel::content_changed, this, [](int idx, const QString& content) {
+    connect(properties_, &PropertiesPanel::content_changed, this, [this](int idx, const QString& content) {
         const auto comps = Service::instance().components();
         if (idx < 0 || idx >= comps.size())
             return;
+        // The edit came FROM the panel — keep its widgets (see props_editing_).
+        QScopedValueRollback<bool> editing(props_editing_, true);
         Service::instance().update_component(comps[idx].id, content, comps[idx].config);
     });
 
@@ -194,6 +197,8 @@ ReportBuilderScreen::ReportBuilderScreen(QWidget* parent) : QWidget(parent) {
                                     } else {
                                         if (!info.name.isEmpty())
                                             lines << "Company: " + info.name;
+                                        if (!info.currency.isEmpty())
+                                            lines << "Currency: " + info.currency;
                                         if (!info.sector.isEmpty())
                                             lines << "Sector: " + info.sector;
                                         if (!info.industry.isEmpty())
@@ -217,6 +222,9 @@ ReportBuilderScreen::ReportBuilderScreen(QWidget* parent) : QWidget(parent) {
                                             lines << "Current Ratio: " + fmt_dbl(info.current_ratio);
                                         if (info.eps != 0)
                                             lines << "Rev/Share: " + fmt_dbl(info.eps);
+                                        // Fundamentals go stale too — date the block.
+                                        lines << "As of: " +
+                                                     QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm t");
                                     }
                                     auto cfg = comps2[idx2].config;
                                     cfg["data"] = lines.join("\n");
@@ -269,6 +277,8 @@ ReportBuilderScreen::ReportBuilderScreen(QWidget* parent) : QWidget(parent) {
                         auto cfg2 = comps2[idx2].config;
                         cfg2["data"] = pts.join(",");
                         cfg2["labels"] = lbls.join(",");
+                        cfg2.remove("sample"); // real data now
+                        cfg2["as_of"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm t");
                         if (cfg2.value("title").isEmpty() || cfg2.value("title") == "Chart")
                             cfg2["title"] = sym + " (6mo)";
                         s.update_component(comp_id, comps2[idx2].content, cfg2);
@@ -291,58 +301,22 @@ ReportBuilderScreen::ReportBuilderScreen(QWidget* parent) : QWidget(parent) {
                     return;
                 }
 
-                // ── market_data: hub-driven quote fetch ───────────────────
+                // ── market_data: fresh, time-stamped quote ────────────────
                 if (comp_type == "market_data" && key == "status" && val == "loading") {
-                    auto cfg = comps[idx].config;
-                    QString sym = cfg.value("symbol", "");
-                    if (sym.isEmpty())
-                        return;
-                    cfg["status"] = "loading";
-                    svc.update_component(comp_id, comps[idx].content, cfg);
-
-                    const QString topic = QStringLiteral("market:quote:") + sym;
-                    auto& hub = fincept::datahub::DataHub::instance();
-                    QPointer<ReportBuilderScreen> self = this;
-
-                    auto apply = [self, comp_id](const fincept::services::QuoteData& q) {
-                        if (!self)
-                            return;
-                        auto& s = Service::instance();
-                        int idx2 = s.index_of(comp_id);
-                        if (idx2 < 0)
-                            return;
-                        auto comps2 = s.components();
-                        auto cfg2 = comps2[idx2].config;
-                        cfg2["price"] = QString::number(q.price, 'f', 2);
-                        cfg2["change"] = QString::number(q.change, 'f', 2);
-                        cfg2["change_pct"] = QString::number(q.change_pct, 'f', 2);
-                        cfg2["name"] = q.name;
-                        cfg2["high"] = q.high > 0 ? QString::number(q.high, 'f', 2) : "";
-                        cfg2["low"] = q.low > 0 ? QString::number(q.low, 'f', 2) : "";
-                        cfg2["volume"] = q.volume > 0 ? QString::number(q.volume, 'f', 0) : "";
-                        cfg2["status"] = "ok";
-                        s.update_component(comp_id, comps2[idx2].content, cfg2);
-                    };
-
-                    QVariant cached = hub.peek(topic);
-                    if (cached.isValid() && cached.canConvert<fincept::services::QuoteData>()) {
-                        apply(cached.value<fincept::services::QuoteData>());
-                        return;
-                    }
-                    hub.subscribe<fincept::services::QuoteData>(
-                        this, topic, [self, topic, apply](const fincept::services::QuoteData& q) {
-                            if (!self)
-                                return;
-                            apply(q);
-                            fincept::datahub::DataHub::instance().unsubscribe(self, topic);
-                        });
-                    hub.request(topic, /*force=*/true);
+                    const QString sym = comps[idx].config.value("symbol", "");
+                    if (!sym.isEmpty())
+                        fetch_quote(sym);
                     return;
                 }
 
-                // Generic single-key config patch.
+                // Generic single-key config patch. The panel's own editor already shows
+                // this value, so don't rebuild the panel around it (see props_editing_).
                 QMap<QString, QString> patch;
                 patch[key] = val;
+                // Editing a template chart's numbers makes them the user's own data.
+                if (comp_type == "chart" && (key == "data" || key == "labels"))
+                    patch["sample"] = "";
+                QScopedValueRollback<bool> editing(props_editing_, true);
                 svc.patch_component(comp_id, nullptr, patch);
             });
 
@@ -457,9 +431,17 @@ QWidget* ReportBuilderScreen::build_toolbar() {
     save_btn_ = make_btn(tr("Save"));
     connect(save_btn_, &QPushButton::clicked, this, &ReportBuilderScreen::on_save);
 
+    refresh_data_btn_ = make_btn(tr("Refresh Data"));
+    refresh_data_btn_->setToolTip(tr("Fetch fresh quotes for every market-data block (stamped with the time)"));
+    connect(refresh_data_btn_, &QPushButton::clicked, this, &ReportBuilderScreen::refresh_live_data);
+
     pdf_btn_ = make_btn(tr("Export PDF"));
     pdf_btn_->setStyleSheet(QString("QPushButton { color: %1; font-weight: bold; }").arg(ui::colors::AMBER()));
     connect(pdf_btn_, &QPushButton::clicked, this, &ReportBuilderScreen::on_export_pdf);
+
+    html_btn_ = make_btn(tr("Export HTML"));
+    html_btn_->setToolTip(tr("Self-contained web page: charts and images embedded"));
+    connect(html_btn_, &QPushButton::clicked, this, &ReportBuilderScreen::on_export_html);
 
     preview_btn_ = make_btn(tr("Preview"));
     connect(preview_btn_, &QPushButton::clicked, this, &ReportBuilderScreen::on_preview);
@@ -538,6 +520,14 @@ void ReportBuilderScreen::retranslateUi() {
         save_btn_->setText(tr("Save"));
     if (pdf_btn_)
         pdf_btn_->setText(tr("Export PDF"));
+    if (html_btn_) {
+        html_btn_->setText(tr("Export HTML"));
+        html_btn_->setToolTip(tr("Self-contained web page: charts and images embedded"));
+    }
+    if (refresh_data_btn_) {
+        refresh_data_btn_->setText(tr("Refresh Data"));
+        refresh_data_btn_->setToolTip(tr("Fetch fresh quotes for every market-data block (stamped with the time)"));
+    }
     if (preview_btn_)
         preview_btn_->setText(tr("Preview"));
     // Re-apply the panel-toggle tooltips for the current collapse state.
@@ -547,6 +537,10 @@ void ReportBuilderScreen::retranslateUi() {
     if (right_toggle_btn_)
         right_toggle_btn_->setToolTip(right_collapsed_ ? tr("Expand properties panel  (Ctrl+Shift+B)")
                                                        : tr("Collapse properties panel  (Ctrl+Shift+B)"));
+    // The properties panel rebuilds itself from its cached copy of the component, which is
+    // no longer refreshed on every edit (see props_editing_) — re-sync it from the service
+    // so a language switch can't resurrect stale text.
+    rebind_from_service();
 }
 
 // ── IStatefulScreen ──────────────────────────────────────────────────────────

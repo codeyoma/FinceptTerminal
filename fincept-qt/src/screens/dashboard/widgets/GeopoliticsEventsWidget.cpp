@@ -78,8 +78,11 @@ GeopoliticsEventsWidget::GeopoliticsEventsWidget(const QJsonObject& cfg, QWidget
     scroll_area_->setWidget(list_widget);
     vl->addWidget(scroll_area_, 1);
 
-    connect(this, &BaseWidget::refresh_requested, this,
-            []() { datahub::DataHub::instance().request(QStringLiteral("geopolitics:events"), /*force=*/true); });
+    connect(this, &BaseWidget::refresh_requested, this, [this]() {
+        if (is_showing_error())
+            set_loading(true); // retry: back to the loading state
+        datahub::DataHub::instance().request(QStringLiteral("geopolitics:events"), /*force=*/true);
+    });
 
     set_configurable(true);
     apply_styles();
@@ -103,6 +106,10 @@ void GeopoliticsEventsWidget::hub_resubscribe() {
     auto& hub = datahub::DataHub::instance();
     hub.unsubscribe(this);
     hub.subscribe(this, QStringLiteral("geopolitics:events"), [this](const QVariant& v) { populate(v); });
+    hub.subscribe_errors(this, QStringLiteral("geopolitics:events"), [this](const QString& error) {
+        if (is_waiting_for_first_data())
+            set_error(tr("Geopolitics feed failed: %1 — click refresh to retry").arg(error));
+    });
 
     // Seed from cache so the widget never shows blank while waiting.
     const QVariant cached = hub.peek(QStringLiteral("geopolitics:events"));
@@ -193,6 +200,7 @@ void GeopoliticsEventsWidget::populate(const QVariant& payload) {
 
         auto* row = new QWidget(this);
         row->setStyleSheet(QString("background: %1;").arg(alt ? ui::colors::BG_RAISED() : "transparent"));
+        link_screen(row, QStringLiteral("geopolitics"), tr("Double-click to open the Geopolitics screen"));
         auto* rl = new QHBoxLayout(row);
         rl->setContentsMargins(8, 4, 8, 4);
 

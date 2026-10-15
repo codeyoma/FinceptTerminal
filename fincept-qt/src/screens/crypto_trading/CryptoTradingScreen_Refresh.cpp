@@ -17,6 +17,7 @@
 #include "screens/crypto_trading/CryptoTickerBar.h"
 #include "screens/crypto_trading/CryptoTradingScreen.h"
 #include "screens/crypto_trading/CryptoWatchlist.h"
+#include "storage/repositories/PaperTradingRepository.h"
 #include "trading/ExchangeService.h"
 #include "trading/ExchangeSession.h"
 #include "trading/ExchangeSessionManager.h"
@@ -35,12 +36,22 @@
 #include <QVBoxLayout>
 #include <QtConcurrent/QtConcurrent>
 
+#include <algorithm>
+
 namespace fincept::screens {
 
 using namespace fincept::trading;
 using namespace fincept::screens::crypto;
 
 static const QString TAG = "CryptoTrading";
+
+// Resting paper orders (pending / partial) for the blotter, filtered in SQL.
+// The blotter's set_orders() shows only these, so reading every historical
+// order every 1.5 s and dropping most of them in C++ was pure waste.
+static QVector<PtOrder> crypto_open_paper_orders(const QString& portfolio_id) {
+    auto r = PaperTradingRepository::instance().get_open_orders(portfolio_id);
+    return r.is_ok() ? r.value() : QVector<PtOrder>{};
+}
 
 void CryptoTradingScreen::apply_feed_mode(bool ws_connected) {
     // WS-only mode: no REST polling fallbacks. We keep this method as a
@@ -75,11 +86,23 @@ void CryptoTradingScreen::flush_ws_updates() {
         has_pending_orderbook_ = false;
     }
 
-    // Flush buffered candles in order (chart handles intrabar updates via timestamp match)
+    // Flush buffered candles: keep only the newest update of each bar (in
+    // arrival order) and hand them over in ONE call, so the chart re-fits its
+    // axes and recomputes every indicator overlay once per flush instead of
+    // once per WS message.
     if (!pending_candles_.isEmpty()) {
-        for (const auto& c : pending_candles_)
-            chart_->append_candle(c);
+        QVector<Candle> bars;
+        bars.reserve(pending_candles_.size());
+        for (const auto& c : pending_candles_) {
+            const auto same_bar = std::find_if(bars.rbegin(), bars.rend(),
+                                               [&c](const Candle& b) { return b.timestamp == c.timestamp; });
+            if (same_bar != bars.rend())
+                *same_bar = c;
+            else
+                bars.append(c);
+        }
         pending_candles_.clear();
+        chart_->append_candles(bars);
     }
 
     // Flush buffered trade entries — one loop instead of one invokeMethod per trade
@@ -131,7 +154,17 @@ void CryptoTradingScreen::flush_ws_updates() {
                     };
                     Result r;
                     try {
-                        const int orders_before = pt_get_orders(pid, "open").size();
+                        // Resting paper orders are stored with status "pending"/"partial"
+                        // (never "open"), and a resting order that fills drops out of that
+                        // set. SL/TP triggers close positions without touching orders, so
+                        // also watch the newest trade id — either change means a fill.
+                        const auto resting_orders = [&pid]() { return crypto_open_paper_orders(pid).size(); };
+                        const auto newest_trade_id = [&pid]() {
+                            const auto t = pt_get_trades(pid, 1);
+                            return t.isEmpty() ? QString() : t.first().id;
+                        };
+                        const auto orders_before = resting_orders();
+                        const QString trade_before = newest_trade_id();
                         for (const auto& ticker : batch) {
                             if (ticker.last <= 0)
                                 continue;
@@ -145,11 +178,10 @@ void CryptoTradingScreen::flush_ws_updates() {
                             OrderMatcher::instance().check_sl_tp_triggers(pid, ticker.symbol, ticker.last);
                         }
                         r.positions = pt_get_positions(pid);
-                        const int orders_after = pt_get_orders(pid, "open").size();
-                        r.fill_occurred = orders_after < orders_before;
+                        r.fill_occurred = resting_orders() != orders_before || newest_trade_id() != trade_before;
                         if (r.fill_occurred) {
                             r.portfolio = pt_get_portfolio(pid);
-                            r.orders = pt_get_orders(pid);
+                            r.orders = crypto_open_paper_orders(pid);
                             r.trades = pt_get_trades(pid, 50);
                             r.stats = pt_get_stats(pid);
                         }
@@ -275,7 +307,7 @@ void CryptoTradingScreen::refresh_portfolio() {
         try {
             s.portfolio = pt_get_portfolio(pid);
             s.positions = pt_get_positions(pid);
-            s.orders = pt_get_orders(pid);
+            s.orders = crypto_open_paper_orders(pid);
             s.trades = pt_get_trades(pid, 50);
             s.stats = pt_get_stats(pid);
             s.ok = true;
@@ -296,11 +328,13 @@ void CryptoTradingScreen::refresh_portfolio() {
                 self->bottom_panel_->set_orders(s.orders);
                 self->bottom_panel_->set_trades(s.trades);
                 self->bottom_panel_->set_stats(s.stats);
-                LOG_INFO(TAG, QString("Paper portfolio refreshed: %1 positions, %2 orders, %3 trades, balance=%4")
-                                  .arg(s.positions.size())
-                                  .arg(s.orders.size())
-                                  .arg(s.trades.size())
-                                  .arg(s.portfolio.balance, 0, 'f', 2));
+                // Runs every 1.5 s — diagnostics only (P14).
+                LOG_DEBUG(TAG, QString("Paper portfolio refreshed: %1 positions, %2 open orders, %3 trades, "
+                                       "balance=%4")
+                                   .arg(s.positions.size())
+                                   .arg(s.orders.size())
+                                   .arg(s.trades.size())
+                                   .arg(s.portfolio.balance, 0, 'f', 2));
             },
             Qt::QueuedConnection);
     });
@@ -349,6 +383,13 @@ void CryptoTradingScreen::refresh_market_info() {
                     return;
                 if (self->selected_symbol_ != symbol)
                     return; // user switched symbols — discard stale result
+                if (fr.symbol.isEmpty()) {
+                    // Daemon error / venue without funding (spot): keep the readouts at "--"
+                    // rather than publishing a fabricated 0.0000 % / $0 mark, and hide the
+                    // ribbon's mark/index chips.
+                    self->ticker_bar_->update_mark_price(0.0, 0.0);
+                    return;
+                }
                 self->market_info_cache_.funding_rate = fr.funding_rate;
                 self->market_info_cache_.mark_price = fr.mark_price;
                 self->market_info_cache_.index_price = fr.index_price;
@@ -371,6 +412,8 @@ void CryptoTradingScreen::refresh_market_info() {
                     return;
                 if (self->selected_symbol_ != symbol)
                     return; // user switched symbols — discard stale result
+                if (oi.symbol.isEmpty())
+                    return; // daemon error / unsupported — leave "--" instead of a fake $0 OI
                 self->market_info_cache_.open_interest = oi.open_interest;
                 self->market_info_cache_.open_interest_value = oi.open_interest_value;
                 self->market_info_cache_.has_data = true;

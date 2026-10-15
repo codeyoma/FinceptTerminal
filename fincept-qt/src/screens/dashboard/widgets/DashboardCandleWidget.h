@@ -26,6 +26,8 @@ class CandleCanvas : public QWidget {
         dirty_ = true;
         update();
     }
+    /// Drop the cached pixmap so the next paint re-reads the theme tokens.
+    void refresh_theme();
 
   protected:
     void paintEvent(QPaintEvent*) override;
@@ -61,6 +63,7 @@ class DashboardCandleWidget : public BaseWidget {
 
   protected:
     QDialog* make_config_dialog(QWidget* parent) override;
+    void on_theme_changed() override;
     void showEvent(QShowEvent* e) override;
     void hideEvent(QHideEvent* e) override;
     void retranslateUi() override;

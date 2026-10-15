@@ -5,7 +5,9 @@
 #include "trading/AccountManager.h"
 #include "trading/BrokerTopic.h"
 #include "trading/DataStreamManager.h"
+#include "trading/OrderThreadPool.h"
 #include "trading/UnifiedTrading.h"
+#include "screens/dashboard/widgets/DashboardFormat.h"
 #include "ui/theme/Theme.h"
 
 #include <QComboBox>
@@ -75,7 +77,32 @@ BrokerHoldingsWidget::BrokerHoldingsWidget(const QJsonObject& cfg, QWidget* pare
     table_->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
     table_->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
     table_->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeToContents);
+    table_->setToolTip(tr("Double-click a holding to open it in Equity Trading"));
     vl->addWidget(table_, 1);
+
+    // Row → symbol link (selection only — it never places an order). The
+    // exchange rides on the SYMBOL cell; the "No holdings" placeholder row
+    // carries none and is ignored.
+    connect(table_, &QTableWidget::cellDoubleClicked, this, [this](int row, int /*col*/) {
+        auto* it = table_->item(row, 0);
+        if (it && it->data(Qt::UserRole).isValid())
+            open_symbol(it->text(), QStringLiteral("equity_trading"), QStringLiteral("equity"),
+                        it->data(Qt::UserRole).toString());
+    });
+
+    // Title-bar refresh = "retry". It used to be wired to nothing, so the 20 s
+    // "No data yet - click refresh to retry" prompt pointed at a dead button.
+    // The account stream polls on its own cadence, so the only thing a retry can
+    // do is (re)start that stream, show the loading state again, and ask the hub.
+    connect(this, &BaseWidget::refresh_requested, this, [this]() {
+        if (broker_id_.isEmpty() || account_id_.isEmpty())
+            return;
+        ensure_stream_running();
+        if (table_->rowCount() == 0)
+            set_loading(true);
+        datahub::DataHub::instance().request(
+            trading::broker_topic(broker_id_, account_id_, QStringLiteral("holdings")), /*force=*/true);
+    });
 
     set_configurable(true);
     apply_styles();
@@ -126,6 +153,8 @@ void BrokerHoldingsWidget::hub_resubscribe() {
     if (broker_id_.isEmpty() || account_id_.isEmpty())
         return;
     const QString topic = trading::broker_topic(broker_id_, account_id_, QStringLiteral("holdings"));
+    if (table_->rowCount() == 0)
+        set_loading(true); // see OpenPositionsWidget::hub_resubscribe
     hub.subscribe(this, topic, [this](const QVariant& v) {
         if (!v.canConvert<QVector<trading::BrokerHolding>>())
             return;
@@ -178,9 +207,13 @@ void BrokerHoldingsWidget::populate(const QVector<trading::BrokerHolding>& rows)
     for (int i = 0; i < rows.size(); ++i) {
         const auto& h = rows[i];
         auto* sym = new QTableWidgetItem(h.symbol);
-        auto* qty = new QTableWidgetItem(QString::number(h.quantity, 'f', 0));
-        auto* avg = new QTableWidgetItem(QString::number(h.avg_price, 'f', 2));
-        auto* ltp = new QTableWidgetItem(QString::number(h.ltp, 'f', 2));
+        sym->setData(Qt::UserRole, h.exchange);
+        // Fractional holdings (Alpaca / IBKR fractional shares, crypto) used to
+        // print 0.5 as "0" / "1" — and the Exit confirmation said the same.
+        auto* qty = new QTableWidgetItem(dash_fmt::quantity(h.quantity));
+        auto* avg = new QTableWidgetItem(dash_fmt::grouped(h.avg_price, dash_fmt::price_decimals(h.avg_price)));
+        auto* ltp = new QTableWidgetItem(h.ltp > 0 ? dash_fmt::grouped(h.ltp, dash_fmt::price_decimals(h.ltp))
+                                                   : QStringLiteral("--"));
         auto* pnl_pct = new QTableWidgetItem(QString("%1%2%").arg(h.pnl_pct >= 0 ? "+" : "").arg(h.pnl_pct, 0, 'f', 2));
         const QColor col(h.pnl_pct >= 0 ? ui::colors::POSITIVE() : ui::colors::NEGATIVE());
         pnl_pct->setForeground(col);
@@ -248,7 +281,7 @@ void BrokerHoldingsWidget::square_off_holding(const trading::BrokerHolding& h) {
 
     const auto answer = QMessageBox::warning(
         this, tr("Square Off Holding"),
-        tr("Place a MARKET SELL order for %1 %2 (CNC)?").arg(QString::number(h.quantity, 'f', 0), h.symbol),
+        tr("Place a MARKET SELL order for %1 %2 (CNC)?").arg(dash_fmt::quantity(h.quantity), h.symbol),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     if (answer != QMessageBox::Yes)
         return;
@@ -259,7 +292,7 @@ void BrokerHoldingsWidget::square_off_holding(const trading::BrokerHolding& h) {
     const QString account = account_id_;
     const QString sym = h.symbol;
     QPointer<BrokerHoldingsWidget> self = this;
-    (void)QtConcurrent::run([self, account, order, sym]() {
+    (void)QtConcurrent::run(&trading::order_thread_pool(), [self, account, order, sym]() {
         const auto resp = trading::UnifiedTrading::instance().place_order(account, order);
         if (!self)
             return;
@@ -317,7 +350,7 @@ void BrokerHoldingsWidget::square_off_all() {
 
     const QString account = account_id_;
     QPointer<BrokerHoldingsWidget> self = this;
-    (void)QtConcurrent::run([self, account, jobs]() {
+    (void)QtConcurrent::run(&trading::order_thread_pool(), [self, account, jobs]() {
         int placed = 0;
         QStringList failures;
         for (const auto& j : jobs) {

@@ -13,9 +13,31 @@
 #include "storage/repositories/NotesRepository.h"
 
 #include <QCoreApplication>
+#include <QRegularExpression>
 #include <QVariantMap>
 
+#include <algorithm>
+
 namespace fincept::mcp::tools {
+
+namespace notes_tools_detail {
+
+// The Notes screen stores and matches these as exact upper-case codes; a model that
+// sends "bullish" or "Trade Idea" produced notes the editor could not show.
+QString normalized_code(const QString& raw, const QStringList& allowed, const QString& fallback, QString* error,
+                        const char* field) {
+    QString v = raw.trimmed().toUpper();
+    v.replace(QLatin1Char(' '), QLatin1Char('_'));
+    if (v.isEmpty())
+        return fallback;
+    if (!allowed.contains(v)) {
+        *error = QString("Invalid %1 '%2' — use one of: %3").arg(QLatin1String(field), raw, allowed.join(", "));
+        return {};
+    }
+    return v;
+}
+
+} // namespace notes_tools_detail
 
 std::vector<ToolDef> get_notes_tools() {
     std::vector<ToolDef> tools;
@@ -26,6 +48,7 @@ std::vector<ToolDef> get_notes_tools() {
         t.name = "create_note";
         t.description = "Create a research note with optional category, priority, tickers, and sentiment.";
         t.category = "notes";
+        t.is_destructive = true; // persistent write (the Security page lists notes among the gated tools)
         t.input_schema.properties = QJsonObject{
             {"title", QJsonObject{{"type", "string"}, {"description", "Note title"}}},
             {"content", QJsonObject{{"type", "string"}, {"description", "Note content (markdown)"}}},
@@ -43,14 +66,23 @@ std::vector<ToolDef> get_notes_tools() {
             if (title.isEmpty())
                 return ToolResult::fail("Missing 'title'");
 
+            QString bad;
             FinancialNote note;
             note.title = title;
             note.content = args["content"].toString();
-            note.category = args["category"].toString("GENERAL");
-            note.priority = args["priority"].toString("MEDIUM");
-            note.tickers = args["tickers"].toString();
-            note.sentiment = args["sentiment"].toString("NEUTRAL");
-            note.tags = args["tags"].toString();
+            note.category = notes_tools_detail::normalized_code(
+                args["category"].toString(),
+                {"RESEARCH", "TRADE_IDEA", "MARKET_ANALYSIS", "EARNINGS", "ECONOMIC", "PORTFOLIO", "GENERAL"},
+                "GENERAL", &bad, "category");
+            note.priority = notes_tools_detail::normalized_code(args["priority"].toString(), {"HIGH", "MEDIUM", "LOW"},
+                                                                "MEDIUM", &bad, "priority");
+            note.sentiment = notes_tools_detail::normalized_code(
+                args["sentiment"].toString(), {"BULLISH", "BEARISH", "NEUTRAL"}, "NEUTRAL", &bad, "sentiment");
+            if (!bad.isEmpty())
+                return ToolResult::fail(bad);
+            note.tickers = args["tickers"].toString().trimmed().toUpper();
+            note.tags = args["tags"].toString().trimmed();
+            note.word_count = static_cast<int>(note.content.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts).size());
 
             qint64 new_id = -1;
             QString error;
@@ -76,13 +108,20 @@ std::vector<ToolDef> get_notes_tools() {
     {
         ToolDef t;
         t.name = "get_notes";
-        t.description = "Get all research notes, optionally filtered by search query.";
+        t.description = "List research notes (metadata only — use get_note for a note's content), optionally "
+                        "filtered by a search query. Results are capped by `limit`.";
         t.category = "notes";
-        t.input_schema.properties =
-            QJsonObject{{"query", QJsonObject{{"type", "string"}, {"description", "Search query (optional)"}}}};
+        t.input_schema.properties = QJsonObject{
+            {"query", QJsonObject{{"type", "string"}, {"description", "Search query (optional)"}}},
+            {"limit", QJsonObject{{"type", "integer"},
+                                  {"description", "Max notes to return (default 50, max 200)"},
+                                  {"minimum", 1},
+                                  {"maximum", 200}}}};
         t.handler = [](const QJsonObject& args) -> ToolResult {
             QString query = args["query"].toString().trimmed();
+            const int limit = std::clamp(args["limit"].toInt(50), 1, 200);
             QJsonArray arr;
+            int total = 0;
             QString error;
             detail::run_async_wait(QCoreApplication::instance(), [&](auto signal_done) {
                 auto r = query.isEmpty() ? NotesRepository::instance().list_all()
@@ -92,7 +131,10 @@ std::vector<ToolDef> get_notes_tools() {
                     signal_done();
                     return;
                 }
+                total = static_cast<int>(r.value().size());
                 for (const auto& n : r.value()) {
+                    if (arr.size() >= limit)
+                        break;
                     arr.append(QJsonObject{{"id", n.id},
                                            {"title", n.title},
                                            {"category", n.category},
@@ -107,7 +149,69 @@ std::vector<ToolDef> get_notes_tools() {
             });
             if (!error.isEmpty())
                 return ToolResult::fail(error);
+            // Say so when the list was clipped — a 50-item array read as "all my notes" would
+            // be silently wrong (§M4).
+            if (total > arr.size())
+                return ToolResult::ok(QStringLiteral("Showing %1 of %2 notes — pass `query` to narrow the list or "
+                                                     "raise `limit` (max 200).")
+                                          .arg(arr.size())
+                                          .arg(total),
+                                      arr);
             return ToolResult::ok_data(arr);
+        };
+        tools.push_back(std::move(t));
+    }
+
+    // ── get_note ────────────────────────────────────────────────────────
+    // get_notes returns metadata only, so until now the assistant could create and list
+    // notes but never READ one back. NotesRepository::get() already existed.
+    {
+        ToolDef t;
+        t.name = "get_note";
+        t.description = "Read one research note by ID, including its full content (markdown). Use get_notes to "
+                        "find IDs. Long notes are cut at `max_chars` and flagged `truncated`.";
+        t.category = "notes";
+        t.input_schema.properties = QJsonObject{
+            {"id", QJsonObject{{"type", "integer"}, {"description", "Note ID (from get_notes)"}}},
+            {"max_chars", QJsonObject{{"type", "integer"},
+                                      {"description", "Max content characters to return (default 8000, max 50000)"},
+                                      {"minimum", 100},
+                                      {"maximum", 50000}}}};
+        t.input_schema.required = {"id"};
+        t.handler = [](const QJsonObject& args) -> ToolResult {
+            const int id = args["id"].toInt(-1);
+            if (id < 0)
+                return ToolResult::fail("Missing or invalid 'id'");
+            const int max_chars = std::clamp(args["max_chars"].toInt(8000), 100, 50000);
+
+            QJsonObject note;
+            QString error;
+            detail::run_async_wait(QCoreApplication::instance(), [&](auto signal_done) {
+                auto r = NotesRepository::instance().get(id);
+                if (r.is_err()) {
+                    error = "Note not found: " + QString::number(id);
+                } else {
+                    const auto& n = r.value();
+                    const bool truncated = n.content.size() > max_chars;
+                    note = QJsonObject{{"id", n.id},
+                                       {"title", n.title},
+                                       {"category", n.category},
+                                       {"priority", n.priority},
+                                       {"tickers", n.tickers},
+                                       {"tags", n.tags},
+                                       {"sentiment", n.sentiment},
+                                       {"is_favorite", n.is_favorite},
+                                       {"created_at", n.created_at},
+                                       {"updated_at", n.updated_at},
+                                       {"content", n.content.left(max_chars)},
+                                       {"content_chars", static_cast<int>(n.content.size())},
+                                       {"truncated", truncated}};
+                }
+                signal_done();
+            });
+            if (!error.isEmpty())
+                return ToolResult::fail(error);
+            return ToolResult::ok_data(note);
         };
         tools.push_back(std::move(t));
     }
@@ -129,6 +233,13 @@ std::vector<ToolDef> get_notes_tools() {
 
             QString error;
             detail::run_async_wait(QCoreApplication::instance(), [&](auto signal_done) {
+                // DELETE of a missing id succeeds with 0 rows — check first so a wrong id
+                // is reported instead of "Note deleted".
+                if (NotesRepository::instance().get(id).is_err()) {
+                    error = "Note not found: " + QString::number(id);
+                    signal_done();
+                    return;
+                }
                 auto r = NotesRepository::instance().remove(id);
                 if (r.is_err())
                     error = "Failed to delete note: " + QString::fromStdString(r.error());

@@ -27,6 +27,7 @@
 #include "trading/BrokerRegistry.h"
 #include "trading/DataStreamManager.h"
 #include "trading/OrderMatcher.h"
+#include "trading/OrderThreadPool.h"
 #include "trading/PaperTrading.h"
 #include "trading/instruments/InstrumentNormalize.h"
 #include "trading/instruments/InstrumentService.h"
@@ -118,7 +119,7 @@ void EquityTradingScreen::on_account_changed(const QString& account_id) {
     mode_btn_->style()->unpolish(mode_btn_);
     mode_btn_->style()->polish(mode_btn_);
     order_entry_->set_mode(!is_live);
-    bottom_panel_->set_mode(!is_live);
+    sync_native_paper(); // blotter source: broker rows for LIVE + native paper, paper-engine rows otherwise
 
     exchange_label_->setText(selected_exchange_);
     symbol_input_->setText(selected_symbol_);
@@ -174,14 +175,15 @@ void EquityTradingScreen::on_account_changed(const QString& account_id) {
     // set_account_id). For a live account whose stream was already running, force
     // an immediate portfolio refetch so it refills with THIS account's positions/
     // holdings/orders right away instead of staying blank until the 5-min poll.
-    if (has_creds && is_live && stream_existed)
+    if (has_creds && (is_live || focused_native_paper_) && stream_existed)
         dsm.refresh_portfolio(account_id);
 
     // Each account's order book opens on today's session.
     orders_view_day_ = QDate::currentDate();
 
-    // Load paper portfolio orders into matcher
-    if (!account.paper_portfolio_id.isEmpty() && account.trading_mode == "paper") {
+    // Load paper portfolio orders into matcher (local simulator only — a native-paper
+    // account's orders live at the broker)
+    if (!account.paper_portfolio_id.isEmpty() && account.trading_mode == "paper" && !focused_native_paper_) {
         auto pending = pt_get_orders(account.paper_portfolio_id, "pending");
         for (const auto& o : pending) {
             if (o.order_type != "market")
@@ -312,25 +314,35 @@ void EquityTradingScreen::on_mode_toggled() {
     mode_btn_->style()->unpolish(mode_btn_);
     mode_btn_->style()->polish(mode_btn_);
     order_entry_->set_mode(!is_live);
-    bottom_panel_->set_mode(!is_live);
 
     // Update per-account trading mode
     AccountManager::instance().set_trading_mode(focused_account_id_, is_live ? "live" : "paper");
+    sync_native_paper(); // reads the mode just stored; also switches the blotter's data source
 
-    // Re-point hub subscriptions at the new mode: paper drops the live broker
+    // Re-point hub subscriptions at the new mode: local paper drops the live broker
     // positions/holdings/orders/balance topics so live data can't leak in.
     if (isVisible())
         hub_subscribe_streaming();
 
-    if (!is_live) {
+    if (!is_live && !focused_native_paper_) {
         refresh_paper_panels(); // positions/orders/trades/stats/funds from the paper engine
     } else {
-        // Switching to live: set_mode() just cleared the shared blotter and the
-        // stream is already running (so it won't re-fetch on its own). Force an
-        // immediate refresh so live positions/holdings/orders appear now instead
-        // of leaving the blotter blank until the 5-min poll.
+        // Switching to live (or to a native broker paper venue): set_mode() just
+        // cleared the shared blotter and the stream is already running (so it won't
+        // re-fetch on its own). Force an immediate refresh so broker
+        // positions/holdings/orders appear now instead of leaving the blotter blank
+        // until the 5-min poll.
         DataStreamManager::instance().refresh_portfolio(focused_account_id_);
     }
+}
+
+void EquityTradingScreen::sync_native_paper() {
+    const auto account = AccountManager::instance().get_account(focused_account_id_);
+    const bool is_live = (account.trading_mode == "live");
+    focused_native_paper_ = !is_live && UnifiedTrading::instance().uses_native_paper(focused_account_id_);
+    // The blotter renders paper-engine rows only for the LOCAL simulator; LIVE and native
+    // paper both feed it broker rows. (No-op when unchanged, so this is cheap to repeat.)
+    bottom_panel_->set_mode(!is_live && !focused_native_paper_);
 }
 
 void EquityTradingScreen::handle_token_expired(const QString& account_id) {
@@ -383,6 +395,21 @@ void EquityTradingScreen::on_accounts_clicked() {
             update_connection_status();
             return;
         }
+        // New credentials can flip the focused account between the local simulator and a
+        // broker paper venue (e.g. live keys replaced by paper keys): re-derive, re-point
+        // the hub topics and reload the matching data when that happened.
+        if (account_id == focused_account_id_) {
+            const bool was_native = focused_native_paper_;
+            sync_native_paper();
+            if (was_native != focused_native_paper_) {
+                if (isVisible())
+                    hub_subscribe_streaming();
+                if (focused_native_paper_)
+                    DataStreamManager::instance().refresh_portfolio(account_id);
+                else
+                    refresh_paper_panels();
+            }
+        }
         // Start/restart the stream with new credentials
         DataStreamManager::instance().start_stream(account_id);
         auto* stream = DataStreamManager::instance().stream_for(account_id);
@@ -410,7 +437,9 @@ void EquityTradingScreen::on_order_submitted(const UnifiedOrder& order) {
 
     auto account = AccountManager::instance().get_account(focused_account_id_);
 
-    if (account.trading_mode == "paper") {
+    // PAPER mode runs on the local simulator below, unless the broker has a verified native
+    // paper venue (focused_native_paper_) — then it takes the broker route like a LIVE order.
+    if (account.trading_mode == "paper" && !focused_native_paper_) {
         const QString portfolio_id = account.paper_portfolio_id;
         if (portfolio_id.isEmpty()) {
             order_entry_->show_order_status(tr("No paper portfolio for this account"), false);
@@ -482,38 +511,55 @@ void EquityTradingScreen::on_order_submitted(const UnifiedOrder& order) {
         // Refresh paper portfolio (positions/holdings/orders/funds/stats).
         refresh_paper_panels();
     } else {
-        // Route to live broker via account-aware UnifiedTrading
+        // Route to the broker via account-aware UnifiedTrading (LIVE, or PAPER on a native
+        // broker paper venue — UnifiedTrading re-verifies that before sending).
         // Safety: capture account_id by value at click time (immutable per order lifecycle)
         const QString acct_id = focused_account_id_;
 
-        // Semi-Auto pre-gate: confirm inline before sending. Manual orders are
-        // synchronous (the trader is present), so approval is an inline modal —
-        // no pending-queue round-trip. On confirm we place immediately, exactly
-        // like Auto mode. (Headless paths — AI/workflow/broadcast — still queue
-        // via ActionCenter and surface in the status-bar popover.)
-        if (ActionCenter::instance().should_queue(acct_id, "placeorder")) {
-            const auto acct_meta = AccountManager::instance().get_account(acct_id);
-            const QString acct_label = acct_meta.display_name.isEmpty() ? acct_id : acct_meta.display_name;
+        // Pre-send confirmation. Manual orders are synchronous (the trader is
+        // present), so approval is an inline modal — no pending-queue round-trip.
+        //   • LIVE accounts: ALWAYS confirm, unless the user explicitly opted this
+        //     account into one-click trading (Accounts dialog; off by default).
+        //   • Semi-Auto accounts (any mode): always confirm — one-click never
+        //     overrides an approval requirement the user turned on.
+        //   • PAPER (incl. a broker paper venue) in Auto mode: unchanged, no dialog.
+        // Headless paths (AI / workflow / broadcast) still queue via ActionCenter.
+        const bool semi_auto = ActionCenter::instance().should_queue(acct_id, "placeorder");
+        const bool is_live = (account.trading_mode == QLatin1String("live"));
+        const bool one_click = is_live && ActionCenter::instance().one_click_enabled(acct_id);
+        if (semi_auto || (is_live && !one_click)) {
+            const QString acct_label = account.display_name.isEmpty() ? acct_id : account.display_name;
             if (!OrderConfirmDialog::confirm(this, order, acct_label, current_price_, acct_id)) {
                 order_entry_->show_order_status(tr("Order cancelled"), false);
                 return;
             }
+        } else if (one_click) {
+            LOG_INFO(TAG, QString("One-click LIVE order (no confirmation, opted in for %1): %2 %3 x%4")
+                              .arg(account.display_name, order.side == OrderSide::Buy ? "BUY" : "SELL", order.symbol)
+                              .arg(order.quantity));
         }
 
         QPointer<EquityTradingScreen> self = this;
         auto order_copy = order;
-        (void)QtConcurrent::run([self, acct_id, order_copy]() {
+        // Dedicated order executor — never queued behind the shared global pool.
+        (void)QtConcurrent::run(&order_thread_pool(), [self, acct_id, order_copy]() {
             if (!self)
                 return;
             auto result = UnifiedTrading::instance().place_order(acct_id, order_copy);
             QMetaObject::invokeMethod(
                 self,
-                [self, result]() {
+                [self, acct_id, result]() {
                     if (!self)
                         return;
                     if (result.success) {
                         LOG_INFO(TAG, QString("Order placed: %1").arg(result.order_id));
                         self->order_entry_->show_order_status(self->tr("Order placed: %1").arg(result.order_id), true);
+                        // A native-paper blotter lives at the broker and otherwise only
+                        // refreshes on the 5-min poll — pull it now (async, stream-owned).
+                        // The response's own mode tag says whether THIS order went to a
+                        // broker paper venue, whatever account is focused by now.
+                        if (result.mode == QLatin1String("paper"))
+                            DataStreamManager::instance().refresh_portfolio(acct_id);
                     } else {
                         LOG_ERROR(TAG, QString("Order failed: %1").arg(result.message));
                         self->order_entry_->show_order_status(result.message, false);
@@ -599,7 +645,7 @@ void EquityTradingScreen::on_multi_broker_submit(const trading::UnifiedOrder& or
 
     QPointer<EquityTradingScreen> self = this;
     auto order_copy = order;
-    (void)QtConcurrent::run([self, immediate, order_copy, queued]() {
+    (void)QtConcurrent::run(&order_thread_pool(), [self, immediate, order_copy, queued]() {
         const auto results = trading::UnifiedTrading::instance().broadcast_order(immediate, order_copy);
         QMetaObject::invokeMethod(
             self,
@@ -724,7 +770,7 @@ void EquityTradingScreen::open_chart_order_ticket(bool is_buy, double price) {
 void EquityTradingScreen::on_cancel_order(const QString& order_id) {
     auto account = AccountManager::instance().get_account(focused_account_id_);
 
-    if (account.trading_mode == "paper") {
+    if (account.trading_mode == "paper" && !focused_native_paper_) {
         try {
             pt_cancel_order(order_id);
             OrderMatcher::instance().remove_order(order_id);
@@ -735,11 +781,23 @@ void EquityTradingScreen::on_cancel_order(const QString& order_id) {
         refresh_paper_panels();
     } else {
         const QString acct_id = focused_account_id_;
+        const bool native_paper = focused_native_paper_;
         QPointer<EquityTradingScreen> self = this;
-        (void)QtConcurrent::run([self, acct_id, order_id]() {
+        (void)QtConcurrent::run(&order_thread_pool(), [self, acct_id, order_id, native_paper]() {
             if (!self)
                 return;
             UnifiedTrading::instance().cancel_order(acct_id, order_id);
+            // A native-paper blotter lives at the broker — pull it now instead of waiting
+            // for the 5-min poll (async, stream-owned).
+            if (native_paper) {
+                QMetaObject::invokeMethod(
+                    self,
+                    [self, acct_id]() {
+                        if (self)
+                            DataStreamManager::instance().refresh_portfolio(acct_id);
+                    },
+                    Qt::QueuedConnection);
+            }
         });
     }
 }
@@ -761,7 +819,7 @@ void EquityTradingScreen::refresh_candles() {
 void EquityTradingScreen::async_modify_order(const QString& order_id, double qty, double price) {
     const QString acct_id = focused_account_id_;
     QPointer<EquityTradingScreen> self = this;
-    (void)QtConcurrent::run([self, acct_id, order_id, qty, price]() {
+    (void)QtConcurrent::run(&order_thread_pool(), [self, acct_id, order_id, qty, price]() {
         if (!self)
             return;
         QJsonObject mods;
@@ -806,9 +864,19 @@ void EquityTradingScreen::refresh_paper_panels() {
     auto account = AccountManager::instance().get_account(focused_account_id_);
     // Keep the per-tick quote handler's cached context fresh — this also fires on
     // paper order events, where the portfolio id may have just been assigned.
-    focused_is_paper_ = account.trading_mode == "paper";
-    focused_paper_portfolio_id_ = focused_is_paper_ ? account.paper_portfolio_id : QString();
-    if (account.trading_mode != "paper" || account.paper_portfolio_id.isEmpty())
+    const bool local_paper = account.trading_mode == "paper" && !focused_native_paper_;
+    focused_is_paper_ = local_paper;
+    focused_paper_portfolio_id_ = local_paper ? account.paper_portfolio_id : QString();
+    if (account.trading_mode == "paper" && focused_native_paper_) {
+        // Native paper: the data is the broker's, delivered over the hub. Callers land here
+        // after something changed (a close, a cancel, a basket…), so pull a fresh snapshot
+        // now rather than waiting for the 5-min poll — async and stream-owned, never a
+        // blocking REST call on the GUI thread.
+        if (!focused_account_id_.isEmpty())
+            DataStreamManager::instance().refresh_portfolio(focused_account_id_);
+        return;
+    }
+    if (!local_paper || account.paper_portfolio_id.isEmpty())
         return; // live data flows from AccountDataStream via the hub
     // Persist any buffered tick prices first so the positions/funds snapshot below
     // reflects the latest LTP at this refresh/order moment, not a coalesce window ago.
@@ -932,7 +1000,7 @@ void EquityTradingScreen::on_convert_position(const QString& position_id, const 
     if (focused_account_id_.isEmpty() || position_id.isEmpty())
         return;
     auto account = AccountManager::instance().get_account(focused_account_id_);
-    if (account.trading_mode != "paper" || account.paper_portfolio_id.isEmpty()) {
+    if (account.trading_mode != "paper" || focused_native_paper_ || account.paper_portfolio_id.isEmpty()) {
         order_entry_->show_order_status(tr("Product conversion is available for paper accounts"), false);
         return;
     }
@@ -956,7 +1024,9 @@ void EquityTradingScreen::on_convert_position(const QString& position_id, const 
 void EquityTradingScreen::on_orders_day_changed(const QDate& day) {
     orders_view_day_ = day;
     auto account = AccountManager::instance().get_account(focused_account_id_);
-    if (account.trading_mode == "paper" && !account.paper_portfolio_id.isEmpty())
+    // The day filter belongs to the local paper order book; native-paper orders are the
+    // broker's own list (hub feed), unaffected by it.
+    if (account.trading_mode == "paper" && !focused_native_paper_ && !account.paper_portfolio_id.isEmpty())
         bottom_panel_->set_paper_orders(pt_get_orders_for_day(account.paper_portfolio_id, day));
 }
 
@@ -972,7 +1042,10 @@ void EquityTradingScreen::on_square_off_group(const QString& account_id, int sig
         QString product;
     };
     QVector<Target> targets;
-    if (account.trading_mode == "paper" && !account.paper_portfolio_id.isEmpty()) {
+    // Local simulator positions, unless this account's PAPER mode is a broker paper venue
+    // (then the positions are the broker's, cached in live_positions_ like LIVE).
+    const bool native_paper = (account_id == focused_account_id_ && focused_native_paper_);
+    if (account.trading_mode == "paper" && !native_paper && !account.paper_portfolio_id.isEmpty()) {
         for (const auto& p : pt_get_positions(account.paper_portfolio_id)) {
             if (product_is_delivery(p.product))
                 continue; // CNC lives in Holdings — not squared by the positions buttons
@@ -994,7 +1067,7 @@ void EquityTradingScreen::on_square_off_group(const QString& account_id, int sig
     // Close each in a single background worker (sequential) to avoid a thread storm.
     const QString acct_id = account_id;
     QPointer<EquityTradingScreen> self = this;
-    (void)QtConcurrent::run([self, acct_id, targets]() {
+    (void)QtConcurrent::run(&order_thread_pool(), [self, acct_id, targets]() {
         if (!self)
             return;
         for (const auto& t : targets)
@@ -1185,7 +1258,7 @@ void EquityTradingScreen::on_chart_exit_position(const QString& symbol, const QS
 
     const QString acct_id = focused_account_id_;
     QPointer<EquityTradingScreen> self = this;
-    (void)QtConcurrent::run([self, acct_id, symbol, exchange, product_type]() {
+    (void)QtConcurrent::run(&order_thread_pool(), [self, acct_id, symbol, exchange, product_type]() {
         if (!self)
             return;
         auto result = UnifiedTrading::instance().close_position(acct_id, symbol, exchange, product_type);
@@ -1209,7 +1282,7 @@ void EquityTradingScreen::on_cancel_all_orders() {
     }
     const QString acct_id = focused_account_id_;
     QPointer<EquityTradingScreen> self = this;
-    (void)QtConcurrent::run([self, acct_id]() {
+    (void)QtConcurrent::run(&order_thread_pool(), [self, acct_id]() {
         if (!self)
             return;
         auto result = UnifiedTrading::instance().cancel_all_orders(acct_id);
@@ -1251,7 +1324,7 @@ void EquityTradingScreen::on_close_all_positions() {
         QString product;
     };
     QVector<Target> targets;
-    if (account.trading_mode == "paper" && !account.paper_portfolio_id.isEmpty()) {
+    if (account.trading_mode == "paper" && !focused_native_paper_ && !account.paper_portfolio_id.isEmpty()) {
         for (const auto& p : pt_get_positions(account.paper_portfolio_id)) {
             if (p.quantity == 0.0 || product_is_delivery(p.product))
                 continue; // CNC/delivery -> Holdings, not squared here
@@ -1270,7 +1343,7 @@ void EquityTradingScreen::on_close_all_positions() {
 
     const QString acct_id = focused_account_id_;
     QPointer<EquityTradingScreen> self = this;
-    (void)QtConcurrent::run([self, acct_id, targets]() {
+    (void)QtConcurrent::run(&order_thread_pool(), [self, acct_id, targets]() {
         if (!self)
             return;
         int ok = 0, fail = 0;
@@ -1322,7 +1395,7 @@ void EquityTradingScreen::on_square_off_all_holdings(const QVector<trading::Brok
 
     const QString acct_id = focused_account_id_;
     QPointer<EquityTradingScreen> self = this;
-    (void)QtConcurrent::run([self, acct_id, targets]() {
+    (void)QtConcurrent::run(&order_thread_pool(), [self, acct_id, targets]() {
         if (!self)
             return;
         int ok = 0, fail = 0;
@@ -1361,7 +1434,7 @@ void EquityTradingScreen::on_square_off_holding(const QString& symbol, const QSt
 
     const QString acct_id = focused_account_id_;
     QPointer<EquityTradingScreen> self = this;
-    (void)QtConcurrent::run([self, acct_id, symbol, exchange]() {
+    (void)QtConcurrent::run(&order_thread_pool(), [self, acct_id, symbol, exchange]() {
         if (!self)
             return;
         auto r = UnifiedTrading::instance().close_position(acct_id, symbol, exchange, QStringLiteral("CNC"));
@@ -1394,7 +1467,12 @@ void EquityTradingScreen::on_strategy_submitted(const trading::BasketOrderReques
 
     // Semi-Auto gate (headless entry): a strategy/basket is placed in one shot
     // with no per-leg prompt, so queue it for approval in the status-bar popover
-    // rather than confirming inline. Auto mode falls straight through.
+    // rather than confirming inline. Auto mode falls straight through — but a
+    // LIVE account always gets a read-back of every leg first (T1).
+    if (!ActionCenter::instance().should_queue(acct_id, "basketorder") && !confirm_live_basket(acct_id, basket)) {
+        order_entry_->show_order_status(tr("Strategy cancelled — nothing was sent"), false);
+        return;
+    }
     if (ActionCenter::instance().should_queue(acct_id, "basketorder")) {
         const QString pending_id =
             ActionCenter::instance().queue_order(acct_id, "basketorder", ActionCenter::serialize_basket_order(basket));
@@ -1406,22 +1484,117 @@ void EquityTradingScreen::on_strategy_submitted(const trading::BasketOrderReques
     }
 
     QPointer<EquityTradingScreen> self = this;
+    const QString strategy_name = basket.strategy_name;
     // place_basket_orders runs async on its own worker and delivers the result
     // back on the caller's thread; marshal to the UI thread defensively.
-    UnifiedTrading::instance().place_basket_orders(acct_id, basket, [self](const trading::BasketOrderResult& result) {
+    UnifiedTrading::instance().place_basket_orders(
+        acct_id, basket, [self, acct_id, strategy_name](const trading::BasketOrderResult& result) {
+            if (!self)
+                return;
+            QMetaObject::invokeMethod(
+                self,
+                [self, acct_id, strategy_name, result]() {
+                    if (!self)
+                        return;
+                    self->order_entry_->show_order_status(
+                        self->tr("Strategy: %1/%2 legs placed%3")
+                            .arg(result.successful)
+                            .arg(result.total)
+                            .arg(result.failed > 0 ? self->tr(", %1 failed").arg(result.failed) : QString()),
+                        result.failed == 0);
+                    self->refresh_paper_panels();
+                    // Partial fill of a multi-leg strategy = unhedged exposure.
+                    if (result.failed > 0 && result.successful > 0)
+                        self->offer_basket_unwind(acct_id, strategy_name, result);
+                },
+                Qt::QueuedConnection);
+        });
+}
+
+bool EquityTradingScreen::confirm_live_basket(const QString& account_id, const trading::BasketOrderRequest& basket) {
+    const auto account = AccountManager::instance().get_account(account_id);
+    if (account.trading_mode != QLatin1String("live"))
+        return true; // paper: unchanged behaviour
+    QStringList legs;
+    for (const auto& o : basket.orders) {
+        legs << QString("  %1  %2 × %3  %4  %5")
+                    .arg(QString::fromLatin1(order_side_str(o.side)).toUpper())
+                    .arg(o.quantity, 0, 'f', 0)
+                    .arg(o.symbol, o.exchange, QString::fromLatin1(product_to_broker_str(o.product_type)))
+                    .arg(o.order_type == OrderType::Market ? tr("MARKET") : QString::number(o.price, 'f', 2));
+    }
+    const QString name = basket.strategy_name.isEmpty() ? tr("Strategy") : basket.strategy_name;
+    const QString body = tr("LIVE ORDER — real money.\n\n%1 on %2:\n\n%3\n\n"
+                            "The legs are sent one after another — this is NOT atomic. If a leg is rejected, the "
+                            "legs already sent stay open and you will be offered an unwind.")
+                             .arg(name, account.display_name.isEmpty() ? account_id : account.display_name,
+                                  legs.join(QLatin1Char('\n')));
+    QMessageBox box(this);
+    box.setWindowTitle(tr("Confirm Strategy"));
+    box.setIcon(QMessageBox::Warning);
+    box.setText(body);
+    auto* send = box.addButton(tr("Send %1 legs").arg(basket.orders.size()), QMessageBox::AcceptRole);
+    auto* cancel = box.addButton(QMessageBox::Cancel);
+    box.setDefaultButton(cancel); // Enter never sends a live strategy
+    box.exec();
+    return box.clickedButton() == send;
+}
+
+void EquityTradingScreen::offer_basket_unwind(const QString& account_id, const QString& strategy_name,
+                                              const trading::BasketOrderResult& result) {
+    QStringList lines;
+    for (const auto& r : result.results) {
+        lines << (r.success ? tr("  ✓ %1 %2 — placed (order %3)").arg(r.symbol, r.exchange, r.order_id)
+                            : tr("  ✗ %1 %2 — FAILED: %3").arg(r.symbol, r.exchange, r.error));
+    }
+    QMessageBox box(this);
+    box.setWindowTitle(tr("Strategy Partially Placed"));
+    box.setIcon(QMessageBox::Critical);
+    box.setText(tr("%1: only %2 of %3 legs were placed. The placed legs are now UNHEDGED.\n\n%4\n\n"
+                   "Unwind cancels any unfilled remainder of the placed legs and closes what filled with "
+                   "opposite MARKET orders (same product). Fills are read from the broker's order book; a leg "
+                   "whose fill cannot be verified is reported, never guessed.")
+                    .arg(strategy_name.isEmpty() ? tr("Strategy") : strategy_name)
+                    .arg(result.successful)
+                    .arg(result.total)
+                    .arg(lines.join(QLatin1Char('\n'))));
+    auto* unwind = box.addButton(tr("Unwind placed legs"), QMessageBox::DestructiveRole);
+    auto* keep = box.addButton(tr("Keep positions"), QMessageBox::RejectRole);
+    box.setDefaultButton(keep);
+    box.exec();
+    if (box.clickedButton() != unwind)
+        return;
+
+    order_entry_->show_order_status(tr("Unwinding %1 placed leg(s)…").arg(result.successful), true);
+    QPointer<EquityTradingScreen> self = this;
+    const QVector<trading::BasketOrderResult::OrderResult> legs = result.results;
+    (void)QtConcurrent::run(&order_thread_pool(), [self, account_id, legs]() {
+        const auto out = UnifiedTrading::instance().unwind_basket_legs(account_id, legs);
         if (!self)
             return;
         QMetaObject::invokeMethod(
             self,
-            [self, result]() {
+            [self, out]() {
                 if (!self)
                     return;
+                int ok = 0;
+                QStringList report;
+                for (const auto& u : out) {
+                    if (u.ok)
+                        ++ok;
+                    report << (u.ok ? tr("  ✓ %1 — %2").arg(u.symbol, u.action)
+                                    : tr("  ✗ %1 — %2%3")
+                                          .arg(u.symbol, u.error,
+                                               u.action.isEmpty() ? QString() : QStringLiteral(" (") + u.action + ")"));
+                }
+                const bool all_ok = (ok == out.size());
                 self->order_entry_->show_order_status(
-                    self->tr("Strategy: %1/%2 legs placed%3")
-                        .arg(result.successful)
-                        .arg(result.total)
-                        .arg(result.failed > 0 ? self->tr(", %1 failed").arg(result.failed) : QString()),
-                    result.failed == 0);
+                    tr("Unwind: %1/%2 legs done").arg(ok).arg(out.size()), all_ok);
+                QMessageBox::information(self, tr("Unwind Report"),
+                                         (all_ok ? tr("All placed legs were unwound.\n\n")
+                                                 : tr("Some legs could NOT be unwound — check them in the broker's "
+                                                      "terminal now.\n\n")) +
+                                             report.join(QLatin1Char('\n')));
                 self->refresh_paper_panels();
             },
             Qt::QueuedConnection);

@@ -1,6 +1,17 @@
 > [!IMPORTANT]
-> **Zwei Editionen.** **[Enterprise](https://fincept.in/enterprise)** ist der private, quelloffen nicht verfügbare Build für Fonds und Research-Desks — 41 Module, private Daten, Live-Broker-Routing, SSO, ab **99 $/Nutzer/Monat**. **Dieses Repo** ist die kostenlose AGPL-3.0-Edition für Lernzwecke und akademische Nutzung, mit einem Release pro Monat.
-> [Vergleich](https://fincept.in/comparison) · [Preise](https://fincept.in/pricing)
+> ## 🔒 Fincept Terminal **Enterprise** — die private Edition ist jetzt verfügbar.
+> Echtzeitdaten · Multi-Agenten-KI-Research · Live-Broker-, Backtest- & Algo-Ausführung · Priorisierter Support ·
+> Aktienresearch · Portfoliomanagement · Finanz-Workflows · Quant Research Lab · Maritim · Geopolitik
+>
+> | Plan | Preis |
+> |:--|:--:|
+> | **Exclusive** | **15 $** /Nutzer/Mon. |
+> | **Exclusive+** | **30 $** /Nutzer/Mon. |
+> | **Exclusive Pro** ⭐ Am beliebtesten | **45 $** /Nutzer/Mon. |
+>
+> [![Enterprise holen →](https://img.shields.io/badge/Enterprise_holen_%E2%86%92-C06524?style=for-the-badge)](https://fincept.in/enterprise/signup) &nbsp; [![Pläne vergleichen](https://img.shields.io/badge/Pl%C3%A4ne_vergleichen-1F2328?style=for-the-badge)](https://fincept.in/pricing)
+>
+> <sub>Keine Jahresbindung, jederzeit kündbar · Dieses Open-Source-Repo bleibt kostenlos unter AGPL-3.0</sub>
 
 # Fincept Terminal
 
@@ -34,10 +45,10 @@ Nutzen Sie den offenen Build, wenn Sie Studierende, Hobbyist oder akademisch tä
 | | Open Source | **Enterprise** |
 |---|---|---|
 | **Lizenz** | AGPL-3.0 — starkes Copyleft | Proprietär — keine Copyleft-Pflichten |
-| **Kosten** | Kostenlos, plus eigene Daten- und LLM-Rechnungen | 99 $ / 199 $ / 299 $ pro Nutzer/Monat |
+| **Kosten** | Kostenlos, plus eigene Daten- und LLM-Rechnungen | **15 $ / 30 $ / 45 $** pro Nutzer/Monat |
 | **Daten** | Kostenlose öffentliche Feeds, eigene API-Schlüssel | Private Datensätze, längere Historie, Point-in-Time |
 | **KI** | Eigener LLM-Schlüssel | 400–5.000 Credits inklusive · Multi-Agenten-Research · privater Datenraum |
-| **Handel** | Papierhandel + Broker-Anbindungen | Live-Broker-Routing + Live-Algo-Deployment |
+| **Handel** | Papier- + Live-Handel über Ihren Broker | Verwaltetes Live-Routing, Ausführungsanalysen, priorisiertes SLA |
 | **Kontrollen** | — | SSO/SAML, Audit-Logs, RBAC, SLA-gestützter Support |
 
 [**Enterprise ansehen →**](https://fincept.in/enterprise) · [Vollständiger Vergleich](https://fincept.in/comparison) · [Preise](https://fincept.in/pricing) · [FAQ](https://fincept.in/faq)
@@ -48,14 +59,14 @@ Nutzen Sie den offenen Build, wenn Sie Studierende, Hobbyist oder akademisch tä
 
 41 Module über sechs Desks — Agentic Research, Quant Lab und Backtesting, Deep Fundamental Research, Markets and Execution, Macro and Global Intelligence sowie Ihr eigener Workspace. Alles dokumentiert in einem [700-seitigen Handbuch](https://fincept.in/manual).
 
-| | **Exclusive** | **Exclusive+** ★ | **Exclusive Pro** |
+| | **Exclusive** | **Exclusive+** | **Exclusive Pro** ★ |
 |---|---|---|---|
-| | **99 $**/Nutzer/Monat | **199 $**/Nutzer/Monat | **299 $**/Nutzer/Monat |
+| | **15 $**/Nutzer/Monat | **30 $**/Nutzer/Monat | **45 $**/Nutzer/Monat |
 | KI-Credits / Monat | 400 | 2.000 | 5.000 |
 | Deep Research + Agenten-Teams | — | ✓ | ✓ |
 | Live-Broker-Handel + Algo | — | — | ✓ |
 
-Monatliche Abrechnung, keine Bindung, kein Platz-Minimum, 15 % Rabatt bei quartalsweiser Zahlung — **1.188–3.588 $ pro Nutzer und Jahr**, gegenüber rund 27.000 $ für einen Bloomberg-Platz. **Hochschulen:** 5 Exclusive-Pro-Plätze für **699 $/Monat**. Diese Pläne sind die vollständige Preisliste: keine Verhandlungspreise, keine separate kommerzielle Lizenz.
+Monatliche Abrechnung, keine Jahresbindung, kein Platz-Minimum — **180–540 $ pro Nutzer und Jahr**, gegenüber rund 27.000 $ für einen Bloomberg-Platz. Quartals- und Hochschulkonditionen stehen auf der [Preisseite](https://fincept.in/pricing). Es gibt keine Verhandlungspreise und keine separate kommerzielle Lizenz.
 
 Enterprise benötigt ein eigenes Konto — kostenlose Fincept-Logins funktionieren dort nicht.
 
@@ -105,7 +116,7 @@ Neue Datenkonnektoren, KI-Agenten, Analysemodule, C++-Screens und Dokumentation 
 ## Ebenfalls von Fincept
 
 - **[Fincept Data API](https://docs.fincept.in)** — über 500 REST-Endpunkte, mehr als 423.000 Instrumente, über 2.000 Quellen. Kostenlose Stufe zu jedem Konto.
-- **[Quantcept](https://quantcept.io)** — quelloffenes, KI-gestütztes Finanz-Terminal für die Kommandozeile (Apache-2.0).
+- **[Quantcept](https://quantcept.io)** — KI-Research-Desk für Märkte: Primärdaten, Backtests, Portfolios, Dokumente und 24/7-Monitore. Kostenlos starten; Alpha 14 $ / Apex 24 $ pro 30 Tage.
 
 ---
 

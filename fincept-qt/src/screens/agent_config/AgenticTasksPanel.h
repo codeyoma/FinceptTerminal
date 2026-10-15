@@ -1,7 +1,7 @@
 // src/screens/agent_config/AgenticTasksPanel.h
 //
 // AGENTIC view — durable, long-running tasks with per-step progress.
-// Visible only when Settings > Developer > "Enable Agentic Mode" is on.
+// Visible while Settings > Developer > "Enable Agentic Mode" is on (the default).
 //
 // Subscribes to AgentService::task_event for live updates; on show, requests
 // list_tasks() to populate the list. Provides Pause/Resume/Cancel/Delete
@@ -22,6 +22,7 @@ class QListWidgetItem;
 class QPlainTextEdit;
 class QProgressBar;
 class QPushButton;
+class QTimer;
 
 namespace fincept::screens {
 
@@ -44,6 +45,7 @@ class AgenticTasksPanel : public QWidget {
     void on_delete_clicked();
     void on_reply_clicked();
     void on_schedule_clicked();
+    void on_schedules_clicked();
     void on_libraries_clicked();
 
   private:
@@ -55,6 +57,9 @@ class AgenticTasksPanel : public QWidget {
     void render_budget(const QJsonObject& budget);
     void render_question(const QString& question);
     void clear_question();
+    /// Rate-limited refresh_list(): task events arrive in bursts and every list
+    /// refresh spawns a Python process. Defers while the tab is hidden.
+    void request_refresh();
     static QString status_color_for(const QString& status);
 
     /// Re-apply tr() lookups to every widget whose text we keep a handle to.
@@ -76,6 +81,7 @@ class AgenticTasksPanel : public QWidget {
     QPushButton* cancel_btn_ = nullptr;
     QPushButton* delete_btn_ = nullptr;
     QPushButton* schedule_btn_ = nullptr;
+    QPushButton* schedules_btn_ = nullptr;
     QPushButton* libraries_btn_ = nullptr;
 
     // Budget meter (per-task, updated from task_event.budget snapshot).
@@ -97,7 +103,10 @@ class AgenticTasksPanel : public QWidget {
     QPushButton* reply_btn_ = nullptr;
 
     QString selected_task_id_;
+    QJsonObject selected_task_config_; // stored agent config of the selected task (no secrets)
     bool first_show_ = true;
+    bool stale_ = false;                 // events arrived while hidden — refresh on next show
+    QTimer* refresh_throttle_ = nullptr; // single-shot, armed by request_refresh()
 };
 
 } // namespace fincept::screens

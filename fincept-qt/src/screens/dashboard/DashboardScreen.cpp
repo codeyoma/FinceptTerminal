@@ -1,5 +1,6 @@
 #include "screens/dashboard/DashboardScreen.h"
 
+#include "core/events/EventBus.h"
 #include "core/logging/Logger.h"
 #include "datahub/DataHub.h"
 #include "datahub/DataHubMetaTypes.h"
@@ -13,12 +14,17 @@
 #include "storage/repositories/SettingsRepository.h"
 #include "ui/theme/Theme.h"
 #include "ui/theme/ThemeManager.h"
+#include "ui/widgets/EnterprisePromo.h"
 #include "ui/widgets/NotifToast.h"
 
 #include <QDataStream>
 #include <QJsonDocument>
 #include <QEvent>
+#include <QFrame>
+#include <QHBoxLayout>
 #include <QHideEvent>
+#include <QLabel>
+#include <QPushButton>
 #include <QKeySequence>
 #include <QPalette>
 #include <QPointer>
@@ -64,6 +70,17 @@ DashboardScreen::DashboardScreen(QWidget* parent) : QWidget(parent) {
     vl->addWidget(ticker_bar_);
     // When user saves a new symbol list, re-fetch quotes immediately.
     connect(ticker_bar_, &TickerBar::symbols_changed, this, &DashboardScreen::refresh_ticker);
+    // Double-click a symbol in the strip → open it in Equity Research.
+    connect(ticker_bar_, &TickerBar::symbol_activated, this, [](const QString& sym) {
+        EventBus::instance().publish("nav.open_symbol",
+                                     QVariantMap{{"screen_id", "equity_research"}, {"symbol", sym}});
+    });
+
+    // ── Enterprise strip (dismissible until the next release) ──
+    if (!ui::enterprise::placement_dismissed(QStringLiteral("dashboard"))) {
+        ent_strip_ = build_enterprise_strip();
+        vl->addWidget(ent_strip_);
+    }
 
     // ── Main Content: Canvas (in scroll) + Market Pulse ──
     content_split_ = new QSplitter(Qt::Horizontal);
@@ -131,11 +148,13 @@ DashboardScreen::DashboardScreen(QWidget* parent) : QWidget(parent) {
         pulse_visible_ = !pulse_visible_;
         market_pulse_->setVisible(pulse_visible_);
     };
+    // open() (window-modal, no nested event loop) + delete-on-close instead of
+    // exec(): the selection arrives through the dialog's signal anyway.
     auto open_add_widget = [this]() {
         auto* dlg = new AddWidgetDialog(this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
         connect(dlg, &AddWidgetDialog::widget_selected, canvas_, &DashboardCanvas::add_widget);
-        dlg->exec();
-        dlg->deleteLater();
+        dlg->open();
     };
 
     connect(toolbar_, &DashboardToolBar::toggle_pulse_clicked, this, toggle_pulse);
@@ -144,14 +163,14 @@ DashboardScreen::DashboardScreen(QWidget* parent) : QWidget(parent) {
 
     connect(toolbar_, &DashboardToolBar::reset_layout_clicked, this, [this]() {
         auto* dlg = new TemplatePicker(this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
         connect(dlg, &TemplatePicker::template_selected, this, [this](const QString& tid) {
-            // Clear saved state so fresh template is used
-            (void)QtConcurrent::run(
-                []() { fincept::SettingsRepository::instance().remove("dashboard_canvas_layout"); });
-            canvas_->apply_template(tid);
+            // apply_template() emits layout_changed, and the debounced save
+            // then overwrites the stored layout with the template — the old
+            // fire-and-forget remove() here raced that save on the thread pool.
+            canvas_->apply_template(tid, DashboardCanvas::TileBuild::Progressive);
         });
-        dlg->exec();
-        dlg->deleteLater();
+        dlg->open();
     });
 
     connect(toolbar_, &DashboardToolBar::save_layout_clicked, this, &DashboardScreen::save_layout);
@@ -159,7 +178,10 @@ DashboardScreen::DashboardScreen(QWidget* parent) : QWidget(parent) {
     connect(toolbar_, &DashboardToolBar::refresh_clicked, this, &DashboardScreen::on_refresh_clicked);
 
     connect(toolbar_, &DashboardToolBar::toggle_compact_clicked, this, [this]() {
-        compact_rows_ = !compact_rows_;
+        // Derive the current mode from the canvas, not from a flag that starts
+        // false: a restored layout can already be compact (row_h is persisted),
+        // and the first click then did nothing visible (40 -> 40).
+        compact_rows_ = canvas_->current_layout().row_h > 40;
         canvas_->set_row_height(compact_rows_ ? 40 : 60);
     });
 
@@ -175,10 +197,12 @@ DashboardScreen::DashboardScreen(QWidget* parent) : QWidget(parent) {
         sc->setContext(Qt::WindowShortcut);
         connect(sc, &QShortcut::activated, this, handler);
     };
-    add_shortcut(QKeySequence(Qt::Key_F5), [this]() { on_refresh_clicked(); });
+    // No local F5 / Ctrl+P: those are the global Refresh and Screenshot actions in
+    // the same window, and two window-scoped shortcuts on one key are ambiguous to
+    // Qt, so neither fired. F5 still refreshes the dashboard — the frame's Refresh
+    // action invokes the focused panel's on_refresh_clicked() slot.
     add_shortcut(QKeySequence(QKeySequence::Save), [this]() { save_layout(); });
     add_shortcut(QKeySequence(Qt::CTRL | Qt::Key_N), open_add_widget);
-    add_shortcut(QKeySequence(Qt::CTRL | Qt::Key_P), toggle_pulse);
 }
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
@@ -187,7 +211,23 @@ void DashboardScreen::refresh_theme() {
     const QColor bg(ui::colors::BG_BASE());
     apply_solid_background(this, bg);
 
-    setStyleSheet(QString("background:%1;").arg(ui::colors::BG_BASE()));
+    // `*` is the blanket background this sheet always applied (a bare
+    // declaration list is parsed as `* { … }`); the #dashEntStrip rules style
+    // the Enterprise strip without per-widget sheets.
+    setStyleSheet(QString("*{background:%1;}"
+                          "QFrame#dashEntStrip{background:%2;border:none;border-bottom:1px solid %3;}"
+                          "QLabel#dashEntStripHead{background:transparent;color:%4;font-size:11px;font-weight:700;"
+                          "  letter-spacing:1px;}"
+                          "QLabel#dashEntStripText{background:transparent;color:%5;font-size:12px;}"
+                          "QPushButton#dashEntStripCta{background:transparent;color:%4;border:1px solid %6;"
+                          "  padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:0.5px;}"
+                          "QPushButton#dashEntStripCta:hover{color:%7;border-color:%4;}"
+                          "QPushButton#dashEntStripClose{background:transparent;color:%8;border:none;padding:0 6px;"
+                          "  font-size:14px;}"
+                          "QPushButton#dashEntStripClose:hover{color:%7;}")
+                      .arg(ui::colors::BG_BASE(), ui::colors::BG_SURFACE(), ui::colors::BORDER_DIM(),
+                           ui::colors::AMBER(), ui::colors::TEXT_SECONDARY(), ui::colors::AMBER_DIM(),
+                           ui::colors::TEXT_PRIMARY(), ui::colors::TEXT_DIM()));
     if (content_split_) {
         apply_solid_background(content_split_, bg);
         content_split_->setStyleSheet(
@@ -231,7 +271,7 @@ void DashboardScreen::showEvent(QShowEvent* event) {
     }
 
     // Subscribe to current ticker symbols — hub schedules refreshes per TopicPolicy.
-    hub_resubscribe_ticker();
+    hub_resubscribe_ticker(/*force_fetch=*/false);
 
     // Set splitter sizes on first show using actual pixel width.
     // Must be done here (not in constructor) because the widget has no size yet
@@ -264,6 +304,13 @@ void DashboardScreen::hideEvent(QHideEvent* event) {
 void DashboardScreen::refresh_ticker() {
     if (!ticker_bar_)
         return;
+    // TickerBar emits symbols_changed when its saved list finishes loading from
+    // the settings DB (async, started in its constructor). That can land while
+    // the dashboard is not on screen; subscribing then would leave the hub
+    // subscription alive past hideEvent(). showEvent() re-reads
+    // ticker_bar_->symbols() and subscribes, so nothing is lost by skipping.
+    if (!isVisible())
+        return;
     // Hub path: user edited symbols → drop old subs, attach to new set,
     // kick the hub so consumers see data immediately.
     //
@@ -271,7 +318,7 @@ void DashboardScreen::refresh_ticker() {
     // *previous* symbols subscribed and still scrolling after the user cleared
     // the bar. hub_resubscribe_ticker() handles the empty case correctly
     // (unsubscribe, then no-op).
-    hub_resubscribe_ticker();
+    hub_resubscribe_ticker(/*force_fetch=*/true);
 }
 
 void DashboardScreen::on_refresh_clicked() {
@@ -310,13 +357,16 @@ void DashboardScreen::rebuild_ticker_from_cache() {
         if (!ticker_cache_.contains(sym))
             continue;
         const auto& q = ticker_cache_.value(sym);
-        entries.append({q.symbol, q.price, q.change_pct}); // codeyoma/krx-quant#142: ticker change is a percentage.
+        // TickerBar renders this value with a trailing "%", so it must be the
+        // percent change — q.change is the absolute price move (e.g. +2.35 on a
+        // 190 stock showed as "+2.35%" instead of "+1.25%").
+        entries.append({q.symbol, q.price, q.change_pct});
     }
     if (!entries.isEmpty())
         ticker_bar_->set_data(entries);
 }
 
-void DashboardScreen::hub_resubscribe_ticker() {
+void DashboardScreen::hub_resubscribe_ticker(bool force_fetch) {
     if (!ticker_bar_)
         return;
 
@@ -345,11 +395,11 @@ void DashboardScreen::hub_resubscribe_ticker() {
             rebuild_ticker_from_cache();
         });
     }
-    // force=true: ticker bar re-subscribe happens on user edits and tab shows —
-    // bypass min_interval so the ticker doesn't sit blank. Subscribe's built-in
-    // cold-start fetch (task 4) already handles the cold case; force is for
-    // the "symbols changed, existing cache is for old symbols" case.
-    hub.request(topics, /*force=*/true);
+    // Force only after a user edit of the symbol list. On a plain tab show the
+    // subscribe() above already delivers fresh cached quotes and cold-starts a
+    // fetch for any stale/missing topic, so a forced request here just re-hit
+    // the upstream API on every tab flip.
+    hub.request(topics, force_fetch);
     hub_active_ = true;
 }
 
@@ -363,6 +413,12 @@ void DashboardScreen::hub_unsubscribe_ticker() {
 // ── Event filter: sync canvas width to scroll viewport ────────────────────────
 
 bool DashboardScreen::eventFilter(QObject* obj, QEvent* event) {
+    // Narrow dashboards: drop the strip's sentence rather than clip it
+    // mid-word; the heading and SEE ENTERPRISE stay. Height never changes.
+    if (ent_strip_ && obj == ent_strip_ && event->type() == QEvent::Resize && ent_strip_text_) {
+        const int needed = ent_strip_text_->sizeHint().width() + 360;
+        ent_strip_text_->setVisible(ent_strip_->width() >= needed);
+    }
     if (obj == scroll_area_->viewport() && event->type() == QEvent::Resize) {
         int vp_w = scroll_area_->viewport()->width();
         // Only update if width actually changed — avoids triggering
@@ -377,6 +433,59 @@ bool DashboardScreen::eventFilter(QObject* obj, QEvent* event) {
         }
     }
     return QWidget::eventFilter(obj, event);
+}
+
+// ── Enterprise strip ──────────────────────────────────────────────────────────
+
+QWidget* DashboardScreen::build_enterprise_strip() {
+    auto* strip = new QFrame(this);
+    strip->setObjectName("dashEntStrip");
+    strip->setFixedHeight(30);
+    auto* hl = new QHBoxLayout(strip);
+    hl->setContentsMargins(12, 0, 6, 0);
+    hl->setSpacing(10);
+
+    auto* head = new QLabel(tr("FINCEPT TERMINAL ENTERPRISE"), strip);
+    head->setObjectName("dashEntStripHead");
+    hl->addWidget(head);
+
+    ent_strip_text_ = new QLabel(tr("— the private edition for funds and research desks: private datasets, "
+                                    "multi-agent research, SSO and SLA."),
+                                 strip);
+    ent_strip_text_->setObjectName("dashEntStripText");
+    // Size hint ignored: the sentence must never impose a minimum width on the
+    // dashboard panel (ADS splits). eventFilter() hides it when it won't fit.
+    ent_strip_text_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    hl->addWidget(ent_strip_text_, 1);
+
+    auto* cta = new QPushButton(tr("SEE ENTERPRISE ↗"), strip);
+    cta->setObjectName("dashEntStripCta");
+    cta->setCursor(Qt::PointingHandCursor);
+    cta->setToolTip(ui::enterprise::site_url());
+    connect(cta, &QPushButton::clicked, this, []() {
+        ui::enterprise::open_url(
+            ui::enterprise::url_with_ref(ui::enterprise::site_url(), QStringLiteral("dashboard")));
+    });
+    hl->addWidget(cta);
+
+    auto* close = new QPushButton(QString::fromUtf8("\xc3\x97"), strip); // U+00D7 multiplication sign
+    close->setObjectName("dashEntStripClose");
+    close->setCursor(Qt::PointingHandCursor);
+    close->setToolTip(tr("Hide until the next release"));
+    close->setAccessibleName(tr("Hide the Enterprise strip"));
+    connect(close, &QPushButton::clicked, this, [this]() {
+        ui::enterprise::dismiss_placement(QStringLiteral("dashboard"));
+        if (ent_strip_) {
+            ent_strip_->hide();
+            ent_strip_->deleteLater();
+        }
+        ent_strip_ = nullptr;
+        ent_strip_text_ = nullptr;
+    });
+    hl->addWidget(close);
+
+    strip->installEventFilter(this);
+    return strip;
 }
 
 // ── Save / Restore layout via SettingsRepository ──────────────────────────────
@@ -540,14 +649,16 @@ void DashboardScreen::restore_layout() {
                     return;
                 }
 
-                self->canvas_->load_layout(layout);
+                // Tiles stream in one per event-loop turn (visible ones first)
+                // instead of blocking the UI thread for the whole dashboard.
+                self->canvas_->load_layout(layout, DashboardCanvas::TileBuild::Progressive);
             },
             Qt::QueuedConnection);
     });
 }
 
 void DashboardScreen::build_default_layout() {
-    canvas_->apply_template("portfolio_manager");
+    canvas_->apply_template("portfolio_manager", DashboardCanvas::TileBuild::Progressive);
 }
 
 } // namespace fincept::screens

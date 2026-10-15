@@ -5,6 +5,7 @@
 #include <QLineEdit>
 #include <QList>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QStackedWidget>
 #include <QTableWidget>
 #include <QVBoxLayout>
@@ -31,6 +32,10 @@ class ProfileScreen : public QWidget {
     QLabel* header_title_ = nullptr;
     QPushButton* header_refresh_btn_ = nullptr;
 
+    /// One stylesheet for the whole screen (and its dialogs), keyed by object
+    /// names and the "tone" / "active" properties. Re-run on theme change.
+    void apply_theme();
+
     /// Re-translate widgets we keep handles to, and rebuild the section
     /// widgets so tr() calls inside their build_* helpers re-run against the
     /// new translator.
@@ -51,8 +56,11 @@ class ProfileScreen : public QWidget {
     QLabel* ov_country_ = nullptr;
     QLabel* ov_verified_ = nullptr;
     QLabel* ov_mfa_ = nullptr;
+    QLabel* ov_member_since_ = nullptr;
+    QLabel* ov_last_login_ = nullptr;
     QLabel* ov_credits_big_ = nullptr;
     QLabel* ov_plan_ = nullptr;
+    QLabel* ov_credits_expire_ = nullptr;
 
     // Security
     QLabel* sec_api_key_ = nullptr;
@@ -96,7 +104,9 @@ class ProfileScreen : public QWidget {
     // Helpers
     QWidget* make_panel(const QString& title);
     QWidget* make_data_row(const QString& label, QLabel*& value_out);
-    QWidget* make_stat_box(const QString& label, QLabel*& value_out, const QString& color);
+    /// `tone` selects the value colour: "cyan", "amber", "warn" or "" (primary text).
+    QWidget* make_stat_box(const QString& label, QLabel*& value_out, const char* tone);
+    QScrollArea* make_scroll_page(QVBoxLayout*& layout_out);
 
     void show_edit_profile_dialog();
     void show_logout_confirm();

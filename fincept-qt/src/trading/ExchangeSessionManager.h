@@ -17,8 +17,12 @@
 #include <QHash>
 #include <QMutex>
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <QStringList>
+#include <QVector>
+
+class QTimer;
 
 namespace fincept::trading {
 
@@ -64,6 +68,46 @@ class ExchangeSessionManager : public QObject, public fincept::datahub::Producer
     SessionPublisher build_publisher();
 
     bool hub_registered_ = false;
+
+    // ── Fan-out batching (trades / ohlc) ────────────────────────────────────
+    // A busy pair prints hundreds of trades a second and re-emits the forming
+    // candle on every one of them. Hub latest-wins coalescing would DROP trade
+    // prints, and at a bar boundary it would drop the closing bar's final
+    // update. So the manager batches both itself, per topic, for at most
+    // kEsmBatchWindowMs:
+    //   ws:<ex>:trades:<pair>  -> ONE publish of QVector<TradeData> (arrival order)
+    //   ws:<ex>:ohlc:<pair>:<tf> -> one Candle publish per bar timestamp (last update wins)
+    // Manager thread only (enqueue_* marshal there).
+    void enqueue_trade(const QString& topic, const TradeData& td);
+    void enqueue_candle(const QString& topic, const Candle& c);
+    void arm_ws_batch_timer();
+    void flush_ws_batches();
+    QHash<QString, QVector<TradeData>> pending_trade_batches_;
+    QHash<QString, QVector<Candle>> pending_candle_batches_;
+    QTimer* ws_batch_timer_ = nullptr;
+
+    // ── DataHub-driven stream demand ───────────────────────────────────────
+    // `ws:<exchange>:ticker|trades|orderbook:<pair>` topics are push-only, so the
+    // hub never asks anyone to produce them — a dashboard tile subscribing to one
+    // would stay empty unless the Crypto Trading screen happened to be streaming
+    // that exchange. The manager watches the hub's topic_active / topic_idle
+    // signals and keeps a WS subprocess running for exactly the pairs that have a
+    // subscriber (debounced; stopped after a grace period once demand is gone).
+    void on_hub_topic_active(const QString& topic);
+    void on_hub_topic_idle(const QString& topic);
+    void schedule_hub_sync(const QString& exchange_id);
+    void sync_hub_exchange(const QString& exchange_id);
+    void heal_hub_streams();
+
+    struct HubDemand {
+        QStringList primary;  // pairs wanted for trades / orderbook (primary-only feeds)
+        QStringList watch;    // pairs wanted for ticker only
+        QSet<QString> topics; // concrete topics currently counted (guards double counting)
+    };
+    QHash<QString, HubDemand> hub_demand_; // exchange id -> demand (main thread only)
+    QSet<QString> hub_dirty_;              // exchanges awaiting a debounced sync
+    QTimer* hub_sync_timer_ = nullptr;
+    QTimer* hub_heal_timer_ = nullptr;
 
     mutable QMutex mutex_;
     // Owning pointers. Sessions are parented to `this` (the manager) so Qt

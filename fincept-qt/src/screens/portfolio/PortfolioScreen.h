@@ -67,6 +67,7 @@ class PortfolioScreen : public QWidget, public IStatefulScreen, public IGroupLin
     void on_portfolio_created(portfolio::Portfolio portfolio);
     void on_portfolio_deleted(QString id);
     void on_asset_changed(QString portfolio_id);
+    void on_market_analytics(bool ok, const QString& error);
     void on_create_requested();
     void on_delete_requested(const QString& id);
     void on_detail_view_selected(portfolio::DetailView view);
@@ -84,12 +85,16 @@ class PortfolioScreen : public QWidget, public IStatefulScreen, public IGroupLin
     QWidget* build_loading_state();
     QWidget* build_main_view();
     void update_content_state();
+    void update_loading_anim(); // run the skeleton pulse only while it is on screen
     void update_main_view_data();
     void request_refresh();
     void load_demo_portfolio();
     void reposition_order_panel();
     void animate_order_panel_in();
     const portfolio::HoldingWithQuote* find_holding(const QString& symbol) const;
+    void edit_transaction_by_id(const QString& transaction_id);
+    void delete_transaction_by_id(const QString& transaction_id);
+    void export_ledger_csv();
 
     // Sub-widgets
     PortfolioCommandBar* command_bar_ = nullptr;
@@ -124,9 +129,16 @@ class PortfolioScreen : public QWidget, public IStatefulScreen, public IGroupLin
     QVector<portfolio::PortfolioSnapshot> current_snapshots_;
     bool summary_loaded_ = false;
     bool monetary_available_ = false;
+    bool asset_refresh_queued_ = false; // coalesces bursts of asset_added/asset_sold into one refresh
     bool order_panel_visible_ = false;
     bool show_ffn_ = false;
     std::optional<portfolio::DetailView> active_detail_;
+
+    // How much snapshot history the charts are fed. The PERF chart offers 5Y / ALL
+    // and PERF/RISK offers ALL, but the screen asked for the service default (365
+    // days), so even after a backfill wrote years of NAV rows those periods could
+    // never show more than one year. (compute_metrics reads its own 1-year window.)
+    static constexpr int kSnapshotHistoryDays = 3650;
 
     // Refresh timer (P3)
     QTimer* refresh_timer_ = nullptr;
@@ -152,6 +164,7 @@ class PortfolioScreen : public QWidget, public IStatefulScreen, public IGroupLin
     CtaCardLabels empty_demo_card_;
     QLabel* loading_label_ = nullptr;
     QLabel* currency_note_ = nullptr;
+    QPropertyAnimation* loading_anim_ = nullptr;
 
     // Symbol-group link (None when unlinked).
     SymbolGroup link_group_ = SymbolGroup::None;

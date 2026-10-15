@@ -15,7 +15,6 @@
 #include "screens/agent_config/WorkflowsViewPanel.h"
 #include "services/agents/AgentService.h"
 #include "services/cloud/CloudSyncEngine.h"
-#include "storage/repositories/SettingsRepository.h"
 #include "ui/theme/Theme.h"
 #include "ui/theme/ThemeManager.h"
 
@@ -59,12 +58,9 @@ AgentConfigScreen::AgentConfigScreen(QWidget* parent) : QWidget(parent) {
 
     // Read the Agentic-Mode setting and apply visibility. The toggle widget
     // (DeveloperSection) publishes settings.agentic_mode_changed via EventBus
-    // on user change; we react in-place without restart.
-    {
-        auto r = fincept::SettingsRepository::instance().get(QStringLiteral("agentic_mode_enabled"),
-                                                             QStringLiteral("false"));
-        agentic_mode_enabled_ = r.is_ok() && r.value() == QStringLiteral("true");
-    }
+    // on user change; we react in-place without restart. One reader for the
+    // default (on) — AgentService owns it.
+    agentic_mode_enabled_ = services::AgentService::agentic_mode_enabled();
     connect(&fincept::EventBus::instance(), &fincept::EventBus::eventPublished, this,
             [this](const QString& event, const QVariantMap& data) {
                 if (event == QStringLiteral("settings.agentic_mode_changed")) {
@@ -265,8 +261,28 @@ void AgentConfigScreen::ensure_panel_built(services::AgentViewMode mode) {
 
     // Wire cross-panel signals now that relevant panels may be available
     wire_cross_panel_signals();
+    apply_pending_draft(mode);
 
     LOG_INFO("AgentConfigScreen", QString("Built panel: %1").arg(kViews[idx].label));
+}
+
+void AgentConfigScreen::apply_pending_draft(services::AgentViewMode mode) {
+    switch (mode) {
+        case services::AgentViewMode::Create:
+            if (create_panel_ && pending_state_.contains("create_draft"))
+                create_panel_->restore_draft(pending_state_.take("create_draft").toMap());
+            break;
+        case services::AgentViewMode::Agents:
+            if (agents_panel_ && pending_state_.contains("agents_draft"))
+                agents_panel_->restore_draft(pending_state_.take("agents_draft").toMap());
+            break;
+        case services::AgentViewMode::Workflows:
+            if (workflows_panel_ && pending_state_.contains("workflows_draft"))
+                workflows_panel_->restore_draft(pending_state_.take("workflows_draft").toMap());
+            break;
+        default:
+            break;
+    }
 }
 
 QWidget* AgentConfigScreen::panel_widget(services::AgentViewMode mode) const {
@@ -417,6 +433,11 @@ void AgentConfigScreen::setup_service_connections() {
 
 void AgentConfigScreen::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
+    // Runs that finish while this screen is hidden raise a desktop notification.
+    if (!reported_visible_) {
+        reported_visible_ = true;
+        services::AgentService::instance().note_agents_screen_visible(true);
+    }
     if (first_show_) {
         first_show_ = false;
         // Build the default (AGENTS) panel and kick off discovery once
@@ -429,32 +450,56 @@ void AgentConfigScreen::showEvent(QShowEvent* event) {
 
 void AgentConfigScreen::hideEvent(QHideEvent* event) {
     QWidget::hideEvent(event);
+    if (reported_visible_) {
+        reported_visible_ = false;
+        services::AgentService::instance().note_agents_screen_visible(false);
+    }
+}
+
+AgentConfigScreen::~AgentConfigScreen() {
+    // A screen destroyed while shown never gets its hideEvent — balance the count.
+    if (reported_visible_)
+        services::AgentService::instance().note_agents_screen_visible(false);
 }
 
 // ── IStatefulScreen ──────────────────────────────────────────────────────────
 
 QVariantMap AgentConfigScreen::save_state() const {
     QVariantMap state{{"view", static_cast<int>(current_view_)}};
+    // A panel that was never opened this session still owns the draft restored for
+    // it — carry that forward instead of silently dropping it.
     if (create_panel_)
         state["create_draft"] = create_panel_->save_draft();
+    else if (pending_state_.contains("create_draft"))
+        state["create_draft"] = pending_state_.value("create_draft");
     if (agents_panel_)
         state["agents_draft"] = agents_panel_->save_draft();
+    else if (pending_state_.contains("agents_draft"))
+        state["agents_draft"] = pending_state_.value("agents_draft");
     if (workflows_panel_)
         state["workflows_draft"] = workflows_panel_->save_draft();
+    else if (pending_state_.contains("workflows_draft"))
+        state["workflows_draft"] = pending_state_.value("workflows_draft");
     return state;
 }
 
 void AgentConfigScreen::restore_state(const QVariantMap& state) {
     const int v = state.value("view", -1).toInt();
-    if (v < 0)
+    if (v < 0 || v >= static_cast<int>(std::size(kViews)))
         return;
-    set_view(static_cast<services::AgentViewMode>(v));
-    if (create_panel_ && state.contains("create_draft"))
-        create_panel_->restore_draft(state.value("create_draft").toMap());
-    if (agents_panel_ && state.contains("agents_draft"))
-        agents_panel_->restore_draft(state.value("agents_draft").toMap());
-    if (workflows_panel_ && state.contains("workflows_draft"))
-        workflows_panel_->restore_draft(state.value("workflows_draft").toMap());
+    // Only the restored view's panel (plus any already built) exists at this point —
+    // the CREATE / AGENTS / WORKFLOWS drafts used to be applied only if their panel
+    // happened to be built, so the others were lost. Stash them; ensure_panel_built()
+    // applies each when its tab is first opened.
+    pending_state_ = state;
+    auto mode = static_cast<services::AgentViewMode>(v);
+    // The AGENTIC tab is hidden unless Agentic Mode is on — don't restore onto it.
+    if (mode == services::AgentViewMode::Agentic && !agentic_mode_enabled_)
+        mode = services::AgentViewMode::Agents;
+    set_view(mode);
+    apply_pending_draft(services::AgentViewMode::Create);
+    apply_pending_draft(services::AgentViewMode::Agents);
+    apply_pending_draft(services::AgentViewMode::Workflows);
 }
 
 } // namespace fincept::screens

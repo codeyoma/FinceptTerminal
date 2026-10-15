@@ -20,6 +20,10 @@ void apply_template_to_service(ReportBuilderService* svc, const QString& name) {
 
     rep::ReportDocument doc;
     doc.metadata.date = QDateTime::currentDateTime().toString("yyyy-MM-dd");
+    // The theme is a look the user picked, not template content: a fresh ReportDocument
+    // carries Light Professional, so applying any template used to silently reset a
+    // Dark Corporate / Midnight Blue report back to white.
+    doc.theme = svc->theme();
 
     auto add = [&](const QString& type, const QString& content = {}, const QMap<QString, QString>& cfg = {}) {
         rep::ReportComponent c;
@@ -675,6 +679,14 @@ void apply_template_to_service(ReportBuilderService* svc, const QString& name) {
         add("table", {}, {{"rows", "8"}, {"cols", "3"}});
         add("divider");
         add("quote", "Prepared in accordance with applicable accounting standards.");
+    }
+
+    // Every chart above carries made-up placeholder numbers. Flag them so the canvas
+    // (and the PDF/HTML export) labels them SAMPLE DATA until the user replaces the
+    // data — they used to print as if they were the company's real figures.
+    for (auto& c : doc.components) {
+        if (c.type == QLatin1String("chart") && !c.config.value("data").isEmpty())
+            c.config["sample"] = "1";
     }
 
     svc->replace_document(doc);

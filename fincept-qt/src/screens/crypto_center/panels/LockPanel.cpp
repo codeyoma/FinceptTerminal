@@ -5,6 +5,7 @@
 #include "screens/crypto_center/WalletActionConfirmDialog.h"
 #include "screens/crypto_center/WalletActionSummary.h"
 #include "services/billing/TierConfig.h"
+#include "services/wallet/SolanaRpcClient.h"
 #include "services/wallet/StakingService.h"
 #include "services/wallet/WalletService.h"
 #include "services/wallet/WalletTypes.h"
@@ -26,14 +27,19 @@
 #include <QShowEvent>
 #include <QSignalBlocker>
 #include <QStyle>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 namespace fincept::screens::panels {
 
 namespace {
+
+constexpr int kLockStatusPollMs = 1500;
+constexpr int kLockStatusPollMaxAttempts = 40; // 60 s of polling
 
 QString font_stack() {
     return QStringLiteral("'Consolas','Cascadia Mono','JetBrains Mono','SF Mono',monospace");
@@ -374,9 +380,14 @@ void LockPanel::on_wallet_disconnected() {
     current_user_weight_raw_ = 0;
     current_tier_ = fincept::wallet::TierStatus::Tier::Free;
     available_label_->setText(tr("Available: —"));
-    status_label_->setText(tr("Connect a wallet to lock $FNCPT."));
-    lock_button_->setEnabled(false);
     clear_error_strip();
+    // Re-derive the head / LOCK / preview state (COMING SOON when not live),
+    // then the status line, which recompute_preview() may have written.
+    recompute_preview();
+    status_label_->setText(fincept::wallet::StakingService::instance().staking_live()
+                               ? tr("Connect a wallet to lock $FNCPT.")
+                               : fincept::wallet::StakingService::not_live_reason());
+    lock_button_->setEnabled(false);
 }
 
 void LockPanel::showEvent(QShowEvent* e) {
@@ -429,8 +440,8 @@ void LockPanel::retranslateUi() {
         dur_4yr_->setText(tr("4 YR"));
     if (max_button_)
         max_button_->setText(tr("MAX"));
-    if (lock_button_)
-        lock_button_->setText(tr("LOCK"));
+    // LOCK button text is state-dependent (LOCK vs COMING SOON) and is
+    // re-applied by recompute_preview() below.
 
     // AVAILABLE line — re-apply with the cached balance (or the placeholder).
     if (available_label_) {
@@ -453,23 +464,32 @@ void LockPanel::resubscribe() {
     current_vefncpt_topic_.clear();
     current_tier_topic_.clear();
 
+    // Weight / tier / revenue only exist once staking is live. Subscribing to
+    // them before that only produced "not live" errors and — before the mock
+    // removal — fabricated positions presented as this wallet's.
+    const bool live = fincept::wallet::StakingService::instance().staking_live();
+
     if (!current_pubkey_.isEmpty()) {
         current_balance_topic_ = QStringLiteral("wallet:balance:%1").arg(current_pubkey_);
         hub.subscribe(this, current_balance_topic_, [this](const QVariant& v) { on_balance_update(v); });
         hub.request(current_balance_topic_, /*force=*/false);
 
-        current_vefncpt_topic_ = QStringLiteral("wallet:vefncpt:%1").arg(current_pubkey_);
-        hub.subscribe(this, current_vefncpt_topic_, [this](const QVariant& v) { on_vefncpt_update(v); });
-        hub.request(current_vefncpt_topic_, /*force=*/false);
+        if (live) {
+            current_vefncpt_topic_ = QStringLiteral("wallet:vefncpt:%1").arg(current_pubkey_);
+            hub.subscribe(this, current_vefncpt_topic_, [this](const QVariant& v) { on_vefncpt_update(v); });
+            hub.request(current_vefncpt_topic_, /*force=*/false);
 
-        current_tier_topic_ = QStringLiteral("billing:tier:%1").arg(current_pubkey_);
-        hub.subscribe(this, current_tier_topic_, [this](const QVariant& v) { on_tier_update(v); });
-        hub.request(current_tier_topic_, /*force=*/false);
+            current_tier_topic_ = QStringLiteral("billing:tier:%1").arg(current_pubkey_);
+            hub.subscribe(this, current_tier_topic_, [this](const QVariant& v) { on_tier_update(v); });
+            hub.request(current_tier_topic_, /*force=*/false);
+        }
     }
 
     // Terminal-wide topics — same for all users.
-    hub.subscribe(this, QStringLiteral("treasury:revenue"), [this](const QVariant& v) { on_revenue_update(v); });
-    hub.request(QStringLiteral("treasury:revenue"), /*force=*/false);
+    if (live) {
+        hub.subscribe(this, QStringLiteral("treasury:revenue"), [this](const QVariant& v) { on_revenue_update(v); });
+        hub.request(QStringLiteral("treasury:revenue"), /*force=*/false);
+    }
 
     hub.subscribe(this, QStringLiteral("market:price:fncpt"), [this](const QVariant& v) { on_price_update(v); });
     hub.request(QStringLiteral("market:price:fncpt"), /*force=*/false);
@@ -519,7 +539,8 @@ void LockPanel::on_price_update(const QVariant& v) {
 void LockPanel::on_tier_update(const QVariant& v) {
     if (!v.canConvert<fincept::wallet::TierStatus>())
         return;
-    current_tier_ = v.value<fincept::wallet::TierStatus>().tier;
+    const auto ts = v.value<fincept::wallet::TierStatus>();
+    current_tier_ = ts.tier;
     recompute_preview();
 }
 
@@ -554,11 +575,25 @@ void LockPanel::recompute_preview() {
     const double mult = fincept::wallet::StakingService::multiplier_for(d);
     const QString dur_label = fincept::wallet::StakingService::label_for(d);
 
+    // Resolved up front so the COMING SOON state is visible from the first
+    // paint, not only after the user has typed an amount. Staking is not live
+    // in this build (no program, no position reader, no tx builder): the panel
+    // is a calculator and LOCK can never be armed.
+    const bool live = fincept::wallet::StakingService::instance().staking_live();
+    if (head_subtitle_) {
+        head_subtitle_->setText(live ? tr("veFNCPT — locked $FNCPT earns USDC yield")
+                                     : tr("COMING SOON — on-chain staking is not live"));
+    }
+    lock_button_->setText(live ? tr("LOCK") : tr("COMING SOON"));
+    lock_button_->setToolTip(live ? QString() : fincept::wallet::StakingService::not_live_reason());
+
     if (!ok || amount_ui <= 0.0) {
         weight_calc_->setText(QStringLiteral("—"));
-        est_yield_->setText(QStringLiteral("—"));
+        est_yield_->setText(live ? QStringLiteral("—") : tr("n/a — staking not live"));
         tier_preview_->setText(QStringLiteral("—"));
         lock_button_->setEnabled(false);
+        if (!live && !busy_)
+            status_label_->setText(fincept::wallet::StakingService::not_live_reason());
         return;
     }
 
@@ -569,6 +604,22 @@ void LockPanel::recompute_preview() {
                               .arg(QString::number(mult, 'f', 4))
                               .arg(dur_label)
                               .arg(format_token(new_weight_ui, 1)));
+
+    const quint64 new_weight_raw = static_cast<quint64>(new_weight_ui * std::pow(10.0, fncpt_decimals_));
+
+    if (!live) {
+        // Calculator only. No revenue distribution and no existing weight exist
+        // yet, so a yield figure would be invented; the tier shown is what this
+        // lock size alone would qualify for under the planned thresholds.
+        est_yield_->setText(tr("n/a — staking not live"));
+        tier_preview_->setText(tr("%1 (planned tier for this lock size)")
+                                   .arg(fincept::billing::TierConfig::label_for(
+                                       fincept::billing::TierConfig::tier_from_weight(new_weight_raw))));
+        lock_button_->setEnabled(false);
+        if (!busy_)
+            status_label_->setText(fincept::wallet::StakingService::not_live_reason());
+        return;
+    }
 
     // EST. YIELD: project against the next epoch's distribution.
     //   distribution_usdc = weekly_revenue_usd × 25 % (staker share, plan §3.4)
@@ -603,27 +654,27 @@ void LockPanel::recompute_preview() {
     }
 
     // TIER preview: current → tier-after-lock.
-    const quint64 new_weight_raw = static_cast<quint64>(new_weight_ui * std::pow(10.0, fncpt_decimals_));
     const auto tier_after = fincept::billing::TierConfig::tier_from_weight(current_user_weight_raw_ + new_weight_raw);
+    QString tier_text;
     if (tier_after == current_tier_) {
-        tier_preview_->setText(fincept::billing::TierConfig::label_for(current_tier_));
+        tier_text = fincept::billing::TierConfig::label_for(current_tier_);
     } else {
-        tier_preview_->setText(QStringLiteral("%1 → %2  (after lock)")
-                                   .arg(fincept::billing::TierConfig::label_for(current_tier_))
-                                   .arg(fincept::billing::TierConfig::label_for(tier_after)));
+        tier_text = QStringLiteral("%1 → %2  (after lock)")
+                        .arg(fincept::billing::TierConfig::label_for(current_tier_))
+                        .arg(fincept::billing::TierConfig::label_for(tier_after));
     }
+    tier_preview_->setText(tier_text);
 
-    // Submit gating — the LOCK button must stay disabled until the on-chain
-    // program is actually deployed, so a demo-looking screen can never build a
-    // real staking transaction.
-    const bool program_ready = fincept::wallet::StakingService::instance().program_is_configured();
-    bool can_submit =
-        program_ready && !busy_ && !current_pubkey_.isEmpty() && amount_ui > 0.0 && amount_ui <= fncpt_balance_ui_;
+    const bool can_submit =
+        !busy_ && !current_pubkey_.isEmpty() && amount_ui > 0.0 && amount_ui <= fncpt_balance_ui_;
     lock_button_->setEnabled(can_submit);
-    if (!program_ready) {
-        status_label_->setText(tr("DEMO — fincept_lock not deployed; configure SecureStorage "
-                                  "fincept.lock_program_id to enable real locks."));
-    } else if (can_submit) {
+    // While a lock is in flight (build → sign → on-chain confirmation poll) the
+    // status line belongs to that flow; a balance / price tick re-entering here
+    // would otherwise replace "Sent … Waiting for on-chain confirmation…" with
+    // "Choose an amount and duration.".
+    if (busy_)
+        return;
+    if (can_submit) {
         status_label_->setText(tr("Ready. Click LOCK to build the transaction."));
     } else if (amount_ui > fncpt_balance_ui_) {
         status_label_->setText(tr("Amount exceeds available $FNCPT."));
@@ -658,11 +709,10 @@ void LockPanel::set_busy(bool busy) {
         lock_button_->setEnabled(false);
         return;
     }
-    // Un-busying must NOT blanket-enable LOCK: that re-armed the button in
-    // mock mode (fincept_lock not deployed), with an empty amount, or with an
-    // amount above the balance. Re-derive the gate instead. recompute_preview
-    // reads busy_ (already false) and applies program_is_configured() +
-    // amount/balance checks.
+    // Un-busying must NOT blanket-enable LOCK: that re-armed the button while
+    // staking is not live, with an empty amount, or with an amount above the
+    // balance. Re-derive the gate instead. recompute_preview reads busy_
+    // (already false) and applies staking_live() + amount/balance checks.
     if (current_pubkey_.isEmpty()) {
         lock_button_->setEnabled(false);
         return;
@@ -670,9 +720,89 @@ void LockPanel::set_busy(bool busy) {
     recompute_preview();
 }
 
+// ── Confirmation poll ──────────────────────────────────────────────────────
+
+void LockPanel::start_status_poll(const QString& sig) {
+    auto* rpc = new fincept::wallet::SolanaRpcClient(this);
+    rpc->reload_endpoint();
+    auto attempts = std::make_shared<int>(0);
+    auto* poll_timer = new QTimer(this);
+    poll_timer->setInterval(kLockStatusPollMs);
+
+    const QString explorer_url = QStringLiteral("https://solscan.io/tx/") + sig;
+
+    QPointer<LockPanel> guard = this;
+    // Every terminal outcome tears the timer and RPC client down (they are
+    // children of the panel, but one pair per lock would otherwise accumulate).
+    // No `poll_timer` capture in the timeout lambda below: stop_poll already
+    // owns it, and an unused capture fails Clang's -Wunused-lambda-capture.
+    auto stop_poll = [rpc, poll_timer]() {
+        poll_timer->stop();
+        poll_timer->deleteLater();
+        rpc->deleteLater();
+    };
+    QObject::connect(poll_timer, &QTimer::timeout, this, [guard, rpc, sig, explorer_url, attempts, stop_poll]() {
+        if (!guard) {
+            stop_poll();
+            return;
+        }
+        if (++(*attempts) > kLockStatusPollMaxAttempts) {
+            stop_poll();
+            guard->set_busy(false);
+            guard->show_error_strip(QObject::tr("No confirmation after 60 s. The lock may still land — "
+                                                "check the explorer: %1")
+                                        .arg(explorer_url));
+            guard->status_label_->setText(QObject::tr("Timed out waiting for confirmation."));
+            return;
+        }
+        rpc->get_signature_statuses(
+            QStringList{sig},
+            [guard, sig, explorer_url,
+             stop_poll](Result<std::vector<fincept::wallet::SolanaRpcClient::SignatureStatus>> r) {
+                if (!guard)
+                    return;
+                if (r.is_err())
+                    return; // transient — keep polling
+                const auto& vec = r.value();
+                if (vec.empty() || !vec[0].found)
+                    return;
+                const auto& st = vec[0];
+                if (!st.err.isEmpty()) {
+                    stop_poll();
+                    guard->set_busy(false);
+                    guard->show_error_strip(QObject::tr("Lock reverted on-chain: %1 (%2)").arg(st.err, explorer_url));
+                    guard->status_label_->setText(QObject::tr("Reverted."));
+                    return;
+                }
+                if (st.confirmation_status == QStringLiteral("confirmed") ||
+                    st.confirmation_status == QStringLiteral("finalized")) {
+                    stop_poll();
+                    guard->set_busy(false);
+                    guard->amount_input_->clear();
+                    // set_busy(false) re-derives the status line, so the
+                    // confirmation message is written AFTER it.
+                    guard->status_label_->setText(QObject::tr("Confirmed on-chain: %1…").arg(sig.left(12)));
+                    auto& hub = fincept::datahub::DataHub::instance();
+                    fincept::wallet::WalletService::instance().force_balance_refresh();
+                    if (!guard->current_vefncpt_topic_.isEmpty())
+                        hub.request(guard->current_vefncpt_topic_, /*force=*/true);
+                    if (!guard->current_pubkey_.isEmpty())
+                        hub.request(QStringLiteral("wallet:locks:%1").arg(guard->current_pubkey_), /*force=*/true);
+                }
+            });
+    });
+    poll_timer->start();
+}
+
 // ── Submit flow ────────────────────────────────────────────────────────────
 
 void LockPanel::on_lock_clicked() {
+    // The button is never armed while staking is not live; guard anyway so no
+    // path can reach the signing flow without a real lock transaction.
+    if (!fincept::wallet::StakingService::instance().staking_live()) {
+        show_error_strip(fincept::wallet::StakingService::not_live_reason());
+        return;
+    }
     bool ok = false;
     const double amount_ui = QLocale::system().toDouble(amount_input_->text(), &ok);
     if (!ok || amount_ui <= 0.0)
@@ -756,15 +886,14 @@ void LockPanel::on_lock_clicked() {
                         }
                         const auto sig = sr.value();
                         LOG_INFO("LockPanel", "submitted: " + sig);
-                        // set_busy(false) re-derives the status line via
-                        // recompute_preview(), so the submitted-signature
-                        // message has to be written AFTER it or it is
-                        // immediately overwritten by "Choose an amount…".
-                        self->set_busy(false);
-                        self->amount_input_->clear();
+                        // Stay busy while the signature is polled: the previous
+                        // "Sent … (not yet confirmed)" + optimistic refresh could
+                        // not tell a landed lock from one reverted on-chain, and
+                        // re-arming the form let a second lock be queued behind
+                        // an unconfirmed one.
                         self->status_label_->setText(
-                            QObject::tr("Sent: %1… (not yet confirmed on-chain)").arg(sig.left(12)));
-                        fincept::wallet::WalletService::instance().force_balance_refresh();
+                            QObject::tr("Sent: %1… Waiting for on-chain confirmation…").arg(sig.left(12)));
+                        self->start_status_poll(sig);
                     });
             });
             // `cancelled()` only fires from the CANCEL button. Esc / the window

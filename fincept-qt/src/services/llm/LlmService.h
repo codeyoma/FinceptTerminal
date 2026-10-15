@@ -6,6 +6,7 @@
 #include "services/krx_quant/LocalCliLlm.h" // fork addition: local CLI providers (codeyoma/krx-quant#96)
 #include "storage/repositories/LlmProfileRepository.h"
 
+#include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QMutex>
@@ -14,6 +15,7 @@
 #include <QSet>
 #include <QString>
 #include <QStringList>
+#include <QWaitCondition>
 
 #include <functional>
 #include <optional>
@@ -72,6 +74,13 @@ struct LlmResponse {
     /// Failure looks transient (upstream/model error, not a malformed request),
     /// so the caller may resubmit the identical prompt once.
     bool retryable = false;
+    /// The request was stopped by cancel_active_request(). `content` then holds
+    /// whatever had streamed so far (possibly empty).
+    bool cancelled = false;
+    /// chat_session_id the request was issued with (chat_streaming only). The
+    /// finished_streaming() signal is global, so each consumer uses this to tell
+    /// its own response from another consumer's (tab vs. floating Quick Chat).
+    QString origin_session_id = {};
 };
 
 /// (chunk_text, is_done) — invoked on a background thread.
@@ -100,6 +109,18 @@ class LlmService : public QObject {
     /// Back-compat: false→None, true→All. Prefer the enum overload.
     void chat_streaming(const QString& user_message, const std::vector<ConversationMessage>& history,
                         StreamCallback on_chunk, bool use_tools);
+
+    /// Stop a request issued via chat_streaming() WITH a chat_session_id (streaming
+    /// read, tool loop, blocking POST). Safe from any thread; a no-op when no such
+    /// request is running or queued. The request finishes promptly with
+    /// LlmResponse::cancelled = true; one still queued behind another session's
+    /// request finishes cancelled without being sent. When `chat_session_id` is
+    /// non-empty only the request issued with that id is cancelled; an empty id
+    /// cancels whichever session request is running. Requests issued without a
+    /// session id (the Quick Chat bubble, blocking chat()) run concurrently and are
+    /// never cancelled from here — so the AI Chat tab's Stop can never kill them.
+    /// Work already handed to a tool keeps running until the tool returns.
+    void cancel_active_request(const QString& chat_session_id = {});
 
     /// Call after the user changes LLM settings.
     void reload_config();
@@ -138,15 +159,30 @@ class LlmService : public QObject {
 
     mutable QMutex mutex_;
 
-    // INTERIM serialization guard: held for the WHOLE duration of each LLM request
-    // (chat() and the chat_streaming() worker) because do_request/do_streaming_request
-    // read provider_/api_key_/base_url_/model_ lock-free across the network call — a
-    // concurrent worker rewriting them mid-flight could send one provider's API key
-    // to another provider's base_url. Only ever acquired on worker threads (never the
-    // UI thread), and always BEFORE mutex_, never while holding it. Proper fix
-    // (deferred): thread a per-request config context through do_*_request instead
-    // of reading shared members.
-    QMutex request_serialize_mutex_;
+    // ── Request concurrency ────────────────────────────────────────────────
+    // Requests no longer serialise app-wide. Each one runs on a PRIVATE
+    // LlmService instance that adopts a ConfigSnapshot taken under mutex_ when
+    // the request starts (see adopt_config_snapshot), so the do_*_request /
+    // tool-loop / Fincept helpers — which read provider_/api_key_/base_url_/
+    // model_/system_prompt_ as plain members across the network call — only ever
+    // see their own request's config. The singleton's members are written only
+    // under mutex_ (ensure_config / reload_config) and read by requests only
+    // through a snapshot.
+    //
+    // The one thing that stays exclusive is the SESSION LANE: requests issued
+    // with a chat_session_id (the AI Chat tab — the only requests
+    // cancel_active_request() targets). Cancellation is a process-wide
+    // generation bump that reaches every thread with an armed CancelScope
+    // (LlmRequestPolicy.h), so at most one armed request may run at a time for
+    // Stop to hit exactly the caller's request. Requests without a session id
+    // (Quick Chat bubble, blocking chat() from workflow/agent nodes) run unarmed
+    // and concurrently with each other and with the session lane.
+    // All guarded by mutex_.
+    QWaitCondition session_lane_cv_;
+    bool session_lane_busy_ = false;
+    QString active_chat_session_;              // chat_session_id holding the lane
+    QHash<QString, int> session_lane_waiters_; // queued session ids → count
+    QSet<QString> session_lane_cancelled_;     // queued ids whose owner pressed Stop
 
     // Lazily reloaded; mutable so const accessors can call ensure_config().
     mutable QString provider_;
@@ -169,13 +205,30 @@ class LlmService : public QObject {
 
     void ensure_config() const;
 
+    /// The resolved config one request runs with (see "Request concurrency").
+    struct ConfigSnapshot {
+        QString provider;
+        QString api_key;
+        QString base_url;
+        QString model;
+        QString system_prompt;
+        double temperature = 0.7;
+        int max_tokens = 0;
+        int max_tool_rounds = 40;
+        bool tools_enabled = true;
+        mcp::ToolFilter tool_filter;
+    };
+    /// Copy of the current config. Caller holds mutex_ and has run ensure_config().
+    ConfigSnapshot snapshot_config_locked() const;
+    /// Load `snap` into this (private, per-request) instance and mark it loaded so
+    /// its ensure_config() never re-reads the database.
+    void adopt_config_snapshot(const ConfigSnapshot& snap);
+
     QJsonObject build_openai_request(const QString& user_message, const std::vector<ConversationMessage>& history,
                                      bool stream, bool with_tools = true);
     QJsonObject build_anthropic_request(const QString& user_message, const std::vector<ConversationMessage>& history,
                                         bool stream);
     QJsonObject build_gemini_request(const QString& user_message, const std::vector<ConversationMessage>& history);
-    QJsonObject build_fincept_request(const QString& user_message, const std::vector<ConversationMessage>& history,
-                                      bool with_tools);
 
     // Provider-specific tool-array builders. Shared by the initial request
     // builders AND the multi-round tool loops so the tools advertised on
@@ -247,7 +300,17 @@ class LlmService : public QObject {
         int status = 0;
         QByteArray body;
         QString error;
+        bool cancelled = false; // aborted by cancel_active_request()
+        int retry_after_s = 0;  // Retry-After header (seconds), 0 when absent
     };
+    /// The calling thread's long-lived QNetworkAccessManager (created on first use,
+    /// deleted when the thread exits). Requests from the same thread reuse its
+    /// keep-alive TCP/TLS connections instead of a fresh handshake per request.
+    static QNetworkAccessManager* thread_nam();
+    /// Attributes every request sent through thread_nam() must carry (no cookie
+    /// jar use — a per-request QNAM never had one to replay).
+    static void prepare_thread_nam_request(QNetworkRequest& req);
+
     static HttpResult blocking_post(const QString& url, const QJsonObject& body, const QMap<QString, QString>& headers,
                                     int timeout_ms = 120000);
     static HttpResult blocking_get(const QString& url, const QMap<QString, QString>& headers, int timeout_ms = 30000);

@@ -2,6 +2,7 @@
 
 #include "datahub/DataHub.h"
 #include "datahub/DataHubMetaTypes.h"
+#include "screens/dashboard/widgets/DashboardFormat.h"
 #include "ui/theme/Theme.h"
 
 #include <QDialog>
@@ -50,6 +51,8 @@ StockQuoteWidget::StockQuoteWidget(const QString& symbol, QWidget* parent)
 
     ticker_label_ = new QLabel(symbol_);
     prl->addWidget(ticker_label_);
+    link_symbol(ticker_label_, symbol_); // double-click the ticker → Equity Research
+    link_symbol(price_label_, symbol_);
 
     vl->addWidget(price_row);
 
@@ -139,6 +142,10 @@ QDialog* StockQuoteWidget::make_config_dialog(QWidget* parent) {
 }
 
 void StockQuoteWidget::apply_styles() {
+    // Theme change: forget the cached data-driven sheets (set_css_cached).
+    reset_css_cache(price_label_);
+    reset_css_cache(arrow_label_);
+    reset_css_cache(change_label_);
     price_label_->setStyleSheet(QString("color: %1; font-size: 28px; font-weight: bold; background: transparent;")
                                     .arg(ui::colors::TEXT_PRIMARY()));
     arrow_label_->setStyleSheet("font-size: 12px; background: transparent;");
@@ -179,6 +186,8 @@ void StockQuoteWidget::set_symbol(const QString& symbol) {
     set_title(tr("QUOTE: %1").arg(symbol_));
     last_quote_ = {};
     ticker_label_->setText(symbol_);
+    link_symbol(ticker_label_, symbol_);
+    link_symbol(price_label_, symbol_);
 
     // Blank the previous symbol's numbers immediately — leaving AAPL's price
     // under an "MSFT" heading until the first delivery is actively misleading.
@@ -197,7 +206,10 @@ void StockQuoteWidget::set_symbol(const QString& symbol) {
 }
 
 void StockQuoteWidget::refresh_data() {
-    datahub::DataHub::instance().request(QStringLiteral("market:quote:") + symbol_);
+    // User-triggered refresh: force past the topic TTL / min_interval (the
+    // producer-side rate limit still applies). Without `force` the title-bar
+    // refresh button was a no-op whenever the cached quote was still fresh.
+    datahub::DataHub::instance().request(QStringLiteral("market:quote:") + symbol_, /*force=*/true);
 }
 
 void StockQuoteWidget::hub_resubscribe() {
@@ -221,45 +233,36 @@ void StockQuoteWidget::hub_unsubscribe_all() {
 void StockQuoteWidget::populate(const services::QuoteData& q) {
     last_quote_ = q;
     auto& market = services::MarketDataService::instance();
+    // codeyoma/krx-quant#142: prices in the display currency; unknown units stay native.
     price_label_->setText(market.display_price(q.symbol, q.price));
 
-    bool positive = q.change_pct >= 0;
-    QString color = positive ? ui::colors::POSITIVE() : ui::colors::NEGATIVE();
+    const int sign = q.change_pct > 0 ? 1 : q.change_pct < 0 ? -1 : 0;
+    const QString color = sign > 0 ? ui::colors::POSITIVE() : sign < 0 ? ui::colors::NEGATIVE() : ui::colors::TEXT_SECONDARY();
 
-    arrow_label_->setText(positive ? QString(QChar(0x25B2)) : QString(QChar(0x25BC)));
-    arrow_label_->setStyleSheet(QString("color: %1; font-size: 12px; background: transparent;").arg(color));
-
-    change_label_->setText(QString("%1%2 (%3%4%)")
-                               .arg(positive ? "+" : "")
+    arrow_label_->setText(sign > 0 ? QString(QChar(0x25B2)) : sign < 0 ? QString(QChar(0x25BC)) : QString(QChar(0x25C6)));
+    change_label_->setText(QString("%1%2 (%3)")
+                               .arg(q.change > 0 ? "+" : "")
                                .arg(market.display_price(q.symbol, q.change))
-                               .arg(positive ? "+" : "")
-                               .arg(q.change_pct, 0, 'f', 2));
-    change_label_->setStyleSheet(
-        QString("color: %1; font-size: 11px; font-weight: bold; background: transparent;").arg(color));
+                               .arg(dash_fmt::signed_pct(q.change_pct)));
+    // Colours only change when the sign does — set_css_cached skips the CSS
+    // re-parse on every other tick.
+    set_css_cached(arrow_label_, QString("color: %1; font-size: 12px; background: transparent;").arg(color));
+    set_css_cached(change_label_,
+                   QString("color: %1; font-size: 11px; font-weight: bold; background: transparent;").arg(color));
+    set_css_cached(price_label_,
+                   QString("color: %1; font-size: 28px; font-weight: bold; background: transparent;").arg(color));
 
-    price_label_->setStyleSheet(
-        QString("color: %1; font-size: 28px; font-weight: bold; background: transparent;").arg(color));
-
-    auto fmt = [&market, &q](double v) { return v > 0 ? market.display_price(q.symbol, v) : QString("--"); };
     // The batch quote snapshot carries last/change/high/low/volume but no
     // session open. Showing `high` here (as this did previously) prints a
     // wrong number under an "OPEN" heading — on a trading terminal that is
     // worse than showing nothing.
     open_val_->setText(QStringLiteral("--"));
     open_val_->setToolTip(tr("Session open is not available in the batch quote feed"));
+    auto fmt = [&market, &q](double v) { return v > 0 ? market.display_price(q.symbol, v) : QStringLiteral("--"); };
     high_val_->setText(fmt(q.high));
     low_val_->setText(fmt(q.low));
-    prev_val_->setText(fmt(q.price - q.change));
-
-    // Format volume
-    if (q.volume >= 1e9)
-        volume_val_->setText(QString("%1B").arg(q.volume / 1e9, 0, 'f', 1));
-    else if (q.volume >= 1e6)
-        volume_val_->setText(QString("%1M").arg(q.volume / 1e6, 0, 'f', 1));
-    else if (q.volume >= 1e3)
-        volume_val_->setText(QString("%1K").arg(q.volume / 1e3, 0, 'f', 1));
-    else
-        volume_val_->setText(QString::number(static_cast<int>(q.volume)));
+    prev_val_->setText(q.price > 0 ? fmt(q.price - q.change) : QStringLiteral("--"));
+    volume_val_->setText(dash_fmt::compact_volume(q.volume));
 }
 
 void StockQuoteWidget::retranslateUi() {

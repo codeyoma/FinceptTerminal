@@ -37,7 +37,10 @@ class CryptoChart : public QWidget {
     explicit CryptoChart(QWidget* parent = nullptr);
 
     void set_candles(const QVector<trading::Candle>& candles);
-    void append_candle(const trading::Candle& candle);
+    /// Live updates, in order: a candle with the last candle's timestamp
+    /// updates the forming bar, any other appends a bar. Axes, the last-price
+    /// tag and every indicator overlay are refreshed ONCE per call.
+    void append_candles(const QVector<trading::Candle>& candles);
     void clear();
 
     QString current_timeframe() const;
@@ -120,10 +123,6 @@ class CryptoChart : public QWidget {
     double cached_max_price_ = -1;
     bool bounds_dirty_ = true;
     void recompute_bounds();
-
-    // Pending timeframe request while a fetch is already in-flight
-    // set_candles() will emit timeframe_changed again if this is set
-    QString pending_tf_;
 
     fincept::ui::ChartOverlayManager* overlay_mgr_ = nullptr;
     fincept::ui::IndicatorPicker* indicator_picker_ = nullptr;

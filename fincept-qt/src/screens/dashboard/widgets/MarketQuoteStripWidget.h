@@ -53,7 +53,8 @@ class MarketQuoteStripWidget : public BaseWidget {
 
     QStringList symbols_;
     QHash<QString, services::QuoteData> quote_cache_;
-    QHash<QString, Row> rows_; // symbol → widgets
+    QWidget* rows_host_ = nullptr; // owns the rows + the one stylesheet styling them
+    QHash<QString, Row> rows_;     // symbol → widgets
     QSet<QString> received_;   // symbols that have published at least once — used to drive the loading overlay
     bool hub_active_ = false;
 };

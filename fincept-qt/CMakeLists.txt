@@ -33,7 +33,7 @@ if(WIN32 AND CMAKE_HOST_WIN32)
     unset(_fincept_sdk_dirs)
 endif()
 
-project(FinceptTerminal VERSION 4.5.0 LANGUAGES C CXX)
+project(FinceptTerminal VERSION 4.5.1 LANGUAGES C CXX)
 
 # Strip C/C++ flags out of RC invocations — rc.exe only understands /D, /I, /fo.
 if(WIN32)
@@ -1039,6 +1039,8 @@ set(STORAGE_SOURCES
     src/storage/sqlite/migrations/v049_order_baskets.cpp
     src/storage/sqlite/migrations/v050_alpha_arena_rewrite.cpp
     src/storage/sqlite/migrations/v051_drop_duplicate_indexes.cpp
+    src/storage/sqlite/migrations/v052_coding_agents.cpp
+    src/storage/sqlite/migrations/v053_instrument_indexes.cpp
 
     # Historical OHLCV data store (Historify, Phase 3 §13)
     src/storage/HistoricalDataStore.cpp
@@ -1078,6 +1080,7 @@ set(AI_CHAT_SCREEN_SOURCES
     src/screens/ai_chat/AiChatScreen_Layout.cpp
     src/screens/ai_chat/AiChatScreen_Sessions.cpp
     src/screens/ai_chat/AiChatScreen_Messaging.cpp
+    src/screens/ai_chat/AiChatScreen_Tools.cpp
     src/screens/ai_chat/AiChatBubble.cpp
     src/screens/ai_chat/ChatBubbleController.cpp
 )
@@ -1099,6 +1102,16 @@ set(MCP_SOURCES
     src/mcp/JobRegistry.cpp
     src/mcp/ResultStore.cpp
 
+    # External-agent MCP server (Claude Code / Codex / Cursor over Streamable
+    # HTTP) — see src/mcp/server/McpHttpServer.h
+    src/mcp/server/McpHttpServer.cpp
+    src/mcp/server/McpHttpServer_Http.cpp
+    src/mcp/server/McpHttpServer_Rpc.cpp
+    src/mcp/server/McpHttpServer_Tools.cpp
+    src/mcp/server/ToolApprovalDialog.cpp
+    src/mcp/server/EssentialTools.cpp
+    src/mcp/server/McpServerSelfTest.cpp
+
     # Tool modules
     src/mcp/tools/JobTools.cpp
     src/mcp/tools/NavigationTools.cpp
@@ -1117,7 +1130,6 @@ set(MCP_SOURCES
     src/mcp/tools/MAAnalyticsTools.cpp
     src/mcp/tools/AltInvestmentsTools.cpp
     src/mcp/tools/DataSourcesTools.cpp
-    src/mcp/tools/ForumTools.cpp
     src/mcp/tools/ProfileTools.cpp
     src/mcp/tools/SettingsTools.cpp
     src/mcp/tools/PythonTools.cpp
@@ -1145,6 +1157,8 @@ set(MCP_SOURCES
     src/mcp/tools/GeopoliticsTools.cpp
     src/mcp/tools/ExcelTools.cpp
     src/mcp/tools/SurfaceAnalyticsTools.cpp
+    # Agent Workbench (local Claude Code / Codex runs) — see services/coding_agents/
+    src/mcp/tools/CodingAgentTools.cpp
 )
 
 # Trading
@@ -1162,6 +1176,7 @@ set(TRADING_SOURCES
     src/trading/SmartOrderEngine.cpp
     src/trading/RateLimiter.cpp
     src/trading/ActionCenter.cpp
+    src/trading/OrderThreadPool.cpp
     src/trading/OptionsStrategyBuilder.cpp
     src/trading/StrategyPortfolio.cpp
     src/trading/OrderValidator.cpp
@@ -1333,6 +1348,8 @@ set(SERVICE_SOURCES
     src/services/news/NewsMonitorService.cpp
     src/services/news/NewsNlpService.cpp
     src/services/news/NewsCorrelationService.cpp
+    src/services/news/NewsSignalDetector.cpp
+    src/services/news/RssFeedProbeService.cpp
     # Generalized feed monitor (reusable RSS/XML/JSON/CSV scraper engine)
     src/services/feeds/FeedParseUtil.cpp
     src/services/feeds/FeedScraper.cpp
@@ -1342,6 +1359,9 @@ set(SERVICE_SOURCES
     src/services/dbnomics/DBnomicsService.cpp
     src/services/gov_data/GovDataService.cpp
     src/services/equity/EquityResearchService.cpp
+    src/services/equity/EquityResearchService_Ext.cpp
+    src/services/equity/EquityValuationModels.cpp
+    src/services/equity/SecFilingsService.cpp
     src/services/equity/EquitySentimentService.cpp
     src/services/equity/MarketSentimentService.cpp
     src/services/equity/MarketSentimentSupport.cpp
@@ -1361,14 +1381,32 @@ set(SERVICE_SOURCES
     src/services/portfolio/PortfolioService_ImportExport.cpp
     src/services/portfolio/PortfolioAnalyticsService.cpp
     src/services/quantlib/QuantLibClient.cpp
+    src/services/quantlib/QuantLibAccess.cpp
     src/services/economics/EconomicsService.cpp
     src/services/economics/MacroCalendarService.cpp
+    src/services/economics/FinceptMacroService.cpp
+    # Fincept API health probe (DataHub producer, system:health) and the
+    # dashboard Web Scraper's shared fetch+parse service.
+    src/services/connectivity/ConnectivityService.cpp
+    src/services/web_scrape/WebScrapeService.cpp
+    # Python data-connector catalogue (resources/data_connectors.json) + shared runner/cache.
+    src/services/connectors/ConnectorCatalog.cpp
+    src/services/connectors/ConnectorService.cpp
+    src/services/connectors/ConnectorCredentialBridge.cpp
     # AgentService is split across multiple files; see AgentService.cpp header.
     src/services/agents/AgentService.cpp
     src/services/agents/AgentService_Discovery.cpp
     src/services/agents/AgentService_Execution.cpp
     src/services/agents/AgentService_Workflows.cpp
     src/services/agents/AgentService_Repositories.cpp
+    # Agent Workbench — local Claude Code / Codex CLI runs wired to the
+    # terminal's MCP server; CodingAgentService is split, see its header.
+    src/services/coding_agents/CodingAgentTypes.cpp
+    src/services/coding_agents/AgentStreamParsers.cpp
+    src/services/coding_agents/CodingAgentPrompts.cpp
+    src/services/coding_agents/CodingAgentRepository.cpp
+    src/services/coding_agents/CodingAgentService.cpp
+    src/services/coding_agents/CodingAgentService_Process.cpp
     src/services/file_manager/FileManagerService.cpp
     src/services/notebooks/NotebookLibraryService.cpp
 
@@ -1400,6 +1438,7 @@ set(SERVICE_SOURCES
     # Billing (Phase 3 — tier service driving cross-screen gating)
     src/services/billing/TierService.cpp
     src/services/sectors/SectorResolver.cpp
+    src/services/screener/ScreenerService.cpp
     src/services/workflow/NodeRegistry.cpp
     src/services/workflow/WorkflowService.cpp
     src/services/workflow/WorkflowExecutor.cpp
@@ -1425,13 +1464,10 @@ set(SERVICE_SOURCES
     src/services/workflow/nodes/IntegrationNodes.cpp
 
     # Workflow infrastructure
-    src/services/workflow/ExecutionHooks.cpp
     src/services/workflow/AuditLogger.cpp
-    src/services/workflow/ConfirmationService.cpp
     src/services/workflow/RiskManager.cpp
     src/services/workflow/WorkflowCache.cpp
     src/services/workflow/Extensions.cpp
-    src/services/workflow/ParameterProcessor.cpp
     src/services/workflow/adapters/ServiceBridges.cpp
     src/services/polymarket/PolymarketService.cpp
     src/services/polymarket/PolymarketWebSocket.cpp
@@ -1517,6 +1553,7 @@ set(UI_SOURCES
     src/ui/widgets/LoadingOverlay.cpp
     src/ui/widgets/ConfettiOverlay.cpp
     src/ui/widgets/SpeedSparkline.cpp
+    src/ui/widgets/PythonSetupChip.cpp
     src/ui/widgets/LanguageSwitcher.cpp
     src/ui/widgets/EnterprisePromo.cpp
     src/ui/tables/DataTable.cpp
@@ -1539,7 +1576,6 @@ set(UI_SOURCES
     src/ui/charts/layers/SupportResistanceLayer.cpp
     src/ui/charts/layers/PivotLayer.cpp
     src/ui/charts/KLineChartWidget.cpp
-    src/ui/navigation/NavigationBar.cpp
     src/ui/navigation/FKeyBar.cpp
     src/ui/navigation/StatusBar.cpp
     src/ui/navigation/ToolBar.cpp
@@ -1615,10 +1651,11 @@ set(SCREEN_SOURCES
     # DocsScreen split into pages files; see DocsScreen.cpp header.
     src/screens/docs/DocsScreen.cpp
     src/screens/screener/ScreenerScreen.cpp
+    src/screens/screener/ScreenerResultsModel.cpp
+    src/screens/screener/ScreenerCriteriaBuilder.cpp
     src/screens/docs/DocsScreen_Pages_Intro.cpp
     src/screens/docs/DocsScreen_Pages_Trading.cpp
     src/screens/docs/DocsScreen_Pages_Data.cpp
-    src/screens/common/ComingSoonScreen.cpp
     src/screens/chat_mode/ChatModeService.cpp
     src/screens/chat_mode/ChatSessionPanel.cpp
     src/screens/chat_mode/ChatMessagePanel.cpp
@@ -1707,11 +1744,6 @@ set(SCREEN_SOURCES
     src/screens/news/NewsTickerStrip.cpp
     src/screens/news/dialogs/RssFeedManagerDialog.cpp
     src/screens/news/dialogs/RssFeedEditDialog.cpp
-    src/screens/forum/ForumScreen.cpp
-    src/screens/forum/ForumFeedPanel.cpp
-    src/screens/forum/ForumSidebarPanel.cpp
-    src/screens/forum/ForumThreadPanel.cpp
-    src/services/forum/ForumService.cpp
     # CryptoTradingScreen split; see header comment.
     src/screens/crypto_trading/CryptoTradingScreen.cpp
     src/screens/crypto_trading/CryptoTradingScreen_Handlers.cpp
@@ -1766,6 +1798,8 @@ set(SCREEN_SOURCES
     src/screens/data_sources/ConnectionTester.cpp
     src/screens/data_sources/ImportExportConnections.cpp
     src/screens/data_sources/ConnectorRegistry.cpp
+    src/screens/data_sources/ConnectorCatalogPanel.cpp
+    src/screens/data_sources/ConnectorCatalogModels.cpp
     src/screens/data_sources/connectors/RelationalDatabases.cpp
     src/screens/data_sources/connectors/NoSqlDatabases.cpp
     src/screens/data_sources/connectors/TimeSeriesDatabases.cpp
@@ -1778,6 +1812,7 @@ set(SCREEN_SOURCES
     src/screens/data_sources/connectors/OpenBanking.cpp
     src/screens/notes/NotesScreen.cpp
     src/screens/watchlist/WatchlistScreen.cpp
+    src/screens/watchlist/WatchlistColumnPrefs.cpp
     src/screens/surface_analytics/SurfaceDemoData.cpp
     src/screens/surface_analytics/SurfaceCsvImporter.cpp
     src/screens/surface_analytics/Surface3DWidget.cpp
@@ -1805,6 +1840,7 @@ set(SCREEN_SOURCES
     # Excel Spreadsheet
     src/screens/excel/ExcelScreen.cpp
     src/screens/excel/SpreadsheetWidget.cpp
+    src/screens/excel/FormulaEngine.cpp
 
     # Government Data
     src/screens/gov_data/GovDataScreen.cpp
@@ -1979,9 +2015,21 @@ set(SCREEN_SOURCES
     src/screens/mcp_servers/McpServersScreen_Layout.cpp
     src/screens/mcp_servers/McpServersScreen_Actions.cpp
 
+    # Agent Workbench — local Claude Code / Codex runs (RUN/RUNS/SCHEDULES/CONNECT)
+    src/screens/agent_workbench/AgentWorkbenchScreen.cpp
+    src/screens/agent_workbench/AgentRunPanel.cpp
+    src/screens/agent_workbench/AgentTranscriptView.cpp
+    src/screens/agent_workbench/AgentRunsPanel.cpp
+    src/screens/agent_workbench/AgentSchedulesPanel.cpp
+    src/screens/agent_workbench/AgentConnectPanel.cpp
+    src/screens/agent_workbench/AgentWorkbenchTemplates.cpp
+    src/screens/agent_workbench/AgentWorkbenchCommon.cpp
+
     # QuantLib Suite — endpoint catalogs split out; see header comment.
     src/screens/quantlib/QuantLibScreen.cpp
     src/screens/quantlib/QuantLibScreen_Data.cpp
+    src/screens/quantlib/QuantLibParamForm.cpp
+    src/screens/quantlib/QuantLibResultView.cpp
 
     # M&A Analytics
     src/screens/ma_analytics/MAAnalyticsScreen.cpp
@@ -2001,6 +2049,8 @@ set(SCREEN_SOURCES
     src/screens/equity_research/EquityFinancialsTab.cpp
     src/screens/equity_research/EquityFinancialsTab_Views.cpp
     src/screens/equity_research/EquityFinancialsTab_Populate.cpp
+    src/screens/equity_research/EquityFilingsTab.cpp
+    src/screens/equity_research/EquityResearchLinks.cpp
     src/screens/equity_research/EquityAnalysisTab.cpp
     src/screens/equity_research/EquityValuationTab.h
     src/screens/equity_research/EquityValuationTab.cpp
@@ -2069,7 +2119,6 @@ set(SCREEN_SOURCES
     src/screens/crypto_center/CryptoCenterScreen.cpp
     src/screens/crypto_center/HoldingsBar.cpp
     src/screens/crypto_center/WalletActionConfirmDialog.cpp
-    src/screens/crypto_center/tabs/ComingSoonTab.cpp
     src/screens/crypto_center/tabs/HomeTab.cpp
     src/screens/crypto_center/tabs/SettingsTab.cpp
     src/screens/crypto_center/tabs/TradeTab.cpp
@@ -2126,7 +2175,6 @@ set(APP_SOURCES
 # collide when batched, and many use QLineEdit/etc without explicit includes.
 # Infrastructure layers (core, network, auth, storage, services) still benefit from unity.
 set_source_files_properties(
-    src/screens/common/ComingSoonScreen.cpp
     src/screens/about/AboutScreen.cpp
     src/screens/agent_config/AgentChatPanel.cpp
     src/screens/agent_config/AgentConfigScreen.cpp
@@ -2144,6 +2192,7 @@ set_source_files_properties(
     src/screens/ai_chat/AiChatScreen_Layout.cpp
     src/screens/ai_chat/AiChatScreen_Sessions.cpp
     src/screens/ai_chat/AiChatScreen_Messaging.cpp
+    src/screens/ai_chat/AiChatScreen_Tools.cpp
     src/screens/ai_chat/AiChatBubble.cpp
     src/screens/ai_chat/ChatBubbleController.cpp
     src/screens/ai_chat/ChatBubbleFactory.cpp
@@ -2203,6 +2252,10 @@ set_source_files_properties(
     src/screens/code_editor/CodeEditorScreen_Navigator.cpp
     src/screens/code_editor/CodeEditorScreen_Library.cpp
     src/services/notebooks/NotebookLibraryService.cpp
+    # Added 2026-10: kept out of unity batches so adding them does not
+    # re-batch (and possibly collide) every later service file.
+    src/services/connectivity/ConnectivityService.cpp
+    src/services/web_scrape/WebScrapeService.cpp
     src/screens/crypto_trading/CryptoBottomPanel.cpp
     src/screens/crypto_trading/CryptoChart.cpp
     src/screens/crypto_trading/CryptoCredentials.cpp
@@ -2256,6 +2309,8 @@ set_source_files_properties(
     src/screens/data_sources/ConnectionTester.cpp
     src/screens/data_sources/ImportExportConnections.cpp
     src/screens/data_sources/ConnectorRegistry.cpp
+    src/screens/data_sources/ConnectorCatalogPanel.cpp
+    src/screens/data_sources/ConnectorCatalogModels.cpp
     src/screens/data_sources/connectors/RelationalDatabases.cpp
     src/screens/data_sources/connectors/NoSqlDatabases.cpp
     src/screens/data_sources/connectors/TimeSeriesDatabases.cpp
@@ -2303,6 +2358,8 @@ set_source_files_properties(
     src/screens/dashboard/widgets/ScreenerWidget.cpp
     src/screens/dashboard/widgets/SectorHeatmapWidget.cpp
     src/screens/screener/ScreenerScreen.cpp
+    src/screens/screener/ScreenerResultsModel.cpp
+    src/screens/screener/ScreenerCriteriaBuilder.cpp
     src/screens/dashboard/widgets/StockQuoteWidget.cpp
     src/screens/dashboard/widgets/TopMoversWidget.cpp
     src/screens/dashboard/widgets/RecentFilesWidget.cpp
@@ -2319,7 +2376,6 @@ set_source_files_properties(
     src/screens/crypto_center/CryptoCenterScreen.cpp
     src/screens/crypto_center/HoldingsBar.cpp
     src/screens/crypto_center/WalletActionConfirmDialog.cpp
-    src/screens/crypto_center/tabs/ComingSoonTab.cpp
     src/screens/crypto_center/tabs/HomeTab.cpp
     src/screens/crypto_center/tabs/SettingsTab.cpp
     src/screens/crypto_center/tabs/TradeTab.cpp
@@ -2371,8 +2427,10 @@ set_source_files_properties(
     src/screens/fno/ScreenerSubTab.cpp
     src/screens/economics/EconomicsScreen.cpp
     src/screens/equity_research/EquityAnalysisTab.cpp
+    src/screens/equity_research/EquityFilingsTab.cpp
     src/screens/equity_research/EquityFinancialsTab.cpp
     src/screens/equity_research/EquityNewsTab.cpp
+    src/screens/equity_research/EquityResearchLinks.cpp
     src/screens/equity_research/EquityOverviewTab.cpp
     src/screens/equity_research/EquityPeersTab.cpp
     src/screens/equity_research/EquityResearchScreen.cpp
@@ -2380,11 +2438,8 @@ set_source_files_properties(
     src/screens/equity_research/EquityTechnicalsTab.cpp
     src/screens/excel/ExcelScreen.cpp
     src/screens/excel/SpreadsheetWidget.cpp
+    src/screens/excel/FormulaEngine.cpp
     src/screens/file_manager/FileManagerScreen.cpp
-    src/screens/forum/ForumFeedPanel.cpp
-    src/screens/forum/ForumScreen.cpp
-    src/screens/forum/ForumSidebarPanel.cpp
-    src/screens/forum/ForumThreadPanel.cpp
     src/screens/geopolitics/ConflictMonitorPanel.cpp
     src/screens/geopolitics/GeopoliticsScreen.cpp
     src/screens/geopolitics/HDXDataPanel.cpp
@@ -2423,6 +2478,14 @@ set_source_files_properties(
     src/screens/mcp_servers/McpServersScreen.cpp
     src/screens/mcp_servers/McpServersScreen_Layout.cpp
     src/screens/mcp_servers/McpServersScreen_Actions.cpp
+    src/screens/agent_workbench/AgentWorkbenchScreen.cpp
+    src/screens/agent_workbench/AgentRunPanel.cpp
+    src/screens/agent_workbench/AgentTranscriptView.cpp
+    src/screens/agent_workbench/AgentRunsPanel.cpp
+    src/screens/agent_workbench/AgentSchedulesPanel.cpp
+    src/screens/agent_workbench/AgentConnectPanel.cpp
+    src/screens/agent_workbench/AgentWorkbenchTemplates.cpp
+    src/screens/agent_workbench/AgentWorkbenchCommon.cpp
     src/screens/news/NewsCommandBar.cpp
     src/screens/news/NewsDetailPanel.cpp
     src/screens/news/NewsFeedDelegate.cpp
@@ -2519,6 +2582,7 @@ set_source_files_properties(
     src/screens/surface_analytics/SurfaceTableWidget.cpp
     src/screens/trade_viz/TradeVizScreen.cpp
     src/screens/watchlist/WatchlistScreen.cpp
+    src/screens/watchlist/WatchlistColumnPrefs.cpp
     # Storage repositories — each defines kCols in namespace fincept
     src/storage/repositories/AgentConfigRepository.cpp
     src/storage/repositories/ChatRepository.cpp
@@ -2598,6 +2662,10 @@ set_source_files_properties(
     # re-batches every source after it — which can collide two files that were
     # previously fine, and only on the unity-ON release/CI presets.
     src/storage/sqlite/migrations/v051_drop_duplicate_indexes.cpp
+    # v052: same reasoning as v051 — joining a batch would re-batch everything after it.
+    src/storage/sqlite/migrations/v052_coding_agents.cpp
+    # v053: same reasoning as v051.
+    src/storage/sqlite/migrations/v053_instrument_indexes.cpp
     # Polymarket screen files — each defines static fmt_* helpers in same namespace
     src/screens/polymarket/PolymarketScreen.cpp
     src/screens/polymarket/PolymarketCommandBar.cpp
@@ -2617,6 +2685,8 @@ set_source_files_properties(
     src/screens/chat_mode/TerminalToolBridge.cpp
     src/screens/quantlib/QuantLibScreen.cpp
     src/screens/quantlib/QuantLibScreen_Data.cpp
+    src/screens/quantlib/QuantLibParamForm.cpp
+    src/screens/quantlib/QuantLibResultView.cpp
     src/trading/brokers/BrokerHttp.cpp
     src/trading/websocket/ZerodhaWebSocket.cpp
     src/trading/websocket/AngelOneWebSocket.cpp
@@ -2731,6 +2801,13 @@ set_source_files_properties(
     src/mcp/GeminiSchema.cpp
     src/mcp/ProviderToolFormatSelfTest.cpp
     src/mcp/TerminalMcpBridge.cpp
+    src/mcp/server/McpHttpServer.cpp
+    src/mcp/server/McpHttpServer_Http.cpp
+    src/mcp/server/McpHttpServer_Rpc.cpp
+    src/mcp/server/McpHttpServer_Tools.cpp
+    src/mcp/server/ToolApprovalDialog.cpp
+    src/mcp/server/EssentialTools.cpp
+    src/mcp/server/McpServerSelfTest.cpp
     src/mcp/tools/NavigationTools.cpp
     src/mcp/tools/MarketsTools.cpp
     src/mcp/tools/WatchlistTools.cpp
@@ -2747,7 +2824,6 @@ set_source_files_properties(
     src/mcp/tools/MAAnalyticsTools.cpp
     src/mcp/tools/AltInvestmentsTools.cpp
     src/mcp/tools/DataSourcesTools.cpp
-    src/mcp/tools/ForumTools.cpp
     src/mcp/tools/ProfileTools.cpp
     src/mcp/tools/SettingsTools.cpp
     src/mcp/tools/PythonTools.cpp
@@ -2773,6 +2849,7 @@ set_source_files_properties(
     src/mcp/tools/GeopoliticsTools.cpp
     src/mcp/tools/ExcelTools.cpp
     src/mcp/tools/SurfaceAnalyticsTools.cpp
+    src/mcp/tools/CodingAgentTools.cpp
     src/algo_engine/fno/FnoAlgoSelftest.cpp
     src/algo_engine/fno/FnoLegResolver.cpp
     src/trading/PaperTradingSelftest.cpp
@@ -2831,6 +2908,9 @@ set_source_files_properties(
     src/trading/websocket/IciciDirectWebSocket.cpp
     # Phase 3 trading services — file-scope kLog / anonymous-namespace helpers
     src/trading/ActionCenter.cpp
+    # Dedicated order executors (perf). Kept out of unity batches so adding it
+    # does not re-batch the sources after it.
+    src/trading/OrderThreadPool.cpp
     src/trading/StrategyPortfolio.cpp
     src/trading/OptionsStrategyBuilder.cpp
     # Phase 3 storage/core — file-scope kLog / anonymous-namespace helpers
@@ -2849,6 +2929,19 @@ set_source_files_properties(
     src/storage/workspace/WorkspaceFwspImporter.cpp
     src/app/InstanceLock.cpp
     src/python/OptionGreeksWorker.cpp
+    PROPERTIES SKIP_UNITY_BUILD_INCLUSION TRUE
+)
+
+# Agent Workbench service files: uniquely-named file-scope helpers already, but
+# they include <windows.h> (job objects) and new files joining a unity batch
+# would re-batch every source after them — keep them out, like v051/v052.
+set_source_files_properties(
+    src/services/coding_agents/CodingAgentTypes.cpp
+    src/services/coding_agents/AgentStreamParsers.cpp
+    src/services/coding_agents/CodingAgentPrompts.cpp
+    src/services/coding_agents/CodingAgentRepository.cpp
+    src/services/coding_agents/CodingAgentService.cpp
+    src/services/coding_agents/CodingAgentService_Process.cpp
     PROPERTIES SKIP_UNITY_BUILD_INCLUSION TRUE
 )
 
@@ -3561,8 +3654,16 @@ add_custom_command(TARGET FinceptTerminal POST_BUILD
         "${CMAKE_CURRENT_SOURCE_DIR}/resources/requirements-numpy2.txt"
         "$<TARGET_FILE_DIR:FinceptTerminal>/resources/requirements-numpy2.txt"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/resources/requirements-numpy2-core.txt"
+        "$<TARGET_FILE_DIR:FinceptTerminal>/resources/requirements-numpy2-core.txt"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/resources/component_catalog.json"
         "$<TARGET_FILE_DIR:FinceptTerminal>/resources/component_catalog.json"
+    # Python data-connector catalogue (generated by .github/scripts/gen_data_connectors.py);
+    # ConnectorCatalog loads it lazily from exe_dir/resources/ (+ packaged-layout fallbacks).
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/resources/data_connectors.json"
+        "$<TARGET_FILE_DIR:FinceptTerminal>/resources/data_connectors.json"
     COMMAND ${CMAKE_COMMAND} -E make_directory
         "$<TARGET_FILE_DIR:FinceptTerminal>/resources/wallet"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -3711,17 +3812,21 @@ if(WIN32)
     install(TARGETS FinceptTerminal RUNTIME DESTINATION "." COMPONENT core)
     install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/scripts/"
             DESTINATION "scripts" COMPONENT scripts
-            REGEX "(\\.deleted\\.|\\.pytest_cache|\\.benchmarks|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.sqlite3$|\\.bak$|\\.orig$)" EXCLUDE)
+            REGEX "(\\.deleted\\.|\\.pytest_cache|\\.benchmarks|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.sqlite3$|\\.bak$|\\.orig$|/(tests|_tools)(/|$))" EXCLUDE)
     # Requirements files — needed by PythonSetupManager at first run to install
     # Python packages. Must be deployed beside the exe so find_requirements_file()
     # can locate them at C:/Program Files/FinceptTerminal/resources/*.txt.
     install(FILES
             "${CMAKE_CURRENT_SOURCE_DIR}/resources/requirements-numpy1.txt"
             "${CMAKE_CURRENT_SOURCE_DIR}/resources/requirements-numpy2.txt"
+            "${CMAKE_CURRENT_SOURCE_DIR}/resources/requirements-numpy2-core.txt"
             DESTINATION "resources" COMPONENT core)
     # Prebuilt Fincept Notebook library (bundled + seeded into the File Manager).
     install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/resources/notebooks/"
             DESTINATION "resources/notebooks" COMPONENT core)
+    # Python data-connector catalogue (ConnectorCatalog: <exe_dir>/resources/).
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/data_connectors.json"
+            DESTINATION "resources" COMPONENT core)
 
 elseif(APPLE)
     if(FINCEPT_BUILD_INSTALLER)
@@ -3750,14 +3855,20 @@ elseif(APPLE)
         # ── Plain `cmake --install` (DMG path / dev) ─────────────────────────
         # macOS: install the .app bundle
         install(TARGETS FinceptTerminal BUNDLE DESTINATION "." COMPONENT core)
-        # Requirements files — deployed beside the .app so PythonSetupManager finds them
+        # Requirements files — flattened into Contents/Resources/, the layout
+        # PythonSetupManager::find_requirements_file() searches (../Resources/<file>)
+        # and the one the CI DMG step produces.
         install(FILES
                 "${CMAKE_CURRENT_SOURCE_DIR}/resources/requirements-numpy1.txt"
                 "${CMAKE_CURRENT_SOURCE_DIR}/resources/requirements-numpy2.txt"
-                DESTINATION "FinceptTerminal.app/Contents/Resources/resources" COMPONENT core)
+                "${CMAKE_CURRENT_SOURCE_DIR}/resources/requirements-numpy2-core.txt"
+                DESTINATION "FinceptTerminal.app/Contents/Resources" COMPONENT core)
         # Prebuilt Fincept Notebook library (bundled + seeded into the File Manager).
         install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/resources/notebooks/"
                 DESTINATION "FinceptTerminal.app/Contents/Resources/resources/notebooks" COMPONENT core)
+        # Python data-connector catalogue (ConnectorCatalog searches ../Resources/ too).
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/data_connectors.json"
+                DESTINATION "FinceptTerminal.app/Contents/Resources" COMPONENT core)
     endif()
 
 elseif(FINCEPT_BUILD_INSTALLER AND FINCEPT_IFW_PAYLOAD)
@@ -3823,11 +3934,25 @@ else()
     install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/scripts/"
             DESTINATION "share/fincept-terminal/scripts"
             USE_SOURCE_PERMISSIONS COMPONENT scripts
-            REGEX "(\\.deleted\\.|\\.pytest_cache|\\.benchmarks|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.sqlite3$|\\.bak$|\\.orig$)" EXCLUDE)
+            REGEX "(\\.deleted\\.|\\.pytest_cache|\\.benchmarks|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.sqlite3$|\\.bak$|\\.orig$|/(tests|_tools)(/|$))" EXCLUDE)
+
+    # Requirements files for the first-run Python setup. The binary is in
+    # <prefix>/bin, and PythonSetupManager::find_requirements_file() searches
+    # <exe_dir>/../share/fincept-terminal/resources/ — keep the two in sync.
+    install(FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/resources/requirements-numpy1.txt"
+            "${CMAKE_CURRENT_SOURCE_DIR}/resources/requirements-numpy2.txt"
+            "${CMAKE_CURRENT_SOURCE_DIR}/resources/requirements-numpy2-core.txt"
+            DESTINATION "share/fincept-terminal/resources" COMPONENT core)
 
     # Prebuilt Fincept Notebook library (bundled + seeded into the File Manager).
     install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/resources/notebooks/"
             DESTINATION "share/fincept-terminal/resources/notebooks" COMPONENT core)
+
+    # Python data-connector catalogue (ConnectorCatalog searches
+    # <exe_dir>/../share/fincept-terminal/resources/).
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/data_connectors.json"
+            DESTINATION "share/fincept-terminal/resources" COMPONENT core)
 
     # App icon (PNG required for hicolor theme; convert .ico → .png in CI)
     set(_ICON_PNG "${CMAKE_CURRENT_SOURCE_DIR}/resources/fincept.png")
@@ -3920,7 +4045,8 @@ if(FINCEPT_BUILD_INSTALLER)
         # PythonRunner / ExchangeService. Without this the Crypto tab and all
         # Python-backed screens crash on an installed build.
         install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/scripts/"
-                DESTINATION "scripts" COMPONENT scripts)
+                DESTINATION "scripts" COMPONENT scripts
+                REGEX "(\\.deleted\\.|\\.pytest_cache|\\.benchmarks|__pycache__|\\.pyc$|\\.db$|\\.sqlite$|\\.sqlite3$|\\.bak$|\\.orig$|/(tests|_tools)(/|$))" EXCLUDE)
         # Full resources/ tree — icons, images, stylesheets, data files, etc.
         # Also catches requirements-*.txt. Without this, asset paths resolved
         # via AppPaths::resources_dir() return an empty dir and screens that
@@ -4297,19 +4423,13 @@ message(STATUS "============================================================")
 message(STATUS "")
 
 # ── Linux install rules (Flatpak, system packages) ────────────────────────────
+# The binary, scripts/ and the requirements files are installed by the Linux
+# branch of the main install rules above (bin/, share/fincept-terminal/...).
+# They used to be installed a second time here — with a weaker exclude list,
+# requirements-numpy2.txt only, into a directory the setup never searches, and
+# (on the IFW path) a raw binary over the linuxdeploy-patched one.
 if(UNIX AND NOT APPLE)
     include(GNUInstallDirs)
-    install(TARGETS FinceptTerminal RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-
-    install(DIRECTORY scripts/
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/fincept-terminal/scripts
-        PATTERN "__pycache__" EXCLUDE
-        PATTERN "*.pyc"       EXCLUDE
-        PATTERN ".git"        EXCLUDE)
-
-    install(FILES
-        resources/requirements-numpy2.txt
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/fincept-terminal)
 
     # Flatpak packaging files (app ID: in.fincept.FinceptTerminal)
     install(FILES packaging/flatpak/in.fincept.FinceptTerminal.desktop

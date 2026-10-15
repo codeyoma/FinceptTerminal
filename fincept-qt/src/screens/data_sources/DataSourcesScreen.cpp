@@ -12,6 +12,7 @@
 //   - ConnectionConfigDialog.*         — modal add/edit/clone dialog
 //   - ConnectionTester.*               — async TCP probe + result dialog
 //   - ImportExportConnections.*        — JSON round-trip and template dump
+//   - ConnectorCatalogPanel.* / ConnectorCatalogModels.* — CATALOG tab (Python data connectors)
 
 #include "screens/data_sources/DataSourcesScreen.h"
 
@@ -19,6 +20,7 @@
 #include "core/session/ScreenStateManager.h"
 #include "screens/data_sources/ConnectionConfigDialog.h"
 #include "screens/data_sources/ConnectionTester.h"
+#include "screens/data_sources/ConnectorCatalogPanel.h"
 #include "screens/data_sources/ConnectorRegistry.h"
 #include "screens/data_sources/DataSourcesHelpers.h"
 #include "screens/data_sources/DataSourcesStyles.h"
@@ -164,6 +166,10 @@ void DataSourcesScreen::retranslateUi() {
         browse_tab_->setText(tr("BROWSE"));
     if (conns_tab_)
         conns_tab_->setText(tr("CONNECTIONS"));
+    if (catalog_tab_) {
+        catalog_tab_->setText(tr("CATALOG"));
+        catalog_tab_->setToolTip(tr("Every Python data connector — browse, add API keys, run and export"));
+    }
 
     // Sidebar
     if (category_hdr_title_)
@@ -242,22 +248,43 @@ QVariantMap DataSourcesScreen::save_state() const {
     QVariantMap state{
         {"connector_id", selected_connector_id_},
         {"category", static_cast<int>(active_category_)},
+        {"show_all", show_all_categories_},
     };
     if (search_edit_)
         state["search"] = search_edit_->text();
     if (conn_search_edit_)
         state["conn_search"] = conn_search_edit_->text();
+    if (page_stack_)
+        state["tab"] = page_stack_->currentIndex();
+    if (catalog_panel_ && !catalog_panel_->selected_connector().isEmpty())
+        state["catalog_connector"] = catalog_panel_->selected_connector();
     return state;
 }
 
 void DataSourcesScreen::restore_state(const QVariantMap& state) {
-    const QString id = state.value("connector_id").toString();
-    if (!id.isEmpty())
-        select_connector_by_id(id);
+    // "category" was written by save_state() but never read back, so the category filter
+    // reset on every launch. Restore it (range-checked: state comes from disk) and
+    // rebuild before selecting the connector, which must be visible to be selected.
+    const int category = state.value("category", -1).toInt();
+    if (category >= 0 && category <= static_cast<int>(Category::OpenBanking))
+        active_category_ = static_cast<Category>(category);
+    if (state.contains("show_all"))
+        show_all_categories_ = state.value("show_all").toBool();
     if (search_edit_ && state.contains("search"))
         search_edit_->setText(state.value("search").toString());
     if (conn_search_edit_ && state.contains("conn_search"))
         conn_search_edit_->setText(state.value("conn_search").toString());
+    rebuild_all_views();
+
+    const QString id = state.value("connector_id").toString();
+    if (!id.isEmpty())
+        select_connector_by_id(id);
+
+    if (catalog_panel_)
+        catalog_panel_->select_connector(state.value("catalog_connector").toString());
+    const int tab = state.value("tab", 0).toInt();
+    if (tab >= 0 && tab <= 2)
+        select_page(tab);
 }
 
 } // namespace fincept::screens::datasources
