@@ -34,12 +34,20 @@ class KrxChartBridge : public QObject {
     Q_INVOKABLE void moved(double from);
     /// The bars in view start from ``from`` to ``to`` (the chart's times, chart_time).
     Q_INVOKABLE void range(double from, double to);
+    /// The anchored VWAP's bar was chosen by a click, or its marker dragged (krx-quant #222): its
+    /// time (chart_time).
+    Q_INVOKABLE void anchored(double time);
+    /// A legend row's button (krx-quant #222): ``action`` "hide" (the eye), "settings" or
+    /// "remove" on the indicator ``key`` (krx_quant::study_key).
+    Q_INVOKABLE void legend(const QString& key, const QString& action);
 
   signals:
     void page_ready();
     void icon_clicked(const QString& bar_close);
     void view_moved(double from);
     void range_moved(double from, double to);
+    void anchor_moved(double time);
+    void legend_clicked(const QString& key, const QString& action);
     void theme_changed(const QString& json);
     void data_changed(const QString& json);
     /// Hover boxes to set and drop: {"reset", "set": [...], "drop": [times]} (krx-quant #159).
@@ -47,6 +55,9 @@ class KrxChartBridge : public QObject {
     void live_changed(const QString& json);
     /// The baseline style's base price moved with the view (krx-quant #221): {"base"}.
     void base_changed(const QString& json);
+    /// The volume profile of the bars now in view (krx-quant #222): {"color", "rows": [{"low",
+    /// "high", "volume"}]}, or {} when it is not drawn.
+    void profile_changed(const QString& json);
     void fit_requested();
 };
 
@@ -78,7 +89,8 @@ class KrxChart : public QWidget {
                   int minutes = 1, const krx_quant::ChartLook& look = {});
     /// Only the last bar of ``bars`` moved (the bar being made, krx-quant #110): it alone is
     /// drawn again, in the view of ``minutes`` and the style last set. A candle view's ``bars``
-    /// are its candles.
+    /// are its candles. The indicators' values on it move with it (krx-quant #222): the point
+    /// each line takes from it, the fractals and the volume profile.
     void update_live(const QList<krx_quant::Bar>& bars, int minutes);
     /// Show the last 60 bars again.
     void fit();
@@ -95,6 +107,12 @@ class KrxChart : public QWidget {
     /// The bars in view now start from ``from`` to ``to`` (chart_time): the score over them
     /// (krx-quant #159).
     void view_range(qint64 from, qint64 to);
+    /// The anchored VWAP's bar was clicked or dragged to (krx-quant #222): its time (chart_time).
+    void anchor_chosen(qint64 time);
+    /// A legend row's eye, settings or delete button (krx-quant #222).
+    void study_hide_toggled(krx_quant::Study study);
+    void study_settings_requested(krx_quant::Study study);
+    void study_removed(krx_quant::Study study);
 
   protected:
     void showEvent(QShowEvent* event) override;
@@ -104,6 +122,8 @@ class KrxChart : public QWidget {
     void ensure_view();
     /// The baseline's base again for the bars in view from ``first_in_view``: sent when it moved.
     void rebase(std::optional<qint64> first_in_view);
+    /// The volume profile of the bars in view, as the page takes it ({} when not drawn).
+    QString profile_json() const;
 
     KrxChartBridge* bridge_ = nullptr;
     QWebEngineView* view_ = nullptr;
@@ -116,6 +136,8 @@ class KrxChart : public QWidget {
     krx_quant::ChartLook look_;
     std::optional<double> base_;          ///< the baseline's base last sent
     std::optional<qint64> first_in_view_; ///< the first bar in view, as the page last said
+    std::optional<qint64> last_in_view_;  ///< and the last
+    krx_quant::StudyDrawing drawing_;     ///< the indicators as last sent (krx-quant #222)
 };
 
 } // namespace fincept::screens

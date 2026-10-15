@@ -93,3 +93,14 @@ fincept_add_test(tst_krx_kind_view
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
+
+# src/services/krx_quant/ChartStudies.{h,cpp} — the KRX chart's indicators: their settings as each symbol
+# keeps them, their values, what the page draws and its legend, and the bars to read for them
+# (codeyoma/krx-quant#222). Qt Core only.
+fincept_add_test(tst_krx_chart_studies
+    tst_krx_chart_studies.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")

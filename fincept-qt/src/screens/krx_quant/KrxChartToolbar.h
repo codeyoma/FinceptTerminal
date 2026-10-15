@@ -13,11 +13,11 @@ class QToolButton;
 namespace fincept::screens {
 
 /// The row above the KRX chart (krx-quant #220, #221): the minute views in a drop-down, the
-/// day, week, month and year buttons, the chart style's menu, the indicators and drawing
-/// buttons (#222, #224; not yet), and at the right end the trash (#224; not yet) and the
-/// options menu with the day separators. It only shows what the screen says and tells it what
-/// was picked; the screen keeps the choices. In a narrow panel the indicators and drawing
-/// buttons lose their labels.
+/// day, week, month and year buttons, the chart style's menu, the indicators button (#222: it
+/// asks the screen to open the indicators panel) and the drawing button (#224; not yet), and at
+/// the right end the trash (#224; not yet) and the options menu with the day separators. It
+/// only shows what the screen says and tells it what was picked; the screen keeps the choices.
+/// In a narrow panel the indicators and drawing buttons lose their labels.
 class KrxChartToolbar : public QWidget {
     Q_OBJECT
   public:
@@ -27,6 +27,8 @@ class KrxChartToolbar : public QWidget {
     void show_view(int view);
     void show_style(krx_quant::ChartStyle style);
     void show_day_separator(bool on);
+    /// Where the indicators panel opens: under the indicators button (global).
+    QPoint indicators_corner() const;
     /// Paint in the theme's colors now.
     void restyle();
     QSize sizeHint() const override;
@@ -35,6 +37,8 @@ class KrxChartToolbar : public QWidget {
     void view_chosen(int view);
     void style_chosen(krx_quant::ChartStyle style);
     void day_separator_toggled(bool on);
+    /// The indicators button was pressed (krx-quant #222).
+    void indicators_requested();
 
   protected:
     void resizeEvent(QResizeEvent* event) override;

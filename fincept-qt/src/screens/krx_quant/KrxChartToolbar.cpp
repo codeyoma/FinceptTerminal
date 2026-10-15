@@ -299,10 +299,12 @@ KrxChartToolbar::KrxChartToolbar(QWidget* parent) : QWidget(parent) {
     style_->setMenu(style_menu_);
     row->addWidget(style_);
 
+    // The indicators (krx-quant #222): the screen opens their panel under the button.
     indicators_ = new QToolButton;
+    indicators_->setObjectName("krxIndicators");
     indicators_->setText(tr("보조지표"));
-    indicators_->setToolTip(tr("보조지표: 준비 중"));
-    indicators_->setEnabled(false);
+    indicators_->setToolTip(tr("보조지표"));
+    connect(indicators_, &QToolButton::clicked, this, &KrxChartToolbar::indicators_requested);
     drawing_ = new QToolButton;
     drawing_->setText(tr("그리기"));
     drawing_->setToolTip(tr("그리기: 준비 중"));
@@ -365,6 +367,10 @@ void KrxChartToolbar::show_style(ChartStyle style) {
         action->setChecked(action->data().toString() == krx_quant::style_key(style));
     style_->setToolTip(tr("차트 모양: %1").arg(krx_quant::style_title(style)));
     paint_icons();
+}
+
+QPoint KrxChartToolbar::indicators_corner() const {
+    return indicators_->mapToGlobal(QPoint(0, indicators_->height() + 2));
 }
 
 void KrxChartToolbar::show_day_separator(bool on) {

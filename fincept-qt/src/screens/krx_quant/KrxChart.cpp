@@ -16,6 +16,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 #ifdef HAS_QT_WEBENGINE
@@ -50,6 +51,56 @@ QString shape_of(krx_quant::Direction d) {
 
 QString compact(const QJsonObject& object) {
     return QString::fromUtf8(QJsonDocument(object).toJson(QJsonDocument::Compact));
+}
+
+/// A value to four decimals: the page shows whole won, and the JSON stays short.
+double rounded(double value) {
+    return std::round(value * 1e4) / 1e4;
+}
+
+/// A point as the page takes it: [time, value], or [time] where the line breaks.
+QJsonArray point_json(qint64 time, const std::optional<double>& value) {
+    return value ? QJsonArray{time, rounded(*value)} : QJsonArray{time};
+}
+
+/// What the page draws of the indicators (krx-quant #222), but the volume profile (sent with the
+/// view, KrxChart::profile_json).
+QJsonObject studies_json(const krx_quant::StudyDrawing& d) {
+    QJsonArray series;
+    for (const auto& line : d.series) {
+        QJsonArray points;
+        for (const auto& [time, value] : line.points)
+            points.append(point_json(time, value));
+        series.append(QJsonObject{
+            {"id", line.id}, {"color", line.color}, {"width", line.width}, {"dots", line.dots}, {"points", points}});
+    }
+    QJsonArray fills;
+    for (const auto& f : d.fills)
+        fills.append(QJsonObject{{"a", f.first}, {"b", f.second}, {"up", f.up_color}, {"down", f.down_color}});
+    QJsonArray marks;
+    for (const auto& m : d.marks)
+        marks.append(QJsonObject{{"time", m.time}, {"above", m.above}, {"color", m.color}});
+    QJsonArray legend;
+    for (const auto& row : d.legend)
+        legend.append(QJsonObject{{"key", krx_quant::study_key(row.study)},
+                                  {"pane", row.pane},
+                                  {"title", row.title},
+                                  {"settings", row.settings},
+                                  {"hidden", row.hidden},
+                                  {"values", QJsonArray::fromStringList(row.values)},
+                                  {"colors", QJsonArray::fromStringList(row.colors)},
+                                  {"note", row.note},
+                                  {"missing", row.missing}});
+    QJsonObject out{{"series", series},
+                    {"fills", fills},
+                    {"marks", marks},
+                    {"legend", legend},
+                    {"picking", d.picking},
+                    {"volume", d.volume},
+                    {"volume_hidden", d.volume_hidden}};
+    if (d.anchor)
+        out.insert("anchor", QJsonObject{{"time", *d.anchor}, {"color", d.anchor_color}});
+    return out;
 }
 
 #ifdef HAS_QT_WEBENGINE
@@ -95,6 +146,14 @@ void KrxChartBridge::range(double from, double to) {
     emit range_moved(from, to);
 }
 
+void KrxChartBridge::anchored(double time) {
+    emit anchor_moved(time);
+}
+
+void KrxChartBridge::legend(const QString& key, const QString& action) {
+    emit legend_clicked(key, action);
+}
+
 KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
     setMinimumHeight(220);
     auto* layout = new QVBoxLayout(this);
@@ -117,8 +176,24 @@ KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
     connect(bridge_, &KrxChartBridge::view_moved, this, &KrxChart::view_moved);
     connect(bridge_, &KrxChartBridge::range_moved, this, [this](double from, double to) {
         first_in_view_ = static_cast<qint64>(from);
+        last_in_view_ = static_cast<qint64>(to);
         rebase(first_in_view_); // a candle view's baseline starts at the first bar in view
+        if (drawing_.profile)   // counted again over the bars now in view (krx-quant #222)
+            emit bridge_->profile_changed(profile_json());
         emit view_range(static_cast<qint64>(from), static_cast<qint64>(to));
+    });
+    connect(bridge_, &KrxChartBridge::anchor_moved, this,
+            [this](double time) { emit anchor_chosen(static_cast<qint64>(time)); });
+    connect(bridge_, &KrxChartBridge::legend_clicked, this, [this](const QString& key, const QString& action) {
+        const auto study = krx_quant::parse_study(key);
+        if (!study)
+            return;
+        if (action == QLatin1String("hide"))
+            emit study_hide_toggled(*study);
+        else if (action == QLatin1String("settings"))
+            emit study_settings_requested(*study);
+        else if (action == QLatin1String("remove"))
+            emit study_removed(*study);
     });
     unavailable_ = new QLabel(tr("차트를 열 수 없음"));
     unavailable_->setAlignment(Qt::AlignCenter);
@@ -161,8 +236,10 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
     const bool dated = krx_quant::candle_view(minutes); // the axis shows dates only
     const auto shown = krx_quant::chart_bars(dated ? bars : krx_quant::group_bars(bars, minutes));
     shown_ = shown;
-    if (minutes != minutes_)
-        first_in_view_.reset(); // another view's bars were in view
+    if (minutes != minutes_) { // another view's bars were in view
+        first_in_view_.reset();
+        last_in_view_.reset();
+    }
     minutes_ = minutes;
     look_ = look;
     // A Heikin-Ashi chart's bars are drawn as such (krx-quant #221); the volumes stay the bars'.
@@ -202,6 +279,10 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
         data.insert("base", *base_);
     if (!shown.isEmpty()) // the last bar's own close, for the price line of a Heikin-Ashi chart
         data.insert("last", QJsonObject{{"close", shown.last().close}, {"rising", shown.last().rising}});
+    // The indicators, over the bars as they are (krx-quant #222), and the volume profile of those in view.
+    drawing_ = krx_quant::draw_studies(shown, look.studies, minutes, look.anchor, look.picking, look.first_day_whole);
+    data.insert("studies", studies_json(drawing_));
+    data.insert("profile", QJsonDocument::fromJson(profile_json().toUtf8()).object());
     data_ = compact(data);
     emit bridge_->data_changed(data_);
 
@@ -246,23 +327,69 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
               : krx_quant::last_chart_bar(bars, minutes);
     if (!last)
         return;
-    // A Heikin-Ashi bar follows from all those before it (krx-quant #221).
+    // A Heikin-Ashi bar follows from all those before it (krx-quant #221), and the indicators'
+    // values from all of them (krx-quant #222).
     krx_quant::ChartBar drawn = *last;
-    if (look_.style == krx_quant::ChartStyle::HeikinAshi) {
-        const auto all =
-            krx_quant::heikin_ashi(krx_quant::chart_bars(dated ? bars : krx_quant::group_bars(bars, minutes)));
-        if (!all.isEmpty())
-            drawn = all.last();
-    }
+    const bool heikin = look_.style == krx_quant::ChartStyle::HeikinAshi;
+    const bool studies = !drawing_.series.isEmpty() || !drawing_.marks.isEmpty() || drawing_.profile;
+    QList<krx_quant::ChartBar> all;
+    if (heikin || studies)
+        all = krx_quant::chart_bars(dated ? bars : krx_quant::group_bars(bars, minutes));
+    if (heikin && !all.isEmpty())
+        drawn = krx_quant::heikin_ashi(all).last();
     const QColor color(last->rising ? ui::colors::POSITIVE() : ui::colors::NEGATIVE());
-    emit bridge_->live_changed(compact(
-        QJsonObject{{"bar", QJsonObject{{"time", drawn.time},
-                                        {"open", drawn.open},
-                                        {"high", drawn.high},
-                                        {"low", drawn.low},
-                                        {"close", drawn.close}}},
-                    {"volume", QJsonObject{{"time", last->time}, {"value", last->volume}, {"color", css(color, 0.5)}}},
-                    {"last", QJsonObject{{"close", last->close}, {"rising", last->rising}}}}));
+    QJsonObject live{{"bar", QJsonObject{{"time", drawn.time},
+                                         {"open", drawn.open},
+                                         {"high", drawn.high},
+                                         {"low", drawn.low},
+                                         {"close", drawn.close}}},
+                     {"volume", QJsonObject{{"time", last->time}, {"value", last->volume}, {"color", css(color, 0.5)}}},
+                     {"last", QJsonObject{{"close", last->close}, {"rising", last->rising}}}};
+    if (studies && !all.isEmpty()) {
+        // Each line's point the bar being made moves: its own, a leading span's displacement on,
+        // the lagging span's displacement back. The page moves that one (it is each line's last).
+        shown_ = all;
+        drawing_ =
+            krx_quant::draw_studies(all, look_.studies, minutes_, look_.anchor, look_.picking, look_.first_day_whole);
+        const qsizetype n = all.size();
+        QJsonArray points;
+        for (const auto& line : drawing_.series) {
+            const qsizetype slot = n - 1 + line.live;
+            if (slot < 0)
+                continue;
+            const qint64 time = slot < n
+                                    ? all[slot].time
+                                    : krx_quant::future_times(all, minutes_, static_cast<int>(slot - n + 1)).last();
+            std::optional<double> value;
+            for (auto it = line.points.crbegin(); it != line.points.crend() && it->first >= time; ++it)
+                if (it->first == time)
+                    value = it->second;
+            points.append(QJsonArray{line.id, point_json(time, value)});
+        }
+        live.insert("studies", points);
+        if (!drawing_.marks.isEmpty() || look_.studies.on(krx_quant::Study::Fractal))
+            live.insert("marks", studies_json(drawing_).value("marks"));
+        if (drawing_.profile)
+            live.insert("profile", QJsonDocument::fromJson(profile_json().toUtf8()).object());
+    }
+    emit bridge_->live_changed(compact(live));
+}
+
+QString KrxChart::profile_json() const {
+    if (!drawing_.profile || shown_.isEmpty())
+        return QStringLiteral("{}");
+    // The bars in view as the page last said; before it says, the fitted last ones.
+    const qint64 from =
+        first_in_view_.value_or(shown_[std::max<qsizetype>(0, shown_.size() - krx_quant::kFitBars)].time);
+    const qint64 to = last_in_view_.value_or(shown_.last().time);
+    const auto profile = krx_quant::volume_profile(shown_, from, to, drawing_.profile_rows);
+    QJsonArray rows;
+    const double height = profile.volumes.isEmpty() ? 0 : (profile.high - profile.low) / profile.volumes.size();
+    for (qsizetype r = 0; r < profile.volumes.size(); ++r)
+        rows.append(QJsonObject{{"low", rounded(profile.low + r * height)},
+                                {"high", rounded(profile.low + (r + 1) * height)},
+                                {"volume", rounded(profile.volumes[r])}});
+    return compact(QJsonObject{{"color", drawing_.profile_color}, {"rows", rows}});
 }
 
 void KrxChart::rebase(std::optional<qint64> first_in_view) {
