@@ -53,7 +53,7 @@ QIcon check_icon(bool on, bool enabled) {
     return paint([on, enabled](QPainter& p) {
         QColor ring(on ? ui::colors::AMBER() : ui::colors::TEXT_DIM());
         if (!enabled)
-            ring.setAlphaF(0.4);
+            ring.setAlphaF(0.4f);
         if (on) {
             p.setPen(Qt::NoPen);
             p.setBrush(ring);

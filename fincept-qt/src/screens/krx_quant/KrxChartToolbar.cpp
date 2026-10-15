@@ -95,7 +95,7 @@ QIcon style_icon(ChartStyle style, const Ink& ink) {
                 fill.lineTo(kZigzag.last().x(), 15);
                 fill.closeSubpath();
                 QColor soft = ink.up;
-                soft.setAlphaF(0.35);
+                soft.setAlphaF(0.35f);
                 p.fillPath(fill, soft);
                 polyline(p, kZigzag, ink.up);
                 break;
