@@ -463,8 +463,10 @@ void KrxLive::view_from(double from, int minutes) {
 }
 
 void KrxLive::set_view(int minutes) {
-    if (minutes != view_minutes_)
+    if (minutes != view_minutes_) {
         day_target_ = {}; // another first screen
+        zero_target_ = {};
+    }
     view_minutes_ = minutes;
     ensure_full(); // back to 1-minute bars with models selected
     if (krx_quant::candle_view(minutes) && !selected_.isEmpty()) {
@@ -474,25 +476,46 @@ void KrxLive::set_view(int minutes) {
     read_history();
 }
 
-void KrxLive::set_history(int bars, const QDateTime& back_to, bool whole_days) {
+void KrxLive::set_history(int bars, const QDateTime& back_to, bool whole_days, bool cumulative) {
     history_ = bars;
     history_back_to_ = back_to;
     if (whole_days && !whole_days_)
         day_target_ = {}; // worked out from the screen now
     whole_days_ = whole_days;
+    if (cumulative && !cumulative_)
+        zero_target_ = {}; // worked out from the bars held now
+    cumulative_ = cumulative;
     read_history();
 }
 
+bool KrxLive::reached_start(int view) const {
+    return krx_quant::candle_view(view) ? candles_.value(view).oldest : oldest_;
+}
+
 void KrxLive::read_history() {
-    if (selected_.isEmpty() || (history_ <= 0 && !history_back_to_.isValid() && !whole_days_))
+    if (selected_.isEmpty() || (history_ <= 0 && !history_back_to_.isValid() && !whole_days_ && !cumulative_))
         return;
+    // Back to the earliest of the moments wanted. The AD line's and the OBV's 0 (krx-quant #223) is
+    // worked out once from the bars first held (their last bar's date or year), not from the first
+    // bar held, so the reads do not keep moving back.
+    const auto back_to_with = [this](QDateTime back_to, const QList<krx_quant::Bar>& held) {
+        if (cumulative_ && !zero_target_.isValid())
+            zero_target_ = krx_quant::cumulative_start(held, view_minutes_);
+        if (cumulative_ && zero_target_.isValid() && (!back_to.isValid() || zero_target_ < back_to))
+            back_to = zero_target_;
+        return back_to;
+    };
     if (krx_quant::candle_view(view_minutes_)) {
         // The candles the engine stored, a page before the first (once the latest are read).
         const Candles kept = candles_.value(view_minutes_);
         if (kept.oldest || kept.read.isEmpty())
             return;
-        const int have = static_cast<int>(std::max(view_candles(view_minutes_).size(), kept.read.size()));
-        if (const auto before = krx_quant::history_candles(kept.read.first().start, have, history_, history_back_to_))
+        const QList<krx_quant::Bar> shown = view_candles(view_minutes_);
+        if (cumulative_ && !zero_target_.isValid() && shown.isEmpty())
+            return; // the 0's year is the last candle's, made of the days: asked again once they come
+        const int have = static_cast<int>(std::max(shown.size(), kept.read.size()));
+        const QDateTime back_to = back_to_with(history_back_to_, shown);
+        if (const auto before = krx_quant::history_candles(kept.read.first().start, have, history_, back_to))
             service_->read_candles(selected_, krx_quant::candle_period(view_minutes_), *before);
         return;
     }
@@ -506,7 +529,7 @@ void KrxLive::read_history() {
     // once from that screen (not from the first bar held, or the reads would keep moving back).
     if (whole_days_ && !day_target_.isValid())
         day_target_ = krx_quant::first_screen_day(held, view_minutes_);
-    QDateTime back_to = history_back_to_;
+    QDateTime back_to = back_to_with(history_back_to_, held);
     if (whole_days_ && day_target_.isValid() && (!back_to.isValid() || day_target_ < back_to))
         back_to = day_target_;
     const int have = static_cast<int>(krx_quant::group_bars(held, view_minutes_).size());
@@ -545,6 +568,7 @@ void KrxLive::forget_older() {
     older_.clear();
     oldest_ = false;
     day_target_ = {}; // another symbol's first screen
+    zero_target_ = {};
     full_from_ = {};
     candles_.clear();
     candle_venue_.clear();

@@ -96,11 +96,15 @@ class KrxLive : public QObject {
     /// time, until it has them or kMaxHistoryBars of the view, or the engine has none before.
     /// With ``whole_days`` (the VWAP on in a minute view), also back past the start of the first
     /// screen's earliest date (krx_quant::first_screen_day, worked out once for the symbol and
-    /// view), so the days on screen are whole.
-    void set_history(int bars, const QDateTime& back_to = {}, bool whole_days = false);
+    /// view), so the days on screen are whole. With ``cumulative`` (the AD line or the OBV on,
+    /// krx-quant #223), also back past the moment they are 0 from (krx_quant::cumulative_start:
+    /// the last bar's date, or its year in a candle view), likewise worked out once.
+    void set_history(int bars, const QDateTime& back_to = {}, bool whole_days = false, bool cumulative = false);
     /// Whether the engine has no 1-minute bars before the first held (an older read came back
     /// empty): the first day held is whole then.
     bool reached_start() const { return oldest_; }
+    /// Likewise for the view ``view``: a candle view's candles (krx-quant #223).
+    bool reached_start(int view) const;
     /// The bar close pinned; invalid while the latest is followed.
     const QDateTime& pinned() const { return pinned_; }
     /// Its judgements as last read, and the algorithms' statuses then.
@@ -236,6 +240,8 @@ class KrxLive : public QObject {
     QDateTime history_back_to_; ///< and the moment they reach back to
     bool whole_days_ = false;   ///< and whole days on the first screen (the VWAP)
     QDateTime day_target_;      ///< where those start, from the first screen; invalid: not worked out yet
+    bool cumulative_ = false;   ///< and back past the AD line's and the OBV's 0 (krx-quant #223)
+    QDateTime zero_target_;     ///< that moment, from the bars first held; invalid: not worked out yet
     KrxQuantService::LeaderboardQuery query_;
     QStringList details_; ///< the algorithms whose stats are read
     QDateTime pinned_;

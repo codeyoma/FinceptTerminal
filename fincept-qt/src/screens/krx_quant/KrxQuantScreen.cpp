@@ -927,7 +927,9 @@ void KrxQuantScreen::want_history() {
         back_to = QDateTime::fromSecsSinceEpoch(*look_.anchor - 9 * 3600, QTimeZone::fromSecondsAheadOfUtc(9 * 3600));
     // The VWAP's days on the first screen whole (krx-quant #222): a minute view's only.
     const bool whole_days = look_.studies.on(krx_quant::Study::Vwap) && !krx_quant::candle_view(minutes_);
-    live_->set_history(krx_quant::history_bars(look_.studies, minutes_), back_to, whole_days);
+    // The AD line's and the OBV's 0 held, and the bars from it on (krx-quant #223): any view.
+    const bool cumulative = look_.studies.on(krx_quant::Study::AdLine) || look_.studies.on(krx_quant::Study::Obv);
+    live_->set_history(krx_quant::history_bars(look_.studies, minutes_), back_to, whole_days, cumulative);
 }
 
 void KrxQuantScreen::fill_chart() {
@@ -962,7 +964,9 @@ void KrxQuantScreen::fill_chart() {
             ? krx_quant::kind_hovers(live_->bars(), live_->kind_board().closes(symbol), *kind, live_->kind_standings())
             : krx_quant::bar_hovers(live_->bars(), live_->board().closes(symbol), live_->selection(),
                                     live_->standings(), rule);
-    look_.first_day_whole = live_->reached_start(); // nothing before: the first day's VWAP is drawn
+    // Nothing before the first bar held in this view: its first day's VWAP is drawn, and the AD
+    // line's and the OBV's stretch from their 0 is whole (krx-quant #223).
+    look_.first_day_whole = live_->reached_start(minutes_);
     chart_->set_data(candles ? live_->view_candles(minutes_) : live_->bars(), marks, hovers, rule, minutes_, look_);
     show_score();
 }

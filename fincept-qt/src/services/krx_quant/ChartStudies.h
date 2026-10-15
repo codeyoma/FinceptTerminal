@@ -345,17 +345,28 @@ Values disparity(const QList<double>& values, int period);
 /// (high − low) × volume over their volumes' sum; a bar whose high is its low adds nothing.
 Values intraday_intensity(const QList<ChartBar>& bars, int period);
 
-/// The bar the cumulative lines (the AD line, the OBV) are 0 at, so that their values do not
-/// depend on where the bars read start (krx-quant #223): the first bar from 00:00 KST of the
-/// last bar's date in a minute view, from 1 January of its year in a candle view. Bars read
-/// before it count back from it; reading more of them changes none of the values.
-qsizetype cumulative_anchor(const QList<ChartBar>& bars, int view);
+/// The moment the cumulative lines (the AD line, the OBV) are 0 from, so that their values do not
+/// depend on where the bars read start (krx-quant #223): 00:00 KST of the last bar's date in a
+/// minute view, 1 January of its year in a candle view (chart_time). A fixed moment, not a bar
+/// held: reading bars before it changes nothing after it. None without bars.
+std::optional<qint64> cumulative_zero(const QList<ChartBar>& bars, int view);
+/// The same moment for the bars as read (1-minute bars, or a candle view's candles, oldest
+/// first): where the history read reaches back to while the AD line or the OBV is on. Invalid
+/// without bars.
+QDateTime cumulative_start(const QList<Bar>& bars, int view);
+/// The bar the cumulative lines are 0 at: the first bar from cumulative_zero on. None while the
+/// bars from that moment on may not all be held: the first bar held starts after it, and
+/// ``start_whole`` does not say the engine has nothing before (a year or a day read from its
+/// middle, whose first bar would move as earlier bars of it are read). Bars before it count back
+/// from it; reading more of them changes none of the values.
+std::optional<qsizetype> cumulative_anchor(const QList<ChartBar>& bars, int view, bool start_whole = false);
 /// The accumulation/distribution line: the sum of each bar's (2 × close − high − low) / (high −
 /// low) × volume after ``anchor`` (cumulative_anchor), 0 at it, counted back before it.
 Values accumulation_distribution(const QList<ChartBar>& bars, qsizetype anchor);
 /// The Chaikin oscillator: EMA(AD line, ``short_period``) − EMA(AD line, ``long_period``). As
-/// the AD line moves by one amount for every bar wherever it is 0, this does not depend on it.
-Values chaikin_oscillator(const QList<ChartBar>& bars, qsizetype anchor, int short_period, int long_period);
+/// the AD line moves by one amount for every bar wherever it is 0, this does not depend on where
+/// it is (it is counted from the first bar held), nor on cumulative_anchor.
+Values chaikin_oscillator(const QList<ChartBar>& bars, int short_period, int long_period);
 /// The TRIX: 100 × the change over a bar of EMA(EMA(EMA(value))) (each of ``period``) / its
 /// value before; its signal the EMA of ``signal`` of it.
 SignalLines trix(const QList<double>& values, int period, int signal);
@@ -429,8 +440,8 @@ QList<qint64> future_times(const QList<ChartBar>& bars, int view, int count);
 /// 10 × its ATR period, the parabolic SAR 100 bars. A lower one's (krx-quant #223) adds up its
 /// steps: an EMA 4 × its period, a Wilder average 8 × its period (likewise about e^-8), a fixed
 /// look-back its period less one; side by side, the longest. The VWAP needs whole days instead
-/// (first_screen_day), the anchored VWAP its anchor's bar; the AD line and the OBV none
-/// (cumulative_anchor).
+/// (first_screen_day), the anchored VWAP its anchor's bar, the AD line and the OBV the bars back
+/// past their 0's moment (cumulative_start).
 int warmup(const StudySettings& settings);
 /// The most bars of a view read for the indicators (the engine's largest ``limit``).
 inline constexpr int kMaxHistoryBars = 2000;
@@ -539,7 +550,10 @@ struct StudyDrawing {
 };
 /// ``anchor`` is the anchored VWAP's moment (chart_time; none: not chosen); ``picking`` whether a
 /// click on the chart chooses it (it is turned on without one, or chosen again).
-/// ``first_day_whole``: the first day held is whole, nothing before it to read (session_vwap).
+/// ``first_day_whole``: the engine has nothing before the first bar held in this view, so its
+/// first day is whole (session_vwap) and so is the stretch from the cumulative lines' 0 on
+/// (cumulative_anchor). Until those are held, the VWAP's day and the AD line and OBV are empty,
+/// with why in the legend; past kMaxHistoryBars (no more is read for them), why that.
 StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int view, std::optional<qint64> anchor,
                           bool picking, bool first_day_whole = false, const PaneHeights& heights = {});
 

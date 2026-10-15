@@ -774,25 +774,135 @@ class TstKrxChartStudies : public QObject {
             bar(at("2026-10-13T08:01:00+09:00"), 10, 10, 10, 10, 50),
             bar(at("2026-10-13T08:02:00+09:00"), 10, 11, 9, 9, 100),
         };
-        // 0 at the last date's first bar in a minute view; at 1 January's in a candle view.
-        QCOMPARE(cumulative_anchor(two_days, 1), qsizetype(2));
-        QCOMPARE(cumulative_anchor(two_days, 15), qsizetype(2));
-        QCOMPARE(cumulative_anchor(two_days, kDayView), qsizetype(0));
-        QCOMPARE(cumulative_anchor({}, 1), qsizetype(0));
+        // 0 from 00:00 of the last bar's date in a minute view, from 1 January in a candle view: a
+        // moment, whichever bars are held.
+        QCOMPARE(cumulative_zero(two_days, 1), std::optional(at("2026-10-13T00:00:00+09:00")));
+        QCOMPARE(cumulative_zero(two_days, kDayView), std::optional(at("2026-01-01T00:00:00+09:00")));
+        QCOMPARE(cumulative_zero(two_days.mid(2), 15), cumulative_zero(two_days, 15));
+        QVERIFY(!cumulative_zero({}, 1));
+        // Its bar: the first from that moment, once a bar before it is held (or none is before).
+        QCOMPARE(cumulative_anchor(two_days, 1), std::optional<qsizetype>(2));
+        QCOMPARE(cumulative_anchor(two_days, 15), std::optional<qsizetype>(2));
+        QVERIFY(!cumulative_anchor(two_days, kDayView)); // 1 January's not held
+        QCOMPARE(cumulative_anchor(two_days, kDayView, true), std::optional<qsizetype>(0));
+        QVERIFY(!cumulative_anchor(two_days.mid(2), 1)); // the 13th from 08:00 only
+        QCOMPARE(cumulative_anchor(two_days.mid(2), 1, true), std::optional<qsizetype>(0));
+        QVERIFY(!cumulative_anchor({}, 1, true));
         QVERIFY(same(accumulation_distribution(two_days, 2), {200, -100, 0, 0, -100}));
         QVERIFY(same(on_balance_volume(two_days, 2), {100, -200, 0, -50, -150}));
         // Fewer bars before (as before more were read): the same values where both have them.
-        for (int drop = 1; drop <= 2; ++drop) {
-            const auto later = two_days.mid(drop);
-            const qsizetype anchor = cumulative_anchor(later, 1);
-            QVERIFY(same(accumulation_distribution(later, anchor), accumulation_distribution(two_days, 2).mid(drop)));
-            QVERIFY(same(on_balance_volume(later, anchor), on_balance_volume(two_days, 2).mid(drop)));
-        }
+        const auto later = two_days.mid(1);
+        QCOMPARE(cumulative_anchor(later, 1), std::optional<qsizetype>(1));
+        QVERIFY(same(accumulation_distribution(later, 1), accumulation_distribution(two_days, 2).mid(1)));
+        QVERIFY(same(on_balance_volume(later, 1), on_balance_volume(two_days, 2).mid(1)));
         // The Chaikin oscillator of 1 and 2 over the AD line 200, −100, 0, 0, −100 (EMA 2 from 50):
-        // and the same wherever the line is 0.
-        const Values chaikin = chaikin_oscillator(two_days, 2, 1, 2);
-        QVERIFY(same(chaikin, {n, -150, -50.0 / 3, -50.0 / 9, -950.0 / 27}));
-        QVERIFY(same(chaikin_oscillator(two_days, 0, 1, 2), chaikin));
+        // the same wherever the line is 0, so it needs no 0 of its own.
+        QVERIFY(same(chaikin_oscillator(two_days, 1, 2), {n, -150, -50.0 / 3, -50.0 / 9, -950.0 / 27}));
+    }
+
+    void the_cumulative_lines_wait_for_their_zeros_bars() {
+        // Day candles of the weekdays from ``from`` to 12 October 2026, each its own: the AD
+        // line's and the OBV's values, the legend's reason where they are empty.
+        const auto days = [](const char* from) {
+            QList<ChartBar> out;
+            for (QDate d = QDate::fromString(QString::fromLatin1(from), Qt::ISODate); d <= QDate(2026, 10, 12);
+                 d = d.addDays(1)) {
+                if (d.dayOfWeek() > 5 || (d.month() == 1 && d.day() == 1)) // weekends, New Year's Day
+                    continue;
+                const int k = static_cast<int>(QDate(2025, 1, 1).daysTo(d));
+                const double close = 100 + (k * 37) % 23;
+                out << bar(at("1970-01-01T00:00:00+09:00") + QDate(1970, 1, 1).daysTo(d) * 86400, close - 1, close + 2,
+                           close - 3, close, 1000 + (k * 53) % 700);
+            }
+            return out;
+        };
+        StudySet set = default_studies();
+        set.turn(Study::AdLine, true);
+        set.turn(Study::Obv, true);
+        set.turn(Study::ChaikinOscillator, true);
+        const auto series = [](const StudyDrawing& d, const QString& id) {
+            for (const auto& s : d.series)
+                if (s.id == id)
+                    return s.points;
+            return QList<std::pair<qint64, std::optional<double>>>{};
+        };
+        // Read from 2 March, after 1 January: empty (not a value that moves later), with why.
+        StudyDrawing d = draw_studies(days("2026-03-02"), set, kDayView, std::nullopt, false);
+        QVERIFY(series(d, "obv").isEmpty() && series(d, "ad_line").isEmpty());
+        QCOMPARE(row_of(d, Study::Obv).missing, QStringLiteral("그해 첫 봉을 읽지 않아 비움"));
+        QCOMPARE(row_of(d, Study::AdLine).missing, QStringLiteral("그해 첫 봉을 읽지 않아 비움"));
+        QVERIFY(!series(d, "chaikin_oscillator").isEmpty()); // needs no 0
+        // More of that year before: still empty.
+        d = draw_studies(days("2026-02-02"), set, kDayView, std::nullopt, false);
+        QVERIFY(series(d, "obv").isEmpty());
+        // Into the year before: drawn, 0 at the year's first candle (2 January); more candles
+        // before change no value.
+        const StudyDrawing whole = draw_studies(days("2025-12-29"), set, kDayView, std::nullopt, false);
+        QVERIFY(row_of(whole, Study::Obv).missing.isEmpty());
+        const auto obv = series(whole, "obv");
+        const auto ad = series(whole, "ad_line");
+        QCOMPARE(obv.size(), days("2025-12-29").size());
+        for (const auto& [time, value] : obv)
+            if (time == at("2026-01-02T00:00:00+09:00"))
+                QCOMPARE(value, std::optional(0.0));
+        const StudyDrawing more = draw_studies(days("2025-03-03"), set, kDayView, std::nullopt, false);
+        QCOMPARE(series(more, "obv").mid(series(more, "obv").size() - obv.size()), obv);
+        QCOMPARE(series(more, "ad_line").mid(series(more, "ad_line").size() - ad.size()), ad);
+        // Nothing before the first held: whole as it is.
+        d = draw_studies(days("2026-03-02"), set, kDayView, std::nullopt, false, true);
+        QVERIFY(!series(d, "obv").isEmpty() && row_of(d, Study::Obv).missing.isEmpty());
+
+        // A minute view read from the session's middle (an engine restarted at 10:00): empty, still
+        // after the session's earlier bars come, drawn once the day before's are held.
+        const auto minutes = [](const char* from, int count) {
+            QList<ChartBar> out;
+            for (int i = 0; i < count; ++i)
+                out << bar(at(from) + i * 60, 100, 103 + i % 4, 98 - i % 3, 100 + i % 5, 10 + i % 9);
+            return out;
+        };
+        const auto session = minutes("2026-10-13T10:00:00+09:00", 60);
+        d = draw_studies(session, set, 1, std::nullopt, false);
+        QVERIFY(series(d, "obv").isEmpty());
+        QCOMPARE(row_of(d, Study::Obv).missing, QStringLiteral("그날 첫 봉을 읽지 않아 비움"));
+        const auto morning = minutes("2026-10-13T08:00:00+09:00", 120) + session;
+        QVERIFY(series(draw_studies(morning, set, 1, std::nullopt, false), "obv").isEmpty());
+        const auto day_before = minutes("2026-10-12T19:00:00+09:00", 60) + morning;
+        const auto shown = series(draw_studies(day_before, set, 1, std::nullopt, false), "obv");
+        QCOMPARE(shown.size(), day_before.size());
+        const auto earlier = minutes("2026-10-12T15:00:00+09:00", 240) + day_before;
+        const auto again = series(draw_studies(earlier, set, 1, std::nullopt, false), "obv");
+        QCOMPARE(again.mid(again.size() - shown.size()), shown);
+
+        // Past the read's cap without reaching the 0's moment: empty, saying so.
+        QList<ChartBar> capped;
+        for (int i = 0; i < kMaxHistoryBars; ++i)
+            capped << bar(at("2026-03-02T00:00:00+09:00") + i * 3600, 100, 101, 99, 100, 10);
+        d = draw_studies(capped, set, kDayView, std::nullopt, false);
+        QVERIFY(series(d, "obv").isEmpty());
+        QCOMPARE(row_of(d, Study::Obv).missing, QStringLiteral("그해 첫 봉이 2,000봉보다 앞이라 비움"));
+    }
+
+    void the_cumulative_lines_read_back_past_their_zero() {
+        // The moment the history read reaches back to, from the bars as read: the last bar's date
+        // (a minute view) or year (a candle view), whichever bars come before.
+        QList<Bar> held;
+        for (int i = 0; i < 60; ++i)
+            held << Bar{kst("2026-10-13T10:00:00+09:00").addSecs(60 * i), 1, 1, 1, 1, 1};
+        const QDateTime today = kst("2026-10-13T00:00:00+09:00");
+        QCOMPARE(cumulative_start(held, 1), today);
+        QCOMPARE(cumulative_start(held, 60), today);
+        QList<Bar> before{Bar{kst("2026-10-12T15:00:00+09:00"), 1, 1, 1, 1, 1}};
+        QCOMPARE(cumulative_start(before + held, 1), today);
+        QCOMPARE(cumulative_start(held, kDayView), kst("2026-01-01T00:00:00+09:00"));
+        QVERIFY(!cumulative_start({}, 1).isValid());
+        // Read while the first held is from that moment on; enough once one before it is held.
+        QVERIFY(history_read(held.first().start, 60, 0, 1, today));
+        QVERIFY(!history_read(before.first().start, 61, 0, 1, today));
+        QVERIFY(!history_read(held.first().start, kMaxHistoryBars, 0, 1, today)); // the cap
+        const QDateTime january = kst("2026-01-01T00:00:00+09:00");
+        QVERIFY(history_candles(kst("2026-03-02T00:00:00+09:00"), 160, 0, january));
+        QVERIFY(!history_candles(kst("2025-12-29T00:00:00+09:00"), 200, 0, january));
+        QVERIFY(!history_candles(kst("2026-03-02T00:00:00+09:00"), kMaxHistoryBars, 0, january));
     }
 
     void more_bars_barely_move_the_recursive_ones() {
@@ -896,11 +1006,12 @@ class TstKrxChartStudies : public QObject {
         d = draw_studies(minutes, set, 1, std::nullopt, false);
         QCOMPARE(d.panes.last().study, Study::Volume);
 
-        // Every lower indicator draws in its pane, on day candles too, its legend after its lines.
+        // Every lower indicator draws in its pane, on day candles too, its legend after its lines
+        // (nothing before these bars to read: the AD line's and the OBV's 0 is among them).
         StudySet every = default_studies();
         for (const Study study : kLowerStudies)
             every.turn(study, true);
-        d = draw_studies(minutes, every, kDayView, std::nullopt, false);
+        d = draw_studies(minutes, every, kDayView, std::nullopt, false, true);
         QCOMPARE(d.panes.size(), qsizetype(kLowerStudies.size()));
         for (qsizetype i = 0; i < d.panes.size(); ++i) {
             const Study study = d.panes[i].study;

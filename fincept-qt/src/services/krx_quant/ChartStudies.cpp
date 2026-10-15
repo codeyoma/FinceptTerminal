@@ -5,6 +5,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <QLocale>
 #include <QRegularExpression>
 #include <QTimeZone>
 
@@ -1235,23 +1236,41 @@ Values intraday_intensity(const QList<ChartBar>& bars, int period) {
     return out;
 }
 
-qsizetype cumulative_anchor(const QList<ChartBar>& bars, int view) {
+std::optional<qint64> cumulative_zero(const QList<ChartBar>& bars, int view) {
     if (bars.isEmpty())
-        return 0;
+        return std::nullopt;
     const QDate last = date_of(bars.last().time);
-    const qint64 zero = time_of(candle_view(view) ? QDate(last.year(), 1, 1) : last);
+    return time_of(candle_view(view) ? QDate(last.year(), 1, 1) : last);
+}
+
+QDateTime cumulative_start(const QList<Bar>& bars, int view) {
+    if (bars.isEmpty())
+        return {};
+    const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+    const QDate last = bars.last().start.toTimeZone(kst).date();
+    return QDateTime(candle_view(view) ? QDate(last.year(), 1, 1) : last, QTime(0, 0), kst);
+}
+
+std::optional<qsizetype> cumulative_anchor(const QList<ChartBar>& bars, int view, bool start_whole) {
+    const auto zero = cumulative_zero(bars, view);
+    if (!zero)
+        return std::nullopt;
+    // The bars from the moment on are all held once a bar before it is (or one starting at it),
+    // or the engine has none before the first held.
+    if (bars.first().time > *zero && !start_whole)
+        return std::nullopt;
     for (qsizetype i = 0; i < bars.size(); ++i)
-        if (bars[i].time >= zero)
+        if (bars[i].time >= *zero)
             return i;
-    return bars.size() - 1;
+    return std::nullopt; // not reached: the last bar is from the moment on
 }
 
 Values accumulation_distribution(const QList<ChartBar>& bars, qsizetype anchor) {
     return anchored_sum(money_flow_volumes(bars), anchor);
 }
 
-Values chaikin_oscillator(const QList<ChartBar>& bars, qsizetype anchor, int short_period, int long_period) {
-    const Values line = accumulation_distribution(bars, anchor);
+Values chaikin_oscillator(const QList<ChartBar>& bars, int short_period, int long_period) {
+    const Values line = accumulation_distribution(bars, 0);
     return difference(smoothed(line, short_period, false), smoothed(line, long_period, false));
 }
 
@@ -1650,7 +1669,8 @@ struct LowerLine {
     bool histogram = false;
 };
 
-QList<LowerLine> lower_lines(const QList<ChartBar>& bars, const StudySettings& s, int view) {
+/// ``zero`` is the cumulative lines' bar (cumulative_anchor); none: they are empty.
+QList<LowerLine> lower_lines(const QList<ChartBar>& bars, const StudySettings& s, std::optional<qsizetype> zero) {
     const auto in = [&s](qsizetype i) { return i < s.inputs.size() ? whole(s.inputs[i]) : 0; };
     const QList<double> values = source_values(bars, s.source.value_or(Source::Close));
     switch (s.study) {
@@ -1679,7 +1699,7 @@ QList<LowerLine> lower_lines(const QList<ChartBar>& bars, const StudySettings& s
         case Study::IntradayIntensity:
             return {{"", 0, intraday_intensity(bars, in(0))}};
         case Study::ChaikinOscillator:
-            return {{"", 0, chaikin_oscillator(bars, cumulative_anchor(bars, view), in(0), in(1))}};
+            return {{"", 0, chaikin_oscillator(bars, in(0), in(1))}};
         case Study::Trix: {
             const SignalLines t = trix(values, in(0), in(1));
             return {{"trix", 0, t.line}, {"signal", 1, t.signal}};
@@ -1687,7 +1707,7 @@ QList<LowerLine> lower_lines(const QList<ChartBar>& bars, const StudySettings& s
         case Study::PriceOscillator:
             return {{"", 0, price_oscillator(values, in(0), in(1), in(2) == 1)}};
         case Study::AdLine:
-            return {{"", 0, accumulation_distribution(bars, cumulative_anchor(bars, view))}};
+            return {{"", 0, zero ? accumulation_distribution(bars, *zero) : Values(bars.size())}};
         case Study::Adx:
             return {{"", 0, directional_movement(bars, in(0)).adx}};
         case Study::Atr:
@@ -1705,7 +1725,7 @@ QList<LowerLine> lower_lines(const QList<ChartBar>& bars, const StudySettings& s
         case Study::Mfi:
             return {{"", 0, money_flow(bars, values, in(0))}};
         case Study::Obv:
-            return {{"", 0, on_balance_volume(bars, cumulative_anchor(bars, view))}};
+            return {{"", 0, zero ? on_balance_volume(bars, *zero) : Values(bars.size())}};
         case Study::Roc:
             return {{"", 0, rate_of_change(values, in(0))}};
         case Study::Rsi:
@@ -1723,6 +1743,14 @@ StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int 
                           bool picking, bool first_day_whole, const PaneHeights& heights) {
     StudyDrawing out;
     const qsizetype n = bars.size();
+    // The AD line's and the OBV's 0 (krx-quant #223): empty until the bars from its moment on are
+    // all held, as the VWAP's day; past the read's cap, saying so.
+    const auto zero = cumulative_anchor(bars, view, first_day_whole);
+    const QString since = candle_view(view) ? QStringLiteral("그해") : QStringLiteral("그날");
+    const QString unread = zero || bars.isEmpty() ? QString()
+                           : n >= kMaxHistoryBars ? QStringLiteral("%1 첫 봉이 %2봉보다 앞이라 비움")
+                                                        .arg(since, QLocale(QLocale::English).toString(kMaxHistoryBars))
+                                                  : QStringLiteral("%1 첫 봉을 읽지 않아 비움").arg(since);
     QList<qint64> future; // the times past the last bar, as many as the lines reach
     const auto slot_time = [&](qsizetype slot) {
         if (slot < n)
@@ -1783,7 +1811,9 @@ StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int 
                 // A histogram is sent first, so its lines are drawn over it, but shown last.
                 QStringList bars_ids;
                 QStringList bars_colors;
-                for (const LowerLine& l : lower_lines(bars, s, view)) {
+                if (s.study == Study::AdLine || s.study == Study::Obv)
+                    row.missing = unread;
+                for (const LowerLine& l : lower_lines(bars, s, zero)) {
                     const QString id = l.name.isEmpty() ? spec.key : spec.key + '.' + l.name;
                     const StudyLine look = s.lines.value(l.look);
                     line(id, s.study, look, l.values);
