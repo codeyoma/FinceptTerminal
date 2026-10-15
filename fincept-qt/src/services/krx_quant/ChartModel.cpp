@@ -333,22 +333,42 @@ QStringList parse_selection(const QString& saved) {
     return out;
 }
 
-std::optional<QDateTime> relabel_before(const QDateTime& full_from, const QDateTime& oldest_close) {
-    if (!oldest_close.isValid())
-        return std::nullopt; // nothing shown
-    if (full_from.isValid() && full_from <= oldest_close)
-        return std::nullopt; // every predictor's, back to the first bar
-    return full_from;        // invalid: from the latest
+QDateTime from_the_start() {
+    return QDateTime::fromSecsSinceEpoch(0, QTimeZone::UTC);
 }
 
-QDateTime full_from_after(const QDateTime& full_from, const QList<Prediction>& page, const QDateTime& oldest_close) {
+std::optional<QDateTime> marks_before(const QDateTime& from, const QDateTime& oldest_close, bool ahead) {
+    if (from.isValid() && from <= from_the_start())
+        return std::nullopt; // the engine has none before
+    if (!ahead && !oldest_close.isValid())
+        return std::nullopt; // nothing shown
+    if (!ahead && from.isValid() && from <= oldest_close)
+        return std::nullopt; // back to the first bar
+    return from;             // invalid: from the latest
+}
+
+QDateTime full_from_after(const QDateTime& full_from, const QList<Prediction>& page) {
     if (page.isEmpty())
-        return oldest_close.isValid() ? oldest_close : full_from; // nothing before: as far back as shown
+        return from_the_start(); // nothing before
     QDateTime earliest = full_from;
     for (const auto& p : page)
         if (!earliest.isValid() || p.bar_close < earliest)
             earliest = p.bar_close;
     return earliest;
+}
+
+QDateTime finals_from_after(const QDateTime& finals_from, const QList<Prediction>& page) {
+    // Each one's earliest bar close in the page; invalid while it has none there.
+    QDateTime finals, flats;
+    for (const auto& p : page) {
+        QDateTime& earliest = p.algorithm == QLatin1String("baseline-flat") ? flats : finals;
+        if (!earliest.isValid() || p.bar_close < earliest)
+            earliest = p.bar_close;
+    }
+    const QDateTime reached = !finals.isValid() ? flats : !flats.isValid() ? finals : std::max(finals, flats);
+    if (!reached.isValid())
+        return from_the_start(); // neither has any before
+    return finals_from.isValid() && finals_from < reached ? finals_from : reached;
 }
 
 QList<CloseRow> close_rows(const QList<Prediction>& predictions, const QMap<QString, QString>& statuses,
@@ -416,13 +436,17 @@ std::pair<double, double> fit_range(int bars) {
     return {static_cast<double>(std::max(0, bars - kFitBars)), last + kRightOffset};
 }
 
-std::optional<OlderRead> older_read(const QDateTime& first, double view_from, int minutes) {
-    const int limit = std::min(std::max(kOlderBars, kOlderViewBars * minutes), kMaxOlderBars);
+double older_margin(double width) {
+    return std::max(kOlderMargin, width);
+}
+
+std::optional<OlderRead> older_read(const QDateTime& first, double view_from, int minutes, double width) {
+    const int limit = std::clamp(kOlderViewBars * minutes, kOlderBars, kMaxOlderBars);
     if (!first.isValid())
-        return OlderRead{{}, limit, {}};
-    if (view_from >= kOlderMargin)
+        return OlderRead{{}, limit};
+    if (view_from >= older_margin(width))
         return std::nullopt;
-    return OlderRead{first, limit, first.addSecs(60)};
+    return OlderRead{first, limit};
 }
 
 QList<Bar> group_bars(const QList<Bar>& bars, int minutes) {
@@ -497,10 +521,10 @@ QList<Bar> day_candles(const QList<Bar>& stored, const QList<Bar>& day_bars, con
     return join_bars(stored, {*today});
 }
 
-std::optional<QDateTime> older_candles(const QDateTime& first, double view_from) {
+std::optional<QDateTime> older_candles(const QDateTime& first, double view_from, double width) {
     if (!first.isValid())
         return QDateTime();
-    if (view_from >= kOlderMargin)
+    if (view_from >= older_margin(width))
         return std::nullopt;
     return first;
 }

@@ -39,8 +39,8 @@ class KrxChartBridge : public QObject {
     Q_INVOKABLE void ready();
     /// An icon was clicked: its bar close (ISO 8601).
     Q_INVOKABLE void clicked(const QString& bar_close);
-    /// The view moved: it starts ``from`` bars (a logical index) from the left end.
-    Q_INVOKABLE void moved(double from);
+    /// The view moved: it shows the bars from ``from`` to ``to`` (logical indexes from the left end).
+    Q_INVOKABLE void moved(double from, double to);
     /// The bars in view start from ``from`` to ``to`` (the chart's times, chart_time).
     Q_INVOKABLE void range(double from, double to);
     /// The anchored VWAP's bar was chosen by a click, or its marker dragged (krx-quant #222): its
@@ -68,7 +68,7 @@ class KrxChartBridge : public QObject {
   signals:
     void page_ready();
     void icon_clicked(const QString& bar_close);
-    void view_moved(double from);
+    void view_moved(double from, double to);
     void range_moved(double from, double to);
     void anchor_moved(double time);
     void legend_clicked(const QString& key, const QString& action);
@@ -170,9 +170,10 @@ class KrxChart : public QWidget {
     /// A final consensus icon was clicked: the table shows that bar close's judgements
     /// (krx-quant #107).
     void icon_clicked(const QDateTime& bar_close);
-    /// The view was scrolled or zoomed: it starts ``from`` bars (a logical index, negative
-    /// past the first bar) from the left end; near it, the bars before are read (krx-quant #108).
-    void view_moved(double from);
+    /// The view was scrolled or zoomed: it shows the bars from ``from`` to ``to`` (logical
+    /// indexes from the left end, ``from`` negative past the first bar); with less than a screen
+    /// of them before ``from``, the bars before are read (krx-quant #108, #239).
+    void view_moved(double from, double to);
     /// The bars in view now start from ``from`` to ``to`` (chart_time): the score over them
     /// (krx-quant #159).
     void view_range(qint64 from, qint64 to);

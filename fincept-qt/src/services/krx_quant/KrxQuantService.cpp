@@ -8,6 +8,7 @@
 #include <QUrlQuery>
 
 #include <memory>
+#include <optional>
 
 namespace fincept::services {
 
@@ -211,77 +212,91 @@ void KrxQuantService::read_chart_predictions(const QString& symbol, const QStrin
             [done](Result<QJsonDocument> answer) { done(parsed(answer, krx_quant::parse_predictions)); });
         return;
     }
+    // The final consensus's and "늘 보합"'s at once (krx-quant #239), together once both answered.
+    struct Pair {
+        std::optional<Result<Predictions>> finals, flats;
+    };
+    auto pair = std::make_shared<Pair>();
+    auto join = [pair, done]() {
+        if (!pair->finals || !pair->flats)
+            return;
+        if (pair->finals->is_err())
+            return done(*pair->finals);
+        if (pair->flats->is_err())
+            return done(*pair->flats);
+        done(Result<Predictions>::ok(pair->finals->value() + pair->flats->value()));
+    };
     get(symbol_path(symbol, "/predictions?algorithm=consensus-final&" + query),
-        [this, symbol, query, done](Result<QJsonDocument> answer) {
-            auto finals = parsed(answer, krx_quant::parse_predictions);
-            if (finals.is_err())
-                return done(finals);
-            get(symbol_path(symbol, "/predictions?algorithm=baseline-flat&" + query),
-                [done, finals = finals.value()](Result<QJsonDocument> answer) {
-                    auto flats = parsed(answer, krx_quant::parse_predictions);
-                    if (flats.is_err())
-                        return done(flats);
-                    done(Result<Predictions>::ok(finals + flats.value()));
-                });
+        [pair, join](Result<QJsonDocument> answer) {
+            pair->finals = parsed(answer, krx_quant::parse_predictions);
+            join();
+        });
+    get(symbol_path(symbol, "/predictions?algorithm=baseline-flat&" + query),
+        [pair, join](Result<QJsonDocument> answer) {
+            pair->flats = parsed(answer, krx_quant::parse_predictions);
+            join();
         });
 }
 
 void KrxQuantService::read_chart(const QString& symbol, bool all) {
     if (!begin(kChart))
         return;
-    get(symbol_path(symbol, "/bars"), [this, symbol, all](Result<QJsonDocument> answer) {
-        auto bars = parsed(answer, krx_quant::parse_bars);
-        if (bars.is_err()) {
-            end(kChart);
-            return emit chart_failed(symbol, why(bars.error()));
-        }
-        read_chart_predictions(symbol, QString("limit=%1").arg(all ? kAllLimit : kFinalsLimit), all,
-                               [this, symbol, all, bars = bars.value()](Result<QList<krx_quant::Prediction>> made) {
-                                   end(kChart);
-                                   if (made.is_err())
-                                       return emit chart_failed(symbol, why(made.error()));
-                                   emit chart_ready(symbol, bars, made.value(), all);
-                               });
-    });
-}
-
-void KrxQuantService::read_older(const QString& symbol, const krx_quant::OlderRead& read, bool all) {
-    if (!begin(kOlder))
-        return; // the view moves on: asked again once this one is drawn
-    auto before = [](const QDateTime& at) {
-        return at.isValid() ? "&before=" + QString::fromUtf8(QUrl::toPercentEncoding(at.toString(Qt::ISODate)))
-                            : QString();
+    // The bars and their predictions at once (krx-quant #239); the chart once both answered.
+    struct Chart {
+        std::optional<Result<QList<krx_quant::Bar>>> bars;
+        std::optional<Result<QList<krx_quant::Prediction>>> made;
     };
-    const QString bars_path = QString("/bars?limit=%1").arg(read.limit) + before(read.before);
-    const QString query = QString("limit=%1").arg(read.limit) + before(read.finals_before);
-    get(symbol_path(symbol, bars_path), [this, symbol, query, all](Result<QJsonDocument> answer) {
-        auto bars = parsed(answer, krx_quant::parse_bars);
-        if (bars.is_err()) {
-            end(kOlder);
-            return emit older_failed(symbol, why(bars.error()));
-        }
-        read_chart_predictions(symbol, query, all,
-                               [this, symbol, all, bars = bars.value()](Result<QList<krx_quant::Prediction>> made) {
-                                   end(kOlder);
-                                   if (made.is_err())
-                                       return emit older_failed(symbol, why(made.error()));
-                                   emit older_ready(symbol, bars, made.value(), all);
-                               });
+    auto chart = std::make_shared<Chart>();
+    auto join = [this, symbol, all, chart]() {
+        if (!chart->bars || !chart->made)
+            return;
+        end(kChart);
+        if (chart->bars->is_err())
+            return emit chart_failed(symbol, why(chart->bars->error()));
+        if (chart->made->is_err())
+            return emit chart_failed(symbol, why(chart->made->error()));
+        emit chart_ready(symbol, chart->bars->value(), chart->made->value(), all);
+    };
+    get(symbol_path(symbol, "/bars"), [chart, join](Result<QJsonDocument> answer) {
+        chart->bars = parsed(answer, krx_quant::parse_bars);
+        join();
     });
+    read_chart_predictions(symbol, QString("limit=%1").arg(all ? kAllLimit : kFinalsLimit), all,
+                           [chart, join](Result<QList<krx_quant::Prediction>> made) {
+                               chart->made = std::move(made);
+                               join();
+                           });
 }
 
-void KrxQuantService::read_predictions(const QString& symbol, const QDateTime& before, int limit) {
+bool KrxQuantService::read_older(const QString& symbol, const krx_quant::OlderRead& read) {
+    if (!begin(kOlder))
+        return false; // the view moves on: asked again once this one is drawn
+    QString path = QString("/bars?limit=%1").arg(read.limit);
+    if (read.before.isValid())
+        path += "&before=" + QString::fromUtf8(QUrl::toPercentEncoding(read.before.toString(Qt::ISODate)));
+    get(symbol_path(symbol, path), [this, symbol](Result<QJsonDocument> answer) {
+        end(kOlder);
+        auto bars = parsed(answer, krx_quant::parse_bars);
+        if (bars.is_err())
+            return emit older_failed(symbol, why(bars.error()));
+        emit older_ready(symbol, bars.value());
+    });
+    return true;
+}
+
+bool KrxQuantService::read_predictions(const QString& symbol, const QDateTime& before, int limit, bool all) {
     if (!begin(kPredictions))
-        return;
+        return false;
     QString query = QString("limit=%1").arg(limit);
     if (before.isValid())
         query += "&before=" + QString::fromUtf8(QUrl::toPercentEncoding(before.toString(Qt::ISODate)));
-    read_chart_predictions(symbol, query, true, [this, symbol, before](Result<QList<krx_quant::Prediction>> made) {
+    read_chart_predictions(symbol, query, all, [this, symbol, before, all](Result<QList<krx_quant::Prediction>> made) {
         end(kPredictions);
         if (made.is_err())
             return emit predictions_failed(symbol, why(made.error()));
-        emit predictions_ready(symbol, before, made.value());
+        emit predictions_ready(symbol, before, made.value(), all);
     });
+    return true;
 }
 
 void KrxQuantService::read_algorithms() {

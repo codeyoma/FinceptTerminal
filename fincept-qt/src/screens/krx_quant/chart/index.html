@@ -1721,10 +1721,11 @@
   }
   chart.subscribeCrosshairMove(hover);
 
-  // The view moved: near its left end the screen reads the bars before (krx-quant #108).
-  // The chart keeps the view on the same bars when they come in before the first.
+  // The view moved: within a screen of its left end the screen reads the bars before
+  // (krx-quant #108, #239). The chart keeps the view on the same bars when they come in before
+  // the first.
   chart.timeScale().subscribeVisibleLogicalRangeChange(function (range) {
-    if (range && bars.length && bridge) bridge.moved(range.from);
+    if (range && bars.length && bridge) bridge.moved(range.from, range.to);
   });
   // The bars in view, by time: the score over them (krx-quant #159), the volume profile
   // (krx-quant #222).

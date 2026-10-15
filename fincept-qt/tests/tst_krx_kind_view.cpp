@@ -645,8 +645,8 @@ class TstKrxKindView : public QObject {
         const auto back = kind_read(at("10:00"), at("09:01"));
         QCOMPARE(back->before, at("10:00"));
         QCOMPARE(back->limit, 60);
-        QCOMPARE(kind_read(at("09:00"), kst("2026-10-01T09:01:00+09:00"))->limit, kMaxOlderBars); // at most
-        QVERIFY(!kind_read(at("09:01"), at("09:01")).has_value());                                // reached
+        QCOMPARE(kind_read(at("09:00"), kst("2026-10-01T09:01:00+09:00"))->limit, kPredictionPage); // at most
+        QVERIFY(!kind_read(at("09:01"), at("09:01")).has_value());                                  // reached
         // A page moves it to its earliest bar close; an empty one to the first bar shown.
         const QList<KindPrediction> page{forecast("a", "09:40", 0.3, 0.3, 0.4, 0, 0, 0),
                                          forecast("a", "09:20", 0.3, 0.3, 0.4, 0, 0, 0)};

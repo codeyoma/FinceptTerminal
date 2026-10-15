@@ -83,9 +83,10 @@ class KrxLive : public QObject {
     /// Show one bar close's judgements of the chosen symbol (a chart icon clicked, krx-quant
     /// #107) instead of the latest's; an invalid time goes back to the latest.
     void pin(const QDateTime& bar_close);
-    /// The chart's view of ``minutes`` (krx-quant #109) starts ``from`` of its bars (a logical
-    /// index) from its left end: near it, the bars before are read (krx-quant #108).
-    void view_from(double from, int minutes = 1);
+    /// The chart's view of ``minutes`` (krx-quant #109) shows its bars from ``from`` to ``to``
+    /// (logical indexes from its left end): with less than a screen of them before ``from``, the
+    /// bars before are read (krx-quant #108, #239).
+    void view_from(double from, double to, int minutes = 1);
     /// The chart shows the view of ``minutes``. A candle view (krx_quant::candle_view: day,
     /// week, month, year; krx-quant #111, #112) reads the engine's latest candles of its
     /// period if it has none yet, or none since the engine day changed, and so do its days
@@ -199,10 +200,20 @@ class KrxLive : public QObject {
     bool all_predictors() const;
     /// The close of the first bar shown (1-minute); invalid without bars.
     QDateTime oldest_close() const;
-    /// While all_predictors(), read again the predictions of the bar closes shown that were
-    /// read with the final consensus alone, a page at a time from the latest back. Whether
-    /// that is under way.
-    bool ensure_full();
+    /// In the 1-minute view, read the predictions its icons need back to the first bar shown,
+    /// a page at a time from the latest back (krx_quant::marks_before): while all_predictors(),
+    /// every predictor's (those read with the final consensus alone again, krx-quant #159), else
+    /// the final consensus's and "늘 보합"'s (krx-quant #239). With ``ahead`` (bars before the
+    /// first are being read), the page before those read even once they reach the first bar.
+    void ensure_marks(bool ahead = false);
+    /// Where the predictions were read from, once a page of them (``page``) came in: every
+    /// predictor's with ``all``, else the final consensus's and "늘 보합"'s.
+    void marks_read(const QList<krx_quant::Prediction>& page, bool all);
+    /// The bars before the first, if the chart's view (view_from) is near it: a candle view's
+    /// candles, a minute view's 1-minute bars.
+    void read_older();
+    /// Read those 1-minute bars before the first, and their icons' predictions at the same time.
+    void read_bars(const krx_quant::OlderRead& read);
     void on_event(const krx_quant::Event& event);
     void consider(const krx_quant::Prediction& final, const QDateTime& now);
     void set_engine_clock(const QDateTime& now);
@@ -230,6 +241,7 @@ class KrxLive : public QObject {
     QList<krx_quant::Bar> older_;                ///< read before the day's, as the chart scrolled back
     bool oldest_ = false;                        ///< the engine has nothing before older_
     double view_from_ = krx_quant::kOlderMargin; ///< where the chart's view last started
+    double view_width_ = 0;                      ///< and how many bars wide it was
     int view_minutes_ = 1;                       ///< and its minutes
     /// A candle view's candles as read from the engine (krx-quant #111, #112).
     struct Candles {
@@ -275,9 +287,11 @@ class KrxLive : public QObject {
     QMap<QString, krx_quant::AlgorithmInfo> algorithms_; ///< the engine's cards, models and statuses
     QString algorithms_failure_;                         ///< why their last read failed
     /// The earliest bar close from which on every predictor's predictions were read; invalid:
-    /// none (krx-quant #159).
+    /// none (krx-quant #159); krx_quant::from_the_start: all.
     QDateTime full_from_;
-    bool relabeling_ = false; ///< a page of them is read
+    /// Likewise the final consensus's and "늘 보합"'s (krx-quant #239).
+    QDateTime finals_from_;
+    bool marks_paging_ = false; ///< a page of either is read
     // Another kind than the direction (krx-quant #182).
     std::optional<QList<krx_quant::KindInfo>> kinds_; ///< GET /v1/kinds; none before, or from an older engine
     QString saved_kind_ = krx_quant::kDirectionKind;  ///< the user's choice
