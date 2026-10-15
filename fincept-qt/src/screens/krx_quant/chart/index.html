@@ -346,9 +346,42 @@
   }
   makeMain('candle');
 
+  // The view follows the latest bars: from the first bars drawn, and again after a fit (the
+  // button, a double click, another view), until it is moved by hand. While it follows, each
+  // change of the bars fits them again. The first bars drawn are often today's alone, those
+  // before them (the indicators' history, krx-quant #222, #223) right after: fitted once, the
+  // view kept the first few bars' zoom, or, as the chart applies a range at its next frame by
+  // its indexes then, landed on the days read before them.
   let fitRange = null;
+  let following = true;
+  let fittedTo = ''; // the bars and fit last asked for while following
   function fit() {
-    if (fitRange) chart.timeScale().setVisibleLogicalRange(fitRange);
+    following = true;
+    fittedTo = '';
+    refit();
+  }
+  function refit() {
+    if (!following || !fitRange || !bars.length) return;
+    const asked = [bars.length, bars[0].time, fitRange.from, fitRange.to].join();
+    if (asked === fittedTo) return;
+    fittedTo = asked;
+    chart.timeScale().setVisibleLogicalRange(fitRange);
+  }
+  // Resized while it follows (the page laying itself out after the first bars, the window
+  // made larger): fitted again, as the chart keeps its bars' width.
+  let fittedWidth = 0;
+  new ResizeObserver(function () {
+    if (area.clientWidth === fittedWidth) return;
+    fittedWidth = area.clientWidth;
+    fittedTo = '';
+    refit();
+  }).observe(area);
+  // Moved by hand: a wheel, a drag or a touch on the chart (a click too). The view then stays
+  // where it is as bars come in, until the next fit.
+  for (const type of ['wheel', 'mousedown', 'touchstart']) {
+    window.addEventListener(type, function (e) {
+      if (area.contains(e.target)) following = false;
+    }, { capture: true, passive: true });
   }
 
   let bars = [];        // as drawn, oldest first
@@ -362,9 +395,6 @@
     icons.setMarkers(all);
   }
 
-  // Fitted since the chart last emptied: another symbol is chosen by emptying the chart
-  // first (KrxLive::select), and its first bars are fitted again.
-  let shown = false;
   function show(data) {
     // Day candles (krx-quant #111) are dated: the axis and the crosshair show no time.
     chart.applyOptions({ timeScale: { timeVisible: !data.day } });
@@ -393,12 +423,10 @@
     }));
     showStudies(data.studies || {}, data.profile || {});
     fitRange = data.fit;
-    if (!bars.length) {
-      shown = false;
-    } else if (!shown) { // the first bars: the last ones in view
-      shown = true;
-      fit();
-    }
+    // Emptied: another symbol is chosen by emptying the chart first (KrxLive::select), and its
+    // bars are followed again.
+    if (!bars.length) fit();
+    else refit();
     redraw(); // the box hovered stays, over what was sent now
   }
 

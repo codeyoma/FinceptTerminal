@@ -114,3 +114,35 @@ fincept_add_test(tst_krx_chart_drawings
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
+
+# src/screens/krx_quant/chart/index.html as src/screens/krx_quant/KrxChart.{h,cpp} drives it: the
+# first screen fits the latest bars however the bars read before them come in, and a view moved
+# by hand stays. Unlike the suites above it needs Widgets and Qt WebEngine: what it tests is the
+# page running TradingView Lightweight Charts, which only a web view runs. It opens a window and
+# skips itself offscreen or without the WebEngine runtime.
+if(HAS_WEBENGINE)
+    fincept_add_test(tst_krx_chart_page
+        tst_krx_chart_page.cpp
+        "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChart.cpp"
+        "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChart.h"
+        "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
+        "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
+        "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
+        "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+        "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+        "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+        "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp"
+        "${PROJECT_SOURCE_DIR}/src/ui/theme/Theme.cpp"
+        "${PROJECT_SOURCE_DIR}/src/ui/theme/ThemeManager.cpp"
+        "${PROJECT_SOURCE_DIR}/src/ui/theme/ThemeManager.h"
+        "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
+    target_link_libraries(tst_krx_chart_page PRIVATE Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel)
+    target_compile_definitions(tst_krx_chart_page PRIVATE HAS_QT_WEBENGINE)
+    # The page, as the app bundles it (fincept-qt/CMakeLists.txt, "krx_chart").
+    qt6_add_resources(tst_krx_chart_page "krx_chart_page"
+        PREFIX "/krx/chart"
+        BASE "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/chart"
+        FILES
+            "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/chart/index.html"
+            "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/chart/lightweight-charts.standalone.production.js")
+endif()
