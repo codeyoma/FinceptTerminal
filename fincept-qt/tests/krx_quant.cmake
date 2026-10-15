@@ -104,3 +104,13 @@ fincept_add_test(tst_krx_chart_studies
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
+
+# src/services/krx_quant/ChartDrawings.{h,cpp} — the KRX chart's drawings: the tools, a symbol's drawings as
+# kept, where a moment lies on each view's bars and back, and the magnet (codeyoma/krx-quant#224). Qt Core only.
+fincept_add_test(tst_krx_chart_drawings
+    tst_krx_chart_drawings.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")

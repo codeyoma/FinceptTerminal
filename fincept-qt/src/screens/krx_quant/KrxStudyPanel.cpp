@@ -1,5 +1,6 @@
 #include "screens/krx_quant/KrxStudyPanel.h"
 
+#include "screens/krx_quant/KrxSwatches.h"
 #include "ui/theme/Theme.h"
 
 #include <QComboBox>
@@ -31,12 +32,9 @@ using krx_quant::Study;
 
 namespace {
 
-/// The colours a line can take: the defaults' and a few more.
+/// The colours a line can take: the defaults' and a few more (shared with the drawings, krx-quant #224).
 const QStringList& swatches() {
-    static const QStringList colors{"#F472B6", "#F59E0B", "#22C55E", "#38BDF8", "#C084FC", "#FB923C",
-                                    "#2DD4BF", "#60A5FA", "#EF4444", "#FACC15", "#A3E635", "#E879F9",
-                                    "#3B82F6", "#A78BFA", "#86EFAC", "#FCA5A5", "#94A3B8", "#F5F5F5"};
-    return colors;
+    return krx_swatches();
 }
 
 /// A 16×16 icon drawn by ``draw``, sharp on a high-density screen.
