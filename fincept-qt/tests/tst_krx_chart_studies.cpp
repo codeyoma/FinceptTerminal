@@ -440,8 +440,7 @@ class TstKrxChartStudies : public QObject {
         QVERIFY(read);
         QCOMPARE(read->before, first);
         QCOMPARE(read->limit, kOlderBars);
-        QCOMPARE(read->finals_before, first.addSecs(60));
-        QCOMPARE(history_read(first, 50, 179, 15)->limit, kMaxOlderBars); // 100 of 15 minutes, at most 1000
+        QCOMPARE(history_read(first, 50, 179, 15)->limit, 4500); // 300 of 15 minutes (krx-quant #239)
         QVERIFY(!history_read(first, 179, 179, 1));
         QVERIFY(!history_read(QDateTime(), 0, 179, 1));                          // the chart is read first
         QVERIFY(!history_read(first, kMaxHistoryBars, kMaxHistoryBars + 10, 1)); // the cap

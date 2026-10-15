@@ -45,44 +45,37 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
             read_chart(); // another was chosen meanwhile
     });
     connect(service_, &KrxQuantService::older_ready, this,
-            [this](const QString& symbol, const QList<krx_quant::Bar>& bars,
-                   const QList<krx_quant::Prediction>& predictions, bool all) {
+            [this](const QString& symbol, const QList<krx_quant::Bar>& bars) {
                 if (symbol != selected_)
-                    return view_from(view_from_,
-                                     view_minutes_); // another was chosen meanwhile: its own, if its view asked
-                const QDateTime shown_from = oldest_close();
+                    return read_older(); // another was chosen meanwhile: its own, if its view asked
                 oldest_ = bars.isEmpty();
                 older_ = krx_quant::join_bars(bars, older_);
-                board_.set_history(symbol, predictions);
-                // Every predictor's back to the first bar shown, and now before it too.
-                if (all && full_from_.isValid() && full_from_ <= shown_from)
-                    full_from_ = krx_quant::full_from_after(full_from_, predictions, oldest_close());
                 emit chart_changed();
-                emit marks_changed();
+                ensure_marks();      // their icons' predictions, if not read along (krx-quant #239)
                 read_kind_history(); // the kind's over the bars now shown too (krx-quant #182)
                 read_history();      // more for the indicators (krx-quant #222)
             });
     connect(service_, &KrxQuantService::predictions_ready, this,
-            [this](const QString& symbol, const QDateTime&, const QList<krx_quant::Prediction>& predictions) {
-                relabeling_ = false;
+            [this](const QString& symbol, const QDateTime& before, const QList<krx_quant::Prediction>& predictions,
+                   bool all) {
+                marks_paging_ = false;
                 if (symbol == selected_) {
                     board_.set_history(symbol, predictions);
-                    full_from_ = krx_quant::full_from_after(full_from_, predictions, oldest_close());
+                    // Read before where they were read from: unless another read moved that since.
+                    if (before == (all ? full_from_ : finals_from_))
+                        marks_read(predictions, all);
                     emit marks_changed();
                 }
-                if (!ensure_full()) {
-                    view_from(view_from_, view_minutes_); // the bars before, waiting till now
-                    read_history();
-                }
+                ensure_marks(); // back to the first bar shown, or another symbol's
             });
     connect(service_, &KrxQuantService::predictions_failed, this, [this](const QString& symbol, const QString& reason) {
-        relabeling_ = false; // asked again when the view moves or a bar close comes
+        marks_paging_ = false; // asked again when the view moves or a bar close comes
         if (symbol == selected_)
             emit older_failed(reason);
     });
     connect(service_, &KrxQuantService::older_failed, this, [this](const QString& symbol, const QString& reason) {
         if (symbol != selected_)
-            return view_from(view_from_, view_minutes_); // another was chosen meanwhile
+            return read_older();                         // another was chosen meanwhile
         if (!krx_quant::candle_view(view_minutes_))      // not since the view changed to candles
             emit older_failed(reason);
     });
@@ -237,7 +230,7 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
             emit stats_failed(algorithm, reason);
     });
     connect(service_, &KrxQuantService::base_url_changed, this, [this](const QString& url) {
-        relabeling_ = false; // its page was dropped with the old engine's reads
+        marks_paging_ = false; // its page was dropped with the old engine's reads
         algorithms_.clear(); // the old engine's; the new one's come with the details
         algorithms_failure_.clear();
         emit algorithms_changed();
@@ -289,7 +282,7 @@ void KrxLive::apply_base_url(const QString& url) {
     kind_board_.forget();
     kind_from_ = {};
     kind_paging_ = false;
-    relabeling_ = false; // the restart below drops a page under way: none would answer
+    marks_paging_ = false; // the restart below drops a page under way: none would answer
     bars_.clear();
     live_.reset();
     forget_older(); // the old engine's
@@ -402,7 +395,7 @@ void KrxLive::set_selection(const QStringList& selection) {
         return;
     selection_ = selection;
     emit marks_changed();
-    ensure_full();
+    ensure_marks();
 }
 
 bool KrxLive::all_predictors() const {
@@ -416,17 +409,23 @@ QDateTime KrxLive::oldest_close() const {
     return first.isValid() ? first.addSecs(60) : QDateTime();
 }
 
-bool KrxLive::ensure_full() {
-    if (relabeling_)
-        return true;
-    if (!all_predictors() || selected_.isEmpty())
-        return false;
-    const auto before = krx_quant::relabel_before(full_from_, oldest_close());
-    if (!before)
-        return false;
-    relabeling_ = true;
-    service_->read_predictions(selected_, *before, krx_quant::kMaxOlderBars);
-    return true;
+void KrxLive::ensure_marks(bool ahead) {
+    if (marks_paging_ || view_minutes_ != 1 || selected_.isEmpty())
+        return; // one page at a time; the wider views draw no icons
+    const bool all = all_predictors();
+    if (const auto before = krx_quant::marks_before(all ? full_from_ : finals_from_, oldest_close(), ahead))
+        marks_paging_ = service_->read_predictions(selected_, *before, krx_quant::kPredictionPage, all);
+}
+
+void KrxLive::marks_read(const QList<krx_quant::Prediction>& page, bool all) {
+    if (!all) {
+        finals_from_ = krx_quant::finals_from_after(finals_from_, page);
+        return;
+    }
+    full_from_ = krx_quant::full_from_after(full_from_, page);
+    // Every predictor's holds the final consensus's and "늘 보합"'s too.
+    if (!finals_from_.isValid() || full_from_ < finals_from_)
+        finals_from_ = full_from_;
 }
 
 void KrxLive::read_chart() {
@@ -435,9 +434,15 @@ void KrxLive::read_chart() {
     read_kind_history(true); // the kind's latest bar closes with the chart's (krx-quant #182)
 }
 
-void KrxLive::view_from(double from, int minutes) {
+void KrxLive::view_from(double from, double to, int minutes) {
     view_from_ = from;
+    view_width_ = to - from;
     view_minutes_ = minutes;
+    read_older();
+}
+
+void KrxLive::read_older() {
+    const int minutes = view_minutes_;
     if (krx_quant::candle_view(minutes)) {
         const Candles kept = candles_.value(minutes);
         if (selected_.isEmpty() || kept.oldest)
@@ -446,20 +451,24 @@ void KrxLive::view_from(double from, int minutes) {
         // stored yet) the first made of the days; none: the latest are read.
         const QList<krx_quant::Bar> shown = kept.read.isEmpty() ? view_candles(minutes) : kept.read;
         const QDateTime first = shown.isEmpty() ? QDateTime() : shown.first().start;
-        if (const auto before = krx_quant::older_candles(first, from))
+        if (const auto before = krx_quant::older_candles(first, view_from_, view_width_))
             service_->read_candles(selected_, krx_quant::candle_period(minutes), *before);
         return;
     }
     if (selected_.isEmpty() || oldest_)
         return;
-    if (ensure_full())
-        return; // the bar closes shown are read again first: the bars before after them
     // The first bar shown: the earliest read before, else today's first.
     const QDateTime first = !older_.isEmpty()  ? older_.first().start
                             : !bars_.isEmpty() ? bars_.first().start
                                                : QDateTime();
-    if (const auto read = krx_quant::older_read(first, from, minutes))
-        service_->read_older(selected_, *read, all_predictors());
+    if (const auto read = krx_quant::older_read(first, view_from_, minutes, view_width_))
+        read_bars(*read);
+}
+
+void KrxLive::read_bars(const krx_quant::OlderRead& read) {
+    // Their icons' predictions at the same time, apart (krx-quant #239).
+    if (service_->read_older(selected_, read))
+        ensure_marks(true);
 }
 
 void KrxLive::set_view(int minutes) {
@@ -468,7 +477,7 @@ void KrxLive::set_view(int minutes) {
         zero_target_ = {};
     }
     view_minutes_ = minutes;
-    ensure_full(); // back to 1-minute bars with models selected
+    ensure_marks(); // back to 1-minute bars: the icons' predictions over those read meanwhile
     if (krx_quant::candle_view(minutes) && !selected_.isEmpty()) {
         read_latest(krx_quant::kDayView); // a longer view's last periods are made of the days
         read_latest(minutes);             // skipped while the days are read: asked again on their answer
@@ -519,8 +528,8 @@ void KrxLive::read_history() {
             service_->read_candles(selected_, krx_quant::candle_period(view_minutes_), *before);
         return;
     }
-    if (oldest_ || relabeling_)
-        return; // the bar closes shown are read again first (krx-quant #159)
+    if (oldest_)
+        return;
     const QDateTime first = !older_.isEmpty()  ? older_.first().start
                             : !bars_.isEmpty() ? bars_.first().start
                                                : QDateTime();
@@ -534,7 +543,7 @@ void KrxLive::read_history() {
         back_to = day_target_;
     const int have = static_cast<int>(krx_quant::group_bars(held, view_minutes_).size());
     if (const auto read = krx_quant::history_read(first, have, history_, view_minutes_, back_to))
-        service_->read_older(selected_, *read, all_predictors());
+        read_bars(*read);
 }
 
 void KrxLive::read_latest(int view) {
@@ -570,9 +579,11 @@ void KrxLive::forget_older() {
     day_target_ = {}; // another symbol's first screen
     zero_target_ = {};
     full_from_ = {};
+    finals_from_ = {};
     candles_.clear();
     candle_venue_.clear();
     view_from_ = krx_quant::kOlderMargin;
+    view_width_ = 0;
 }
 
 void KrxLive::pin(const QDateTime& bar_close) {
@@ -650,6 +661,7 @@ void KrxLive::on_snapshot(const KrxQuantService::Snapshot& snapshot) {
         bars_.clear();
         live_.reset();
         full_from_ = {};
+        finals_from_ = {};
     }
     if (snapshot.status.now.isValid() && kind_board_.rewind_to(snapshot.status.now))
         kind_from_ = {};
@@ -684,6 +696,7 @@ void KrxLive::on_status(const krx_quant::EngineStatus& status, bool with_snapsho
         bars_.clear();
         live_.reset();
         full_from_ = {};
+        finals_from_ = {};
         emit predictions_changed();
         emit chart_changed();
         read_chart();
@@ -734,17 +747,21 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
         live_.reset();
     board_.set_history(symbol, predictions);
     // The latest bar closes: every predictor's from the earliest read on, or, read with the
-    // final consensus alone, no longer all of them up to now (krx-quant #159).
-    full_from_ = all ? krx_quant::full_from_after(full_from_, predictions, oldest_close()) : QDateTime();
+    // final consensus alone, no longer all of them up to now (krx-quant #159); the final
+    // consensus's and "늘 보합"'s either way (krx-quant #239).
+    if (!all)
+        full_from_ = {};
+    marks_read(predictions, all);
     emit chart_changed();
     emit marks_changed();
-    ensure_full();
+    ensure_marks();
     read_kind_history(); // the kind's over the bars now shown (krx-quant #182)
     if (krx_quant::candle_view(view_minutes_))
         set_view(view_minutes_); // the view's candles, unless read (a symbol or an engine changed)
-    else if (bars_.isEmpty() && older_.isEmpty())
-        view_from(0, view_minutes_); // nothing today yet (before the open): the last day's bars
-    else
+    else if (bars_.isEmpty() && older_.isEmpty()) {
+        view_from_ = 0; // nothing today yet (before the open): the last day's bars
+        read_older();
+    } else
         read_history(); // the bars before that the indicators want (krx-quant #222)
 }
 

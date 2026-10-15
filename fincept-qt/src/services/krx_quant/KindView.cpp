@@ -429,7 +429,7 @@ std::optional<KindRead> kind_read(const QDateTime& from, const QDateTime& oldest
         return std::nullopt; // back to the first bar shown
     // A bar close a minute: as many as there are minutes from the first bar's on, the engine's most at once.
     const qint64 minutes = oldest_close.secsTo(from) / 60 + 1;
-    return KindRead{from, static_cast<int>(std::min<qint64>(minutes, kMaxOlderBars))};
+    return KindRead{from, static_cast<int>(std::min<qint64>(minutes, kPredictionPage))};
 }
 
 QDateTime kind_from_after(const QDateTime& from, const QList<KindPrediction>& page, const QDateTime& oldest_close) {

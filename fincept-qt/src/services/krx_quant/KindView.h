@@ -148,14 +148,14 @@ QList<BarHover> kind_hovers(const QList<Bar>& bars, const QMap<QDateTime, QList<
 
 /// Bar closes of a kind's predictions read at a time for the chart's hover boxes (krx-quant
 /// #182): the latest ones first, a whole day; then, as the chart scrolls back, as many as it
-/// shows, at most kMaxOlderBars (the engine's most).
+/// shows, at most kPredictionPage (the engine's most).
 inline constexpr int kKindPage = 400;
 
 /// What to read of a kind's predictions for the bars shown (krx-quant #182): ``from`` is the
 /// earliest bar close from which on they were read (invalid: none yet), ``oldest_close`` the
 /// first bar's close. With no bar shown, nothing; the latest page while none was read (an
 /// invalid ``before``); then the bar closes before ``from`` down to ``oldest_close``,
-/// kMaxOlderBars at most; nothing once they reach it.
+/// kPredictionPage at most; nothing once they reach it.
 struct KindRead {
     QDateTime before; ///< invalid: before now
     int limit = kKindPage;

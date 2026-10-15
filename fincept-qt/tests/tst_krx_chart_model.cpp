@@ -360,17 +360,53 @@ class TstKrxChartModel : public QObject {
     }
 
     void once_models_are_selected_the_bar_closes_shown_are_read_again_from_the_latest_back() {
-        const QDateTime oldest = kst("2026-10-08T09:01:00+09:00");                   // the first bar's close
-        QVERIFY(!relabel_before({}, {}).has_value());                                // nothing shown
-        QCOMPARE(relabel_before({}, oldest), std::optional<QDateTime>(QDateTime())); // from the latest
+        const QDateTime oldest = kst("2026-10-08T09:01:00+09:00");                 // the first bar's close
+        QVERIFY(!marks_before({}, {}).has_value());                                // nothing shown
+        QCOMPARE(marks_before({}, oldest), std::optional<QDateTime>(QDateTime())); // from the latest
 
-        // A page of every predictor's back to 10-12 09:01: read on before it.
-        const QDateTime from = full_from_after({}, {forecast("gauss")}, oldest);
+        // A page of every predictor's back to 10-12 09:31: read on before it.
+        const QDateTime from = full_from_after({}, {forecast("gauss")});
         QCOMPARE(from, kst("2026-10-12T09:31:00+09:00"));
-        QCOMPARE(relabel_before(from, oldest), std::optional<QDateTime>(from));
-        // Nothing before: as far back as shown, and done.
-        QCOMPARE(full_from_after(from, {}, oldest), oldest);
-        QVERIFY(!relabel_before(oldest, oldest).has_value());
+        QCOMPARE(marks_before(from, oldest), std::optional<QDateTime>(from));
+        QCOMPARE(full_from_after(oldest, {forecast("gauss")}), oldest); // never later
+        QVERIFY(!marks_before(oldest, oldest).has_value());             // back to the first bar
+        // Nothing before: every one is read, and done.
+        QCOMPARE(full_from_after(from, {}), from_the_start());
+        QVERIFY(from_the_start() < oldest);
+        QVERIFY(!marks_before(from_the_start(), oldest).has_value());
+    }
+
+    void the_icons_predictions_are_read_along_with_the_bars_before() {
+        // Bars before the first are read (krx-quant #239): the page before those read, at once,
+        // even though they reach back to the first bar shown.
+        const QDateTime oldest = kst("2026-10-12T09:01:00+09:00");
+        QCOMPARE(marks_before(oldest, oldest, true), std::optional<QDateTime>(oldest));
+        QCOMPARE(marks_before(kst("2026-10-08T15:00:00+09:00"), oldest, true),
+                 std::optional<QDateTime>(kst("2026-10-08T15:00:00+09:00")));
+        QCOMPARE(marks_before({}, {}, true), std::optional<QDateTime>(QDateTime())); // none read: the latest
+        QVERIFY(!marks_before(from_the_start(), oldest, true).has_value());          // the engine has none before
+    }
+
+    void the_final_consensus_and_always_flat_reach_back_as_far_as_both_do() {
+        auto at = [](const QString& algorithm, const char* bar_close) {
+            Prediction p = forecast(algorithm);
+            p.bar_close = kst(bar_close);
+            return p;
+        };
+        // Read at once, each its own 1,000 bar closes: as far back as both reach.
+        const QList<Prediction> page{
+            at("consensus-final", "2026-10-12T09:31:00+09:00"), at("consensus-final", "2026-10-12T09:10:00+09:00"),
+            at("baseline-flat", "2026-10-12T09:31:00+09:00"), at("baseline-flat", "2026-10-12T09:05:00+09:00")};
+        QCOMPARE(finals_from_after({}, page), kst("2026-10-12T09:10:00+09:00"));
+        // Never later than read already.
+        QCOMPARE(finals_from_after(kst("2026-10-12T09:00:00+09:00"), page), kst("2026-10-12T09:00:00+09:00"));
+        // One with none in the page has none before: the other's.
+        QCOMPARE(finals_from_after({}, {at("baseline-flat", "2026-10-12T09:05:00+09:00")}),
+                 kst("2026-10-12T09:05:00+09:00"));
+        QCOMPARE(finals_from_after({}, {at("consensus-final", "2026-10-12T09:10:00+09:00")}),
+                 kst("2026-10-12T09:10:00+09:00"));
+        // Neither: every one is read.
+        QCOMPARE(finals_from_after(kst("2026-10-12T09:10:00+09:00"), {}), from_the_start());
     }
 
     void a_bar_close_s_judgements_come_consensus_first_then_models_then_baselines() {
@@ -447,25 +483,38 @@ class TstKrxChartModel : public QObject {
         const auto near = older_read(first, 29.5);
         QVERIFY(near.has_value());
         QCOMPARE(near->before, kst("2026-10-12T09:00:00+09:00")); // before the first bar
-        QCOMPARE(near->limit, 400);
-        // Its own final consensus: the 08:59 bar closes at 09:00, so bar closes up to 09:00.
-        QCOMPARE(near->finals_before, kst("2026-10-12T09:01:00+09:00"));
+        QCOMPARE(near->limit, 1000);
         QVERIFY(older_read(first, -12).has_value()); // scrolled past the first bar
         // No bars yet (before the open): those before now.
         const auto empty = older_read(QDateTime(), 0);
         QVERIFY(empty.has_value());
-        QVERIFY(!empty->before.isValid() && !empty->finals_before.isValid());
+        QVERIFY(!empty->before.isValid());
+    }
+
+    void the_bars_before_are_read_a_screen_ahead() {
+        // krx-quant #239: with less than the view's width of bars before its left end, at least 30.
+        const QDateTime first = kst("2026-10-12T09:00:00+09:00");
+        QCOMPARE(older_margin(0), kOlderMargin);
+        QCOMPARE(older_margin(20), kOlderMargin); // zoomed in: still 30
+        QCOMPARE(older_margin(120), 120.0);
+        QVERIFY(older_read(first, 119, 1, 120).has_value()); // 119 bars before a 120-bar view
+        QVERIFY(!older_read(first, 120, 1, 120).has_value());
+        QVERIFY(older_read(first, 29, 5, 20).has_value());
+        QVERIFY(!older_read(first, 30, 5, 20).has_value());
     }
 
     void a_wider_view_reads_as_many_minutes_as_its_bars_need() {
+        // 300 bars of the view (krx-quant #239), at least the 1-minute view's 1,000, at most the engine's 20,000.
         const QDateTime first = kst("2026-10-12T09:00:00+09:00");
 
-        QCOMPARE(older_read(first, 29, 1)->limit, 400);
-        QCOMPARE(older_read(first, 29, 3)->limit, 400);   // 100 bars of 3 minutes: fewer than the 1-minute view's
-        QCOMPARE(older_read(first, 29, 5)->limit, 500);   // 100 bars of 5 minutes
-        QCOMPARE(older_read(first, 29, 60)->limit, 1000); // at most the engine's most predictions in a read
-        QVERIFY(!older_read(first, 30, 60).has_value());  // 30 bars of the view from the end: not yet
-        QCOMPARE(older_read(QDateTime(), 0, 15)->limit, 1000);
+        QCOMPARE(older_read(first, 29, 1)->limit, 1000);
+        QCOMPARE(older_read(first, 29, 3)->limit, 1000); // 300 bars of 3 minutes: fewer than the 1-minute view's
+        QCOMPARE(older_read(first, 29, 5)->limit, 1500);
+        QCOMPARE(older_read(first, 29, 15)->limit, 4500);
+        QCOMPARE(older_read(first, 29, 60)->limit, 18000);
+        QCOMPARE(older_read(first, 29, 240)->limit, kMaxOlderBars); // at most the engine's most
+        QVERIFY(!older_read(first, 30, 60).has_value());            // 30 bars of the view from the end: not yet
+        QCOMPARE(older_read(QDateTime(), 0, 15)->limit, 4500);
     }
 
     void minute_bars_group_on_the_clock_within_a_day() {
@@ -684,6 +733,8 @@ class TstKrxChartModel : public QObject {
         QVERIFY(!older_candles(first, kOlderMargin).has_value());
         QCOMPARE(older_candles(first, kOlderMargin - 1), first);
         QCOMPARE(older_candles(first, -5), first);
+        QCOMPARE(older_candles(first, 99, 100), first); // a screen ahead (krx-quant #239)
+        QVERIFY(!older_candles(first, 100, 100).has_value());
         const auto latest = older_candles({}, 100); // none shown yet: the latest
         QVERIFY(latest.has_value() && !latest->isValid());
     }

@@ -136,16 +136,31 @@ QStringList toggled(QStringList selection, const QString& predictor, bool on);
 QString selection_value(const QStringList& selection);
 QStringList parse_selection(const QString& saved);
 
-/// With models selected, the predictions of the bar closes read must be every predictor's:
-/// those read with the final consensus alone are read again (krx-quant #159), from the
-/// latest back. ``full_from`` is the earliest bar close from which on all were read
-/// (invalid: none), ``oldest_close`` the first bar's close. The next page to read: its
-/// ``before`` (invalid: before now); none once they reach the first bar or nothing is shown.
-std::optional<QDateTime> relabel_before(const QDateTime& full_from, const QDateTime& oldest_close);
+/// The most bar closes the engine gives the predictions of in one read (its ``limit``).
+inline constexpr int kPredictionPage = 1000;
+
+/// Where predictions were read from once a page before came back empty: the engine has none
+/// before, so every one is read (krx-quant #239). Before any bar close.
+QDateTime from_the_start();
+
+/// The 1-minute view's icons need the predictions of the bar closes held: every predictor's
+/// with models selected (those read with the final consensus alone are read again, krx-quant
+/// #159), else the final consensus's and "늘 보합"'s. They are read apart from the bars, a page
+/// at a time from the latest back (krx-quant #239). ``from`` is the earliest bar close from
+/// which on they were read (invalid: none; from_the_start: all), ``oldest_close`` the first
+/// bar's close. The next page to read: its ``before`` (invalid: before now); none once they
+/// reach the first bar or nothing is shown. ``ahead`` (bars before the first are being read):
+/// the page before ``from`` even once they reach the first bar, read along with those bars.
+std::optional<QDateTime> marks_before(const QDateTime& from, const QDateTime& oldest_close, bool ahead = false);
 
 /// ``full_from`` once a page of every predictor's predictions (``page``) read before it came
-/// in: its earliest bar close; ``oldest_close`` when the page is empty (none before it).
-QDateTime full_from_after(const QDateTime& full_from, const QList<Prediction>& page, const QDateTime& oldest_close);
+/// in: its earliest bar close, if earlier; from_the_start when the page is empty (none before it).
+QDateTime full_from_after(const QDateTime& full_from, const QList<Prediction>& page);
+
+/// Likewise ``finals_from`` once a page of the final consensus's and "늘 보합"'s, read at once
+/// before it, came in (krx-quant #239): the later of their earliest bar closes, as far back
+/// as both reach; one with none in the page has none before, so the other's.
+QDateTime finals_from_after(const QDateTime& finals_from, const QList<Prediction>& page);
 
 /// A row of a bar close's judgements, the prediction table's while an icon is chosen
 /// (krx-quant #107).
@@ -186,31 +201,32 @@ inline constexpr std::array<int, 9> kMinuteViews{1, 3, 5, 10, 15, 30, 60, 120, 2
 /// any is not there.
 QList<Bar> group_bars(const QList<Bar>& bars, int minutes);
 
-/// Bars of the view to the left end of the view at which the bars before are read (krx-quant #108).
+/// Bars of the view before its left end, at least, under which the bars before are read
+/// (krx-quant #108): fewer than the view's width of them (a screen, krx-quant #239).
 inline constexpr double kOlderMargin = 30;
-/// 1-minute bars read before at a time in the 1-minute view: more than half a trading day
-/// (08:00–20:00, 720 bars).
-inline constexpr int kOlderBars = 400;
-/// Bars of a wider view read before at a time, as 1-minute bars (krx-quant #109)…
-inline constexpr int kOlderViewBars = 100;
-/// …up to the most final consensus predictions the engine gives in one read (a bar's at most one).
-inline constexpr int kMaxOlderBars = 1000;
+/// The bars before the view's left end under which the bars before are read, for a view
+/// ``width`` bars wide: a screen's, at least kOlderMargin.
+double older_margin(double width);
+/// 1-minute bars read before at a time (krx-quant #109, #239): kOlderViewBars of the view…
+inline constexpr int kOlderViewBars = 300;
+/// …at least kOlderBars (the 1-minute view's: more than a trading day of 08:00–20:00, 720 bars)…
+inline constexpr int kOlderBars = 1000;
+/// …and at most the engine's most in one read (an hour view's 300 are 18,000).
+inline constexpr int kMaxOlderBars = 20000;
 
-/// The bars to read before the chart's (krx-quant #108), with their final consensus.
+/// The 1-minute bars to read before the chart's (krx-quant #108). Their predictions are read
+/// apart (krx-quant #239, marks_before).
 struct OlderRead {
     QDateTime before;       ///< bars that start before it; invalid: before now (no bars yet)
-    int limit = kOlderBars; ///< 1-minute bars, and final consensus predictions
-    /// Final consensus predictions whose bar close is before it: the bars' own, as a bar's
-    /// close is its start a minute on. Invalid with ``before``.
-    QDateTime finals_before;
+    int limit = kOlderBars; ///< 1-minute bars
 };
 
 /// What to read once the view of ``minutes`` starts ``view_from`` of its bars (a logical
-/// index, negative past the first bar) from its left end, where the 1-minute bar starting at
-/// ``first`` is: nothing while it is kOlderMargin bars or more away, else the 1-minute bars
-/// before it: kOlderBars, or kOlderViewBars of a wider view, at most kMaxOlderBars. With no
-/// bars yet (``first`` invalid), those before now.
-std::optional<OlderRead> older_read(const QDateTime& first, double view_from, int minutes = 1);
+/// index, negative past the first bar) from its left end and is ``width`` bars wide, where the
+/// 1-minute bar starting at ``first`` is: nothing while older_margin(width) bars or more are
+/// before its left end, else the 1-minute bars before it: kOlderViewBars of the view, at least
+/// kOlderBars and at most kMaxOlderBars. With no bars yet (``first`` invalid), those before now.
+std::optional<OlderRead> older_read(const QDateTime& first, double view_from, int minutes = 1, double width = 0);
 
 /// The bar being made (a stream "bar", krx-quant #110) on ``bars``, the day's 1-minute bars
 /// oldest first: the same minute as the last bar, grown, replaces it; a later minute follows
@@ -259,10 +275,11 @@ std::optional<Bar> day_candle(const QList<Bar>& bars, const QString& venue);
 QList<Bar> day_candles(const QList<Bar>& stored, const QList<Bar>& day_bars, const QString& venue);
 
 /// The candles to read once a candle view starts ``view_from`` of them (a logical index,
-/// negative past the first) from its left end, where the first candle starts at ``first``:
-/// those before it, once less than kOlderMargin away; none while further. With no candles
-/// yet (``first`` invalid), the latest: an invalid time, before now.
-std::optional<QDateTime> older_candles(const QDateTime& first, double view_from);
+/// negative past the first) from its left end and is ``width`` candles wide, where the first
+/// candle starts at ``first``: those before it, once fewer than older_margin(width) are before
+/// its left end (krx-quant #239); none while more. With no candles yet (``first`` invalid), the
+/// latest: an invalid time, before now.
+std::optional<QDateTime> older_candles(const QDateTime& first, double view_from, double width = 0);
 
 /// The last bar of the ``minutes`` view of ``bars`` (1-minute bars) as the chart draws it, to
 /// move it as it is made; none without bars. A candle view's last candle is its own list's.

@@ -157,8 +157,8 @@ void KrxChartBridge::clicked(const QString& bar_close) {
     emit icon_clicked(bar_close);
 }
 
-void KrxChartBridge::moved(double from) {
-    emit view_moved(from);
+void KrxChartBridge::moved(double from, double to) {
+    emit view_moved(from, to);
 }
 
 void KrxChartBridge::range(double from, double to) {
