@@ -463,6 +463,8 @@ void KrxLive::view_from(double from, int minutes) {
 }
 
 void KrxLive::set_view(int minutes) {
+    if (minutes != view_minutes_)
+        day_target_ = {}; // another first screen
     view_minutes_ = minutes;
     ensure_full(); // back to 1-minute bars with models selected
     if (krx_quant::candle_view(minutes) && !selected_.isEmpty()) {
@@ -472,14 +474,17 @@ void KrxLive::set_view(int minutes) {
     read_history();
 }
 
-void KrxLive::set_history(int bars, const QDateTime& back_to) {
+void KrxLive::set_history(int bars, const QDateTime& back_to, bool whole_days) {
     history_ = bars;
     history_back_to_ = back_to;
+    if (whole_days && !whole_days_)
+        day_target_ = {}; // worked out from the screen now
+    whole_days_ = whole_days;
     read_history();
 }
 
 void KrxLive::read_history() {
-    if (selected_.isEmpty() || (history_ <= 0 && !history_back_to_.isValid()))
+    if (selected_.isEmpty() || (history_ <= 0 && !history_back_to_.isValid() && !whole_days_))
         return;
     if (krx_quant::candle_view(view_minutes_)) {
         // The candles the engine stored, a page before the first (once the latest are read).
@@ -496,8 +501,16 @@ void KrxLive::read_history() {
     const QDateTime first = !older_.isEmpty()  ? older_.first().start
                             : !bars_.isEmpty() ? bars_.first().start
                                                : QDateTime();
-    const int have = static_cast<int>(krx_quant::group_bars(bars(), view_minutes_).size());
-    if (const auto read = krx_quant::history_read(first, have, history_, view_minutes_, history_back_to_))
+    const QList<krx_quant::Bar> held = bars();
+    // The VWAP's days on the first screen whole: back past its earliest date's start, worked out
+    // once from that screen (not from the first bar held, or the reads would keep moving back).
+    if (whole_days_ && !day_target_.isValid())
+        day_target_ = krx_quant::first_screen_day(held, view_minutes_);
+    QDateTime back_to = history_back_to_;
+    if (whole_days_ && day_target_.isValid() && (!back_to.isValid() || day_target_ < back_to))
+        back_to = day_target_;
+    const int have = static_cast<int>(krx_quant::group_bars(held, view_minutes_).size());
+    if (const auto read = krx_quant::history_read(first, have, history_, view_minutes_, back_to))
         service_->read_older(selected_, *read, all_predictors());
 }
 
@@ -531,6 +544,7 @@ QDate KrxLive::engine_day() const {
 void KrxLive::forget_older() {
     older_.clear();
     oldest_ = false;
+    day_target_ = {}; // another symbol's first screen
     full_from_ = {};
     candles_.clear();
     candle_venue_.clear();

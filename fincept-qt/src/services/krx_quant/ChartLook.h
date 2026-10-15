@@ -97,6 +97,8 @@ struct ChartLook {
     StudySet studies = default_studies();
     std::optional<qint64> anchor; ///< the anchored VWAP's moment (chart_time); none: not chosen
     bool picking = false;         ///< a click on the chart chooses it
+    /// The first day held is whole, nothing before it to read: its VWAP is drawn (krx-quant #222).
+    bool first_day_whole = false;
 };
 
 /// The bars a minute view's day separators fill (krx-quant #221), by time (chart_time): each

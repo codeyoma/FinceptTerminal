@@ -94,7 +94,13 @@ class KrxLive : public QObject {
     /// krx_quant::history_bars) and the bars back to ``back_to`` (the anchored VWAP's anchor;
     /// invalid: none): the bars (a candle view's candles) before the first are read, a page at a
     /// time, until it has them or kMaxHistoryBars of the view, or the engine has none before.
-    void set_history(int bars, const QDateTime& back_to = {});
+    /// With ``whole_days`` (the VWAP on in a minute view), also back past the start of the first
+    /// screen's earliest date (krx_quant::first_screen_day, worked out once for the symbol and
+    /// view), so the days on screen are whole.
+    void set_history(int bars, const QDateTime& back_to = {}, bool whole_days = false);
+    /// Whether the engine has no 1-minute bars before the first held (an older read came back
+    /// empty): the first day held is whole then.
+    bool reached_start() const { return oldest_; }
     /// The bar close pinned; invalid while the latest is followed.
     const QDateTime& pinned() const { return pinned_; }
     /// Its judgements as last read, and the algorithms' statuses then.
@@ -228,6 +234,8 @@ class KrxLive : public QObject {
     void read_history();
     int history_ = 0;           ///< bars of the view the indicators want
     QDateTime history_back_to_; ///< and the moment they reach back to
+    bool whole_days_ = false;   ///< and whole days on the first screen (the VWAP)
+    QDateTime day_target_;      ///< where those start, from the first screen; invalid: not worked out yet
     KrxQuantService::LeaderboardQuery query_;
     QStringList details_; ///< the algorithms whose stats are read
     QDateTime pinned_;

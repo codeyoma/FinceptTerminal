@@ -196,6 +196,8 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(chart_toolbar_, &KrxChartToolbar::indicators_requested, this, [this]() { open_studies(); });
     connect(study_panel_, &KrxStudyPanel::studies_changed, this, &KrxQuantScreen::set_studies);
     connect(study_panel_, &KrxStudyPanel::anchor_requested, this, [this]() {
+        if (!krx_quant::anchor_pickable(look_.studies))
+            return;           // hidden: nothing of it waits for a click (the panel's button is off)
         look_.picking = true; // the next click on the chart
         study_panel_->hide();
         fill_chart();
@@ -863,7 +865,7 @@ void KrxQuantScreen::show_symbol_prefs() {
     const QDateTime anchor =
         QDateTime::fromString(AppConfig::instance().get(group + krx_quant::kPrefsAnchor).toString(), Qt::ISODate);
     look_.anchor = anchor.isValid() ? std::optional(krx_quant::chart_time(anchor)) : std::nullopt;
-    look_.picking = look_.studies.on(krx_quant::Study::AnchoredVwap) && !look_.anchor;
+    look_.picking = krx_quant::anchor_pickable(look_.studies) && !look_.anchor;
     study_panel_->show_studies(look_.studies, minutes_);
     want_history();
 }
@@ -872,7 +874,7 @@ void KrxQuantScreen::set_studies(const krx_quant::StudySet& set) {
     using krx_quant::Study;
     const bool anchoring = set.on(Study::AnchoredVwap) && !look_.studies.on(Study::AnchoredVwap);
     look_.studies = set;
-    if (!set.on(Study::AnchoredVwap) || set.of(Study::AnchoredVwap).hidden)
+    if (!krx_quant::anchor_pickable(set))
         look_.picking = false;
     else if (anchoring && !look_.anchor) {
         look_.picking = true; // turned on without an anchor: the next click on the chart
@@ -910,7 +912,9 @@ void KrxQuantScreen::want_history() {
     QDateTime back_to;
     if (look_.studies.on(krx_quant::Study::AnchoredVwap) && look_.anchor)
         back_to = QDateTime::fromSecsSinceEpoch(*look_.anchor - 9 * 3600, QTimeZone::fromSecondsAheadOfUtc(9 * 3600));
-    live_->set_history(krx_quant::history_bars(look_.studies, minutes_), back_to);
+    // The VWAP's days on the first screen whole (krx-quant #222): a minute view's only.
+    const bool whole_days = look_.studies.on(krx_quant::Study::Vwap) && !krx_quant::candle_view(minutes_);
+    live_->set_history(krx_quant::history_bars(look_.studies, minutes_), back_to, whole_days);
 }
 
 void KrxQuantScreen::fill_chart() {
@@ -945,6 +949,7 @@ void KrxQuantScreen::fill_chart() {
             ? krx_quant::kind_hovers(live_->bars(), live_->kind_board().closes(symbol), *kind, live_->kind_standings())
             : krx_quant::bar_hovers(live_->bars(), live_->board().closes(symbol), live_->selection(),
                                     live_->standings(), rule);
+    look_.first_day_whole = live_->reached_start(); // nothing before: the first day's VWAP is drawn
     chart_->set_data(candles ? live_->view_candles(minutes_) : live_->bars(), marks, hovers, rule, minutes_, look_);
     show_score();
 }

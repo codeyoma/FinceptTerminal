@@ -223,8 +223,11 @@ QList<Fractal> williams_fractals(const QList<ChartBar>& bars, int period);
 Values parabolic_sar(const QList<ChartBar>& bars, double start, double step, double maximum);
 
 /// The VWAP of each day: the sum of ``source`` × volume over the sum of volumes, from the first
-/// bar of each KST date (the day separators' bar) on; none until a day has volume.
-Values session_vwap(const QList<ChartBar>& bars, Source source);
+/// bar of each KST date (the day separators' bar) on; none until a day has volume. Only a whole
+/// day has one: every date after the first held (a date before it is held), and the first only
+/// when ``first_day_whole`` (nothing before it to read). A day read from its middle would give a
+/// wrong VWAP that moves as the bars before are read, so it stays empty (krx-quant #222).
+Values session_vwap(const QList<ChartBar>& bars, Source source, bool first_day_whole = false);
 /// The VWAP from the bar ``anchor`` on; none before it.
 Values anchored_vwap(const QList<ChartBar>& bars, Source source, qsizetype anchor);
 /// The bar of the view ``view`` that holds the moment ``anchor`` (chart_time): the first bar
@@ -249,7 +252,12 @@ VolumeProfile volume_profile(const QList<ChartBar>& bars, qint64 from, qint64 to
 /// a minute view's on the clock, the next weekdays, weeks, months' 1st or years' 1 January.
 QList<qint64> future_times(const QList<ChartBar>& bars, int view, int count);
 
-/// The bars before its first value an indicator needs (the longest look-back of its settings).
+/// The bars before its first value an indicator needs. A fixed look-back's is its longest period
+/// less one. A recursive one depends on every bar before, so its warm-up is long enough that more
+/// bars barely move the values shown (as on TradingView, they may still move a little as more
+/// load): the EMA 4 × its longest period (the weight left beyond is about e^-8), the supertrend
+/// 10 × its ATR period, the parabolic SAR 100 bars. The VWAP needs whole days instead
+/// (first_screen_day), the anchored VWAP its anchor's bar.
 int warmup(const StudySettings& settings);
 /// The most bars of a view read for the indicators (the engine's largest ``limit``).
 inline constexpr int kMaxHistoryBars = 2000;
@@ -263,6 +271,15 @@ int history_bars(const StudySet& set, int view);
 /// does, or once it holds kMaxHistoryBars.
 std::optional<OlderRead> history_read(const QDateTime& first, int have, int wanted, int minutes,
                                       const QDateTime& back_to = {});
+/// Where a minute view's bars must reach back to for the VWAP's days on its first screen to be
+/// whole (krx-quant #222): 00:00 KST of the date of the first screen's first bar (the last kFitBars
+/// bars of the view of ``minutes`` among ``bars``, 1-minute bars oldest first). Worked out once
+/// from the first screen, not from the first bar held, so the reads do not keep moving back.
+/// Invalid without bars.
+QDateTime first_screen_day(const QList<Bar>& bars, int minutes);
+/// Whether the anchored VWAP's bar can be chosen (again) by a click: it is on and shown. While it
+/// is hidden nothing of it is drawn, so neither is the wait for a click (its panel button is off).
+bool anchor_pickable(const StudySet& set);
 /// Likewise for a candle view: the candles before ``first`` to read (its ``before``).
 std::optional<QDateTime> history_candles(const QDateTime& first, int have, int wanted, const QDateTime& back_to = {});
 
@@ -307,6 +324,9 @@ struct LegendRow {
     QStringList values;  ///< the series whose values follow, in order
     QStringList colors;  ///< theirs
     QString note;        ///< what it waits for (the anchored VWAP's anchor)
+    /// Shown in place of the values where none of its lines has one: why (the VWAP of a day not
+    /// read whole). Empty: nothing shown.
+    QString missing;
 };
 
 /// What the page draws of the indicators over ``bars`` (as drawn, oldest first) in the view
@@ -331,8 +351,9 @@ struct StudyDrawing {
 };
 /// ``anchor`` is the anchored VWAP's moment (chart_time; none: not chosen); ``picking`` whether a
 /// click on the chart chooses it (it is turned on without one, or chosen again).
+/// ``first_day_whole``: the first day held is whole, nothing before it to read (session_vwap).
 StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int view, std::optional<qint64> anchor,
-                          bool picking);
+                          bool picking, bool first_day_whole = false);
 
 /// ``color`` (#rrggbb) at ``alpha`` (0–1) as CSS: rgba(r,g,b,a).
 QString css_color(const QString& color, double alpha);

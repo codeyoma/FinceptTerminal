@@ -203,15 +203,19 @@ class TstKrxChartStudies : public QObject {
             bar(at("2026-10-13T08:00:00+09:00"), 20, 21, 19, 20, 50),  // a new date: 20
             bar(at("2026-10-13T08:01:00+09:00"), 22, 23, 21, 22, 50),  // 22
         };
-        QVERIFY(same(session_vwap(two_days, Source::HLC3), {10, 11.5, 20, 21}));
-        QVERIFY(same(session_vwap(two_days, Source::High), {12, 12.75, 21, 22}));
+        // Nothing before the first day to read: it is whole.
+        QVERIFY(same(session_vwap(two_days, Source::HLC3, true), {10, 11.5, 20, 21}));
+        QVERIFY(same(session_vwap(two_days, Source::High, true), {12, 12.75, 21, 22}));
+        // Otherwise the first day held may be read from its middle: empty, the later days right.
+        QVERIFY(same(session_vwap(two_days, Source::HLC3), {n, n, 20, 21}));
         // From its bar on: (12 × 300 + 20 × 50) / 350, then with 22 × 50 too.
         QVERIFY(same(anchored_vwap(two_days, Source::HLC3, 1), {n, 12, 4600.0 / 350, 5700.0 / 400}));
         QVERIFY(same(anchored_vwap(two_days, Source::HLC3, 0), {10, 11.5, 5600.0 / 450, 6700.0 / 500}));
         // No value until the day has volume.
         QList<ChartBar> quiet{bar(at("2026-10-12T09:00:00+09:00"), 10, 10, 10, 10, 0),
                               bar(at("2026-10-12T09:01:00+09:00"), 11, 11, 11, 11, 10)};
-        QVERIFY(same(session_vwap(quiet, Source::Close), {n, 11}));
+        QVERIFY(same(session_vwap(quiet, Source::Close, true), {n, 11}));
+        QVERIFY(same(session_vwap(quiet, Source::Close), {n, n}));
     }
 
     void the_anchor_is_the_bar_that_holds_its_moment() {
@@ -283,7 +287,24 @@ class TstKrxChartStudies : public QObject {
         QCOMPARE(history_bars(set, 1), kMaxHistoryBars); // capped
         set.turn(Study::MovingAverage, false);
         set.turn(Study::Vwap, true);
-        QCOMPARE(history_bars(set, 1), 0);
+        QCOMPARE(history_bars(set, 1), 0); // whole days instead (first_screen_day)
+        set.turn(Study::Vwap, false);
+
+        // The recursive ones read far enough that more bars barely move what is shown.
+        QCOMPARE(warmup(default_settings(Study::ExponentialAverage)), 4 * 120);
+        QCOMPARE(warmup(default_settings(Study::Supertrend)), 10 * 10);
+        QCOMPARE(warmup(default_settings(Study::ParabolicSar)), 100);
+        QCOMPARE(warmup(default_settings(Study::Bollinger)), 19); // a fixed look-back
+        set.turn(Study::ExponentialAverage, true);
+        QCOMPARE(history_bars(set, 1), kFitBars + 480);
+        set.of(Study::ExponentialAverage).inputs = {5, 600};
+        QCOMPARE(history_bars(set, 1), kMaxHistoryBars); // 2,400 capped
+        set.turn(Study::ExponentialAverage, false);
+        set.turn(Study::Supertrend, true);
+        QCOMPARE(history_bars(set, kDayView), kFitBars + 100);
+        set.turn(Study::Supertrend, false);
+        set.turn(Study::ParabolicSar, true);
+        QCOMPARE(history_bars(set, 5), kFitBars + 100);
 
         const QDateTime first = kst("2026-10-12T09:00:00+09:00");
         const auto read = history_read(first, 100, 179, 1);
@@ -300,6 +321,56 @@ class TstKrxChartStudies : public QObject {
         QCOMPARE(history_candles(first, 10, 179), std::optional(first));
         QVERIFY(!history_candles(first, 400, 179));
         QVERIFY(!history_candles(first, kMaxHistoryBars, kMaxHistoryBars + 1, first.addDays(-9999)));
+    }
+
+    void the_vwap_reads_back_past_the_first_screens_earliest_date() {
+        // 40 bars on the 12th from 09:00 and 40 on the 13th from 08:00: the first screen's 60
+        // start on the 12th at 09:20, so the bars are read back past 00:00 on the 12th.
+        QList<Bar> held;
+        for (int i = 0; i < 40; ++i)
+            held << Bar{kst("2026-10-12T09:00:00+09:00").addSecs(60 * i), 1, 1, 1, 1, 1};
+        for (int i = 0; i < 40; ++i)
+            held << Bar{kst("2026-10-13T08:00:00+09:00").addSecs(60 * i), 1, 1, 1, 1, 1};
+        const QDateTime target = first_screen_day(held, 1);
+        QCOMPARE(target, kst("2026-10-12T00:00:00+09:00"));
+        // Worked out from the first screen, not the first bar held: more bars before keep it.
+        QList<Bar> more{Bar{kst("2026-10-09T15:00:00+09:00"), 1, 1, 1, 1, 1}};
+        QCOMPARE(first_screen_day(more + held, 1), target);
+        // A wider view's 60 bars reach further back: the 5-minute view's are all of these days.
+        QCOMPARE(first_screen_day(held, 5), kst("2026-10-12T00:00:00+09:00"));
+        QCOMPARE(first_screen_day(held.mid(40), 1), kst("2026-10-13T00:00:00+09:00"));
+        QVERIFY(!first_screen_day({}, 1).isValid());
+
+        // Read while the first bar held is that day's or later; enough once a date before is held.
+        const QDateTime first = held.first().start;
+        QVERIFY(history_read(first, 80, 0, 1, target)); // the 12th from 09:00 only: not whole
+        QVERIFY(!history_read(more.first().start, 81, 0, 1, target));
+        QVERIFY(!history_read(first, kMaxHistoryBars, 0, 1, target)); // the cap still holds
+
+        // Drawn: the first day held is empty (with why in the legend) unless nothing comes before.
+        StudySet set = default_studies();
+        set.turn(Study::MovingAverage, false);
+        set.turn(Study::Vwap, true);
+        const auto bars = chart_bars(held);
+        StudyDrawing d = draw_studies(bars, set, 1, std::nullopt, false);
+        QCOMPARE(d.series[0].points.first().first, bars[40].time); // from the 13th's first bar
+        QCOMPARE(row_of(d, Study::Vwap).missing, QStringLiteral("그날 첫 봉을 읽지 않아 비움"));
+        d = draw_studies(bars, set, 1, std::nullopt, false, true);
+        QCOMPARE(d.series[0].points.first().first, bars[0].time);
+        QVERIFY(row_of(d, Study::Vwap).missing.isEmpty());
+    }
+
+    void a_hidden_anchored_vwap_waits_for_no_click() {
+        StudySet set = default_studies();
+        QVERIFY(!anchor_pickable(set)); // off
+        set.turn(Study::AnchoredVwap, true);
+        QVERIFY(anchor_pickable(set));
+        set.of(Study::AnchoredVwap).hidden = true;
+        QVERIFY(!anchor_pickable(set)); // its `기준 다시 고르기` is off, and no click is waited for
+        const StudyDrawing d = draw_studies(bars({{1, 1, 1}, {2, 1, 1}}), set, 1, std::nullopt, true);
+        QVERIFY(!d.picking);
+        QVERIFY(row_of(d, Study::AnchoredVwap).note.isEmpty());
+        QVERIFY(row_of(d, Study::AnchoredVwap).hidden);
     }
 
     void a_symbol_keeps_its_indicators() {

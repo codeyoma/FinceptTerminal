@@ -401,8 +401,12 @@ void KrxStudyPanel::fill_settings() {
         auto* again = new QPushButton(tr("기준 다시 고르기"));
         again->setObjectName("krxStudyAdd");
         again->setFocusPolicy(Qt::NoFocus);
-        again->setEnabled(settings.on);
-        again->setToolTip(tr("다음에 차트를 누른 봉이 기준이 된다. 기준 표시를 드래그해도 옮긴다."));
+        // Hidden, nothing of it is drawn, so no click would be waited for (krx-quant #222).
+        const bool pickable = krx_quant::anchor_pickable(set_);
+        again->setEnabled(pickable);
+        again->setToolTip(!settings.on ? tr("켜야 고를 수 있다.")
+                          : !pickable ? tr("숨긴 동안은 고를 수 없다. 범례의 눈으로 다시 보이게 한다.")
+                                      : tr("다음에 차트를 누른 봉이 기준이 된다. 기준 표시를 드래그해도 옮긴다."));
         connect(again, &QPushButton::clicked, this, &KrxStudyPanel::anchor_requested);
         grid->addWidget(again, row++, 0, 1, 3, Qt::AlignLeft);
     }

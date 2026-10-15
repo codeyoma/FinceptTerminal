@@ -89,7 +89,8 @@ QJsonObject studies_json(const krx_quant::StudyDrawing& d) {
                                   {"hidden", row.hidden},
                                   {"values", QJsonArray::fromStringList(row.values)},
                                   {"colors", QJsonArray::fromStringList(row.colors)},
-                                  {"note", row.note}});
+                                  {"note", row.note},
+                                  {"missing", row.missing}});
     QJsonObject out{{"series", series},
                     {"fills", fills},
                     {"marks", marks},
@@ -279,7 +280,7 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
     if (!shown.isEmpty()) // the last bar's own close, for the price line of a Heikin-Ashi chart
         data.insert("last", QJsonObject{{"close", shown.last().close}, {"rising", shown.last().rising}});
     // The indicators, over the bars as they are (krx-quant #222), and the volume profile of those in view.
-    drawing_ = krx_quant::draw_studies(shown, look.studies, minutes, look.anchor, look.picking);
+    drawing_ = krx_quant::draw_studies(shown, look.studies, minutes, look.anchor, look.picking, look.first_day_whole);
     data.insert("studies", studies_json(drawing_));
     data.insert("profile", QJsonDocument::fromJson(profile_json().toUtf8()).object());
     data_ = compact(data);
@@ -348,7 +349,8 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
         // Each line's point the bar being made moves: its own, a leading span's displacement on,
         // the lagging span's displacement back. The page moves that one (it is each line's last).
         shown_ = all;
-        drawing_ = krx_quant::draw_studies(all, look_.studies, minutes_, look_.anchor, look_.picking);
+        drawing_ =
+            krx_quant::draw_studies(all, look_.studies, minutes_, look_.anchor, look_.picking, look_.first_day_whole);
         const qsizetype n = all.size();
         QJsonArray points;
         for (const auto& line : drawing_.series) {

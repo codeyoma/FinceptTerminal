@@ -740,11 +740,15 @@ Values parabolic_sar(const QList<ChartBar>& bars, double start, double step, dou
     return out;
 }
 
-Values session_vwap(const QList<ChartBar>& bars, Source source) {
+Values session_vwap(const QList<ChartBar>& bars, Source source, bool first_day_whole) {
     Values out(bars.size());
     double priced = 0;
     double volume = 0;
-    for (qsizetype i = 0; i < bars.size(); ++i) {
+    qsizetype i = 0;
+    if (!first_day_whole) // the first date held may be read from its middle: left empty
+        while (i < bars.size() && day_of(bars[i].time) == day_of(bars.first().time))
+            ++i;
+    for (; i < bars.size(); ++i) {
         if (i > 0 && day_of(bars[i].time) != day_of(bars[i - 1].time)) {
             priced = 0;
             volume = 0;
@@ -868,19 +872,21 @@ int warmup(const StudySettings& settings) {
             int longest = 0;
             for (const double p : in)
                 longest = std::max(longest, whole(p));
-            return std::max(0, longest - 1);
+            // An EMA weighs every bar before: 4 periods leave about e^-8 of the weight further back.
+            return settings.study == Study::ExponentialAverage ? 4 * longest : std::max(0, longest - 1);
         }
         case Study::Ichimoku:
             return std::max(0, std::max({at(0), at(1), at(2)}) - 1 + at(3));
         case Study::Bollinger:
         case Study::Envelope:
         case Study::PriceChannel:
-        case Study::Supertrend:
             return std::max(0, at(0) - 1);
+        case Study::Supertrend: // Wilder's ATR and the trend carry every bar before
+            return 10 * std::max(1, at(0));
         case Study::Fractal:
             return std::max(0, at(0));
-        case Study::ParabolicSar:
-            return 1;
+        case Study::ParabolicSar: // its trend and extreme carry every bar before
+            return 100;
         case Study::VolumeProfile:
         case Study::Vwap:
         case Study::AnchoredVwap:
@@ -907,6 +913,19 @@ std::optional<OlderRead> history_read(const QDateTime& first, int have, int want
     return older_read(first, 0, minutes); // at the left end: the bars before the first
 }
 
+QDateTime first_screen_day(const QList<Bar>& bars, int minutes) {
+    const QList<Bar> view = group_bars(bars, minutes);
+    if (view.isEmpty())
+        return {};
+    const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+    const QDate day = view[std::max<qsizetype>(0, view.size() - kFitBars)].start.toTimeZone(kst).date();
+    return QDateTime(day, QTime(0, 0), kst);
+}
+
+bool anchor_pickable(const StudySet& set) {
+    return set.on(Study::AnchoredVwap) && !set.of(Study::AnchoredVwap).hidden;
+}
+
 std::optional<QDateTime> history_candles(const QDateTime& first, int have, int wanted, const QDateTime& back_to) {
     if (!first.isValid() || have >= kMaxHistoryBars)
         return std::nullopt;
@@ -928,7 +947,7 @@ QString css_color(const QString& color, double alpha) {
 }
 
 StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int view, std::optional<qint64> anchor,
-                          bool picking) {
+                          bool picking, bool first_day_whole) {
     StudyDrawing out;
     const qsizetype n = bars.size();
     out.volume = set.on(Study::Volume);
@@ -984,7 +1003,7 @@ StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int 
         if (s.study == Study::AnchoredVwap) {
             if (anchor)
                 row.settings = QDateTime::fromSecsSinceEpoch(*anchor, QTimeZone::UTC).toString("MM-dd HH:mm");
-            if (picking)
+            if (picking && !s.hidden) // hidden, nothing of it waits for a click
                 row.note = QStringLiteral("차트를 눌러 기준 봉을 고르세요");
         }
         if (s.hidden) {
@@ -1054,7 +1073,9 @@ StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int 
                 break;
             }
             case Study::Vwap:
-                value(line(key, s.study, look(0), session_vwap(bars, source)), look(0).color);
+                value(line(key, s.study, look(0), session_vwap(bars, source, first_day_whole)), look(0).color);
+                if (!first_day_whole && !bars.isEmpty())
+                    row.missing = QStringLiteral("그날 첫 봉을 읽지 않아 비움");
                 break;
             case Study::AnchoredVwap: {
                 out.picking = picking;

@@ -449,8 +449,10 @@
     remove: '<svg viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg>',
   };
   let valueSpans = []; // [{span, id}] of the rows built
+  let missingSpans = []; // [{span, ids}]: a row's reason, shown where none of its lines has a value
   function buildLegend() {
     valueSpans = [];
+    missingSpans = [];
     for (const box of legendBoxes) box.textContent = '';
     for (const row of legendRows) {
       const box = legendBoxes[row.pane] || legendBoxes[0];
@@ -473,6 +475,13 @@
           el.appendChild(span);
           valueSpans.push({ span: span, id: id });
         });
+      }
+      if (row.missing && !row.hidden) { // e.g. the VWAP of a day not read whole
+        const missing = document.createElement('span');
+        missing.className = 'note';
+        missing.textContent = row.missing;
+        el.appendChild(missing);
+        missingSpans.push({ span: missing, ids: row.values });
       }
       if (row.note) {
         const note = document.createElement('span');
@@ -510,11 +519,16 @@
   function showLegendValues(time) {
     legendTime = time;
     const at = time !== null && time !== undefined ? time : bars.length ? bars[bars.length - 1].time : null;
+    const valueAt = function (id) {
+      return id === 'volume' ? volumeAt.get(at) : (lines.get(id) || { values: new Map() }).values.get(at);
+    };
     for (const { span, id } of valueSpans) {
-      const value = id === 'volume' ? volumeAt.get(at) : (lines.get(id) || { values: new Map() }).values.get(at);
+      const value = valueAt(id);
       span.textContent = value === undefined ? '' : Math.round(value).toLocaleString('en-US');
       span.style.display = value === undefined ? 'none' : '';
     }
+    for (const { span, ids } of missingSpans)
+      span.style.display = ids.some((id) => valueAt(id) !== undefined) ? 'none' : '';
   }
   function placeLegend() {
     legendBoxes[0].style.top = '4px';
