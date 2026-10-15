@@ -8,13 +8,15 @@
 class QGridLayout;
 class QLabel;
 class QPushButton;
+class QScrollArea;
 class QToolButton;
 class QVBoxLayout;
 
 namespace fincept::screens {
 
-/// The `+ 보조지표` popup above the KRX chart (krx-quant #220, #222), in two columns. On the left
-/// the upper and lower indicators' lists: a check circle turns one on or off, its name picks it.
+/// The `+ 보조지표` popup above the KRX chart (krx-quant #220, #222, #223), in two columns. On the
+/// left the upper and lower indicators' lists, scrolled: a check circle turns one on or off, its
+/// name picks it.
 /// On the right the one picked: its name, a `?` with how it is worked out, a line about it, and
 /// its settings (the source, its numbers, each line's colour and width; the moving averages a
 /// period per line, `기간 추가` and X). It only shows the set the screen gives it and says each
@@ -46,6 +48,8 @@ class KrxStudyPanel : public QFrame {
     void fill_lists();
     /// The right side for the indicator picked.
     void fill_settings();
+    /// The lists scrolled to show the one picked.
+    void show_selected();
     /// The set changed here: said, the lists shown again; the settings too with ``rebuild``.
     void changed(bool rebuild = false);
     /// A button showing ``color``; it opens a palette and sets the line's colour.
@@ -56,6 +60,7 @@ class KrxStudyPanel : public QFrame {
     krx_quant::Study selected_ = krx_quant::Study::MovingAverage;
     QHash<int, QToolButton*> checks_; ///< by study
     QHash<int, QPushButton*> names_;  ///< by study
+    QScrollArea* lists_ = nullptr;    ///< the lists, scrolled to the one picked
     QLabel* title_ = nullptr;
     QToolButton* help_ = nullptr;
     QLabel* about_ = nullptr;

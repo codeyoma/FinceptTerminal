@@ -4,6 +4,7 @@
 
 #include <QDateTime>
 #include <QList>
+#include <QMap>
 #include <QString>
 #include <QStringList>
 #include <QVariant>
@@ -12,15 +13,16 @@
 #include <optional>
 #include <utility>
 
-/// The KRX chart's indicators (krx-quant #220, #222), worked out here so that the indicators
-/// panel and the chart's page only show them: the indicators and their settings, each symbol's
-/// as kept, their values over the bars, what the page draws of them and its legend, and how
-/// many bars before the first screen to read for them. Qt Core only. Named apart from
-/// upstream's ``fincept::ui::indicators`` (src/ui/charts/ChartIndicators), which is not used.
+/// The KRX chart's indicators (krx-quant #220, #222, #223), worked out here so that the
+/// indicators panel and the chart's page only show them: the indicators and their settings, each
+/// symbol's as kept (and the heights of its panes below), their values over the bars, what the
+/// page draws of them and its legend, and how many bars before the first screen to read for
+/// them. Qt Core only. Named apart from upstream's ``fincept::ui::indicators``
+/// (src/ui/charts/ChartIndicators), which is not used.
 namespace fincept::krx_quant {
 
-/// The chart's indicators, in the order of the panel's lists: those drawn over the prices,
-/// then those drawn in a pane below (the volume for now; krx-quant #223 adds the others).
+/// The chart's indicators, in the order of the panel's lists: those drawn over the prices, then
+/// those drawn each in a pane of its own below them (krx-quant #223).
 enum class Study {
     MovingAverage,
     Ichimoku,
@@ -35,6 +37,30 @@ enum class Study {
     Vwap,
     AnchoredVwap,
     Volume,
+    MassIndex,
+    Momentum,
+    VolumeOscillator,
+    PercentB,
+    BandWidth,
+    Stochastic,
+    StochasticRsi,
+    WilliamsR,
+    Disparity,
+    IntradayIntensity,
+    ChaikinOscillator,
+    Trix,
+    PriceOscillator,
+    AdLine,
+    Adx,
+    Atr,
+    Cci,
+    Dmi,
+    Macd,
+    Mfi,
+    Obv,
+    Roc,
+    Rsi,
+    Rmi,
 };
 
 inline constexpr std::array<Study, 12> kUpperStudies{
@@ -42,13 +68,42 @@ inline constexpr std::array<Study, 12> kUpperStudies{
     Study::VolumeProfile, Study::Envelope,     Study::Fractal,   Study::ExponentialAverage,
     Study::ParabolicSar,  Study::PriceChannel, Study::Vwap,      Study::AnchoredVwap,
 };
-inline constexpr std::array<Study, 1> kLowerStudies{Study::Volume};
-inline constexpr std::array<Study, 13> kStudies{
-    Study::MovingAverage, Study::Ichimoku,     Study::Bollinger, Study::Supertrend,
-    Study::VolumeProfile, Study::Envelope,     Study::Fractal,   Study::ExponentialAverage,
-    Study::ParabolicSar,  Study::PriceChannel, Study::Vwap,      Study::AnchoredVwap,
+inline constexpr std::array<Study, 25> kLowerStudies{
     Study::Volume,
+    Study::MassIndex,
+    Study::Momentum,
+    Study::VolumeOscillator,
+    Study::PercentB,
+    Study::BandWidth,
+    Study::Stochastic,
+    Study::StochasticRsi,
+    Study::WilliamsR,
+    Study::Disparity,
+    Study::IntradayIntensity,
+    Study::ChaikinOscillator,
+    Study::Trix,
+    Study::PriceOscillator,
+    Study::AdLine,
+    Study::Adx,
+    Study::Atr,
+    Study::Cci,
+    Study::Dmi,
+    Study::Macd,
+    Study::Mfi,
+    Study::Obv,
+    Study::Roc,
+    Study::Rsi,
+    Study::Rmi,
 };
+/// Every indicator, in the order of the enum (the upper ones, then the lower ones).
+inline constexpr std::array<Study, 37> kStudies = [] {
+    std::array<Study, 37> all{};
+    for (std::size_t i = 0; i < kUpperStudies.size(); ++i)
+        all[i] = kUpperStudies[i];
+    for (std::size_t i = 0; i < kLowerStudies.size(); ++i)
+        all[kUpperStudies.size() + i] = kLowerStudies[i];
+    return all;
+}();
 
 /// The price an indicator reads of each bar (기준값).
 enum class Source { Close, Open, High, Low, HL2, HLC3 };
@@ -62,14 +117,16 @@ QString source_title(Source source);
 double price_of(const ChartBar& bar, Source source);
 QList<double> source_values(const QList<ChartBar>& bars, Source source);
 
-/// A number the panel edits: a period, a multiplier, a share.
+/// A number the panel edits: a period, a multiplier, a share; or a choice among ``choices``
+/// (its index: the price oscillator's averages, 단순 or 지수).
 struct StudyInput {
     QString title;
     double value = 0;
     double min = 1;
     double max = 1;
     double step = 1;
-    int decimals = 0; ///< 0: a whole number
+    int decimals = 0;    ///< 0: a whole number
+    QStringList choices; ///< none: a number
 };
 
 /// A line's look (or a mark's): its colour ("#rrggbb") and width (1–4; 0: not set, the marks and
@@ -94,11 +151,22 @@ struct StudySpec {
     std::optional<Source> source; ///< its default source; none: it reads none
     QList<StudyInput> inputs;     ///< with their defaults; the periods' with ``periods``
     QList<StudyLine> lines;       ///< with their defaults; one per period with ``periods``
+    /// A lower one's: the levels its pane marks with dashed lines (70 and 30 for the RSI), and
+    /// keeps in view.
+    QList<double> guides;
+    /// A lower one's: the decimals its values show (the upper ones' are whole won); a volume's
+    /// scale (the volume, OBV, AD line) shows them shortened (1.2M) on its axis.
+    int decimals = 0;
+    bool volume_scale = false;
 };
 
 const StudySpec& study_spec(Study study);
 /// "ma", "ichimoku", "bollinger", "supertrend", "volume_profile", "envelope", "fractal", "ema",
-/// "psar", "price_channel", "vwap", "anchored_vwap", "volume".
+/// "psar", "price_channel", "vwap", "anchored_vwap"; below: "volume", "mass_index", "momentum",
+/// "volume_oscillator", "bollinger_b", "bollinger_width", "stochastic", "stochastic_rsi",
+/// "williams_r", "disparity", "intraday_intensity", "chaikin_oscillator", "trix",
+/// "price_oscillator", "ad_line", "adx", "atr", "cci", "dmi", "macd", "mfi", "obv", "roc", "rsi",
+/// "rmi".
 QString study_key(Study study);
 std::optional<Study> parse_study(const QString& key);
 QString study_title(Study study);
@@ -119,8 +187,8 @@ struct StudySettings {
 
 /// ``study``'s defaults (off).
 StudySettings default_settings(Study study);
-/// The settings' text in the legend and the panel: "5 20 60 120", "20 2", "20 10%"; the source
-/// after them when it is not the default ("5 20 고가").
+/// The settings' text in the legend and the panel: "5 20 60 120", "20 2", "20 10%", a choice by
+/// its name ("10 21 단순"); the source after them when it is not the default ("5 20 고가").
 QString settings_text(const StudySettings& settings);
 
 /// A moving average's next line (기간 추가): the first of 5, 10, 20, 60, 120, 200, 240, 480 it has
@@ -130,7 +198,7 @@ bool add_period(StudySettings& settings);
 bool remove_period(StudySettings& settings, int index);
 
 /// Every indicator's settings for a symbol: each once, those on first in the order they were
-/// turned on (krx-quant #223 stacks the lower panes in that order), then the others.
+/// turned on (the lower panes stack in that order, krx-quant #223), then the others.
 struct StudySet {
     QList<StudySettings> studies;
 
@@ -158,6 +226,25 @@ QString studies_value(const StudySet& set);
 /// default; a broken setting (unknown source, a number out of its range, a colour that is not
 /// #rrggbb, a width out of 1–4) at its default.
 StudySet parse_studies(const QVariant& kept);
+
+/// The heights of a symbol's lower panes (krx-quant #223), in CSS pixels, by indicator: those
+/// dragged; the others are kPaneHeight. Kept for the indicators off too, so one turned on again
+/// has its height again.
+using PaneHeights = QMap<Study, int>;
+/// A lower pane's height before it is dragged.
+inline constexpr int kPaneHeight = 100;
+/// The heights a lower pane is kept within.
+inline constexpr int kMinPaneHeight = 40;
+inline constexpr int kMaxPaneHeight = 1000;
+/// The price pane's least height: past it, the chart grows taller than its panel and scrolls.
+inline constexpr int kMinPriceHeight = 200;
+/// Where a symbol keeps them: krx_quant/chart/<symbol>/ + kPrefsPaneHeights, a JSON object
+/// {"rsi": 140, "volume": 80} (pane_heights_value).
+inline constexpr auto kPrefsPaneHeights = "pane_heights";
+QString pane_heights_value(const PaneHeights& heights);
+/// The heights kept (a JSON object as above): a key not of a lower indicator, or a height that
+/// is not a whole number within kMinPaneHeight–kMaxPaneHeight, is dropped (its default).
+PaneHeights parse_pane_heights(const QVariant& kept);
 
 // The values, one per bar (oldest first), none where too few bars come before.
 using Values = QList<std::optional<double>>;
@@ -222,6 +309,100 @@ QList<Fractal> williams_fractals(const QList<ChartBar>& bars, int period);
 /// when the second close is above the first.
 Values parabolic_sar(const QList<ChartBar>& bars, double start, double step, double maximum);
 
+// The lower indicators (krx-quant #223). Each smoothing starts at the simple average of its
+// first ``period`` values: an EMA then goes on by 2 / (period + 1), Wilder's by 1 / period.
+
+/// A line with its signal line; the MACD's with its histogram (the line less the signal) too.
+struct SignalLines {
+    Values line;
+    Values signal;
+    Values histogram;
+};
+
+/// The mass index: the sum over ``sum_period`` bars of EMA(high − low) / EMA(EMA(high − low)),
+/// both EMAs of ``ema_period``.
+Values mass_index(const QList<ChartBar>& bars, int ema_period, int sum_period);
+/// The momentum: each value less the one ``period`` bars before.
+Values momentum(const QList<double>& values, int period);
+/// The volume oscillator (as TradingView's): 100 × (EMA of the volumes over ``short_period``
+/// − over ``long_period``) / the latter.
+Values volume_oscillator(const QList<ChartBar>& bars, int short_period, int long_period);
+/// The Bollinger %B: where each value is between its lower (0) and upper (1) band.
+Values percent_b(const QList<double>& values, int period, double deviations);
+/// The Bollinger band width (as TradingView's BBW): 100 × (upper − lower) / middle.
+Values band_width(const QList<double>& values, int period, double deviations);
+/// The slow stochastic: %K (``line``) the simple average over ``k_smooth`` bars of 100 × (close −
+/// lowest low) / (highest high − lowest low) over ``period``, %D (``signal``) %K's over
+/// ``d_smooth``. None where the high and low are one price.
+SignalLines stochastic(const QList<ChartBar>& bars, int period, int k_smooth, int d_smooth);
+/// The stochastic RSI: the stochastic above of the RSI(``rsi_period``) over ``period``.
+SignalLines stochastic_rsi(const QList<double>& values, int rsi_period, int period, int k_smooth, int d_smooth);
+/// Williams %R: −100 × (highest high − close) / (highest high − lowest low) over ``period``.
+Values williams_r(const QList<ChartBar>& bars, int period);
+/// The disparity (이격도): 100 × each value / its simple average over ``period``.
+Values disparity(const QList<double>& values, int period);
+/// The intraday intensity (%): 100 × the sum over ``period`` bars of (2 × close − high − low) /
+/// (high − low) × volume over their volumes' sum; a bar whose high is its low adds nothing.
+Values intraday_intensity(const QList<ChartBar>& bars, int period);
+
+/// The moment the cumulative lines (the AD line, the OBV) are 0 from, so that their values do not
+/// depend on where the bars read start (krx-quant #223): 00:00 KST of the last bar's date in a
+/// minute view, 1 January of its year in a candle view (chart_time). A fixed moment, not a bar
+/// held: reading bars before it changes nothing after it. None without bars.
+std::optional<qint64> cumulative_zero(const QList<ChartBar>& bars, int view);
+/// The same moment for the bars as read (1-minute bars, or a candle view's candles, oldest
+/// first): where the history read reaches back to while the AD line or the OBV is on. Invalid
+/// without bars.
+QDateTime cumulative_start(const QList<Bar>& bars, int view);
+/// The bar the cumulative lines are 0 at: the first bar from cumulative_zero on. None while the
+/// bars from that moment on may not all be held: the first bar held starts after it, and
+/// ``start_whole`` does not say the engine has nothing before (a year or a day read from its
+/// middle, whose first bar would move as earlier bars of it are read). Bars before it count back
+/// from it; reading more of them changes none of the values.
+std::optional<qsizetype> cumulative_anchor(const QList<ChartBar>& bars, int view, bool start_whole = false);
+/// The accumulation/distribution line: the sum of each bar's (2 × close − high − low) / (high −
+/// low) × volume after ``anchor`` (cumulative_anchor), 0 at it, counted back before it.
+Values accumulation_distribution(const QList<ChartBar>& bars, qsizetype anchor);
+/// The Chaikin oscillator: EMA(AD line, ``short_period``) − EMA(AD line, ``long_period``). As
+/// the AD line moves by one amount for every bar wherever it is 0, this does not depend on where
+/// it is (it is counted from the first bar held), nor on cumulative_anchor.
+Values chaikin_oscillator(const QList<ChartBar>& bars, int short_period, int long_period);
+/// The TRIX: 100 × the change over a bar of EMA(EMA(EMA(value))) (each of ``period``) / its
+/// value before; its signal the EMA of ``signal`` of it.
+SignalLines trix(const QList<double>& values, int period, int signal);
+/// The price oscillator (as TradingView's): 100 × (average over ``short_period`` − over
+/// ``long_period``) / the latter, of simple or ``exponential`` averages.
+Values price_oscillator(const QList<double>& values, int short_period, int long_period, bool exponential);
+
+/// The directional movement (Wilder's DMI): +DI and −DI are 100 × Wilder's averages over
+/// ``period`` of +DM and −DM over that of the true range (each from the second bar: it needs the
+/// bar before), and the ADX Wilder's average over ``period`` of DX = 100 × |+DI − −DI| / (+DI +
+/// −DI).
+struct Directional {
+    Values plus;
+    Values minus;
+    Values adx;
+};
+Directional directional_movement(const QList<ChartBar>& bars, int period);
+/// The commodity channel index: (value − its simple average over ``period``) / (0.015 × their
+/// mean deviation from it).
+Values commodity_channel(const QList<double>& values, int period);
+/// The MACD: EMA(``fast``) − EMA(``slow``), its signal its EMA(``signal``), and the histogram.
+SignalLines macd(const QList<double>& values, int fast, int slow, int signal);
+/// The money flow index: 100 × the money flow (``prices`` × volume) of the bars whose price rose
+/// over ``period`` bars / that of those that rose or fell.
+Values money_flow(const QList<ChartBar>& bars, const QList<double>& prices, int period);
+/// The on-balance volume: each bar's volume added when its close rose, taken when it fell,
+/// after ``anchor`` (cumulative_anchor), 0 at it, counted back before it.
+Values on_balance_volume(const QList<ChartBar>& bars, qsizetype anchor);
+/// The rate of change: 100 × (value − the one ``period`` before) / that one.
+Values rate_of_change(const QList<double>& values, int period);
+/// The RSI: 100 − 100 / (1 + Wilder's average over ``period`` of the rises / of the falls) (100
+/// without falls, 0 without rises).
+Values relative_strength(const QList<double>& values, int period);
+/// The relative momentum index: the RSI of the changes over ``momentum`` bars.
+Values relative_momentum(const QList<double>& values, int period, int momentum);
+
 /// The VWAP of each day: the sum of ``source`` × volume over the sum of volumes, from the first
 /// bar of each KST date (the day separators' bar) on; none until a day has volume. Only a whole
 /// day has one: every date after the first held (a date before it is held), and the first only
@@ -256,8 +437,11 @@ QList<qint64> future_times(const QList<ChartBar>& bars, int view, int count);
 /// less one. A recursive one depends on every bar before, so its warm-up is long enough that more
 /// bars barely move the values shown (as on TradingView, they may still move a little as more
 /// load): the EMA 4 × its longest period (the weight left beyond is about e^-8), the supertrend
-/// 10 × its ATR period, the parabolic SAR 100 bars. The VWAP needs whole days instead
-/// (first_screen_day), the anchored VWAP its anchor's bar.
+/// 10 × its ATR period, the parabolic SAR 100 bars. A lower one's (krx-quant #223) adds up its
+/// steps: an EMA 4 × its period, a Wilder average 8 × its period (likewise about e^-8), a fixed
+/// look-back its period less one; side by side, the longest. The VWAP needs whole days instead
+/// (first_screen_day), the anchored VWAP its anchor's bar, the AD line and the OBV the bars back
+/// past their 0's moment (cumulative_start).
 int warmup(const StudySettings& settings);
 /// The most bars of a view read for the indicators (the engine's largest ``limit``).
 inline constexpr int kMaxHistoryBars = 2000;
@@ -285,11 +469,17 @@ std::optional<QDateTime> history_candles(const QDateTime& first, int have, int w
 
 /// A line the page draws: its series.
 struct DrawnSeries {
-    QString id; ///< "ma.0", "ichimoku.lead_a", "volume" (the volume pane's own)
+    QString id; ///< "ma.0", "ichimoku.lead_a", "rsi", "macd.histogram"
     Study study = Study::MovingAverage;
     QString color;
     int width = 1;
     bool dots = false; ///< points without a line (the parabolic SAR)
+    /// Bars from 0 up (the MACD's histogram): ``color`` where a value is 0 or more, else ``down_color``.
+    bool histogram = false;
+    QString down_color;
+    int pane = 0;              ///< 0: the prices'; 1, 2…: the lower panes, top down (DrawnPane)
+    int decimals = 0;          ///< its values' (the legend's, the axis's)
+    bool volume_scale = false; ///< its axis shows its values shortened, as the volume's
     /// Its points by time up to its last value: a bar's time, or one of the times past the last
     /// bar; a missing value breaks the line.
     QList<std::pair<qint64, std::optional<double>>> points;
@@ -313,11 +503,20 @@ struct DrawnMark {
     QString color;
 };
 
+/// A pane below the prices (krx-quant #223): a lower indicator's, in the order it was turned on.
+/// Hidden, it stays (with its legend row) but draws nothing.
+struct DrawnPane {
+    Study study = Study::Volume;
+    int height = kPaneHeight; ///< CSS pixels
+    bool hidden = false;
+    QList<double> guides; ///< its levels, dashed (StudySpec::guides)
+};
+
 /// A row of a pane's legend (krx-quant #220): the indicator's name, its settings and the values
 /// of its lines at the crosshair (or the last bar); hovered, its buttons hide, set and drop it.
 struct LegendRow {
     Study study = Study::MovingAverage;
-    int pane = 0; ///< 0: the prices', 1: the volume's
+    int pane = 0; ///< 0: the prices', 1, 2…: the lower panes (DrawnSeries::pane)
     QString title;
     QString settings;
     bool hidden = false; ///< on but not drawn: dimmed, without values
@@ -331,9 +530,10 @@ struct LegendRow {
 
 /// What the page draws of the indicators over ``bars`` (as drawn, oldest first) in the view
 /// ``view``: the lines, the fills between them, the fractals' marks, whether the volume profile
-/// (worked out over the bars in view, volume_profile) and the volume pane are drawn, the
-/// anchored VWAP's bar, and the legend. An indicator off, or hidden, draws nothing; a hidden one
-/// keeps its legend row. The VWAP in a candle view is neither drawn nor in the legend; its
+/// (worked out over the bars in view, volume_profile) is drawn, the anchored VWAP's bar, the
+/// lower panes (one per lower indicator on, in the order they were turned on, of ``heights``)
+/// and the legend. An indicator off, or hidden, draws nothing; a hidden one keeps its legend row,
+/// and a lower one its pane. The VWAP in a candle view is neither drawn nor in the legend; its
 /// settings stay.
 struct StudyDrawing {
     QList<DrawnSeries> series;
@@ -344,16 +544,18 @@ struct StudyDrawing {
     int profile_rows = 24;
     std::optional<qint64> anchor; ///< the anchored VWAP's bar (chart_time), its marker
     QString anchor_color;
-    bool picking = false; ///< the next click on the chart anchors it
-    bool volume = true;   ///< the volume pane is there
-    bool volume_hidden = false;
+    bool picking = false;   ///< the next click on the chart anchors it
+    QList<DrawnPane> panes; ///< below the prices, top down (the volume's among them)
     QList<LegendRow> legend;
 };
 /// ``anchor`` is the anchored VWAP's moment (chart_time; none: not chosen); ``picking`` whether a
 /// click on the chart chooses it (it is turned on without one, or chosen again).
-/// ``first_day_whole``: the first day held is whole, nothing before it to read (session_vwap).
+/// ``first_day_whole``: the engine has nothing before the first bar held in this view, so its
+/// first day is whole (session_vwap) and so is the stretch from the cumulative lines' 0 on
+/// (cumulative_anchor). Until those are held, the VWAP's day and the AD line and OBV are empty,
+/// with why in the legend; past kMaxHistoryBars (no more is read for them), why that.
 StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int view, std::optional<qint64> anchor,
-                          bool picking, bool first_day_whole = false);
+                          bool picking, bool first_day_whole = false, const PaneHeights& heights = {});
 
 /// ``color`` (#rrggbb) at ``alpha`` (0–1) as CSS: rgba(r,g,b,a).
 QString css_color(const QString& color, double alpha);

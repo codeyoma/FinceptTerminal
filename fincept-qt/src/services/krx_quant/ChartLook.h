@@ -65,7 +65,7 @@ struct ChartPrefs {
 /// Where a symbol's chart settings are kept in the app settings: "krx_quant/chart/005930/"
 /// (krx-quant #221), followed by "view" or "style". The settings later issues keep for a symbol
 /// (indicators and the anchored VWAP's anchor, krx-quant #222: kPrefsStudies, kPrefsAnchor; pane
-/// heights, drawings) go under the same group.
+/// heights, krx-quant #223: kPrefsPaneHeights; drawings) go under the same group.
 QString prefs_group(const QString& symbol);
 inline constexpr auto kPrefsView = "view";
 inline constexpr auto kPrefsStyle = "style";
@@ -90,7 +90,8 @@ QList<ChartBar> heikin_ashi(const QList<ChartBar>& bars);
 std::optional<double> baseline_base(const QList<ChartBar>& bars, int view, std::optional<qint64> first_in_view);
 
 /// What the chart is drawn as besides its data (krx-quant #221): the style, and whether a minute
-/// view fills its days' first bars; the indicators and the anchored VWAP's anchor (krx-quant #222).
+/// view fills its days' first bars; the indicators and the anchored VWAP's anchor (krx-quant #222);
+/// the lower panes' heights (krx-quant #223).
 struct ChartLook {
     ChartStyle style = ChartStyle::Candle;
     bool day_separator = true;
@@ -99,6 +100,7 @@ struct ChartLook {
     bool picking = false;         ///< a click on the chart chooses it
     /// The first day held is whole, nothing before it to read: its VWAP is drawn (krx-quant #222).
     bool first_day_whole = false;
+    PaneHeights pane_heights; ///< those dragged; the others kPaneHeight
 };
 
 /// The bars a minute view's day separators fill (krx-quant #221), by time (chart_time): each

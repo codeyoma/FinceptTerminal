@@ -71,8 +71,25 @@ QJsonObject studies_json(const krx_quant::StudyDrawing& d) {
         QJsonArray points;
         for (const auto& [time, value] : line.points)
             points.append(point_json(time, value));
-        series.append(QJsonObject{
-            {"id", line.id}, {"color", line.color}, {"width", line.width}, {"dots", line.dots}, {"points", points}});
+        QJsonObject one{
+            {"id", line.id},    {"color", line.color}, {"width", line.width},       {"dots", line.dots},
+            {"points", points}, {"pane", line.pane},   {"decimals", line.decimals}, {"volume", line.volume_scale}};
+        if (line.histogram) { // the MACD's (krx-quant #223): bars from 0, coloured by their sign
+            one.insert("histogram", true);
+            one.insert("down", line.down_color);
+        }
+        series.append(one);
+    }
+    // The lower panes, top down (krx-quant #223): each indicator's, its height and guide lines.
+    QJsonArray panes;
+    for (const auto& pane : d.panes) {
+        QJsonArray guides;
+        for (const double g : pane.guides)
+            guides.append(g);
+        panes.append(QJsonObject{{"key", krx_quant::study_key(pane.study)},
+                                 {"height", pane.height},
+                                 {"hidden", pane.hidden},
+                                 {"guides", guides}});
     }
     QJsonArray fills;
     for (const auto& f : d.fills)
@@ -96,8 +113,10 @@ QJsonObject studies_json(const krx_quant::StudyDrawing& d) {
                     {"marks", marks},
                     {"legend", legend},
                     {"picking", d.picking},
-                    {"volume", d.volume},
-                    {"volume_hidden", d.volume_hidden}};
+                    {"panes", panes},
+                    {"min_price", krx_quant::kMinPriceHeight},
+                    {"pane_min", krx_quant::kMinPaneHeight},
+                    {"pane_max", krx_quant::kMaxPaneHeight}};
     if (d.anchor)
         out.insert("anchor", QJsonObject{{"time", *d.anchor}, {"color", d.anchor_color}});
     return out;
@@ -154,6 +173,10 @@ void KrxChartBridge::legend(const QString& key, const QString& action) {
     emit legend_clicked(key, action);
 }
 
+void KrxChartBridge::panes(const QString& heights) {
+    emit panes_resized(heights);
+}
+
 KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
     setMinimumHeight(220);
     auto* layout = new QVBoxLayout(this);
@@ -194,6 +217,10 @@ KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
             emit study_settings_requested(*study);
         else if (action == QLatin1String("remove"))
             emit study_removed(*study);
+    });
+    connect(bridge_, &KrxChartBridge::panes_resized, this, [this](const QString& heights) {
+        if (const auto parsed = krx_quant::parse_pane_heights(heights); !parsed.isEmpty())
+            emit pane_heights_changed(parsed);
     });
     unavailable_ = new QLabel(tr("차트를 열 수 없음"));
     unavailable_->setAlignment(Qt::AlignCenter);
@@ -280,7 +307,8 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
     if (!shown.isEmpty()) // the last bar's own close, for the price line of a Heikin-Ashi chart
         data.insert("last", QJsonObject{{"close", shown.last().close}, {"rising", shown.last().rising}});
     // The indicators, over the bars as they are (krx-quant #222), and the volume profile of those in view.
-    drawing_ = krx_quant::draw_studies(shown, look.studies, minutes, look.anchor, look.picking, look.first_day_whole);
+    drawing_ = krx_quant::draw_studies(shown, look.studies, minutes, look.anchor, look.picking, look.first_day_whole,
+                                       look.pane_heights);
     data.insert("studies", studies_json(drawing_));
     data.insert("profile", QJsonDocument::fromJson(profile_json().toUtf8()).object());
     data_ = compact(data);
@@ -349,8 +377,8 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
         // Each line's point the bar being made moves: its own, a leading span's displacement on,
         // the lagging span's displacement back. The page moves that one (it is each line's last).
         shown_ = all;
-        drawing_ =
-            krx_quant::draw_studies(all, look_.studies, minutes_, look_.anchor, look_.picking, look_.first_day_whole);
+        drawing_ = krx_quant::draw_studies(all, look_.studies, minutes_, look_.anchor, look_.picking,
+                                           look_.first_day_whole, look_.pane_heights);
         const qsizetype n = all.size();
         QJsonArray points;
         for (const auto& line : drawing_.series) {

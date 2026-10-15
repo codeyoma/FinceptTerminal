@@ -1,12 +1,14 @@
 // Unit tests for src/services/krx_quant/ChartStudies.h
 //
 // The KRX chart's indicators are worked out here so that the panel and the page only show them
-// (krx-quant #222): each indicator's values on short made-up bars, worked out by hand (the
+// (krx-quant #222, #223): each indicator's values on short made-up bars, worked out by hand (the
 // supertrend and the parabolic SAR step by step as TradingView's ta.supertrend and ta.sar); the
 // front left empty while too few bars come before; the VWAP starting again on a new date; the
-// anchored VWAP from its bar; the volume profile's rows; how many bars to read and their cap;
-// each symbol's settings as kept, their defaults and broken values; what the page draws and the
-// legend.
+// anchored VWAP from its bar; the volume profile's rows; the AD line and the OBV the same however
+// many bars come before, and the recursive ones barely moved by more bars before their warm-up;
+// how many bars to read and their cap; each symbol's settings and pane heights as kept, their
+// defaults and broken values; what the page draws (the lower panes in the order turned on) and
+// the legend.
 
 #include "services/krx_quant/ChartStudies.h"
 
@@ -34,6 +36,38 @@ QList<ChartBar> bars(const QList<std::array<double, 3>>& hlc) {
     qint64 time = at("2026-10-12T09:00:00+09:00");
     for (const auto& [high, low, close] : hlc) {
         out << bar(time, close, high, low, close);
+        time += 60;
+    }
+    return out;
+}
+
+/// Likewise, of these highs, lows, closes and volumes.
+QList<ChartBar> traded(const QList<std::array<double, 4>>& hlcv) {
+    QList<ChartBar> out;
+    qint64 time = at("2026-10-12T09:00:00+09:00");
+    for (const auto& [high, low, close, volume] : hlcv) {
+        out << bar(time, close, high, low, close, volume);
+        time += 60;
+    }
+    return out;
+}
+
+/// ``count`` made-up minute bars from 09:00 on 12 October 2026 that wander (a fixed sequence).
+QList<ChartBar> wandering(int count) {
+    QList<ChartBar> out;
+    quint32 seed = 12345;
+    const auto next = [&seed]() { // 0–1
+        seed = seed * 1103515245u + 12345u;
+        return ((seed >> 8) & 0xffff) / 65535.0;
+    };
+    double close = 70000;
+    qint64 time = at("2026-10-12T09:00:00+09:00");
+    for (int i = 0; i < count; ++i) {
+        const double open = close;
+        close = std::round(open + (next() - 0.5) * 200);
+        const double high = std::max(open, close) + std::round(next() * 60);
+        const double low = std::min(open, close) - std::round(next() * 60);
+        out << bar(time, open, high, low, close, std::round(1000 + next() * 9000));
         time += 60;
     }
     return out;
@@ -74,9 +108,14 @@ class TstKrxChartStudies : public QObject {
   private slots:
     void the_studies_have_keys_titles_and_defaults() {
         QCOMPARE(kUpperStudies.size(), std::size_t(12));
+        QCOMPARE(kLowerStudies.size(), std::size_t(25)); // krx-quant #223
         for (const Study study : kStudies)
             QCOMPARE(parse_study(study_key(study)), std::optional(study));
-        QVERIFY(!parse_study("macd")); // a lower study comes with krx-quant #223
+        for (std::size_t i = 0; i < kStudies.size(); ++i) // in the enum's order (StudySet::of)
+            QCOMPARE(static_cast<std::size_t>(kStudies[i]), i);
+        for (const Study study : kLowerStudies)
+            QVERIFY(!study_spec(study).upper);
+        QVERIFY(!parse_study("nope"));
         QCOMPARE(study_title(Study::VolumeProfile), QStringLiteral("매물대분석"));
         QCOMPARE(study_title(Study::AnchoredVwap), QStringLiteral("고정된 VWAP"));
         QVERIFY(!study_spec(Study::Volume).upper);
@@ -103,6 +142,57 @@ class TstKrxChartStudies : public QObject {
         high.source = Source::High;
         QCOMPARE(settings_text(high), QStringLiteral("5 20 60 120 고가"));
         QCOMPARE(source_title(Source::HLC3), QStringLiteral("(고가+저가+종가)/3"));
+
+        // The lower indicators' defaults and guide lines (krx-quant #220's table).
+        const auto inputs = [](Study study) { return default_settings(study).inputs; };
+        const auto guides = [](Study study) { return study_spec(study).guides; };
+        QCOMPARE(study_key(Study::Volume), QStringLiteral("volume"));
+        QCOMPARE(inputs(Study::MassIndex), (QList<double>{9, 25}));
+        QCOMPARE(guides(Study::MassIndex), (QList<double>{27, 26.5}));
+        QCOMPARE(inputs(Study::Momentum), QList<double>{10});
+        QCOMPARE(default_settings(Study::Momentum).source, std::optional(Source::Close));
+        QCOMPARE(inputs(Study::VolumeOscillator), (QList<double>{5, 10}));
+        QCOMPARE(inputs(Study::PercentB), (QList<double>{20, 2}));
+        QCOMPARE(guides(Study::PercentB), (QList<double>{1, 0}));
+        QCOMPARE(inputs(Study::BandWidth), (QList<double>{20, 2}));
+        QCOMPARE(inputs(Study::Stochastic), (QList<double>{14, 3, 3}));
+        QCOMPARE(guides(Study::Stochastic), (QList<double>{80, 20}));
+        QCOMPARE(inputs(Study::StochasticRsi), (QList<double>{14, 14, 3, 3}));
+        QCOMPARE(guides(Study::StochasticRsi), (QList<double>{80, 20}));
+        QCOMPARE(inputs(Study::WilliamsR), QList<double>{14});
+        QCOMPARE(guides(Study::WilliamsR), (QList<double>{-20, -80}));
+        QCOMPARE(inputs(Study::Disparity), QList<double>{20});
+        QCOMPARE(guides(Study::Disparity), QList<double>{100});
+        QCOMPARE(inputs(Study::IntradayIntensity), QList<double>{21});
+        QCOMPARE(guides(Study::IntradayIntensity), QList<double>{0});
+        QCOMPARE(inputs(Study::ChaikinOscillator), (QList<double>{3, 10}));
+        QCOMPARE(guides(Study::ChaikinOscillator), QList<double>{0});
+        QCOMPARE(inputs(Study::Trix), (QList<double>{18, 9}));
+        QCOMPARE(guides(Study::Trix), QList<double>{0});
+        QCOMPARE(inputs(Study::PriceOscillator), (QList<double>{10, 21, 0}));
+        QCOMPARE(guides(Study::PriceOscillator), QList<double>{0});
+        QCOMPARE(settings_text(default_settings(Study::PriceOscillator)), QStringLiteral("10 21 단순"));
+        QVERIFY(inputs(Study::AdLine).isEmpty() && guides(Study::AdLine).isEmpty());
+        QCOMPARE(inputs(Study::Adx), QList<double>{14});
+        QCOMPARE(inputs(Study::Atr), QList<double>{14});
+        QCOMPARE(inputs(Study::Cci), QList<double>{20});
+        QCOMPARE(guides(Study::Cci), (QList<double>{100, -100}));
+        QCOMPARE(inputs(Study::Dmi), QList<double>{14});
+        QCOMPARE(default_settings(Study::Dmi).lines.size(), 3); // +DI, −DI, ADX
+        QCOMPARE(inputs(Study::Macd), (QList<double>{12, 26, 9}));
+        QCOMPARE(guides(Study::Macd), QList<double>{0});
+        QCOMPARE(settings_text(default_settings(Study::Macd)), QStringLiteral("12 26 9"));
+        QCOMPARE(inputs(Study::Mfi), QList<double>{14});
+        QCOMPARE(guides(Study::Mfi), (QList<double>{80, 20}));
+        QVERIFY(inputs(Study::Obv).isEmpty() && guides(Study::Obv).isEmpty());
+        QCOMPARE(inputs(Study::Roc), QList<double>{9});
+        QCOMPARE(guides(Study::Roc), QList<double>{0});
+        QCOMPARE(inputs(Study::Rsi), QList<double>{14});
+        QCOMPARE(guides(Study::Rsi), (QList<double>{70, 30}));
+        QCOMPARE(inputs(Study::Rmi), (QList<double>{14, 5}));
+        QCOMPARE(guides(Study::Rmi), (QList<double>{70, 30}));
+        QCOMPARE(settings_text(default_settings(Study::Stochastic)), QStringLiteral("14 3 3"));
+        QVERIFY(study_spec(Study::Obv).volume_scale && study_spec(Study::Volume).volume_scale);
         QCOMPARE(price_of(bar(0, 1, 9, 3, 6), Source::HLC3), 6.0);
         QCOMPARE(price_of(bar(0, 1, 9, 3, 6), Source::HL2), 6.0);
     }
@@ -268,6 +358,45 @@ class TstKrxChartStudies : public QObject {
         QVERIFY(future_times({}, 1, 3).isEmpty());
     }
 
+    void the_lower_indicators_warm_up() {
+        const auto w = [](Study study) { return warmup(default_settings(study)); };
+        QCOMPARE(w(Study::Volume), 0);
+        QCOMPARE(w(Study::MassIndex), 4 * 9 * 2 + 24);
+        QCOMPARE(w(Study::Momentum), 10);
+        QCOMPARE(w(Study::VolumeOscillator), 4 * 10);
+        QCOMPARE(w(Study::PercentB), 19);
+        QCOMPARE(w(Study::BandWidth), 19);
+        QCOMPARE(w(Study::Stochastic), 13 + 2 + 2);
+        QCOMPARE(w(Study::StochasticRsi), 8 * 14 + 13 + 2 + 2);
+        QCOMPARE(w(Study::WilliamsR), 13);
+        QCOMPARE(w(Study::Disparity), 19);
+        QCOMPARE(w(Study::IntradayIntensity), 20);
+        QCOMPARE(w(Study::ChaikinOscillator), 4 * 10);
+        QCOMPARE(w(Study::Trix), 4 * (3 * 18 + 9));
+        QCOMPARE(w(Study::PriceOscillator), 20);
+        StudySettings exponential = default_settings(Study::PriceOscillator);
+        exponential.inputs[2] = 1;
+        QCOMPARE(warmup(exponential), 4 * 21);
+        QCOMPARE(w(Study::AdLine), 0);
+        QCOMPARE(w(Study::Adx), 8 * 2 * 14);
+        QCOMPARE(w(Study::Atr), 8 * 14);
+        QCOMPARE(w(Study::Cci), 19);
+        QCOMPARE(w(Study::Dmi), 8 * 2 * 14);
+        QCOMPARE(w(Study::Macd), 4 * 26 + 4 * 9);
+        QCOMPARE(w(Study::Mfi), 14);
+        QCOMPARE(w(Study::Obv), 0);
+        QCOMPARE(w(Study::Roc), 9);
+        QCOMPARE(w(Study::Rsi), 8 * 14);
+        QCOMPARE(w(Study::Rmi), 5 + 8 * 14);
+        // The longest of those on, the moving averages' 119 included; still capped.
+        StudySet set = default_studies();
+        set.turn(Study::Rsi, true);
+        set.turn(Study::Macd, true);
+        QCOMPARE(history_bars(set, 1), kFitBars + 140);
+        set.of(Study::Rsi).inputs = {300};
+        QCOMPARE(history_bars(set, 1), kMaxHistoryBars);
+    }
+
     void bars_to_read_for_the_indicators() {
         StudySet set = default_studies(); // the moving averages up to 120
         QCOMPARE(warmup(set.of(Study::MovingAverage)), 119);
@@ -406,7 +535,7 @@ class TstKrxChartStudies : public QObject {
         // Broken values are their defaults; an unknown study is dropped, a missing one fresh.
         const StudySet broken = parse_studies(QStringLiteral(
             R"([{"study":"bollinger","on":true,"source":"vwap","inputs":[0,50],"lines":[{"color":"red","width":9}]},)"
-            R"({"study":"ma","on":true,"inputs":[5,-1,20.5,60]},{"study":"macd","on":true},)"
+            R"({"study":"ma","on":true,"inputs":[5,-1,20.5,60]},{"study":"nope","on":true},)"
             R"({"study":"bollinger","on":false}])"));
         const StudySettings& b = broken.of(Study::Bollinger);
         QVERIFY(b.on);
@@ -425,6 +554,30 @@ class TstKrxChartStudies : public QObject {
                      .of(Study::ExponentialAverage)
                      .inputs,
                  (QList<double>{5, 20, 60, 120}));
+
+        // The lower ones (krx-quant #223) round-trip too, a choice among its names' range.
+        set.turn(Study::Rsi, true);
+        set.turn(Study::PriceOscillator, true);
+        set.of(Study::PriceOscillator).inputs = {5, 30, 1};
+        set.of(Study::Macd).lines[3].color = QStringLiteral("#ABCDEF");
+        QCOMPARE(parse_studies(studies_value(set)), set);
+        const StudySet choice = parse_studies(
+            QStringLiteral(R"([{"study":"price_oscillator","on":true,"inputs":[10,21,2]},{"study":"rsi","on":true}])"));
+        QCOMPARE(choice.of(Study::PriceOscillator).inputs, (QList<double>{10, 21, 0})); // no third choice
+        QCOMPARE(choice.studies[0].study, Study::PriceOscillator);
+        QCOMPARE(choice.studies[1].study, Study::Rsi);
+        QVERIFY(choice.on(Study::Volume)); // not kept: as for a new symbol
+    }
+
+    void a_symbol_keeps_its_pane_heights() {
+        PaneHeights heights{{Study::Rsi, 140}, {Study::Volume, 80}};
+        QCOMPARE(parse_pane_heights(pane_heights_value(heights)), heights);
+        QVERIFY(parse_pane_heights({}).isEmpty()); // a symbol opened for the first time
+        QVERIFY(parse_pane_heights(QStringLiteral("not json")).isEmpty());
+        // Out of range, not whole, not a number, an upper indicator or unknown: dropped.
+        const PaneHeights broken = parse_pane_heights(
+            QStringLiteral(R"({"rsi":10,"macd":120.5,"obv":"90","ma":100,"nope":100,"cci":1000,"volume":40})"));
+        QCOMPARE(broken, (PaneHeights{{Study::Cci, 1000}, {Study::Volume, 40}}));
     }
 
     void moving_averages_add_and_drop_periods() {
@@ -459,7 +612,9 @@ class TstKrxChartStudies : public QObject {
         QCOMPARE(d.legend[0].values, (QStringList{"ma.0", "ma.1", "ma.2", "ma.3"}));
         QCOMPARE(d.legend[1].pane, 1);
         QCOMPARE(d.legend[1].values, QStringList{"volume"});
-        QVERIFY(d.volume && !d.profile && !d.anchor);
+        QCOMPARE(d.panes.size(), 1); // the volume's
+        QCOMPARE(d.panes[0].study, Study::Volume);
+        QVERIFY(!d.profile && !d.anchor);
 
         // Hidden: its legend row stays, dimmed, without lines.
         set.of(Study::MovingAverage).hidden = true;
@@ -517,8 +672,359 @@ class TstKrxChartStudies : public QObject {
         QVERIFY(d.marks[0].above);
         QVERIFY(d.profile);
         QCOMPARE(d.profile_rows, 24);
-        QVERIFY(!d.volume);
+        QVERIFY(d.panes.isEmpty());
         QVERIFY(std::none_of(d.legend.begin(), d.legend.end(), [](const LegendRow& r) { return r.pane == 1; }));
+    }
+
+    void the_lower_indicators_by_hand() {
+        // Mass index of EMA 2 and sum 2 over ranges 2, 4, 2, 4, 2: EMA 3, 7/3, 31/9, 67/27; its
+        // EMA 8/3, 86/27, 220/81; ratios 7/8, 93/86, 201/220.
+        const auto ranges = bars({{2, 0, 1}, {4, 0, 2}, {2, 0, 1}, {4, 0, 2}, {2, 0, 1}});
+        QVERIFY(same(mass_index(ranges, 2, 2), {n, n, n, 7.0 / 8 + 93.0 / 86, 93.0 / 86 + 201.0 / 220}));
+
+        QVERIFY(same(momentum({10, 12, 11, 15}, 2), {n, n, 1, 3}));
+        QVERIFY(same(rate_of_change({100, 110, 121}, 1), {n, 10, 10}));
+        QVERIFY(same(rate_of_change({100, 110, 121}, 2), {n, n, 21}));
+
+        // Volumes 1, 2, 3, 4: EMA 1 is each, EMA 2 1.5, 2.5, 3.5.
+        const auto volumes = traded({{1, 1, 1, 1}, {1, 1, 1, 2}, {1, 1, 1, 3}, {1, 1, 1, 4}});
+        QVERIFY(same(volume_oscillator(volumes, 1, 2), {n, 50 / 1.5, 50 / 2.5, 50 / 3.5}));
+
+        // Bands of 2 over 1, 3, 1, 3: middle 2, 4 and 0 around it.
+        QVERIFY(same(percent_b({1, 3, 1, 3}, 2, 2), {n, 0.75, 0.25, 0.75}));
+        QVERIFY(same(band_width({2, 4, 4, 4, 5, 5, 7, 9}, 8, 2), {n, n, n, n, n, n, n, 160})); // 100 × 8 / 5
+        QVERIFY(same(percent_b({5, 5, 5}, 2, 2), {n, n, n}));                                  // no width
+
+        // Stochastic of 2: raw 75 (11 in 8–12), 20 (8 in 7–12), 83.3 (12 in 7–13).
+        const auto four = bars({{10, 8, 9}, {12, 9, 11}, {11, 7, 8}, {13, 10, 12}});
+        const SignalLines fast = stochastic(four, 2, 1, 1);
+        QVERIFY(same(fast.line, {n, 75, 20, 500.0 / 6}));
+        QVERIFY(same(fast.signal, fast.line));
+        const SignalLines slow = stochastic(four, 2, 2, 2);
+        QVERIFY(same(slow.line, {n, n, 47.5, (20 + 500.0 / 6) / 2}));
+        QVERIFY(same(slow.signal, {n, n, n, (47.5 + (20 + 500.0 / 6) / 2) / 2}));
+        QVERIFY(same(stochastic(bars({{5, 5, 5}, {5, 5, 5}}), 2, 1, 1).line, {n, n})); // one price
+        QVERIFY(same(williams_r(four, 2), {n, -25, -80, -100.0 / 6}));
+
+        QVERIFY(same(disparity({10, 20, 30}, 2), {n, 400.0 / 3, 120}));
+
+        // (2 × close − high − low) / (high − low) × volume: 100, −300, 0 (high = low).
+        const auto three = traded({{10, 8, 10, 100}, {10, 8, 8, 300}, {10, 10, 10, 50}});
+        QVERIFY(same(intraday_intensity(three, 2), {n, -50, -30000.0 / 350}));
+
+        // Commodity channel: 1, 2, 3 has mean 2 and mean deviation 2/3: (3 − 2) / 0.01.
+        QVERIFY(same(commodity_channel({1, 2, 3}, 3), {n, n, 100}));
+        QVERIFY(same(commodity_channel({2, 4, 6, 8}, 2), {n, 200.0 / 3, 200.0 / 3, 200.0 / 3}));
+        QVERIFY(same(commodity_channel({5, 5}, 2), {n, n}));
+    }
+
+    void the_smoothed_ones_by_hand() {
+        // RSI of 2 over 10, 12, 11, 13, 13: rises 2, 0, 2, 0 and falls 0, 1, 0, 0; Wilder's
+        // averages from 1 and 0.5: 1.5 and 0.25, then 0.75 and 0.125.
+        QVERIFY(same(relative_strength({10, 12, 11, 13, 13}, 2), {n, n, 200.0 / 3, 600.0 / 7, 600.0 / 7}));
+        QVERIFY(same(relative_strength({1, 2, 3}, 2), {n, n, 100})); // no falls
+        QVERIFY(same(relative_strength({3, 2, 1}, 2), {n, n, 0}));   // no rises
+        // RMI of 2 with a momentum of 2 over 10, 12, 11, 13, 13, 12: changes 1, 1, 2, −1.
+        QVERIFY(same(relative_momentum({10, 12, 11, 13, 13, 12}, 2, 2), {n, n, n, 100, 100, 60}));
+        // Stochastic RSI of 2 and 2: the RSI 66.7, 85.7, 85.7, 40 between its last two.
+        const SignalLines k = stochastic_rsi({10, 12, 11, 13, 13, 12}, 2, 2, 1, 1);
+        QVERIFY(same(k.line, {n, n, n, 100, n, 0}));
+        QVERIFY(same(k.signal, k.line));
+
+        // MACD of 1, 2 and 2 over 1, 3, 2, 6: EMA 2 is 2, 2, 14/3.
+        const SignalLines m = macd({1, 3, 2, 6}, 1, 2, 2);
+        QVERIFY(same(m.line, {n, 1, 0, 4.0 / 3}));
+        QVERIFY(same(m.signal, {n, n, 0.5, 19.0 / 18}));
+        QVERIFY(same(m.histogram, {n, n, -0.5, 5.0 / 18}));
+
+        // TRIX of 2 over 1–5: the three EMAs end at 4.5, 4 and 3.5 (2.5 before): +40%.
+        const SignalLines t = trix({1, 2, 3, 4, 5}, 2, 1);
+        QVERIFY(same(t.line, {n, n, n, n, 40}));
+        QVERIFY(same(t.signal, {n, n, n, n, 40}));
+        const SignalLines one = trix({100, 110, 99}, 1, 2);
+        QVERIFY(same(one.line, {n, 10, -10}));
+        QVERIFY(same(one.signal, {n, n, 0}));
+
+        // Price oscillator of 1 and 2 over 10, 20, 10, 40: simple averages 15, 15, 25; EMAs 15,
+        // 35/3, 275/9.
+        QVERIFY(same(price_oscillator({10, 20, 10, 40}, 1, 2, false), {n, 100.0 / 3, -100.0 / 3, 60}));
+        QVERIFY(same(price_oscillator({10, 20, 10, 40}, 1, 2, true),
+                     {n, 100.0 / 3, 100 * (10 - 35.0 / 3) / (35.0 / 3), 100 * (40 - 275.0 / 9) / (275.0 / 9)}));
+
+        // DMI of 2: +DM 2, 0, 2, 0 and −DM 0, 2, 0, 1 and true ranges 3, 4, 5, 3 from the second
+        // bar; Wilder's from 1, 1 and 3.5; DX 0, 50, 0; ADX from 25.
+        const auto five = bars({{10, 8, 9}, {12, 9, 11}, {11, 7, 8}, {13, 10, 12}, {12, 9, 10}});
+        const Directional d = directional_movement(five, 2);
+        QVERIFY(same(d.plus, {n, n, 100 / 3.5, 150 / 4.25, 75 / 3.625}));
+        QVERIFY(same(d.minus, {n, n, 100 / 3.5, 50 / 4.25, 75 / 3.625}));
+        QVERIFY(same(d.adx, {n, n, n, 25, 12.5}));
+
+        // MFI of 2: money flows +1100 (11 × 100), −2000 (10 × 200), +1200 (12 × 100).
+        const auto flows = traded({{10, 10, 10, 100}, {11, 11, 11, 100}, {10, 10, 10, 200}, {12, 12, 12, 100}});
+        QVERIFY(same(money_flow(flows, source_values(flows, Source::Close), 2), {n, n, 110000.0 / 3100, 37.5}));
+    }
+
+    void the_cumulative_lines_do_not_depend_on_where_the_bars_start() {
+        // Two dates: (2 × close − high − low) / (high − low) × volume is 100, −300 on the 12th,
+        // 100, 0, −100 on the 13th; the closes 10, 8, 11, 10, 9.
+        QList<ChartBar> two_days{
+            bar(at("2026-10-12T15:00:00+09:00"), 10, 10, 8, 10, 100),
+            bar(at("2026-10-12T15:01:00+09:00"), 10, 10, 8, 8, 300),
+            bar(at("2026-10-13T08:00:00+09:00"), 10, 12, 8, 11, 200),
+            bar(at("2026-10-13T08:01:00+09:00"), 10, 10, 10, 10, 50),
+            bar(at("2026-10-13T08:02:00+09:00"), 10, 11, 9, 9, 100),
+        };
+        // 0 from 00:00 of the last bar's date in a minute view, from 1 January in a candle view: a
+        // moment, whichever bars are held.
+        QCOMPARE(cumulative_zero(two_days, 1), std::optional(at("2026-10-13T00:00:00+09:00")));
+        QCOMPARE(cumulative_zero(two_days, kDayView), std::optional(at("2026-01-01T00:00:00+09:00")));
+        QCOMPARE(cumulative_zero(two_days.mid(2), 15), cumulative_zero(two_days, 15));
+        QVERIFY(!cumulative_zero({}, 1));
+        // Its bar: the first from that moment, once a bar before it is held (or none is before).
+        QCOMPARE(cumulative_anchor(two_days, 1), std::optional<qsizetype>(2));
+        QCOMPARE(cumulative_anchor(two_days, 15), std::optional<qsizetype>(2));
+        QVERIFY(!cumulative_anchor(two_days, kDayView)); // 1 January's not held
+        QCOMPARE(cumulative_anchor(two_days, kDayView, true), std::optional<qsizetype>(0));
+        QVERIFY(!cumulative_anchor(two_days.mid(2), 1)); // the 13th from 08:00 only
+        QCOMPARE(cumulative_anchor(two_days.mid(2), 1, true), std::optional<qsizetype>(0));
+        QVERIFY(!cumulative_anchor({}, 1, true));
+        QVERIFY(same(accumulation_distribution(two_days, 2), {200, -100, 0, 0, -100}));
+        QVERIFY(same(on_balance_volume(two_days, 2), {100, -200, 0, -50, -150}));
+        // Fewer bars before (as before more were read): the same values where both have them.
+        const auto later = two_days.mid(1);
+        QCOMPARE(cumulative_anchor(later, 1), std::optional<qsizetype>(1));
+        QVERIFY(same(accumulation_distribution(later, 1), accumulation_distribution(two_days, 2).mid(1)));
+        QVERIFY(same(on_balance_volume(later, 1), on_balance_volume(two_days, 2).mid(1)));
+        // The Chaikin oscillator of 1 and 2 over the AD line 200, −100, 0, 0, −100 (EMA 2 from 50):
+        // the same wherever the line is 0, so it needs no 0 of its own.
+        QVERIFY(same(chaikin_oscillator(two_days, 1, 2), {n, -150, -50.0 / 3, -50.0 / 9, -950.0 / 27}));
+    }
+
+    void the_cumulative_lines_wait_for_their_zeros_bars() {
+        // Day candles of the weekdays from ``from`` to 12 October 2026, each its own: the AD
+        // line's and the OBV's values, the legend's reason where they are empty.
+        const auto days = [](const char* from) {
+            QList<ChartBar> out;
+            for (QDate d = QDate::fromString(QString::fromLatin1(from), Qt::ISODate); d <= QDate(2026, 10, 12);
+                 d = d.addDays(1)) {
+                if (d.dayOfWeek() > 5 || (d.month() == 1 && d.day() == 1)) // weekends, New Year's Day
+                    continue;
+                const int k = static_cast<int>(QDate(2025, 1, 1).daysTo(d));
+                const double close = 100 + (k * 37) % 23;
+                out << bar(at("1970-01-01T00:00:00+09:00") + QDate(1970, 1, 1).daysTo(d) * 86400, close - 1, close + 2,
+                           close - 3, close, 1000 + (k * 53) % 700);
+            }
+            return out;
+        };
+        StudySet set = default_studies();
+        set.turn(Study::AdLine, true);
+        set.turn(Study::Obv, true);
+        set.turn(Study::ChaikinOscillator, true);
+        const auto series = [](const StudyDrawing& d, const QString& id) {
+            for (const auto& s : d.series)
+                if (s.id == id)
+                    return s.points;
+            return QList<std::pair<qint64, std::optional<double>>>{};
+        };
+        // Read from 2 March, after 1 January: empty (not a value that moves later), with why.
+        StudyDrawing d = draw_studies(days("2026-03-02"), set, kDayView, std::nullopt, false);
+        QVERIFY(series(d, "obv").isEmpty() && series(d, "ad_line").isEmpty());
+        QCOMPARE(row_of(d, Study::Obv).missing, QStringLiteral("그해 첫 봉을 읽지 않아 비움"));
+        QCOMPARE(row_of(d, Study::AdLine).missing, QStringLiteral("그해 첫 봉을 읽지 않아 비움"));
+        QVERIFY(!series(d, "chaikin_oscillator").isEmpty()); // needs no 0
+        // More of that year before: still empty.
+        d = draw_studies(days("2026-02-02"), set, kDayView, std::nullopt, false);
+        QVERIFY(series(d, "obv").isEmpty());
+        // Into the year before: drawn, 0 at the year's first candle (2 January); more candles
+        // before change no value.
+        const StudyDrawing whole = draw_studies(days("2025-12-29"), set, kDayView, std::nullopt, false);
+        QVERIFY(row_of(whole, Study::Obv).missing.isEmpty());
+        const auto obv = series(whole, "obv");
+        const auto ad = series(whole, "ad_line");
+        QCOMPARE(obv.size(), days("2025-12-29").size());
+        for (const auto& [time, value] : obv)
+            if (time == at("2026-01-02T00:00:00+09:00"))
+                QCOMPARE(value, std::optional(0.0));
+        const StudyDrawing more = draw_studies(days("2025-03-03"), set, kDayView, std::nullopt, false);
+        QCOMPARE(series(more, "obv").mid(series(more, "obv").size() - obv.size()), obv);
+        QCOMPARE(series(more, "ad_line").mid(series(more, "ad_line").size() - ad.size()), ad);
+        // Nothing before the first held: whole as it is.
+        d = draw_studies(days("2026-03-02"), set, kDayView, std::nullopt, false, true);
+        QVERIFY(!series(d, "obv").isEmpty() && row_of(d, Study::Obv).missing.isEmpty());
+
+        // A minute view read from the session's middle (an engine restarted at 10:00): empty, still
+        // after the session's earlier bars come, drawn once the day before's are held.
+        const auto minutes = [](const char* from, int count) {
+            QList<ChartBar> out;
+            for (int i = 0; i < count; ++i)
+                out << bar(at(from) + i * 60, 100, 103 + i % 4, 98 - i % 3, 100 + i % 5, 10 + i % 9);
+            return out;
+        };
+        const auto session = minutes("2026-10-13T10:00:00+09:00", 60);
+        d = draw_studies(session, set, 1, std::nullopt, false);
+        QVERIFY(series(d, "obv").isEmpty());
+        QCOMPARE(row_of(d, Study::Obv).missing, QStringLiteral("그날 첫 봉을 읽지 않아 비움"));
+        const auto morning = minutes("2026-10-13T08:00:00+09:00", 120) + session;
+        QVERIFY(series(draw_studies(morning, set, 1, std::nullopt, false), "obv").isEmpty());
+        const auto day_before = minutes("2026-10-12T19:00:00+09:00", 60) + morning;
+        const auto shown = series(draw_studies(day_before, set, 1, std::nullopt, false), "obv");
+        QCOMPARE(shown.size(), day_before.size());
+        const auto earlier = minutes("2026-10-12T15:00:00+09:00", 240) + day_before;
+        const auto again = series(draw_studies(earlier, set, 1, std::nullopt, false), "obv");
+        QCOMPARE(again.mid(again.size() - shown.size()), shown);
+
+        // Past the read's cap without reaching the 0's moment: empty, saying so.
+        QList<ChartBar> capped;
+        for (int i = 0; i < kMaxHistoryBars; ++i)
+            capped << bar(at("2026-03-02T00:00:00+09:00") + i * 3600, 100, 101, 99, 100, 10);
+        d = draw_studies(capped, set, kDayView, std::nullopt, false);
+        QVERIFY(series(d, "obv").isEmpty());
+        QCOMPARE(row_of(d, Study::Obv).missing, QStringLiteral("그해 첫 봉이 2,000봉보다 앞이라 비움"));
+    }
+
+    void the_cumulative_lines_read_back_past_their_zero() {
+        // The moment the history read reaches back to, from the bars as read: the last bar's date
+        // (a minute view) or year (a candle view), whichever bars come before.
+        QList<Bar> held;
+        for (int i = 0; i < 60; ++i)
+            held << Bar{kst("2026-10-13T10:00:00+09:00").addSecs(60 * i), 1, 1, 1, 1, 1};
+        const QDateTime today = kst("2026-10-13T00:00:00+09:00");
+        QCOMPARE(cumulative_start(held, 1), today);
+        QCOMPARE(cumulative_start(held, 60), today);
+        QList<Bar> before{Bar{kst("2026-10-12T15:00:00+09:00"), 1, 1, 1, 1, 1}};
+        QCOMPARE(cumulative_start(before + held, 1), today);
+        QCOMPARE(cumulative_start(held, kDayView), kst("2026-01-01T00:00:00+09:00"));
+        QVERIFY(!cumulative_start({}, 1).isValid());
+        // Read while the first held is from that moment on; enough once one before it is held.
+        QVERIFY(history_read(held.first().start, 60, 0, 1, today));
+        QVERIFY(!history_read(before.first().start, 61, 0, 1, today));
+        QVERIFY(!history_read(held.first().start, kMaxHistoryBars, 0, 1, today)); // the cap
+        const QDateTime january = kst("2026-01-01T00:00:00+09:00");
+        QVERIFY(history_candles(kst("2026-03-02T00:00:00+09:00"), 160, 0, january));
+        QVERIFY(!history_candles(kst("2025-12-29T00:00:00+09:00"), 200, 0, january));
+        QVERIFY(!history_candles(kst("2026-03-02T00:00:00+09:00"), kMaxHistoryBars, 0, january));
+    }
+
+    void more_bars_barely_move_the_recursive_ones() {
+        // Each read with its warm-up before the first screen's 60 bars, then with over 1,000 more
+        // bars before those: the 60 values shown move by less than a thousandth of their range
+        // (the weight left beyond the warm-up is about e^-8; the RSI's moved most, 0.03%).
+        const auto all = wandering(1500);
+        for (const Study study :
+             {Study::Rsi, Study::Rmi, Study::StochasticRsi, Study::Macd, Study::Trix, Study::Atr, Study::Adx,
+              Study::Dmi, Study::MassIndex, Study::VolumeOscillator, Study::ChaikinOscillator}) {
+            StudySet set = default_studies();
+            set.turn(Study::MovingAverage, false);
+            set.turn(Study::Volume, false);
+            set.turn(study, true);
+            const int read = history_bars(set, 1);
+            QCOMPARE(read, kFitBars + warmup(set.of(study)));
+            const StudyDrawing full = draw_studies(all, set, 1, std::nullopt, false);
+            const StudyDrawing short_read = draw_studies(all.mid(all.size() - read), set, 1, std::nullopt, false);
+            QCOMPARE(full.series.size(), short_read.series.size());
+            for (qsizetype l = 0; l < full.series.size(); ++l) {
+                const auto shown = full.series[l].points.mid(full.series[l].points.size() - kFitBars);
+                const auto& other = short_read.series[l].points;
+                double low = 1e300;
+                double high = -1e300;
+                for (const auto& [time, value] : shown)
+                    if (value) {
+                        low = std::min(low, *value);
+                        high = std::max(high, *value);
+                    }
+                double moved = 0;
+                for (const auto& [time, value] : shown) {
+                    const auto it = std::find_if(other.begin(), other.end(),
+                                                 [time = time](const auto& p) { return p.first == time; });
+                    QVERIFY2(it != other.end() && it->second.has_value() == value.has_value(),
+                             qPrintable(study_key(study)));
+                    if (value)
+                        moved = std::max(moved, std::abs(*it->second - *value));
+                }
+                QVERIFY2(
+                    moved <= 1e-3 * std::max(1.0, high - low),
+                    qPrintable(QStringLiteral("%1 moved %2 of %3").arg(full.series[l].id).arg(moved).arg(high - low)));
+            }
+        }
+    }
+
+    void each_lower_indicator_has_a_pane_in_the_order_turned_on() {
+        QList<ChartBar> minutes;
+        for (int i = 0; i < 80; ++i)
+            minutes << bar(at("2026-10-12T09:00:00+09:00") + i * 60, 100 + i % 7, 103 + i % 7, 98 + i % 5, 101 + i % 6,
+                           10 + i);
+        StudySet set = default_studies(); // the moving averages and the volume
+        set.turn(Study::Rsi, true);
+        set.turn(Study::Macd, true);
+        StudyDrawing d = draw_studies(minutes, set, 1, std::nullopt, false, false, {{Study::Rsi, 150}});
+        QCOMPARE(d.panes.size(), 3);
+        QCOMPARE(d.panes[0].study, Study::Volume);
+        QCOMPARE(d.panes[1].study, Study::Rsi);
+        QCOMPARE(d.panes[2].study, Study::Macd);
+        QCOMPARE(d.panes[0].height, kPaneHeight);
+        QCOMPARE(d.panes[1].height, 150);
+        QCOMPARE(d.panes[1].guides, (QList<double>{70, 30}));
+        QCOMPARE(d.panes[2].guides, QList<double>{0});
+        const auto series = [&d](const QString& id) {
+            for (const auto& s : d.series)
+                if (s.id == id)
+                    return s;
+            return DrawnSeries{};
+        };
+        QCOMPARE(series("rsi").pane, 2);
+        QCOMPARE(series("rsi").decimals, 2);
+        QCOMPARE(series("rsi").points.first().first, minutes[14].time); // from its 15th bar
+        QCOMPARE(series("macd.macd").pane, 3);
+        QVERIFY(series("macd.histogram").histogram);
+        QCOMPARE(series("macd.histogram").color, QStringLiteral("#22C55E"));
+        QCOMPARE(series("macd.histogram").down_color, QStringLiteral("#EF4444"));
+        QCOMPARE(series("ma.0").pane, 0);
+        QCOMPARE(row_of(d, Study::Rsi).pane, 2);
+        QCOMPARE(row_of(d, Study::Rsi).values, QStringList{"rsi"});
+        QCOMPARE(row_of(d, Study::Macd).values, (QStringList{"macd.macd", "macd.signal", "macd.histogram"}));
+        QCOMPARE(row_of(d, Study::Macd).settings, QStringLiteral("12 26 9"));
+        QCOMPARE(row_of(d, Study::Volume).pane, 1);
+
+        // Hidden: its pane stays, with its legend row, and draws nothing.
+        set.of(Study::Rsi).hidden = true;
+        d = draw_studies(minutes, set, 1, std::nullopt, false);
+        QCOMPARE(d.panes.size(), 3);
+        QVERIFY(d.panes[1].hidden);
+        QVERIFY(row_of(d, Study::Rsi).hidden);
+        QVERIFY(std::none_of(d.series.begin(), d.series.end(), [](const DrawnSeries& s) { return s.pane == 2; }));
+
+        // Off: the panes below move up; the volume off too, the RSI is on top.
+        set.turn(Study::Volume, false);
+        set.of(Study::Rsi).hidden = false;
+        d = draw_studies(minutes, set, 1, std::nullopt, false);
+        QCOMPARE(d.panes.size(), 2);
+        QCOMPARE(d.panes[0].study, Study::Rsi);
+        QCOMPARE(series("rsi").pane, 1);
+        QCOMPARE(series("macd.signal").pane, 2);
+        // Turned on again, the volume goes last.
+        set.turn(Study::Volume, true);
+        d = draw_studies(minutes, set, 1, std::nullopt, false);
+        QCOMPARE(d.panes.last().study, Study::Volume);
+
+        // Every lower indicator draws in its pane, on day candles too, its legend after its lines
+        // (nothing before these bars to read: the AD line's and the OBV's 0 is among them).
+        StudySet every = default_studies();
+        for (const Study study : kLowerStudies)
+            every.turn(study, true);
+        d = draw_studies(minutes, every, kDayView, std::nullopt, false, true);
+        QCOMPARE(d.panes.size(), qsizetype(kLowerStudies.size()));
+        for (qsizetype i = 0; i < d.panes.size(); ++i) {
+            const Study study = d.panes[i].study;
+            const LegendRow& row = row_of(d, study);
+            QCOMPARE(row.pane, int(i + 1));
+            QVERIFY2(!row.values.isEmpty(), qPrintable(study_key(study)));
+            for (const QString& id : row.values) {
+                if (id == QLatin1String("volume"))
+                    continue;
+                QCOMPARE(series(id).pane, int(i + 1));
+                QVERIFY2(!series(id).points.isEmpty(), qPrintable(id));
+            }
+        }
     }
 
     void colours_as_css() {
