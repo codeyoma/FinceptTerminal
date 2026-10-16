@@ -531,6 +531,15 @@ class TstKrxBarView : public QObject {
         QVERIFY(bar_settled(vi, at("10:31:00")));
         // An earlier day's bar: read once.
         QVERIFY(bar_settled(read_of(false), at("08:00:00", 17)));
+        // A kind that could not be read is read again: today's until ten minutes past its scoring
+        // time, an earlier day's until it is read.
+        BarRead failed = read_of(true);
+        failed.kinds.remove("barrier");
+        failed.kind_failures.insert("barrier", QStringLiteral("엔진 오류(500)"));
+        QVERIFY(!bar_settled(failed, at("10:31:05")));
+        QCOMPARE(bar_state_text(failed, at("10:31:05")), QStringLiteral("채점 전 · 갱신 중"));
+        QVERIFY(bar_settled(failed, at("10:41:00")));
+        QVERIFY(!bar_settled(failed, at("08:00:00", 17)));
         // One that could not be scored.
         Touch silent;
         silent.direction = Direction::None;

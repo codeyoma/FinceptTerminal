@@ -162,9 +162,11 @@ double mini_y(const MiniChart& mini, double price, double top, double height);
 QList<double> spread_labels(const QList<double>& ys, double gap, double top, double bottom);
 
 /// Whether nothing more is to come for the window at the engine clock ``now``: a bar of an earlier
-/// day; once its four minutes are over, its direction scored (or none to score: no forecast made)
-/// and each kind answered (or none to answer); from kBarSettleSeconds after its scoring time on,
-/// whatever came. Until then it is read again as its predictions, outcomes and answers come.
+/// day once every kind was read; once its four minutes are over, every kind read, its direction
+/// scored (or none to score: no forecast made) and each kind answered (or none to answer); from
+/// kBarSettleSeconds after its scoring time on, whatever came. Until then it is read again as its
+/// predictions, outcomes and answers come, and a kind that could not be read (kind_failures) is
+/// read again.
 bool bar_settled(const BarRead& read, const QDateTime& now);
 
 /// The window's state on its header: "채점 전 · 갱신 중" while it is read again, then "채점됨",

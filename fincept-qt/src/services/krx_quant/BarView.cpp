@@ -460,13 +460,17 @@ QList<double> spread_labels(const QList<double>& ys, double gap, double top, dou
 }
 
 bool bar_settled(const BarRead& read, const QDateTime& now) {
+    // A kind that could not be read is read again: its section would stay empty otherwise.
+    const bool kind_failed = !read.kind_failures.isEmpty();
     if (kst_day(read.bar_close) < kst_day(now))
-        return true; // an earlier day's: nothing more comes
+        return !kind_failed; // an earlier day's: nothing more comes once it is read whole
     const QDateTime scoring = bar_scoring_at(read);
     if (now < scoring)
         return false;
     if (now >= scoring.addSecs(kBarSettleSeconds))
         return true;
+    if (kind_failed)
+        return false;
     if (any_made(read.predictions) && !truth_of(read.predictions, read.bar_close).scored)
         return false;
     for (auto it = read.kinds.cbegin(); it != read.kinds.cend(); ++it)
