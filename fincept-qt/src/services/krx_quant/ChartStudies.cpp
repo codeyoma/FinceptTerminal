@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 
 namespace fincept::krx_quant {
 
@@ -401,6 +402,79 @@ QList<StudySpec> make_specs() {
     rmi->source = Source::Close;
     rmi->inputs = {span(14), span(5, QStringLiteral("모멘텀"))};
     rmi->lines = {{QStringLiteral("RMI"), "#A78BFA", 1}};
+
+    // The daily supply data (krx-quant #226): the engine's values, one a day, drawn as they are.
+    // Flows are bars from 0, balances a stepping line; counts are shares, shortened on the axis.
+    const QString days =
+        QStringLiteral(" 분 보기에서는 그날의 봉마다 같은 값이라 날마다 계단이 되고, 일 보기는 봉마다 그날 값이다.");
+    const QString today =
+        QStringLiteral(" 엔진이 장이 끝난 뒤(20:30부터, 토스 값은 다음 날 아침) 받으므로 오늘 값은 없다.");
+    // Flows add up over a week, month or year; levels are the period's last day's (the user, 2026-10-17).
+    const QString placed_sum =
+        days + QStringLiteral(" 주·월·년 보기는 그 기간에 값이 있는 날의 합이다(지금 기간은 지금까지의 합).") + today;
+    const QString placed = days + QStringLiteral(" 주·월·년 보기는 그 기간의 마지막 날 값이다.") + today;
+    const auto supply = [&lower](Study study, const char* key, const QString& title, const QString& about,
+                                 const QString& help, SupplyField field, bool bars, QList<double> guides = {},
+                                 int decimals = 0) {
+        StudySpec* spec = lower(study, key, title, about, help, std::move(guides), decimals);
+        spec->supply = field;
+        spec->bars = bars;
+        spec->volume_scale = decimals == 0;
+        return spec;
+    };
+    const QString kis_first = QStringLiteral(" 엔진이 KIS에서 받고, KIS에 없는 날은 토스증권 값으로 채운다.");
+    auto* short_volume =
+        supply(Study::ShortVolume, "short_volume", QStringLiteral("공매도 거래량"),
+               QStringLiteral("그날 공매도로 체결된 주식 수(KRX)."),
+               QStringLiteral("그날 KRX에서 공매도로 체결된 주식 수(KIS 공매도 일별추이).") + kis_first + placed_sum,
+               SupplyField::ShortVolume, true);
+    short_volume->lines = {{QStringLiteral("공매도"), "#F472B6", 0}};
+    const QString net = QStringLiteral(" 그날 산 주식 수 − 판 주식 수(KRX+NXT 통합). 음수는 순매도다.");
+    auto* individual =
+        supply(Study::IndividualNet, "individual_net", QStringLiteral("개인 순매수량"),
+               QStringLiteral("개인이 그날 순매수한 주식 수(KRX+NXT)."),
+               QStringLiteral("개인 투자자가") + net + kis_first + placed_sum, SupplyField::IndividualNet, true, {0});
+    individual->lines = {{QStringLiteral("순매수"), "#22C55E", 0}, {QStringLiteral("순매도"), "#EF4444", 0}};
+    auto* institution =
+        supply(Study::InstitutionNet, "institution_net", QStringLiteral("기관 순매수량"),
+               QStringLiteral("기관이 그날 순매수한 주식 수(KRX+NXT)."),
+               QStringLiteral("기관계(금융투자·보험·투신·사모·은행·기타금융·연기금)가") + net + kis_first + placed_sum,
+               SupplyField::InstitutionNet, true, {0});
+    institution->lines = {{QStringLiteral("순매수"), "#22C55E", 0}, {QStringLiteral("순매도"), "#EF4444", 0}};
+    auto* foreign = supply(Study::ForeignNet, "foreign_net", QStringLiteral("외국인 순매수량"),
+                           QStringLiteral("외국인이 그날 순매수한 주식 수(KRX+NXT)."),
+                           QStringLiteral("외국인(등록외국인과 기타외국인)이") + net +
+                               QStringLiteral(" 엔진이 KIS에서 받는다. 토스증권의 외국인은 등록외국인만이라 "
+                                              "채우는 데 쓰지 않는다.") +
+                               placed_sum,
+                           SupplyField::ForeignNet, true, {0});
+    foreign->lines = {{QStringLiteral("순매수"), "#22C55E", 0}, {QStringLiteral("순매도"), "#EF4444", 0}};
+    const QString toss = QStringLiteral(" 엔진이 토스증권에서 받는다(KIS에는 지난날의 값이 없다).");
+    auto* holding = supply(Study::ForeignHolding, "foreign_holding", QStringLiteral("외국인 보유수량"),
+                           QStringLiteral("그날 외국인이 가진 주식 수."),
+                           QStringLiteral("그날 장이 끝난 뒤 외국인이 가진 주식 수.") + toss + placed,
+                           SupplyField::ForeignHolding, false);
+    holding->lines = {{QStringLiteral("보유수량"), "#38BDF8", 2}};
+    auto* ratio = supply(Study::ForeignRatio, "foreign_ratio", QStringLiteral("외국인 지분율"),
+                         QStringLiteral("외국인 보유수량 ÷ 상장주식수(%)."),
+                         QStringLiteral("그날 외국인 보유수량을 상장주식수로 나눈 비율(%). 외국인 한도로 나눈 "
+                                        "소진율과는 한도가 100%가 아닌 종목에서 다르다.") +
+                             toss + placed,
+                         SupplyField::ForeignRatio, false, {}, 2);
+    ratio->lines = {{QStringLiteral("지분율"), "#A78BFA", 2}};
+    auto* lending =
+        supply(Study::LendingBalance, "lending_balance", QStringLiteral("대차잔고"),
+               QStringLiteral("기관 사이에 빌려 간 뒤 아직 갚지 않은 주식 수."),
+               QStringLiteral("그날 대차거래 잔고 주식 수(KIS 종목별 일별 대차거래추이).") + kis_first + placed,
+               SupplyField::LendingBalance, false);
+    lending->lines = {{QStringLiteral("대차잔고"), "#F59E0B", 2}};
+    auto* credit = supply(Study::CreditBalance, "credit_balance", QStringLiteral("신용잔고"),
+                          QStringLiteral("신용융자로 산 뒤 아직 갚지 않은 주식 수."),
+                          QStringLiteral("그날 신용융자 잔고 주식 수(KIS 신용잔고 일별추이). 결제일의 잔고라, "
+                                         "다른 지표보다 하루 늦게 들어온다.") +
+                              kis_first + placed,
+                          SupplyField::CreditBalance, false);
+    credit->lines = {{QStringLiteral("신용잔고"), "#2DD4BF", 2}};
     return specs;
 }
 
@@ -692,16 +766,23 @@ StudySettings default_settings(Study study) {
     return s;
 }
 
-bool study_drawn(Study study, int view, bool bricks) {
+bool study_drawn(Study study, int view, bool bricks, bool supply) {
+    const StudySpec& spec = study_spec(study);
+    if (spec.supply) // a day's value: on bars, from an engine that gives them (krx-quant #226)
+        return !bricks && supply;
     if (bricks)
         return study != Study::Vwap && study != Study::AnchoredVwap;
-    return !(study_spec(study).minute_only && candle_view(view));
+    return !(spec.minute_only && candle_view(view));
 }
 
-QString study_unavailable(Study study, int view, bool bricks) {
-    if (study_drawn(study, view, bricks))
+QString study_unavailable(Study study, int view, bool bricks, bool supply) {
+    if (study_drawn(study, view, bricks, supply))
         return {};
-    return bricks ? QStringLiteral("시간축 없는 차트에서는 쓰지 않는다") : QStringLiteral("분봉에서만");
+    if (bricks)
+        return QStringLiteral("시간축 없는 차트에서는 쓰지 않는다");
+    if (study_spec(study).supply)
+        return QStringLiteral("이 엔진은 일별 수급을 주지 않는다");
+    return QStringLiteral("분봉에서만");
 }
 
 QString settings_text(const StudySettings& settings) {
@@ -1424,6 +1505,58 @@ Values relative_momentum(const QList<double>& values, int period, int momentum) 
     return out;
 }
 
+bool supply_flow(SupplyField field) {
+    return field == SupplyField::ShortVolume || field == SupplyField::IndividualNet ||
+           field == SupplyField::InstitutionNet || field == SupplyField::ForeignNet;
+}
+
+Values supply_values(const QList<ChartBar>& bars, const QList<SupplyDay>& days, SupplyField field, int view) {
+    Values out(bars.size());
+    // The days with a value of the field, oldest first.
+    QList<std::pair<QDate, double>> known;
+    for (const SupplyDay& d : days)
+        if (const auto v = d.value(field))
+            known << std::pair{d.date, *v};
+    if (known.isEmpty())
+        return out;
+    std::stable_sort(known.begin(), known.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    const bool periods = view > kDayView;           // a week, month or year view
+    const bool sum = periods && supply_flow(field); // a flow over a period: its days added up
+    const auto first_from = [&known](const QDate& date) {
+        return std::lower_bound(known.begin(), known.end(), date,
+                                [](const auto& day, const QDate& d) { return day.first < d; });
+    };
+    for (qsizetype i = 0; i < bars.size(); ++i) {
+        const QDate start = date_of(bars[i].time);
+        // The days the bar holds: its own (a minute view's bar, a day), else its period's.
+        const QDate end = !periods             ? start.addDays(1)
+                          : view == kWeekView  ? start.addDays(7)
+                          : view == kMonthView ? QDate(start.year(), start.month(), 1).addMonths(1)
+                                               : QDate(start.year() + 1, 1, 1);
+        const auto from = first_from(start);
+        const auto after = first_from(end);
+        if (sum) {
+            // The period's days with a value, added up; none without one (not 0). Only when the days
+            // read reach before the period (a day with a value before its first): else the read or
+            // the engine's history may begin inside it, and the sum would be of a part of it.
+            if (from == known.begin() || from == after)
+                continue;
+            double total = 0;
+            for (auto it = from; it != after; ++it)
+                total += it->second;
+            out[i] = total;
+            continue;
+        }
+        // The last day before ``end``: the bar's own, or its period's last with a value.
+        if (after == known.begin())
+            continue;
+        const auto& [day, value] = *std::prev(after);
+        if (periods ? day >= start : day == start)
+            out[i] = value;
+    }
+    return out;
+}
+
 Values session_vwap(const QList<ChartBar>& bars, Source source, bool first_day_whole) {
     Values out(bars.size());
     double priced = 0;
@@ -1616,6 +1749,15 @@ int warmup(const StudySettings& settings) {
             return at(0);
         case Study::Rmi:
             return at(1) + 8 * at(0);
+        case Study::ShortVolume: // the engine's values, one a day (krx-quant #226): no bars before
+        case Study::IndividualNet:
+        case Study::InstitutionNet:
+        case Study::ForeignNet:
+        case Study::ForeignHolding:
+        case Study::ForeignRatio:
+        case Study::LendingBalance:
+        case Study::CreditBalance:
+            return 0;
     }
     return 0;
 }
@@ -1752,7 +1894,8 @@ QList<LowerLine> lower_lines(const QList<ChartBar>& bars, const StudySettings& s
 } // namespace
 
 StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int view, std::optional<qint64> anchor,
-                          bool picking, bool first_day_whole, const PaneHeights& heights, bool bricks) {
+                          bool picking, bool first_day_whole, const PaneHeights& heights, bool bricks,
+                          const QList<SupplyDay>& supply, bool supply_served) {
     StudyDrawing out;
     const qsizetype n = bars.size();
     // The AD line's and the OBV's 0 (krx-quant #223): empty until the bars from its moment on are
@@ -1804,8 +1947,9 @@ StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int 
         if (!s.on)
             continue;
         const StudySpec& spec = study_spec(s.study);
-        if (!study_drawn(s.study, view, bricks))
-            continue; // the VWAP in a candle view, either VWAP on bricks: kept, not drawn
+        if (!study_drawn(s.study, view, bricks, supply_served))
+            continue; // the VWAP in a candle view, either VWAP on bricks, the supply data without the
+                      // engine's (krx-quant #226): kept, not drawn
         LegendRow row;
         row.study = s.study;
         row.title = spec.title;
@@ -1826,6 +1970,21 @@ StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int 
             }
             if (s.study == Study::Volume) { // its bars are the page's own, sent with the bars
                 value(QStringLiteral("volume"), QString());
+            } else if (spec.supply) {
+                // The engine's daily values (krx-quant #226), a day's on each of its bars: bars from 0
+                // (by their sign's colour) or a stepping line.
+                const StudyLine look = s.lines.value(0);
+                line(spec.key, s.study, look, supply_values(bars, supply, *spec.supply, view));
+                DrawnSeries& drawn = out.series.last();
+                drawn.pane = row.pane;
+                drawn.decimals = spec.decimals;
+                drawn.volume_scale = spec.volume_scale;
+                drawn.histogram = spec.bars;
+                drawn.steps = !spec.bars;
+                drawn.down_color = s.lines.size() > 1 ? s.lines[1].color : look.color;
+                value(spec.key, look.color);
+                row.missing = QStringLiteral("그날 값 없음");
+                row.latest = true;
             } else {
                 // A histogram is sent first, so its lines are drawn over it, but shown last.
                 QStringList bars_ids;

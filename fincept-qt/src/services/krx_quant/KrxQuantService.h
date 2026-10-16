@@ -136,6 +136,12 @@ class KrxQuantService : public QObject {
     /// answer (404, before krx-quant #236), or special_failed. Asked again while one is read, it is
     /// not read: KrxLive asks again once that one answers.
     void read_special(const QString& symbol, const QDate& from, const QDate& to);
+    /// A symbol's daily supply data from ``from`` to ``to`` (KST dates, both in; GET
+    /// /v1/symbols/{symbol}/supply, krx-quant #226), for the chart's supply indicators. supply_ready,
+    /// with ``served`` false and none from an engine without the answer (404, before krx-quant #226),
+    /// or supply_failed. Asked again while one is read, it is not read: KrxLive asks again once that
+    /// one answers.
+    void read_supply(const QString& symbol, const QDate& from, const QDate& to);
     /// What a bar's window shows (krx-quant #255, krx_quant::BarRead), read at once: every prediction
     /// of ``bar_close`` (GET …/predictions?bar_close=), the algorithms' statuses now (GET
     /// /v1/algorithms), the last kBarReadBars 1-minute bars before its scoring time (GET
@@ -183,6 +189,9 @@ class KrxQuantService : public QObject {
     void special_ready(const QString& symbol, const QDate& from, const QDate& to,
                        const QList<fincept::krx_quant::SpecialWindow>& windows);
     void special_failed(const QString& symbol, const QDate& from, const QDate& to, const QString& reason);
+    void supply_ready(const QString& symbol, const QDate& from, const QDate& to,
+                      const QList<fincept::krx_quant::SupplyDay>& days, bool served);
+    void supply_failed(const QString& symbol, const QDate& from, const QDate& to, const QString& reason);
     void bar_ready(const fincept::krx_quant::BarRead& read);
     void bar_failed(const QString& symbol, const QDateTime& bar_close, const QString& reason);
     /// The address this service reads changed (also when another panel set it).
@@ -206,6 +215,7 @@ class KrxQuantService : public QObject {
         kKindLatest,  ///< a kind's latest predictions
         kKindHistory, ///< a kind's predictions over bar closes
         kSpecial,     ///< a symbol's special situations over days (krx-quant #236)
+        kSupply,      ///< a symbol's daily supply data over days (krx-quant #226)
         kKinds        ///< how many kinds of read there are
     };
 

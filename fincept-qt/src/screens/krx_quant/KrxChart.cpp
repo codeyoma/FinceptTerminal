@@ -109,6 +109,8 @@ QJsonObject studies_json(const krx_quant::StudyDrawing& d) {
             one.insert("histogram", true);
             one.insert("down", line.down_color);
         }
+        if (line.steps) // the daily supply data's (krx-quant #226): a level held until the next day's
+            one.insert("steps", true);
         series.append(one);
     }
     // The lower panes, top down (krx-quant #223): each indicator's, its height and guide lines.
@@ -138,7 +140,8 @@ QJsonObject studies_json(const krx_quant::StudyDrawing& d) {
                                   {"values", QJsonArray::fromStringList(row.values)},
                                   {"colors", QJsonArray::fromStringList(row.colors)},
                                   {"note", row.note},
-                                  {"missing", row.missing}});
+                                  {"missing", row.missing},
+                                  {"latest", row.latest}});
     QJsonObject out{{"series", series},
                     {"fills", fills},
                     {"marks", marks},
@@ -527,8 +530,9 @@ QJsonObject KrxChart::data_json(const QList<krx_quant::ChartBar>& real, const QJ
     // The indicators, over the bars as they are (krx-quant #222), the real ones alone (krx-quant #236:
     // their lines bridge the empty bars), or the bricks (krx-quant #225), and the volume profile of
     // those in view.
-    drawing_ = krx_quant::draw_studies(priced, look_.studies, minutes_, look_.anchor, look_.picking,
-                                       look_.first_day_whole, look_.pane_heights, timeless_);
+    drawing_ =
+        krx_quant::draw_studies(priced, look_.studies, minutes_, look_.anchor, look_.picking, look_.first_day_whole,
+                                look_.pane_heights, timeless_, look_.supply, look_.supply_served);
     data.insert("studies", studies_json(drawing_));
     data.insert("profile", QJsonDocument::fromJson(profile_json().toUtf8()).object());
     return data;
@@ -608,8 +612,9 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
     if (studies && !all.isEmpty()) {
         // Each line's point the bar being made moves: its own, a leading span's displacement on,
         // the lagging span's displacement back. The page moves that one (it is each line's last).
-        drawing_ = krx_quant::draw_studies(all, look_.studies, minutes_, look_.anchor, look_.picking,
-                                           look_.first_day_whole, look_.pane_heights);
+        drawing_ =
+            krx_quant::draw_studies(all, look_.studies, minutes_, look_.anchor, look_.picking, look_.first_day_whole,
+                                    look_.pane_heights, false, look_.supply, look_.supply_served);
         const qsizetype n = all.size();
         QJsonArray points;
         for (const auto& line : drawing_.series) {

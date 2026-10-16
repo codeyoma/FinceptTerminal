@@ -22,7 +22,8 @@
 namespace fincept::krx_quant {
 
 /// The chart's indicators, in the order of the panel's lists: those drawn over the prices, then
-/// those drawn each in a pane of its own below them (krx-quant #223).
+/// those drawn each in a pane of its own below them (krx-quant #223), the daily supply data's last
+/// (krx-quant #226).
 enum class Study {
     MovingAverage,
     Ichimoku,
@@ -61,6 +62,15 @@ enum class Study {
     Roc,
     Rsi,
     Rmi,
+    // The daily supply data's (krx-quant #226): the engine's values, one a day, not worked out here.
+    ShortVolume,
+    IndividualNet,
+    InstitutionNet,
+    ForeignNet,
+    ForeignHolding,
+    ForeignRatio,
+    LendingBalance,
+    CreditBalance,
 };
 
 inline constexpr std::array<Study, 12> kUpperStudies{
@@ -95,13 +105,22 @@ inline constexpr std::array<Study, 25> kLowerStudies{
     Study::Rsi,
     Study::Rmi,
 };
-/// Every indicator, in the order of the enum (the upper ones, then the lower ones).
-inline constexpr std::array<Study, 37> kStudies = [] {
-    std::array<Study, 37> all{};
-    for (std::size_t i = 0; i < kUpperStudies.size(); ++i)
-        all[i] = kUpperStudies[i];
-    for (std::size_t i = 0; i < kLowerStudies.size(); ++i)
-        all[kUpperStudies.size() + i] = kLowerStudies[i];
+/// The lower indicators of the daily supply data (krx-quant #226), in the panel's own section: the
+/// engine's values (GET /v1/symbols/{symbol}/supply), each in a pane of its own.
+inline constexpr std::array<Study, 8> kSupplyStudies{
+    Study::ShortVolume,    Study::IndividualNet, Study::InstitutionNet, Study::ForeignNet,
+    Study::ForeignHolding, Study::ForeignRatio,  Study::LendingBalance, Study::CreditBalance,
+};
+/// Every indicator, in the order of the enum (the upper ones, the lower ones, the supply data's).
+inline constexpr std::array<Study, 45> kStudies = [] {
+    std::array<Study, 45> all{};
+    std::size_t at = 0;
+    for (const Study s : kUpperStudies)
+        all[at++] = s;
+    for (const Study s : kLowerStudies)
+        all[at++] = s;
+    for (const Study s : kSupplyStudies)
+        all[at++] = s;
     return all;
 }();
 
@@ -158,6 +177,12 @@ struct StudySpec {
     /// scale (the volume, OBV, AD line) shows them shortened (1.2M) on its axis.
     int decimals = 0;
     bool volume_scale = false;
+    /// A supply data one's (krx-quant #226): the engine's field it draws, one value a day. None for
+    /// the others, worked out here from the bars.
+    std::optional<SupplyField> supply;
+    /// Its values are drawn as bars from 0 (a histogram, in its first line's colour, or its first's
+    /// and second's by their sign); else a line, stepping from one value to the next.
+    bool bars = false;
 };
 
 const StudySpec& study_spec(Study study);
@@ -166,7 +191,8 @@ const StudySpec& study_spec(Study study);
 /// "volume_oscillator", "bollinger_b", "bollinger_width", "stochastic", "stochastic_rsi",
 /// "williams_r", "disparity", "intraday_intensity", "chaikin_oscillator", "trix",
 /// "price_oscillator", "ad_line", "adx", "atr", "cci", "dmi", "macd", "mfi", "obv", "roc", "rsi",
-/// "rmi".
+/// "rmi"; the supply data's (krx-quant #226): "short_volume", "individual_net", "institution_net",
+/// "foreign_net", "foreign_holding", "foreign_ratio", "lending_balance", "credit_balance".
 QString study_key(Study study);
 std::optional<Study> parse_study(const QString& key);
 QString study_title(Study study);
@@ -190,12 +216,14 @@ StudySettings default_settings(Study study);
 
 /// Whether ``study`` is drawn in the view ``view``, on bricks (a style without a time axis,
 /// krx-quant #225) or on bars: the VWAP in the minute views only; neither VWAP on bricks, as both
-/// need the bars' real time (a day's first bar, the anchor's moment). Those not drawn keep their
+/// need the bars' real time (a day's first bar, the anchor's moment). The supply data's (krx-quant
+/// #226) are drawn in every view on bars, but only from an engine that gives them (``supply``: it
+/// did not answer 404); a day's value on bricks would mean nothing. Those not drawn keep their
 /// settings.
-bool study_drawn(Study study, int view, bool bricks = false);
-/// Why not, as the indicators panel says it: "분봉에서만", or on bricks "시간축 없는 차트에서는 쓰지
-/// 않는다"; empty when it is drawn.
-QString study_unavailable(Study study, int view, bool bricks = false);
+bool study_drawn(Study study, int view, bool bricks = false, bool supply = true);
+/// Why not, as the indicators panel says it: "분봉에서만", on bricks "시간축 없는 차트에서는 쓰지
+/// 않는다", or "이 엔진은 일별 수급을 주지 않는다"; empty when it is drawn.
+QString study_unavailable(Study study, int view, bool bricks = false, bool supply = true);
 /// The settings' text in the legend and the panel: "5 20 60 120", "20 2", "20 10%", a choice by
 /// its name ("10 21 단순"); the source after them when it is not the default ("5 20 고가").
 QString settings_text(const StudySettings& settings);
@@ -412,6 +440,18 @@ Values relative_strength(const QList<double>& values, int period);
 /// The relative momentum index: the RSI of the changes over ``momentum`` bars.
 Values relative_momentum(const QList<double>& values, int period, int momentum);
 
+/// Whether ``field`` is a flow (the short-sale volume, the net buys), added up over a week, month or
+/// year; else a level (the holdings, the ratio, the balances), the period's last day's.
+bool supply_flow(SupplyField field);
+/// A supply data's values over ``bars`` (krx-quant #226), from ``days`` (the engine's, oldest
+/// first): in a minute view each bar takes its KST date's value, so a day's bars step together; in
+/// the day view each bar its day's. In a week, month or year view (the period so far for the one
+/// going on) a flow is the sum of its period's days with a value, and only when ``days`` reach
+/// before the period (a day with a value before its first; else the read or the engine's history
+/// may begin inside it); a level the value of the last day of its period that has one. None where
+/// the engine has none (today's comes after the day is over), never 0 for a period without a value.
+Values supply_values(const QList<ChartBar>& bars, const QList<SupplyDay>& days, SupplyField field, int view);
+
 /// The VWAP of each day: the sum of ``source`` × volume over the sum of volumes, from the first
 /// bar of each KST date (the day separators' bar) on; none until a day has volume. Only a whole
 /// day has one: every date after the first held (a date before it is held), and the first only
@@ -485,6 +525,7 @@ struct DrawnSeries {
     bool dots = false; ///< points without a line (the parabolic SAR)
     /// Bars from 0 up (the MACD's histogram): ``color`` where a value is 0 or more, else ``down_color``.
     bool histogram = false;
+    bool steps = false; ///< a line that steps from one value to the next (the supply data's, krx-quant #226)
     QString down_color;
     int pane = 0;              ///< 0: the prices'; 1, 2…: the lower panes, top down (DrawnPane)
     int decimals = 0;          ///< its values' (the legend's, the axis's)
@@ -535,6 +576,9 @@ struct LegendRow {
     /// Shown in place of the values where none of its lines has one: why (the VWAP of a day not
     /// read whole). Empty: nothing shown.
     QString missing;
+    /// Without a crosshair, its lines' latest values rather than the last bar's: the daily supply
+    /// data's (krx-quant #226), whose last bar, today's, has none until the day is over.
+    bool latest = false;
 };
 
 /// What the page draws of the indicators over ``bars`` (as drawn, oldest first) in the view
@@ -566,10 +610,12 @@ struct StudyDrawing {
 /// With ``bricks`` (krx-quant #225) ``bars`` are a style's bricks on their slots (ChartBricks'
 /// brick_bars): the VWAP and the anchored VWAP are neither drawn nor in the legend (study_drawn),
 /// nothing waits for a click, and the AD line and the OBV are 0 at the first brick, as the bricks'
-/// start is fixed (ChartBricks' brick_start).
+/// start is fixed (ChartBricks' brick_start). ``supply`` is the engine's daily supply data over the
+/// days held (krx-quant #226, supply_values); ``supply_served`` false (an engine without it) draws
+/// none of those indicators, as a VWAP in a candle view.
 StudyDrawing draw_studies(const QList<ChartBar>& bars, const StudySet& set, int view, std::optional<qint64> anchor,
                           bool picking, bool first_day_whole = false, const PaneHeights& heights = {},
-                          bool bricks = false);
+                          bool bricks = false, const QList<SupplyDay>& supply = {}, bool supply_served = true);
 
 /// ``color`` (#rrggbb) at ``alpha`` (0–1) as CSS: rgba(r,g,b,a).
 QString css_color(const QString& color, double alpha);

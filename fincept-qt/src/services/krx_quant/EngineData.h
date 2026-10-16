@@ -9,6 +9,7 @@
 #include <QPair>
 #include <QString>
 
+#include <array>
 #include <optional>
 
 /// What the KRX prediction screen shows, read from the prediction engine's API (v1).
@@ -30,6 +31,33 @@ struct SpecialWindow {
     QDateTime end;
     QString detail = {}; ///< e.g. "1단계" for a circuit breaker's stage; empty when the engine gives none
     bool operator==(const SpecialWindow&) const = default;
+};
+
+/// A field of the daily supply data (GET /v1/symbols/{symbol}/supply, krx-quant #226), in the
+/// API's order: the short-sale volume, the net buys of individuals, institutions and foreigners,
+/// the foreign holdings and ownership ratio (%), and the stock lending and credit balances.
+enum class SupplyField {
+    ShortVolume,
+    IndividualNet,
+    InstitutionNet,
+    ForeignNet,
+    ForeignHolding,
+    ForeignRatio,
+    LendingBalance,
+    CreditBalance,
+};
+inline constexpr std::size_t kSupplyFields = 8;
+/// Its name in the API: "short_volume", "individual_net", "institution_net", "foreign_net",
+/// "foreign_holding", "foreign_ratio", "lending_balance", "credit_balance".
+QString supply_field_key(SupplyField field);
+
+/// A day of a symbol's daily supply data (krx-quant #226): each field's value, none where the
+/// engine has none that day.
+struct SupplyDay {
+    QDate date;
+    std::array<std::optional<double>, kSupplyFields> values{};
+    std::optional<double> value(SupplyField field) const { return values[static_cast<std::size_t>(field)]; }
+    bool operator==(const SupplyDay&) const = default;
 };
 
 /// The last night's training, as the engine's morning swap saw it.
@@ -337,6 +365,9 @@ Result<QList<SymbolQuote>> parse_symbols(const QJsonDocument& doc); ///< GET /v1
 /// GET /v1/symbols/{symbol}/special?from=&to= (krx-quant #236): the symbol's VIs and the market's
 /// circuit breakers and sidecars over those days, in start order.
 Result<QList<SpecialWindow>> parse_special(const QJsonDocument& doc);
+/// GET /v1/symbols/{symbol}/supply?from=&to= (krx-quant #226): the symbol's daily supply data over
+/// those days, oldest first; a day without a date is dropped.
+Result<QList<SupplyDay>> parse_supply(const QJsonDocument& doc);
 Result<Latest> parse_latest(const QJsonDocument& doc); ///< GET /v1/symbols/{symbol}/latest
 /// GET /v1/symbols/{symbol}/predictions: the latest bar closes first.
 Result<QList<Prediction>> parse_predictions(const QJsonDocument& doc);

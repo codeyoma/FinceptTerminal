@@ -470,6 +470,23 @@ void KrxQuantService::read_special(const QString& symbol, const QDate& from, con
     });
 }
 
+void KrxQuantService::read_supply(const QString& symbol, const QDate& from, const QDate& to) {
+    if (!begin(kSupply))
+        return;
+    const QString path =
+        QStringLiteral("/supply?from=%1&to=%2").arg(from.toString(Qt::ISODate), to.toString(Qt::ISODate));
+    get(symbol_path(symbol, path), [this, symbol, from, to](Result<QJsonDocument> answer) {
+        end(kSupply);
+        // An engine before krx-quant #226 has no such answer: its supply indicators are greyed.
+        if (answer.is_err() && HttpClient::status_from_error(answer.error()) == 404)
+            return emit supply_ready(symbol, from, to, {}, false);
+        auto days = parsed(answer, krx_quant::parse_supply);
+        if (days.is_err())
+            return emit supply_failed(symbol, from, to, why(days.error()));
+        emit supply_ready(symbol, from, to, days.value(), true);
+    });
+}
+
 void KrxQuantService::read_bar(const QString& symbol, const QDateTime& bar_close, const QStringList& kinds) {
     if (url_.isEmpty())
         return;

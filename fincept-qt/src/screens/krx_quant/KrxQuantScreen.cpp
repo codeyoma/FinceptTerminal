@@ -393,6 +393,12 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(live_, &services::KrxLive::marks_changed, chart_soon_, qOverload<>(&QTimer::start));
     // The special situations' bands (krx-quant #236) with the next drawing.
     connect(live_, &services::KrxLive::special_changed, chart_soon_, qOverload<>(&QTimer::start));
+    // The daily supply data (krx-quant #226) with the next drawing; an engine without it greys its
+    // indicators in the panel.
+    connect(live_, &services::KrxLive::supply_changed, this, [this]() {
+        study_panel_->show_studies(look_.studies, minutes_, krx_quant::timeless(look_.style), live_->supply_served());
+        chart_soon_->start();
+    });
     connect(live_, &services::KrxLive::live_changed, this, [this]() {
         // A candle view's last candle holds today, made of the day's bars (krx-quant #111, #112).
         const bool candles = krx_quant::candle_view(minutes_);
@@ -977,8 +983,8 @@ void KrxQuantScreen::set_view(int minutes) {
     chart_toolbar_->show_view(minutes);
     live_->set_view(minutes);
     want_history(); // the indicators' bars in this view (krx-quant #222)
-    study_panel_->show_studies(look_.studies, minutes,
-                               krx_quant::timeless(look_.style)); // the VWAP is the minute views'
+    study_panel_->show_studies(look_.studies, minutes, krx_quant::timeless(look_.style),
+                               live_->supply_served()); // the VWAP is the minute views'
     fill_chart();
     chart_->fit(); // the last 60 bars of the new view
 }
@@ -995,7 +1001,8 @@ void KrxQuantScreen::set_style(krx_quant::ChartStyle style) {
         set_tool(std::nullopt);
         drawing_popup_->hide();
     }
-    study_panel_->show_studies(look_.studies, minutes_, timeless); // neither VWAP on bricks (krx-quant #225)
+    study_panel_->show_studies(look_.studies, minutes_, timeless,
+                               live_->supply_served()); // neither VWAP on bricks (krx-quant #225)
     if (timeless != was_timeless)
         want_history(); // the bars the bricks start with, or the indicators' again
     fill_chart();
@@ -1044,7 +1051,7 @@ void KrxQuantScreen::show_symbol_prefs() {
     look_.picking = krx_quant::anchor_pickable(look_.studies) && !look_.anchor;
     // Its lower panes' heights (krx-quant #223): those dragged; the others the default.
     look_.pane_heights = krx_quant::parse_pane_heights(AppConfig::instance().get(group + krx_quant::kPrefsPaneHeights));
-    study_panel_->show_studies(look_.studies, minutes_, krx_quant::timeless(look_.style));
+    study_panel_->show_studies(look_.studies, minutes_, krx_quant::timeless(look_.style), live_->supply_served());
     want_history();
     // Its drawings (krx-quant #224), none selected; a tool chosen for another symbol is put down.
     look_.drawings = krx_quant::parse_drawings(AppConfig::instance().get(group + krx_quant::kPrefsDrawings));
@@ -1087,13 +1094,14 @@ void KrxQuantScreen::set_studies(const krx_quant::StudySet& set) {
     if (const QString& symbol = live_->selected(); !symbol.isEmpty())
         AppConfig::instance().set(krx_quant::prefs_group(symbol) + krx_quant::kPrefsStudies,
                                   krx_quant::studies_value(set));
-    study_panel_->show_studies(set, minutes_, krx_quant::timeless(look_.style)); // as the legend changed it
+    study_panel_->show_studies(set, minutes_, krx_quant::timeless(look_.style),
+                               live_->supply_served()); // as the legend changed it
     want_history();
     fill_chart();
 }
 
 void KrxQuantScreen::open_studies(std::optional<krx_quant::Study> study) {
-    study_panel_->show_studies(look_.studies, minutes_, krx_quant::timeless(look_.style));
+    study_panel_->show_studies(look_.studies, minutes_, krx_quant::timeless(look_.style), live_->supply_served());
     if (study)
         study_panel_->select(*study);
     study_panel_->open_at(chart_toolbar_->indicators_corner());
@@ -1167,6 +1175,9 @@ void KrxQuantScreen::fill_chart() {
     // Nothing before the first bar held in this view: its first day's VWAP is drawn, and the AD
     // line's and the OBV's stretch from their 0 is whole (krx-quant #223).
     look_.first_day_whole = live_->reached_start(minutes_);
+    // The daily supply data over the days held, and whether the engine gives it (krx-quant #226).
+    look_.supply = live_->supply();
+    look_.supply_served = live_->supply_served();
     // Today's slots after the last bar fill up to the engine's clock while the session is open (krx-quant #238).
     const auto clock = krx_quant::session_clock(live_->status(), live_->engine_now());
     clock_slot_drawn_ = krx_quant::clock_slot(clock, minutes_);

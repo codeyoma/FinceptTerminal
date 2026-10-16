@@ -120,7 +120,8 @@ KrxStudyPanel::KrxStudyPanel(QWidget* parent) : QFrame(parent, Qt::Popup) {
     outer->setContentsMargins(1, 1, 1, 1);
     outer->setSpacing(0);
 
-    // The lists scroll: 12 upper and 25 lower indicators (krx-quant #223) are taller than the panel.
+    // The lists scroll: 12 upper and 25 lower indicators (krx-quant #223) and the 8 of the daily supply
+    // data (krx-quant #226) are taller than the panel.
     auto* lists = lists_ = new QScrollArea;
     lists->setObjectName("krxStudyListsScroll");
     lists->setWidgetResizable(true);
@@ -174,6 +175,11 @@ KrxStudyPanel::KrxStudyPanel(QWidget* parent) : QFrame(parent, Qt::Popup) {
     section(tr("하단 지표"));
     for (const Study study : krx_quant::kLowerStudies)
         add_row(study);
+    // Lower ones too, of the engine's daily values rather than the bars (krx-quant #226).
+    list->addSpacing(10);
+    section(tr("일별 수급"));
+    for (const Study study : krx_quant::kSupplyStudies)
+        add_row(study);
     list->addStretch(1);
     lists->setWidget(left);
     outer->addWidget(lists);
@@ -214,11 +220,12 @@ KrxStudyPanel::KrxStudyPanel(QWidget* parent) : QFrame(parent, Qt::Popup) {
     fill_settings();
 }
 
-void KrxStudyPanel::show_studies(const krx_quant::StudySet& set, int view, bool bricks) {
-    const bool differs = !(set == set_) || view != view_ || bricks != bricks_;
+void KrxStudyPanel::show_studies(const krx_quant::StudySet& set, int view, bool bricks, bool supply) {
+    const bool differs = !(set == set_) || view != view_ || bricks != bricks_ || supply != supply_;
     set_ = set;
     view_ = view;
     bricks_ = bricks;
+    supply_ = supply;
     fill_lists();
     if (differs)
         fill_settings();
@@ -265,10 +272,11 @@ void KrxStudyPanel::fill_lists() {
         if (!check || !name)
             continue;
         // The VWAP is the minute views' (krx-quant #220), and neither VWAP is the bricks' (krx-quant
-        // #225): greyed there, kept as it is.
-        const bool usable = krx_quant::study_drawn(study, view_, bricks_);
+        // #225), nor the daily supply data's, which an older engine does not give either (krx-quant
+        // #226): greyed there, kept as it is.
+        const bool usable = krx_quant::study_drawn(study, view_, bricks_, supply_);
         const QString tip =
-            usable ? krx_quant::study_spec(study).about : krx_quant::study_unavailable(study, view_, bricks_);
+            usable ? krx_quant::study_spec(study).about : krx_quant::study_unavailable(study, view_, bricks_, supply_);
         check->setIcon(check_icon(set_.on(study), usable));
         check->setEnabled(usable);
         check->setToolTip(usable ? (set_.on(study) ? tr("끄기") : tr("켜기")) : tip);
@@ -333,9 +341,11 @@ void KrxStudyPanel::fill_settings() {
     int row = 0;
     const Study study = selected_;
 
-    if (!krx_quant::study_drawn(study, view_, bricks_)) {
+    if (!krx_quant::study_drawn(study, view_, bricks_, supply_)) {
         auto* note = label(bricks_ ? tr("시간축 없는 차트에서는 그리지 않는다. 켠 것과 설정은 남는다.")
-                                   : tr("분봉에서만 그린다. 켠 것과 설정은 남는다."));
+                           : spec.supply ? tr("이 엔진은 일별 수급을 주지 않아 그리지 않는다. 켠 것과 설정은 "
+                                              "남는다.")
+                                         : tr("분봉에서만 그린다. 켠 것과 설정은 남는다."));
         note->setWordWrap(true);
         note->setObjectName("krxStudyNote");
         grid->addWidget(note, row++, 0, 1, 4);
