@@ -8,6 +8,7 @@
 #include "screens/krx_quant/KrxLeaderboard.h"
 #include "screens/krx_quant/KrxStatsWindow.h"
 #include "screens/krx_quant/KrxStudyPanel.h"
+#include "screens/krx_quant/KrxSymbolCell.h"
 #include "screens/krx_quant/KrxTables.h"
 #include "services/krx_quant/ChartModel.h"
 #include "services/krx_quant/KindView.h"
@@ -165,6 +166,9 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     auto* upper = new QSplitter(Qt::Horizontal);
     symbols_header_ = krx_panel::header(tr("종목"));
     symbols_table_ = krx_tables::table({tr("종목"), tr("기준가"), tr("최종 합의")});
+    // Each symbol as Toss Securities shows it (krx-quant #250): its logo, name and code.
+    symbols_table_->setItemDelegateForColumn(kSymbol, new KrxSymbolDelegate(symbols_table_));
+    logos_ = new KrxLogos(this);
     upper->addWidget(krx_panel::panel(symbols_header_, symbols_table_));
 
     // Lightweight Charts' license asks for its attribution and a link where users see it.
@@ -448,8 +452,9 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(symbols_table_, &QTableWidget::itemSelectionChanged, this, [this]() {
         const auto rows = symbols_table_->selectionModel()->selectedRows();
         if (!rows.isEmpty())
-            live_->select(symbols_table_->item(rows.first().row(), kSymbol)->text());
+            live_->select(symbols_table_->item(rows.first().row(), kSymbol)->data(Qt::UserRole).toString());
     });
+    connect(logos_, &KrxLogos::arrived, this, &KrxQuantScreen::fill_symbols);
     connect(fit, &QPushButton::clicked, chart_, &KrxChart::fit);
     connect(chart_, &KrxChart::close_clicked, this, [this](const QDateTime& bar_close) { live_->pin(bar_close); });
     connect(chart_, &KrxChart::view_moved, this, [this](double from, double to) {
@@ -704,10 +709,19 @@ void KrxQuantScreen::show_dot() {
 void KrxQuantScreen::fill_symbols() {
     const QSignalBlocker quiet(symbols_table_); // a refill is not a choice
     symbols_table_->setRowCount(0);
+    const int logo = symbols_table_->fontMetrics().height(); // as high as the name
+    symbols_table_->setIconSize(QSize(logo, logo));
     for (const auto& quote : live_->board().symbols()) {
         const int row = symbols_table_->rowCount();
         symbols_table_->insertRow(row);
-        symbols_table_->setItem(row, kSymbol, cell(quote.symbol));
+        // The name, the code after it (KrxSymbolDelegate); the code alone when the engine has no name.
+        auto* symbol = cell(quote.name.isEmpty() ? quote.symbol : quote.name);
+        symbol->setData(Qt::UserRole, quote.symbol);
+        if (!quote.name.isEmpty())
+            symbol->setData(KrxSymbolDelegate::kCodeRole, quote.symbol);
+        if (!quote.logo_url.isEmpty() || !quote.name.isEmpty()) // an older engine: the code alone, as before
+            symbol->setIcon(logos_->logo(quote.logo_url, quote.name, logo, devicePixelRatioF()));
+        symbols_table_->setItem(row, kSymbol, symbol);
         symbols_table_->setItem(row, kMid,
                                 cell(quote.mid ? krx_quant::price_text(*quote.mid) : QStringLiteral("—"), kNumber));
         const krx_quant::Latest latest = live_->board().latest(quote.symbol);

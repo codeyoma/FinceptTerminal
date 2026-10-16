@@ -331,6 +331,8 @@ Result<QList<SymbolQuote>> parse_symbols(const QJsonDocument& doc) {
     for (const auto& v : obj.value().value("symbols").toArray()) {
         const QJsonObject s = v.toObject();
         SymbolQuote quote{s.value("symbol").toString(), number(s.value("mid"))};
+        quote.name = s.value("name").toString().trimmed(); // null until the engine has read it
+        quote.logo_url = s.value("logo_url").toString();
         quote.tick = number(s.value("tick"));
         if (s.value("flat_ticks").isDouble())
             quote.flat_ticks = s.value("flat_ticks").toInt();

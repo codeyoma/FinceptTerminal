@@ -2149,6 +2149,7 @@ set(SCREEN_SOURCES
     src/screens/krx_quant/KrxQuantScreen.cpp
     src/screens/krx_quant/KrxStatsWindow.cpp
     src/screens/krx_quant/KrxStudyPanel.cpp
+    src/screens/krx_quant/KrxSymbolCell.cpp
 )
 
 # App
@@ -2730,6 +2731,7 @@ set_source_files_properties(
     src/screens/krx_quant/KrxQuantScreen.cpp
     src/screens/krx_quant/KrxStatsWindow.cpp
     src/screens/krx_quant/KrxStudyPanel.cpp
+    src/screens/krx_quant/KrxSymbolCell.cpp
     src/services/krx_quant/Board.cpp
     src/services/krx_quant/ChartBricks.cpp
     src/services/krx_quant/ChartDrawings.cpp
