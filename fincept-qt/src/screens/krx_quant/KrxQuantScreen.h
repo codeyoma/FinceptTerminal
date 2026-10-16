@@ -63,7 +63,7 @@ class KrxQuantScreen : public QWidget {
     void show_kinds();
     /// Another kind is shown: the panel, the leaderboard and the chart's hover boxes follow.
     void on_kind_changed();
-    /// The kind panel's title: the symbol, the bar close, the countdown or the answer, k and 2k.
+    /// The kind panel's title: the symbol, the bar close's four minutes or the answer, k and 2k.
     void kind_title();
     void fill_chart();
     /// The selected consensus's score over the bars in view, on the chart's header (krx-quant #159).
@@ -105,7 +105,7 @@ class KrxQuantScreen : public QWidget {
     /// described by GET /v1/kinds whatever /v1/algorithms answered (krx-quant #182).
     QString about_failure(const QString& algorithm) const;
     std::optional<krx_quant::AlgorithmInfo> about_of(const QString& algorithm) const;
-    void update_countdowns();
+    void update_panel_title();
     /// Paint in the theme's colors and font now (Fincept's theme, font or density changed).
     void refresh_theme();
     /// Whether ``bar_close`` is of the engine's today (not the last session's, shown before the open).
@@ -136,7 +136,7 @@ class KrxQuantScreen : public QWidget {
     std::optional<double> brick_atr_;          ///< ATR(14) the chart last counted for the bricks' default (#225)
     KrxStudyPanel* study_panel_ = nullptr;     ///< the indicators panel (krx-quant #222)
     KrxDrawingPopup* drawing_popup_ = nullptr; ///< a drawing's colour, width, line style and text (krx-quant #224)
-    krx_panel::Header predictions_header_;     ///< titled with the bar close and the countdown
+    krx_panel::Header predictions_header_;     ///< titled with the bar close's four minutes
     QTableWidget* predictions_table_ = nullptr;
     QPushButton* latest_ = nullptr; ///< back to the latest bar close, while one is pinned
     KrxLeaderboard* leaderboard_ = nullptr;
@@ -144,7 +144,7 @@ class KrxQuantScreen : public QWidget {
     KrxAlerts* alerts_ = nullptr;
     QWidget* body_ = nullptr;
     ui::LoadingOverlay* loading_ = nullptr; ///< over the body until the engine first answers
-    QTimer* clock_timer_ = nullptr;         ///< the countdowns and the engine clock, every second
+    QTimer* clock_timer_ = nullptr;         ///< the panel title and the engine clock, every second
 };
 
 } // namespace fincept::screens
