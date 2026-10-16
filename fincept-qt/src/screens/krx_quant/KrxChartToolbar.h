@@ -26,7 +26,8 @@ namespace fincept::screens {
 /// options menu with the day separators, the special situations' bands (#236) and, while a style
 /// without a time axis is shown (#225), its size. It only shows what the screen says and tells it
 /// what was picked; the screen keeps the choices. In a narrow panel the indicators and drawing
-/// buttons lose their labels.
+/// buttons lose their labels. Cmd+D (Ctrl+D on Windows) opens the drawing menu and a letter in it
+/// picks a tool (#241).
 class KrxChartToolbar : public QWidget {
     Q_OBJECT
   public:
@@ -51,6 +52,10 @@ class KrxChartToolbar : public QWidget {
     void show_drawings(int count);
     /// Where the indicators panel opens: under the indicators button (global).
     QPoint indicators_corner() const;
+    /// Cmd+D (Ctrl+D on Windows) with the keyboard anywhere in ``area`` (the screen) opens the
+    /// drawing menu as a click on its button does, or closes it (krx-quant #241). Not while the
+    /// button is off (a style without a time axis).
+    void take_keys(QWidget* area);
     /// Paint in the theme's colors now.
     void restyle();
     QSize sizeHint() const override;
@@ -74,8 +79,13 @@ class KrxChartToolbar : public QWidget {
 
   protected:
     void resizeEvent(QResizeEvent* event) override;
+    /// A letter in the open drawing menu (krx-quant #241, krx_quant::tool_letter, kMagnetLetter)
+    /// closes it and picks that tool or turns the magnet, as a click on its item does.
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
   private:
+    /// The drawing menu opened under its button, or closed while it is open.
+    void toggle_drawing_menu();
     /// The indicators and drawing buttons with their labels while the row fits, else icons only.
     void fit_labels();
     /// The left group from the left end, cut off where the right group (trash, options) starts.

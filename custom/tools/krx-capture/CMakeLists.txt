@@ -13,7 +13,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network Test)
 find_package(Qt6 QUIET COMPONENTS WebSockets)
 find_package(Qt6 QUIET COMPONENTS WebEngineWidgets WebChannel)
 
@@ -78,7 +78,7 @@ add_executable(krx_capture
     "${SRC}/ui/theme/ThemeManager.h"
     "${SRC}/ui/widgets/LoadingOverlay.h")
 target_include_directories(krx_capture PRIVATE "${SRC}")
-target_link_libraries(krx_capture PRIVATE Qt6::Widgets Qt6::Network)
+target_link_libraries(krx_capture PRIVATE Qt6::Widgets Qt6::Network Qt6::Test) # Test: KRX_CAPTURE_KEY
 # The chart page, as the app bundles it (fincept-qt/CMakeLists.txt, "krx_chart").
 qt_add_resources(krx_capture "krx_chart"
     PREFIX "/krx/chart"

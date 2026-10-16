@@ -5,7 +5,8 @@
 // drawing stays put across the minute and candle views), and what the magnet picks. The expected
 // positions are worked out by hand. On a minute view's bars with their empty bars (krx-quant #236,
 // ChartSlots' fill_slots), a moment without trades lies on its own slot, and a drawing past the last
-// bar stays at its moment when a bar after a gap fills it.
+// bar stays at its moment when a bar after a gap fills it. Each tool and the magnet have a letter of
+// their own in the drawing menu (krx-quant #241), read from a key also with a Hangul layout.
 
 #include "services/krx_quant/ChartDrawings.h"
 #include "services/krx_quant/ChartSlots.h"
@@ -13,6 +14,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSet>
 #include <QTest>
 
 #include <cmath>
@@ -88,6 +90,42 @@ class TstKrxChartDrawings : public QObject {
             QCOMPARE(parse_line_style(line_style_key(style)), std::optional(style));
         QCOMPARE(line_style_title(LineStyle::Dashed), QStringLiteral("파선"));
         QVERIFY(!parse_line_style("wavy"));
+    }
+
+    void each_tool_and_the_magnet_have_a_letter_of_their_own() {
+        QSet<QChar> letters{QChar(kMagnetLetter)};
+        for (const DrawingTool tool : kDrawingTools) {
+            const QChar letter = tool_letter(tool);
+            QVERIFY(letter >= u'A' && letter <= u'Z');
+            QVERIFY2(!letters.contains(letter), qPrintable(tool_key(tool)));
+            letters.insert(letter);
+        }
+        QCOMPARE(tool_letter(DrawingTool::TrendLine), QChar(u'T'));
+        QCOMPARE(tool_letter(DrawingTool::Horizontal), QChar(u'H'));
+        QCOMPARE(tool_letter(DrawingTool::FibRetracement), QChar(u'F'));
+        QCOMPARE(tool_letter(DrawingTool::Text), QChar(u'X'));
+    }
+
+    void a_key_is_read_as_its_letter() {
+        QCOMPARE(typed_letter(Qt::Key_T, 0), std::optional(QChar(u'T')));
+        QCOMPARE(typed_letter(Qt::Key_A, 0x99), std::optional(QChar(u'A'))); // the key, not its place
+        QVERIFY(!typed_letter(Qt::Key_Escape, 0));
+        QVERIFY(!typed_letter(Qt::Key_Return, 0x24));
+        QVERIFY(!typed_letter(Qt::Key_5, 0x17));
+        QVERIFY(!typed_letter(0, 0));
+        // Hangul types ㅅ where T is and ㅎ where G is: the letter at that place.
+#if defined(Q_OS_MACOS)
+        QCOMPARE(typed_letter(0x3145, 0x11), std::optional(QChar(u'T')));
+        QCOMPARE(typed_letter(0x314E, 0x05), std::optional(QChar(u'G')));
+        QCOMPARE(typed_letter(0x3141, 0x2E), std::optional(QChar(u'M')));
+        QVERIFY(!typed_letter(0x3145, 0x24)); // Return's place
+#elif defined(Q_OS_WIN)
+        QCOMPARE(typed_letter(0x3145, 'T'), std::optional(QChar(u'T')));
+        QCOMPARE(typed_letter(0x314E, 'G'), std::optional(QChar(u'G')));
+        QVERIFY(!typed_letter(0x3145, 0x0D)); // VK_RETURN
+#else
+        QVERIFY(!typed_letter(0x3145, 0x11));
+#endif
     }
 
     void a_new_drawing_takes_its_first_look() {

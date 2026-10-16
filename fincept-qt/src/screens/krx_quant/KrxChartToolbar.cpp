@@ -7,12 +7,15 @@
 #include <QCheckBox>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QKeyEvent>
+#include <QKeySequence>
 #include <QLabel>
 #include <QMenu>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
 #include <QPushButton>
+#include <QShortcut>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStyle>
@@ -359,6 +362,16 @@ QIcon gear_icon(const Ink& ink) {
     });
 }
 
+/// The keys that open the drawing menu (krx-quant #241): Cmd+D on a Mac (Qt's Ctrl), Ctrl+D elsewhere.
+QKeySequence drawing_keys() {
+    return QKeySequence(Qt::CTRL | Qt::Key_D);
+}
+
+/// An item's text in the drawing menu: its name, and at its right the letter that picks it (krx-quant #241).
+QString lettered(const QString& title, QChar letter) {
+    return title + u'\t' + letter;
+}
+
 void repolish(QWidget* widget) {
     widget->style()->unpolish(widget);
     widget->style()->polish(widget);
@@ -467,7 +480,7 @@ KrxChartToolbar::KrxChartToolbar(QWidget* parent) : QWidget(parent) {
     drawing_menu_ = new QMenu(drawing_);
     drawing_menu_->setToolTipsVisible(true);
     for (const DrawingTool tool : krx_quant::kDrawingTools) {
-        QAction* action = drawing_menu_->addAction(krx_quant::tool_title(tool));
+        QAction* action = drawing_menu_->addAction(lettered(krx_quant::tool_title(tool), krx_quant::tool_letter(tool)));
         action->setCheckable(true);
         action->setIconVisibleInMenu(true);
         action->setData(krx_quant::tool_key(tool));
@@ -478,13 +491,14 @@ KrxChartToolbar::KrxChartToolbar(QWidget* parent) : QWidget(parent) {
         });
     }
     drawing_menu_->addSeparator();
-    magnet_ = drawing_menu_->addAction(tr("자석"));
+    magnet_ = drawing_menu_->addAction(lettered(tr("자석"), QChar(krx_quant::kMagnetLetter)));
     magnet_->setCheckable(true);
     magnet_->setIconVisibleInMenu(true);
     magnet_->setToolTip(
         tr("찍거나 끄는 점이 가장 가까운 봉의 시가·고가·저가·종가 중 가까운 값에 붙는다. 모든 종목에 하나다."));
     connect(magnet_, &QAction::toggled, this, &KrxChartToolbar::magnet_toggled);
     drawing_->setMenu(drawing_menu_);
+    drawing_menu_->installEventFilter(this); // its letters (krx-quant #241)
     for (auto* button : {indicators_, drawing_}) {
         button->setFocusPolicy(Qt::NoFocus);
         button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -640,10 +654,11 @@ void KrxChartToolbar::show_tool(std::optional<DrawingTool> tool) {
             action->setChecked(tool && action->data().toString() == krx_quant::tool_key(*tool));
     drawing_->setProperty("active", tool.has_value());
     repolish(drawing_);
+    const QString keys = drawing_keys().toString(QKeySequence::NativeText);
     if (drawing_->isEnabled())
-        drawing_->setToolTip(
-            tool ? tr("그리기: %1. 차트를 눌러 점을 찍는다. Esc로 취소한다.").arg(krx_quant::tool_title(*tool))
-                 : tr("그리기"));
+        drawing_->setToolTip(tool ? tr("그리기 (%1): %2. 차트를 눌러 점을 찍는다. Esc로 취소한다.")
+                                        .arg(keys, krx_quant::tool_title(*tool))
+                                  : tr("그리기 (%1)").arg(keys));
     paint_icons();
 }
 
@@ -660,6 +675,48 @@ void KrxChartToolbar::show_drawings(int count) {
     trash_->setToolTip(bricks ? tr("그린 것 모두 지우기: 시간축 없는 차트에서는 그린 것을 숨긴다")
                        : count > 0 ? tr("그린 것 모두 지우기 (%1개)").arg(count)
                                    : tr("그린 것 모두 지우기: 그린 것이 없다"));
+}
+
+void KrxChartToolbar::take_keys(QWidget* area) {
+    auto* keys = new QShortcut(drawing_keys(), area);
+    keys->setContext(Qt::WidgetWithChildrenShortcut);
+    connect(keys, &QShortcut::activated, this, &KrxChartToolbar::toggle_drawing_menu);
+}
+
+void KrxChartToolbar::toggle_drawing_menu() {
+    if (drawing_menu_->isVisible())
+        drawing_menu_->hide();
+    else if (drawing_->isEnabled() && drawing_->isVisible())
+        drawing_->showMenu(); // as a click: under the button, until an item is picked or it closes
+}
+
+bool KrxChartToolbar::eventFilter(QObject* watched, QEvent* event) {
+    if (watched != drawing_menu_ || event->type() != QEvent::KeyPress)
+        return QWidget::eventFilter(watched, event);
+    const auto* key = static_cast<QKeyEvent*>(event);
+    const auto letter = krx_quant::typed_letter(key->key(), key->nativeVirtualKey());
+    if (!letter)
+        return QWidget::eventFilter(watched, event);
+    // Cmd+D (Ctrl+D) closes it again, also where the screen's shortcut did not see the keys.
+    const Qt::KeyboardModifiers held = key->modifiers() & ~Qt::KeypadModifier;
+    if (held & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier)) {
+        if (held != Qt::ControlModifier || *letter != u'D')
+            return QWidget::eventFilter(watched, event);
+        drawing_menu_->hide();
+        return true;
+    }
+    for (QAction* action : drawing_menu_->actions()) {
+        const auto tool = krx_quant::parse_tool(action->data().toString());
+        const QChar its = action == magnet_ ? QChar(krx_quant::kMagnetLetter)
+                          : tool            ? krx_quant::tool_letter(*tool)
+                                            : QChar();
+        if (its != *letter || !action->isEnabled())
+            continue;
+        drawing_menu_->hide(); // closed first: a tool picked gives the chart the keyboard
+        action->trigger();
+        return true;
+    }
+    return true; // a letter of nothing: not the menu's search by the first letters
 }
 
 QPoint KrxChartToolbar::indicators_corner() const {

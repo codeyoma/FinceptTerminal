@@ -29,8 +29,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QKeyEvent>
+#include <QKeySequence>
 #include <QMenu>
 #include <QScreen>
+#include <QTest>
 #include <QTextStream>
 #include <QTimer>
 #include <QToolButton>
@@ -121,6 +123,10 @@ int main(int argc, char* argv[]) {
             screen.move(screens[i]->availableGeometry().topLeft());
     }
     screen.show();
+    // Keys go through Qt's shortcuts, which need the window active (KRX_CAPTURE_KEY): asked for at
+    // once, as a Mac only lets an app take the front while it starts.
+    if (qEnvironmentVariableIsSet("KRX_CAPTURE_KEY"))
+        screen.activateWindow();
     if (auto* leaderboard = screen.findChild<fincept::screens::KrxLeaderboard*>()) {
         for (const auto& predictor : details) // as a double-click on its line asks
             QMetaObject::invokeMethod(leaderboard, "detail_requested", Q_ARG(QString, predictor));
@@ -415,22 +421,31 @@ int main(int argc, char* argv[]) {
                 view->page()->runJavaScript(script);
         });
     }
-    // KRX_CAPTURE_KEY=<Escape|Delete|Backspace>: that key pressed at 0.75 of the wait, sent to the widget
-    // with the keyboard (the chart takes it when a drawing tool is chosen, krx-quant #224), which is
-    // named on stderr.
-    if (const QString key = qEnvironmentVariable("KRX_CAPTURE_KEY"); !key.isEmpty()) {
-        QTimer::singleShot(seconds * 750, &app, [key]() {
-            const int code = key == "Delete" ? Qt::Key_Delete : key == "Backspace" ? Qt::Key_Backspace : Qt::Key_Escape;
-            QWidget* target = QApplication::focusWidget();
-            QTextStream(stderr) << "key " << key << " to " << (target ? target->metaObject()->className() : "nothing")
-                                << "\n";
-            if (!target)
-                return;
-            QKeyEvent press(QEvent::KeyPress, code, Qt::NoModifier);
-            QKeyEvent release(QEvent::KeyRelease, code, Qt::NoModifier);
-            QApplication::sendEvent(target, &press);
-            QApplication::sendEvent(target, &release);
+    // KRX_CAPTURE_KEY=<key>[,<key>…]: each key (Escape, Delete, Backspace, Ctrl+D, a letter) pressed 0.3 s
+    // apart from 0.75 of the wait, through Qt's shortcuts as the keyboard's are: to the open menu, else the
+    // widget with the keyboard. The chart takes the keyboard first, as a click on it does (and a drawing
+    // tool chosen, krx-quant #224). Ctrl+D is Cmd+D on a Mac: it opens the drawing menu, where a letter
+    // picks a tool (krx-quant #241). Each key's widget is named on stderr.
+    if (const QStringList keys = qEnvironmentVariable("KRX_CAPTURE_KEY").split(',', Qt::SkipEmptyParts);
+        !keys.isEmpty()) {
+        QTimer::singleShot(seconds * 750 - 100, &app, [&screen]() {
+            auto* chart = screen.findChild<fincept::screens::KrxChart*>();
+            if (auto* view = chart ? chart->findChild<QWebEngineView*>() : nullptr)
+                view->setFocus(Qt::MouseFocusReason);
         });
+        for (qsizetype i = 0; i < keys.size(); ++i) {
+            QTimer::singleShot(seconds * 750 + static_cast<int>(i) * 300, &app, [key = keys[i].trimmed()]() {
+                const QKeySequence sequence(key);
+                QWidget* target = QApplication::activePopupWidget();
+                if (!target)
+                    target = QApplication::focusWidget();
+                QTextStream(stderr) << "key " << key << " to "
+                                    << (target ? target->metaObject()->className() : "nothing")
+                                    << (QApplication::activeWindow() ? "" : " (no active window)") << "\n";
+                if (target && !sequence.isEmpty())
+                    QTest::keyClick(target, sequence[0].key(), sequence[0].keyboardModifiers());
+            });
+        }
     }
     // KRX_CAPTURE_LEGEND=<row>: as the pointer resting on that row of the price pane's legend
     // (krx-quant #222, 0 the first), from 0.85 of the wait: its hide, settings and delete buttons show.
@@ -466,6 +481,9 @@ int main(int argc, char* argv[]) {
         // A drawing's popup a double-click opened (KRX_CAPTURE_JS, krx-quant #224) is saved as a menu.
         if (auto* popup = screen.findChild<fincept::screens::KrxDrawingPopup*>(); !menu && popup && popup->isVisible())
             menu = popup;
+        // So is a menu the keys opened (KRX_CAPTURE_KEY, krx-quant #241).
+        if (!menu)
+            menu = QApplication::activePopupWidget();
         if (menu)
             save(menu, file.dir().filePath(QStringLiteral("%1-menu.%2").arg(file.completeBaseName(), file.suffix())));
         app.quit();

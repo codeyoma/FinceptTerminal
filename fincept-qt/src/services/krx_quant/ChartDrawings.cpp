@@ -224,6 +224,59 @@ int tool_points(DrawingTool tool) {
     }
 }
 
+QChar tool_letter(DrawingTool tool) {
+    switch (tool) {
+        case DrawingTool::TrendLine:
+            return u'T';
+        case DrawingTool::Ray:
+            return u'R';
+        case DrawingTool::Horizontal:
+            return u'H';
+        case DrawingTool::Vertical:
+            return u'V';
+        case DrawingTool::Cross:
+            return u'C';
+        case DrawingTool::Rectangle:
+            return u'B';
+        case DrawingTool::Ellipse:
+            return u'E';
+        case DrawingTool::Pitchfork:
+            return u'P';
+        case DrawingTool::FibRetracement:
+            return u'F';
+        case DrawingTool::FibChannel:
+            return u'N';
+        case DrawingTool::FibFan:
+            return u'A';
+        case DrawingTool::Text:
+            return u'X';
+    }
+    return {};
+}
+
+std::optional<QChar> typed_letter(int key, quint32 native_key) {
+    if (key >= Qt::Key_A && key <= Qt::Key_Z)
+        return QChar(key);
+    // Only a letter falls back to its place: Esc, the arrows and the other keys stay what they are.
+    if (key <= 0 || key >= Qt::Key_Escape || !QChar::isLetter(static_cast<char32_t>(key)))
+        return std::nullopt;
+#if defined(Q_OS_MACOS)
+    // The letters' virtual keys (kVK_ANSI_A…, Carbon's HIToolbox/Events.h), A to Z.
+    static constexpr std::array<quint32, 26> kMacKeys{0x00, 0x0B, 0x08, 0x02, 0x0E, 0x03, 0x05, 0x04, 0x22,
+                                                      0x26, 0x28, 0x25, 0x2E, 0x2D, 0x1F, 0x23, 0x0C, 0x0F,
+                                                      0x01, 0x11, 0x20, 0x09, 0x0D, 0x07, 0x10, 0x06};
+    for (std::size_t i = 0; i < kMacKeys.size(); ++i)
+        if (kMacKeys[i] == native_key)
+            return QChar(static_cast<char16_t>(u'A' + i));
+#elif defined(Q_OS_WIN)
+    if (native_key >= 'A' && native_key <= 'Z')
+        return QChar(static_cast<char16_t>(native_key));
+#else
+    Q_UNUSED(native_key);
+#endif
+    return std::nullopt;
+}
+
 QString line_style_key(LineStyle style) {
     switch (style) {
         case LineStyle::Dotted:

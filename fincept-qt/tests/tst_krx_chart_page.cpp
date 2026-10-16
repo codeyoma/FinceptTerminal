@@ -10,16 +10,23 @@
 // the latest slots, an empty one's hover box says so with the special situation over it, and a bar
 // after a gap fills it at once.
 //
+// The page keeps no key the screen's shortcuts want: Cmd+D (Ctrl+D) with the keyboard on the chart
+// opens the toolbar's drawing menu (krx-quant #241).
+//
 // The page runs in Qt WebEngine with TradingView Lightweight Charts, so this suite opens a
 // window. It is skipped where the WebEngine runtime is missing or the platform draws nothing
 // (offscreen).
 
 #include "screens/krx_quant/KrxChart.h"
+#include "screens/krx_quant/KrxChartToolbar.h"
 
 #include <QApplication>
 #include <QGuiApplication>
+#include <QMenu>
 #include <QSignalSpy>
 #include <QTest>
+#include <QTimer>
+#include <QToolButton>
 #include <QWebEngineView>
 
 #include <cmath>
@@ -326,6 +333,23 @@ class TstKrxChartPage : public QObject {
         hover_at(chart_time(kst("2026-10-15T13:27:00+09:00")));
         QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.tip()").toString(),
                                   QStringLiteral("서킷브레이커 1단계 13:10–13:30"), 10000);
+    }
+
+    void cmd_d_on_the_chart_opens_the_drawing_menu() {
+        screens::KrxChartToolbar toolbar;
+        toolbar.show_style(ChartStyle::Candle);
+        toolbar.take_keys(chart_);
+        toolbar.show();
+        chart_->activateWindow();
+        if (!QTest::qWaitForWindowActive(chart_))
+            QSKIP("no window becomes active here");
+        view_->setFocus(Qt::MouseFocusReason); // as a click on the chart
+        QTRY_VERIFY(QApplication::focusWidget() && chart_->isAncestorOf(QApplication::focusWidget()));
+        QMenu* menu = toolbar.findChild<QToolButton*>("krxDrawing")->menu();
+        QSignalSpy shown(menu, &QMenu::aboutToShow);
+        connect(menu, &QMenu::aboutToShow, menu, [menu]() { QTimer::singleShot(200, menu, &QMenu::hide); });
+        QTest::keyClick(QApplication::focusWidget(), Qt::Key_D, Qt::ControlModifier); // returns once it closed
+        QCOMPARE(shown.size(), 1);
     }
 };
 
