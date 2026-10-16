@@ -14,7 +14,9 @@
 //
 // The wheel zooms on the bar nearest the pointer (krx-quant #253): that bar stays where it is. Out,
 // where the latest bars run out on the right the view slides, its gap after the latest bar no wider;
-// on the left it stops at the first bar read while more are to be read, and slides once none are.
+// on the left it stops at the first bar read while more are to be read, and slides once none are. A
+// wheel as Qt sends it zooms by its lines, and a sideways one or Shift and the wheel scrolls by them,
+// whatever the screen's scale (a scaled Windows screen too).
 //
 // The page keeps no key the screen's shortcuts want: Cmd+D (Ctrl+D) with the keyboard on the chart
 // opens the toolbar's drawing menu (krx-quant #241).
@@ -42,10 +44,12 @@
 #include <QGuiApplication>
 #include <QMenu>
 #include <QSignalSpy>
+#include <QStyleHints>
 #include <QTest>
 #include <QTimer>
 #include <QToolButton>
 #include <QWebEngineView>
+#include <QWheelEvent>
 
 #include <cmath>
 
@@ -303,6 +307,64 @@ class TstKrxChartPage : public QObject {
         QVERIFY(std::abs(js("window.krxChart.gap()").toDouble() - kRightOffset) < 0.01);
         QVERIFY(x_of(all[260]) > at + 10);
         draw(day);
+    }
+
+    void a_wheel_from_qt_zooms_by_its_lines_whatever_the_screens_scale() {
+        // krx-quant #253: Qt WebEngine turns a wheel's notches into pixels itself, 20 to a line of the
+        // system's wheel setting, the screen's scale left out. A third of a notch, as a fine wheel
+        // turns, zooms by those pixels (a tenth wider for 100) on a scaled Windows screen too, where
+        // the chart's own step divided them by the scale.
+        empty();
+        const QList<Bar> day = minutes("2026-10-12T09:00:00+09:00", 300);
+        const QList<qint64> all = times(day);
+        draw(day);
+        expect_fitted(day);
+        QWidget* input = view_->focusProxy();
+        QVERIFY(input);
+        const auto spacing = [&]() { return x_of(all[261]) - x_of(all[260]); };
+        const double before = spacing();
+        const QPointF at(x_of(all[260]) + 2, js("innerHeight / 3").toDouble());
+        const int notch = QWheelEvent::DefaultDeltasPerStep;
+        QWheelEvent wheel(at, input->mapToGlobal(at), {}, {0, notch / 3}, Qt::NoButton, Qt::NoModifier,
+                          Qt::NoScrollPhase, false);
+        QApplication::sendEvent(input, &wheel);
+        const double pixels = QGuiApplication::styleHints()->wheelScrollLines() * 20 / 3.0;
+        const double wanted = 1 + std::min(1.0, pixels / 100) / 10;
+        QTRY_VERIFY2(std::abs(spacing() / before - wanted) < 0.001,
+                     QByteArray::number(spacing() / before) + " for " + QByteArray::number(wanted));
+    }
+
+    void a_sideways_wheel_from_qt_scrolls_by_its_lines_whatever_the_screens_scale() {
+        // krx-quant #253: Shift and the wheel (krx-quant #242) and a sideways wheel are the chart's, which
+        // scrolls 80 pixels for a wheel's 100 but divides them by the screen's scale in Chromium on
+        // Windows. Qt's wheels carry no scale: the page hands them on that much larger, so a notch scrolls
+        // by its lines on a scaled Windows screen too.
+        empty();
+        const QList<Bar> day = minutes("2026-10-12T09:00:00+09:00", 300);
+        const QList<qint64> all = times(day);
+        draw(day);
+        expect_fitted(day);
+        QVERIFY(js(QStringLiteral("window.krxChart.show(%1)").arg(all[150])).toBool()); // room on both sides
+        QTRY_VERIFY2_WITH_TIMEOUT(range_ && range_->first < all[130] && range_->second > all[170],
+                                  in_view(day).constData(), 10000);
+        QTest::qWait(400);
+        QWidget* input = view_->focusProxy();
+        QVERIFY(input);
+        const QPointF point(input->width() / 2.0, input->height() / 3.0);
+        const int notch = QWheelEvent::DefaultDeltasPerStep;
+        const double pixels = QGuiApplication::styleHints()->wheelScrollLines() * 20 * 0.8; // a notch's scroll
+        const std::pair<QPoint, Qt::KeyboardModifiers> wheels[] = {{{notch, 0}, Qt::NoModifier},
+                                                                   {{0, notch}, Qt::ShiftModifier}};
+        for (const auto& [angle, modifiers] : wheels) {
+            const double at = x_of(all[150]);
+            const double spacing = x_of(all[151]) - x_of(all[150]);
+            QWheelEvent wheel(point, input->mapToGlobal(point), {}, angle, Qt::NoButton, modifiers, Qt::NoScrollPhase,
+                              false);
+            QApplication::sendEvent(input, &wheel);
+            QTRY_VERIFY2(std::abs(std::abs(x_of(all[150]) - at) - pixels) < 1,
+                         QByteArray::number(x_of(all[150]) - at) + " for " + QByteArray::number(pixels));
+            QCOMPARE(x_of(all[151]) - x_of(all[150]), spacing); // no zoom
+        }
     }
 
     void a_zoom_out_waits_at_the_first_bar_read_and_slides_once_none_is_before() {
