@@ -68,6 +68,13 @@ def extract(out_path):
                        cwd=FINCEPT_QT, check=True, timeout=LUPDATE_TIMEOUT_S,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         scanned = ET.parse(scan).getroot()
+    scan_dir = os.path.dirname(scan)
+
+    def location(loc):
+        # lupdate writes file names relative to the .ts file's directory as given. Resolve the ".."
+        # lexically: realpath would follow /var -> /private/var first and climb one level short.
+        path = os.path.realpath(os.path.normpath(os.path.join(scan_dir, loc.get('filename'))))
+        return f"{os.path.relpath(path, os.path.realpath(FINCEPT_QT))}:{loc.get('line')}"
 
     existing = set()
     by_text = collections.defaultdict(set)
@@ -84,7 +91,12 @@ def extract(out_path):
     for context in scanned.findall('context'):
         name = context.findtext('name')
         for message in context.findall('message'):
-            if message.find('translation').get('type') != 'unfinished':
+            kind = message.find('translation').get('type')
+            if kind in ('vanished', 'obsolete'):
+                continue
+            # A finished entry under a bare context (the common pack has some) still needs its
+            # qualified twin, or the string stays English at run time.
+            if kind != 'unfinished' and name not in CONTEXT_FIXES:
                 continue
             source = message.findtext('source')
             if HANGUL.search(source):  # KRX screens write Korean in tr() already
@@ -94,8 +106,7 @@ def extract(out_path):
             if (name_fixed, source, comment) in existing:
                 continue
             entry = {'id': len(entries), 'context': name_fixed, 'source': source,
-                     'locations': [f"{os.path.relpath(loc.get('filename'), FINCEPT_QT)}:{loc.get('line')}"
-                                   for loc in message.findall('location')][:3]}
+                     'locations': [location(loc) for loc in message.findall('location')][:3]}
             if comment:
                 entry['comment'] = comment
             if message.get('numerus') == 'yes':

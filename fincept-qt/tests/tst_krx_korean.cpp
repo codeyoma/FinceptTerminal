@@ -64,14 +64,26 @@ class TstKrxKorean : public QObject {
     }
 
     void qualified_tr_calls_resolve_in_the_class_context() {
-        // lupdate files PythonSetupManager::tr() calls inside an anonymous namespace under a bare
-        // "PythonSetupManager"; at run time tr() uses the meta-object's qualified class name.
+        // lupdate files some Class::tr() calls under a bare class name (PythonSetupManager), and the
+        // common pack has ScreenerSubTab entries the same way; at run time tr() uses the
+        // meta-object's qualified class name.
         QTranslator korean;
         QVERIFY(korean.load(QStringLiteral(":/i18n/fincept_ko_KR.qm")));
-        const char* source = "Hint: the disk is full. Setup needs about 6 GB free on the drive that holds %1.";
-        const QString translated = korean.translate("fincept::python::PythonSetupManager", source);
-        QVERIFY2(QRegularExpression(QStringLiteral("[가-힣]")).match(translated).hasMatch(), source);
-        QCOMPARE(placeholders(translated), placeholders(QString::fromUtf8(source)));
+        const QRegularExpression hangul(QStringLiteral("[가-힣]"));
+        const struct {
+            const char* context;
+            const char* source;
+        } calls[] = {
+            {"fincept::python::PythonSetupManager",
+             "Hint: the disk is full. Setup needs about 6 GB free on the drive that holds %1."},
+            {"fincept::screens::fno::ScreenerSubTab", "IV Min"},
+            {"fincept::screens::fno::ScreenerSubTab", "%1 of %2 strikes match"},
+        };
+        for (const auto& call : calls) {
+            const QString translated = korean.translate(call.context, call.source);
+            QVERIFY2(hangul.match(translated).hasMatch(), call.source);
+            QCOMPARE(placeholders(translated), placeholders(QString::fromUtf8(call.source)));
+        }
     }
 
     void finance_terms_follow_korean_brokerage_usage() {

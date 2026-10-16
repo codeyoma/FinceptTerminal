@@ -58630,6 +58630,34 @@ Direct download: %1
             <source>No strikes match — widen the IV band, the ± strike range, or lower the OI floors. (%1 strikes in the chain.)</source>
             <translation>일치하는 행사가가 없습니다 — IV 범위나 ± 행사가 범위를 넓히거나 미결제약정 하한을 낮추세요. (옵션 체인의 행사가 %1개)</translation>
         </message>
+        <message>
+            <source>IV Min</source>
+            <translation>최소 IV</translation>
+        </message>
+        <message>
+            <source>IV Max</source>
+            <translation>최대 IV</translation>
+        </message>
+        <message>
+            <source>± Strikes</source>
+            <translation>± 행사가 수</translation>
+        </message>
+        <message>
+            <source>CE OI ≥</source>
+            <translation>CE OI ≥</translation>
+        </message>
+        <message>
+            <source>PE OI ≥</source>
+            <translation>PE OI ≥</translation>
+        </message>
+        <message>
+            <source>0 of 0 strikes match</source>
+            <translation>행사가 0개 중 0개 일치</translation>
+        </message>
+        <message>
+            <source>%1 of %2 strikes match</source>
+            <translation>행사가 %2개 중 %1개 일치</translation>
+        </message>
     </context>
     <context>
         <name>StakingService</name>

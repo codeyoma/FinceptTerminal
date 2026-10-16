@@ -129,21 +129,21 @@ secret이 없거나 만료되면 `custom-krx-pointer`가 실패한다. 그래도
 - **설정 경로:** Settings → General → Interface language → **한국어**. 한국어로 바꾼 뒤에는 설정 → 일반 → 인터페이스 언어다. 선택 즉시 적용되고, 같은 곳에서 English로 되돌릴 수 있다.
 - **저장:** 기존 `LanguageManager`가 SQLite settings의 `general.language`에 `ko_KR`를 저장한다. 다음 실행에도 유지된다. 저장된 언어가 없는 첫 실행은 기존 운영체제 언어 감지를 따르므로 한국어 환경에서는 한국어를 고른다. 이미 고른 다른 언어를 덮어쓰지 않는다.
 - **팩:** `fincept-qt/translations/fincept_ko_KR.ts`. 현재 내부 공통 팩의 382개 컨텍스트, 9,608개 항목을 기준으로 번역하고, 최신 설정·탐색의 누락 문구와 동적으로 읽는 설정 메뉴도 더했다. 이전 내부 한국어 팩의 맞는 표현을 참고했다. 제품명·티커·코드·수식·치환자는 유지한다. 원문에 새 문구가 생겨 팩에 아직 없거나 `tr()`로 연결되지 않은 문구는 기존 영어 fallback을 따른다.
-  - 2026-10-16: v4.5.1 원문의 `tr()` 문구 중 공통 팩에도 한국어 팩에도 없던 5,223개(337개 컨텍스트, 그중 90개는 새 컨텍스트)를 더했다. 팩은 475개 컨텍스트, 14,958개 항목이다. upstream은 v4.5.x에서 화면 문구 대부분을 `tr()`로 감쌌지만 공통 팩(2026-06-03 이후 그대로)은 갱신하지 않았다. 그래서 이 문구들은 다른 언어에서는 아직 영어다. 원문이 한국어인 KRX 화면의 `tr()` 275개는 더하지 않는다. 번역이 없으면 원문(한국어)이 그대로 나온다.
+  - 2026-10-16: v4.5.1 원문의 `tr()` 문구 중 공통 팩에도 한국어 팩에도 없던 5,223개(337개 컨텍스트, 그중 90개는 새 컨텍스트)를 더했다. 공통 팩이 namespace 없는 `ScreenerSubTab` 컨텍스트에 둔 7개도 실행 중의 컨텍스트로 옮겨 더했다(아래 `CONTEXT_FIXES`). 팩은 475개 컨텍스트, 14,965개 항목이다. upstream은 v4.5.x에서 화면 문구 대부분을 `tr()`로 감쌌지만 공통 팩(2026-06-03 이후 그대로)은 갱신하지 않았다. 그래서 이 문구들은 다른 언어에서는 아직 영어다. 원문이 한국어인 KRX 화면의 `tr()` 275개는 더하지 않는다. 번역이 없으면 원문(한국어)이 그대로 나온다.
   - 원문에서 사라진 문구(약 900개)도 팩에 남긴다. 공통 팩에는 아직 있어서, 지우면 아래 검증이 실패한다. 그래서 한국어 팩은 `update_translations`(`-no-obsolete`)로 다시 쓰지 않고, 아래 "새 문구 추가"로 더한다.
 - **새 문구 추가:** upstream 릴리스가 새 `tr()` 문구를 들여오면 `custom/tools/korean-pack/korean_pack.py`로 더한다(Qt `lupdate` 필요, 없으면 `QT_BIN=<Qt>/bin`).
   1. `python3 custom/tools/korean-pack/korean_pack.py extract <new.json>`: 원문을 스캔해 한국어 팩에 없는 문구를 id·컨텍스트·원문·쓰인 위치와 함께 JSON으로 낸다. 같은 영어의 기존 번역이 있으면 `existing_translations_elsewhere`로 붙인다.
   2. 위치를 보며 [`korean-glossary.md`](korean-glossary.md) 기준으로 번역해 `{"id": "번역"}` JSON을 만든다(복수형은 형태 하나의 목록).
   3. `korean_pack.py check <new.json> <done.json>`으로 치환자·줄 수·HTML 태그·앞뒤 공백·단축키 `&`를 검사하고, `korean_pack.py merge <new.json> <done.json>`으로 팩에 더한다. 기존 항목은 바꾸지 않고, 새 항목은 컨텍스트 끝에, 새 컨텍스트는 파일 끝에 붙인다.
   - `extract`는 `lupdate`가 끝나지 않는 `src/services/news/RssFeedProbeService.cpp`(Qt 6.8의 C++ 파서 문제, `tr()` 없음)를 빼고 스캔한다. 같은 이유로 `update_translations` target은 지금 끝나지 않는다.
-  - 익명 namespace 안의 `PythonSetupManager::tr()` 같은 호출은 `lupdate`가 namespace 없는 컨텍스트(`PythonSetupManager`)로 적는다. 실행 중의 `tr()`은 클래스의 전체 이름(`fincept::python::PythonSetupManager`)을 쓰므로, `extract`가 이런 컨텍스트 3개를 전체 이름으로 바꾼다(`CONTEXT_FIXES`). `lupdate`가 `Qualifying with unknown namespace/class`를 경고하는 새 파일이 생기면 여기에 더한다.
+  - 익명 namespace 안의 `PythonSetupManager::tr()` 같은 호출은 `lupdate`가 namespace 없는 컨텍스트(`PythonSetupManager`)로 적는다. 실행 중의 `tr()`은 클래스의 전체 이름(`fincept::python::PythonSetupManager`)을 쓰므로, `extract`가 이런 컨텍스트 3개를 전체 이름으로 바꾼다(`CONTEXT_FIXES`). 공통 팩도 같은 이유로 `ScreenerSubTab` 문구 7개를 namespace 없이 담고 있어 실행 중에는 쓰이지 않는다. 그래서 `extract`는 이 3개 컨텍스트에서 이미 번역된 항목도 전체 이름의 항목이 없으면 낸다(기존 번역은 `existing_translations_elsewhere`에 있다). `lupdate`가 `Qualifying with unknown namespace/class`를 경고하는 새 파일이 생기면 여기에 더한다.
 - **용어·문체:** 국내 증권사 HTS/MTS와 KRX·DART 표기를 따른다(PER·PBR, 평가손익, 평균단가, 매입금액, 평가금액, 계좌/계정 구별, 증권사, 모의투자/실전투자, 가상자산, 샤프지수, 최대낙폭(MDD) 등). 문장은 합니다체, 안내는 `~하세요`. 새 문구를 번역하거나 기존 번역을 고칠 때는 [`korean-glossary.md`](korean-glossary.md)를 따른다.
   > **바뀜** (2026-10-13, codeyoma/FinceptTerminal#31): Codex 초벌 번역의 용어·문체 → 업계 표기 기준으로 약 1,200개 항목 정리. 이유: 일반 번역어(P/E 비율, 미실현 손익, 취득 원가, 브로커, 모의 거래, 암호화폐 등)와 번역투가 국내 금융 화면과 달랐다.
   > **바뀜** (2026-10-13, codeyoma/FinceptTerminal#31): 환산하지 않은 시세 표시 `(원 단위)`·`(원 통화)` → `(거래 통화)`, 금액은 `원래 통화`. 이유: 원화(KRW) 표시 통화가 생긴 뒤 `원`이 원화로 읽혔다.
   > **바뀜** (2026-10-16, codeyoma/FinceptTerminal#67): 메뉴와 도킹 창 제목 `Trade Viz`의 `거래 시각화` → `무역 시각화`. 이유: 이 화면은 UN Comtrade의 국가 간 무역 흐름을 보여 준다. `거래`는 매매로 읽혔고, 새로 번역한 화면 안의 문구도 `무역`을 쓴다.
 - **빌드:** 다른 언어와 동일하게 `lrelease`가 `.qm`을 만들고 `:/i18n/fincept_ko_KR.qm`에 포함한다. 외부 번역 API, 다운로드, 추가 설정은 필요 없다. 기존 팩은 자동으로 다시 쓰지 않는다.
 - **갱신:** 설정 메뉴는 문자열을 저장했다가 동적으로 `tr()`에 넘긴다. 이 메뉴와 범위 제목 18개에는 실제 런타임 문맥의 `QT_TRANSLATE_NOOP` 표시를 넣어, 수동 `update_translations`의 `-no-obsolete` 갱신에서도 한국어 번역이 남게 한다. 새 동적 메뉴를 더할 때도 같은 표시가 필요하다.
-- **검증:** `FINCEPT_BUILD_TESTS=ON`으로 설정한 빌드에서 `cmake --build <build> --target tst_krx_korean` 뒤 `ctest --test-dir <build> -R krx_korean --output-on-failure`. 앱과 같은 경로의 실제 컴파일된 리소스, 설정 메뉴 문맥, 공통 팩 전체 키·Qt 치환자, 한국어 팩 자신의 전체 키·Qt 치환자(공통 팩에 없는 새 문구), 클래스 전체 이름 컨텍스트(`fincept::python::PythonSetupManager`), 복수형, 영어 fallback, 용어 기준의 대표 금융 용어(PER, 평가손익, 평균단가, 계좌, 모의투자 등)를 검사한다.
+- **검증:** `FINCEPT_BUILD_TESTS=ON`으로 설정한 빌드에서 `cmake --build <build> --target tst_krx_korean` 뒤 `ctest --test-dir <build> -R krx_korean --output-on-failure`. 앱과 같은 경로의 실제 컴파일된 리소스, 설정 메뉴 문맥, 공통 팩 전체 키·Qt 치환자, 한국어 팩 자신의 전체 키·Qt 치환자(공통 팩에 없는 새 문구), 클래스 전체 이름 컨텍스트(`fincept::python::PythonSetupManager`, `fincept::screens::fno::ScreenerSubTab`), 복수형, 영어 fallback, 용어 기준의 대표 금융 용어(PER, 평가손익, 평균단가, 계좌, 모의투자 등)를 검사한다.
 
 ## 원화 표시 통화 (codeyoma/krx-quant#138, #142)
 
