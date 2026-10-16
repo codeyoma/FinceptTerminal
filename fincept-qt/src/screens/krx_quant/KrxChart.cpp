@@ -813,7 +813,7 @@ void KrxChart::restyle() {
         {"tip_border", css(QColor(ui::colors::BORDER_MED()))},
         {"tip_text", css(QColor(ui::colors::TEXT_PRIMARY()))},
         {"link", css(QColor(ui::colors::AMBER()))},
-        {"band", css(QColor(ui::colors::TEXT_DIM()), 0.22)}, // the day separators (krx-quant #221)
+        {"band", css(QColor(ui::colors::TEXT_PRIMARY()), 0.35)}, // the day separators (krx-quant #221): light grey
         {"up", css(QColor(ui::colors::POSITIVE()))},
         {"down", css(QColor(ui::colors::NEGATIVE()))},
         {"font", families.join(", ")},
