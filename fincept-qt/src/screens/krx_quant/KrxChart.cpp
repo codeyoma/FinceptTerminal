@@ -192,6 +192,10 @@ void KrxChartBridge::bar(double time) {
     emit bar_clicked(time);
 }
 
+void KrxChartBridge::opened(double time) {
+    emit bar_opened(time);
+}
+
 void KrxChartBridge::moved(double from, double to) {
     emit view_moved(from, to);
 }
@@ -263,6 +267,11 @@ KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
     connect(bridge_, &KrxChartBridge::bar_clicked, this, [this](double time) {
         if (minutes_ == 1 && !timeless_)
             emit close_clicked(krx_quant::bar_close_of(static_cast<qint64>(time)));
+    });
+    // Its window (krx-quant #255), by the same rule: a 1-minute bar's alone.
+    connect(bridge_, &KrxChartBridge::bar_opened, this, [this](double time) {
+        if (minutes_ == 1 && !timeless_)
+            emit bar_window_requested(krx_quant::bar_close_of(static_cast<qint64>(time)));
     });
     connect(bridge_, &KrxChartBridge::view_moved, this, &KrxChart::view_moved);
     connect(bridge_, &KrxChartBridge::range_moved, this, [this](double from, double to) {

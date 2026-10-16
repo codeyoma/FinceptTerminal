@@ -145,6 +145,21 @@ fincept_add_test(tst_krx_chart_slots
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
 
+# src/services/krx_quant/BarView.{h,cpp} — what a bar's window shows (codeyoma/krx-quant#255): a 1-minute bar
+# double-clicked, its prices and special situations, every prediction of its bar close, the answer in detail,
+# the mini chart of its four minutes and when the window stops reading. Qt Core only.
+fincept_add_test(tst_krx_bar_view
+    tst_krx_bar_view.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
+
 # src/services/krx_quant/KrxLive.{h,cpp} — what the KRX screen reads and when, against a stand-in
 # engine on this computer: before the open a minute view shows the last trading day's bars however
 # the screen got there. It needs Qt Network: what it tests is the reads the screen sends. The
@@ -158,6 +173,9 @@ fincept_add_test(tst_krx_live
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxStream.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxStream.h"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"

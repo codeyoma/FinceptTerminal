@@ -1,5 +1,6 @@
 #pragma once
 
+#include "services/krx_quant/BarView.h"
 #include "services/krx_quant/Board.h"
 #include "services/krx_quant/ChartModel.h"
 #include "services/krx_quant/KindView.h"
@@ -9,6 +10,8 @@
 
 #include <QDateTime>
 #include <QObject>
+#include <QPair>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QTimer>
@@ -49,6 +52,12 @@ class KrxLive : public QObject {
     /// The algorithms whose stats are read with the leaderboard, on its query (a detail
     /// window each); a new one's at once.
     void set_details(const QStringList& algorithms);
+    /// The bars whose windows are open (krx-quant #255), each a symbol and a bar close: a new one's
+    /// is read at once (KrxQuantService::read_bar), then read again until krx_quant::bar_settled —
+    /// as the stream brings its bar close's predictions, outcomes and answers or a later bar close
+    /// of its symbol (another of its minutes is over), and without the stream each tick; with it,
+    /// every minute too. A window closed is no longer read.
+    void set_bars(const QList<QPair<QString, QDateTime>>& bars);
     void set_alerts(bool on, const krx_quant::SignalRule& rule);
     /// The models selected for the chart (krx-quant #159): their consensus is drawn in place
     /// of the final one. While some are selected and the view is of 1-minute bars, the chart
@@ -180,6 +189,9 @@ class KrxLive : public QObject {
     /// The bars before the chart's could not be read; those shown stay (krx-quant #108).
     void older_failed(const QString& reason);
     void signal_raised(const fincept::krx_quant::Signal& signal);
+    /// What a bar's window shows was read (krx-quant #255), or could not be.
+    void bar_changed(const fincept::krx_quant::BarRead& read);
+    void bar_failed(const QString& symbol, const QDateTime& bar_close, const QString& reason);
 
   private:
     void tick();
@@ -227,6 +239,16 @@ class KrxLive : public QObject {
     /// shown: the latest page first (again with ``latest``, on each chart read), then back to
     /// the first bar shown, a page at a time.
     void read_kind_history(bool latest = false);
+    /// The kinds besides the direction a bar's window reads (krx-quant #255): those of
+    /// krx_quant::bar_kinds the engine makes.
+    QStringList window_kinds() const;
+    /// Read the bar window ``key``'s bar (bars_watched_).
+    void read_bar(const QString& key);
+    /// Read each bar window not settled yet.
+    void read_bars_due();
+    /// The windows whose bar ``event`` concerns, read again a moment later: its bar close's
+    /// predictions, outcomes and answers, or a later bar close of its symbol.
+    void bars_touched(const krx_quant::Event& event);
 
     KrxQuantService* service_ = nullptr;
     KrxStream* stream_ = nullptr;
@@ -308,6 +330,15 @@ class KrxLive : public QObject {
     int ticks_ = 0;
     QTimer timer_;
     QTimer leaderboard_soon_; ///< a moment after outcomes come in
+    /// A bar window (krx-quant #255): its bar, and whether nothing more is to come for it.
+    struct BarWatch {
+        QString symbol;
+        QDateTime bar_close;
+        bool settled = false;
+    };
+    QMap<QString, BarWatch> bars_watched_; ///< by krx_quant::bar_key
+    QSet<QString> bars_due_;               ///< those the stream touched, read when bars_soon_ fires
+    QTimer bars_soon_;                     ///< a moment after the stream touched one: a bar close brings many
 };
 
 } // namespace fincept::services

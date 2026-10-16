@@ -90,6 +90,12 @@ struct BarHover {
     std::optional<ChartPoint> lower_reached;
 };
 
+/// What happened after a bar close: "정답 상승 (09:32:30 닿음)", the touch target and when it
+/// was reached (krx-quant #170); "실제 상승 +500원" from an engine before it; or why it is not
+/// known yet ("채점 전", "채점 불가 (why)"); " · 특수 상황" when one touched its four minutes.
+/// The hover box's first line and the bar window's (krx-quant #255).
+QString truth_text(const Truth& truth);
+
 /// The hover box of the bar that closed at ``bar_close``, from its predictions: its bar and
 /// target times and what happened; the selected models' consensus and each selected model
 /// (``standings``: their statuses now, from the leaderboard); the final consensus last.
@@ -183,6 +189,10 @@ struct CloseRow {
     QString direction;    ///< its likeliest class (a tie goes flat), or why it made no forecast
     QString in_consensus; ///< "포함", "제외" or "알 수 없음" for a model; empty for the others
     QString result;       ///< "✓ 맞음", "✗ 틀림", "채점 전" or "채점 불가" on the bar close's truth
+    /// Its expected move in ticks and its model version (the bar window's, krx-quant #255); none and
+    /// empty for the selected models' consensus, which has neither.
+    std::optional<double> expected_ticks{};
+    QString model_version{};
 };
 
 /// A bar close's judgements (``GET …/predictions?bar_close=``) as the table shows them: the
