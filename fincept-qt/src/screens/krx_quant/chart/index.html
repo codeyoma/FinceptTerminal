@@ -1711,11 +1711,11 @@
   }
 
   // The hovered bar's four-minute window (krx-quant #167): the span from its bar close to four
-  // minutes on, lightly filled; the touch targets across it, once its label is in (another kind's
-  // two levels the same way: the range's, #182; the barrier's U and L, #185, from its bar close on
-  // when the engine gives its mid-point with the prediction, #210); where each was first reached,
-  // the upper in the rising colour, the lower in the falling one. A window not over yet runs
-  // dotted into the free space on the right, its levels too.
+  // minutes on, lightly filled and edged in the accent; the touch targets across it, once its
+  // label is in (another kind's two levels the same way: the range's, #182; the barrier's U and L,
+  // #185, from its bar close on when the engine gives its mid-point with the prediction, #210);
+  // where each was first reached, the upper in the rising colour, the lower in the falling one. A
+  // window not over yet runs dotted into the free space on the right, its levels too.
   function xOf(time) {
     // A moment's x on the logical bars: within its minute's bar; in minutes without a bar
     // (the chart skips minutes without trades), at the edge where the next bar starts; past
@@ -1758,12 +1758,11 @@
     g.fillStyle = colors.link;
     g.fillRect(x1, 0, x2 - x1, foot);
     g.globalAlpha = 1;
-    if (open) { // its end still to come: the window's edges dotted, targets or not
-      g.strokeStyle = colors.link;
-      g.lineWidth = 1;
-      g.setLineDash([4, 3]);
-      g.strokeRect(x1, 0, x2 - x1, foot);
-    }
+    // The window's edges, targets or not: dotted while its end is still to come, solid once over.
+    g.strokeStyle = colors.link;
+    g.lineWidth = 1;
+    g.setLineDash(open ? [4, 3] : []);
+    g.strokeRect(x1, 0, x2 - x1, foot);
     g.lineWidth = 1.5;
     g.setLineDash(open ? [4, 3] : []);
     for (const [price, color] of [[box.upper, colors.up], [box.lower, colors.down]]) {
