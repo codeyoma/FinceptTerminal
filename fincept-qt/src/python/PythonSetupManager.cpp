@@ -560,6 +560,7 @@ struct PythonSetupManager::StepOptions {
     bool capture_stdout = false; // keep raw stdout (uv --version, uv pip freeze)
     bool background = false;     // below-normal priority (never on the launch-critical path)
     bool local8bit = false;      // non-uv tools print in the local code page
+    QString working_dir;         // empty = inherit the app's
 };
 
 struct PythonSetupManager::StepResult {
@@ -1076,6 +1077,8 @@ QProcess* PythonSetupManager::start_step(const QString& program, const QStringLi
     proc->setProcessEnvironment(opts.env);
     proc->setProgram(program);
     proc->setArguments(args);
+    if (!opts.working_dir.isEmpty())
+        proc->setWorkingDirectory(opts.working_dir);
 #ifdef Q_OS_WIN
     const bool low_priority = opts.background;
     proc->setCreateProcessArgumentsModifier([low_priority](QProcess::CreateProcessArguments* cpa) {
@@ -1196,7 +1199,9 @@ QProcess* PythonSetupManager::start_step(const QString& program, const QStringLi
     }
 
     live_procs_.append(QPointer<QProcess>(proc));
-    LOG_INFO(kPsmTag, QString("Running: %1 %2").arg(program, args.join(QLatin1Char(' '))));
+    LOG_INFO(kPsmTag, QString("Running: %1 %2%3")
+                          .arg(program, args.join(QLatin1Char(' ')),
+                               opts.working_dir.isEmpty() ? QString() : QString(" (in %1)").arg(opts.working_dir)));
     proc->start();
     return proc;
 }
@@ -2142,17 +2147,17 @@ void PythonSetupManager::lane_install_core(int lane) {
     StepOptions opts;
     opts.env = uv_environment();
     opts.timeout_ms = kPsmInstallTimeoutMs;
+    // uv splits every -c value on spaces (it is the UV_CONSTRAINT list), so an
+    // absolute lock path under "Application Support" became two missing files
+    // and this step failed on every macOS sync. Run from the venv folder and
+    // pass the lock by its bare name instead.
+    const QFileInfo lock(lock_path(L.venv));
+    opts.working_dir = lock.absolutePath();
     // No --compile-bytecode here: this is the launch-critical path. The full pass
     // compiles the whole site-packages (core included) in the background.
-    const QStringList args = {QStringLiteral("pip"),
-                              QStringLiteral("install"),
-                              QStringLiteral("--python"),
-                              python_path(L.venv),
-                              QStringLiteral("-r"),
-                              find_requirements_file(L.core_file),
-                              QStringLiteral("-c"),
-                              lock_path(L.venv),
-                              QStringLiteral("-v")};
+    const QStringList args = {QStringLiteral("pip"), QStringLiteral("install"), QStringLiteral("--python"),
+                              python_path(L.venv),   QStringLiteral("-r"),      find_requirements_file(L.core_file),
+                              QStringLiteral("-c"),  lock.fileName(),           QStringLiteral("-v")};
     start_step(
         uv_path(), args, opts,
         [this, gen, lane](const QString& line, bool is_stderr) {
