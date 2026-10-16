@@ -95,6 +95,14 @@ class TstKrxChartToolbar : public QObject {
 
     void cleanupTestCase() { delete window_; }
 
+    void init() {
+        // Another app may have come to the front meanwhile (ctest runs the suites one after another),
+        // and a Mac closes an app's open menu when it leaves the front.
+        window_->activateWindow();
+        if (!QTest::qWaitForWindowActive(window_))
+            QSKIP("no window becomes active here");
+    }
+
     void each_item_shows_its_letter() {
         QStringList texts;
         for (const QAction* action : menu()->actions())
