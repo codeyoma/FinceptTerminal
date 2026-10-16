@@ -286,13 +286,18 @@ class TstKrxChartPage : public QObject {
         QVERIFY2(std::abs(x_of(all[260]) - at) <= 3, QByteArray::number(x_of(all[260]) - at));
         QVERIFY(js("window.krxChart.gap()").toDouble() < 0);
         // Out from the latest bars at the right: the view slides, keeping its gap after the latest.
-        chart_->fit();
-        expect_fitted(day);
-        QCOMPARE(js("window.krxChart.gap()").toDouble(), kRightOffset);
+        // The Ichimoku cloud's leading spans reach past the latest bar: the gap is still the bar's.
+        ChartLook cloud;
+        cloud.studies.turn(Study::Ichimoku, true);
+        draw(day, cloud);
+        chart_->fit(); // the latest 60 (the view's times run on into the cloud's)
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.gap()").toDouble(), kRightOffset, 10000);
+        QTest::qWait(400);
         wheel_at(at + 2, 100, 4);
         QVERIFY(spacing() < before * 0.8);
         QVERIFY(std::abs(js("window.krxChart.gap()").toDouble() - kRightOffset) < 0.01);
         QVERIFY(x_of(all[260]) > at + 10);
+        draw(day);
     }
 
     void a_zoom_out_waits_at_the_first_bar_read_and_slides_once_none_is_before() {
