@@ -10,6 +10,8 @@
 // the latest slots, an empty one's hover box says so with the special situation over it, and a bar
 // after a gap fills it at once.
 //
+// Shift and an upright wheel, as Windows sends them (krx-quant #242), move the view sideways.
+//
 // The page keeps no key the screen's shortcuts want: Cmd+D (Ctrl+D) with the keyboard on the chart
 // opens the toolbar's drawing menu (krx-quant #241).
 //
@@ -209,6 +211,26 @@ class TstKrxChartPage : public QObject {
         QCOMPARE(range_, moved);
         chart_->fit(); // the button: the latest bars again
         expect_fitted(kEarlier + kBefore + kToday);
+    }
+
+    void shift_and_the_wheel_move_the_view_sideways() {
+        // As Windows sends it (krx-quant #242): an upright wheel with Shift held. The view moves to
+        // earlier bars and the bars keep their width: it does not zoom.
+        empty();
+        const QList<Bar> day = minutes("2026-10-12T09:00:00+09:00", 200);
+        const QList<qint64> all = times(day);
+        draw(day);
+        expect_fitted(day);
+        const QString spacing =
+            QStringLiteral("window.krxChart.x(%2) - window.krxChart.x(%1)").arg(all[150]).arg(all[151]);
+        const double width = js(spacing).toDouble();
+        QVERIFY(width > 0);
+        js("document.elementFromPoint(innerWidth / 2, innerHeight / 3).dispatchEvent(new WheelEvent('wheel', "
+           "{deltaY: -400, shiftKey: true, bubbles: true, cancelable: true, clientX: innerWidth / 2, "
+           "clientY: innerHeight / 3}))");
+        QTRY_VERIFY2_WITH_TIMEOUT(range_->second < all.last(), in_view(day).constData(), 10000);
+        QTest::qWait(400); // the wheel's own move settled
+        QCOMPARE(js(spacing).toDouble(), width);
     }
 
     void bricks_fit_the_latest_bricks_once_they_start_and_bars_come_back() {
