@@ -268,6 +268,24 @@ class TstKrxLive : public QObject {
         QVERIFY(live.supply_served());
     }
 
+    void a_week_view_reads_the_supply_data_from_two_weeks_before_its_first_week() {
+        // Its flows add up over each week only when the days read reach before it (krx-quant #226).
+        StandIn engine;
+        engine.now = "2026-10-16T09:20:00+09:00";
+        engine.today = bars_json("2026-10-16T09:00:00+09:00", 20);
+        engine.supply = QJsonArray{};
+        services::KrxLive live;
+        live.set_view(kWeekView);
+        live.apply_base_url(engine.url());
+        QTRY_VERIFY_WITH_TIMEOUT(engine.supply_reads() > 0, 10000);
+        const QList<Bar> weeks = live.view_candles(kWeekView);
+        QVERIFY(!weeks.isEmpty());
+        const QDate first = weeks.first().start.toTimeZone(QTimeZone::fromSecondsAheadOfUtc(9 * 3600)).date();
+        QVERIFY2(
+            engine.asked_for("/v1/symbols/" + kSymbol + "/supply?from=" + first.addDays(-14).toString(Qt::ISODate)),
+            qPrintable(engine.asked.join(' ')));
+    }
+
     void the_days_wanted_now_are_read_at_once_when_a_read_of_others_fails() {
         // The view changes while a supply read is under way (krx-quant #226): the read the new days
         // need is skipped, as one is under way. That one failing, the new days are read at once, not

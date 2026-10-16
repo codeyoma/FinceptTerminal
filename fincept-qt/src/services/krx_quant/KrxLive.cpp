@@ -21,6 +21,11 @@ constexpr int kLeaderboardDelayMs = 3000;
 constexpr int kSpecialDays = 60;
 /// The most days of daily supply data the engine gives in one answer (krx-quant #226: more is 400).
 constexpr int kSupplyDays = 4000;
+/// A week, month or year view reads the daily supply data from this many days before its first bar
+/// (krx-quant #226): its flows add up over each period only when the days read reach before it
+/// (ChartStudies' supply_values), and the first period starts on a weekend or holiday as often as
+/// not. Longer than any break in trading (Chuseok 2017: 11 days without a trading day).
+constexpr int kSupplyLead = 14;
 /// A bar window is read again this long after the stream touched it (krx-quant #255): a bar close
 /// brings a prediction of each predictor within seconds.
 constexpr int kBarDelayMs = 1000;
@@ -740,7 +745,9 @@ std::optional<std::pair<QDate, QDate>> KrxLive::supply_days() const {
     if (!first.isValid())
         return std::nullopt;
     const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
-    const QDate from = first.toTimeZone(kst).date();
+    QDate from = first.toTimeZone(kst).date();
+    if (view_minutes_ > krx_quant::kDayView) // the days before the first period, for its sums
+        from = from.addDays(-kSupplyLead);
     const QDate to = std::max(last.toTimeZone(kst).date(), engine_day());
     // The engine answers at most kSupplyDays at a time: bars held further back have no values.
     return std::pair(std::max(from, to.addDays(1 - kSupplyDays)), to);

@@ -405,9 +405,14 @@ QList<StudySpec> make_specs() {
 
     // The daily supply data (krx-quant #226): the engine's values, one a day, drawn as they are.
     // Flows are bars from 0, balances a stepping line; counts are shares, shortened on the axis.
-    const QString placed = QStringLiteral(
-        " 분 보기에서는 그날의 봉마다 같은 값이라 날마다 계단이 되고, 일 보기는 봉마다 그날 값, 주·월·년 보기는 그 "
-        "기간의 마지막 날 값이다. 엔진이 장이 끝난 뒤(20:30부터, 토스 값은 다음 날 아침) 받으므로 오늘 값은 없다.");
+    const QString days =
+        QStringLiteral(" 분 보기에서는 그날의 봉마다 같은 값이라 날마다 계단이 되고, 일 보기는 봉마다 그날 값이다.");
+    const QString today =
+        QStringLiteral(" 엔진이 장이 끝난 뒤(20:30부터, 토스 값은 다음 날 아침) 받으므로 오늘 값은 없다.");
+    // Flows add up over a week, month or year; levels are the period's last day's (the user, 2026-10-17).
+    const QString placed_sum =
+        days + QStringLiteral(" 주·월·년 보기는 그 기간에 값이 있는 날의 합이다(지금 기간은 지금까지의 합).") + today;
+    const QString placed = days + QStringLiteral(" 주·월·년 보기는 그 기간의 마지막 날 값이다.") + today;
     const auto supply = [&lower](Study study, const char* key, const QString& title, const QString& about,
                                  const QString& help, SupplyField field, bool bars, QList<double> guides = {},
                                  int decimals = 0) {
@@ -421,19 +426,19 @@ QList<StudySpec> make_specs() {
     auto* short_volume =
         supply(Study::ShortVolume, "short_volume", QStringLiteral("공매도 거래량"),
                QStringLiteral("그날 공매도로 체결된 주식 수(KRX)."),
-               QStringLiteral("그날 KRX에서 공매도로 체결된 주식 수(KIS 공매도 일별추이).") + kis_first + placed,
+               QStringLiteral("그날 KRX에서 공매도로 체결된 주식 수(KIS 공매도 일별추이).") + kis_first + placed_sum,
                SupplyField::ShortVolume, true);
     short_volume->lines = {{QStringLiteral("공매도"), "#F472B6", 0}};
     const QString net = QStringLiteral(" 그날 산 주식 수 − 판 주식 수(KRX+NXT 통합). 음수는 순매도다.");
     auto* individual =
         supply(Study::IndividualNet, "individual_net", QStringLiteral("개인 순매수량"),
                QStringLiteral("개인이 그날 순매수한 주식 수(KRX+NXT)."),
-               QStringLiteral("개인 투자자가") + net + kis_first + placed, SupplyField::IndividualNet, true, {0});
+               QStringLiteral("개인 투자자가") + net + kis_first + placed_sum, SupplyField::IndividualNet, true, {0});
     individual->lines = {{QStringLiteral("순매수"), "#22C55E", 0}, {QStringLiteral("순매도"), "#EF4444", 0}};
     auto* institution =
         supply(Study::InstitutionNet, "institution_net", QStringLiteral("기관 순매수량"),
                QStringLiteral("기관이 그날 순매수한 주식 수(KRX+NXT)."),
-               QStringLiteral("기관계(금융투자·보험·투신·사모·은행·기타금융·연기금)가") + net + kis_first + placed,
+               QStringLiteral("기관계(금융투자·보험·투신·사모·은행·기타금융·연기금)가") + net + kis_first + placed_sum,
                SupplyField::InstitutionNet, true, {0});
     institution->lines = {{QStringLiteral("순매수"), "#22C55E", 0}, {QStringLiteral("순매도"), "#EF4444", 0}};
     auto* foreign = supply(Study::ForeignNet, "foreign_net", QStringLiteral("외국인 순매수량"),
@@ -441,7 +446,7 @@ QList<StudySpec> make_specs() {
                            QStringLiteral("외국인(등록외국인과 기타외국인)이") + net +
                                QStringLiteral(" 엔진이 KIS에서 받는다. 토스증권의 외국인은 등록외국인만이라 "
                                               "채우는 데 쓰지 않는다.") +
-                               placed,
+                               placed_sum,
                            SupplyField::ForeignNet, true, {0});
     foreign->lines = {{QStringLiteral("순매수"), "#22C55E", 0}, {QStringLiteral("순매도"), "#EF4444", 0}};
     const QString toss = QStringLiteral(" 엔진이 토스증권에서 받는다(KIS에는 지난날의 값이 없다).");
@@ -1500,6 +1505,11 @@ Values relative_momentum(const QList<double>& values, int period, int momentum) 
     return out;
 }
 
+bool supply_flow(SupplyField field) {
+    return field == SupplyField::ShortVolume || field == SupplyField::IndividualNet ||
+           field == SupplyField::InstitutionNet || field == SupplyField::ForeignNet;
+}
+
 Values supply_values(const QList<ChartBar>& bars, const QList<SupplyDay>& days, SupplyField field, int view) {
     Values out(bars.size());
     // The days with a value of the field, oldest first.
@@ -1510,7 +1520,12 @@ Values supply_values(const QList<ChartBar>& bars, const QList<SupplyDay>& days, 
     if (known.isEmpty())
         return out;
     std::stable_sort(known.begin(), known.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
-    const bool periods = view > kDayView; // a week, month or year view
+    const bool periods = view > kDayView;           // a week, month or year view
+    const bool sum = periods && supply_flow(field); // a flow over a period: its days added up
+    const auto first_from = [&known](const QDate& date) {
+        return std::lower_bound(known.begin(), known.end(), date,
+                                [](const auto& day, const QDate& d) { return day.first < d; });
+    };
     for (qsizetype i = 0; i < bars.size(); ++i) {
         const QDate start = date_of(bars[i].time);
         // The days the bar holds: its own (a minute view's bar, a day), else its period's.
@@ -1518,9 +1533,21 @@ Values supply_values(const QList<ChartBar>& bars, const QList<SupplyDay>& days, 
                           : view == kWeekView  ? start.addDays(7)
                           : view == kMonthView ? QDate(start.year(), start.month(), 1).addMonths(1)
                                                : QDate(start.year() + 1, 1, 1);
+        const auto from = first_from(start);
+        const auto after = first_from(end);
+        if (sum) {
+            // The period's days with a value, added up; none without one (not 0). Only when the days
+            // read reach before the period (a day with a value before its first): else the read or
+            // the engine's history may begin inside it, and the sum would be of a part of it.
+            if (from == known.begin() || from == after)
+                continue;
+            double total = 0;
+            for (auto it = from; it != after; ++it)
+                total += it->second;
+            out[i] = total;
+            continue;
+        }
         // The last day before ``end``: the bar's own, or its period's last with a value.
-        const auto after = std::lower_bound(known.begin(), known.end(), end,
-                                            [](const auto& day, const QDate& d) { return day.first < d; });
         if (after == known.begin())
             continue;
         const auto& [day, value] = *std::prev(after);

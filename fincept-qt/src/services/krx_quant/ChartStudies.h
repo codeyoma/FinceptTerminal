@@ -440,11 +440,16 @@ Values relative_strength(const QList<double>& values, int period);
 /// The relative momentum index: the RSI of the changes over ``momentum`` bars.
 Values relative_momentum(const QList<double>& values, int period, int momentum);
 
+/// Whether ``field`` is a flow (the short-sale volume, the net buys), added up over a week, month or
+/// year; else a level (the holdings, the ratio, the balances), the period's last day's.
+bool supply_flow(SupplyField field);
 /// A supply data's values over ``bars`` (krx-quant #226), from ``days`` (the engine's, oldest
 /// first): in a minute view each bar takes its KST date's value, so a day's bars step together; in
-/// the day view each bar its day's; in a week, month or year view each bar the value of the last
-/// day of its period that has one (the period so far for the one going on). None where the engine
-/// has none (today's comes after the day is over).
+/// the day view each bar its day's. In a week, month or year view (the period so far for the one
+/// going on) a flow is the sum of its period's days with a value, and only when ``days`` reach
+/// before the period (a day with a value before its first; else the read or the engine's history
+/// may begin inside it); a level the value of the last day of its period that has one. None where
+/// the engine has none (today's comes after the day is over), never 0 for a period without a value.
 Values supply_values(const QList<ChartBar>& bars, const QList<SupplyDay>& days, SupplyField field, int view);
 
 /// The VWAP of each day: the sum of ``source`` × volume over the sum of volumes, from the first

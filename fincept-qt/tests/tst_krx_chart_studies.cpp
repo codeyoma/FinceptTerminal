@@ -1137,6 +1137,42 @@ class TstKrxChartStudies : public QObject {
         QVERIFY(same(supply_values(minutes, {}, SupplyField::ShortVolume, 1), {n, n, n, n, n, n}));
     }
 
+    void a_flow_adds_up_over_a_period_and_a_level_takes_its_last_day() {
+        // The user's rule (2026-10-17): in a week, month or year view the flows (short-sale volume, net
+        // buys) are the sum of the period's days with a value, the levels its last day's value.
+        QList<SupplyDay> days{supply_day("2026-09-25", 10),       supply_day("2026-09-29", 20),
+                              supply_day("2026-09-30", 30, true), supply_day("2026-10-05", 40),
+                              supply_day("2026-10-07", 50),       supply_day("2026-10-08", 60),
+                              supply_day("2026-10-12", 70)};
+        const QList<ChartBar> weeks =
+            bars_at({"2026-09-21T00:00:00+09:00", "2026-09-28T00:00:00+09:00", "2026-10-05T00:00:00+09:00",
+                     "2026-10-12T00:00:00+09:00", "2026-10-19T00:00:00+09:00"});
+        QVERIFY(supply_flow(SupplyField::ShortVolume) && supply_flow(SupplyField::ForeignNet));
+        QVERIFY(!supply_flow(SupplyField::ForeignHolding) && !supply_flow(SupplyField::CreditBalance));
+        // The first week read starts inside it (no day before it with a value: the read or the engine's
+        // history may begin there): empty, not a sum of part of it. The next weeks are whole; the one
+        // going on is the sum so far; a week without a value is empty, not 0.
+        QVERIFY(same(supply_values(weeks, days, SupplyField::ShortVolume, kWeekView), {n, 50, 150, 70, n}));
+        QVERIFY(same(supply_values(weeks, days, SupplyField::IndividualNet, kWeekView), {n, 2050, 3150, 1070, n}));
+        QVERIFY(same(supply_values(weeks, days, SupplyField::ForeignNet, kWeekView), {n, 2990, 9150, 3070, n}));
+        // A level is the period's last day's, the first period's too (a part of it says that day).
+        QVERIFY(same(supply_values(weeks, days, SupplyField::LendingBalance, kWeekView), {6010, 6030, 6060, 6070, n}));
+        // A day without the field's value adds nothing; the others still add up.
+        days[5].values[std::size_t(SupplyField::ShortVolume)] = std::nullopt; // the 8th
+        QVERIFY(same(supply_values(weeks, days, SupplyField::ShortVolume, kWeekView), {n, 50, 90, 70, n}));
+        // Months and years likewise: September and 2026 start before the first day read.
+        const QList<ChartBar> months = bars_at({"2026-09-01T00:00:00+09:00", "2026-10-01T00:00:00+09:00"});
+        QVERIFY(same(supply_values(months, days, SupplyField::ShortVolume, kMonthView), {n, 160}));
+        QVERIFY(same(supply_values(months, days, SupplyField::ForeignHolding, kMonthView), {4030, 4070}));
+        const QList<ChartBar> years = bars_at({"2026-01-01T00:00:00+09:00", "2027-01-01T00:00:00+09:00"});
+        QVERIFY(same(supply_values(years, days, SupplyField::ShortVolume, kYearView), {n, n}));
+        days.prepend(supply_day("2025-12-30", 5)); // read from before the year: whole
+        QVERIFY(same(supply_values(years, days, SupplyField::ShortVolume, kYearView), {220, n}));
+        // The day and minute views are each day's own value, flows too.
+        const QList<ChartBar> candles = bars_at({"2026-09-29T00:00:00+09:00", "2026-09-30T00:00:00+09:00"});
+        QVERIFY(same(supply_values(candles, days, SupplyField::ForeignNet, kDayView), {3020, -30}));
+    }
+
     void the_page_draws_the_supply_studies_in_their_panes() {
         const QList<SupplyDay> days{supply_day("2026-10-07", 100, true), supply_day("2026-10-08", 200)};
         const QList<ChartBar> minutes = bars_at({"2026-10-07T15:00:00+09:00", "2026-10-07T15:01:00+09:00",

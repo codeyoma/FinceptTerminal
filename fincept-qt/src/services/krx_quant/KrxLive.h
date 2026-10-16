@@ -303,8 +303,9 @@ class KrxLive : public QObject {
     QList<krx_quant::SpecialWindow> special_;
     std::optional<std::pair<QDate, QDate>> special_read_; ///< the days special_ is of
     /// The days whose daily supply data the chart wants (krx-quant #226): from the first bar of the
-    /// view held (a minute view's first 1-minute bar, a candle view's first candle) to the engine's
-    /// day, the last kSupplyDays at most; none without a symbol or bars.
+    /// view held (a minute view's first 1-minute bar, a candle view's first candle; a week, month or
+    /// year view's kSupplyLead days before it, for its first period's sums) to the engine's day, the
+    /// last kSupplyDays at most; none without a symbol or bars.
     std::optional<std::pair<QDate, QDate>> supply_days() const;
     /// Read the chosen symbol's daily supply data over supply_days (``always``), or only when those
     /// days are not the ones read.
