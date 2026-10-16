@@ -228,6 +228,10 @@ void KrxChartBridge::tool_ended() {
     emit tool_done();
 }
 
+void KrxChartBridge::scaled(bool log) {
+    emit scale_chosen(log);
+}
+
 KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
     setMinimumHeight(220);
     auto* layout = new QVBoxLayout(this);
@@ -243,6 +247,7 @@ KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
             all.append(QJsonDocument::fromJson(json.toUtf8()).object());
         emit bridge_->hovers_changed(compact(QJsonObject{{"reset", true}, {"set", all}, {"drop", QJsonArray{}}}));
         emit bridge_->tool_changed(tool_); // the drawings came with the data (krx-quant #224)
+        emit bridge_->scale_changed(log_scale_);
     });
     connect(bridge_, &KrxChartBridge::icon_clicked, this, [this](const QString& bar_close) {
         if (const QDateTime at = QDateTime::fromString(bar_close, Qt::ISODate); at.isValid())
@@ -307,6 +312,11 @@ KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
     connect(bridge_, &KrxChartBridge::tool_done, this, [this]() {
         tool_ = QStringLiteral("{}");
         emit tool_finished();
+    });
+    // 일반 or 로그 clicked (krx-quant #245): the page drew it already.
+    connect(bridge_, &KrxChartBridge::scale_chosen, this, [this](bool log) {
+        log_scale_ = log;
+        emit log_scale_chosen(log);
     });
     unavailable_ = new QLabel(tr("차트를 열 수 없음"));
     unavailable_->setAlignment(Qt::AlignCenter);
@@ -779,6 +789,11 @@ void KrxChart::set_tool(std::optional<krx_quant::DrawingTool> tool) {
 
 void KrxChart::fit() {
     emit bridge_->fit_requested();
+}
+
+void KrxChart::set_log_scale(bool log) {
+    log_scale_ = log;
+    emit bridge_->scale_changed(log);
 }
 
 void KrxChart::restyle() {

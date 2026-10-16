@@ -112,6 +112,10 @@ int main(int argc, char* argv[]) {
     if (qEnvironmentVariableIsSet("KRX_CAPTURE_MAGNET"))
         fincept::AppConfig::instance().set(fincept::krx_quant::kMagnetKey,
                                            qEnvironmentVariableIntValue("KRX_CAPTURE_MAGNET") != 0);
+    // KRX_CAPTURE_LOG=<0|1>: 일반 or 로그 at the chart's bottom right (krx-quant #245).
+    if (qEnvironmentVariableIsSet("KRX_CAPTURE_LOG"))
+        fincept::AppConfig::instance().set(fincept::krx_quant::kLogScaleKey,
+                                           qEnvironmentVariableIntValue("KRX_CAPTURE_LOG") != 0);
 
     fincept::screens::KrxQuantScreen screen;
     screen.resize(width, height);

@@ -40,7 +40,8 @@ enum SymbolColumn { kSymbol, kMid, kFinal };
 // The chart's view and style are kept for each symbol (krx-quant #221, krx_quant::prefs_group), and
 // so are its indicators and the anchored VWAP's anchor (krx-quant #222), and its lower panes'
 // heights (krx-quant #223), and its drawings (krx-quant #224, krx_quant::kPrefsDrawings); the magnet is
-// every symbol's (krx_quant::kMagnetKey).
+// every symbol's (krx_quant::kMagnetKey), and so is the price pane's scale (krx-quant #245,
+// krx_quant::kLogScaleKey).
 // "krx_quant/chart_view_minutes", the view of every symbol until then (krx-quant #109), and
 // "krx_quant/chart_minutes", the range box's until #134, are no longer read.
 // The models selected for the chart (krx-quant #159), as "gauss,markov".
@@ -184,6 +185,10 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     fit->setToolTip(tr("최근 60봉 보기로 돌아간다. 차트를 두 번 눌러도 된다."));
     chart_header_.controls->addWidget(fit);
     chart_ = new KrxChart;
+    // 일반 or 로그 at the chart's bottom right (krx-quant #245): every symbol's and view's.
+    chart_->set_log_scale(AppConfig::instance().get(krx_quant::kLogScaleKey, false).toBool());
+    connect(chart_, &KrxChart::log_scale_chosen, this,
+            [](bool log) { AppConfig::instance().set(krx_quant::kLogScaleKey, log); });
     // The row above the chart (krx-quant #220, #221): the minute views' drop-down, the day, week,
     // month and year buttons, the chart style, and the options. Each symbol keeps its view and
     // style; the day separators and the special situations' bands (krx-quant #236) are every symbol's.

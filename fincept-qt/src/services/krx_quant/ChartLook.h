@@ -76,6 +76,9 @@ inline constexpr auto kDaySeparatorKey = "krx_quant/chart_day_separator";
 /// Whether the minute views draw the special situations' bands (krx-quant #236, ChartSlots), for
 /// every symbol.
 inline constexpr auto kSpecialKey = "krx_quant/chart_special";
+/// Whether the price pane is drawn on a logarithmic scale (krx-quant #245: 로그 at the chart's bottom
+/// right), for every symbol and view.
+inline constexpr auto kLogScaleKey = "krx_quant/chart_log_scale";
 
 /// A symbol's settings from what was kept (``view``, ``style``: invalid when none): a view not
 /// among the chart's, or a style unknown or not drawn by this build, is its default.
