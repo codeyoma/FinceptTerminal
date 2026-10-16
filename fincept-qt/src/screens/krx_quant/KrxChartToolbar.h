@@ -25,9 +25,9 @@ namespace fincept::screens {
 /// the magnet), and at the right end the trash (#224: the symbol's drawings, all of them) and the
 /// options menu with the day separators, the special situations' bands (#236) and, while a style
 /// without a time axis is shown (#225), its size. It only shows what the screen says and tells it
-/// what was picked; the screen keeps the choices. In a narrow panel the indicators and drawing
-/// buttons lose their labels. Cmd+D (Ctrl+D on Windows) opens the drawing menu and a letter in it
-/// picks a tool (#241).
+/// what was picked; the screen keeps the choices. While a tool is chosen the drawing button is
+/// named after it (#248). In a narrow panel the indicators and drawing buttons lose their labels.
+/// Cmd+D (Ctrl+D on Windows) opens the drawing menu and a letter in it picks a tool (#241).
 class KrxChartToolbar : public QWidget {
     Q_OBJECT
   public:
@@ -43,8 +43,8 @@ class KrxChartToolbar : public QWidget {
     /// (``kept``; none: the default) and ATR(14) of the view's bars (``atr``; none: not counted yet),
     /// in the options menu below the day separators. Hidden for a style with a time axis.
     void show_brick_size(std::optional<double> kept, std::optional<double> atr);
-    /// The drawing tool chosen (krx-quant #224): the drawing button filled with its icon; none:
-    /// the cursor.
+    /// The drawing tool chosen (krx-quant #224): the drawing button filled with its icon and named
+    /// after it (#248); none: the cursor, and the button's `그리기`.
     void show_tool(std::optional<krx_quant::DrawingTool> tool);
     void show_magnet(bool on);
     /// The symbol's drawings: the trash is off without any, and on bricks (krx-quant #225), where they
@@ -88,6 +88,8 @@ class KrxChartToolbar : public QWidget {
     void toggle_drawing_menu();
     /// The indicators and drawing buttons with their labels while the row fits, else icons only.
     void fit_labels();
+    /// The indicators and drawing buttons' labels shown, or icons only.
+    void show_labels(bool on);
     /// The left group from the left end, cut off where the right group (trash, options) starts.
     void place();
     void paint_icons();
