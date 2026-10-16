@@ -1,9 +1,11 @@
-// Tests for src/screens/krx_quant/KrxChartToolbar.h: the drawing menu's keys (krx-quant #241).
+// Tests for src/screens/krx_quant/KrxChartToolbar.h: the drawing menu's keys (krx-quant #241) and
+// the drawing button's name (#248).
 //
 // Cmd+D (Ctrl+D on Windows) with the keyboard in the screen opens the drawing menu as a click on its
 // button does, and again closes it. A letter in the open menu picks its tool or turns the magnet and
 // closes it; a Hangul key picks by its place. Not with the keyboard outside the screen, nor on a
-// style without a time axis, where the drawing button is off.
+// style without a time axis, where the drawing button is off. While a tool is chosen the button
+// carries its name, and a long name that does not fit hides the labels only until the cursor is back.
 //
 // The keys go through Qt's shortcuts, which need an active window: the suite opens one and is
 // skipped where the platform draws nothing (offscreen) or no window becomes active.
@@ -34,7 +36,8 @@ class TstKrxChartToolbar : public QObject {
     QWidget* inside_ = nullptr;  ///< in the screen, like the chart
     QWidget* outside_ = nullptr; ///< beside the screen, like another panel
 
-    QMenu* menu() const { return toolbar_->findChild<QToolButton*>("krxDrawing")->menu(); }
+    QToolButton* drawing() const { return toolbar_->findChild<QToolButton*>("krxDrawing"); }
+    QMenu* menu() const { return drawing()->menu(); }
 
     static QWidget* focusable(QWidget* parent) {
         auto* w = new QWidget(parent);
@@ -183,6 +186,46 @@ class TstKrxChartToolbar : public QObject {
         QVERIFY(!press_keys(inside_));
         toolbar_->show_style(ChartStyle::Candle);
         QVERIFY(press_keys(inside_));
+    }
+
+    void the_button_is_named_after_the_tool() {
+        QToolButton* button = drawing();
+        QCOMPARE(button->text(), QStringLiteral("그리기"));
+        // As the screen does: the tool picked is the one shown.
+        const auto shown = connect(toolbar_, &screens::KrxChartToolbar::tool_chosen, toolbar_,
+                                   [this](DrawingTool tool) { toolbar_->show_tool(tool); });
+        QVERIFY(press_keys(inside_, [](QMenu* menu) { QTest::keyClick(menu, Qt::Key_R); }));
+        disconnect(shown);
+        QTRY_COMPARE(button->text(), QStringLiteral("반직선"));
+        QCOMPARE(button->toolButtonStyle(), Qt::ToolButtonTextBesideIcon);
+        toolbar_->show_tool(std::nullopt); // drawn, or Esc: the cursor
+        QCOMPARE(button->text(), QStringLiteral("그리기"));
+    }
+
+    void a_long_name_hides_the_labels_until_the_cursor() {
+        // A width where `그리기` fits and the fib fan's name does not.
+        QToolButton* button = drawing();
+        toolbar_->show_tool(std::nullopt);
+        const int short_row = toolbar_->sizeHint().width();
+        toolbar_->show_tool(DrawingTool::FibFan);
+        QCOMPARE(button->toolButtonStyle(), Qt::ToolButtonTextBesideIcon); // fits the window
+        const int long_row = toolbar_->sizeHint().width();
+        QVERIFY(long_row > short_row);
+        const QSize before = window_->size();
+        const int width = (short_row + long_row) / 2;
+        window_->resize(before.width() - toolbar_->width() + width, before.height());
+        QTRY_COMPARE(toolbar_->width(), width);
+
+        QCOMPARE(button->toolButtonStyle(), Qt::ToolButtonIconOnly);
+        toolbar_->show_tool(std::nullopt); // measured with the labels while they are hidden
+        QCOMPARE(button->toolButtonStyle(), Qt::ToolButtonTextBesideIcon);
+        QCOMPARE(button->text(), QStringLiteral("그리기"));
+        toolbar_->show_tool(DrawingTool::FibFan);
+        QCOMPARE(button->toolButtonStyle(), Qt::ToolButtonIconOnly);
+        toolbar_->show_tool(std::nullopt);
+
+        window_->resize(before);
+        QTRY_COMPARE(window_->size(), before);
     }
 };
 

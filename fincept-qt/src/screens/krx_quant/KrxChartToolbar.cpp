@@ -575,8 +575,7 @@ void KrxChartToolbar::show_view(int view) {
     for (auto* button : candle_buttons_)
         button->setChecked(button->property("view").toInt() == view);
     show_day_separator_state();
-    if (!narrow_)
-        wide_ = 0; // measured again with the new label
+    wide_ = 0; // measured again with the new label
     fit_labels();
     place();
 }
@@ -654,12 +653,17 @@ void KrxChartToolbar::show_tool(std::optional<DrawingTool> tool) {
             action->setChecked(tool && action->data().toString() == krx_quant::tool_key(*tool));
     drawing_->setProperty("active", tool.has_value());
     repolish(drawing_);
+    // While a tool is chosen, its name on the button (krx-quant #248).
+    drawing_->setText(tool ? krx_quant::tool_title(*tool) : tr("그리기"));
     const QString keys = drawing_keys().toString(QKeySequence::NativeText);
     if (drawing_->isEnabled())
         drawing_->setToolTip(tool ? tr("그리기 (%1): %2. 차트를 눌러 점을 찍는다. Esc로 취소한다.")
                                         .arg(keys, krx_quant::tool_title(*tool))
                                   : tr("그리기 (%1)").arg(keys));
     paint_icons();
+    wide_ = 0; // measured again with the new label
+    fit_labels();
+    place();
 }
 
 void KrxChartToolbar::show_magnet(bool on) {
@@ -768,8 +772,7 @@ void KrxChartToolbar::restyle() {
             .arg(ui::colors::TEXT_TERTIARY(), ui::colors::AMBER(), ui::colors::TEXT_PRIMARY(), ui::colors::BG_BASE(),
                  ui::colors::BORDER_MED(), ui::colors::TEXT_DIM()));
     paint_icons();
-    if (!narrow_)
-        wide_ = 0; // the bold labels measured again
+    wide_ = 0; // the bold labels measured again
     updateGeometry();
     fit_labels();
     place();
@@ -788,15 +791,26 @@ void KrxChartToolbar::resizeEvent(QResizeEvent* event) {
 }
 
 void KrxChartToolbar::fit_labels() {
-    if (!narrow_ && wide_ == 0)
+    if (wide_ == 0) {
+        // Measured with the labels, also while they are hidden: the drawing button's changes with
+        // the tool chosen (krx-quant #248).
+        if (narrow_)
+            show_labels(true);
         wide_ = sizeHint().width();
+        if (narrow_)
+            show_labels(false);
+    }
     const bool narrow = width() < wide_;
     if (narrow == narrow_)
         return;
     narrow_ = narrow;
-    for (auto* button : {indicators_, drawing_})
-        button->setToolButtonStyle(narrow ? Qt::ToolButtonIconOnly : Qt::ToolButtonTextBesideIcon);
+    show_labels(!narrow);
     left_->adjustSize();
+}
+
+void KrxChartToolbar::show_labels(bool on) {
+    for (auto* button : {indicators_, drawing_})
+        button->setToolButtonStyle(on ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly);
 }
 
 void KrxChartToolbar::place() {
