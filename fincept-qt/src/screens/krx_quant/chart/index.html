@@ -564,6 +564,19 @@
       if (area.contains(e.target)) following = false;
     }, { capture: true, passive: true });
   }
+  // Shift and the wheel move the view sideways (krx-quant #242). The chart scrolls on a sideways
+  // wheel (deltaX) and zooms on an upright one (deltaY). macOS sends Shift and the wheel sideways
+  // already; Windows sends it upright with Shift held, so it is handed on sideways here.
+  window.addEventListener('wheel', function (e) {
+    if (!e.shiftKey || e.deltaX !== 0 || e.deltaY === 0 || !area.contains(e.target)) return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    e.target.dispatchEvent(new WheelEvent('wheel', {
+      deltaX: e.deltaY, deltaY: 0, deltaMode: e.deltaMode, shiftKey: true,
+      clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY,
+      bubbles: true, cancelable: true, composed: true, view: window,
+    }));
+  }, { capture: true, passive: false });
 
   let bars = [];        // as drawn, oldest first
   let barAt = new Map(); // time -> index in bars
