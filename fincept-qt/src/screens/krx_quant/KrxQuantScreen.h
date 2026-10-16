@@ -27,6 +27,7 @@ class KrxChart;
 class KrxChartToolbar;
 class KrxDrawingPopup;
 class KrxLeaderboard;
+class KrxLogos;
 class KrxStatsWindow;
 class KrxStudyPanel;
 
@@ -122,6 +123,7 @@ class KrxQuantScreen : public QWidget {
     QLabel* special_label_ = nullptr;
     krx_panel::Header symbols_header_;
     QTableWidget* symbols_table_ = nullptr;
+    KrxLogos* logos_ = nullptr;                  ///< the symbols' logos (krx-quant #250)
     krx_panel::Header chart_header_;             ///< titled with the chosen symbol
     QLabel* chart_failure_ = nullptr;            ///< on the chart's header, while the bars cannot be read
     QLabel* chart_score_ = nullptr;              ///< on the chart's header: the selected consensus's score

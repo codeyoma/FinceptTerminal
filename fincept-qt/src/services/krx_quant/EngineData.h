@@ -98,7 +98,9 @@ struct Macro {
 struct SymbolQuote {
     QString symbol;
     std::optional<double> mid;
-    std::optional<double> tick{};    ///< its tick size now (krx-quant #182: the range panel's k); none without a mid
+    QString name{};               ///< the company's name (krx-quant #250); empty when the engine does not know it
+    QString logo_url{};           ///< its logo as Toss Securities shows it (krx-quant #250); empty from an older engine
+    std::optional<double> tick{}; ///< its tick size now (krx-quant #182: the range panel's k); none without a mid
     std::optional<int> flat_ticks{}; ///< k, the flat width in ticks now; likewise
 };
 

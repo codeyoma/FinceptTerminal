@@ -1420,6 +1420,25 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!symbols.value()[1].flat_ticks.has_value());
     }
 
+    void the_symbols_carry_their_company_name_and_logo() {
+        // krx-quant #250: a name the engine has not read yet is null; an engine before it sends neither.
+        // (No "//" in the raw string: moc reads it as a comment and loses this class.)
+        const auto symbols = parse_symbols(json(R"({"symbols": [
+            {"symbol": "005930", "name": "삼성전자", "mid": 81250.0,
+             "logo_url": "static.toss.im/png-icons/securities/icn-sec-fill-005930.png"},
+            {"symbol": "000660", "name": null, "mid": null,
+             "logo_url": "static.toss.im/png-icons/securities/icn-sec-fill-000660.png"},
+            {"symbol": "009150", "mid": null}]})"));
+        QVERIFY(symbols.is_ok());
+        QCOMPARE(symbols.value()[0].name, QStringLiteral("삼성전자"));
+        QCOMPARE(symbols.value()[0].logo_url,
+                 QStringLiteral("static.toss.im/png-icons/securities/icn-sec-fill-005930.png"));
+        QVERIFY(symbols.value()[1].name.isEmpty());
+        QVERIFY(symbols.value()[1].logo_url.endsWith("icn-sec-fill-000660.png"));
+        QVERIFY(symbols.value()[2].name.isEmpty());
+        QVERIFY(symbols.value()[2].logo_url.isEmpty());
+    }
+
     void an_algorithm_says_which_kind_it_predicts() {
         const auto read = parse_algorithms(json(R"({"algorithms": [
             {"name": "alg-r", "kind": "range", "card": {}, "features": [], "model": {}, "status": {}},
