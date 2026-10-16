@@ -719,7 +719,8 @@ void KrxQuantScreen::fill_symbols() {
         symbol->setData(Qt::UserRole, quote.symbol);
         if (!quote.name.isEmpty())
             symbol->setData(KrxSymbolDelegate::kCodeRole, quote.symbol);
-        symbol->setIcon(logos_->logo(quote.logo_url, quote.name, logo, devicePixelRatioF()));
+        if (!quote.logo_url.isEmpty() || !quote.name.isEmpty()) // an older engine: the code alone, as before
+            symbol->setIcon(logos_->logo(quote.logo_url, quote.name, logo, devicePixelRatioF()));
         symbols_table_->setItem(row, kSymbol, symbol);
         symbols_table_->setItem(row, kMid,
                                 cell(quote.mid ? krx_quant::price_text(*quote.mid) : QStringLiteral("—"), kNumber));
