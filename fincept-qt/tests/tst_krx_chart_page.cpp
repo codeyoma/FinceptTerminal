@@ -15,6 +15,9 @@
 // The page keeps no key the screen's shortcuts want: Cmd+D (Ctrl+D) with the keyboard on the chart
 // opens the toolbar's drawing menu (krx-quant #241).
 //
+// 일반 and 로그 at the bottom right (krx-quant #245) choose the price pane's scale: a click turns it
+// and tells the screen, and the screen's choice draws it so.
+//
 // The page runs in Qt WebEngine with TradingView Lightweight Charts, so this suite opens a
 // window. It is skipped where the WebEngine runtime is missing or the platform draws nothing
 // (offscreen).
@@ -231,6 +234,49 @@ class TstKrxChartPage : public QObject {
         QTRY_VERIFY2_WITH_TIMEOUT(range_->second < all.last(), in_view(day).constData(), 10000);
         QTest::qWait(400); // the wheel's own move settled
         QCOMPARE(js(spacing).toDouble(), width);
+    }
+
+    void the_price_scale_is_chosen_at_the_bottom_right() {
+        // 일반 and 로그 (krx-quant #245): in the time axis's row up to the chart's right edge. A click
+        // on 로그 turns the price pane's scale logarithmic and tells the screen; the one on already
+        // does nothing. A style changed keeps it, and the screen's choice draws it so.
+        empty();
+        draw(kBefore + kToday);
+        expect_fitted(kBefore + kToday);
+        const QVariantList at = js("(function(){const r = document.getElementById('scale').getBoundingClientRect();"
+                                   "const a = document.getElementById('chart').getBoundingClientRect();"
+                                   "return [a.right - r.right, a.bottom - r.bottom, r.height];})()")
+                                    .toList();
+        QCOMPARE(at.value(0).toDouble(), 0.0);
+        QCOMPARE(at.value(1).toDouble(), 0.0);
+        QVERIFY(at.value(2).toDouble() > 10);
+        const auto mode = [this]() { return js("window.krxChart.scale()[0]").toInt(); };
+        const auto on = [this]() { return js("window.krxChart.scale()[1]").toString(); };
+        QCOMPARE(mode(), 0);
+        QCOMPARE(on(), QStringLiteral("일반"));
+        QSignalSpy chosen(chart_, &screens::KrxChart::log_scale_chosen);
+        const char* log = "document.querySelector('#scale [data-log=\"1\"]').click()";
+        js(log);
+        QTRY_COMPARE(chosen.size(), 1);
+        QCOMPARE(chosen.last().at(0).toBool(), true);
+        QCOMPARE(mode(), 1);
+        QCOMPARE(on(), QStringLiteral("로그"));
+        js(log); // on already
+        QTest::qWait(100);
+        QCOMPARE(chosen.size(), 1);
+        ChartLook line;
+        line.style = ChartStyle::Line; // another main series in the price pane
+        draw(kBefore + kToday, line);
+        QTest::qWait(100);
+        QCOMPARE(mode(), 1);
+        chart_->set_log_scale(false); // as the screen sends the one kept
+        QTRY_COMPARE(mode(), 0);
+        QCOMPARE(on(), QStringLiteral("일반"));
+        QCOMPARE(chosen.size(), 1); // not a click
+        chart_->set_log_scale(true);
+        QTRY_COMPARE(mode(), 1);
+        chart_->set_log_scale(false);
+        draw(kBefore + kToday);
     }
 
     void bricks_fit_the_latest_bricks_once_they_start_and_bars_come_back() {

@@ -29,7 +29,8 @@ namespace fincept::screens {
 /// theme, the data, the bars' hover boxes (those changed) and fits. The drawings (krx-quant #224)
 /// go both ways: the screen sends them and the tool chosen, the page what was drawn, moved,
 /// removed or double-clicked, in bar positions ([logical, price]) on the bars it has, which start
-/// at ``first`` (chart_time).
+/// at ``first`` (chart_time). The price pane's scale (krx-quant #245) goes both ways too: the screen
+/// sends the one kept, the page the one clicked.
 class KrxChartBridge : public QObject {
     Q_OBJECT
   public:
@@ -64,6 +65,9 @@ class KrxChartBridge : public QObject {
     Q_INVOKABLE void edit(int id, double x, double y);
     /// The tool placed its drawing or was cancelled (Esc): the page is back at the cursor.
     Q_INVOKABLE void tool_ended();
+    /// 일반 or 로그 was clicked at the bottom right (krx-quant #245): whether the price pane is
+    /// drawn on a logarithmic scale now.
+    Q_INVOKABLE void scaled(bool log);
 
   signals:
     void page_ready();
@@ -78,6 +82,7 @@ class KrxChartBridge : public QObject {
     void drawing_erased(int id);
     void drawing_edit(int id, double x, double y);
     void tool_done();
+    void scale_chosen(bool log);
     void theme_changed(const QString& json);
     void data_changed(const QString& json);
     /// Hover boxes to set and drop: {"reset", "set": [...], "drop": [times]} (krx-quant #159).
@@ -95,13 +100,16 @@ class KrxChartBridge : public QObject {
     /// for the cursor.
     void tool_changed(const QString& json);
     void fit_requested();
+    /// The price pane's scale (krx-quant #245): logarithmic or not.
+    void scale_changed(bool log);
 };
 
 /// A symbol's 1-minute bars of the day, drawn by TradingView Lightweight Charts in a web
 /// view (src/screens/krx_quant/chart, bundled as Qt resources): wheel to zoom, drag to
 /// scroll, double-click (or fit()) for the last 60 bars, the lower indicators (the volume among
 /// them) each in a pane below, their borders dragged to resize them (krx-quant #223), and the
-/// last price on the price axis. Over the bars, the final consensus's icons
+/// last price on the price axis, its scale 일반 or 로그 (krx-quant #245) by the choice at the bottom
+/// right. Over the bars, the final consensus's icons
 /// (ChartModel: ▲▼– and ✓/✗/?, faint for special predictions). Over the prices, the symbol's
 /// drawings (krx-quant #224): placed with the tool chosen, picked, dragged, removed and
 /// double-clicked on the page, kept as moments and prices by the screen. Without Qt WebEngine, at
@@ -163,6 +171,9 @@ class KrxChart : public QWidget {
     void select_drawing(int id);
     /// Show the last 60 bars again.
     void fit();
+    /// Draw the price pane on a logarithmic scale or not (krx-quant #245), as 로그 or 일반 at the
+    /// bottom right shows; the lower panes stay as they are.
+    void set_log_scale(bool log);
     /// Paint in the theme's colors and the user's font now.
     void restyle();
 
@@ -196,6 +207,8 @@ class KrxChart : public QWidget {
     void drawing_edit_requested(int id, const QPoint& at);
     /// The tool placed its drawing or was cancelled: back to the cursor.
     void tool_finished();
+    /// 일반 or 로그 was clicked at the bottom right (krx-quant #245): the price pane is drawn so now.
+    void log_scale_chosen(bool log);
     /// The default size of the styles without a time axis changed (krx-quant #225): ATR(14) of the
     /// view's bars but the last as last drawn, to the won (krx_quant::atr_size); 0 without one.
     void brick_atr(double size);
@@ -248,6 +261,7 @@ class KrxChart : public QWidget {
     std::optional<qint64> last_in_view_;  ///< and the last
     krx_quant::StudyDrawing drawing_;     ///< the indicators as last sent (krx-quant #222)
     QString tool_ = QStringLiteral("{}"); ///< the drawing tool as last sent (krx-quant #224)
+    bool log_scale_ = false;              ///< the price pane's scale as last set or clicked (krx-quant #245)
     // The styles without a time axis (krx-quant #225).
     bool timeless_ = false;            ///< the style last set draws bricks
     std::optional<qint64> brick_from_; ///< the view's bar the bricks start from, fixed once

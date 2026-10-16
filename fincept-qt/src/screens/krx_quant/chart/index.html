@@ -18,7 +18,9 @@
   is, the legend's buttons, the anchored VWAP's bar clicked or dragged to, and the lower panes'
   heights once a border between panes is dragged. Over the prices it draws the symbol's drawings
   (#224) and lets them be placed with the tool the screen chose, picked, dragged, removed (Delete,
-  Backspace) and double-clicked; it tells the screen each, in bar positions.
+  Backspace) and double-clicked; it tells the screen each, in bar positions. At the bottom right,
+  where the time axis meets the price axis, 일반 and 로그 choose the price pane's scale (#245); it
+  tells the screen the one clicked.
 -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #080808; }
@@ -51,6 +53,15 @@
   .legend .tools span { display: inline-flex; padding: 1px 2px; cursor: pointer; border-radius: 2px; opacity: 0.8; }
   .legend .tools span:hover { opacity: 1; background: var(--hover); }
   .legend svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.4; }
+  /* The price pane's scale (krx-quant #245): bottom right, in the time axis's row up to the right
+     edge, below its border line. The one chosen in the accent. */
+  #scale {
+    position: absolute; right: 0; bottom: 0; z-index: 62; display: flex; align-items: center; gap: 1px;
+    padding: 0 3px; box-sizing: border-box; user-select: none; background: var(--background);
+  }
+  #scale span { padding: 0 4px; border-radius: 2px; cursor: pointer; opacity: 0.75; line-height: 1.4; }
+  #scale span:hover { opacity: 1; background: var(--hover); }
+  #scale span.on { opacity: 1; color: var(--on); font-weight: 700; }
 </style>
 <script src="lightweight-charts.standalone.production.js"></script>
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
@@ -60,6 +71,8 @@
 <div id="chart"></div>
 <canvas id="links"></canvas>
 <div id="tip"></div>
+<div id="scale"><span data-log="0" title="가격 축을 일반 눈금으로 본다">일반</span><span data-log="1"
+  title="가격 축을 로그 눈금으로 본다: 같은 비율의 움직임이 같은 높이다">로그</span></div>
 </div></div>
 <script>
 (function () {
@@ -1773,6 +1786,12 @@
     tip.style.fontSize = (t.size + 1) + 'px';
     scroller.style.setProperty('--thumb', t.border);
     for (const box of legendBoxes) styleLegend(box);
+    scaleBox.style.color = t.text;
+    scaleBox.style.fontFamily = t.font;
+    scaleBox.style.fontSize = t.size + 'px';
+    scaleBox.style.setProperty('--background', t.background);
+    scaleBox.style.setProperty('--hover', fade(t.tip_background, 0.85));
+    scaleBox.style.setProperty('--on', t.link);
     chart.applyOptions({
       layout: {
         background: { type: 'solid', color: t.background },
@@ -1814,6 +1833,32 @@
     repaint();
   }
 
+  // The price pane's scale (krx-quant #245): 일반 or 로그, as the screen keeps it for every symbol.
+  // The pane's price scale outlives the main series (makeMain), so it stays through a style changed;
+  // the lower panes keep theirs. A click turns it at once and tells the screen.
+  const scaleBox = document.getElementById('scale');
+  let logScale = false;
+  function setScale(log) {
+    logScale = !!log;
+    chart.priceScale('right', 0).applyOptions({
+      mode: logScale ? L.PriceScaleMode.Logarithmic : L.PriceScaleMode.Normal,
+    });
+    for (const choice of scaleBox.children) choice.classList.toggle('on', (choice.dataset.log === '1') === logScale);
+  }
+  for (const choice of scaleBox.children) {
+    choice.addEventListener('click', function () {
+      const log = choice.dataset.log === '1';
+      if (log === logScale) return;
+      setScale(log);
+      if (bridge) bridge.scaled(log);
+    });
+  }
+  // As tall as the time axis, below its border line.
+  function placeScale() { scaleBox.style.height = Math.max(0, chart.timeScale().height() - 1) + 'px'; }
+  chart.timeScale().subscribeSizeChange(placeScale);
+  setScale(false);
+  placeScale();
+
   // For krx-capture and the page's tests (krx-quant #236): the x of the slot holding a moment
   // (chart_time; null before the first bar), and the view moved to show that slot in its middle, as
   // many bars wide as now (it stops following the latest bars, as a hand's move does).
@@ -1843,6 +1888,10 @@
     bars: function () { return bars.map((b) => [b.time, b.close === undefined ? 0 : 1]); },
     tip: function () { return tip.style.display === 'none' ? '' : tip.textContent; },
     hovered: function () { return hovered ? [hovered.time, hoverAt.has(hovered.time)] : null; },
+    // The price pane's scale mode (0 일반, 1 로그) and the choice shown on (krx-quant #245).
+    scale: function () {
+      return [chart.priceScale('right', 0).options().mode, scaleBox.querySelector('.on').textContent];
+    },
   };
 
   area.addEventListener('dblclick', fit);
@@ -1860,6 +1909,7 @@
     bridge.drawings_changed.connect(function (json) { showDrawings(JSON.parse(json)); });
     bridge.tool_changed.connect(function (json) { setTool(JSON.parse(json)); });
     bridge.fit_requested.connect(fit);
+    bridge.scale_changed.connect(setScale);
     bridge.ready();
   });
 })();
