@@ -49,6 +49,17 @@ QString tool_title(DrawingTool tool);
 /// The points placed to draw one: 1 (수평선, 수직선, 크로스, 텍스트), 3 (피치포크, 피보나치 채널),
 /// else 2.
 int tool_points(DrawingTool tool);
+/// The key that picks the tool in the open `그리기` menu (krx-quant #241), shown at its right: T 추세선,
+/// R 반직선, H 수평선, V 수직선, C 크로스, B 사각형, E 타원, P 피치포크, F 피보나치 되돌림,
+/// N 피보나치 채널, A 피보나치 속도 저항 팬, X 텍스트.
+QChar tool_letter(DrawingTool tool);
+/// The key that turns the magnet on or off in the open `그리기` menu (krx-quant #241).
+inline constexpr char kMagnetLetter = 'M';
+/// The letter of a key pressed, as the `그리기` menu reads it (krx-quant #241): ``key`` (a Qt::Key)
+/// A–Z as it is. A letter of a layout that is not Latin (Hangul types ㅅ where T is) is the letter at
+/// its place on a US keyboard, by ``native_key`` (QKeyEvent::nativeVirtualKey: macOS's kVK_ANSI_
+/// codes, Windows' 'A'–'Z'). None for any other key.
+std::optional<QChar> typed_letter(int key, quint32 native_key);
 
 /// How a drawing's lines are drawn.
 enum class LineStyle { Solid, Dotted, Dashed };

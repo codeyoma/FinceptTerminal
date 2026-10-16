@@ -171,7 +171,8 @@ target_link_libraries(tst_krx_live PRIVATE Qt6::Network)
 
 # src/screens/krx_quant/chart/index.html as src/screens/krx_quant/KrxChart.{h,cpp} drives it: the
 # first screen fits the latest bars however the bars read before them come in, and a view moved
-# by hand stays. Unlike the suites above it needs Widgets and Qt WebEngine: what it tests is the
+# by hand stays. With the keyboard on the chart, Cmd+D still opens the toolbar's drawing menu
+# (codeyoma/krx-quant#241). Unlike the suites above it needs Widgets and Qt WebEngine: what it tests is the
 # page running TradingView Lightweight Charts, which only a web view runs. It opens a window and
 # skips itself offscreen or without the WebEngine runtime.
 if(HAS_WEBENGINE)
@@ -179,6 +180,8 @@ if(HAS_WEBENGINE)
         tst_krx_chart_page.cpp
         "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChart.cpp"
         "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChart.h"
+        "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChartToolbar.cpp"
+        "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChartToolbar.h"
         "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartBricks.cpp"
         "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
         "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
@@ -202,6 +205,28 @@ if(HAS_WEBENGINE)
             "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/chart/index.html"
             "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/chart/lightweight-charts.standalone.production.js")
 endif()
+
+# src/screens/krx_quant/KrxChartToolbar.{h,cpp} — the row above the KRX chart: Cmd+D (Ctrl+D) opens its
+# drawing menu and a letter in it picks a tool (codeyoma/krx-quant#241). It needs Widgets and Qt's
+# shortcuts, so it opens a window and skips itself offscreen or where no window becomes active.
+fincept_add_test(tst_krx_chart_toolbar
+    tst_krx_chart_toolbar.cpp
+    "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChartToolbar.cpp"
+    "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChartToolbar.h"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartBricks.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp"
+    "${PROJECT_SOURCE_DIR}/src/ui/theme/Theme.cpp"
+    "${PROJECT_SOURCE_DIR}/src/ui/theme/ThemeManager.cpp"
+    "${PROJECT_SOURCE_DIR}/src/ui/theme/ThemeManager.h"
+    "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
+target_link_libraries(tst_krx_chart_toolbar PRIVATE Qt6::Widgets)
 
 # Upstream v4.5.1 made src/trading/OrderValidator.cpp read the risk limits through
 # SettingsRepository (Qt Sql and the app database), but tst_order_validator below in

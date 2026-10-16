@@ -253,6 +253,9 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     drawing_popup_ = new KrxDrawingPopup(this);
     look_.magnet = AppConfig::instance().get(krx_quant::kMagnetKey, false).toBool();
     chart_toolbar_->show_magnet(look_.magnet);
+    // Cmd+D (Ctrl+D) opens the drawing menu while the keyboard is anywhere in the screen: the chart
+    // or a list clicked (krx-quant #241).
+    chart_toolbar_->take_keys(this);
     connect(chart_toolbar_, &KrxChartToolbar::tool_chosen, this,
             [this](krx_quant::DrawingTool tool) { set_tool(tool); });
     connect(chart_, &KrxChart::tool_finished, this, [this]() { chart_toolbar_->show_tool(std::nullopt); });
