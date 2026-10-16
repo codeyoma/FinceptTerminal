@@ -63,6 +63,29 @@ class TstKrxKorean : public QObject {
         QCOMPARE(korean.translate("Currency", "(native)"), QStringLiteral("(거래 통화)"));
     }
 
+    void qualified_tr_calls_resolve_in_the_class_context() {
+        // lupdate files some Class::tr() calls under a bare class name (PythonSetupManager), and the
+        // common pack has ScreenerSubTab entries the same way; at run time tr() uses the
+        // meta-object's qualified class name.
+        QTranslator korean;
+        QVERIFY(korean.load(QStringLiteral(":/i18n/fincept_ko_KR.qm")));
+        const QRegularExpression hangul(QStringLiteral("[가-힣]"));
+        const struct {
+            const char* context;
+            const char* source;
+        } calls[] = {
+            {"fincept::python::PythonSetupManager",
+             "Hint: the disk is full. Setup needs about 6 GB free on the drive that holds %1."},
+            {"fincept::screens::fno::ScreenerSubTab", "IV Min"},
+            {"fincept::screens::fno::ScreenerSubTab", "%1 of %2 strikes match"},
+        };
+        for (const auto& call : calls) {
+            const QString translated = korean.translate(call.context, call.source);
+            QVERIFY2(hangul.match(translated).hasMatch(), call.source);
+            QCOMPARE(placeholders(translated), placeholders(QString::fromUtf8(call.source)));
+        }
+    }
+
     void finance_terms_follow_korean_brokerage_usage() {
         // custom/korean-glossary.md: Korean HTS/MTS and DART wording, not literal translations.
         QTranslator korean;
@@ -87,10 +110,19 @@ class TstKrxKorean : public QObject {
             QCOMPARE(korean.translate(term.context, term.source), term.expected);
     }
 
-    void every_existing_catalog_entry_survives_compilation_with_its_placeholders() {
+    void every_catalog_entry_survives_compilation_with_its_placeholders_data() {
+        QTest::addColumn<QString>("catalog");
+        // The upstream common pack, and the Korean pack's own entries: strings added to the source
+        // after the common pack (v4.5.x) exist only in the Korean pack.
+        QTest::newRow("common pack") << QStringLiteral(FINCEPT_REFERENCE_CATALOG);
+        QTest::newRow("korean pack") << QStringLiteral(FINCEPT_KOREAN_CATALOG);
+    }
+
+    void every_catalog_entry_survives_compilation_with_its_placeholders() {
+        QFETCH(QString, catalog);
         QTranslator korean;
         QVERIFY(korean.load(QStringLiteral(":/i18n/fincept_ko_KR.qm")));
-        QFile reference(QStringLiteral(FINCEPT_REFERENCE_CATALOG));
+        QFile reference(catalog);
         QVERIFY(reference.open(QIODevice::ReadOnly));
         QXmlStreamReader xml(&reference);
         QString context;

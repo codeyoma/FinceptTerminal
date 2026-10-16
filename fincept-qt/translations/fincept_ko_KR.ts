@@ -87,6 +87,10 @@
             <source>OPEN</source>
             <translation>열기</translation>
         </message>
+        <message>
+            <source>UPLOADED</source>
+            <translation>업로드</translation>
+        </message>
     </context>
     <context>
         <name>ForumFeedPanel</name>
@@ -267,6 +271,10 @@
         <message>
             <source>GENERAL</source>
             <translation>일반</translation>
+        </message>
+        <message>
+            <source>ARCHIVED</source>
+            <translation>보관됨</translation>
         </message>
     </context>
     <context>
@@ -716,6 +724,452 @@ Ensure required fields (URL, host, or API key) are filled in.</source>
             <source>OK · %1 CU</source>
             <translation>정상 · %1 CU</translation>
         </message>
+        <message>
+            <source>No confirmation after 60 s. The transaction may still land — check the explorer.</source>
+            <translation>60초가 지나도 확인되지 않았습니다. 트랜잭션이 나중에 처리될 수도 있으니 익스플로러에서 확인하세요.</translation>
+        </message>
+        <message>
+            <source>Timed out. &lt;a href="%1"&gt;View on Solscan&lt;/a&gt;</source>
+            <translation>시간 초과. &lt;a href="%1"&gt;Solscan에서 보기&lt;/a&gt;</translation>
+        </message>
+        <message>
+            <source>Reverted. &lt;a href="%1"&gt;View on Solscan&lt;/a&gt;</source>
+            <translation>되돌려짐. &lt;a href="%1"&gt;Solscan에서 보기&lt;/a&gt;</translation>
+        </message>
+        <message>
+            <source>Confirmed %1… &lt;a href="%2"&gt;View on Solscan&lt;/a&gt;</source>
+            <translation>확인됨 %1… &lt;a href="%2"&gt;Solscan에서 보기&lt;/a&gt;</translation>
+        </message>
+        <message>
+            <source>MINIMUM RECEIVED</source>
+            <translation>최소 수령 수량</translation>
+        </message>
+        <message>
+            <source>TOKEN MINT</source>
+            <translation>토큰 민트</translation>
+        </message>
+        <message>
+            <source>SIGNING WALLET</source>
+            <translation>서명 지갑</translation>
+        </message>
+        <message>
+            <source>NETWORK</source>
+            <translation>네트워크</translation>
+        </message>
+        <message>
+            <source>unknown RPC</source>
+            <translation>알 수 없는 RPC</translation>
+        </message>
+        <message>
+            <source>QUOTE AGE</source>
+            <translation>견적 경과 시간</translation>
+        </message>
+        <message>
+            <source>%1 s</source>
+            <translation>%1초</translation>
+        </message>
+        <message>
+            <source>unknown</source>
+            <translation>알 수 없음</translation>
+        </message>
+        <message>
+            <source>The spot price used for the estimate is %1 s old. The amounts above are indicative only — the exchange rate is decided at execution.</source>
+            <translation>예상치 계산에 쓴 현물 가격은 %1초 전 가격입니다. 위 수량은 참고용이며, 교환 비율은 체결 시점에 정해집니다.</translation>
+        </message>
+        <message>
+            <source>No confirmation after 60 s. The lock may still land — check the explorer: %1</source>
+            <translation>60초가 지나도 확인되지 않았습니다. 락업이 나중에 처리될 수도 있으니 익스플로러에서 확인하세요: %1</translation>
+        </message>
+        <message>
+            <source>Timed out waiting for confirmation.</source>
+            <translation>확인 대기 시간이 초과되었습니다.</translation>
+        </message>
+        <message>
+            <source>Lock reverted on-chain: %1 (%2)</source>
+            <translation>락업이 온체인에서 되돌려졌습니다: %1 (%2)</translation>
+        </message>
+        <message>
+            <source>Confirmed on-chain: %1…</source>
+            <translation>온체인 확인됨: %1…</translation>
+        </message>
+        <message>
+            <source>Sent: %1… Waiting for on-chain confirmation…</source>
+            <translation>전송됨: %1… 온체인 확인 대기 중…</translation>
+        </message>
+        <message>
+            <source>Copy the code from this answer</source>
+            <translation>이 답변의 코드 복사</translation>
+        </message>
+        <message>
+            <source>Copy code</source>
+            <translation>코드 복사</translation>
+        </message>
+        <message>
+            <source>Copy code (%1) ▾</source>
+            <translation>코드 복사 (%1) ▾</translation>
+        </message>
+        <message numerus="yes">
+            <source>Block %1 · %2 · %n line(s)</source>
+            <translation>
+                <numerusform>블록 %1 · %2 · %n줄</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>code</source>
+            <translation>코드</translation>
+        </message>
+        <message>
+            <source>All code blocks</source>
+            <translation>모든 코드 블록</translation>
+        </message>
+        <message>
+            <source>Copy this message</source>
+            <translation>이 메시지 복사</translation>
+        </message>
+        <message>
+            <source>Fincept LLM</source>
+            <translation>Fincept LLM</translation>
+        </message>
+        <message>
+            <source>All files (*)</source>
+            <translation>모든 파일 (*)</translation>
+        </message>
+        <message>
+            <source>Connection name</source>
+            <translation>연결 이름</translation>
+        </message>
+        <message>
+            <source>Display name for this %1 connection</source>
+            <translation>이 %1 연결의 표시 이름</translation>
+        </message>
+        <message>
+            <source>Enable connection</source>
+            <translation>연결 활성화</translation>
+        </message>
+        <message>
+            <source>%1 (secret)</source>
+            <translation>%1 (비밀값)</translation>
+        </message>
+        <message>
+            <source>Secret value. Stored locally and masked; screen readers will not read it back.</source>
+            <translation>비밀값입니다. 이 컴퓨터에 저장되고 가려서 표시되며, 화면 낭독기가 읽지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Example: %1</source>
+            <translation>예: %1</translation>
+        </message>
+        <message>
+            <source>Browse...</source>
+            <translation>찾아보기...</translation>
+        </message>
+        <message>
+            <source>Browse for %1</source>
+            <translation>%1 찾아보기</translation>
+        </message>
+        <message>
+            <source>Select File</source>
+            <translation>파일 선택</translation>
+        </message>
+        <message>
+            <source>Secrets are stored encrypted on this machine. A market-data API key is also made available to the Python data connectors if none is set in Settings › Credentials. EXPORT blanks secrets out unless you explicitly choose to include them.</source>
+            <translation>비밀값은 이 컴퓨터에 암호화되어 저장됩니다. 설정 › 인증 정보에 키가 없으면 시세 데이터 API 키를 Python 데이터 커넥터에서도 사용합니다. 내보내기할 때 비밀값 포함을 직접 선택하지 않으면 비밀값은 비워서 내보냅니다.</translation>
+        </message>
+        <message>
+            <source>Update connection</source>
+            <translation>연결 업데이트</translation>
+        </message>
+        <message>
+            <source>Save connection</source>
+            <translation>연결 저장</translation>
+        </message>
+        <message>
+            <source>%1 must be a full URL including the scheme, e.g. %2</source>
+            <translation>%1은(는) 스킴을 포함한 전체 URL이어야 합니다. 예: %2</translation>
+        </message>
+        <message>
+            <source>%1 must be between 1 and 65535</source>
+            <translation>%1은(는) 1~65535 사이여야 합니다</translation>
+        </message>
+        <message>
+            <source>%1 must be a valid JSON object</source>
+            <translation>%1은(는) 올바른 JSON 객체여야 합니다</translation>
+        </message>
+        <message>
+            <source>File not found: %1</source>
+            <translation>파일을 찾을 수 없습니다: %1</translation>
+        </message>
+        <message>
+            <source>Not a regular file: %1</source>
+            <translation>일반 파일이 아닙니다: %1</translation>
+        </message>
+        <message>
+            <source>File exists but is not readable: %1</source>
+            <translation>파일이 있지만 읽을 수 없습니다: %1</translation>
+        </message>
+        <message>
+            <source>File found (%1): %2</source>
+            <translation>파일 찾음 (%1): %2</translation>
+        </message>
+        <message>
+            <source>Note: the file exists and is readable. Its contents are not parsed here.</source>
+            <translation>참고: 파일이 있고 읽을 수 있습니다. 여기서는 파일 내용을 분석하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Connection not found: %1</source>
+            <translation>연결을 찾을 수 없습니다: %1</translation>
+        </message>
+        <message>
+            <source>Could not read the connection store: %1</source>
+            <translation>연결 저장소를 읽을 수 없습니다: %1</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n stored secret(s) (passwords, API keys, tokens) are attached to these connections.</source>
+            <translation>
+                <numerusform>이 연결에 저장된 비밀값(비밀번호, API 키, 토큰)이 %n개 있습니다.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>The export file is plain, unencrypted JSON. Anyone who opens it — or any tool that reads your files — sees whatever it contains.
+
+Redacted: connection settings are exported, secret values are blanked out and must be re-entered after import.
+With secrets: the file contains your live credentials.</source>
+            <translation>내보낸 파일은 암호화되지 않은 일반 JSON입니다. 파일을 여는 사람이나 사용자의 파일을 읽는 도구는 누구나 그 내용을 볼 수 있습니다.
+
+비밀값 제외: 연결 설정만 내보내고 비밀값은 비워 두므로 가져온 뒤 다시 입력해야 합니다.
+비밀값 포함: 파일에 실제 사용 중인 인증 정보가 들어갑니다.</translation>
+        </message>
+        <message>
+            <source>Export Redacted</source>
+            <translation>비밀값 제외 내보내기</translation>
+        </message>
+        <message>
+            <source>Include Secrets</source>
+            <translation>비밀값 포함</translation>
+        </message>
+        <message>
+            <source>Could not write to:
+%1
+
+%2</source>
+            <translation>다음 위치에 쓸 수 없습니다:
+%1
+
+%2</translation>
+        </message>
+        <message numerus="yes">
+            <source>Exported %n connection(s) INCLUDING plaintext secrets to:
+%1
+
+Treat this file as a credential file — do not share or sync it.</source>
+            <translation>
+                <numerusform>연결 %n개를 평문 비밀값을 포함해 다음 위치로 내보냈습니다:
+%1
+
+이 파일은 인증 정보 파일로 취급하세요 — 공유하거나 동기화하지 마세요.</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>Exported %n connection(s) to:
+%1
+
+%2 secret value(s) were blanked out and must be re-entered after import.</source>
+            <translation>
+                <numerusform>연결 %n개를 다음 위치로 내보냈습니다:
+%1
+
+비밀값 %2개를 비웠으므로 가져온 뒤 다시 입력해야 합니다.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Could not open:
+%1
+
+%2</source>
+            <translation>열 수 없습니다:
+%1
+
+%2</translation>
+        </message>
+        <message>
+            <source>The file is not valid JSON.
+
+%1 (at offset %2)</source>
+            <translation>올바른 JSON 파일이 아닙니다.
+
+%1 (위치 %2)</translation>
+        </message>
+        <message>
+            <source>The file must contain a JSON array of connections.</source>
+            <translation>파일에는 연결 목록이 JSON 배열로 들어 있어야 합니다.</translation>
+        </message>
+        <message numerus="yes">
+            <source>Import %n connection(s) from:
+%1
+
+Only import files you created or trust — an imported connection can point a connector at any host.</source>
+            <translation>
+                <numerusform>다음 파일에서 연결 %n개를 가져오시겠습니까?
+%1
+
+직접 만들었거나 신뢰하는 파일만 가져오세요 — 가져온 연결은 커넥터가 어느 호스트에든 접속하게 할 수 있습니다.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Imported %1 connection(s), skipped %2.</source>
+            <translation>연결 %1개를 가져오고 %2개를 건너뛰었습니다.</translation>
+        </message>
+        <message>
+            <source>
+
+%1 of the skipped entries named a connector this version does not have.</source>
+            <translation>
+
+건너뛴 항목 중 %1개는 이 버전에 없는 커넥터를 지정했습니다.</translation>
+        </message>
+        <message>
+            <source>
+
+%1 of them came from a redacted export — open each one and re-enter its password / API key before use.</source>
+            <translation>
+
+그중 %1개는 비밀값을 제외하고 내보낸 파일에서 왔습니다 — 사용하기 전에 각 연결을 열어 비밀번호 / API 키를 다시 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal — database error</source>
+            <translation>Fincept Terminal — 데이터베이스 오류</translation>
+        </message>
+        <message>
+            <source>~%1 min</source>
+            <translation>~%1분</translation>
+        </message>
+        <message>
+            <source>OPEN</source>
+            <translation>열기</translation>
+        </message>
+        <message>
+            <source>APP KEY</source>
+            <translation>앱 키</translation>
+        </message>
+        <message>
+            <source>USER ID</source>
+            <translation>사용자 ID</translation>
+        </message>
+        <message>
+            <source>CLIENT ID</source>
+            <translation>클라이언트 ID</translation>
+        </message>
+        <message>
+            <source>APP SECRET (EncryKey)</source>
+            <translation>앱 시크릿 (EncryKey)</translation>
+        </message>
+        <message>
+            <source>EMAIL</source>
+            <translation>이메일</translation>
+        </message>
+        <message>
+            <source>PIN</source>
+            <translation>PIN</translation>
+        </message>
+        <message>
+            <source>TOTP (current 6-digit code)</source>
+            <translation>TOTP (현재 6자리 코드)</translation>
+        </message>
+        <message>
+            <source>INTERACTIVE APP KEY</source>
+            <translation>주문(Interactive) 앱 키</translation>
+        </message>
+        <message>
+            <source>INTERACTIVE SECRET KEY</source>
+            <translation>주문(Interactive) 시크릿 키</translation>
+        </message>
+        <message>
+            <source>MARKET-DATA APP KEY</source>
+            <translation>시세(Market Data) 앱 키</translation>
+        </message>
+        <message>
+            <source>MARKET-DATA SECRET KEY</source>
+            <translation>시세(Market Data) 시크릿 키</translation>
+        </message>
+        <message>
+            <source>ACCESS TOKEN (from Kotak Neo portal)</source>
+            <translation>액세스 토큰 (Kotak Neo 포털에서 발급)</translation>
+        </message>
+        <message>
+            <source>MOBILE NUMBER (10-digit or +91…)</source>
+            <translation>휴대폰 번호 (10자리 또는 +91…)</translation>
+        </message>
+        <message>
+            <source>UCC (Client ID)</source>
+            <translation>UCC (클라이언트 ID)</translation>
+        </message>
+        <message>
+            <source>MPIN</source>
+            <translation>MPIN</translation>
+        </message>
+        <message>
+            <source>TOTP SECRET (Base32)</source>
+            <translation>TOTP 시크릿 (Base32)</translation>
+        </message>
+        <message>
+            <source>CLIENT ID (UID)</source>
+            <translation>클라이언트 ID (UID)</translation>
+        </message>
+        <message>
+            <source>API KEY</source>
+            <translation>API 키</translation>
+        </message>
+        <message>
+            <source>API SECRET</source>
+            <translation>API 시크릿</translation>
+        </message>
+        <message>
+            <source>REQUEST CODE (from web login)</source>
+            <translation>요청 코드 (웹 로그인에서 발급)</translation>
+        </message>
+        <message>
+            <source>PASSWORD</source>
+            <translation>비밀번호</translation>
+        </message>
+        <message>
+            <source>VENDOR CODE</source>
+            <translation>벤더 코드</translation>
+        </message>
+        <message>
+            <source>USER ID / API KEY</source>
+            <translation>사용자 ID / API 키</translation>
+        </message>
+        <message>
+            <source>DATE OF BIRTH (DD/MM/YYYY)</source>
+            <translation>생년월일 (DD/MM/YYYY)</translation>
+        </message>
+        <message>
+            <source>TOTP (current 6-digit code, if enabled)</source>
+            <translation>TOTP (현재 6자리 코드, 사용 시)</translation>
+        </message>
+        <message>
+            <source>TICKERALL API KEY</source>
+            <translation>TickerAll API 키</translation>
+        </message>
+        <message>
+            <source>MT5 SERVER (e.g. Exness-MT5Trial7)</source>
+            <translation>MT5 서버 (예: Exness-MT5Trial7)</translation>
+        </message>
+        <message>
+            <source>MT5 LOGIN</source>
+            <translation>MT5 로그인</translation>
+        </message>
+        <message>
+            <source>MT5 PASSWORD</source>
+            <translation>MT5 비밀번호</translation>
+        </message>
+        <message>
+            <source>HIDE</source>
+            <translation>숨기기</translation>
+        </message>
+        <message>
+            <source>SHOW</source>
+            <translation>보기</translation>
+        </message>
     </context>
     <context>
         <name>QuantModulePanel</name>
@@ -746,6 +1200,14 @@ Ensure required fields (URL, host, or API key) are filled in.</source>
         <message>
             <source>Computation failed: </source>
             <translation>계산 실패: </translation>
+        </message>
+        <message>
+            <source>YES</source>
+            <translation>예</translation>
+        </message>
+        <message>
+            <source>NO</source>
+            <translation>아니요</translation>
         </message>
     </context>
     <context>
@@ -811,6 +1273,14 @@ Ensure required fields (URL, host, or API key) are filled in.</source>
         <message>
             <source>Exports ($M)</source>
             <translation>수출액 ($M)</translation>
+        </message>
+        <message>
+            <source>Imports ($B)</source>
+            <translation>수입액 ($B)</translation>
+        </message>
+        <message>
+            <source>Exports ($B)</source>
+            <translation>수출액 ($B)</translation>
         </message>
     </context>
     <context>
@@ -900,6 +1370,54 @@ For long-form chats use the AI Chat tab.</source>
         <message>
             <source>AI speaking…</source>
             <translation>AI가 말하는 중…</translation>
+        </message>
+        <message>
+            <source>Clap-to-start: %1</source>
+            <translation>박수로 시작: %1</translation>
+        </message>
+        <message>
+            <source>Quick Chat message</source>
+            <translation>빠른 채팅 메시지</translation>
+        </message>
+        <message>
+            <source>Enter sends, Shift+Enter inserts a new line, Esc closes, Ctrl+L clears.</source>
+            <translation>Enter로 전송, Shift+Enter로 줄바꿈, Esc로 닫기, Ctrl+L로 지우기.</translation>
+        </message>
+        <message>
+            <source>Dictate message</source>
+            <translation>메시지 받아쓰기</translation>
+        </message>
+        <message>
+            <source>Send message</source>
+            <translation>메시지 보내기</translation>
+        </message>
+        <message>
+            <source>*No answer.*</source>
+            <translation>*답변이 없습니다.*</translation>
+        </message>
+        <message>
+            <source>**You're out of Fincept credits.** Top up, or add your own provider API key in **Settings → LLM Configuration**.</source>
+            <translation>**Fincept 크레딧이 소진되었습니다.** 충전하거나 **설정 → LLM 설정**에서 직접 사용할 공급자 API 키를 추가하세요.</translation>
+        </message>
+        <message>
+            <source>**Fincept did not accept your sign-in.** Sign in again, or add your own provider API key in **Settings → LLM Configuration**.</source>
+            <translation>**Fincept 로그인이 거부되었습니다.** 다시 로그인하거나 **설정 → LLM 설정**에서 직접 사용할 공급자 API 키를 추가하세요.</translation>
+        </message>
+        <message>
+            <source>View plans</source>
+            <translation>요금제 보기</translation>
+        </message>
+        <message>
+            <source>Open Plans &amp; Pricing</source>
+            <translation>요금제 및 가격 열기</translation>
+        </message>
+        <message>
+            <source>LLM settings</source>
+            <translation>LLM 설정</translation>
+        </message>
+        <message>
+            <source>Open Settings to add your own provider API key</source>
+            <translation>설정을 열어 직접 사용할 공급자 API 키 추가</translation>
         </message>
     </context>
     <context>
@@ -1038,7 +1556,7 @@ For long-form chats use the AI Chat tab.</source>
         </message>
         <message>
             <source>Trade Viz</source>
-            <translation>거래 시각화</translation>
+            <translation>무역 시각화</translation>
         </message>
         <message>
             <source>Data Sources</source>
@@ -1103,6 +1621,22 @@ For long-form chats use the AI Chat tab.</source>
         <message>
             <source>Action Center</source>
             <translation>작업 센터</translation>
+        </message>
+        <message>
+            <source>F&amp;O</source>
+            <translation>선물·옵션</translation>
+        </message>
+        <message>
+            <source>Screener</source>
+            <translation>스크리너</translation>
+        </message>
+        <message>
+            <source>Crypto Center</source>
+            <translation>가상자산 센터</translation>
+        </message>
+        <message>
+            <source>Agent Workbench</source>
+            <translation>에이전트 워크벤치</translation>
         </message>
     </context>
     <context>
@@ -1578,6 +2112,98 @@ Result:
             <source>Delete?</source>
             <translation>삭제하시겠습니까?</translation>
         </message>
+        <message>
+            <source>Resume</source>
+            <translation>재개</translation>
+        </message>
+        <message>
+            <source>+ New</source>
+            <translation>+ 새로 만들기</translation>
+        </message>
+        <message>
+            <source>Run a long agent query in the background</source>
+            <translation>오래 걸리는 에이전트 쿼리를 백그라운드에서 실행</translation>
+        </message>
+        <message>
+            <source>Delete Schedule</source>
+            <translation>예약 삭제</translation>
+        </message>
+        <message>
+            <source>Schedule</source>
+            <translation>예약</translation>
+        </message>
+        <message>
+            <source>New Background Task</source>
+            <translation>새 백그라운드 작업</translation>
+        </message>
+        <message>
+            <source>What should the agent work on?</source>
+            <translation>에이전트가 수행할 작업</translation>
+        </message>
+        <message>
+            <source>New Task</source>
+            <translation>새 작업</translation>
+        </message>
+        <message>
+            <source>Cancel Task</source>
+            <translation>작업 취소</translation>
+        </message>
+        <message>
+            <source>Add Remote MCP Server</source>
+            <translation>원격 MCP 서버 추가</translation>
+        </message>
+        <message>
+            <source>The cloud agent can use remote MCP servers reachable over https.
+Local (stdio) servers such as uvx / npx commands run on your machine: add them in the
+terminal's MCP Servers screen instead.
+
+Server name (2-48 characters: lowercase letters, digits and '-'):</source>
+            <translation>클라우드 에이전트는 https로 접속할 수 있는 원격 MCP 서버를 사용할 수 있습니다.
+uvx / npx 명령 같은 로컬(stdio) 서버는 이 컴퓨터에서 실행되므로
+터미널의 MCP 서버 화면에서 추가하세요.
+
+서버 이름 (2~48자: 영문 소문자, 숫자, '-'):</translation>
+        </message>
+        <message>
+            <source>Streamable HTTP (recommended)</source>
+            <translation>Streamable HTTP (권장)</translation>
+        </message>
+        <message>
+            <source>SSE (Server-Sent Events)</source>
+            <translation>SSE (Server-Sent Events)</translation>
+        </message>
+        <message>
+            <source>Remote transport:</source>
+            <translation>원격 전송 방식:</translation>
+        </message>
+        <message>
+            <source>Server URL</source>
+            <translation>서버 URL</translation>
+        </message>
+        <message>
+            <source>https:// URL of the MCP server endpoint:</source>
+            <translation>MCP 서버 엔드포인트의 https:// URL:</translation>
+        </message>
+        <message>
+            <source>Enter a full https:// URL (for example https://mcp.example.com/mcp).
+
+Local stdio servers are configured in the terminal's MCP Servers screen.</source>
+            <translation>전체 https:// URL을 입력하세요 (예: https://mcp.example.com/mcp).
+
+로컬 stdio 서버는 터미널의 MCP 서버 화면에서 설정합니다.</translation>
+        </message>
+        <message>
+            <source>connection failed</source>
+            <translation>연결 실패</translation>
+        </message>
+        <message>
+            <source>'%1' was added but could not be connected:
+
+%2</source>
+            <translation>'%1'을(를) 추가했지만 연결할 수 없습니다:
+
+%2</translation>
+        </message>
     </context>
     <context>
         <name>fincept::chat_mode::ChatMessagePanel</name>
@@ -1687,12 +2313,60 @@ Markets, equities, portfolio, macro insights.</source>
             <source>Optimize failed: %1</source>
             <translation>최적화 실패: %1</translation>
         </message>
+        <message>
+            <source>Message the Fincept agent</source>
+            <translation>Fincept 에이전트에게 메시지 보내기</translation>
+        </message>
+        <message>
+            <source>Type a question. Enter or Ctrl+Enter sends, Shift+Enter inserts a new line.</source>
+            <translation>질문을 입력하세요. Enter 또는 Ctrl+Enter로 전송하고, Shift+Enter로 줄을 바꿉니다.</translation>
+        </message>
+        <message>
+            <source>Stop generating</source>
+            <translation>생성 중지</translation>
+        </message>
+        <message>
+            <source>Stop generating (Esc)</source>
+            <translation>생성 중지 (Esc)</translation>
+        </message>
+        <message>
+            <source>Send message</source>
+            <translation>메시지 보내기</translation>
+        </message>
+        <message>
+            <source>Insufficient credits — this request was not run.</source>
+            <translation>크레딧 부족 — 이 요청은 실행되지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>OUT OF CREDITS</source>
+            <translation>크레딧 소진</translation>
+        </message>
+        <message>
+            <source>Pro adds a monthly credit allowance, higher limits and priority support.</source>
+            <translation>Pro에는 월간 크레딧, 더 높은 사용 한도, 우선 지원이 포함됩니다.</translation>
+        </message>
+        <message>
+            <source>GET PRO — $10/MO</source>
+            <translation>Pro 가입 — 월 $10</translation>
+        </message>
+        <message>
+            <source>Teams and firms: Fincept Terminal Enterprise includes AI credits.</source>
+            <translation>팀과 기업: Fincept Terminal Enterprise에는 AI 크레딧이 포함됩니다.</translation>
+        </message>
+        <message>
+            <source>See Enterprise ↗</source>
+            <translation>Enterprise 보기 ↗</translation>
+        </message>
     </context>
     <context>
         <name>fincept::chat_mode::ChatModeScreen</name>
         <message>
             <source>New Conversation</source>
             <translation>새 대화</translation>
+        </message>
+        <message>
+            <source>Could not start a conversation: %1</source>
+            <translation>대화를 시작할 수 없습니다: %1</translation>
         </message>
     </context>
     <context>
@@ -1712,6 +2386,10 @@ Markets, equities, portfolio, macro insights.</source>
         <message>
             <source>Agent chat request failed</source>
             <translation>에이전트 채팅 요청 실패</translation>
+        </message>
+        <message>
+            <source>Request timed out</source>
+            <translation>요청 시간 초과</translation>
         </message>
     </context>
     <context>
@@ -1899,6 +2577,14 @@ Markets, equities, portfolio, macro insights.</source>
             <source>Supply (%1)</source>
             <translation>공급망 (%1)</translation>
         </message>
+        <message>
+            <source>Double-click to open %1 in Equity Research</source>
+            <translation>더블클릭하면 주식 리서치에서 %1을(를) 엽니다</translation>
+        </message>
+        <message>
+            <source>PT %1</source>
+            <translation>목표주가 %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::AIQuantLabScreen</name>
@@ -1953,6 +2639,10 @@ Markets, equities, portfolio, macro insights.</source>
         <message>
             <source>READY</source>
             <translation>준비됨</translation>
+        </message>
+        <message>
+            <source>Quant module list</source>
+            <translation>퀀트 모듈 목록</translation>
         </message>
     </context>
     <context>
@@ -2084,6 +2774,62 @@ Markets, equities, portfolio, macro insights.</source>
         <message>
             <source>LEGAL</source>
             <translation>법률</translation>
+        </message>
+        <message>
+            <source>FINCEPT TERMINAL ENTERPRISE</source>
+            <translation>Fincept Terminal Enterprise</translation>
+        </message>
+        <message>
+            <source>41 modules · private &amp; proprietary datasets</source>
+            <translation>모듈 41개 · 비공개·독점 데이터셋</translation>
+        </message>
+        <message>
+            <source>Multi-agent research · AI credits included</source>
+            <translation>멀티 에이전트 리서치 · AI 크레딧 포함</translation>
+        </message>
+        <message>
+            <source>SSO/SAML, audit logs &amp; SLA-backed support</source>
+            <translation>SSO/SAML, 감사 로그, SLA 기반 지원</translation>
+        </message>
+        <message>
+            <source>Separate product &amp; account · no copyleft</source>
+            <translation>별도 제품·계정 · 카피레프트 없음</translation>
+        </message>
+        <message>
+            <source>SEE ENTERPRISE ↗</source>
+            <translation>Enterprise 보기 ↗</translation>
+        </message>
+        <message>
+            <source>COMPARE EDITIONS</source>
+            <translation>에디션 비교</translation>
+        </message>
+        <message>
+            <source>Fincept Enterprise</source>
+            <translation>Fincept Enterprise</translation>
+        </message>
+        <message>
+            <source>Documentation</source>
+            <translation>문서</translation>
+        </message>
+        <message>
+            <source>Contributing Guide</source>
+            <translation>기여 가이드</translation>
+        </message>
+        <message>
+            <source>UPDATE AVAILABLE — v%1</source>
+            <translation>업데이트 있음 — v%1</translation>
+        </message>
+        <message>
+            <source>Copy System Info</source>
+            <translation>시스템 정보 복사</translation>
+        </message>
+        <message>
+            <source>Copy version and OS details to the clipboard for bug reports</source>
+            <translation>버그 신고용으로 버전과 OS 정보를 클립보드에 복사합니다</translation>
+        </message>
+        <message>
+            <source>Copied</source>
+            <translation>복사됨</translation>
         </message>
     </context>
     <context>
@@ -2299,6 +3045,14 @@ Markets, equities, portfolio, macro insights.</source>
             <source>SIGNATURE</source>
             <translation>서명</translation>
         </message>
+        <message>
+            <source>To: %1</source>
+            <translation>목적지: %1</translation>
+        </message>
+        <message>
+            <source>From: %1</source>
+            <translation>출발지: %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::AdbPanel</name>
@@ -2356,6 +3110,26 @@ ADB 데이터는 무료이며 API 키가 필요하지 않습니다</translation>
             <source>No data returned — try a different economy, indicator or date range</source>
             <translation>반환된 데이터가 없습니다 — 다른 경제권, 지표 또는 기간을 선택하세요</translation>
         </message>
+        <message>
+            <source>Select an economy and data category, then click FETCH
+Source: Asian Development Bank — Key Indicators Database (KIDB), SDMX
+Free, no API key required. Values are in the economy's own currency unless
+the indicator code says otherwise (…_XDC = domestic currency, …_PT = percent)</source>
+            <translation>국가와 데이터 카테고리를 고른 뒤 조회를 누르세요
+출처: 아시아개발은행(ADB) — Key Indicators Database(KIDB), SDMX
+무료이며 API 키가 필요 없습니다. 지표 코드에 따로 표시가 없으면 값은
+해당 국가의 통화 단위입니다(…_XDC = 자국 통화, …_PT = 퍼센트)</translation>
+        </message>
+        <message>
+            <source>ADB indicator code</source>
+            <translation>ADB 지표 코드</translation>
+        </message>
+        <message>
+            <source>Common KIDB indicator codes:
+%1</source>
+            <translation>자주 쓰는 KIDB 지표 코드:
+%1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::AddAssetDialog</name>
@@ -2407,6 +3181,34 @@ ADB 데이터는 무료이며 API 키가 필요하지 않습니다</translation>
             <source>No results found</source>
             <translation>검색 결과 없음</translation>
         </message>
+        <message>
+            <source>Trade date:</source>
+            <translation>거래일:</translation>
+        </message>
+        <message>
+            <source>A ticker is required</source>
+            <translation>종목코드를 입력하세요</translation>
+        </message>
+        <message>
+            <source>Quantity must be greater than 0</source>
+            <translation>수량은 0보다 커야 합니다</translation>
+        </message>
+        <message>
+            <source>Price must be greater than 0</source>
+            <translation>가격은 0보다 커야 합니다</translation>
+        </message>
+        <message>
+            <source>Ticker symbol</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>Quantity to buy</source>
+            <translation>매수 수량</translation>
+        </message>
+        <message>
+            <source>Purchase price per share</source>
+            <translation>주당 매수가격</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::AddDividendDialog</name>
@@ -2454,6 +3256,22 @@ ADB 데이터는 무료이며 API 키가 필요하지 않습니다</translation>
             <source>Required!</source>
             <translation>필수 항목입니다!</translation>
         </message>
+        <message>
+            <source>Enter an amount greater than 0</source>
+            <translation>0보다 큰 금액을 입력하세요</translation>
+        </message>
+        <message>
+            <source>Holding that paid the dividend</source>
+            <translation>배당금을 지급한 보유종목</translation>
+        </message>
+        <message>
+            <source>Dividend amount per share</source>
+            <translation>주당 배당금</translation>
+        </message>
+        <message>
+            <source>Ex-dividend date</source>
+            <translation>배당락일</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::AddWidgetDialog</name>
@@ -2480,6 +3298,26 @@ ADB 데이터는 무료이며 API 키가 필요하지 않습니다</translation>
         <message>
             <source>All</source>
             <translation>전체</translation>
+        </message>
+        <message>
+            <source>Search widgets</source>
+            <translation>위젯 검색</translation>
+        </message>
+        <message>
+            <source>Add the selected widget</source>
+            <translation>선택한 위젯 추가</translation>
+        </message>
+        <message>
+            <source>Cancel</source>
+            <translation>취소</translation>
+        </message>
+        <message>
+            <source>No widgets in this category.</source>
+            <translation>이 카테고리에는 위젯이 없습니다.</translation>
+        </message>
+        <message>
+            <source>No widgets match "%1".</source>
+            <translation>"%1"과(와) 일치하는 위젯이 없습니다.</translation>
         </message>
     </context>
     <context>
@@ -2677,6 +3515,38 @@ Select an agent above, or use Auto-Route to let the system decide.</source>
         <message>
             <source>Processing...</source>
             <translation>처리 중...</translation>
+        </message>
+        <message>
+            <source>Message the selected agent</source>
+            <translation>선택한 에이전트에게 메시지 보내기</translation>
+        </message>
+        <message>
+            <source>Enter sends, Shift+Enter inserts a new line.</source>
+            <translation>Enter로 보내고, Shift+Enter로 줄을 바꿉니다.</translation>
+        </message>
+        <message>
+            <source>Send message to agent</source>
+            <translation>에이전트에게 메시지 보내기</translation>
+        </message>
+        <message>
+            <source>[stopped]</source>
+            <translation>[중지됨]</translation>
+        </message>
+        <message>
+            <source>Stopped.</source>
+            <translation>중지했습니다.</translation>
+        </message>
+        <message>
+            <source>Stopped by user</source>
+            <translation>사용자가 중지함</translation>
+        </message>
+        <message>
+            <source>Stopped</source>
+            <translation>중지됨</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>중지</translation>
         </message>
     </context>
     <context>
@@ -2948,6 +3818,70 @@ Select an agent above, or use Auto-Route to let the system decide.</source>
             <source>Name, schedule, and query are all required.</source>
             <translation>이름, 일정, 쿼리는 모두 필수입니다.</translation>
         </message>
+        <message>
+            <source>Needs input</source>
+            <translation>입력 필요</translation>
+        </message>
+        <message>
+            <source>Budget stop</source>
+            <translation>예산 초과로 중지</translation>
+        </message>
+        <message>
+            <source>SCHEDULES…</source>
+            <translation>일정…</translation>
+        </message>
+        <message>
+            <source>View, pause and delete recurring scheduled tasks</source>
+            <translation>반복 예약 작업을 보고, 일시정지하고, 삭제합니다</translation>
+        </message>
+        <message>
+            <source>Scheduled tasks</source>
+            <translation>예약 작업</translation>
+        </message>
+        <message>
+            <source>schedule</source>
+            <translation>일정</translation>
+        </message>
+        <message>
+            <source>enabled</source>
+            <translation>사용</translation>
+        </message>
+        <message>
+            <source>next run (UTC)</source>
+            <translation>다음 실행(UTC)</translation>
+        </message>
+        <message>
+            <source>last run (UTC)</source>
+            <translation>최근 실행(UTC)</translation>
+        </message>
+        <message>
+            <source>Enable / disable selected</source>
+            <translation>선택 항목 사용 / 사용 안 함</translation>
+        </message>
+        <message>
+            <source>Delete schedule</source>
+            <translation>일정 삭제</translation>
+        </message>
+        <message>
+            <source>Delete the schedule "%1"?
+
+Tasks it already started are not affected.</source>
+            <translation>일정 "%1"을(를) 삭제하시겠습니까?
+
+이 일정으로 이미 시작된 작업에는 영향이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Delete Task</source>
+            <translation>작업 삭제</translation>
+        </message>
+        <message>
+            <source>Cancel and permanently delete this task?
+
+Any recurring schedule attached to it is removed as well. This cannot be undone.</source>
+            <translation>이 작업을 취소하고 영구 삭제하시겠습니까?
+
+연결된 반복 일정도 함께 삭제됩니다. 되돌릴 수 없습니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::AgentsViewPanel</name>
@@ -3106,6 +4040,42 @@ Select an agent above, or use Auto-Route to let the system decide.</source>
         <message>
             <source>Executing...</source>
             <translation>실행 중...</translation>
+        </message>
+        <message>
+            <source>Apply JSON</source>
+            <translation>JSON 적용</translation>
+        </message>
+        <message>
+            <source>Could not parse the JSON at offset %1: %2</source>
+            <translation>JSON을 해석하지 못했습니다(위치 %1): %2</translation>
+        </message>
+        <message>
+            <source>top level must be an object</source>
+            <translation>최상위 값은 객체여야 합니다</translation>
+        </message>
+        <message>
+            <source>Stopped</source>
+            <translation>중지됨</translation>
+        </message>
+        <message>
+            <source>ERROR</source>
+            <translation>오류</translation>
+        </message>
+        <message>
+            <source>Delete Agent</source>
+            <translation>에이전트 삭제</translation>
+        </message>
+        <message>
+            <source>Delete the agent configuration "%1"?
+
+This cannot be undone.</source>
+            <translation>에이전트 설정 "%1"을(를) 삭제하시겠습니까?
+
+되돌릴 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>STOP</source>
+            <translation>중지</translation>
         </message>
     </context>
     <context>
@@ -3342,6 +4312,374 @@ Change in Settings &gt; LLM Configuration</source>
             <source>Configure in Settings</source>
             <translation>설정에서 구성</translation>
         </message>
+        <message>
+            <source>New Chat  (Ctrl+N / Ctrl+K)</source>
+            <translation>새 채팅  (Ctrl+N / Ctrl+K)</translation>
+        </message>
+        <message>
+            <source>Export</source>
+            <translation>내보내기</translation>
+        </message>
+        <message>
+            <source>Save or copy this conversation as Markdown</source>
+            <translation>이 대화를 Markdown으로 저장하거나 복사합니다</translation>
+        </message>
+        <message>
+            <source>Message Fincept AI...  (Enter to send · Shift+Enter for a new line)</source>
+            <translation>Fincept AI에게 메시지 보내기...  (Enter로 보내기 · Shift+Enter로 줄 바꿈)</translation>
+        </message>
+        <message numerus="yes">
+            <source>Show %n earlier message(s)</source>
+            <translation>
+                <numerusform>이전 메시지 %n개 보기</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>New chat session</source>
+            <translation>새 채팅 세션</translation>
+        </message>
+        <message>
+            <source>Keep using the current model for this conversation</source>
+            <translation>이 대화에서는 현재 모델을 계속 사용</translation>
+        </message>
+        <message>
+            <source>Save as Markdown…</source>
+            <translation>Markdown으로 저장…</translation>
+        </message>
+        <message>
+            <source>Copy as Markdown</source>
+            <translation>Markdown으로 복사</translation>
+        </message>
+        <message>
+            <source>Multi-agent research for firms, AI credits included:</source>
+            <translation>기업용 멀티 에이전트 리서치, AI 크레딧 포함:</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal Enterprise ↗</source>
+            <translation>Fincept Terminal Enterprise ↗</translation>
+        </message>
+        <message>
+            <source>Message Fincept AI</source>
+            <translation>Fincept AI에게 메시지 보내기</translation>
+        </message>
+        <message>
+            <source>Enter sends, Shift+Enter inserts a new line, Esc stops a streaming answer, Ctrl+R regenerates the last answer, Ctrl+N or Ctrl+K starts a new session.</source>
+            <translation>Enter로 보내고, Shift+Enter로 줄을 바꿉니다. Esc는 생성 중인 답변을 멈추고, Ctrl+R은 마지막 답변을 다시 생성하고, Ctrl+N 또는 Ctrl+K는 새 세션을 시작합니다.</translation>
+        </message>
+        <message>
+            <source>Attach file</source>
+            <translation>파일 첨부</translation>
+        </message>
+        <message>
+            <source>Send message</source>
+            <translation>메시지 보내기</translation>
+        </message>
+        <message>
+            <source>Could not load this conversation: %1</source>
+            <translation>이 대화를 불러오지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Could not rename the session: %1</source>
+            <translation>세션 이름을 바꾸지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Delete Session</source>
+            <translation>세션 삭제</translation>
+        </message>
+        <message>
+            <source>Delete "%1" and all of its messages?
+
+This cannot be undone.</source>
+            <translation>"%1"과(와) 그 안의 메시지를 모두 삭제하시겠습니까?
+
+되돌릴 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Could not delete the session: %1</source>
+            <translation>세션을 삭제하지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Rename…  (F2)</source>
+            <translation>이름 변경…  (F2)</translation>
+        </message>
+        <message>
+            <source>Export as Markdown…</source>
+            <translation>Markdown으로 내보내기…</translation>
+        </message>
+        <message>
+            <source>Delete…  (Del)</source>
+            <translation>삭제…  (Del)</translation>
+        </message>
+        <message>
+            <source>AI Chat</source>
+            <translation>AI 채팅</translation>
+        </message>
+        <message>
+            <source>Exported from Fincept Terminal · %1</source>
+            <translation>Fincept Terminal에서 내보냄 · %1</translation>
+        </message>
+        <message>
+            <source>You</source>
+            <translation>나</translation>
+        </message>
+        <message>
+            <source>AI</source>
+            <translation>AI</translation>
+        </message>
+        <message>
+            <source>superseded by the regenerated answer below</source>
+            <translation>아래에서 다시 생성한 답변으로 대체됨</translation>
+        </message>
+        <message>
+            <source>System</source>
+            <translation>시스템</translation>
+        </message>
+        <message>
+            <source>Tools used (%1)</source>
+            <translation>사용한 도구(%1)</translation>
+        </message>
+        <message>
+            <source>Export Conversation</source>
+            <translation>대화 내보내기</translation>
+        </message>
+        <message>
+            <source>Could not read this conversation.</source>
+            <translation>이 대화를 읽지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>Markdown (*.md);;Text (*.txt)</source>
+            <translation>Markdown (*.md);;텍스트 (*.txt)</translation>
+        </message>
+        <message>
+            <source>Could not write "%1": %2</source>
+            <translation>"%1"에 쓰지 못했습니다: %2</translation>
+        </message>
+        <message>
+            <source>This conversation's last answer came from %1. New messages will go to %2.</source>
+            <translation>이 대화의 마지막 답변은 %1에서 왔습니다. 새 메시지는 %2(으)로 보냅니다.</translation>
+        </message>
+        <message>
+            <source>Use %1</source>
+            <translation>%1 사용</translation>
+        </message>
+        <message>
+            <source>Make %1 the active LLM again (a global setting — it also applies to the Quick Chat bubble and agents that use the default model)</source>
+            <translation>%1을(를) 다시 활성 LLM으로 설정합니다(전역 설정이라 빠른 채팅 말풍선과 기본 모델을 쓰는 에이전트에도 적용됩니다)</translation>
+        </message>
+        <message>
+            <source>Switch Model</source>
+            <translation>모델 전환</translation>
+        </message>
+        <message>
+            <source>Could not read LLM settings: %1</source>
+            <translation>LLM 설정을 읽지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Could not save the model: %1</source>
+            <translation>모델을 저장하지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Could not switch provider: %1</source>
+            <translation>공급자를 전환하지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>%1 is no longer configured. Add it in Settings → LLM Configuration.</source>
+            <translation>%1이(가) 더 이상 설정되어 있지 않습니다. 설정 → LLM 구성에서 추가하세요.</translation>
+        </message>
+        <message>
+            <source>Or use Fincept Terminal Enterprise — AI credits included.</source>
+            <translation>또는 AI 크레딧이 포함된 Fincept Terminal Enterprise를 이용하세요.</translation>
+        </message>
+        <message>
+            <source>See Enterprise ↗</source>
+            <translation>Enterprise 보기 ↗</translation>
+        </message>
+        <message>
+            <source>Could not read the attached file "%1": %2</source>
+            <translation>첨부 파일 "%1"을(를) 읽지 못했습니다: %2</translation>
+        </message>
+        <message>
+            <source>"%1" looks like a binary file (PDF, image, archive…) and can't be sent as text. Attach a text-based file such as .txt, .md, .csv, .json or .ipynb.</source>
+            <translation>"%1"은(는) 바이너리 파일(PDF, 이미지, 압축 파일 등)로 보여 텍스트로 보낼 수 없습니다. .txt, .md, .csv, .json, .ipynb 같은 텍스트 파일을 첨부하세요.</translation>
+        </message>
+        <message>
+            <source>%1 tok</source>
+            <translation>%1 토큰</translation>
+        </message>
+        <message>
+            <source>Stopped.</source>
+            <translation>중지했습니다.</translation>
+        </message>
+        <message>
+            <source>*Stopped.*</source>
+            <translation>*중지했습니다.*</translation>
+        </message>
+        <message>
+            <source>(stopped)</source>
+            <translation>(중지됨)</translation>
+        </message>
+        <message>
+            <source>Stopping…</source>
+            <translation>중지하는 중…</translation>
+        </message>
+        <message>
+            <source>Stopping</source>
+            <translation>중지하는 중</translation>
+        </message>
+        <message>
+            <source>AI · superseded — regenerated below</source>
+            <translation>AI · 대체됨 — 아래에서 다시 생성</translation>
+        </message>
+        <message>
+            <source>↻ Retry</source>
+            <translation>↻ 다시 시도</translation>
+        </message>
+        <message>
+            <source>↻ Regenerate</source>
+            <translation>↻ 다시 생성</translation>
+        </message>
+        <message>
+            <source>Send the last message again (Ctrl+R)</source>
+            <translation>마지막 메시지를 다시 보냅니다(Ctrl+R)</translation>
+        </message>
+        <message>
+            <source>Generate a new answer to the last message (Ctrl+R)</source>
+            <translation>마지막 메시지에 대한 새 답변을 생성합니다(Ctrl+R)</translation>
+        </message>
+        <message>
+            <source>**You're out of Fincept credits.**</source>
+            <translation>**Fincept 크레딧을 모두 사용했습니다.**</translation>
+        </message>
+        <message>
+            <source>**Fincept did not accept your sign-in.**</source>
+            <translation>**Fincept에서 로그인을 거부했습니다.**</translation>
+        </message>
+        <message>
+            <source>This request needs %1; your balance is %2.</source>
+            <translation>이 요청에는 %1이(가) 필요하지만 잔액은 %2입니다.</translation>
+        </message>
+        <message>
+            <source>Top up your credits, or add your own provider API key in **Settings → LLM Configuration** to keep chatting.</source>
+            <translation>크레딧을 충전하거나 **설정 → LLM 구성**에서 직접 쓰는 공급자의 API 키를 추가하면 계속 채팅할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Sign in again (or check your Fincept API key), or add your own provider API key in **Settings → LLM Configuration**.</source>
+            <translation>다시 로그인하거나(또는 Fincept API 키를 확인하거나) **설정 → LLM 구성**에서 직접 쓰는 공급자의 API 키를 추가하세요.</translation>
+        </message>
+        <message>
+            <source>View plans</source>
+            <translation>요금제 보기</translation>
+        </message>
+        <message>
+            <source>Open Plans &amp; Pricing</source>
+            <translation>요금제 및 가격 열기</translation>
+        </message>
+        <message>
+            <source>LLM settings</source>
+            <translation>LLM 설정</translation>
+        </message>
+        <message>
+            <source>Open Settings to add your own provider API key</source>
+            <translation>설정을 열어 직접 쓰는 공급자의 API 키를 추가합니다</translation>
+        </message>
+        <message>
+            <source>Show earlier messages</source>
+            <translation>이전 메시지 보기</translation>
+        </message>
+        <message>
+            <source>Stop</source>
+            <translation>중지</translation>
+        </message>
+        <message>
+            <source>Send (Enter)</source>
+            <translation>전송 (Enter)</translation>
+        </message>
+        <message>
+            <source>Stop the answer (Esc)</source>
+            <translation>답변 중지(Esc)</translation>
+        </message>
+        <message>
+            <source>%1 tokens used in this conversation (prompt + completion, all tool rounds, as reported by the provider)</source>
+            <translation>이 대화에서 사용한 토큰 %1개(프롬프트 + 응답, 모든 도구 라운드 포함, 공급자 보고 기준)</translation>
+        </message>
+        <message>
+            <source>Thinking…</source>
+            <translation>생각하는 중…</translation>
+        </message>
+        <message>
+            <source>Thoughts</source>
+            <translation>생각</translation>
+        </message>
+        <message>
+            <source>Using tools…</source>
+            <translation>도구 사용 중…</translation>
+        </message>
+        <message>
+            <source> (parallel round)</source>
+            <translation> (병렬 라운드)</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>이유 없음</translation>
+        </message>
+        <message>
+            <source>%1 of %2 failed: %3</source>
+            <translation>%2개 중 %1개 실패: %3</translation>
+        </message>
+        <message>
+            <source>failed: %1</source>
+            <translation>실패: %1</translation>
+        </message>
+        <message>
+            <source>background job %1</source>
+            <translation>백그라운드 작업 %1</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n tool call(s)</source>
+            <translation>
+                <numerusform>도구 호출 %n회</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Using tools… (%1)</source>
+            <translation>도구 사용 중… (%1)</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n failed</source>
+            <translation>
+                <numerusform>%n개 실패</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>%n in background</source>
+            <translation>
+                <numerusform>백그라운드 %n개</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>no longer tracked (jobs expire after 15 minutes)</source>
+            <translation>더 이상 추적하지 않음(작업은 15분 후 만료됩니다)</translation>
+        </message>
+        <message>
+            <source>running %1 of %2</source>
+            <translation>실행 중 %1 / %2</translation>
+        </message>
+        <message>
+            <source>running %1</source>
+            <translation>실행 중 %1</translation>
+        </message>
+        <message>
+            <source>finished in %1</source>
+            <translation>%1 만에 완료</translation>
+        </message>
+        <message>
+            <source>failed after %1</source>
+            <translation>%1 후 실패</translation>
+        </message>
+        <message>
+            <source>cancelled after %1</source>
+            <translation>%1 후 취소됨</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::AkShareChinaPanel</name>
@@ -3490,6 +4828,58 @@ to load available endpoints</source>
             <source>Loading...</source>
             <translation>불러오는 중...</translation>
         </message>
+        <message>
+            <source>Filter endpoints</source>
+            <translation>엔드포인트 필터</translation>
+        </message>
+        <message>
+            <source>Available endpoints</source>
+            <translation>사용 가능한 엔드포인트</translation>
+        </message>
+        <message>
+            <source>Symbol parameter</source>
+            <translation>종목코드 파라미터</translation>
+        </message>
+        <message>
+            <source>Period is fixed to the endpoint default (not yet configurable)</source>
+            <translation>기간은 엔드포인트 기본값으로 고정됩니다(아직 설정할 수 없음)</translation>
+        </message>
+        <message>
+            <source>Start date parameter</source>
+            <translation>시작일 파라미터</translation>
+        </message>
+        <message>
+            <source>End date parameter</source>
+            <translation>종료일 파라미터</translation>
+        </message>
+        <message>
+            <source>Period parameter (disabled)</source>
+            <translation>기간 파라미터(사용 안 함)</translation>
+        </message>
+        <message>
+            <source>Execute query</source>
+            <translation>쿼리 실행</translation>
+        </message>
+        <message>
+            <source>
+
+Click the source again to retry</source>
+            <translation>
+
+다시 시도하려면 소스를 한 번 더 클릭하세요</translation>
+        </message>
+        <message>
+            <source>No endpoints published by %1</source>
+            <translation>%1에서 제공하는 엔드포인트가 없습니다</translation>
+        </message>
+        <message>
+            <source>No endpoints available</source>
+            <translation>사용 가능한 엔드포인트가 없습니다</translation>
+        </message>
+        <message>
+            <source>Error: %1</source>
+            <translation>오류: %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::AlgoDeployDialog</name>
@@ -3593,6 +4983,142 @@ to load available endpoints</source>
             <source>Account credentials expired. Re-authenticate in Equity Trading.</source>
             <translation>계좌 인증 정보가 만료되었습니다. 주식 거래에서 다시 인증하세요.</translation>
         </message>
+        <message>
+            <source>Underlying:</source>
+            <translation>기초자산:</translation>
+        </message>
+        <message>
+            <source>⚠  LIVE MODE — this strategy will place REAL orders with REAL money.</source>
+            <translation>⚠  실전 모드 — 이 전략은 실제 돈으로 실제 주문을 냅니다.</translation>
+        </message>
+        <message>
+            <source>Trading symbol</source>
+            <translation>거래 종목코드</translation>
+        </message>
+        <message>
+            <source>Deployment mode, paper or live</source>
+            <translation>배포 모드(모의투자 또는 실전투자)</translation>
+        </message>
+        <message>
+            <source>Entry side, buy or sell</source>
+            <translation>진입 방향(매수 또는 매도)</translation>
+        </message>
+        <message>
+            <source>Broker account</source>
+            <translation>증권사 계좌</translation>
+        </message>
+        <message>
+            <source>Exchange</source>
+            <translation>거래소</translation>
+        </message>
+        <message>
+            <source>Product type</source>
+            <translation>상품 유형</translation>
+        </message>
+        <message>
+            <source>Bar timeframe</source>
+            <translation>봉 주기</translation>
+        </message>
+        <message>
+            <source>Order quantity</source>
+            <translation>주문 수량</translation>
+        </message>
+        <message>
+            <source>Maximum order value</source>
+            <translation>최대 주문금액</translation>
+        </message>
+        <message>
+            <source>Maximum daily loss</source>
+            <translation>일일 최대 손실</translation>
+        </message>
+        <message>
+            <source>Deploy strategy</source>
+            <translation>전략 배포</translation>
+        </message>
+        <message>
+            <source>Broker (orders + data):</source>
+            <translation>증권사(주문 + 데이터):</translation>
+        </message>
+        <message>
+            <source>Broker (data source):</source>
+            <translation>증권사(데이터 소스):</translation>
+        </message>
+        <message>
+            <source>DEPLOY LIVE</source>
+            <translation>실전 배포</translation>
+        </message>
+        <message>
+            <source>DEPLOY (PAPER)</source>
+            <translation>배포(모의투자)</translation>
+        </message>
+        <message>
+            <source>Deploy Strategy — LIVE</source>
+            <translation>전략 배포 — 실전투자</translation>
+        </message>
+        <message>
+            <source>Deploy Strategy — Paper</source>
+            <translation>전략 배포 — 모의투자</translation>
+        </message>
+        <message>
+            <source>Deploy</source>
+            <translation>배포</translation>
+        </message>
+        <message>
+            <source>Select an underlying for the F&amp;O deployment.</source>
+            <translation>F&amp;O 배포에 쓸 기초자산을 선택하세요.</translation>
+        </message>
+        <message>
+            <source>No connected broker account is selected. Deployments — paper ones too — read their live prices from a connected broker.
+
+Connect a broker in Equity Trading, then deploy again.</source>
+            <translation>연결된 증권사 계좌를 선택하지 않았습니다. 배포는 모의투자라도 연결된 증권사에서 실시간 가격을 읽습니다.
+
+주식 거래에서 증권사를 연결한 뒤 다시 배포하세요.</translation>
+        </message>
+        <message>
+            <source>%1 %2 (%3)</source>
+            <translation>%1 %2 (%3)</translation>
+        </message>
+        <message>
+            <source>no limit</source>
+            <translation>제한 없음</translation>
+        </message>
+        <message>
+            <source>Confirm LIVE deployment</source>
+            <translation>실전 배포 확인</translation>
+        </message>
+        <message>
+            <source>You are about to deploy "%1" to LIVE trading.
+
+It will place REAL orders on a REAL account, unattended,
+until you stop it from the Dashboard.
+
+  Instrument:      %2
+  Entry side:      %3
+  Quantity:        %4
+  Timeframe:       %5
+  Broker account:  %6 (%7)
+  Exchange:        %8
+  Max order value: %9
+  Max daily loss:  %10
+
+Deploy live?</source>
+            <translation>"%1"을(를) 실전투자로 배포합니다.
+
+대시보드에서 중지할 때까지 실제 계좌에서 실제 주문을
+사람의 확인 없이 자동으로 냅니다.
+
+  종목:           %2
+  진입 방향:      %3
+  수량:           %4
+  주기:           %5
+  증권사 계좌:    %6 (%7)
+  거래소:         %8
+  최대 주문금액:  %9
+  일일 최대 손실: %10
+
+실전투자로 배포하시겠습니까?</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::AlgoTradingScreen</name>
@@ -3627,6 +5153,26 @@ to load available endpoints</source>
         <message>
             <source>IDLE</source>
             <translation>대기</translation>
+        </message>
+        <message>
+            <source>ALERTS</source>
+            <translation>알림</translation>
+        </message>
+        <message>
+            <source>UNIVERSE</source>
+            <translation>전체 대상</translation>
+        </message>
+        <message>
+            <source>%1 PAPER</source>
+            <translation>모의투자 %1</translation>
+        </message>
+        <message>
+            <source>%1 deployment(s) running — %2 live, %3 paper</source>
+            <translation>배포 %1개 실행 중 — 실전투자 %2개, 모의투자 %3개</translation>
+        </message>
+        <message>
+            <source>%1 RUNNING</source>
+            <translation>실행 중 %1</translation>
         </message>
     </context>
     <context>
@@ -3690,6 +5236,30 @@ to load available endpoints</source>
         <message>
             <source>Analysis failed</source>
             <translation>분석 실패</translation>
+        </message>
+        <message>
+            <source>%1 ANALYZERS  �  %2 ASSET CLASSES  �  MULTI-ASSET ANALYTICS</source>
+            <translation>분석기 %1개  ·  자산군 %2개  ·  멀티에셋 분석</translation>
+        </message>
+        <message>
+            <source>METHOD</source>
+            <translation>방법</translation>
+        </message>
+        <message>
+            <source>Analyzer</source>
+            <translation>분석기</translation>
+        </message>
+        <message>
+            <source>Analysis method</source>
+            <translation>분석 방법</translation>
+        </message>
+        <message>
+            <source>Run the selected analyzer</source>
+            <translation>선택한 분석기 실행</translation>
+        </message>
+        <message>
+            <source>Run the analyzer (Enter)</source>
+            <translation>분석기 실행(Enter)</translation>
         </message>
     </context>
     <context>
@@ -3820,6 +5390,14 @@ sectors</source>
             <source>Computing correlations from price history…</source>
             <translation>과거 가격에서 상관관계 계산 중…</translation>
         </message>
+        <message>
+            <source>Top-10 holdings by weight. Pearson correlation of daily returns over the trailing %1 trading days, dates aligned across markets. — = fewer than 20 shared observations.</source>
+            <translation>비중 상위 10개 보유종목. 최근 %1거래일 일간 수익률의 피어슨 상관계수이며, 시장 간 날짜를 맞췄습니다. — = 공통 관측치 20개 미만.</translation>
+        </message>
+        <message>
+            <source>Unclassified</source>
+            <translation>미분류</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::AppearanceSection</name>
@@ -3923,6 +5501,18 @@ sectors</source>
             <source>Your saved appearance settings could not be read — saving is disabled so the defaults shown cannot overwrite them. Reopen Settings to retry.</source>
             <translation>저장된 화면 설정을 읽지 못했습니다. 표시된 기본값이 기존 설정을 덮어쓰지 않도록 저장을 비활성화했습니다. 설정을 다시 열어 재시도하세요.</translation>
         </message>
+        <message>
+            <source>Font and density changes preview immediately; Save keeps them — and the toggles — across restarts.</source>
+            <translation>글꼴과 밀도 변경은 바로 미리 보기로 적용됩니다. 저장하면 이 변경과 토글 설정이 다시 시작한 뒤에도 유지됩니다.</translation>
+        </message>
+        <message>
+            <source>Scrolling price ticker on the Dashboard. Applies the next time the Dashboard is shown.</source>
+            <translation>대시보드에 흐르는 시세 티커입니다. 다음에 대시보드를 열 때 적용됩니다.</translation>
+        </message>
+        <message>
+            <source>Scrolls the Dashboard ticker; when off the ticker shows its symbols without moving.</source>
+            <translation>대시보드 시세 티커를 흐르게 합니다. 끄면 티커가 움직이지 않고 종목코드를 표시합니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::AsiaMarketsScreen</name>
@@ -4021,6 +5611,18 @@ sectors</source>
         <message>
             <source>Error</source>
             <translation>오류</translation>
+        </message>
+        <message>
+            <source>Region filtering is not yet functional — endpoints are region-specific; choose the relevant endpoint from the list.</source>
+            <translation>지역 필터는 아직 작동하지 않습니다 — 엔드포인트가 지역별로 나뉘어 있으니 목록에서 해당 엔드포인트를 고르세요.</translation>
+        </message>
+        <message>
+            <source>Failed to load endpoints: %1</source>
+            <translation>엔드포인트를 불러오지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Error: %1</source>
+            <translation>오류: %1</translation>
         </message>
     </context>
     <context>
@@ -4519,6 +6121,210 @@ Commands: Backtest, Optimize, Walk-Forward, Indicators, ML Labels, CV Splits, Re
             <source>ERROR</source>
             <translation>오류</translation>
         </message>
+        <message>
+            <source>EXECUTING… %1s</source>
+            <translation>실행 중… %1초</translation>
+        </message>
+        <message>
+            <source>CANCEL</source>
+            <translation>취소</translation>
+        </message>
+        <message>
+            <source>EXPORT CSV</source>
+            <translation>CSV 내보내기</translation>
+        </message>
+        <message>
+            <source>Allow synthetic data (testing only)</source>
+            <translation>합성 데이터 허용(테스트 전용)</translation>
+        </message>
+        <message>
+            <source>Run the selected command (Ctrl+Enter)</source>
+            <translation>선택한 명령 실행(Ctrl+Enter)</translation>
+        </message>
+        <message>
+            <source>Cancel the running command (Esc)</source>
+            <translation>실행 중인 명령 취소(Esc)</translation>
+        </message>
+        <message>
+            <source>Export the DETAILS rows or the equity curve as CSV</source>
+            <translation>상세 행이나 자산 곡선을 CSV로 내보냅니다</translation>
+        </message>
+        <message>
+            <source>Details / trades (CSV)…</source>
+            <translation>상세 / 거래 내역(CSV)…</translation>
+        </message>
+        <message>
+            <source>Equity curve (CSV)…</source>
+            <translation>자산 곡선(CSV)…</translation>
+        </message>
+        <message>
+            <source>There is no result to export yet.</source>
+            <translation>아직 내보낼 결과가 없습니다.</translation>
+        </message>
+        <message>
+            <source>SPY,AAPL,MSFT</source>
+            <translation>SPY,AAPL,MSFT</translation>
+        </message>
+        <message>
+            <source>If real market data cannot be loaded, run on randomly generated prices instead of failing.
+Results are then clearly marked SYNTHETIC and have no market meaning.</source>
+            <translation>실제 시장 데이터를 불러오지 못하면 실패로 끝내지 않고 무작위로 생성한 가격으로 실행합니다.
+이때 결과에는 합성 데이터라고 분명히 표시되며, 시장에서는 아무 의미가 없습니다.</translation>
+        </message>
+        <message>
+            <source>Start date must be before the end date.</source>
+            <translation>시작일은 종료일보다 앞이어야 합니다.</translation>
+        </message>
+        <message>
+            <source>EXECUTING…  0s</source>
+            <translation>실행 중…  0초</translation>
+        </message>
+        <message>
+            <source>SYNTHETIC DATA — these prices were randomly generated because real market data could not be loaded (you enabled "Allow synthetic data"). Every number below has NO market meaning. Do not use it for any decision.</source>
+            <translation>합성 데이터 — 실제 시장 데이터를 불러오지 못해 가격을 무작위로 생성했습니다("합성 데이터 허용"을 켰습니다). 아래 숫자는 모두 시장에서 아무 의미가 없습니다. 어떤 판단에도 쓰지 마세요.</translation>
+        </message>
+        <message>
+            <source>SUMMARY · SYNTHETIC</source>
+            <translation>요약 · 합성 데이터</translation>
+        </message>
+        <message>
+            <source>Costs: %1</source>
+            <translation>비용: %1</translation>
+        </message>
+        <message>
+            <source>Not applied by this engine: %1.</source>
+            <translation>이 엔진에서 적용하지 않음: %1.</translation>
+        </message>
+        <message>
+            <source>commission</source>
+            <translation>수수료</translation>
+        </message>
+        <message>
+            <source>slippage</source>
+            <translation>슬리피지</translation>
+        </message>
+        <message>
+            <source>stop-loss/take-profit</source>
+            <translation>손절/익절</translation>
+        </message>
+        <message>
+            <source> %1 does not apply your %2 setting.</source>
+            <translation> %1은(는) %2 설정을 적용하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>NO COSTS MODELLED — no commission or slippage reached the engine. These returns are gross and are not achievable.</source>
+            <translation>비용 미반영 — 엔진에 수수료나 슬리피지가 전달되지 않았습니다. 이 수익률은 비용을 빼기 전 값이라 실제로는 달성할 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>commission %1% per trade</source>
+            <translation>거래당 수수료 %1%</translation>
+        </message>
+        <message>
+            <source>slippage %1% per fill</source>
+            <translation>체결당 슬리피지 %1%</translation>
+        </message>
+        <message>
+            <source>Costs applied: %1.</source>
+            <translation>적용한 비용: %1.</translation>
+        </message>
+        <message>
+            <source>, </source>
+            <translation>, </translation>
+        </message>
+        <message>
+            <source>This strategy produced ZERO trades over the selected range. Every performance figure below is meaningless — widen the date range, loosen the entry rules, or check the symbol/interval.</source>
+            <translation>선택한 기간 동안 이 전략의 거래가 0건입니다. 아래 성과 수치는 모두 의미가 없습니다 — 기간을 넓히거나, 진입 규칙을 완화하거나, 종목코드/주기를 확인하세요.</translation>
+        </message>
+        <message>
+            <source>DETAILS (%1)</source>
+            <translation>상세(%1)</translation>
+        </message>
+        <message>
+            <source>ASSUMPTIONS</source>
+            <translation>가정</translation>
+        </message>
+        <message>
+            <source>ENGINE</source>
+            <translation>엔진</translation>
+        </message>
+        <message>
+            <source>COSTS</source>
+            <translation>비용</translation>
+        </message>
+        <message>
+            <source>DATA</source>
+            <translation>데이터</translation>
+        </message>
+        <message>
+            <source>ANNUALISATION</source>
+            <translation>연율화</translation>
+        </message>
+        <message>
+            <source>RISK-FREE RATE: %1%</source>
+            <translation>무위험이자율: %1%</translation>
+        </message>
+        <message>
+            <source>SURVIVORSHIP</source>
+            <translation>생존 편향</translation>
+        </message>
+        <message>
+            <source>NOTE: %1</source>
+            <translation>참고: %1</translation>
+        </message>
+        <message>
+            <source>showing %1 of %2 items - EXPORT JSON writes all</source>
+            <translation>전체 %2개 중 %1개 표시 - JSON 내보내기를 하면 모두 저장됩니다</translation>
+        </message>
+        <message>
+            <source>Could not load the provider catalogue [%1]: %2</source>
+            <translation>공급자 카탈로그를 불러오지 못했습니다 [%1]: %2</translation>
+        </message>
+        <message>
+            <source>DONE · SYNTHETIC DATA</source>
+            <translation>완료 · 합성 데이터</translation>
+        </message>
+        <message>
+            <source>CANCELLED</source>
+            <translation>취소됨</translation>
+        </message>
+        <message>
+            <source>%1 / %2 cancelled after %3 s. Nothing from this run will be shown.
+
+Optimisation and walk-forward loops stop at their next iteration. A single long backtest step cannot be interrupted: its Python process finishes in the background (its result is discarded) and occupies one of the shared Python slots until then.</source>
+            <translation>%1 / %2을(를) %3초 후 취소했습니다. 이 실행의 결과는 표시하지 않습니다.
+
+최적화와 워크포워드 반복은 다음 회차에서 멈춥니다. 오래 걸리는 단일 백테스트 단계는 중단할 수 없습니다. 그 Python 프로세스는 백그라운드에서 끝까지 실행되고(결과는 버림) 그때까지 공유 Python 슬롯 하나를 차지합니다.</translation>
+        </message>
+        <message>
+            <source>Could not write %1:
+%2</source>
+            <translation>%1에 쓰지 못했습니다:
+%2</translation>
+        </message>
+        <message>
+            <source>Export CSV</source>
+            <translation>CSV 내보내기</translation>
+        </message>
+        <message>
+            <source>There are no detail rows to export.</source>
+            <translation>내보낼 상세 행이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Export Details CSV</source>
+            <translation>상세 CSV 내보내기</translation>
+        </message>
+        <message>
+            <source>CSV Files (*.csv);;All Files (*)</source>
+            <translation>CSV 파일 (*.csv);;모든 파일 (*)</translation>
+        </message>
+        <message>
+            <source>This result has no equity curve to export.</source>
+            <translation>이 결과에는 내보낼 자산 곡선이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Export Equity Curve CSV</source>
+            <translation>자산 곡선 CSV 내보내기</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::BcbPanel</name>
@@ -4539,6 +6345,14 @@ Source: Banco Central do Brasil — no API key required</source>
         <message>
             <source>No data returned for this series</source>
             <translation>이 시계열에서 반환된 데이터가 없습니다</translation>
+        </message>
+        <message>
+            <source>SGS series %1</source>
+            <translation>SGS 시계열 %1</translation>
+        </message>
+        <message>
+            <source> · dates after today carry the target in force until the next Copom meeting</source>
+            <translation> · 오늘 이후 날짜에는 다음 Copom 회의까지 유효한 목표금리를 표시합니다</translation>
         </message>
     </context>
     <context>
@@ -4721,6 +6535,14 @@ BLS_API_KEY 환경 변수를 설정하세요.
             <source>No data returned</source>
             <translation>반환된 데이터 없음</translation>
         </message>
+        <message>
+            <source>Seasonally adjusted</source>
+            <translation>계절조정</translation>
+        </message>
+        <message>
+            <source>Not seasonally adjusted</source>
+            <translation>계절조정 전</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::CellNavigator</name>
@@ -4774,6 +6596,58 @@ BLS_API_KEY 환경 변수를 설정하세요.
         <message>
             <source>Empty markdown cell — click to edit</source>
             <translation>빈 마크다운 셀 — 클릭하여 편집</translation>
+        </message>
+        <message>
+            <source>Run this cell</source>
+            <translation>이 셀 실행</translation>
+        </message>
+        <message>
+            <source>Switch between code and markdown</source>
+            <translation>코드/마크다운 전환</translation>
+        </message>
+        <message>
+            <source>Switch between code and markdown (clears this cell's output)</source>
+            <translation>코드/마크다운 전환(이 셀의 출력이 지워집니다)</translation>
+        </message>
+        <message>
+            <source>Move this cell up</source>
+            <translation>이 셀을 위로 이동</translation>
+        </message>
+        <message>
+            <source>Move this cell down</source>
+            <translation>이 셀을 아래로 이동</translation>
+        </message>
+        <message>
+            <source>Delete this cell</source>
+            <translation>이 셀 삭제</translation>
+        </message>
+        <message>
+            <source>Notebook cell source</source>
+            <translation>노트북 셀 소스</translation>
+        </message>
+        <message>
+            <source>Python source. Ctrl+Enter runs this cell, Shift+Enter runs it and moves to the next.</source>
+            <translation>Python 소스입니다. Ctrl+Enter는 이 셀을 실행하고, Shift+Enter는 실행한 뒤 다음 셀로 이동합니다.</translation>
+        </message>
+        <message>
+            <source>Click to edit this markdown cell</source>
+            <translation>클릭하면 이 마크다운 셀을 편집합니다</translation>
+        </message>
+        <message>
+            <source>OUTPUT — running…</source>
+            <translation>출력 — 실행 중…</translation>
+        </message>
+        <message>
+            <source>%1 ms</source>
+            <translation>%1 ms</translation>
+        </message>
+        <message>
+            <source>%1 s</source>
+            <translation>%1초</translation>
+        </message>
+        <message>
+            <source>OUT [%1]  ·  %2</source>
+            <translation>출력 [%1]  ·  %2</translation>
         </message>
     </context>
     <context>
@@ -4900,6 +6774,18 @@ CFTC 데이터는 무료이며 API 키가 필요하지 않습니다</translation
         <message>
             <source>Historical Trend</source>
             <translation>과거 추세</translation>
+        </message>
+        <message>
+            <source>Contracts</source>
+            <translation>계약</translation>
+        </message>
+        <message>
+            <source>Weekly</source>
+            <translation>주간</translation>
+        </message>
+        <message>
+            <source>Positions as of Tuesday, published Friday · net = non-commercial long − short</source>
+            <translation>화요일 기준 포지션, 금요일 발표 · 순포지션 = 비상업 롱 − 숏</translation>
         </message>
     </context>
     <context>
@@ -5050,6 +6936,274 @@ CFTC 데이터는 무료이며 API 키가 필요하지 않습니다</translation
         <message>
             <source>KERNEL: BUSY</source>
             <translation>커널: 실행 중</translation>
+        </message>
+        <message>
+            <source>FINCEPT NOTEBOOK</source>
+            <translation>Fincept 노트북</translation>
+        </message>
+        <message>
+            <source>LIBRARY</source>
+            <translation>라이브러리</translation>
+        </message>
+        <message>
+            <source>EDITOR</source>
+            <translation>편집기</translation>
+        </message>
+        <message>
+            <source>Search notebooks...</source>
+            <translation>노트북 검색...</translation>
+        </message>
+        <message>
+            <source>＋  NEW NOTEBOOK</source>
+            <translation>＋  새 노트북</translation>
+        </message>
+        <message>
+            <source>New notebook</source>
+            <translation>새 노트북</translation>
+        </message>
+        <message>
+            <source>New notebook (%1)</source>
+            <translation>새 노트북 (%1)</translation>
+        </message>
+        <message>
+            <source>Open notebook</source>
+            <translation>노트북 열기</translation>
+        </message>
+        <message>
+            <source>Open notebook (%1)</source>
+            <translation>노트북 열기 (%1)</translation>
+        </message>
+        <message>
+            <source>Save notebook</source>
+            <translation>노트북 저장</translation>
+        </message>
+        <message>
+            <source>Save notebook (%1)</source>
+            <translation>노트북 저장 (%1)</translation>
+        </message>
+        <message>
+            <source>Add cell below the selected cell</source>
+            <translation>선택한 셀 아래에 셀 추가</translation>
+        </message>
+        <message>
+            <source>Clear all cell outputs</source>
+            <translation>모든 셀 출력 지우기</translation>
+        </message>
+        <message>
+            <source>▶  RUN ALL</source>
+            <translation>▶  모두 실행</translation>
+        </message>
+        <message>
+            <source>Run every code cell</source>
+            <translation>모든 코드 셀 실행</translation>
+        </message>
+        <message>
+            <source>Run every code cell (Ctrl+Shift+Enter). Cells execute as separate processes and do not share state with each other.</source>
+            <translation>모든 코드 셀을 실행합니다(Ctrl+Shift+Enter). 셀마다 별도 프로세스로 실행되어 서로 상태를 공유하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>■ STOP</source>
+            <translation>■ 중지</translation>
+        </message>
+        <message>
+            <source>Interrupt running cells</source>
+            <translation>실행 중인 셀 중단</translation>
+        </message>
+        <message>
+            <source>Interrupt running cells and cancel the RUN ALL queue (Esc)</source>
+            <translation>실행 중인 셀을 중단하고 모두 실행 대기열을 취소합니다(Esc)</translation>
+        </message>
+        <message>
+            <source>PY · NUMPY2</source>
+            <translation>PY · NUMPY2</translation>
+        </message>
+        <message>
+            <source>PY · NUMPY1</source>
+            <translation>PY · NUMPY1</translation>
+        </message>
+        <message>
+            <source>Python environment for this notebook</source>
+            <translation>이 노트북의 Python 환경</translation>
+        </message>
+        <message>
+            <source>Python environment the cells run in.
+NUMPY2 — default: pandas, numpy 2, scipy, statsmodels, yfinance, …
+NUMPY1 — vectorbt, backtesting.py, zipline, bt, ffn, PyPortfolioOpt, financepy</source>
+            <translation>셀이 실행되는 Python 환경입니다.
+NUMPY2 — 기본값: pandas, numpy 2, scipy, statsmodels, yfinance, …
+NUMPY1 — vectorbt, backtesting.py, zipline, bt, ffn, PyPortfolioOpt, financepy</translation>
+        </message>
+        <message>
+            <source>LIMIT %1 MIN</source>
+            <translation>제한 %1분</translation>
+        </message>
+        <message>
+            <source>Time limit per cell</source>
+            <translation>셀당 시간 제한</translation>
+        </message>
+        <message>
+            <source>A cell still running after this long is interrupted and reports TimeoutError</source>
+            <translation>이 시간이 지나도 실행 중인 셀은 중단되고 TimeoutError를 보고합니다</translation>
+        </message>
+        <message>
+            <source>Ctrl+Enter: RUN  |  Shift+Enter: RUN &amp; NEXT  |  Tab: 4 SPACES  |  Ctrl+S: SAVE  |  Ctrl+Shift+Enter: RUN ALL  |  Esc: STOP</source>
+            <translation>Ctrl+Enter: 실행  |  Shift+Enter: 실행 후 다음  |  Tab: 공백 4칸  |  Ctrl+S: 저장  |  Ctrl+Shift+Enter: 모두 실행  |  Esc: 중지</translation>
+        </message>
+        <message>
+            <source>this notebook</source>
+            <translation>이 노트북</translation>
+        </message>
+        <message>
+            <source>Unsaved Changes</source>
+            <translation>저장하지 않은 변경 사항</translation>
+        </message>
+        <message>
+            <source>%1 has unsaved changes.</source>
+            <translation>%1에 저장하지 않은 변경 사항이 있습니다.</translation>
+        </message>
+        <message>
+            <source>%1 will discard them.</source>
+            <translation>%1 변경 사항이 사라집니다.</translation>
+        </message>
+        <message>
+            <source>Creating a new notebook</source>
+            <translation>새 노트북을 만들면</translation>
+        </message>
+        <message>
+            <source>Delete Cell</source>
+            <translation>셀 삭제</translation>
+        </message>
+        <message>
+            <source>Delete this cell and its contents?
+
+This cannot be undone.</source>
+            <translation>이 셀과 내용을 삭제하시겠습니까?
+
+되돌릴 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>[output truncated — only the first 2 MB was kept]</source>
+            <translation>[출력이 잘렸습니다 — 처음 2 MB만 보관했습니다]</translation>
+        </message>
+        <message numerus="yes">
+            <source>RUN ALL STOPPED — a cell failed; %n cell(s) not run</source>
+            <translation>
+                <numerusform>모두 실행 중지됨 — 셀이 실패해 %n개 셀을 실행하지 않았습니다</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>INTERRUPTING %n CELL(S)…</source>
+            <translation>
+                <numerusform>셀 %n개 중단하는 중…</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Opening another notebook</source>
+            <translation>다른 노트북을 열면</translation>
+        </message>
+        <message>
+            <source>Fincept Notebooks (*.ipynb);;All Files (*)</source>
+            <translation>Fincept 노트북 (*.ipynb);;모든 파일 (*)</translation>
+        </message>
+        <message>
+            <source>Could not read a notebook from:
+%1
+
+The file must be valid JSON in .ipynb (nbformat) shape.</source>
+            <translation>다음 위치에서 노트북을 읽지 못했습니다:
+%1
+
+파일은 .ipynb(nbformat) 형식의 올바른 JSON이어야 합니다.</translation>
+        </message>
+        <message>
+            <source>Fincept Notebooks (*.ipynb)</source>
+            <translation>Fincept 노트북 (*.ipynb)</translation>
+        </message>
+        <message>
+            <source>Could not write to:
+%1
+
+%2</source>
+            <translation>다음 위치에 쓰지 못했습니다:
+%1
+
+%2</translation>
+        </message>
+        <message>
+            <source>FINCEPT NOTEBOOK LIBRARY — curated finance, economics, trading, investing, portfolio &amp; quant notebooks</source>
+            <translation>Fincept 노트북 라이브러리 — 금융, 경제, 트레이딩, 투자, 포트폴리오, 퀀트 노트북 모음</translation>
+        </message>
+        <message>
+            <source>Toggle the cell navigator sidebar</source>
+            <translation>셀 탐색 사이드바 표시/숨기기</translation>
+        </message>
+        <message>
+            <source>All</source>
+            <translation>전체</translation>
+        </message>
+        <message>
+            <source>Finance</source>
+            <translation>금융</translation>
+        </message>
+        <message>
+            <source>Economics</source>
+            <translation>경제</translation>
+        </message>
+        <message>
+            <source>Trading</source>
+            <translation>거래</translation>
+        </message>
+        <message>
+            <source>Investing</source>
+            <translation>투자</translation>
+        </message>
+        <message>
+            <source>Portfolio</source>
+            <translation>포트폴리오</translation>
+        </message>
+        <message>
+            <source>Quant</source>
+            <translation>퀀트</translation>
+        </message>
+        <message>
+            <source>Beginner</source>
+            <translation>초급</translation>
+        </message>
+        <message>
+            <source>Intermediate</source>
+            <translation>중급</translation>
+        </message>
+        <message>
+            <source>Hard</source>
+            <translation>고급</translation>
+        </message>
+        <message>
+            <source>Notebook library not found. Rebuild the app to bundle the notebooks.</source>
+            <translation>노트북 라이브러리를 찾을 수 없습니다. 노트북이 포함되도록 앱을 다시 빌드하세요.</translation>
+        </message>
+        <message>
+            <source>No notebooks match your filters.</source>
+            <translation>필터와 일치하는 노트북이 없습니다.</translation>
+        </message>
+        <message>
+            <source>%1 notebooks  ·  %2 beginner · %3 intermediate · %4 hard</source>
+            <translation>노트북 %1개  ·  초급 %2 · 중급 %3 · 고급 %4</translation>
+        </message>
+        <message>
+            <source>Opening this library notebook</source>
+            <translation>이 라이브러리 노트북을 열면</translation>
+        </message>
+        <message>
+            <source>Could not prepare a working copy of "%1".
+
+The bundled notebook may be missing from this build.</source>
+            <translation>"%1"의 작업 사본을 준비하지 못했습니다.
+
+이 빌드에 포함된 노트북이 빠져 있을 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>"%1" could not be parsed as a notebook.</source>
+            <translation>"%1"을(를) 노트북으로 해석하지 못했습니다.</translation>
         </message>
     </context>
     <context>
@@ -5219,6 +7373,10 @@ This will remove all holdings and transactions.</source>
             <source>DELETE</source>
             <translation>삭제</translation>
         </message>
+        <message>
+            <source>Confirm deletion</source>
+            <translation>삭제 확인</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::ConflictMonitorPanel</name>
@@ -5320,6 +7478,22 @@ This will remove all holdings and transactions.</source>
             <source>No country data.</source>
             <translation>국가 데이터가 없습니다.</translation>
         </message>
+        <message>
+            <source>CONFLICT MAP</source>
+            <translation>분쟁 지도</translation>
+        </message>
+        <message>
+            <source>BASEMAP</source>
+            <translation>배경 지도</translation>
+        </message>
+        <message>
+            <source>Conflict events</source>
+            <translation>분쟁 이벤트</translation>
+        </message>
+        <message>
+            <source>Geopolitical events from the news-events API. Arrow keys move between events; the detail panel and the map selection follow the highlighted row.</source>
+            <translation>뉴스 이벤트 API에서 가져온 지정학 이벤트입니다. 화살표 키로 이벤트를 이동하면 상세 패널과 지도 선택이 강조된 행을 따라갑니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::ContactScreen</name>
@@ -5418,6 +7592,70 @@ This will remove all holdings and transactions.</source>
         <message>
             <source>Check your internet connection. Try refreshing the screen or restarting the terminal.</source>
             <translation>인터넷 연결을 확인하세요. 화면을 새로고침하거나 터미널을 다시 시작하세요.</translation>
+        </message>
+        <message>
+            <source>Primary support channel</source>
+            <translation>기본 지원 채널</translation>
+        </message>
+        <message>
+            <source>COMMUNITY</source>
+            <translation>커뮤니티</translation>
+        </message>
+        <message>
+            <source>Discussion and peer help</source>
+            <translation>토론과 사용자 간 도움</translation>
+        </message>
+        <message>
+            <source>ISSUE TRACKER</source>
+            <translation>이슈 트래커</translation>
+        </message>
+        <message>
+            <source>Bug reports and feature requests</source>
+            <translation>버그 신고와 기능 요청</translation>
+        </message>
+        <message>
+            <source>IN-APP TICKETS</source>
+            <translation>앱 내 티켓</translation>
+        </message>
+        <message>
+            <source>Support tab</source>
+            <translation>지원 탭</translation>
+        </message>
+        <message>
+            <source>Open a tracked ticket from inside the terminal</source>
+            <translation>터미널 안에서 추적되는 티켓을 엽니다</translation>
+        </message>
+        <message>
+            <source>ENTERPRISE DEMO</source>
+            <translation>Enterprise 데모</translation>
+        </message>
+        <message>
+            <source>Book a walkthrough ↗</source>
+            <translation>데모 예약 ↗</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal Enterprise — the private edition for funds, family offices and research desks. Separate product, separate account.</source>
+            <translation>Fincept Terminal Enterprise — 펀드, 패밀리 오피스, 리서치 데스크용 비공개 에디션입니다. 별도 제품이며 계정도 따로 씁니다.</translation>
+        </message>
+        <message>
+            <source>Send an email to support</source>
+            <translation>지원팀에 이메일 보내기</translation>
+        </message>
+        <message>
+            <source>Open the Fincept Discord server</source>
+            <translation>Fincept Discord 서버 열기</translation>
+        </message>
+        <message>
+            <source>Open the GitHub issue tracker</source>
+            <translation>GitHub 이슈 트래커 열기</translation>
+        </message>
+        <message>
+            <source>Open Support Tab</source>
+            <translation>지원 탭 열기</translation>
+        </message>
+        <message>
+            <source>Open the in-app support tickets tab</source>
+            <translation>앱 내 지원 티켓 탭 열기</translation>
         </message>
     </context>
     <context>
@@ -5549,6 +7787,38 @@ This cannot be undone.</source>
         <message>
             <source>Delete failed</source>
             <translation>삭제 실패</translation>
+        </message>
+        <message>
+            <source>Cannot restore this session</source>
+            <translation>이 세션을 복원할 수 없습니다</translation>
+        </message>
+        <message>
+            <source>%1
+
+This snapshot has been disabled. Pick another one, or Skip to start with a fresh workspace.</source>
+            <translation>%1
+
+이 스냅샷은 비활성화되었습니다. 다른 스냅샷을 선택하거나, 건너뛰기를 눌러 새 작업 공간으로 시작하세요.</translation>
+        </message>
+        <message>
+            <source>The snapshot could not be read: %1</source>
+            <translation>스냅샷을 읽을 수 없습니다: %1</translation>
+        </message>
+        <message>
+            <source>The snapshot is empty.</source>
+            <translation>스냅샷이 비어 있습니다.</translation>
+        </message>
+        <message>
+            <source>The snapshot is corrupt: %1</source>
+            <translation>스냅샷이 손상되었습니다: %1</translation>
+        </message>
+        <message>
+            <source>The snapshot contains no windows to restore.</source>
+            <translation>스냅샷에 복원할 창이 없습니다.</translation>
+        </message>
+        <message>
+            <source>The workspace could not be applied — no windows were restored.</source>
+            <translation>작업 공간을 적용할 수 없습니다 — 복원된 창이 없습니다.</translation>
         </message>
     </context>
     <context>
@@ -5857,6 +8127,134 @@ This cannot be undone.</source>
             <source>Imported from file</source>
             <translation>파일에서 가져옴</translation>
         </message>
+        <message>
+            <source>Category whitelist (none checked = essential research tools + tool search, which reaches every non-UI tool)</source>
+            <translation>허용 카테고리 (선택 없음 = 필수 리서치 도구와 도구 검색. 도구 검색으로 UI 전용을 제외한 모든 도구를 쓸 수 있음)</translation>
+        </message>
+        <message>
+            <source>Max tools for a whitelist / regex selection (0 = no cap)</source>
+            <translation>허용 목록 / 정규식으로 고를 때 최대 도구 수 (0 = 제한 없음)</translation>
+        </message>
+        <message>
+            <source>Failed: %1</source>
+            <translation>실패: %1</translation>
+        </message>
+        <message>
+            <source>Delete Agent</source>
+            <translation>에이전트 삭제</translation>
+        </message>
+        <message>
+            <source>Delete the saved agent "%1"?
+
+This cannot be undone.</source>
+            <translation>저장된 에이전트 "%1"을(를) 삭제하시겠습니까?
+
+이 작업은 되돌릴 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Export failed: cannot write %1</source>
+            <translation>내보내기 실패: %1에 쓸 수 없습니다</translation>
+        </message>
+        <message>
+            <source>Import failed: cannot read %1</source>
+            <translation>가져오기 실패: %1을(를) 읽을 수 없습니다</translation>
+        </message>
+        <message>
+            <source>Import failed: %1</source>
+            <translation>가져오기 실패: %1</translation>
+        </message>
+        <message>
+            <source>top level must be a JSON object</source>
+            <translation>최상위 값은 JSON 객체여야 합니다</translation>
+        </message>
+        <message>
+            <source>Agent name</source>
+            <translation>에이전트 이름</translation>
+        </message>
+        <message>
+            <source>Agent category</source>
+            <translation>에이전트 카테고리</translation>
+        </message>
+        <message>
+            <source>Agent description</source>
+            <translation>에이전트 설명</translation>
+        </message>
+        <message>
+            <source>LLM profile</source>
+            <translation>LLM 프로필</translation>
+        </message>
+        <message>
+            <source>System instructions</source>
+            <translation>시스템 지침</translation>
+        </message>
+        <message>
+            <source>Filter tools</source>
+            <translation>도구 필터</translation>
+        </message>
+        <message>
+            <source>Available tools</source>
+            <translation>사용 가능한 도구</translation>
+        </message>
+        <message>
+            <source>Enable internal terminal tools</source>
+            <translation>내부 터미널 도구 사용</translation>
+        </message>
+        <message>
+            <source>Allow destructive tools</source>
+            <translation>데이터를 변경하거나 삭제하는 도구 허용</translation>
+        </message>
+        <message>
+            <source>Lets this agent call tools that place orders, delete data or change settings.</source>
+            <translation>이 에이전트가 주문을 내거나 데이터를 삭제하거나 설정을 바꾸는 도구를 호출할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Include external MCP servers</source>
+            <translation>외부 MCP 서버 포함</translation>
+        </message>
+        <message>
+            <source>Dry-run mode</source>
+            <translation>모의 실행 모드</translation>
+        </message>
+        <message>
+            <source>Terminal tool category whitelist</source>
+            <translation>터미널 도구 허용 카테고리</translation>
+        </message>
+        <message>
+            <source>Excluded tool categories</source>
+            <translation>제외할 도구 카테고리</translation>
+        </message>
+        <message>
+            <source>Tool name include pattern</source>
+            <translation>포함할 도구 이름 패턴</translation>
+        </message>
+        <message>
+            <source>Tool name exclude pattern</source>
+            <translation>제외할 도구 이름 패턴</translation>
+        </message>
+        <message>
+            <source>Maximum tools</source>
+            <translation>최대 도구 수</translation>
+        </message>
+        <message>
+            <source>MCP servers</source>
+            <translation>MCP 서버</translation>
+        </message>
+        <message>
+            <source>Save agent</source>
+            <translation>에이전트 저장</translation>
+        </message>
+        <message>
+            <source>Clear form</source>
+            <translation>양식 지우기</translation>
+        </message>
+        <message>
+            <source>Test query</source>
+            <translation>테스트 쿼리</translation>
+        </message>
+        <message>
+            <source>Run test query</source>
+            <translation>테스트 쿼리 실행</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::CreatePortfolioDialog</name>
@@ -5895,6 +8293,22 @@ This cannot be undone.</source>
         <message>
             <source>CREATE</source>
             <translation>만들기</translation>
+        </message>
+        <message>
+            <source>A portfolio name is required</source>
+            <translation>포트폴리오 이름은 필수입니다</translation>
+        </message>
+        <message>
+            <source>Portfolio name</source>
+            <translation>포트폴리오 이름</translation>
+        </message>
+        <message>
+            <source>Portfolio owner</source>
+            <translation>포트폴리오 소유자</translation>
+        </message>
+        <message>
+            <source>Reporting currency</source>
+            <translation>기준 통화</translation>
         </message>
     </context>
     <context>
@@ -5954,6 +8368,34 @@ You will need to paste it again to restore access.</source>
             <translation>OS 키체인에 저장된 %1 키를 삭제하시겠습니까?
 
 다시 사용하려면 키를 다시 붙여 넣어야 합니다.</translation>
+        </message>
+        <message>
+            <source>Remove the stored %1 key from encrypted storage?
+
+You will need to paste it again to restore access.</source>
+            <translation>암호화 저장소에 저장된 %1 키를 삭제하시겠습니까?
+
+다시 사용하려면 키를 다시 붙여 넣어야 합니다.</translation>
+        </message>
+        <message>
+            <source>Clear failed</source>
+            <translation>삭제 실패</translation>
+        </message>
+        <message>
+            <source>API keys are encrypted (AES-256-GCM) before they are stored on this machine and are never written to disk in plain text.</source>
+            <translation>API 키는 이 컴퓨터에 저장하기 전에 암호화(AES-256-GCM)되며, 디스크에 평문으로 기록되지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Filter providers...</source>
+            <translation>공급자 필터...</translation>
+        </message>
+        <message>
+            <source>Filter credential providers</source>
+            <translation>인증 정보 공급자 필터</translation>
+        </message>
+        <message>
+            <source>No provider matches the filter.</source>
+            <translation>필터와 일치하는 공급자가 없습니다.</translation>
         </message>
     </context>
     <context>
@@ -6028,6 +8470,10 @@ You will need to paste it again to restore access.</source>
             <source>● CONNECTED</source>
             <translation>● 연결됨</translation>
         </message>
+        <message>
+            <source>Connection not completed: %1</source>
+            <translation>연결이 완료되지 않았습니다: %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::CryptoTradingScreen</name>
@@ -6070,6 +8516,162 @@ You will need to paste it again to restore access.</source>
         <message>
             <source>OFFLINE</source>
             <translation>오프라인</translation>
+        </message>
+        <message>
+            <source>Leverage</source>
+            <translation>레버리지</translation>
+        </message>
+        <message>
+            <source>Could not set %1 leverage to %2x:
+%3</source>
+            <translation>%1 레버리지를 %2배로 설정할 수 없습니다:
+%3</translation>
+        </message>
+        <message>
+            <source>Margin mode</source>
+            <translation>증거금 모드</translation>
+        </message>
+        <message>
+            <source>Could not set %1 margin mode to %2:
+%3</source>
+            <translation>%1 증거금 모드를 %2(으)로 설정할 수 없습니다:
+%3</translation>
+        </message>
+        <message>
+            <source>Switch to LIVE trading</source>
+            <translation>실전투자로 전환</translation>
+        </message>
+        <message>
+            <source>LIVE mode places real orders on %1 with real funds.
+
+Orders are irreversible once filled. Make sure the API key configured for this exchange is the account you intend to trade.
+
+Switch to LIVE?</source>
+            <translation>실전투자 모드는 %1에 실제 자금으로 실제 주문을 냅니다.
+
+체결된 주문은 되돌릴 수 없습니다. 이 거래소에 설정한 API 키가 거래하려는 계좌의 키인지 확인하세요.
+
+실전투자로 전환하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Price Unavailable</source>
+            <translation>가격 정보 없음</translation>
+        </message>
+        <message>
+            <source>Live price for %1 is not available yet. Wait for the first tick, or place a limit order.</source>
+            <translation>%1의 실시간 가격을 아직 받지 못했습니다. 첫 시세를 기다리거나 지정가 주문을 내세요.</translation>
+        </message>
+        <message>
+            <source>market price</source>
+            <translation>시장가</translation>
+        </message>
+        <message>
+            <source>market (on trigger)</source>
+            <translation>시장가 (발동 시)</translation>
+        </message>
+        <message>
+            <source>Place a LIVE %1 %2 order with real funds?
+
+Exchange   %3
+Pair       %4
+Quantity   %5
+Price      %6</source>
+            <translation>실제 자금으로 실전 %1 %2 주문을 내시겠습니까?
+
+거래소   %3
+거래쌍   %4
+수량     %5
+가격     %6</translation>
+        </message>
+        <message>
+            <source>
+Notional   ≈ %1</source>
+            <translation>
+주문금액 ≈ %1</translation>
+        </message>
+        <message>
+            <source>
+Notional   unknown — no live price for this pair yet</source>
+            <translation>
+주문금액 알 수 없음 — 이 거래쌍의 실시간 가격이 아직 없습니다</translation>
+        </message>
+        <message>
+            <source>
+Stop       %1</source>
+            <translation>
+스톱 가격 %1</translation>
+        </message>
+        <message>
+            <source>
+Stop loss  %1</source>
+            <translation>
+손절가   %1</translation>
+        </message>
+        <message>
+            <source>
+Take profit %1</source>
+            <translation>
+익절가   %1</translation>
+        </message>
+        <message>
+            <source>
+Reduce-only</source>
+            <translation>
+포지션 축소 전용</translation>
+        </message>
+        <message>
+            <source>Confirm Live Order</source>
+            <translation>실전 주문 확인</translation>
+        </message>
+        <message>
+            <source>Order Failed</source>
+            <translation>주문 실패</translation>
+        </message>
+        <message>
+            <source>Live order failed:
+%1</source>
+            <translation>실전 주문 실패:
+%1</translation>
+        </message>
+        <message>
+            <source>Cancel Failed</source>
+            <translation>취소 실패</translation>
+        </message>
+        <message>
+            <source>Could not cancel the order:
+%1</source>
+            <translation>주문을 취소할 수 없습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>Cancel All</source>
+            <translation>전체 취소</translation>
+        </message>
+        <message>
+            <source>%1 order(s) cancelled, %2 could not be cancelled.
+%3</source>
+            <translation>주문 %1건을 취소했고, %2건은 취소하지 못했습니다.
+%3</translation>
+        </message>
+        <message>
+            <source>Square Off All</source>
+            <translation>전체 청산</translation>
+        </message>
+        <message>
+            <source>%1 position(s) closed, %2 could not be closed.
+%3</source>
+            <translation>포지션 %1개를 청산했고, %2개는 청산하지 못했습니다.
+%3</translation>
+        </message>
+        <message>
+            <source>Close Position</source>
+            <translation>포지션 청산</translation>
+        </message>
+        <message>
+            <source>Could not close the position:
+%1</source>
+            <translation>포지션을 청산할 수 없습니다:
+%1</translation>
         </message>
     </context>
     <context>
@@ -6200,6 +8802,18 @@ Go to CREATE INDEX tab to build one from your portfolio.</source>
             <source>PERFORMANCE — %1</source>
             <translation>성과 — %1</translation>
         </message>
+        <message>
+            <source>Delete Custom Index</source>
+            <translation>사용자 지정 지수 삭제</translation>
+        </message>
+        <message>
+            <source>Delete the index "%1"?
+
+Its entire recorded value history will be removed. This cannot be undone.</source>
+            <translation>지수 "%1"을(를) 삭제하시겠습니까?
+
+기록된 지수 값 이력이 모두 삭제됩니다. 이 작업은 되돌릴 수 없습니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::DBnomicsChartWidget</name>
@@ -6210,6 +8824,26 @@ Go to CREATE INDEX tab to build one from your portfolio.</source>
         <message>
             <source>%1  FETCHING DATA...</source>
             <translation>%1  데이터 가져오는 중...</translation>
+        </message>
+        <message>
+            <source>thousands</source>
+            <translation>천 단위</translation>
+        </message>
+        <message>
+            <source>millions</source>
+            <translation>백만 단위</translation>
+        </message>
+        <message>
+            <source>billions</source>
+            <translation>십억 단위</translation>
+        </message>
+        <message>
+            <source>trillions</source>
+            <translation>조 단위</translation>
+        </message>
+        <message>
+            <source>x 1e%1</source>
+            <translation>× 1e%1</translation>
         </message>
     </context>
     <context>
@@ -6233,6 +8867,14 @@ Go to CREATE INDEX tab to build one from your portfolio.</source>
         <message>
             <source>PERIOD</source>
             <translation>기간</translation>
+        </message>
+        <message>
+            <source>OBSERVATION DATA — LATEST %1 OF %2 PERIODS</source>
+            <translation>관측 데이터 — 전체 %2개 기간 중 최근 %1개</translation>
+        </message>
+        <message>
+            <source>OBSERVATION DATA — %1 PERIODS</source>
+            <translation>관측 데이터 — 기간 %1개</translation>
         </message>
     </context>
     <context>
@@ -6391,6 +9033,38 @@ Click  + ADD SLOT  in the left panel to begin</source>
             <source>Slot removed. %1 slot(s) remaining</source>
             <translation>슬롯 제거됨. 남은 슬롯 %1개</translation>
         </message>
+        <message>
+            <source>Source: DBnomics (db.nomics.world) — aggregated public data, terms per originating provider</source>
+            <translation>출처: DBnomics (db.nomics.world) — 공개 데이터를 모은 것으로, 이용 조건은 원 제공 기관마다 다릅니다</translation>
+        </message>
+        <message>
+            <source>Loaded: %1  •  %2 obs, latest %3  •  DBnomics indexed %4  •  Click ADD TO SINGLE VIEW</source>
+            <translation>불러옴: %1  •  관측치 %2개, 최근 %3  •  DBnomics 색인 %4  •  단일 보기에 추가를 누르세요</translation>
+        </message>
+        <message>
+            <source>ERROR loading %1: %2</source>
+            <translation>%1 불러오기 오류: %2</translation>
+        </message>
+        <message>
+            <source>Refresh of %1 failed (%2) — showing the last loaded data</source>
+            <translation>%1 새로고침 실패 (%2) — 마지막으로 불러온 데이터를 표시합니다</translation>
+        </message>
+        <message>
+            <source>Nothing to refresh — add a series first</source>
+            <translation>새로고침할 항목 없음 — 먼저 시계열을 추가하세요</translation>
+        </message>
+        <message>
+            <source>Refreshing %1 series…</source>
+            <translation>시계열 %1개 새로고침 중…</translation>
+        </message>
+        <message>
+            <source>Slot %1: %2</source>
+            <translation>슬롯 %1: %2</translation>
+        </message>
+        <message>
+            <source>ERROR [observations]: unsupported series id %1</source>
+            <translation>오류 [관측값]: 지원하지 않는 시계열 ID %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::DBnomicsSelectionPanel</name>
@@ -6478,6 +9152,38 @@ Click  + ADD SLOT  in the left panel to begin</source>
             <source>LOADING...</source>
             <translation>불러오는 중...</translation>
         </message>
+        <message>
+            <source>Global DBnomics search</source>
+            <translation>DBnomics 전체 검색</translation>
+        </message>
+        <message>
+            <source>Filter provider list</source>
+            <translation>공급자 목록 필터</translation>
+        </message>
+        <message>
+            <source>DBnomics providers</source>
+            <translation>DBnomics 공급자</translation>
+        </message>
+        <message>
+            <source>Datasets published by the selected provider</source>
+            <translation>선택한 공급자가 공개한 데이터셋</translation>
+        </message>
+        <message>
+            <source>Search series within the selected dataset</source>
+            <translation>선택한 데이터셋에서 시계열 검색</translation>
+        </message>
+        <message>
+            <source>Series in the selected dataset</source>
+            <translation>선택한 데이터셋의 시계열</translation>
+        </message>
+        <message>
+            <source>Remove %1 from this slot</source>
+            <translation>이 슬롯에서 %1 제거</translation>
+        </message>
+        <message>
+            <source>Remove %1</source>
+            <translation>%1 제거</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::DashboardStatusBar</name>
@@ -6532,6 +9238,42 @@ Click  + ADD SLOT  in the left panel to begin</source>
         <message>
             <source>LAT: %1ms</source>
             <translation>지연: %1ms</translation>
+        </message>
+        <message>
+            <source>API:</source>
+            <translation>API:</translation>
+        </message>
+        <message>
+            <source>CHECKING</source>
+            <translation>확인 중</translation>
+        </message>
+        <message>
+            <source>Fincept API %1 reachable — round trip %2 ms (checked %3)</source>
+            <translation>Fincept API %1 연결 가능 — 왕복 %2ms (%3 확인)</translation>
+        </message>
+        <message>
+            <source>Fincept API %1 unreachable: %2 (checked %3)</source>
+            <translation>Fincept API %1 연결 불가: %2 (%3 확인)</translation>
+        </message>
+        <message>
+            <source>ONLINE</source>
+            <translation>온라인</translation>
+        </message>
+        <message>
+            <source>OFFLINE</source>
+            <translation>오프라인</translation>
+        </message>
+        <message>
+            <source>%1 — no quote received this session (no widget on screen is subscribed to this asset class)</source>
+            <translation>%1 — 이번 세션에 받은 시세 없음 (화면에 이 자산군을 구독하는 위젯이 없음)</translation>
+        </message>
+        <message>
+            <source>%1 — newest quote %2 ago (%3)</source>
+            <translation>%1 — 최근 시세 %2 전 (%3)</translation>
+        </message>
+        <message>
+            <source>Fincept API health — probed every 30 s while the dashboard is visible</source>
+            <translation>Fincept API 상태 — 대시보드가 보이는 동안 30초마다 확인</translation>
         </message>
     </context>
     <context>
@@ -6638,6 +9380,62 @@ Click  + ADD SLOT  in the left panel to begin</source>
         <message>
             <source>OFFLINE</source>
             <translation>오프라인</translation>
+        </message>
+        <message>
+            <source>Toggle compact row height</source>
+            <translation>간결한 행 높이 켜기/끄기</translation>
+        </message>
+        <message>
+            <source>Show / hide the Market Pulse panel (Ctrl+P)</source>
+            <translation>시장 동향 패널 표시 / 숨기기 (Ctrl+P)</translation>
+        </message>
+        <message>
+            <source>Force-refresh all live data on the dashboard (F5)</source>
+            <translation>대시보드의 모든 실시간 데이터 강제 새로고침 (F5)</translation>
+        </message>
+        <message>
+            <source>Add a widget to the dashboard (Ctrl+N)</source>
+            <translation>대시보드에 위젯 추가 (Ctrl+N)</translation>
+        </message>
+        <message>
+            <source>Save the current widget layout (Ctrl+S)</source>
+            <translation>현재 위젯 레이아웃 저장 (Ctrl+S)</translation>
+        </message>
+        <message>
+            <source>Replace the current layout with a template</source>
+            <translation>현재 레이아웃을 템플릿으로 교체</translation>
+        </message>
+        <message>
+            <source>Clock — click to toggle UTC / local time</source>
+            <translation>시계 — 클릭하여 UTC / 현지 시간 전환</translation>
+        </message>
+        <message>
+            <source>Feed status</source>
+            <translation>피드 상태</translation>
+        </message>
+        <message>
+            <source>Widget count</source>
+            <translation>위젯 수</translation>
+        </message>
+        <message>
+            <source>Show or hide the Market Pulse panel</source>
+            <translation>시장 동향 패널 표시 또는 숨기기</translation>
+        </message>
+        <message>
+            <source>Refresh all dashboard data</source>
+            <translation>대시보드 데이터 모두 새로고침</translation>
+        </message>
+        <message>
+            <source>Add widget</source>
+            <translation>위젯 추가</translation>
+        </message>
+        <message>
+            <source>Save layout</source>
+            <translation>레이아웃 저장</translation>
+        </message>
+        <message>
+            <source>Reset layout from a template</source>
+            <translation>템플릿으로 레이아웃 초기화</translation>
         </message>
     </context>
     <context>
@@ -7102,6 +9900,218 @@ API 상세:
 
 태그: %12</translation>
         </message>
+        <message>
+            <source>CREDENTIAL STORAGE</source>
+            <translation>인증 정보 저장</translation>
+        </message>
+        <message>
+            <source>The AUTH VALUE and any credentials placed in HEADERS are saved to the local application database on this machine, unencrypted.
+Anything running as your user account can read them. Prefer a scoped, revocable key over a full-access one.</source>
+            <translation>인증 값과 헤더에 넣은 인증 정보는 이 컴퓨터의 로컬 애플리케이션 데이터베이스에 암호화되지 않은 채 저장됩니다.
+같은 사용자 계정으로 실행되는 프로그램은 모두 이 값을 읽을 수 있습니다. 전체 권한 키보다는 범위가 제한되고 폐기할 수 있는 키를 쓰세요.</translation>
+        </message>
+        <message>
+            <source>Select a mapping row first</source>
+            <translation>먼저 매핑 행을 선택하세요</translation>
+        </message>
+        <message>
+            <source>EDIT</source>
+            <translation>편집</translation>
+        </message>
+        <message>
+            <source>LOCAL STORE</source>
+            <translation>로컬 저장</translation>
+        </message>
+        <message>
+            <source>Mapping credentials are kept in the local application database on this machine.</source>
+            <translation>매핑 인증 정보는 이 컴퓨터의 로컬 애플리케이션 데이터베이스에 보관됩니다.</translation>
+        </message>
+        <message>
+            <source>Mapping name</source>
+            <translation>매핑 이름</translation>
+        </message>
+        <message>
+            <source>Base URL</source>
+            <translation>기본 URL</translation>
+        </message>
+        <message>
+            <source>Endpoint path</source>
+            <translation>엔드포인트 경로</translation>
+        </message>
+        <message>
+            <source>HTTP method</source>
+            <translation>HTTP 메서드</translation>
+        </message>
+        <message>
+            <source>Authentication type</source>
+            <translation>인증 유형</translation>
+        </message>
+        <message>
+            <source>Auth value (secret)</source>
+            <translation>인증 값 (비밀값)</translation>
+        </message>
+        <message>
+            <source>Saved with the mapping and sent with TEST API REQUEST and RUN: Bearer Token / OAuth2 as Authorization: Bearer, API Key as X-API-Key, Basic Auth (user:password) as Authorization: Basic. Lines in HEADERS override it.
+APIs that take the key in the URL or a custom header: write {AUTH} there (e.g. ?apikey={AUTH}) and it is replaced by this value when the request is sent.</source>
+            <translation>매핑과 함께 저장되며 API 요청 테스트와 실행 때 전송됩니다: Bearer Token / OAuth2는 Authorization: Bearer로, API Key는 X-API-Key로, Basic Auth (user:password)는 Authorization: Basic으로 보냅니다. 헤더에 적은 줄이 이 값보다 우선합니다.
+키를 URL이나 사용자 지정 헤더로 받는 API는 그 자리에 {AUTH}를 적으세요 (예: ?apikey={AUTH}). 요청을 보낼 때 이 값으로 바뀝니다.</translation>
+        </message>
+        <message>
+            <source>Request headers, one per line</source>
+            <translation>요청 헤더 (한 줄에 하나)</translation>
+        </message>
+        <message>
+            <source>Request body (JSON)</source>
+            <translation>요청 본문 (JSON)</translation>
+        </message>
+        <message>
+            <source>Send a test request and capture the response shape</source>
+            <translation>테스트 요청을 보내 응답 구조 확인</translation>
+        </message>
+        <message>
+            <source>Expressions are JSONPath: $.a.b, $[0], [-1], ['key with spaces'], [*] / .* to take every element, and a trailing ~ for property names.</source>
+            <translation>표현식은 JSONPath입니다: $.a.b, $[0], [-1], ['key with spaces'], 모든 요소는 [*] / .*, 속성 이름은 끝에 ~를 붙입니다.</translation>
+        </message>
+        <message>
+            <source>Double-click a node to use its path as the Expression of the selected mapping row. Change an [N] index to [*] to take every element.</source>
+            <translation>노드를 더블클릭하면 그 경로가 선택한 매핑 행의 표현식이 됩니다. 모든 요소를 가져오려면 [N] 인덱스를 [*]로 바꾸세요.</translation>
+        </message>
+        <message>
+            <source>Run selected mapping</source>
+            <translation>선택한 매핑 실행</translation>
+        </message>
+        <message>
+            <source>Edit selected mapping</source>
+            <translation>선택한 매핑 편집</translation>
+        </message>
+        <message>
+            <source>Delete selected mapping</source>
+            <translation>선택한 매핑 삭제</translation>
+        </message>
+        <message>
+            <source>Create a new mapping</source>
+            <translation>새 매핑 만들기</translation>
+        </message>
+        <message>
+            <source>Saved mappings</source>
+            <translation>저장된 매핑</translation>
+        </message>
+        <message>
+            <source>Base URL must start with http:// or https://</source>
+            <translation>기본 URL은 http:// 또는 https://로 시작해야 합니다</translation>
+        </message>
+        <message>
+            <source>Request body must be a JSON object</source>
+            <translation>요청 본문은 JSON 객체여야 합니다</translation>
+        </message>
+        <message>
+            <source>Parser "%1" is not executed — expressions are evaluated as JSONPath.</source>
+            <translation>파서 "%1"은(는) 실행되지 않습니다 — 표현식은 JSONPath로 평가합니다.</translation>
+        </message>
+        <message>
+            <source>%1: unsupported expression "%2" (supported: $.a.b, $[0], [*], ['key']).</source>
+            <translation>%1: 지원하지 않는 표현식 "%2" (지원: $.a.b, $[0], [*], ['key']).</translation>
+        </message>
+        <message>
+            <source>%1: expression matched nothing in the sample response.</source>
+            <translation>%1: 샘플 응답에서 표현식과 일치하는 값이 없습니다.</translation>
+        </message>
+        <message>
+            <source>%1: unknown transform "%2" (ignored).</source>
+            <translation>%1: 알 수 없는 변환 "%2" (무시함).</translation>
+        </message>
+        <message>
+            <source>%1: required by the %2 schema but not mapped.</source>
+            <translation>%1: %2 스키마의 필수 필드지만 매핑되지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>TEST PASSED — %1 field(s) extracted</source>
+            <translation>테스트 통과 — 필드 %1개 추출됨</translation>
+        </message>
+        <message>
+            <source>TEST COMPLETED — %1 required field(s) missing, %2 warning(s)</source>
+            <translation>테스트 완료 — 필수 필드 %1개 누락, 경고 %2건</translation>
+        </message>
+        <message>
+            <source>Test: ISSUES</source>
+            <translation>테스트: 문제 있음</translation>
+        </message>
+        <message>
+            <source>Save failed — no field mappings configured</source>
+            <translation>저장 실패 — 설정된 필드 매핑 없음</translation>
+        </message>
+        <message>
+            <source>Save failed — request body must be a JSON object</source>
+            <translation>저장 실패 — 요청 본문은 JSON 객체여야 합니다</translation>
+        </message>
+        <message>
+            <source>Run Mapping</source>
+            <translation>매핑 실행</translation>
+        </message>
+        <message>
+            <source>Select a saved mapping first.</source>
+            <translation>먼저 저장된 매핑을 선택하세요.</translation>
+        </message>
+        <message>
+            <source>RUNNING...</source>
+            <translation>실행 중...</translation>
+        </message>
+        <message>
+            <source>Run: %1</source>
+            <translation>실행: %1</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n field(s) extracted.</source>
+            <translation>
+                <numerusform>필드 %n개를 추출했습니다.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Served from the mapping's response cache (%1 s TTL) — no request was sent. Disable caching or lower the TTL in the mapping's CACHE step to always fetch.</source>
+            <translation>매핑의 응답 캐시에서 가져왔습니다 (TTL %1초) — 요청을 보내지 않았습니다. 항상 새로 가져오려면 매핑의 캐시 단계에서 캐싱을 끄거나 TTL을 줄이세요.</translation>
+        </message>
+        <message>
+            <source>no error detail reported</source>
+            <translation>보고된 오류 세부 정보 없음</translation>
+        </message>
+        <message>
+            <source>The mapping did not produce a record.</source>
+            <translation>매핑 결과로 만들어진 레코드가 없습니다.</translation>
+        </message>
+        <message>
+            <source>Edit Mapping</source>
+            <translation>매핑 편집</translation>
+        </message>
+        <message>
+            <source>Delete Mapping</source>
+            <translation>매핑 삭제</translation>
+        </message>
+        <message>
+            <source>Delete the mapping "%1"?
+
+This cannot be undone.</source>
+            <translation>매핑 "%1"을(를) 삭제하시겠습니까?
+
+이 작업은 되돌릴 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Could not delete "%1":
+
+%2</source>
+            <translation>"%1"을(를) 삭제할 수 없습니다:
+
+%2</translation>
+        </message>
+        <message>
+            <source>Could not load saved mappings:
+%1</source>
+            <translation>저장된 매핑을 불러올 수 없습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>Editing "%1" — SAVE overwrites it</source>
+            <translation>"%1" 편집 중 — 저장하면 덮어씁니다</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::DataSourcesSection</name>
@@ -7213,6 +10223,20 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
             <source>For adding new connections, testing connectivity, and import/export, use the full Data Sources screen.</source>
             <translation>새 연결 추가, 연결 테스트, 가져오기/내보내기는 데이터 소스 전체 화면을 이용하세요.</translation>
         </message>
+        <message>
+            <source>Could not delete "%1":
+%2</source>
+            <translation>"%1"을(를) 삭제할 수 없습니다:
+%2</translation>
+        </message>
+        <message>
+            <source>Data Sources</source>
+            <translation>데이터 소스</translation>
+        </message>
+        <message>
+            <source>%1 connection(s) could not be updated — see the log.</source>
+            <translation>연결 %1개를 업데이트하지 못했습니다 — 로그를 확인하세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::DeploymentDashboard</name>
@@ -7303,6 +10327,150 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         <message>
             <source>Error [%1]: %2</source>
             <translation>오류 [%1]: %2</translation>
+        </message>
+        <message>
+            <source>CONNECTED</source>
+            <translation>연결됨</translation>
+        </message>
+        <message>
+            <source>OFFLINE</source>
+            <translation>오프라인</translation>
+        </message>
+        <message>
+            <source>Broker connected — sourcing live quotes</source>
+            <translation>증권사 연결됨 — 실시간 시세 수신 중</translation>
+        </message>
+        <message>
+            <source>Broker not connected — connect it in Equity Trading to get live data</source>
+            <translation>증권사 연결 안 됨 — 실시간 데이터를 받으려면 주식 거래에서 연결하세요</translation>
+        </message>
+        <message>
+            <source>waiting for data…</source>
+            <translation>데이터 대기 중…</translation>
+        </message>
+        <message>
+            <source>CONDITIONS</source>
+            <translation>조건</translation>
+        </message>
+        <message>
+            <source>OPEN LIVE POSITION NO LONGER MANAGED: %1 %2 @ %3 - stop-loss/take-profit are not monitored. Close or protect it at the broker.</source>
+            <translation>더 이상 관리되지 않는 실전투자 미청산 포지션: %1 %2 @ %3 - 손절/익절을 감시하지 않습니다. 증권사에서 청산하거나 보호 주문을 거세요.</translation>
+        </message>
+        <message>
+            <source>Paper position left open when the deployment stopped: %1 %2 @ %3.</source>
+            <translation>배포가 중지될 때 남은 모의투자 포지션: %1 %2 @ %3.</translation>
+        </message>
+        <message>
+            <source>Stop deployment %1 on %2</source>
+            <translation>%2의 배포 %1 중지</translation>
+        </message>
+        <message>
+            <source>Stop LIVE deployment "%1" on %2?
+
+The runner will stop placing orders immediately. Any position it is
+currently holding at the broker is NOT closed — you must flatten it
+yourself from Equity Trading.</source>
+            <translation>%2의 실전투자 배포 "%1"을(를) 중지하시겠습니까?
+
+실행기는 즉시 주문을 멈춥니다. 현재 증권사에 보유 중인
+포지션은 청산되지 않습니다 — 주식 거래 화면에서
+직접 청산해야 합니다.</translation>
+        </message>
+        <message>
+            <source>Stop paper deployment "%1" on %2?</source>
+            <translation>%2의 모의투자 배포 "%1"을(를) 중지하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Stop deployment</source>
+            <translation>배포 중지</translation>
+        </message>
+        <message>
+            <source>STOPPING…</source>
+            <translation>중지 중…</translation>
+        </message>
+        <message>
+            <source>Remove deployment %1 on %2</source>
+            <translation>%2의 배포 %1 제거</translation>
+        </message>
+        <message>
+            <source>%1  ·  %2 LIVE</source>
+            <translation>%1  ·  실전 %2</translation>
+        </message>
+        <message>
+            <source>Live: %1%2%3    Paper: %4%5%6</source>
+            <translation>실전투자: %1%2%3    모의투자: %4%5%6</translation>
+        </message>
+        <message>
+            <source>TOTAL P&amp;L (LIVE)</source>
+            <translation>총손익 (실전투자)</translation>
+        </message>
+        <message>
+            <source>TOTAL P&amp;L (PAPER)</source>
+            <translation>총손익 (모의투자)</translation>
+        </message>
+        <message>
+            <source>Equity curve — not yet available</source>
+            <translation>자산 곡선 — 아직 데이터 없음</translation>
+        </message>
+        <message>
+            <source>Refresh deployment list</source>
+            <translation>배포 목록 새로고침</translation>
+        </message>
+        <message>
+            <source>Stop all running deployments</source>
+            <translation>실행 중인 배포 모두 중지</translation>
+        </message>
+        <message>
+            <source>Stop all</source>
+            <translation>모두 중지</translation>
+        </message>
+        <message>
+            <source>No deployments are running.</source>
+            <translation>실행 중인 배포가 없습니다.</translation>
+        </message>
+        <message>
+            <source>Stop ALL %1 deployment(s), including %2 LIVE one(s)?
+
+Open positions are NOT closed — flatten them yourself in Equity Trading.</source>
+            <translation>실전투자 %2개를 포함해 배포 %1개를 모두 중지하시겠습니까?
+
+미청산 포지션은 청산되지 않습니다 — 주식 거래에서 직접 청산하세요.</translation>
+        </message>
+        <message>
+            <source>Stop ALL %1 deployment(s)?</source>
+            <translation>배포 %1개를 모두 중지하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>  ⚠ already above — can't cross up</source>
+            <translation>  ⚠ 이미 위에 있음 — 상향 돌파 불가</translation>
+        </message>
+        <message>
+            <source>  ⚠ already below — can't cross down</source>
+            <translation>  ⚠ 이미 아래에 있음 — 하향 돌파 불가</translation>
+        </message>
+        <message>
+            <source>  · executed</source>
+            <translation>  · 실행됨</translation>
+        </message>
+        <message>
+            <source>stop requested — waiting for the engine to confirm…</source>
+            <translation>중지 요청됨 — 엔진 확인 대기 중…</translation>
+        </message>
+        <message>
+            <source>updated just now</source>
+            <translation>방금 업데이트됨</translation>
+        </message>
+        <message>
+            <source>updated %1s ago</source>
+            <translation>%1초 전 업데이트됨</translation>
+        </message>
+        <message>
+            <source>NO DATA FOR %1s — this deployment may not be running. Verify at your broker.</source>
+            <translation>%1초 동안 데이터 없음 — 이 배포가 실행되고 있지 않을 수 있습니다. 증권사에서 확인하세요.</translation>
+        </message>
+        <message>
+            <source>stale — last update %1s ago</source>
+            <translation>지연됨 — 마지막 업데이트 %1초 전</translation>
         </message>
     </context>
     <context>
@@ -7627,6 +10795,290 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
             <source>SURVIVAL PROB</source>
             <translation>생존 확률</translation>
         </message>
+        <message>
+            <source>Yield to maturity, compounded at the coupon frequency (street convention).</source>
+            <translation>이자 지급 주기로 복리 계산한 만기수익률 (시장 관행).</translation>
+        </message>
+        <message>
+            <source>Calculate (Enter)</source>
+            <translation>계산 (Enter)</translation>
+        </message>
+        <message>
+            <source>LOCAL PYTHON ENGINE</source>
+            <translation>로컬 Python 엔진</translation>
+        </message>
+        <message>
+            <source>COUPON RATE (% P.A.)</source>
+            <translation>표면금리 (연 %)</translation>
+        </message>
+        <message>
+            <source>YTM (%, COUPON-FREQ COMPOUNDING)</source>
+            <translation>만기수익률 (%, 이자 지급 주기 복리)</translation>
+        </message>
+        <message>
+            <source>CLEAN PRICE (PER 100 FACE)</source>
+            <translation>순가격 (액면 100당)</translation>
+        </message>
+        <message>
+            <source>Call</source>
+            <translation>콜</translation>
+        </message>
+        <message>
+            <source>Put</source>
+            <translation>풋</translation>
+        </message>
+        <message>
+            <source>TIME TO EXPIRY (YEARS)</source>
+            <translation>잔존만기 (년)</translation>
+        </message>
+        <message>
+            <source>VOLATILITY (% ANNUAL)</source>
+            <translation>변동성 (연 %)</translation>
+        </message>
+        <message>
+            <source>RISK-FREE RATE (% CONT.)</source>
+            <translation>무위험이자율 (연속복리 %)</translation>
+        </message>
+        <message>
+            <source>DIVIDEND YIELD (% CONT.)</source>
+            <translation>배당수익률 (연속복리 %)</translation>
+        </message>
+        <message>
+            <source>OPTION TYPE (EUROPEAN)</source>
+            <translation>옵션 유형 (유럽형)</translation>
+        </message>
+        <message>
+            <source>Domestic currency per 1 unit of foreign currency (e.g. EURUSD: USD per EUR).</source>
+            <translation>외화 1단위당 자국 통화 금액 (예: EURUSD는 EUR당 USD).</translation>
+        </message>
+        <message>
+            <source>Foreign-currency notional (units of the base currency).</source>
+            <translation>외화 명목금액 (기준 통화 단위).</translation>
+        </message>
+        <message>
+            <source>SPOT (DOM PER 1 FOR)</source>
+            <translation>현물 환율 (외화 1단위당 자국 통화)</translation>
+        </message>
+        <message>
+            <source>STRIKE (DOM PER 1 FOR)</source>
+            <translation>행사 환율 (외화 1단위당 자국 통화)</translation>
+        </message>
+        <message>
+            <source>DOMESTIC RATE (% CONT.)</source>
+            <translation>국내 금리 (연속복리 %)</translation>
+        </message>
+        <message>
+            <source>FOREIGN RATE (% CONT.)</source>
+            <translation>해외 금리 (연속복리 %)</translation>
+        </message>
+        <message>
+            <source>NOTIONAL (FOREIGN CCY)</source>
+            <translation>명목금액 (외화)</translation>
+        </message>
+        <message>
+            <source>OPTION TYPE (CALL = BUY FOREIGN)</source>
+            <translation>옵션 유형 (콜 = 외화 매수)</translation>
+        </message>
+        <message>
+            <source>Start of the swap. The swap is valued AS OF this date (spot-starting): the floating leg is worth par minus the discounted notional.</source>
+            <translation>스왑 시작일입니다. 스왑은 이 날짜 기준으로 평가합니다 (현물 개시): 변동 레그 가치는 액면에서 할인된 명목금액을 뺀 값입니다.</translation>
+        </message>
+        <message>
+            <source>Flat, continuously-compounded discount rate used for every cash flow.</source>
+            <translation>모든 현금흐름에 적용하는 단일 연속복리 할인율입니다.</translation>
+        </message>
+        <message>
+            <source>EFFECTIVE (VALUATION) DATE</source>
+            <translation>효력 발생일 (평가일)</translation>
+        </message>
+        <message>
+            <source>FIXED RATE (% P.A.)</source>
+            <translation>고정금리 (연 %)</translation>
+        </message>
+        <message>
+            <source>DISCOUNT RATE (% CONT., FLAT)</source>
+            <translation>할인율 (연속복리 %, 단일)</translation>
+        </message>
+        <message>
+            <source>MARKET SPREAD (BPS)</source>
+            <translation>시장 스프레드 (BPS)</translation>
+        </message>
+        <message>
+            <source>CONTRACT COUPON (BPS)</source>
+            <translation>계약 쿠폰 (BPS)</translation>
+        </message>
+        <message>
+            <source>CLEAN PRICE (PER 100)</source>
+            <translation>순가격 (100당)</translation>
+        </message>
+        <message>
+            <source>DIRTY PRICE (PER 100)</source>
+            <translation>경과이자 포함 가격 (100당)</translation>
+        </message>
+        <message>
+            <source>ACCRUED (PER 100)</source>
+            <translation>경과이자 (100당)</translation>
+        </message>
+        <message>
+            <source>MACAULAY DURATION (YRS)</source>
+            <translation>맥컬리 듀레이션 (년)</translation>
+        </message>
+        <message>
+            <source>MODIFIED DURATION (YRS)</source>
+            <translation>수정 듀레이션 (년)</translation>
+        </message>
+        <message>
+            <source>CONVEXITY (YRS²)</source>
+            <translation>볼록성 (년²)</translation>
+        </message>
+        <message>
+            <source>NEXT COUPON</source>
+            <translation>다음 이자 지급일</translation>
+        </message>
+        <message>
+            <source>COUPONS REMAINING</source>
+            <translation>남은 이자 지급 횟수</translation>
+        </message>
+        <message>
+            <source>Price from a yield compounded at the coupon frequency; accrued interest actual/actual within the coupon period. A 1bp yield rise changes the dirty price by about −modified duration × dirty price × 0.0001.</source>
+            <translation>이자 지급 주기로 복리 계산한 수익률로 가격을 구하며, 경과이자는 이자 기간 안에서 actual/actual로 계산합니다. 수익률이 1bp 오르면 경과이자 포함 가격은 약 −수정 듀레이션 × 경과이자 포함 가격 × 0.0001만큼 변합니다.</translation>
+        </message>
+        <message>
+            <source>Compounded at the coupon frequency, solved from the clean price.</source>
+            <translation>이자 지급 주기로 복리 계산하며, 순가격에서 역산합니다.</translation>
+        </message>
+        <message>
+            <source>PREMIUM (DOMESTIC CCY)</source>
+            <translation>프리미엄 (자국 통화)</translation>
+        </message>
+        <message>
+            <source>PER 1 FOREIGN UNIT (DOM)</source>
+            <translation>외화 1단위당 (자국 통화)</translation>
+        </message>
+        <message>
+            <source>% OF FOREIGN NOTIONAL</source>
+            <translation>외화 명목금액 대비 %</translation>
+        </message>
+        <message>
+            <source>DELTA (FOREIGN CCY)</source>
+            <translation>델타 (외화)</translation>
+        </message>
+        <message>
+            <source>GAMMA (FOR CCY / 1% SPOT)</source>
+            <translation>감마 (외화 / 현물 1%)</translation>
+        </message>
+        <message>
+            <source>VEGA (DOM / 1 VOL PT)</source>
+            <translation>베가 (자국 통화 / 변동성 1%p)</translation>
+        </message>
+        <message>
+            <source>THETA (DOM / DAY)</source>
+            <translation>세타 (자국 통화 / 일)</translation>
+        </message>
+        <message>
+            <source>RHO DOM (DOM / 1%)</source>
+            <translation>국내 로(Rho) (자국 통화 / 1%)</translation>
+        </message>
+        <message>
+            <source>Garman-Kohlhagen, continuous rates. Per 1 unit of foreign notional: delta %1, gamma %2 (per 1.0 spot move), vega %3, theta %4, rho %5.</source>
+            <translation>Garman-Kohlhagen 모형, 연속복리 금리. 외화 명목 1단위당: 델타 %1, 감마 %2 (현물 1.0 변동당), 베가 %3, 세타 %4, 로 %5.</translation>
+        </message>
+        <message>
+            <source>GAMMA (PER 1.0 SPOT)</source>
+            <translation>감마 (현물 1.0당)</translation>
+        </message>
+        <message>
+            <source>VEGA (PER 1 VOL PT)</source>
+            <translation>베가 (변동성 1%p당)</translation>
+        </message>
+        <message>
+            <source>THETA (PER DAY)</source>
+            <translation>세타 (일당)</translation>
+        </message>
+        <message>
+            <source>RHO (PER 1% RATE)</source>
+            <translation>로(Rho) (금리 1%당)</translation>
+        </message>
+        <message>
+            <source>Black-Scholes-Merton, European exercise, continuous rate and dividend yield. Theta is per calendar day (annual theta / 365).</source>
+            <translation>블랙숄즈-머튼 모형, 유럽형 행사, 연속복리 금리와 배당수익률. 세타는 달력일 하루 기준입니다 (연간 세타 / 365).</translation>
+        </message>
+        <message>
+            <source>IMPLIED VOLATILITY (ANNUAL)</source>
+            <translation>내재변동성 (연율)</translation>
+        </message>
+        <message>
+            <source>SWAP VALUE (PAY FIXED)</source>
+            <translation>스왑 가치 (고정금리 지급)</translation>
+        </message>
+        <message>
+            <source>TENOR (YRS)</source>
+            <translation>만기 (년)</translation>
+        </message>
+        <message>
+            <source>PAYMENTS</source>
+            <translation>지급 횟수</translation>
+        </message>
+        <message>
+            <source>Valued at the effective date to the PAYER of fixed / receiver of floating, on a flat continuously-compounded curve. Positive = the fixed rate is below the par rate.</source>
+            <translation>효력 발생일 기준으로 고정금리 지급 / 변동금리 수취 측 입장에서 단일 연속복리 곡선으로 평가합니다. 양수 = 고정금리가 Par 금리보다 낮음.</translation>
+        </message>
+        <message>
+            <source>VALUE TO PROTECTION BUYER</source>
+            <translation>보장 매수자 기준 가치</translation>
+        </message>
+        <message>
+            <source>UPFRONT (POINTS)</source>
+            <translation>업프론트 (포인트)</translation>
+        </message>
+        <message>
+            <source>RISKY PV01 (PER 1BP)</source>
+            <translation>리스키 PV01 (1bp당)</translation>
+        </message>
+        <message>
+            <source>PAR SPREAD</source>
+            <translation>Par 스프레드</translation>
+        </message>
+        <message>
+            <source>HAZARD RATE (% / YR)</source>
+            <translation>해저드율 (연 %)</translation>
+        </message>
+        <message>
+            <source>SURVIVAL TO MATURITY</source>
+            <translation>만기까지 생존 확률</translation>
+        </message>
+        <message>
+            <source>PREMIUM PAYMENTS</source>
+            <translation>프리미엄 지급 횟수</translation>
+        </message>
+        <message>
+            <source>Flat hazard rate calibrated to the market spread; quarterly premiums with accrual on default; flat continuously-compounded discounting. Positive value = the protection buyer pays upfront.</source>
+            <translation>시장 스프레드에 맞춰 보정한 단일 해저드율, 부도 시 경과분을 포함한 분기별 프리미엄, 단일 연속복리 할인을 적용합니다. 양수 = 보장 매수자가 업프론트를 지급합니다.</translation>
+        </message>
+        <message>
+            <source>Market (par) CDS spread. The flat hazard rate is calibrated so a CDS paying this spread is worth zero.</source>
+            <translation>시장(Par) CDS 스프레드입니다. 이 스프레드를 지급하는 CDS의 가치가 0이 되도록 단일 해저드율을 보정합니다.</translation>
+        </message>
+        <message>
+            <source>Premium actually paid under the contract. The value is the protection leg minus the premium leg at THIS coupon; set it equal to the spread and the value is zero.</source>
+            <translation>계약에 따라 실제로 지급하는 프리미엄입니다. 가치는 이 쿠폰 기준 보장 레그에서 프리미엄 레그를 뺀 값이며, 스프레드와 같게 두면 가치는 0입니다.</translation>
+        </message>
+        <message>
+            <source>Flat continuously-compounded risk-free rate used to discount both legs.</source>
+            <translation>두 레그를 할인하는 데 쓰는 단일 연속복리 무위험이자율입니다.</translation>
+        </message>
+        <message>
+            <source>Enter the option's market price — implied volatility is solved from it.</source>
+            <translation>옵션의 시장 가격을 입력하세요 — 이 가격에서 내재변동성을 역산합니다.</translation>
+        </message>
+        <message>
+            <source>CALCULATING…</source>
+            <translation>계산 중…</translation>
+        </message>
+        <message>
+            <source>Calculating %1 …</source>
+            <translation>%1 계산 중…</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::DeveloperSection</name>
@@ -7649,6 +11101,14 @@ This cannot be undone. You can re-add them from the full Data Sources screen.</s
         <message>
             <source>Live view over the in-process pub/sub layer. Shows every active topic, its subscriber count, total publishes, and time since last publish. Refreshes once per second while this tab is visible.</source>
             <translation>프로세스 내부 발행/구독 계층을 실시간으로 보여 줍니다. 활성 토픽, 구독자 수, 누적 발행 횟수, 마지막 발행 후 경과 시간을 표시합니다. 이 탭이 보이는 동안 매초 새로고침합니다.</translation>
+        </message>
+        <message>
+            <source>Agentic Mode</source>
+            <translation>에이전틱 모드</translation>
+        </message>
+        <message>
+            <source>Durable, long-running autonomous tasks (on by default). AGENT STUDIO shows an AGENTIC tab listing tasks (plan, step log, pause/resume/cancel, recurring schedules) and the agent chat offers a "RUN AS TASK" toggle. Task state is checkpointed per profile, so tasks survive restarts and schedules keep firing. Turn off to hide the tab and stop scheduled tasks.</source>
+            <translation>오래 실행되는 자율 작업을 안정적으로 처리합니다 (기본값: 켜짐). 에이전트 스튜디오에 작업 목록(계획, 단계 로그, 일시 중지/재개/취소, 반복 일정)을 보여 주는 에이전틱 탭이 생기고, 에이전트 채팅에 "작업으로 실행" 토글이 나타납니다. 작업 상태는 프로필별로 체크포인트에 저장되므로 앱을 다시 시작해도 작업이 이어지고 일정도 계속 실행됩니다. 끄면 탭이 숨겨지고 예약된 작업이 멈춥니다.</translation>
         </message>
     </context>
     <context>
@@ -9881,6 +13341,812 @@ PRO: Enterprise account management, team usage tracking</source>
 고급: 비용 효율을 위한 사용 패턴 최적화
 전문가: 기업 계정 관리, 팀 사용량 추적</translation>
         </message>
+        <message>
+            <source>Screener</source>
+            <translation>스크리너</translation>
+        </message>
+        <message>
+            <source>Crypto Center</source>
+            <translation>가상자산 센터</translation>
+        </message>
+        <message>
+            <source>Equity Trading</source>
+            <translation>주식 거래</translation>
+        </message>
+        <message>
+            <source>F&amp;O</source>
+            <translation>선물·옵션</translation>
+        </message>
+        <message>
+            <source>Agent Workbench</source>
+            <translation>에이전트 워크벤치</translation>
+        </message>
+        <message>
+            <source>Asia Markets</source>
+            <translation>아시아 시장</translation>
+        </message>
+        <message>
+            <source>Trade Viz</source>
+            <translation>무역 시각화</translation>
+        </message>
+        <message>
+            <source>Data Sources</source>
+            <translation>데이터 소스</translation>
+        </message>
+        <message>
+            <source>Relationship Map</source>
+            <translation>관계도</translation>
+        </message>
+        <message>
+            <source>File Manager</source>
+            <translation>파일 관리자</translation>
+        </message>
+        <message>
+            <source>Search topics…  (Ctrl+F)</source>
+            <translation>주제 검색…  (Ctrl+F)</translation>
+        </message>
+        <message>
+            <source>Search documentation topics</source>
+            <translation>문서 주제 검색</translation>
+        </message>
+        <message>
+            <source>Matches topic titles and page text. Enter opens the first match, Down moves into the list, Esc clears.</source>
+            <translation>주제 제목과 본문에서 찾습니다. Enter는 첫 결과를 열고, 아래 화살표는 목록으로 이동하며, Esc는 검색어를 지웁니다.</translation>
+        </message>
+        <message>
+            <source>OPEN SCREEN</source>
+            <translation>화면 열기</translation>
+        </message>
+        <message>
+            <source>Open the screen this topic describes</source>
+            <translation>이 주제가 설명하는 화면 열기</translation>
+        </message>
+        <message>
+            <source>v%1  |  Native C++ Financial Intelligence Terminal</source>
+            <translation>v%1  |  네이티브 C++ 금융 인텔리전스 터미널</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal is a professional-grade desktop financial intelligence platform built in native C++ with Qt6. It provides institutional-quality market data, trading capabilities, quantitative research tools, and AI-powered analytics — all in a single unified terminal interface.
+
+With 50+ integrated screens, real-time WebSocket feeds, embedded Python analytics, and 20+ broker integrations, Fincept Terminal bridges the gap between retail and institutional tooling.</source>
+            <translation>Fincept Terminal은 Qt6와 네이티브 C++로 구축한 전문가용 데스크톱 금융 인텔리전스 플랫폼입니다. 기관 수준의 시장 데이터, 거래 기능, 퀀트 리서치 도구, AI 기반 분석을 하나의 통합 터미널 인터페이스에서 제공합니다.
+
+50개 이상의 통합 화면, 실시간 WebSocket 피드, 내장 Python 분석, 20개 이상의 증권사 연동으로 개인과 기관용 도구 사이의 격차를 줄여 줍니다.</translation>
+        </message>
+        <message>
+            <source>■  Real-time market data across equities, crypto, forex, commodities
+■  Multi-exchange crypto trading (Kraken, HyperLiquid, Binance, etc.)
+■  Paper trading engine with simulated order matching
+■  1300+ Python analytics scripts (equity, portfolio, derivatives)
+■  18-module QuantLib quantitative analysis suite (590+ endpoints)
+■  AI Quant Lab with ML models, factor discovery, HFT, RL trading
+■  Multiple AI agent frameworks (Geopolitics, Economic, Hedge Fund)
+■  Agent Workbench — Claude Code / Codex agents running on the terminal's tools
+■  Visual node editor for workflow automation
+■  DBnomics access to 100+ data providers, 500K+ datasets
+■  Surface analytics for derivatives, fixed income, credit, risk
+■  Report builder with drag-and-drop components
+■  Backtesting with 6 providers and 50+ strategies
+■  Algorithmic trading with strategy builder and scanner</source>
+            <translation>■  주식, 가상자산, 외환, 원자재의 실시간 시장 데이터
+■  여러 거래소의 가상자산 거래 (Kraken, HyperLiquid, Binance 등)
+■  주문 매칭을 시뮬레이션하는 모의투자 엔진
+■  Python 분석 스크립트 1300개 이상 (주식, 포트폴리오, 파생상품)
+■  모듈 18개로 구성된 QuantLib 퀀트 분석 도구 모음 (엔드포인트 590개 이상)
+■  ML 모델, 팩터 발굴, HFT, RL 거래를 제공하는 AI 퀀트 랩
+■  여러 AI 에이전트 프레임워크 (지정학, 경제, 헤지펀드)
+■  에이전트 워크벤치 — 터미널의 도구로 작업하는 Claude Code / Codex 에이전트
+■  워크플로 자동화를 위한 시각적 노드 편집기
+■  DBnomics로 데이터 공급자 100개 이상, 데이터셋 50만 개 이상 이용
+■  파생상품, 채권, 신용, 리스크 서피스 분석
+■  드래그 앤 드롭 구성 요소를 제공하는 보고서 작성기
+■  공급자 6개와 전략 50개 이상을 지원하는 백테스트
+■  전략 빌더와 스캐너를 갖춘 알고리즘 거래</translation>
+        </message>
+        <message>
+            <source>When you first launch Fincept Terminal, you'll see the login screen. You can:
+
+■  Register a new account with your email (confirm it with the verification code we email you)
+■  Continue with Google
+■  Log in with existing credentials (plus your two-factor code, if enabled)
+
+After login you set a 6-digit PIN that unlocks the terminal — it also locks after a period of inactivity, or on demand with Ctrl+L. You land on the Dashboard — your home base. Free accounts see Plans &amp; Pricing once per release; CONTINUE WITH FREE goes straight in.</source>
+            <translation>Fincept Terminal을 처음 실행하면 로그인 화면이 표시됩니다. 다음 중 하나를 선택할 수 있습니다:
+
+■  이메일로 새 계정 등록 (이메일로 받은 인증 코드로 확인)
+■  Google로 계속하기
+■  기존 계정 정보로 로그인 (2단계 인증을 켰다면 인증 코드도 입력)
+
+로그인한 뒤 터미널 잠금을 해제할 6자리 PIN을 설정합니다. 일정 시간 사용하지 않거나 Ctrl+L을 누르면 터미널이 잠깁니다. 로그인하면 기본 작업 공간인 대시보드가 열립니다. 무료 계정에는 릴리스마다 한 번 요금제 및 가격 화면이 표시되며, 무료로 계속하기를 누르면 바로 들어갑니다.</translation>
+        </message>
+        <message>
+            <source>The terminal is a dockable workspace:
+
+TOOLBAR (top) — File, Navigate, View and Help menus + session info
+PANELS — every screen opens as a panel you can tab, split, float, or tear off into its own window (right-click a panel tab)
+COMMAND BAR (Ctrl+\) and COMPONENT BROWSER (Ctrl+K) — jump to any screen or action by typing
+STATUS BAR (bottom) — Version, market indicators, connection status
+
+Use the Navigate menu to open any of the 50+ screens, organized by category: Markets &amp; Data, Trading &amp; Portfolio, Crypto, Research &amp; Intelligence, and Tools. Click the coloured dot in a panel header to link panels so they share their selected symbol.</source>
+            <translation>터미널은 패널을 자유롭게 배치할 수 있는 작업 공간입니다:
+
+도구 모음 (상단) — 파일, 탐색, 보기, 도움말 메뉴 및 세션 정보
+패널 — 모든 화면은 패널로 열리며, 탭으로 묶거나 분할하거나 띄우거나 별도 창으로 떼어 낼 수 있습니다 (패널 탭을 마우스 오른쪽 버튼으로 클릭)
+명령 표시줄 (Ctrl+\)과 구성요소 탐색기 (Ctrl+K) — 입력해서 원하는 화면이나 동작으로 바로 이동
+상태 표시줄 (하단) — 버전, 시장 지표, 연결 상태
+
+탐색 메뉴에서 시장 및 데이터, 거래 및 포트폴리오, 가상자산, 리서치 및 인텔리전스, 도구 카테고리로 분류된 50개 이상의 화면을 열 수 있습니다. 패널 머리글의 색 점을 클릭해 패널을 연결하면 선택한 종목을 함께 씁니다.</translation>
+        </message>
+        <message>
+            <source>F11  — Toggle fullscreen
+F10  — Focus mode (hide toolbar/status bars for maximum screen space)
+F5   — Refresh current screen
+Ctrl+P — Take screenshot (saved to home directory)
+
+See the Keyboard Shortcuts topic for the full list. Every binding can be changed in Settings → Keybindings.</source>
+            <translation>F11  — 전체 화면 전환
+F10  — 집중 모드 (도구 모음/상태 표시줄을 숨겨 화면 공간 확보)
+F5   — 현재 화면 새로고침
+Ctrl+P — 스크린샷 찍기 (홈 디렉터리에 저장)
+
+전체 목록은 키보드 단축키 항목을 참고하세요. 모든 단축키는 설정 → 단축키에서 바꿀 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Your Fincept account has two plans. Credits pay for cloud analytics, AI and premium data calls:
+
+■  FREE — signup credits and community support; start right away
+■  PRO — $10/month: a monthly credit allowance, higher limits, every cloud analytics module and priority support
+
+Open Plans &amp; Pricing from the plan badge in the toolbar, Profile → Billing or the command palette (Ctrl+Shift+P → "plans"). Your balance and payment history are under Profile → Billing.
+
+Firms and teams: Fincept Terminal Enterprise is the private edition — a separate product with its own accounts (fincept.in/enterprise).</source>
+            <translation>Fincept 계정의 플랜은 두 가지입니다. 클라우드 분석, AI, 프리미엄 데이터 호출에는 크레딧을 사용합니다:
+
+■  FREE — 가입 크레딧과 커뮤니티 지원, 바로 시작할 수 있습니다
+■  PRO — 월 $10: 매월 크레딧 제공, 더 높은 한도, 모든 클라우드 분석 모듈, 우선 지원
+
+요금제 및 가격은 도구 모음의 플랜 배지, 프로필 → 결제, 또는 명령 팔레트(Ctrl+Shift+P → "plans")에서 열 수 있습니다. 크레딧 잔액과 결제 내역은 프로필 → 결제에서 확인하세요.
+
+기업 및 팀: Fincept Terminal Enterprise는 전용 에디션으로, 별도 계정을 쓰는 별개 제품입니다 (fincept.in/enterprise).</translation>
+        </message>
+        <message>
+            <source>Focus window 1–9</source>
+            <translation>창 1–9로 포커스 이동</translation>
+        </message>
+        <message>
+            <source>Move window to monitor 1–9</source>
+            <translation>창을 모니터 1–9로 이동</translation>
+        </message>
+        <message>
+            <source>COMMAND BAR NAVIGATION</source>
+            <translation>명령 표시줄 탐색</translation>
+        </message>
+        <message>
+            <source>NEWS SCREEN</source>
+            <translation>뉴스 화면</translation>
+        </message>
+        <message>
+            <source>WINDOWS &amp; PANELS</source>
+            <translation>창 및 패널</translation>
+        </message>
+        <message>
+            <source>COMMAND BAR</source>
+            <translation>명령 표시줄</translation>
+        </message>
+        <message>
+            <source>Ctrl+\  —  Toggle the command bar. Type a function code or a verb to do almost anything in the terminal; type "?" to list the actions available.</source>
+            <translation>Ctrl+\  —  명령 표시줄 열기/닫기. 기능 코드나 동사를 입력하면 터미널에서 거의 모든 작업을 할 수 있습니다. "?"를 입력하면 사용할 수 있는 동작 목록이 표시됩니다.</translation>
+        </message>
+        <message>
+            <source>MENUS</source>
+            <translation>메뉴</translation>
+        </message>
+        <message>
+            <source>FILE — New Window, Move to Monitor, Close Window / Close All Windows, New / Open / Save / Save As layout, Import / Export layout, File Manager, Refresh All
+NAVIGATE — Markets &amp; Data, Trading &amp; Portfolio, Crypto, Research &amp; Intelligence and Tools sub-menus, plus Docs, Support and About
+VIEW — Component Browser, Fullscreen, Focus Mode, Always on Top, Float Panel, Quick Switch (workspace perspectives), Refresh Screen, Take Screenshot
+HELP — About, Help Center, Contact Us, Terms of Service, Privacy Policy, Trademarks, Check for Updates, Logout</source>
+            <translation>파일 — 새 창, 모니터로 이동, 창 닫기 / 모든 창 닫기, 레이아웃 새로 만들기 / 열기 / 저장 / 다른 이름으로 저장, 레이아웃 가져오기 / 내보내기, 파일 관리자, 모두 새로고침
+탐색 — 시장 및 데이터, 거래 및 포트폴리오, 가상자산, 리서치 및 인텔리전스, 도구 하위 메뉴와 문서, 지원, 정보
+보기 — 구성요소 탐색기, 전체 화면, 집중 모드, 항상 위에 표시, 패널 띄우기, 빠른 전환 (작업 공간 구성), 화면 새로고침, 스크린샷 찍기
+도움말 — 정보, 도움말 센터, 문의하기, 서비스 약관, 개인정보 처리방침, 상표, 업데이트 확인, 로그아웃</translation>
+        </message>
+        <message>
+            <source>CUSTOMIZING</source>
+            <translation>사용자 지정</translation>
+        </message>
+        <message>
+            <source>Every binding above can be changed in Settings → Keybindings. This page shows the bindings currently in effect.</source>
+            <translation>위의 모든 단축키는 설정 → 단축키에서 바꿀 수 있습니다. 이 페이지에는 현재 적용 중인 단축키가 표시됩니다.</translation>
+        </message>
+        <message>
+            <source>SCREENER</source>
+            <translation>스크리너</translation>
+        </message>
+        <message>
+            <source>Equity screener — predefined screens and a custom criteria builder</source>
+            <translation>주식 스크리너 — 기본 제공 조건과 사용자 조건 작성기</translation>
+        </message>
+        <message>
+            <source>The Screener runs Yahoo Finance equity screens. Pick one of the predefined screens or build your own criteria, then sort, export or act on the results.</source>
+            <translation>스크리너는 Yahoo Finance 주식 검색 조건을 실행합니다. 기본 제공 조건 중 하나를 고르거나 직접 조건을 만든 뒤, 결과를 정렬하거나 내보내거나 다른 작업에 활용하세요.</translation>
+        </message>
+        <message>
+            <source>PREDEFINED SCREENS</source>
+            <translation>기본 제공 조건</translation>
+        </message>
+        <message>
+            <source>■  22 ready-made screens: day gainers / losers, most actives, 52-week gainers, high dividend yield, regional movers and more
+■  US LARGE-CAP BASKET — the previous fixed large-cap list with live quotes</source>
+            <translation>■  바로 쓸 수 있는 조건 22개: 당일 상승·하락 종목, 거래 활발 종목, 52주 상승 종목, 고배당 종목, 지역별 급등락 종목 등
+■  미국 대형주 바스켓 — 실시간 시세를 붙인 기존 고정 대형주 목록</translation>
+        </message>
+        <message>
+            <source>CUSTOM CRITERIA</source>
+            <translation>사용자 조건</translation>
+        </message>
+        <message>
+            <source>■  Build a screen from 76 fields (valuation, profitability, growth, size, price action, …)
+■  Region, exchange, sector, industry and peer-group pickers
+■  Save a screen and run it again later</source>
+            <translation>■  필드 76개로 조건 작성 (밸류에이션, 수익성, 성장성, 규모, 가격 움직임, …)
+■  지역, 거래소, 섹터, 업종, 동종업체 그룹 선택
+■  조건을 저장해 두고 나중에 다시 실행</translation>
+        </message>
+        <message>
+            <source>WORKING WITH RESULTS</source>
+            <translation>결과 활용</translation>
+        </message>
+        <message>
+            <source>■  Sortable results table
+■  CSV export
+■  Add symbols to a watchlist
+■  Open in… Equity Research, Equity Trading, News and other screens</source>
+            <translation>■  정렬 가능한 결과 표
+■  CSV 내보내기
+■  관심종목에 종목 추가
+■  다른 화면에서 열기… 주식 리서치, 주식 거래, 뉴스 등</translation>
+        </message>
+        <message>
+            <source>CRYPTO CENTER</source>
+            <translation>가상자산 센터</translation>
+        </message>
+        <message>
+            <source>Wallet hub with holdings, trading and activity</source>
+            <translation>보유 자산, 거래, 활동 내역을 모은 지갑 허브</translation>
+        </message>
+        <message>
+            <source>Crypto Center is the wallet-centred companion to Crypto Trading. Connect a wallet with CONNECT WALLET and a holdings bar stays visible above the tabs while you work.</source>
+            <translation>가상자산 센터는 가상자산 거래를 지갑 중심으로 보완하는 화면입니다. 지갑 연결을 눌러 지갑을 연결하면 작업하는 동안 탭 위에 보유 자산 표시줄이 계속 보입니다.</translation>
+        </message>
+        <message>
+            <source>■  HOME — Holdings and token overview panels
+■  TRADE — Swap tokens from the connected wallet
+■  ACTIVITY — History of the actions taken from this wallet
+■  MARKETS, STAKE, ROADMAP — Market list, staking and what is coming next
+■  SETTINGS — Mode toggle, data-provider key and slippage</source>
+            <translation>■  홈 — 보유 자산과 토큰 개요 패널
+■  거래 — 연결된 지갑에서 토큰 스왑
+■  활동 내역 — 이 지갑에서 실행한 작업 내역
+■  시장, 스테이킹, 로드맵 — 시장 목록, 스테이킹, 예정된 기능
+■  설정 — 모드 전환, 데이터 공급자 키, 슬리피지</translation>
+        </message>
+        <message>
+            <source>SAFETY</source>
+            <translation>안전</translation>
+        </message>
+        <message>
+            <source>■  Wallet actions open a confirmation summary before anything is signed — read it
+■  If the connection is not completed the screen tells you why and stays disconnected</source>
+            <translation>■  지갑 작업은 서명하기 전에 확인 요약을 띄웁니다 — 꼭 읽어 보세요
+■  연결이 완료되지 않으면 화면에 이유가 표시되고 연결되지 않은 상태로 남습니다</translation>
+        </message>
+        <message>
+            <source>EQUITY TRADING</source>
+            <translation>주식 거래</translation>
+        </message>
+        <message>
+            <source>Multi-account broker trading terminal</source>
+            <translation>여러 증권 계좌를 지원하는 거래 터미널</translation>
+        </message>
+        <message>
+            <source>Equity Trading connects to one or more broker accounts at the same time. Every connected account keeps its own market-data stream, portfolio and credentials, and orders are routed per account in either PAPER or LIVE mode.</source>
+            <translation>주식 거래는 하나 이상의 증권 계좌에 동시에 연결합니다. 연결된 계좌마다 시세 스트림, 포트폴리오, 인증 정보를 따로 유지하며, 주문은 계좌별로 모의투자 또는 실전투자 모드로 전송됩니다.</translation>
+        </message>
+        <message>
+            <source>CONNECTING A BROKER</source>
+            <translation>증권사 연결</translation>
+        </message>
+        <message>
+            <source>■  Click ACCOUNTS to add a broker account, enter its API credentials (or complete the broker's sign-in) and press CONNECT
+■  The connection chip shows how many accounts are connected; a TOKEN EXPIRED notice means the broker session needs renewing — click ACCOUNTS again
+■  20+ brokers are supported, including Zerodha, Angel One, Upstox, Fyers, Dhan, Interactive Brokers, Alpaca and Tradier</source>
+            <translation>■  계좌를 눌러 증권 계좌를 추가하고, API 인증 정보를 입력하거나 증권사 로그인을 마친 뒤 연결을 누르세요
+■  연결 표시에 연결된 계좌 수가 나옵니다. 토큰 만료 알림이 뜨면 증권사 세션을 갱신해야 하니 계좌를 다시 누르세요
+■  Zerodha, Angel One, Upstox, Fyers, Dhan, Interactive Brokers, Alpaca, Tradier 등 20개 이상의 증권사를 지원합니다</translation>
+        </message>
+        <message>
+            <source>■  Ticker bar and symbol search (Ctrl+Shift+F focuses the symbol box)
+■  Watchlist, chart and order book for the selected symbol
+■  Order entry — a BUY/SELL form tailored to the broker you are using
+■  Bottom panel — Positions, Holdings, Orders, Funds and Stats tabs</source>
+            <translation>■  시세 표시줄과 종목 검색 (Ctrl+Shift+F로 종목 입력란으로 이동)
+■  선택한 종목의 관심종목, 차트, 호가창
+■  주문 입력 — 사용 중인 증권사에 맞춘 매수/매도 양식
+■  하단 패널 — 포지션, 보유종목, 주문, 자금, 통계 탭</translation>
+        </message>
+        <message>
+            <source>MULTI-ACCOUNT TOOLS</source>
+            <translation>다중 계좌 도구</translation>
+        </message>
+        <message>
+            <source>■  UNIFIED — a portfolio view across every connected account
+■  FEEDS — monitor the market-data streams
+■  Basket orders — build named baskets of order legs and execute them on one or several accounts
+■  Broadcast order — place the same order on every account you tick
+■  Portfolio replication — copy a broker account's portfolio into a PAPER account 1:1
+■  Cancel All Orders — cancels pending orders on the focused account (asks first)</source>
+            <translation>■  통합 — 연결된 모든 계좌를 합친 포트폴리오 보기
+■  피드 — 시세 스트림 모니터링
+■  바스켓 주문 — 이름을 붙인 주문 묶음을 만들어 하나 또는 여러 계좌에서 실행
+■  다중 계좌 주문 — 선택한 모든 계좌에 같은 주문 전송
+■  포트폴리오 복제 — 증권 계좌의 포트폴리오를 모의투자 계좌로 1:1 복사
+■  모든 주문 취소 — 현재 선택한 계좌의 미체결 주문 취소 (먼저 확인)</translation>
+        </message>
+        <message>
+            <source>SYMBOL LINKING</source>
+            <translation>종목 연동</translation>
+        </message>
+        <message>
+            <source>Click the coloured dot in the panel header to join a link group: picking a symbol in a linked Watchlist, News or Research panel loads it here.</source>
+            <translation>패널 머리글의 색 점을 클릭해 연결 그룹에 참여하세요. 연결된 관심종목, 뉴스, 리서치 패널에서 종목을 고르면 여기에 불러옵니다.</translation>
+        </message>
+        <message>
+            <source>Futures &amp; options analytics in seven sub-tabs</source>
+            <translation>하위 탭 7개로 구성된 선물·옵션 분석</translation>
+        </message>
+        <message>
+            <source>The F&amp;O screen is a Sensibull-style analytics workspace for index and stock derivatives. Each sub-tab is built the first time you open it, so the screen starts quickly with the option chain.</source>
+            <translation>선물·옵션 화면은 지수·주식 파생상품을 위한 Sensibull 방식의 분석 작업 공간입니다. 하위 탭은 처음 열 때 만들어지므로 화면이 옵션 체인부터 빠르게 열립니다.</translation>
+        </message>
+        <message>
+            <source>SUB-TABS</source>
+            <translation>하위 탭</translation>
+        </message>
+        <message>
+            <source>■  Chain — option chain with strike-level quotes and open interest
+■  Builder — assemble multi-leg strategies from templates and see the payoff chart
+■  OI Analytics — open-interest build-up, max pain, intraday and multi-strike OI
+■  Multi-Straddle — compare straddle premiums side by side
+■  FII/DII — institutional flow charts
+■  Screener — scan the derivatives universe for set-ups
+■  Positions — your open F&amp;O positions</source>
+            <translation>■  옵션 체인 — 행사가별 시세와 미결제약정을 보여 주는 옵션 체인
+■  전략 구성 — 템플릿으로 멀티 레그 전략을 만들고 손익 차트 확인
+■  미결제약정 분석 — 미결제약정 누적, 맥스 페인, 장중 및 다중 행사가 OI
+■  멀티 스트래들 — 스트래들 프리미엄을 나란히 비교
+■  FII/DII — 기관 수급 차트
+■  스크리너 — 파생상품 전체에서 매매 기회 탐색
+■  포지션 — 보유 중인 선물·옵션 포지션</translation>
+        </message>
+        <message>
+            <source>F&amp;O joins colour link groups, so the underlying follows the linked panels.</source>
+            <translation>선물·옵션 화면은 색상 연결 그룹에 참여하므로, 기초자산이 연결된 패널을 따라 바뀝니다.</translation>
+        </message>
+        <message>
+            <source>AI models compete as traders on the same market</source>
+            <translation>AI 모델들이 같은 시장에서 트레이더로 경쟁</translation>
+        </message>
+        <message>
+            <source>Alpha Arena runs a trading competition between AI models: each model receives the same market data on a fixed cadence, decides its own trades and is scored on the results. Competitions run on a paper exchange by default; live trading on Hyperliquid is an explicit opt-in.</source>
+            <translation>Alpha Arena는 AI 모델 간 거래 대회를 진행합니다. 각 모델은 정해진 주기로 같은 시장 데이터를 받아 스스로 거래를 결정하고, 그 결과로 점수를 받습니다. 대회는 기본적으로 모의 거래소에서 진행되며, Hyperliquid 실전 거래는 직접 선택해야 켜집니다.</translation>
+        </message>
+        <message>
+            <source>■  NEW COMPETITION wizard — pick models, symbols, starting capital and cadence
+■  Leaderboard — equity, return %, max drawdown, Sharpe, unrealised P&amp;L, positions and tokens used per model
+■  Equity curves for every model
+■  Per-model MODEL CHAT (its reasoning), POSITIONS, TRADES, RISK and AUDIT tabs
+■  Keeps running while the screen is closed; a PAPER / LIVE badge shows the venue</source>
+            <translation>■  새 대회 마법사 — 모델, 심볼, 시작 자본, 주기 선택
+■  순위표 — 모델별 자산, 수익률 %, 최대낙폭, 샤프지수, 평가손익, 포지션, 사용 토큰
+■  모든 모델의 자산 곡선
+■  모델별 모델 채팅(추론 과정), 포지션, 거래, 리스크, 감사 탭
+■  화면을 닫아도 계속 실행되며, 모의투자 / 실전투자 배지로 거래 장소를 표시</translation>
+        </message>
+        <message>
+            <source>■  Compare how different models trade the same conditions
+■  Study model reasoning next to the trades it produced
+■  Stress-test an AI trading idea on paper before any capital is at risk</source>
+            <translation>■  같은 조건에서 모델마다 어떻게 거래하는지 비교
+■  모델의 추론과 그 결과로 나온 거래를 나란히 검토
+■  실제 자금을 걸기 전에 AI 거래 아이디어를 모의투자로 스트레스 테스트</translation>
+        </message>
+        <message>
+            <source>Fincept Notebook — Jupyter-style Python notebooks inside the terminal</source>
+            <translation>Fincept Notebook — 터미널 안에서 쓰는 Jupyter 방식 Python 노트북</translation>
+        </message>
+        <message>
+            <source>The Code Editor is a notebook: code and markdown cells saved as standard .ipynb files. A LIBRARY of prebuilt finance, economics, trading, portfolio and quant notebooks opens as editable copies.</source>
+            <translation>코드 편집기는 노트북입니다. 코드 셀과 마크다운 셀을 표준 .ipynb 파일로 저장합니다. 라이브러리에 있는 금융, 경제, 거래, 포트폴리오, 퀀트 노트북은 편집 가능한 사본으로 열립니다.</translation>
+        </message>
+        <message>
+            <source>RUNNING CELLS</source>
+            <translation>셀 실행</translation>
+        </message>
+        <message>
+            <source>■  Ctrl+Enter runs a cell, Shift+Enter runs it and moves on, Ctrl+Shift+Enter runs the whole notebook top to bottom and stops at the first error
+■  Output streams into the cell while it runs; the value of the last line is shown like in Jupyter; errors show a traceback
+■  STOP (or Esc) interrupts running cells; a cell that passes the LIMIT is stopped with TimeoutError
+■  Each cell runs in its own process — variables do not carry over between cells, so define what a cell needs inside it</source>
+            <translation>■  Ctrl+Enter는 셀을 실행하고, Shift+Enter는 실행 후 다음 셀로 이동하며, Ctrl+Shift+Enter는 노트북 전체를 위에서 아래로 실행하다 첫 오류에서 멈춥니다
+■  실행 중 출력이 셀에 바로 표시되고, 마지막 줄의 값은 Jupyter처럼 표시되며, 오류는 트레이스백으로 표시됩니다
+■  중지(또는 Esc)로 실행 중인 셀을 중단하며, 제한 시간을 넘긴 셀은 TimeoutError로 중지됩니다
+■  셀마다 별도 프로세스에서 실행되어 셀 사이에 변수가 이어지지 않으니, 셀에 필요한 것은 그 셀 안에서 정의하세요</translation>
+        </message>
+        <message>
+            <source>ENVIRONMENTS</source>
+            <translation>실행 환경</translation>
+        </message>
+        <message>
+            <source>■  PY · NUMPY2 — the default analytics environment (pandas, numpy, scipy, statsmodels, yfinance, …)
+■  PY · NUMPY1 — vectorbt, backtesting.py, zipline, bt, ffn, PyPortfolioOpt, financepy
+■  The choice is saved with the notebook; relative file paths resolve against the notebook's folder</source>
+            <translation>■  PY · NUMPY2 — 기본 분석 환경 (pandas, numpy, scipy, statsmodels, yfinance, …)
+■  PY · NUMPY1 — vectorbt, backtesting.py, zipline, bt, ffn, PyPortfolioOpt, financepy
+■  선택한 환경은 노트북과 함께 저장되며, 상대 파일 경로는 노트북 폴더를 기준으로 합니다</translation>
+        </message>
+        <message>
+            <source>FILES</source>
+            <translation>파일</translation>
+        </message>
+        <message>
+            <source>■  NEW / OPEN / SAVE (Ctrl+N / Ctrl+O / Ctrl+S); outputs are saved in the .ipynb
+■  Saved notebooks appear in the File Manager</source>
+            <translation>■  새로 만들기 / 열기 / 저장 (Ctrl+N / Ctrl+O / Ctrl+S). 출력도 .ipynb에 저장됩니다
+■  저장한 노트북은 파일 관리자에 표시됩니다</translation>
+        </message>
+        <message>
+            <source>Multi-sheet spreadsheet with an Excel-compatible formula engine</source>
+            <translation>Excel 호환 수식 엔진을 갖춘 다중 시트 스프레드시트</translation>
+        </message>
+        <message>
+            <source>A workbook of sheets with formulas, imported from or saved to .xlsx and .csv. Formulas follow Excel's rules: operator precedence, error values (#DIV/0!, #VALUE!, #REF!, #NAME?, #N/A) that propagate instead of turning into 0, and references to other sheets (Sheet2!A1, 'My Sheet'!B2:C9).</source>
+            <translation>수식이 들어간 여러 시트로 된 통합 문서로, .xlsx와 .csv에서 가져오거나 저장할 수 있습니다. 수식은 Excel 규칙을 따릅니다: 연산자 우선순위, 0으로 바뀌지 않고 전파되는 오류 값(#DIV/0!, #VALUE!, #REF!, #NAME?, #N/A), 다른 시트 참조(Sheet2!A1, 'My Sheet'!B2:C9).</translation>
+        </message>
+        <message>
+            <source>FUNCTIONS</source>
+            <translation>함수</translation>
+        </message>
+        <message>
+            <source>■  Aggregates: SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, MEDIAN, STDEV, VAR, LARGE, SMALL, PRODUCT, SUMPRODUCT, SUMIF, COUNTIF, AVERAGEIF, CORREL
+■  Financial: NPV, IRR, XNPV, XIRR, PMT, PV, FV, NPER, RATE
+■  Logic &amp; lookup: IF, IFERROR, IFNA, AND, OR, NOT, VLOOKUP, HLOOKUP, INDEX, MATCH
+■  Math &amp; text: ROUND / ROUNDUP / ROUNDDOWN, INT, MOD, ABS, SQRT, POWER, LN, LOG, EXP, CONCAT, LEFT, RIGHT, MID, LEN, TRIM, UPPER, LOWER, VALUE
+Hover the formula bar for the complete list.</source>
+            <translation>■  집계: SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, MEDIAN, STDEV, VAR, LARGE, SMALL, PRODUCT, SUMPRODUCT, SUMIF, COUNTIF, AVERAGEIF, CORREL
+■  재무: NPV, IRR, XNPV, XIRR, PMT, PV, FV, NPER, RATE
+■  논리 및 조회: IF, IFERROR, IFNA, AND, OR, NOT, VLOOKUP, HLOOKUP, INDEX, MATCH
+■  수학 및 텍스트: ROUND / ROUNDUP / ROUNDDOWN, INT, MOD, ABS, SQRT, POWER, LN, LOG, EXP, CONCAT, LEFT, RIGHT, MID, LEN, TRIM, UPPER, LOWER, VALUE
+전체 목록은 수식 입력줄에 마우스를 올려 확인하세요.</translation>
+        </message>
+        <message>
+            <source>EDITING</source>
+            <translation>편집</translation>
+        </message>
+        <message>
+            <source>■  Undo / redo (Ctrl+Z / Ctrl+Y) for edits, paste, clear and row/column changes
+■  Copy/paste with Excel and Google Sheets: values go out as text; pasted figures such as 1,234.50, $1,234, 12.5% or (1,200) count as numbers
+■  Pasting inside the terminal keeps formulas and shifts relative references; Ctrl+Shift+V pastes values only
+■  Inserting or deleting rows and columns updates formula references
+■  The status bar shows SUM / AVG / COUNT of the selection</source>
+            <translation>■  편집, 붙여넣기, 지우기, 행/열 변경을 실행 취소 / 다시 실행 (Ctrl+Z / Ctrl+Y)
+■  Excel, Google Sheets와 복사/붙여넣기: 값은 텍스트로 나가며, 1,234.50, $1,234, 12.5%, (1,200) 같은 수치는 숫자로 붙여 넣어집니다
+■  터미널 안에서 붙여 넣으면 수식이 유지되고 상대 참조가 조정되며, Ctrl+Shift+V는 값만 붙여 넣습니다
+■  행과 열을 삽입하거나 삭제하면 수식 참조가 갱신됩니다
+■  상태 표시줄에 선택 영역의 SUM / AVG / COUNT가 표시됩니다</translation>
+        </message>
+        <message>
+            <source>■  .xlsx import keeps formulas, dates, percentages and number formats; a formula the engine cannot evaluate shows the value saved in the file (in italics)
+■  .xlsx export writes numbers, dates and formulas as real cells; Ctrl+S saves an open workbook in place
+■  CSV import detects comma / semicolon / tab; CSV export writes computed values</source>
+            <translation>■  .xlsx 가져오기는 수식, 날짜, 백분율, 숫자 서식을 유지하며, 엔진이 계산할 수 없는 수식은 파일에 저장된 값을 기울임꼴로 표시합니다
+■  .xlsx 내보내기는 숫자, 날짜, 수식을 실제 셀로 기록하며, Ctrl+S는 열려 있는 통합 문서를 그 자리에 저장합니다
+■  CSV 가져오기는 쉼표 / 세미콜론 / 탭을 자동 감지하며, CSV 내보내기는 계산된 값을 기록합니다</translation>
+        </message>
+        <message>
+            <source>Turn any JSON API into a standard record (OHLCV, QUOTE, POSITION, …)</source>
+            <translation>JSON API를 표준 레코드(OHLCV, QUOTE, POSITION, …)로 변환</translation>
+        </message>
+        <message>
+            <source>Data Mapping calls an HTTP API you describe, extracts fields with JSONPath and validates the result against a standard schema. Saved mappings can be run again from the MAPPINGS list; results are stored with a response cache.</source>
+            <translation>데이터 매핑은 직접 정의한 HTTP API를 호출하고, JSONPath로 필드를 추출한 뒤, 결과를 표준 스키마로 검증합니다. 저장한 매핑은 매핑 목록에서 다시 실행할 수 있으며, 결과는 응답 캐시에 저장됩니다.</translation>
+        </message>
+        <message>
+            <source>WORKFLOW</source>
+            <translation>작업 흐름</translation>
+        </message>
+        <message>
+            <source>■  API CONFIG — URL, method, auth, headers, JSON body; TEST API REQUEST fetches a sample response
+■  SCHEMA — OHLCV, QUOTE, TICK, ORDER, POSITION, PORTFOLIO or INSTRUMENT
+■  FIELD MAPPING — double-click a node of the sample response to use its path; optional transform (to_number, unix_to_iso, upper, …) and default
+■  CACHE — reuse a stored result for N seconds instead of calling the API
+■  TEST &amp; SAVE — runs the real engine on the sample and lists what did not map</source>
+            <translation>■  API 설정 — URL, 메서드, 인증, 헤더, JSON 본문. API 요청 테스트로 샘플 응답을 가져옵니다
+■  스키마 — OHLCV, QUOTE, TICK, ORDER, POSITION, PORTFOLIO, INSTRUMENT 중 선택
+■  필드 매핑 — 샘플 응답의 노드를 더블클릭해 그 경로를 사용하며, 변환(to_number, unix_to_iso, upper, …)과 기본값은 선택 사항입니다
+■  캐시 — API를 호출하지 않고 저장된 결과를 N초 동안 재사용
+■  테스트 및 저장 — 샘플에 실제 엔진을 실행하고 매핑되지 않은 항목을 보여 줍니다</translation>
+        </message>
+        <message>
+            <source>TEMPLATES</source>
+            <translation>템플릿</translation>
+        </message>
+        <message>
+            <source>■  Ready-made mappings for CoinGecko, Binance, Kraken, Yahoo, Alpha Vantage, Twelve Data, Finnhub, CoinMarketCap, Alpaca, Tradier and DBnomics
+■  Put your API key in AUTH VALUE; {AUTH} in the URL, headers or body is replaced by it when the request is sent</source>
+            <translation>■  CoinGecko, Binance, Kraken, Yahoo, Alpha Vantage, Twelve Data, Finnhub, CoinMarketCap, Alpaca, Tradier, DBnomics용 기본 매핑
+■  API 키를 인증 값에 넣으세요. 요청을 보낼 때 URL, 헤더, 본문의 {AUTH}가 이 키로 바뀝니다</translation>
+        </message>
+        <message>
+            <source>■  The AUTH VALUE is stored unencrypted in the local database — use a scoped key
+■  Requests run only when you press TEST or RUN; there is no scheduler</source>
+            <translation>■  인증 값은 로컬 데이터베이스에 암호화되지 않은 채 저장됩니다 — 범위가 제한된 키를 쓰세요
+■  요청은 테스트나 실행을 누를 때만 보내며, 예약 실행 기능은 없습니다</translation>
+        </message>
+        <message>
+            <source>Data connector command center</source>
+            <translation>데이터 커넥터 관리 센터</translation>
+        </message>
+        <message>
+            <source>Data Sources is where you browse, configure and test the connectors that feed the terminal: market data providers, databases, cloud storage, files, APIs and alternative-data feeds.</source>
+            <translation>데이터 소스에서는 터미널에 데이터를 공급하는 커넥터를 찾아보고, 설정하고, 테스트합니다: 시장 데이터 공급자, 데이터베이스, 클라우드 저장소, 파일, API, 대체 데이터 피드.</translation>
+        </message>
+        <message>
+            <source>■  CATALOG — every built-in Python data connector: add a missing API key inline, pick a command, run it and view the result as a table or JSON, export CSV or copy the equivalent AI tool call
+■  CONNECTORS — searchable catalogue grouped by category, with the fields each connector needs
+■  + ADD CONNECTION — configure a connector with your own credentials
+■  TEST — verify a saved connection before relying on it
+■  SAVED CONNECTIONS — edit, enable/disable or delete; ENABLE ALL / DISABLE ALL
+■  IMPORT / EXPORT — move connection definitions between machines</source>
+            <translation>■  카탈로그 — 모든 내장 Python 데이터 커넥터: 빠진 API 키를 그 자리에서 추가하고, 명령을 골라 실행해 결과를 표나 JSON으로 보고, CSV로 내보내거나 같은 동작의 AI 도구 호출을 복사
+■  커넥터 — 카테고리별로 묶어 검색할 수 있는 목록과 커넥터마다 필요한 필드
+■  + 연결 추가 — 내 인증 정보로 커넥터 설정
+■  테스트 — 저장한 연결을 쓰기 전에 확인
+■  저장된 연결 — 편집, 활성화/비활성화, 삭제, 모두 활성화 / 모두 비활성화
+■  가져오기 / 내보내기 — 다른 컴퓨터로 연결 정의 옮기기</translation>
+        </message>
+        <message>
+            <source>CATEGORIES</source>
+            <translation>카테고리</translation>
+        </message>
+        <message>
+            <source>■  Market data, alternative data, open banking
+■  Relational, NoSQL, time-series databases and search / warehouse engines
+■  Cloud storage and file sources
+■  API streaming</source>
+            <translation>■  시장 데이터, 대체 데이터, 오픈 뱅킹
+■  관계형, NoSQL, 시계열 데이터베이스와 검색 / 웨어하우스 엔진
+■  클라우드 저장소와 파일 소스
+■  API 스트리밍</translation>
+        </message>
+        <message>
+            <source>TIPS</source>
+            <translation>사용 팁</translation>
+        </message>
+        <message>
+            <source>■  Keys for the built-in providers can also be managed in Settings → Credentials</source>
+            <translation>■  내장 공급자의 키는 설정 → 인증 정보에서도 관리할 수 있습니다</translation>
+        </message>
+        <message>
+            <source>ASIA MARKETS</source>
+            <translation>아시아 시장</translation>
+        </message>
+        <message>
+            <source>398+ stock endpoints for Chinese A/B shares, Hong Kong and US markets</source>
+            <translation>중국 A/B주, 홍콩, 미국 시장용 주식 엔드포인트 398개 이상</translation>
+        </message>
+        <message>
+            <source>The Asia Markets terminal is an explorer over the AKShare stock endpoints. Pick a category, choose an endpoint, enter a symbol if it needs one, and press EXECUTE.</source>
+            <translation>아시아 시장 터미널은 AKShare 주식 엔드포인트를 탐색하는 화면입니다. 카테고리와 엔드포인트를 고르고, 필요하면 종목코드를 입력한 뒤 실행을 누르세요.</translation>
+        </message>
+        <message>
+            <source>■  Realtime and Historical quotes
+■  Financial statements and Holdings
+■  Fund Flow and Boards (sector / concept boards)
+■  Margin / HSGT (Stock Connect)
+■  Hot &amp; News</source>
+            <translation>■  실시간 및 과거 시세
+■  재무제표 및 보유 현황
+■  자금 흐름 및 보드 (업종 / 테마 보드)
+■  신용거래 / HSGT (후강퉁·선강퉁)
+■  인기 종목 및 뉴스</translation>
+        </message>
+        <message>
+            <source>USAGE</source>
+            <translation>사용법</translation>
+        </message>
+        <message>
+            <source>■  Use the endpoint search box to find a function by name
+■  Symbols are entered in the market's own format, e.g. 000001
+■  Results can be shown as a TABLE or as raw JSON; REFRESH re-runs the query
+■  Cached results are marked "(cached)"</source>
+            <translation>■  엔드포인트 검색창에서 이름으로 함수를 찾으세요
+■  종목코드는 해당 시장 형식으로 입력합니다 (예: 000001)
+■  결과는 표 또는 원본 JSON으로 볼 수 있으며, 새로고침을 누르면 쿼리를 다시 실행합니다
+■  캐시된 결과에는 "(캐시됨)"이 표시됩니다</translation>
+        </message>
+        <message>
+            <source>TRADE VIZ</source>
+            <translation>무역 시각화</translation>
+        </message>
+        <message>
+            <source>Bilateral trade flows as a chord diagram</source>
+            <translation>양국 간 무역 흐름을 코드 다이어그램으로 표시</translation>
+        </message>
+        <message>
+            <source>Trade Viz shows a country's annual merchandise trade with its partners as a chord diagram, next to a ranking table of the partners. Values are in USD millions.</source>
+            <translation>무역 시각화는 한 나라의 연간 상품 무역을 교역 상대국과 함께 코드 다이어그램으로 보여 주고, 옆에 상대국 순위표를 표시합니다. 단위는 백만 USD입니다.</translation>
+        </message>
+        <message>
+            <source>DATA</source>
+            <translation>데이터</translation>
+        </message>
+        <message>
+            <source>The figures come from UN Comtrade through the Economics service. A small static US snapshot is shown only while the live data for your selection is unavailable.</source>
+            <translation>수치는 경제 서비스를 통해 UN Comtrade에서 가져옵니다. 선택한 항목의 실시간 데이터를 쓸 수 없을 때만 작은 고정 미국 스냅샷을 표시합니다.</translation>
+        </message>
+        <message>
+            <source>RELATIONSHIP MAP</source>
+            <translation>관계도</translation>
+        </message>
+        <message>
+            <source>Corporate intelligence graph for a company</source>
+            <translation>기업 정보를 보여 주는 관계 그래프</translation>
+        </message>
+        <message>
+            <source>Search for an asset (for example AAPL, Tesla or RELIANCE) and press ANALYZE to build a graph of the company and the entities around it.</source>
+            <translation>자산(예: AAPL, Tesla, RELIANCE)을 검색하고 분석을 누르면 회사와 주변 관계자를 나타낸 그래프를 만듭니다.</translation>
+        </message>
+        <message>
+            <source>■  Peers, institutional holders, mutual funds, insiders, officers and analysts as connected nodes
+■  Select a node to see its details (market cap, P/E, ROE, margins, growth, …)
+■  FILTERS and LEGEND panels to focus on the relationships you care about
+■  Layouts — FORCE, LAYERED and RADIAL; FIT (or Home) zooms to the whole graph
+■  A data-quality indicator shows how complete the result is</source>
+            <translation>■  동종업체, 기관 보유자, 뮤추얼 펀드, 내부자, 임원, 애널리스트를 연결된 노드로 표시
+■  노드를 선택하면 세부 정보 표시 (시가총액, PER, ROE, 이익률, 성장률, …)
+■  필터와 범례 패널로 관심 있는 관계에 집중
+■  레이아웃 — 힘 기반, 계층형, 방사형. 맞춤(또는 Home 키)을 누르면 그래프 전체가 보이도록 확대/축소
+■  데이터 품질 표시로 결과가 얼마나 완전한지 확인</translation>
+        </message>
+        <message>
+            <source>AGENT WORKBENCH</source>
+            <translation>에이전트 워크벤치</translation>
+        </message>
+        <message>
+            <source>Run Claude Code and Codex agents locally, wired to the terminal's tools</source>
+            <translation>터미널 도구에 연결된 Claude Code와 Codex 에이전트를 로컬에서 실행</translation>
+        </message>
+        <message>
+            <source>The Agent Workbench runs Claude Code or OpenAI Codex CLI agents on this machine as background tasks that use the terminal's own tools over MCP. Runs keep going when the screen is closed.</source>
+            <translation>에이전트 워크벤치는 Claude Code 또는 OpenAI Codex CLI 에이전트를 이 컴퓨터에서 백그라운드 작업으로 실행하며, 에이전트는 MCP로 터미널의 도구를 사용합니다. 화면을 닫아도 실행은 계속됩니다.</translation>
+        </message>
+        <message>
+            <source>TABS</source>
+            <translation>탭</translation>
+        </message>
+        <message>
+            <source>■  RUN — write a task and follow the live transcript
+■  RUNS — history of every run, sortable and filterable
+■  SCHEDULES — recurring runs (e.g. a morning brief)
+■  CONNECT — the terminal's MCP server and setup for standalone agents (Claude Code, Codex, Cursor, Claude Desktop), with an activity log</source>
+            <translation>■  실행 — 작업을 작성하고 실시간 대화 기록 확인
+■  실행 기록 — 모든 실행 내역 (정렬·필터 가능)
+■  일정 — 반복 실행 (예: 아침 브리핑)
+■  연결 — 터미널의 MCP 서버와 독립 실행 에이전트(Claude Code, Codex, Cursor, Claude Desktop) 설정, 활동 로그 포함</translation>
+        </message>
+        <message>
+            <source>SETUP</source>
+            <translation>설정</translation>
+        </message>
+        <message>
+            <source>■  Install the Claude Code or Codex CLI; set its path and the workspace under SETTINGS
+■  Agents call the same tools AI Chat uses; actions that change data ask first</source>
+            <translation>■  Claude Code 또는 Codex CLI를 설치하고, 설정에서 실행 경로와 작업 공간을 지정하세요
+■  에이전트는 AI 채팅과 같은 도구를 호출하며, 데이터를 바꾸는 동작은 먼저 확인을 받습니다</translation>
+        </message>
+        <message>
+            <source>FILE MANAGER</source>
+            <translation>파일 관리자</translation>
+        </message>
+        <message>
+            <source>Everything the terminal has saved for you, in one place</source>
+            <translation>터미널이 저장한 모든 파일을 한곳에서</translation>
+        </message>
+        <message>
+            <source>The File Manager lists the files the terminal tracks — exports, backtest results, notebooks, connector configurations and files you imported — with a quota bar showing how much storage they use.</source>
+            <translation>파일 관리자는 터미널이 관리하는 파일(내보낸 파일, 백테스트 결과, 노트북, 커넥터 설정, 가져온 파일)을 나열하고, 저장 공간 사용량을 할당량 막대로 보여 줍니다.</translation>
+        </message>
+        <message>
+            <source>■  Filter chips by the tool that created a file, and sort by date
+■  Click a file card for an inline preview
+■  Import copies your own files into terminal storage; SAVE exports one back out
+■  Select several files for bulk delete (you are asked to confirm)
+■  Open a file in the screen that understands it — for example a notebook in the Code Editor</source>
+            <translation>■  파일을 만든 도구별 필터 칩과 날짜순 정렬
+■  파일 카드를 클릭하면 바로 미리 보기
+■  가져오기는 내 파일을 터미널 저장소로 복사하고, 저장은 파일을 다시 밖으로 내보냅니다
+■  여러 파일을 선택해 한꺼번에 삭제 (삭제 전 확인)
+■  파일을 해당 형식을 다루는 화면에서 열기 — 예: 노트북은 코드 편집기에서</translation>
+        </message>
+        <message>
+            <source>Shell:
+■  General — Language, currency, window behaviour
+■  Appearance — Theme, fonts, density, ticker and chat bubble
+■  Notifications — Alert channels (Telegram, Discord, Slack, email, …)
+■  Keybindings — Rebind every shortcut
+■  Voice — Speech-to-text and text-to-speech
+■  Logging and Developer — Log levels, DataHub inspector, experimental options
+
+Profile:
+■  Profiles — Separate profiles with isolated data
+■  Credentials — API keys for data providers and exchanges
+■  Security — PIN, auto-lock and audit log
+■  Data Sources, LLM Config, MCP Servers — Connectors, AI providers, tool servers
+■  Python Env — Analytics runtime and packages
+■  Storage &amp; Cache — Disk usage and cleanup
+■  Cloud Sync — Backup and sync</source>
+            <translation>앱:
+■  일반 — 언어, 통화, 창 동작
+■  화면 — 테마, 글꼴, 밀도, 시세 표시줄, 채팅 버블
+■  알림 — 알림 채널 (Telegram, Discord, Slack, 이메일, …)
+■  단축키 — 모든 단축키 재지정
+■  음성 — 음성 인식과 음성 합성
+■  로그 및 개발자 — 로그 수준, DataHub 검사기, 실험적 옵션
+
+프로필:
+■  프로필 — 데이터를 분리한 별도 프로필
+■  인증 정보 — 데이터 공급자와 거래소용 API 키
+■  보안 — PIN, 자동 잠금, 감사 로그
+■  데이터 소스, LLM 설정, MCP 서버 — 커넥터, AI 공급자, 도구 서버
+■  Python 환경 — 분석 런타임과 패키지
+■  저장소 및 캐시 — 디스크 사용량과 정리
+■  클라우드 동기화 — 백업과 동기화</translation>
+        </message>
+        <message>
+            <source>■  Overview — Account details, edit profile, credit balance and plan
+■  Usage — 30-day summary, daily usage and your most-used endpoints
+■  Security — API key (show / copy / regenerate), verification status, login history
+■  Billing — Current plan, credit balance and payment history, with UPGRADE TO PRO (free accounts) or MANAGE PLAN (paid) opening Plans &amp; Pricing
+■  Support — Contact details; open tickets from the Support screen
+■  Logout and delete account</source>
+            <translation>■  개요 — 계정 정보, 프로필 편집, 크레딧 잔액, 플랜
+■  사용량 — 30일 요약, 일별 사용량, 가장 많이 쓴 엔드포인트
+■  보안 — API 키 (보기 / 복사 / 재발급), 인증 상태, 로그인 기록
+■  결제 — 현재 플랜, 크레딧 잔액, 결제 내역. PRO로 업그레이드(무료 계정) 또는 플랜 관리(유료)를 누르면 요금제 및 가격이 열립니다
+■  지원 — 연락처 정보. 티켓은 지원 화면에서 엽니다
+■  로그아웃 및 계정 삭제</translation>
+        </message>
+        <message>
+            <source>■  Monitor your plan and credit balance
+■  Move from Free to Pro ($10/month) when you need more credits
+■  Track API usage to stay within limits
+■  Review past payments in the payment history table</source>
+            <translation>■  플랜과 크레딧 잔액 확인
+■  크레딧이 더 필요하면 Free에서 Pro(월 $10)로 변경
+■  API 사용량을 추적해 한도 안에서 이용
+■  결제 내역 표에서 지난 결제 확인</translation>
+        </message>
+        <message>
+            <source>BEGINNER: Check your account status and plan
+INTERMEDIATE: Monitor credit usage, plan API call budget
+ADVANCED: Optimize usage patterns for cost efficiency
+PRO: Budget credits across workflows using per-endpoint usage</source>
+            <translation>초급: 계정 상태와 플랜 확인
+중급: 크레딧 사용량 모니터링, API 호출 예산 계획
+고급: 비용 효율을 위한 사용 패턴 최적화
+전문가: 엔드포인트별 사용량으로 워크플로 전반의 크레딧 예산 배분</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::EcbPanel</name>
@@ -9926,6 +14192,10 @@ Source: EconDB — macroeconomic data, no API key required</source>
         <message>
             <source>No observations returned</source>
             <translation>관측값이 없습니다</translation>
+        </message>
+        <message>
+            <source>transform: %1</source>
+            <translation>변환: %1</translation>
         </message>
     </context>
     <context>
@@ -9990,6 +14260,168 @@ Source: EconDB — macroeconomic data, no API key required</source>
             <source>CSV Files (*.csv)</source>
             <translation>CSV 파일 (*.csv)</translation>
         </message>
+        <message>
+            <source>Daily</source>
+            <translation>일간</translation>
+        </message>
+        <message>
+            <source>Weekly</source>
+            <translation>주간</translation>
+        </message>
+        <message>
+            <source>Monthly</source>
+            <translation>월간</translation>
+        </message>
+        <message>
+            <source>Quarterly</source>
+            <translation>분기</translation>
+        </message>
+        <message>
+            <source>Semiannual</source>
+            <translation>반기</translation>
+        </message>
+        <message>
+            <source>Annual</source>
+            <translation>연간</translation>
+        </message>
+        <message>
+            <source>DoD</source>
+            <translation>전일 대비</translation>
+        </message>
+        <message>
+            <source>WoW</source>
+            <translation>전주 대비</translation>
+        </message>
+        <message>
+            <source>MoM</source>
+            <translation>전월 대비</translation>
+        </message>
+        <message>
+            <source>QoQ</source>
+            <translation>전분기 대비</translation>
+        </message>
+        <message>
+            <source>HoH</source>
+            <translation>전반기 대비</translation>
+        </message>
+        <message>
+            <source>YoY</source>
+            <translation>전년 대비</translation>
+        </message>
+        <message>
+            <source> pp</source>
+            <translation> %p</translation>
+        </message>
+        <message>
+            <source> bp</source>
+            <translation> bp</translation>
+        </message>
+        <message>
+            <source>Fetch data</source>
+            <translation>데이터 가져오기</translation>
+        </message>
+        <message>
+            <source>Run the query against the %1 data source</source>
+            <translation>%1 데이터 소스에서 조회 실행</translation>
+        </message>
+        <message>
+            <source>Run the query (Enter)</source>
+            <translation>조회 실행 (Enter)</translation>
+        </message>
+        <message>
+            <source>Export results as CSV</source>
+            <translation>결과를 CSV로 내보내기</translation>
+        </message>
+        <message>
+            <source>Export the full result set (all pages) as CSV</source>
+            <translation>전체 결과(모든 페이지)를 CSV로 내보내기</translation>
+        </message>
+        <message>
+            <source>CHG vs PREV</source>
+            <translation>직전 대비 변동</translation>
+        </message>
+        <message>
+            <source>RETRY</source>
+            <translation>다시 시도</translation>
+        </message>
+        <message>
+            <source>Run the same query again</source>
+            <translation>같은 조회를 다시 실행</translation>
+        </message>
+        <message>
+            <source>Results table</source>
+            <translation>결과 표</translation>
+        </message>
+        <message>
+            <source>Click a column header to sort all rows</source>
+            <translation>열 제목을 클릭하면 모든 행을 정렬합니다</translation>
+        </message>
+        <message>
+            <source>Copy selected rows</source>
+            <translation>선택한 행 복사</translation>
+        </message>
+        <message>
+            <source>Copy all rows (tab-separated)</source>
+            <translation>모든 행 복사 (탭 구분)</translation>
+        </message>
+        <message>
+            <source>Export CSV…</source>
+            <translation>CSV 내보내기…</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n record(s)</source>
+            <translation>
+                <numerusform>레코드 %n개</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>CHG %1</source>
+            <translation>%1 변동</translation>
+        </message>
+        <message>
+            <source>vs %1</source>
+            <translation>%1 대비</translation>
+        </message>
+        <message>
+            <source>Units: %1</source>
+            <translation>단위: %1</translation>
+        </message>
+        <message>
+            <source>Source: %1</source>
+            <translation>출처: %1</translation>
+        </message>
+        <message>
+            <source>Latest obs: %1</source>
+            <translation>최근 관측: %1</translation>
+        </message>
+        <message>
+            <source>Updated by source: %1</source>
+            <translation>출처 갱신: %1</translation>
+        </message>
+        <message>
+            <source>Retrieved %1 (cached)</source>
+            <translation>조회 %1 (캐시)</translation>
+        </message>
+        <message>
+            <source>Retrieved %1</source>
+            <translation>조회 %1</translation>
+        </message>
+        <message>
+            <source>Cards: %1</source>
+            <translation>카드 기준: %1</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n projected period(s) kept out of the cards</source>
+            <translation>
+                <numerusform>예측 기간 %n개는 카드에서 제외</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Could not write %1:
+%2</source>
+            <translation>%1에 쓸 수 없습니다:
+%2</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::EconomicCalendarPanel</name>
@@ -10035,6 +14467,10 @@ Source: Forex Factory — global economic calendar (no API key required)</source
             <source>Economic Calendar — %1  (%2 events)</source>
             <translation>경제 일정 — %1  (이벤트 %2개)</translation>
         </message>
+        <message>
+            <source>Times as shown on forexfactory.com for an anonymous session (its default time zone)</source>
+            <translation>forexfactory.com 비로그인 세션 기준 시각 (사이트 기본 시간대)</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::EconomicsScreen</name>
@@ -10045,6 +14481,22 @@ Source: Forex Factory — global economic calendar (no API key required)</source
         <message>
             <source>32 global data sources · 1000+ indicators</source>
             <translation>글로벌 데이터 소스 32개 · 지표 1000개 이상</translation>
+        </message>
+        <message>
+            <source>%1 global data sources · 1000+ indicators</source>
+            <translation>글로벌 데이터 소스 %1개 · 지표 1000개 이상</translation>
+        </message>
+        <message>
+            <source>Economics data source selector</source>
+            <translation>경제 데이터 소스 선택</translation>
+        </message>
+        <message>
+            <source>Data source: %1</source>
+            <translation>데이터 소스: %1</translation>
+        </message>
+        <message>
+            <source>Switch to the %1 data source</source>
+            <translation>%1 데이터 소스로 전환</translation>
         </message>
     </context>
     <context>
@@ -10195,6 +14647,30 @@ It is stored encrypted and shared with all FRED-backed features.</source>
             <source>Live levels from the U.S. Federal Reserve (FRED). Your factor exposures below show how the portfolio reacts to moves in each.</source>
             <translation>미국 연방준비제도(FRED)의 실시간 수치입니다. 아래 팩터 익스포저는 각 지표의 변화에 포트폴리오가 어떻게 반응하는지 보여 줍니다.</translation>
         </message>
+        <message>
+            <source>10Y Treasury Yield</source>
+            <translation>미 국채 10년물 금리</translation>
+        </message>
+        <message>
+            <source>Inflation (10Y breakeven)</source>
+            <translation>인플레이션 (10년 기대인플레이션)</translation>
+        </message>
+        <message>
+            <source>Real GDP Growth (annualised)</source>
+            <translation>실질 GDP 성장률 (연율)</translation>
+        </message>
+        <message>
+            <source>USD Index (broad)</source>
+            <translation>달러 지수 (광의)</translation>
+        </message>
+        <message>
+            <source>WTI Crude Oil</source>
+            <translation>WTI 원유</translation>
+        </message>
+        <message>
+            <source>No holdings in this portfolio yet.</source>
+            <translation>이 포트폴리오에 아직 보유종목이 없습니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::EditTransactionDialog</name>
@@ -10233,6 +14709,18 @@ It is stored encrypted and shared with all FRED-backed features.</source>
         <message>
             <source>SAVE</source>
             <translation>저장</translation>
+        </message>
+        <message>
+            <source>Transaction quantity</source>
+            <translation>거래 수량</translation>
+        </message>
+        <message>
+            <source>Transaction price</source>
+            <translation>거래 가격</translation>
+        </message>
+        <message>
+            <source>Transaction date</source>
+            <translation>거래일</translation>
         </message>
     </context>
     <context>
@@ -10294,6 +14782,30 @@ EIA_API_KEY 환경 변수를 설정하세요.
         <message>
             <source>No data returned for this selection</source>
             <translation>선택한 조건에 맞는 데이터가 없습니다</translation>
+        </message>
+        <message>
+            <source>EIA forecast</source>
+            <translation>EIA 전망</translation>
+        </message>
+        <message>
+            <source>History</source>
+            <translation>실적</translation>
+        </message>
+        <message>
+            <source>STEO: months after %1 are EIA forecasts</source>
+            <translation>STEO: %1 이후 월은 EIA 전망치입니다</translation>
+        </message>
+        <message>
+            <source>U.S. EIA — Short-Term Energy Outlook</source>
+            <translation>미국 EIA — 단기 에너지 전망(STEO)</translation>
+        </message>
+        <message>
+            <source>U.S. EIA — Weekly Petroleum Status Report</source>
+            <translation>미국 EIA — 주간 석유 현황 보고서</translation>
+        </message>
+        <message>
+            <source>Weekly</source>
+            <translation>주간</translation>
         </message>
     </context>
     <context>
@@ -10393,6 +14905,320 @@ EIA_API_KEY 환경 변수를 설정하세요.
         <message>
             <source>%1 (native quote)</source>
             <translation>%1 (거래 통화 시세)</translation>
+        </message>
+        <message>
+            <source>VALUATION</source>
+            <translation>밸류에이션</translation>
+        </message>
+        <message>
+            <source>CASH FLOW</source>
+            <translation>현금흐름</translation>
+        </message>
+        <message>
+            <source>PROFITABILITY</source>
+            <translation>수익성</translation>
+        </message>
+        <message>
+            <source>GROWTH</source>
+            <translation>성장성</translation>
+        </message>
+        <message>
+            <source>RISK / SENTIMENT</source>
+            <translation>리스크 / 시장 심리</translation>
+        </message>
+        <message>
+            <source>ANALYST PRICE TARGET</source>
+            <translation>애널리스트 목표주가</translation>
+        </message>
+        <message>
+            <source>No analyst coverage available.</source>
+            <translation>이 종목을 다루는 애널리스트가 없습니다.</translation>
+        </message>
+        <message>
+            <source> now</source>
+            <translation> (현재)</translation>
+        </message>
+        <message>
+            <source>to mean target</source>
+            <translation>평균 목표주가까지</translation>
+        </message>
+        <message>
+            <source>target range shown</source>
+            <translation>목표주가 범위 표시</translation>
+        </message>
+        <message>
+            <source>STRONG BUY</source>
+            <translation>적극 매수</translation>
+        </message>
+        <message>
+            <source>BUY</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>HOLD</source>
+            <translation>중립</translation>
+        </message>
+        <message>
+            <source>SELL</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>STRONG SELL</source>
+            <translation>적극 매도</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n analyst(s)</source>
+            <translation>
+                <numerusform>애널리스트 %n명</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>N/A</source>
+            <translation>해당 없음</translation>
+        </message>
+        <message>
+            <source>No earnings-based valuation available (may be unprofitable).</source>
+            <translation>이익 기반 밸류에이션을 산출할 수 없습니다(적자일 수 있음).</translation>
+        </message>
+        <message>
+            <source>UNDERVALUED</source>
+            <translation>저평가</translation>
+        </message>
+        <message>
+            <source>FAIRLY VALUED</source>
+            <translation>적정 가치</translation>
+        </message>
+        <message>
+            <source>EXPENSIVE</source>
+            <translation>고평가</translation>
+        </message>
+        <message>
+            <source>Forward P/E below trailing — earnings expected to grow.</source>
+            <translation>선행 PER이 후행 PER보다 낮습니다 — 이익 증가가 예상됩니다.</translation>
+        </message>
+        <message>
+            <source>Trades at a premium; priced for growth or quality.</source>
+            <translation>프리미엄을 받고 거래됩니다. 성장성이나 우량성이 주가에 반영되어 있습니다.</translation>
+        </message>
+        <message>
+            <source>Low multiple relative to earnings/growth.</source>
+            <translation>이익·성장 대비 멀티플이 낮습니다.</translation>
+        </message>
+        <message>
+            <source>Valuation in line with broad-market norms.</source>
+            <translation>밸류에이션이 시장 전반 수준과 비슷합니다.</translation>
+        </message>
+        <message>
+            <source>Balance-sheet cash/debt not reported.</source>
+            <translation>재무상태표의 현금·부채가 보고되지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>Cash %1</source>
+            <translation>현금 %1</translation>
+        </message>
+        <message>
+            <source>Debt %1</source>
+            <translation>부채 %1</translation>
+        </message>
+        <message>
+            <source>Net %1%2</source>
+            <translation>순현금 %1%2</translation>
+        </message>
+        <message>
+            <source>STRONG</source>
+            <translation>견고</translation>
+        </message>
+        <message>
+            <source>Net cash position — more cash than total debt.</source>
+            <translation>순현금 상태 — 현금이 총부채보다 많습니다.</translation>
+        </message>
+        <message>
+            <source>STABLE</source>
+            <translation>안정</translation>
+        </message>
+        <message>
+            <source>Manageable leverage relative to cash on hand.</source>
+            <translation>보유 현금 대비 부채 수준이 감당할 만합니다.</translation>
+        </message>
+        <message>
+            <source>STRETCHED</source>
+            <translation>부채 부담</translation>
+        </message>
+        <message>
+            <source>Debt is high relative to available cash.</source>
+            <translation>가용 현금 대비 부채가 많습니다.</translation>
+        </message>
+        <message>
+            <source>Cash-flow figures not reported.</source>
+            <translation>현금흐름 수치가 보고되지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>FCF %1</source>
+            <translation>FCF %1</translation>
+        </message>
+        <message>
+            <source>Op CF %1</source>
+            <translation>영업현금흐름 %1</translation>
+        </message>
+        <message>
+            <source>FCF margin %1</source>
+            <translation>FCF 마진 %1</translation>
+        </message>
+        <message>
+            <source>Generates positive free cash flow after capex.</source>
+            <translation>설비투자 후에도 잉여현금흐름이 플러스입니다.</translation>
+        </message>
+        <message>
+            <source>REINVESTING</source>
+            <translation>재투자 중</translation>
+        </message>
+        <message>
+            <source>Operating cash is positive but FCF is negative (heavy investment).</source>
+            <translation>영업현금흐름은 플러스지만 FCF는 마이너스입니다(대규모 투자).</translation>
+        </message>
+        <message>
+            <source>BURNING CASH</source>
+            <translation>현금 소진</translation>
+        </message>
+        <message>
+            <source>Operations are consuming cash.</source>
+            <translation>영업활동에서 현금이 빠져나가고 있습니다.</translation>
+        </message>
+        <message>
+            <source>Profitability ratios not reported.</source>
+            <translation>수익성 비율이 보고되지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>Net margin %1</source>
+            <translation>순이익률 %1</translation>
+        </message>
+        <message>
+            <source>Oper. margin %1</source>
+            <translation>영업이익률 %1</translation>
+        </message>
+        <message>
+            <source>LOSS-MAKING</source>
+            <translation>적자</translation>
+        </message>
+        <message>
+            <source>Currently unprofitable on a net basis.</source>
+            <translation>현재 순이익 기준 적자입니다.</translation>
+        </message>
+        <message>
+            <source>EXCELLENT</source>
+            <translation>매우 우수</translation>
+        </message>
+        <message>
+            <source>High returns on equity and strong net margins.</source>
+            <translation>자기자본이익률이 높고 순이익률이 탄탄합니다.</translation>
+        </message>
+        <message>
+            <source>SOLID</source>
+            <translation>양호</translation>
+        </message>
+        <message>
+            <source>Healthy, consistent profitability.</source>
+            <translation>수익성이 건전하고 꾸준합니다.</translation>
+        </message>
+        <message>
+            <source>THIN</source>
+            <translation>저마진</translation>
+        </message>
+        <message>
+            <source>Profitable, but margins and returns are slim.</source>
+            <translation>흑자지만 마진과 수익률이 낮습니다.</translation>
+        </message>
+        <message>
+            <source>Growth rates not reported.</source>
+            <translation>성장률이 보고되지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>Revenue %1</source>
+            <translation>매출 %1</translation>
+        </message>
+        <message>
+            <source>Earnings %1</source>
+            <translation>이익 %1</translation>
+        </message>
+        <message>
+            <source>latest quarter, YoY</source>
+            <translation>최근 분기, 전년 대비</translation>
+        </message>
+        <message>
+            <source>HIGH GROWTH</source>
+            <translation>고성장</translation>
+        </message>
+        <message>
+            <source>Top line expanding rapidly.</source>
+            <translation>매출이 빠르게 늘고 있습니다.</translation>
+        </message>
+        <message>
+            <source>MODERATE</source>
+            <translation>보통</translation>
+        </message>
+        <message>
+            <source>Steady single-to-double-digit growth.</source>
+            <translation>한 자릿수에서 두 자릿수의 꾸준한 성장입니다.</translation>
+        </message>
+        <message>
+            <source>FLAT</source>
+            <translation>정체</translation>
+        </message>
+        <message>
+            <source>Latest-quarter revenue is roughly unchanged year over year.</source>
+            <translation>최근 분기 매출이 전년 동기와 거의 같습니다.</translation>
+        </message>
+        <message>
+            <source>DECLINING</source>
+            <translation>감소</translation>
+        </message>
+        <message>
+            <source>Latest-quarter revenue is below the year-ago quarter.</source>
+            <translation>최근 분기 매출이 전년 동기보다 적습니다.</translation>
+        </message>
+        <message>
+            <source>Risk metrics not reported.</source>
+            <translation>리스크 지표가 보고되지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>Beta %1</source>
+            <translation>베타 %1</translation>
+        </message>
+        <message>
+            <source>Short %1 of float</source>
+            <translation>유통주식 대비 공매도 %1</translation>
+        </message>
+        <message>
+            <source>52w position %1%</source>
+            <translation>52주 범위 내 위치 %1%</translation>
+        </message>
+        <message>
+            <source>ELEVATED</source>
+            <translation>높음</translation>
+        </message>
+        <message>
+            <source>Heavy short interest signals bearish positioning.</source>
+            <translation>공매도 잔고가 많아 약세 포지션이 쌓여 있습니다.</translation>
+        </message>
+        <message>
+            <source>High beta — amplifies market moves.</source>
+            <translation>베타가 높습니다 — 시장 움직임을 증폭합니다.</translation>
+        </message>
+        <message>
+            <source>Moves roughly in line with, or above, the market.</source>
+            <translation>시장과 비슷하거나 시장보다 크게 움직입니다.</translation>
+        </message>
+        <message>
+            <source>LOW</source>
+            <translation>낮음</translation>
+        </message>
+        <message>
+            <source>Lower volatility than the broad market.</source>
+            <translation>시장 전체보다 변동성이 낮습니다.</translation>
+        </message>
+        <message>
+            <source>Beta unavailable; based on limited risk signals.</source>
+            <translation>베타가 없어 제한된 리스크 신호로 판단했습니다.</translation>
         </message>
     </context>
     <context>
@@ -10709,6 +15535,56 @@ EIA_API_KEY 환경 변수를 설정하세요.
             <source>Financial statements: %1 (native amounts)</source>
             <translation>재무제표: %1 (원래 금액)</translation>
         </message>
+        <message>
+            <source>ANNUAL STATEMENTS · CACHED COPY — REFRESH FAILED</source>
+            <translation>연간 재무제표 · 캐시 사본 — 새로고침 실패</translation>
+        </message>
+        <message>
+            <source>ANNUAL STATEMENTS · FISCAL YEARS · AS REPORTED (REPORTING CURRENCY)</source>
+            <translation>연간 재무제표 · 회계연도 · 보고 기준 (보고 통화)</translation>
+        </message>
+        <message>
+            <source> · CACHED COPY — REFRESHING</source>
+            <translation> · 캐시 사본 — 새로고침 중</translation>
+        </message>
+        <message>
+            <source> · FETCHED %1</source>
+            <translation> · %1 조회</translation>
+        </message>
+        <message>
+            <source>Export failed</source>
+            <translation>내보내기 실패</translation>
+        </message>
+        <message>
+            <source>Could not write the CSV file:
+%1
+%2</source>
+            <translation>CSV 파일을 쓸 수 없습니다:
+%1
+%2</translation>
+        </message>
+        <message>
+            <source>Writing the CSV file failed:
+%1</source>
+            <translation>CSV 파일 쓰기에 실패했습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>Export complete</source>
+            <translation>내보내기 완료</translation>
+        </message>
+        <message numerus="yes">
+            <source>Saved %n row(s) to:
+%1</source>
+            <translation>
+                <numerusform>%n개 행을 저장했습니다:
+%1</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>CASH FLOW TREND (REPORTING CURRENCY)</source>
+            <translation>현금흐름 추이 (보고 통화)</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::EquityNewsTab</name>
@@ -10747,6 +15623,30 @@ EIA_API_KEY 환경 변수를 설정하세요.
         <message>
             <source>READ FULL ARTICLE →</source>
             <translation>기사 전문 읽기 →</translation>
+        </message>
+        <message>
+            <source>Could not load news for %1. Press REFRESH to try again.</source>
+            <translation>%1 뉴스를 불러올 수 없습니다. 새로고침을 눌러 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Add a NewsAPI key in the Data Sources tab</source>
+            <translation>데이터 소스 탭에서 NewsAPI 키를 추가하세요</translation>
+        </message>
+        <message>
+            <source>Auto (GNews → Yahoo)</source>
+            <translation>자동 (GNews → Yahoo)</translation>
+        </message>
+        <message>
+            <source>News source</source>
+            <translation>뉴스 출처</translation>
+        </message>
+        <message>
+            <source>Open in browser: %1</source>
+            <translation>브라우저에서 열기: %1</translation>
+        </message>
+        <message>
+            <source>Open the full article in your browser</source>
+            <translation>브라우저에서 기사 전문 열기</translation>
         </message>
     </context>
     <context>
@@ -10983,6 +15883,38 @@ EIA_API_KEY 환경 변수를 설정하세요.
             <source>%1 (native quote)</source>
             <translation>%1 (거래 통화 시세)</translation>
         </message>
+        <message>
+            <source>%1 data could not be loaded.</source>
+            <translation>%1 데이터를 불러올 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>%1 data could not be loaded: %2</source>
+            <translation>%1 데이터를 불러올 수 없습니다: %2</translation>
+        </message>
+        <message>
+            <source>DATA UNAVAILABLE</source>
+            <translation>데이터 없음</translation>
+        </message>
+        <message>
+            <source>REASON</source>
+            <translation>원인</translation>
+        </message>
+        <message>
+            <source>[RETRY]</source>
+            <translation>[재시도]</translation>
+        </message>
+        <message>
+            <source>Retry loading the overview tab</source>
+            <translation>개요 탭 다시 불러오기</translation>
+        </message>
+        <message>
+            <source>GROWTH (LATEST QTR, YoY)</source>
+            <translation>성장성 (최근 분기, 전년 대비)</translation>
+        </message>
+        <message>
+            <source>Most recent quarter vs the same quarter a year earlier (Yahoo Finance)</source>
+            <translation>최근 분기와 전년 동기 비교 (Yahoo Finance)</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::EquityPeersTab</name>
@@ -11082,6 +16014,50 @@ EIA_API_KEY 환경 변수를 설정하세요.
             <source>BETA</source>
             <translation>베타</translation>
         </message>
+        <message>
+            <source>Could not load peer data — press LOAD to try again.</source>
+            <translation>동종업체 데이터를 불러올 수 없습니다 — 불러오기를 눌러 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>MSFT, GOOGL, META — then Enter</source>
+            <translation>MSFT, GOOGL, META 입력 후 Enter</translation>
+        </message>
+        <message>
+            <source>Double-click a row to research that company · right-click for more</source>
+            <translation>행을 더블클릭하면 해당 회사를 리서치합니다 · 오른쪽 클릭으로 더 보기</translation>
+        </message>
+        <message>
+            <source>Enter at least one peer ticker, then press LOAD.</source>
+            <translation>동종업체 종목코드를 하나 이상 입력한 다음 불러오기를 누르세요.</translation>
+        </message>
+        <message>
+            <source>No data came back for %1 — check the tickers (yfinance form, e.g. TCS.NS).</source>
+            <translation>%1의 데이터가 없습니다 — 종목코드를 확인하세요 (yfinance 형식, 예: TCS.NS).</translation>
+        </message>
+        <message>
+            <source>No data for: %1</source>
+            <translation>데이터 없음: %1</translation>
+        </message>
+        <message>
+            <source>MKT CAP</source>
+            <translation>시가총액</translation>
+        </message>
+        <message>
+            <source>Research %1 here</source>
+            <translation>여기서 %1 리서치</translation>
+        </message>
+        <message>
+            <source>Price chart for %1</source>
+            <translation>%1 가격 차트</translation>
+        </message>
+        <message>
+            <source>Copy symbol</source>
+            <translation>종목코드 복사</translation>
+        </message>
+        <message>
+            <source>Trailing ratios from Yahoo Finance. Multiples in x; margins, returns and dividend yield in %; D/E = total debt ÷ equity (x). Market cap and price are in each listing's own currency.</source>
+            <translation>Yahoo Finance의 후행 비율입니다. 멀티플은 배(x), 마진·수익률·배당수익률은 %, 부채비율(D/E) = 총부채 ÷ 자본(x). 시가총액과 가격은 종목별 상장 시장의 통화 기준입니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::EquityResearchScreen</name>
@@ -11160,6 +16136,178 @@ EIA_API_KEY 환경 변수를 설정하세요.
         <message>
             <source>H: %1  L: %2</source>
             <translation>고가: %1  저가: %2</translation>
+        </message>
+        <message>
+            <source>Symbol…</source>
+            <translation>종목코드…</translation>
+        </message>
+        <message>
+            <source>Research a symbol</source>
+            <translation>종목 리서치</translation>
+        </message>
+        <message>
+            <source>Type a ticker (AAPL, RELIANCE.NS, BRK-B) and press Enter</source>
+            <translation>종목코드(AAPL, RELIANCE.NS, BRK-B)를 입력하고 Enter를 누르세요</translation>
+        </message>
+        <message>
+            <source>Run the default backtest on this symbol in the Backtesting screen</source>
+            <translation>백테스트 화면에서 이 종목으로 기본 백테스트 실행</translation>
+        </message>
+        <message>
+            <source>↓ CSV</source>
+            <translation>↓ CSV</translation>
+        </message>
+        <message>
+            <source>Download price history (CSV) from Yahoo Finance</source>
+            <translation>Yahoo Finance에서 가격 이력(CSV) 다운로드</translation>
+        </message>
+        <message>
+            <source>+ WATCHLIST</source>
+            <translation>+ 관심종목</translation>
+        </message>
+        <message>
+            <source>Add this symbol to a watchlist</source>
+            <translation>이 종목을 관심종목에 추가</translation>
+        </message>
+        <message>
+            <source>OPEN IN ▾</source>
+            <translation>열기 ▾</translation>
+        </message>
+        <message>
+            <source>Send this symbol to Equity Trading, News, Backtesting or a watchlist</source>
+            <translation>이 종목을 주식 거래, 뉴스, 백테스트 또는 관심종목으로 보내기</translation>
+        </message>
+        <message>
+            <source>Unavailable</source>
+            <translation>시세 없음</translation>
+        </message>
+        <message>
+            <source>Price chart (Overview)</source>
+            <translation>가격 차트 (개요)</translation>
+        </message>
+        <message>
+            <source>SEC filings</source>
+            <translation>SEC 공시</translation>
+        </message>
+        <message>
+            <source>Copy symbol</source>
+            <translation>종목코드 복사</translation>
+        </message>
+        <message>
+            <source>STRONG BUY</source>
+            <translation>적극 매수</translation>
+        </message>
+        <message>
+            <source>BUY</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>HOLD</source>
+            <translation>중립</translation>
+        </message>
+        <message>
+            <source>SELL</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>STRONG SELL</source>
+            <translation>적극 매도</translation>
+        </message>
+        <message>
+            <source>REC: %1</source>
+            <translation>투자의견: %1</translation>
+        </message>
+        <message numerus="yes">
+            <source>Consensus of %n analyst(s)</source>
+            <translation>
+                <numerusform>애널리스트 %n명 컨센서스</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Download Price Data</source>
+            <translation>가격 데이터 다운로드</translation>
+        </message>
+        <message>
+            <source>Load a symbol first.</source>
+            <translation>먼저 종목을 불러오세요.</translation>
+        </message>
+        <message>
+            <source>Download Price Data — %1</source>
+            <translation>가격 데이터 다운로드 — %1</translation>
+        </message>
+        <message>
+            <source>Export Yahoo Finance price history for &lt;b&gt;%1&lt;/b&gt; as CSV.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt;의 Yahoo Finance 가격 이력을 CSV로 내보냅니다.</translation>
+        </message>
+        <message>
+            <source>Period:</source>
+            <translation>기간:</translation>
+        </message>
+        <message>
+            <source>Interval:</source>
+            <translation>주기:</translation>
+        </message>
+        <message>
+            <source>Intraday intervals (below 1d) are only available for roughly the last 60 days. Times are UTC; prices are as Yahoo reports them (split-adjusted).</source>
+            <translation>1일 미만의 분봉 주기는 최근 약 60일치만 받을 수 있습니다. 시각은 UTC이며, 가격은 Yahoo가 제공하는 값(액면분할 반영) 그대로입니다.</translation>
+        </message>
+        <message>
+            <source>Cancel</source>
+            <translation>취소</translation>
+        </message>
+        <message>
+            <source>Download</source>
+            <translation>다운로드</translation>
+        </message>
+        <message>
+            <source>Fetching from Yahoo Finance…</source>
+            <translation>Yahoo Finance에서 가져오는 중…</translation>
+        </message>
+        <message>
+            <source>No data returned for %1 (%2). Try a longer period or a daily interval.</source>
+            <translation>%1 (%2) 데이터가 없습니다. 더 긴 기간이나 일봉 주기로 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Download failed: %1</source>
+            <translation>다운로드 실패: %1</translation>
+        </message>
+        <message>
+            <source>Save Price Data</source>
+            <translation>가격 데이터 저장</translation>
+        </message>
+        <message>
+            <source>CSV Files (*.csv)</source>
+            <translation>CSV 파일 (*.csv)</translation>
+        </message>
+        <message>
+            <source>Save cancelled.</source>
+            <translation>저장을 취소했습니다.</translation>
+        </message>
+        <message>
+            <source>Export failed</source>
+            <translation>내보내기 실패</translation>
+        </message>
+        <message>
+            <source>Could not open the file for writing:
+%1</source>
+            <translation>파일을 쓰기용으로 열 수 없습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>Writing the CSV file failed:
+%1</source>
+            <translation>CSV 파일 쓰기에 실패했습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>Download complete</source>
+            <translation>다운로드 완료</translation>
+        </message>
+        <message>
+            <source>Saved %1 rows for %2 to:
+%3</source>
+            <translation>%2의 %1개 행을 저장했습니다:
+%3</translation>
         </message>
     </context>
     <context>
@@ -11247,6 +16395,58 @@ EIA_API_KEY 환경 변수를 설정하세요.
         <message>
             <source>No market sentiment snapshot is available for this symbol.</source>
             <translation>이 종목의 시장 심리 스냅샷이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Loading sentiment…</source>
+            <translation>시장 심리 불러오는 중…</translation>
+        </message>
+        <message>
+            <source>Open a symbol to compute sentiment from news and price momentum.</source>
+            <translation>종목을 열면 뉴스와 가격 모멘텀으로 시장 심리를 계산합니다.</translation>
+        </message>
+        <message>
+            <source>OVERALL</source>
+            <translation>종합</translation>
+        </message>
+        <message>
+            <source>SIGNAL SOURCES</source>
+            <translation>신호 출처</translation>
+        </message>
+        <message>
+            <source>HEADLINES</source>
+            <translation>헤드라인</translation>
+        </message>
+        <message>
+            <source>Confidence %1%</source>
+            <translation>신뢰도 %1%</translation>
+        </message>
+        <message>
+            <source>%1 bullish · %2 neutral · %3 bearish  (%4 headlines)</source>
+            <translation>강세 %1 · 중립 %2 · 약세 %3  (헤드라인 %4건)</translation>
+        </message>
+        <message>
+            <source>wt %1%</source>
+            <translation>비중 %1%</translation>
+        </message>
+        <message>
+            <source>n/a</source>
+            <translation>해당 없음</translation>
+        </message>
+        <message>
+            <source>No headlines available for this symbol.</source>
+            <translation>이 종목의 헤드라인이 없습니다.</translation>
+        </message>
+        <message>
+            <source>engine: %1</source>
+            <translation>엔진: %1</translation>
+        </message>
+        <message>
+            <source>self-computed</source>
+            <translation>자체 계산</translation>
+        </message>
+        <message>
+            <source>No sentiment is available for this symbol.</source>
+            <translation>이 종목의 시장 심리 데이터가 없습니다.</translation>
         </message>
     </context>
     <context>
@@ -11650,6 +16850,30 @@ EIA_API_KEY 환경 변수를 설정하세요.
             <source>INTERPRETATION</source>
             <translation>해석</translation>
         </message>
+        <message>
+            <source>Above zero — 12-EMA over 26-EMA (uptrend bias)</source>
+            <translation>0 위 — 12-EMA가 26-EMA보다 높음 (상승 추세 우위)</translation>
+        </message>
+        <message>
+            <source>Below zero — 12-EMA under 26-EMA (downtrend bias)</source>
+            <translation>0 아래 — 12-EMA가 26-EMA보다 낮음 (하락 추세 우위)</translation>
+        </message>
+        <message>
+            <source>MACD above its signal line — bullish crossover state</source>
+            <translation>MACD가 시그널선 위 — 강세 교차 상태</translation>
+        </message>
+        <message>
+            <source>MACD below its signal line — bearish crossover state</source>
+            <translation>MACD가 시그널선 아래 — 약세 교차 상태</translation>
+        </message>
+        <message>
+            <source>Tight squeeze — volatility compressed, watch for a breakout</source>
+            <translation>강한 스퀴즈 — 변동성이 압축됨, 돌파에 주의</translation>
+        </message>
+        <message>
+            <source>14-bar rolling volume-weighted price (not the intraday session VWAP)</source>
+            <translation>14봉 이동 거래량가중가격 (장중 세션 VWAP 아님)</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::EquityTradingScreen</name>
@@ -11869,6 +17093,376 @@ EIA_API_KEY 환경 변수를 설정하세요.
             <source>Strategy queued for approval (%1 legs)</source>
             <translation>전략이 승인 대기열에 등록됨 (레그 %1개)</translation>
         </message>
+        <message>
+            <source>FEEDS</source>
+            <translation>피드</translation>
+        </message>
+        <message>
+            <source>UNIFIED</source>
+            <translation>통합</translation>
+        </message>
+        <message>
+            <source>All-accounts positions &amp; holdings (every connected broker)</source>
+            <translation>전체 계좌 포지션·보유종목 (연결된 모든 증권사)</translation>
+        </message>
+        <message>
+            <source>Focused broker account</source>
+            <translation>선택한 증권 계좌</translation>
+        </message>
+        <message>
+            <source>Symbol search</source>
+            <translation>종목 검색</translation>
+        </message>
+        <message>
+            <source>Symbol (Ctrl+Shift+F to focus)</source>
+            <translation>종목코드 (Ctrl+Shift+F로 이동)</translation>
+        </message>
+        <message>
+            <source>Paper or live trading mode</source>
+            <translation>모의투자/실전투자 모드</translation>
+        </message>
+        <message>
+            <source>Manage broker accounts</source>
+            <translation>증권 계좌 관리</translation>
+        </message>
+        <message>
+            <source>Toggle feed monitor</source>
+            <translation>피드 모니터 켜기/끄기</translation>
+        </message>
+        <message>
+            <source>Toggle all-accounts portfolio</source>
+            <translation>전체 계좌 포트폴리오 켜기/끄기</translation>
+        </message>
+        <message>
+            <source>Broker connection status</source>
+            <translation>증권사 연결 상태</translation>
+        </message>
+        <message>
+            <source>Clock</source>
+            <translation>시계</translation>
+        </message>
+        <message>
+            <source>Cancel All Orders</source>
+            <translation>모든 주문 취소</translation>
+        </message>
+        <message>
+            <source>Cancel ALL pending orders on this account?</source>
+            <translation>이 계좌의 미체결 주문을 모두 취소하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>⚠ NO MARKET DATA — hover for details</source>
+            <translation>⚠ 시세 없음 — 마우스를 올리면 자세히 표시</translation>
+        </message>
+        <message>
+            <source>Unified Portfolio — All Accounts</source>
+            <translation>통합 포트폴리오 — 전체 계좌</translation>
+        </message>
+        <message>
+            <source>No target accounts selected</source>
+            <translation>선택한 대상 계좌 없음</translation>
+        </message>
+        <message>
+            <source>Selected accounts no longer exist</source>
+            <translation>선택한 계좌가 더 이상 없습니다</translation>
+        </message>
+        <message>
+            <source>BUY</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>SELL</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>MARKET</source>
+            <translation>시장가</translation>
+        </message>
+        <message>
+            <source>%1 %2 × %3 @ %4
+Type %5 · Product %6 · Exchange %7
+
+On %8 account(s)%9:
+
+%10</source>
+            <translation>%1 %2 × %3 @ %4
+유형 %5 · 상품 %6 · 거래소 %7
+
+대상 계좌 %8개%9:
+
+%10</translation>
+        </message>
+        <message>
+            <source>(broker default)</source>
+            <translation>(증권사 기본값)</translation>
+        </message>
+        <message>
+            <source> — %1 LIVE</source>
+            <translation> — 실전투자 %1개</translation>
+        </message>
+        <message>
+            <source>Multi-Broker Order</source>
+            <translation>다중 증권사 주문</translation>
+        </message>
+        <message>
+            <source>%1 order(s) queued for approval</source>
+            <translation>주문 %1건이 승인 대기열에 추가됨</translation>
+        </message>
+        <message>
+            <source>Placing on %1 account(s)…</source>
+            <translation>계좌 %1개에 주문 제출 중…</translation>
+        </message>
+        <message>
+            <source>✓ %1 placed</source>
+            <translation>✓ %1건 제출됨</translation>
+        </message>
+        <message>
+            <source>, %1 queued</source>
+            <translation>, %1건 대기열 등록</translation>
+        </message>
+        <message>
+            <source> — ✗ %1</source>
+            <translation> — ✗ %1</translation>
+        </message>
+        <message>
+            <source>Buy %1</source>
+            <translation>%1 매수</translation>
+        </message>
+        <message>
+            <source>Sell %1</source>
+            <translation>%1 매도</translation>
+        </message>
+        <message>
+            <source>Market</source>
+            <translation>시장가</translation>
+        </message>
+        <message>
+            <source>Limit</source>
+            <translation>지정가</translation>
+        </message>
+        <message>
+            <source>Type</source>
+            <translation>유형</translation>
+        </message>
+        <message>
+            <source>Qty</source>
+            <translation>수량</translation>
+        </message>
+        <message>
+            <source>Limit price</source>
+            <translation>지정가</translation>
+        </message>
+        <message>
+            <source>Intraday (MIS)</source>
+            <translation>당일 거래(MIS)</translation>
+        </message>
+        <message>
+            <source>Delivery (CNC)</source>
+            <translation>인수도(CNC)</translation>
+        </message>
+        <message>
+            <source>Margin (NRML)</source>
+            <translation>증거금(NRML)</translation>
+        </message>
+        <message>
+            <source>Product</source>
+            <translation>상품</translation>
+        </message>
+        <message>
+            <source>Buy</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>Sell</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>Product conversion is available for paper accounts</source>
+            <translation>상품 전환은 모의투자 계좌에서만 가능합니다</translation>
+        </message>
+        <message>
+            <source>Convert to %1</source>
+            <translation>%1(으)로 전환</translation>
+        </message>
+        <message>
+            <source>Convert %1 to %2 (delivery)?
+
+This locks the full position value as cash and carries it overnight instead of auto-squaring at 15:30.</source>
+            <translation>%1을(를) %2(인수도)로 전환하시겠습니까?
+
+포지션 전체 금액만큼 현금이 묶이고, 15:30 자동 청산 대신 다음 날로 넘어갑니다.</translation>
+        </message>
+        <message>
+            <source>%1 converted to %2</source>
+            <translation>%1을(를) %2(으)로 전환했습니다</translation>
+        </message>
+        <message>
+            <source>Convert failed: %1</source>
+            <translation>전환 실패: %1</translation>
+        </message>
+        <message>
+            <source>No %1 positions to square off</source>
+            <translation>청산할 %1 포지션이 없습니다</translation>
+        </message>
+        <message>
+            <source>winning</source>
+            <translation>수익</translation>
+        </message>
+        <message>
+            <source>losing</source>
+            <translation>손실</translation>
+        </message>
+        <message>
+            <source>Trade %1</source>
+            <translation>%1 거래</translation>
+        </message>
+        <message>
+            <source>No connected broker can trade %1. Add or connect a broker for this market in the ACCOUNTS panel.</source>
+            <translation>연결된 증권사 중 %1을(를) 거래할 수 있는 곳이 없습니다. 계좌 패널에서 이 시장의 증권사를 추가하거나 연결하세요.</translation>
+        </message>
+        <message>
+            <source>SHORT</source>
+            <translation>숏</translation>
+        </message>
+        <message>
+            <source>LONG</source>
+            <translation>롱</translation>
+        </message>
+        <message>
+            <source>Exit Position</source>
+            <translation>포지션 청산</translation>
+        </message>
+        <message>
+            <source>Exit %1 %2 %3 at market?</source>
+            <translation>%3 %1 포지션 %2주를 시장가로 청산하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Exit order placed: %1</source>
+            <translation>청산 주문 제출됨: %1</translation>
+        </message>
+        <message>
+            <source>No open positions to square off</source>
+            <translation>청산할 포지션이 없습니다</translation>
+        </message>
+        <message>
+            <source>No holdings to square off</source>
+            <translation>청산할 보유종목이 없습니다</translation>
+        </message>
+        <message>
+            <source>Squared off %1 holding(s)%2</source>
+            <translation>보유종목 %1개 청산됨%2</translation>
+        </message>
+        <message>
+            <source>Square Off Holding</source>
+            <translation>보유종목 청산</translation>
+        </message>
+        <message>
+            <source>Square off %1 at market?</source>
+            <translation>%1을(를) 시장가로 청산하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Squared off %1</source>
+            <translation>%1 청산됨</translation>
+        </message>
+        <message>
+            <source>Strategy cancelled — nothing was sent</source>
+            <translation>전략 취소됨 — 전송된 주문 없음</translation>
+        </message>
+        <message>
+            <source>Strategy</source>
+            <translation>전략</translation>
+        </message>
+        <message>
+            <source>LIVE ORDER — real money.
+
+%1 on %2:
+
+%3
+
+The legs are sent one after another — this is NOT atomic. If a leg is rejected, the legs already sent stay open and you will be offered an unwind.</source>
+            <translation>실전 주문 — 실제 자금이 사용됩니다.
+
+%2 계좌의 %1:
+
+%3
+
+레그는 하나씩 차례로 전송되며, 한 번에 모두 처리되지 않습니다. 레그 하나가 거부되면 이미 전송된 레그는 그대로 남고, 청산할지 묻습니다.</translation>
+        </message>
+        <message>
+            <source>Confirm Strategy</source>
+            <translation>전략 확인</translation>
+        </message>
+        <message>
+            <source>Send %1 legs</source>
+            <translation>레그 %1개 전송</translation>
+        </message>
+        <message>
+            <source>  ✓ %1 %2 — placed (order %3)</source>
+            <translation>  ✓ %1 %2 — 제출됨 (주문 %3)</translation>
+        </message>
+        <message>
+            <source>  ✗ %1 %2 — FAILED: %3</source>
+            <translation>  ✗ %1 %2 — 실패: %3</translation>
+        </message>
+        <message>
+            <source>Strategy Partially Placed</source>
+            <translation>전략 일부만 제출됨</translation>
+        </message>
+        <message>
+            <source>%1: only %2 of %3 legs were placed. The placed legs are now UNHEDGED.
+
+%4
+
+Unwind cancels any unfilled remainder of the placed legs and closes what filled with opposite MARKET orders (same product). Fills are read from the broker's order book; a leg whose fill cannot be verified is reported, never guessed.</source>
+            <translation>%1: 레그 %3개 중 %2개만 제출되었습니다. 제출된 레그는 지금 헤지되지 않은 상태입니다.
+
+%4
+
+청산을 선택하면 제출된 레그의 미체결 잔량을 취소하고, 체결된 수량은 반대 방향 시장가 주문(같은 상품)으로 청산합니다. 체결 내역은 증권사 주문 내역에서 읽으며, 체결을 확인할 수 없는 레그는 추정하지 않고 그대로 알립니다.</translation>
+        </message>
+        <message>
+            <source>Unwind placed legs</source>
+            <translation>제출된 레그 청산</translation>
+        </message>
+        <message>
+            <source>Keep positions</source>
+            <translation>포지션 유지</translation>
+        </message>
+        <message>
+            <source>Unwinding %1 placed leg(s)…</source>
+            <translation>제출된 레그 %1개 청산 중…</translation>
+        </message>
+        <message>
+            <source>  ✓ %1 — %2</source>
+            <translation>  ✓ %1 — %2</translation>
+        </message>
+        <message>
+            <source>  ✗ %1 — %2%3</source>
+            <translation>  ✗ %1 — %2%3</translation>
+        </message>
+        <message>
+            <source>Unwind: %1/%2 legs done</source>
+            <translation>청산: 레그 %1/%2개 완료</translation>
+        </message>
+        <message>
+            <source>Unwind Report</source>
+            <translation>청산 결과</translation>
+        </message>
+        <message>
+            <source>All placed legs were unwound.
+
+</source>
+            <translation>제출된 레그를 모두 청산했습니다.
+
+</translation>
+        </message>
+        <message>
+            <source>Some legs could NOT be unwound — check them in the broker's terminal now.
+
+</source>
+            <translation>일부 레그를 청산하지 못했습니다 — 지금 증권사 화면에서 확인하세요.
+
+</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::EurostatPanel</name>
@@ -12039,6 +17633,102 @@ CSV 내보내기는 도구 모음에서 사용할 수 있습니다.</translation
             <source>  |  Active: %1  |  %2 rows x %3 cols</source>
             <translation>  |  활성 시트: %1  |  %2행 x %3열</translation>
         </message>
+        <message>
+            <source>Import failed</source>
+            <translation>가져오기 실패</translation>
+        </message>
+        <message>
+            <source>Could not open file for reading:
+%1</source>
+            <translation>파일을 읽기용으로 열 수 없습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>Import truncated</source>
+            <translation>일부만 가져옴</translation>
+        </message>
+        <message>
+            <source>Only the first %1 rows were imported.</source>
+            <translation>처음 %1개 행만 가져왔습니다.</translation>
+        </message>
+        <message>
+            <source>Import a different file</source>
+            <translation>다른 파일 가져오기</translation>
+        </message>
+        <message>
+            <source>Importing %1...</source>
+            <translation>%1 가져오는 중...</translation>
+        </message>
+        <message>
+            <source>No sheets could be read from:
+%1
+
+The file may be corrupt or in an unsupported format.</source>
+            <translation>다음 파일에서 시트를 읽을 수 없습니다:
+%1
+
+파일이 손상되었거나 지원하지 않는 형식일 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>This workbook is larger than the %1 × %2 import window; only that region was loaded.</source>
+            <translation>이 통합 문서는 가져오기 범위(%1 × %2)보다 커서 그 범위만 불러왔습니다.</translation>
+        </message>
+        <message>
+            <source>There is nothing to export.</source>
+            <translation>내보낼 내용이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Exporting %1...</source>
+            <translation>%1 내보내는 중...</translation>
+        </message>
+        <message>
+            <source>Could not build the workbook contents.</source>
+            <translation>통합 문서 내용을 만들 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Could not write the workbook to:
+%1
+
+Check that the file is not open in another application and that you have write permission.</source>
+            <translation>통합 문서를 다음 위치에 쓸 수 없습니다:
+%1
+
+파일이 다른 프로그램에서 열려 있지 않은지, 쓰기 권한이 있는지 확인하세요.</translation>
+        </message>
+        <message>
+            <source>A sheet named "%1" already exists.</source>
+            <translation>"%1" 시트가 이미 있습니다.</translation>
+        </message>
+        <message>
+            <source>File: %1%2  |  Sheets: %3</source>
+            <translation>파일: %1%2  |  시트: %3</translation>
+        </message>
+        <message>
+            <source>Open failed</source>
+            <translation>열기 실패</translation>
+        </message>
+        <message>
+            <source>The file no longer exists:
+%1</source>
+            <translation>파일이 더 이상 없습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>Opening another file</source>
+            <translation>다른 파일 열기</translation>
+        </message>
+        <message>
+            <source>Unsaved changes</source>
+            <translation>저장하지 않은 변경 사항</translation>
+        </message>
+        <message>
+            <source>"%1" has unsaved changes.
+
+%2 will discard them.</source>
+            <translation>"%1"에 저장하지 않은 변경 사항이 있습니다.
+
+%2를 진행하면 변경 사항이 사라집니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::FederalReservePanel</name>
@@ -12061,6 +17751,18 @@ API 키가 필요하지 않습니다</translation>
         <message>
             <source>No data returned</source>
             <translation>데이터가 없습니다</translation>
+        </message>
+        <message>
+            <source>Select a series and click FETCH
+Sources: New York Fed (EFFR, SOFR, SOMA holdings) and Federal Reserve Board releases
+(H.15 Treasury yields, H.6 money stock). Rates are shown in percent. No API key required</source>
+            <translation>시계열을 선택한 후 가져오기를 누르세요
+출처: 뉴욕 연은(EFFR, SOFR, SOMA 보유 자산)과 연준 이사회 발표 자료
+(H.15 국채 금리, H.6 통화량). 금리는 퍼센트로 표시합니다. API 키가 필요 없습니다</translation>
+        </message>
+        <message>
+            <source>Not seasonally adjusted</source>
+            <translation>계절조정 전</translation>
         </message>
     </context>
     <context>
@@ -12243,6 +17945,220 @@ from any screen. You can also upload files manually using the button above.</sou
             <source>Type</source>
             <translation>유형</translation>
         </message>
+        <message>
+            <source>Managed files</source>
+            <translation>관리 파일</translation>
+        </message>
+        <message>
+            <source>All</source>
+            <translation>전체</translation>
+        </message>
+        <message>
+            <source>Close preview</source>
+            <translation>미리보기 닫기</translation>
+        </message>
+        <message>
+            <source>No files yet.
+
+Files are registered automatically when you export, save or generate output from a screen (notebooks, spreadsheets, reports, backtests, connector configs). UPLOAD FILES copies your own files in.</source>
+            <translation>아직 파일이 없습니다.
+
+화면에서 결과물을 내보내거나 저장하거나 생성하면(노트북, 스프레드시트, 보고서, 백테스트, 커넥터 설정) 파일이 자동으로 등록됩니다. 직접 가진 파일은 파일 업로드로 복사해 넣으세요.</translation>
+        </message>
+        <message>
+            <source>Open in %1</source>
+            <translation>%1에서 열기</translation>
+        </message>
+        <message>
+            <source>Preview</source>
+            <translation>미리보기</translation>
+        </message>
+        <message>
+            <source>Open with Default App</source>
+            <translation>기본 앱으로 열기</translation>
+        </message>
+        <message>
+            <source>Show in Folder</source>
+            <translation>폴더에서 보기</translation>
+        </message>
+        <message>
+            <source>Rename…  (F2)</source>
+            <translation>이름 변경…  (F2)</translation>
+        </message>
+        <message>
+            <source>Save a Copy…</source>
+            <translation>사본 저장…</translation>
+        </message>
+        <message>
+            <source>Delete %1 Files  (Del)</source>
+            <translation>파일 %1개 삭제  (Del)</translation>
+        </message>
+        <message>
+            <source>Delete  (Del)</source>
+            <translation>삭제  (Del)</translation>
+        </message>
+        <message>
+            <source>Upload Files</source>
+            <translation>파일 업로드</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n file(s) could not be copied into storage:
+%1</source>
+            <translation>
+                <numerusform>파일 %n개를 저장소에 복사할 수 없습니다:
+%1</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Save Failed</source>
+            <translation>저장 실패</translation>
+        </message>
+        <message>
+            <source>The stored file is missing from disk:
+%1
+
+Its index entry is stale — delete it and re-import.</source>
+            <translation>저장된 파일이 디스크에 없습니다:
+%1
+
+목록 항목이 오래되었습니다 — 삭제한 다음 다시 가져오세요.</translation>
+        </message>
+        <message>
+            <source>Could not write to:
+%1
+
+Check that the folder exists and is writable.</source>
+            <translation>다음 위치에 쓸 수 없습니다:
+%1
+
+폴더가 있는지, 쓰기 권한이 있는지 확인하세요.</translation>
+        </message>
+        <message>
+            <source>Could not replace the existing file:
+%1
+
+It may be open in another program.</source>
+            <translation>기존 파일을 바꿀 수 없습니다:
+%1
+
+다른 프로그램에서 열려 있을 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Could not finish writing:
+%1</source>
+            <translation>쓰기를 마치지 못했습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>Delete "%1"?</source>
+            <translation>"%1"을(를) 삭제하시겠습니까?</translation>
+        </message>
+        <message numerus="yes">
+            <source>Delete %n selected file(s)?</source>
+            <translation>
+                <numerusform>선택한 파일 %n개를 삭제하시겠습니까?</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>This cannot be undone.</source>
+            <translation>이 작업은 되돌릴 수 없습니다.</translation>
+        </message>
+        <message numerus="yes">
+            <source>
+… and %n more</source>
+            <translation>
+                <numerusform>
+… 외 %n개</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>%n file(s) could not be deleted — they may be open in another program.</source>
+            <translation>
+                <numerusform>파일 %n개를 삭제할 수 없습니다 — 다른 프로그램에서 열려 있을 수 있습니다.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Rename File</source>
+            <translation>파일 이름 변경</translation>
+        </message>
+        <message>
+            <source>New name:</source>
+            <translation>새 이름:</translation>
+        </message>
+        <message>
+            <source>"%1" is not a valid file name.</source>
+            <translation>"%1"은(는) 올바른 파일 이름이 아닙니다.</translation>
+        </message>
+        <message>
+            <source>Open File</source>
+            <translation>파일 열기</translation>
+        </message>
+        <message>
+            <source>No application could open this file.</source>
+            <translation>이 파일을 열 수 있는 앱이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Binary file — no text preview.
+Right-click → Open with Default App.</source>
+            <translation>바이너리 파일 — 텍스트 미리보기를 할 수 없습니다.
+오른쪽 클릭 → 기본 앱으로 열기.</translation>
+        </message>
+        <message>
+            <source>Cannot open file for preview — it may have been moved or deleted.</source>
+            <translation>미리보기용으로 파일을 열 수 없습니다 — 이동되었거나 삭제되었을 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Empty file.</source>
+            <translation>빈 파일입니다.</translation>
+        </message>
+        <message>
+            <source>[... preview truncated at 64K characters ...]</source>
+            <translation>[... 미리보기는 64K자에서 잘림 ...]</translation>
+        </message>
+        <message>
+            <source>Storage used: %1 of a %2 budget</source>
+            <translation>저장 공간 사용량: %1 / 권장 %2</translation>
+        </message>
+        <message>
+            <source>A guideline only — the terminal never deletes your files. Remove what you no longer need to keep backups small.</source>
+            <translation>권장치일 뿐이며 터미널이 파일을 지우지는 않습니다. 백업 크기를 줄이려면 필요 없는 파일을 삭제하세요.</translation>
+        </message>
+        <message>
+            <source>%1 files selected</source>
+            <translation>파일 %1개 선택됨</translation>
+        </message>
+        <message>
+            <source>Refresh the file list</source>
+            <translation>파일 목록 새로고침</translation>
+        </message>
+        <message>
+            <source>Copy files into terminal storage</source>
+            <translation>터미널 저장소로 파일 복사</translation>
+        </message>
+        <message>
+            <source>Search files</source>
+            <translation>파일 검색</translation>
+        </message>
+        <message>
+            <source>Name</source>
+            <translation>이름</translation>
+        </message>
+        <message>
+            <source>Source</source>
+            <translation>출처</translation>
+        </message>
+        <message>
+            <source>Size</source>
+            <translation>크기</translation>
+        </message>
+        <message>
+            <source>Added</source>
+            <translation>추가일</translation>
+        </message>
+        <message>
+            <source>Double-click or Enter opens a file · F2 renames · Del deletes · right-click for more</source>
+            <translation>더블클릭 또는 Enter: 파일 열기 · F2: 이름 변경 · Del: 삭제 · 오른쪽 클릭: 더 보기</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::FinceptMacroPanel</name>
@@ -12279,6 +18195,552 @@ Fincept 구독 + API 키 필요
 This panel will be enabled in a future release.</source>
             <translation>Fincept Macro 데이터 스크립트는 아직 제공되지 않습니다.
 이 패널은 향후 릴리스에서 활성화됩니다.</translation>
+        </message>
+        <message>
+            <source>Central Bank Rates</source>
+            <translation>중앙은행 기준금리</translation>
+        </message>
+        <message>
+            <source>Policy rate (%) and the size of the last move (bp) for every central bank</source>
+            <translation>모든 중앙은행의 기준금리(%)와 최근 변동 폭(bp)</translation>
+        </message>
+        <message>
+            <source>Sovereign CDS</source>
+            <translation>국가 CDS</translation>
+        </message>
+        <message>
+            <source>Sovereign credit-default-swap spreads (bp)</source>
+            <translation>국가 신용부도스와프 스프레드 (bp)</translation>
+        </message>
+        <message>
+            <source>10Y Yields &amp; Spreads</source>
+            <translation>10년물 금리·스프레드</translation>
+        </message>
+        <message>
+            <source>10-year government bond yield (%) and its spread (bp) to Germany, the US, China and Japan</source>
+            <translation>10년 만기 국채 금리(%)와 독일·미국·중국·일본 대비 스프레드(bp)</translation>
+        </message>
+        <message>
+            <source>Sovereign Credit Ratings</source>
+            <translation>국가 신용등급</translation>
+        </message>
+        <message>
+            <source>S&amp;P, Moody's, Fitch and DBRS sovereign ratings</source>
+            <translation>S&amp;P, Moody's, Fitch, DBRS의 국가 신용등급</translation>
+        </message>
+        <message>
+            <source>Inverted Yield Curves</source>
+            <translation>수익률 곡선 역전</translation>
+        </message>
+        <message>
+            <source>Countries whose government yield curve is inverted, grouped by rating</source>
+            <translation>국채 수익률 곡선이 역전된 국가 (신용등급별)</translation>
+        </message>
+        <message>
+            <source>Yield Forecasts</source>
+            <translation>금리 전망</translation>
+        </message>
+        <message>
+            <source>Current vs forecast government bond yields (%) by maturity</source>
+            <translation>만기별 현재 국채 금리와 전망치 (%)</translation>
+        </message>
+        <message>
+            <source>Country Bond Summary</source>
+            <translation>국가별 채권 요약</translation>
+        </message>
+        <message>
+            <source>Per-country 10Y yield, policy rate, rating, CDS and implied default probability</source>
+            <translation>국가별 10년물 금리, 기준금리, 신용등급, CDS, 내재 부도확률</translation>
+        </message>
+        <message>
+            <source>Upcoming Macro Events</source>
+            <translation>예정된 거시경제 일정</translation>
+        </message>
+        <message>
+            <source>Economic calendar: releases with actual, consensus, forecast and previous values</source>
+            <translation>경제 캘린더: 지표 발표와 실제값, 컨센서스, 예측, 이전 값</translation>
+        </message>
+        <message>
+            <source>CEIC Series Explorer</source>
+            <translation>CEIC 시계열 탐색</translation>
+        </message>
+        <message>
+            <source>CEIC macro time series by country and indicator (or the latest value of every indicator)</source>
+            <translation>국가·지표별 CEIC 거시경제 시계열 (또는 모든 지표의 최신값)</translation>
+        </message>
+        <message>
+            <source>CEIC Indicator Catalogue</source>
+            <translation>CEIC 지표 목록</translation>
+        </message>
+        <message>
+            <source>CEIC indicator names, units, frequency and coverage for a country</source>
+            <translation>국가별 CEIC 지표 이름, 단위, 주기, 수록 기간</translation>
+        </message>
+        <message>
+            <source>%1 h</source>
+            <translation>%1시간</translation>
+        </message>
+        <message>
+            <source>%1 min</source>
+            <translation>%1분</translation>
+        </message>
+        <message>
+            <source>Fincept Macro — central-bank rates, sovereign CDS, bond spreads, credit ratings,
+inverted curves, yield forecasts, country bond summaries, the macro calendar and CEIC series.
+
+Pick a VIEW (and optional filters), then press FETCH.
+Each request uses Fincept credits (shown next to REFRESH); repeats inside the reuse window are free.</source>
+            <translation>Fincept Macro — 중앙은행 기준금리, 국가 CDS, 채권 스프레드, 신용등급,
+수익률 곡선 역전, 금리 전망, 국가별 채권 요약, 거시경제 캘린더, CEIC 시계열.
+
+보기(필요하면 필터도)를 고른 다음 가져오기를 누르세요.
+요청마다 Fincept 크레딧이 듭니다(새로고침 옆에 표시). 재사용 기간 안에 같은 요청을 다시 하면 무료입니다.</translation>
+        </message>
+        <message>
+            <source>VIEW</source>
+            <translation>보기</translation>
+        </message>
+        <message>
+            <source>Fincept Macro view</source>
+            <translation>Fincept Macro 보기</translation>
+        </message>
+        <message>
+            <source>COUNTRY</source>
+            <translation>국가</translation>
+        </message>
+        <message>
+            <source>Country filter</source>
+            <translation>국가 필터</translation>
+        </message>
+        <message>
+            <source>MATURITY</source>
+            <translation>만기</translation>
+        </message>
+        <message>
+            <source>All</source>
+            <translation>전체</translation>
+        </message>
+        <message>
+            <source>IMPORTANCE</source>
+            <translation>중요도</translation>
+        </message>
+        <message>
+            <source>High</source>
+            <translation>높음</translation>
+        </message>
+        <message>
+            <source>Medium</source>
+            <translation>보통</translation>
+        </message>
+        <message>
+            <source>Low</source>
+            <translation>낮음</translation>
+        </message>
+        <message>
+            <source>DAYS</source>
+            <translation>일수</translation>
+        </message>
+        <message>
+            <source>Look-ahead window from today</source>
+            <translation>오늘부터 조회할 기간</translation>
+        </message>
+        <message>
+            <source>Loads on first use…</source>
+            <translation>처음 사용할 때 불러옵니다…</translation>
+        </message>
+        <message>
+            <source>INDICATOR</source>
+            <translation>지표</translation>
+        </message>
+        <message>
+            <source>Pick a country first</source>
+            <translation>먼저 국가를 선택하세요</translation>
+        </message>
+        <message>
+            <source>YEARS</source>
+            <translation>연도</translation>
+        </message>
+        <message>
+            <source>First year to fetch</source>
+            <translation>조회 시작 연도</translation>
+        </message>
+        <message>
+            <source>Last year to fetch</source>
+            <translation>조회 종료 연도</translation>
+        </message>
+        <message>
+            <source>CATEGORY</source>
+            <translation>카테고리</translation>
+        </message>
+        <message>
+            <source>e.g. prices</source>
+            <translation>예: prices</translation>
+        </message>
+        <message>
+            <source>REFRESH</source>
+            <translation>새로고침</translation>
+        </message>
+        <message>
+            <source>e.g. united-states</source>
+            <translation>예: united-states</translation>
+        </message>
+        <message>
+            <source>Country slug (lower-case, hyphenated). Empty = all countries</source>
+            <translation>국가 슬러그(소문자, 하이픈 연결). 비우면 전체 국가</translation>
+        </message>
+        <message>
+            <source>e.g. US</source>
+            <translation>예: US</translation>
+        </message>
+        <message>
+            <source>ISO country code (US, DE, JP, GB, …). Empty = all countries</source>
+            <translation>ISO 국가 코드 (US, DE, JP, GB, …). 비우면 전체 국가</translation>
+        </message>
+        <message>
+            <source>e.g. Germany</source>
+            <translation>예: Germany</translation>
+        </message>
+        <message>
+            <source>Country name or part of it. Empty = all countries</source>
+            <translation>국가 이름 전체나 일부. 비우면 전체 국가</translation>
+        </message>
+        <message>
+            <source>≈%1 credit/request · reused %2</source>
+            <translation>요청당 약 %1 크레딧 · %2 동안 재사용</translation>
+        </message>
+        <message>
+            <source>≈%1 credit/request (+0.5 per country/indicator list, once a day) · reused %2</source>
+            <translation>요청당 약 %1 크레딧 (국가·지표 목록마다 하루 한 번 +0.5) · %2 동안 재사용</translation>
+        </message>
+        <message>
+            <source>Fincept bills each live request in credits. Repeating the same query within %1 is answered from the local cache and costs nothing; REFRESH always asks the server.</source>
+            <translation>Fincept는 실시간 요청마다 크레딧을 차감합니다. %1 안에 같은 조회를 반복하면 로컬 캐시에서 응답하므로 비용이 들지 않습니다. 새로고침은 항상 서버에 다시 요청합니다.</translation>
+        </message>
+        <message>
+            <source>Ask the server again, bypassing the local cache (≈%1 credit)</source>
+            <translation>로컬 캐시를 건너뛰고 서버에 다시 요청 (약 %1 크레딧)</translation>
+        </message>
+        <message>
+            <source>Loading countries…</source>
+            <translation>국가 불러오는 중…</translation>
+        </message>
+        <message>
+            <source>Loading indicators…</source>
+            <translation>지표 불러오는 중…</translation>
+        </message>
+        <message>
+            <source>Loading the CEIC country list — pick a country, then press FETCH.</source>
+            <translation>CEIC 국가 목록을 불러오는 중입니다 — 국가를 선택한 다음 가져오기를 누르세요.</translation>
+        </message>
+        <message>
+            <source>Pick a CEIC country first.</source>
+            <translation>먼저 CEIC 국가를 선택하세요.</translation>
+        </message>
+        <message>
+            <source>Loading the indicator list for this country — pick one, then press FETCH.</source>
+            <translation>이 국가의 지표 목록을 불러오는 중입니다 — 지표를 선택한 다음 가져오기를 누르세요.</translation>
+        </message>
+        <message>
+            <source>Refreshing %1 from Fincept…</source>
+            <translation>Fincept에서 %1 새로고침 중…</translation>
+        </message>
+        <message>
+            <source>Fetching %1 from Fincept…</source>
+            <translation>Fincept에서 %1 가져오는 중…</translation>
+        </message>
+        <message>
+            <source>Unavailable — press FETCH to retry</source>
+            <translation>불러올 수 없음 — 가져오기를 눌러 다시 시도하세요</translation>
+        </message>
+        <message>
+            <source>%1  (%2 obs)</source>
+            <translation>%1  (관측치 %2개)</translation>
+        </message>
+        <message>
+            <source>%1  (%2 pts)</source>
+            <translation>%1  (데이터 %2개)</translation>
+        </message>
+        <message>
+            <source>All indicators — latest value of each</source>
+            <translation>전체 지표 — 지표별 최신값</translation>
+        </message>
+        <message>
+            <source>Sign-in required: the Fincept API rejected this session (HTTP %1).
+Sign in again (your session may have expired), then retry.</source>
+            <translation>로그인 필요: Fincept API가 이 세션을 거부했습니다 (HTTP %1).
+다시 로그인한 다음(세션이 만료되었을 수 있음) 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Out of Fincept credits — this request costs about %1 credit(s).
+Recharge or upgrade your plan, then retry.</source>
+            <translation>Fincept 크레딧이 부족합니다 — 이 요청에는 약 %1 크레딧이 듭니다.
+충전하거나 플랜을 업그레이드한 다음 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>VIEW PLANS</source>
+            <translation>요금제 보기</translation>
+        </message>
+        <message>
+            <source>Cannot reach the Fincept API — %1
+Check your connection, then retry.</source>
+            <translation>Fincept API에 연결할 수 없습니다 — %1
+연결을 확인한 다음 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Fincept API error: %1</source>
+            <translation>Fincept API 오류: %1</translation>
+        </message>
+        <message>
+            <source>unknown failure</source>
+            <translation>알 수 없는 오류</translation>
+        </message>
+        <message>
+            <source>No events in this window — widen DAYS or clear the filters.</source>
+            <translation>이 기간에 일정이 없습니다 — 일수를 늘리거나 필터를 지우세요.</translation>
+        </message>
+        <message>
+            <source>Nothing matches this filter — clear it or try another spelling.</source>
+            <translation>이 필터에 맞는 항목이 없습니다 — 필터를 지우거나 다른 철자로 시도하세요.</translation>
+        </message>
+        <message>
+            <source>WorldGovernmentBonds via Fincept</source>
+            <translation>WorldGovernmentBonds (Fincept 경유)</translation>
+        </message>
+        <message>
+            <source>Country</source>
+            <translation>국가</translation>
+        </message>
+        <message>
+            <source>Policy Rate (%)</source>
+            <translation>기준금리 (%)</translation>
+        </message>
+        <message>
+            <source>Last Move (bp)</source>
+            <translation>최근 변동 (bp)</translation>
+        </message>
+        <message>
+            <source>Period</source>
+            <translation>기간</translation>
+        </message>
+        <message>
+            <source>Scraped</source>
+            <translation>수집 시각</translation>
+        </message>
+        <message>
+            <source>Rates in % · moves in basis points</source>
+            <translation>금리는 %, 변동 폭은 bp</translation>
+        </message>
+        <message>
+            <source>Code</source>
+            <translation>코드</translation>
+        </message>
+        <message>
+            <source>CDS (bp)</source>
+            <translation>CDS (bp)</translation>
+        </message>
+        <message>
+            <source>10Y Yield (%)</source>
+            <translation>10년물 금리 (%)</translation>
+        </message>
+        <message>
+            <source>Spread vs Germany (bp)</source>
+            <translation>독일 대비 스프레드 (bp)</translation>
+        </message>
+        <message>
+            <source>Spread vs US (bp)</source>
+            <translation>미국 대비 스프레드 (bp)</translation>
+        </message>
+        <message>
+            <source>Spread vs China (bp)</source>
+            <translation>중국 대비 스프레드 (bp)</translation>
+        </message>
+        <message>
+            <source>Spread vs Japan (bp)</source>
+            <translation>일본 대비 스프레드 (bp)</translation>
+        </message>
+        <message>
+            <source>S&amp;P</source>
+            <translation>S&amp;P</translation>
+        </message>
+        <message>
+            <source>Moody's</source>
+            <translation>Moody's</translation>
+        </message>
+        <message>
+            <source>Fitch</source>
+            <translation>Fitch</translation>
+        </message>
+        <message>
+            <source>DBRS</source>
+            <translation>DBRS</translation>
+        </message>
+        <message>
+            <source>Group / Country</source>
+            <translation>그룹 / 국가</translation>
+        </message>
+        <message>
+            <source>Details</source>
+            <translation>세부 정보</translation>
+        </message>
+        <message>
+            <source>Maturity</source>
+            <translation>만기</translation>
+        </message>
+        <message>
+            <source>Current Yield (%)</source>
+            <translation>현재 금리 (%)</translation>
+        </message>
+        <message>
+            <source>Forecast Yield (%)</source>
+            <translation>전망 금리 (%)</translation>
+        </message>
+        <message>
+            <source>Implied Move (bp)</source>
+            <translation>예상 변동 (bp)</translation>
+        </message>
+        <message>
+            <source>Implied move = forecast − current, in basis points</source>
+            <translation>예상 변동 = 전망 − 현재, bp 단위</translation>
+        </message>
+        <message>
+            <source>Rate Since</source>
+            <translation>금리 적용일</translation>
+        </message>
+        <message>
+            <source>Rating</source>
+            <translation>신용등급</translation>
+        </message>
+        <message>
+            <source>Default Prob. (%)</source>
+            <translation>부도확률 (%)</translation>
+        </message>
+        <message>
+            <source>Main Spread (bp)</source>
+            <translation>주요 스프레드 (bp)</translation>
+        </message>
+        <message>
+            <source>Date</source>
+            <translation>날짜</translation>
+        </message>
+        <message>
+            <source>Time</source>
+            <translation>시간</translation>
+        </message>
+        <message>
+            <source>Event</source>
+            <translation>이벤트</translation>
+        </message>
+        <message>
+            <source>Ref. Period</source>
+            <translation>기준 기간</translation>
+        </message>
+        <message>
+            <source>Actual</source>
+            <translation>실제값</translation>
+        </message>
+        <message>
+            <source>Consensus</source>
+            <translation>컨센서스</translation>
+        </message>
+        <message>
+            <source>Forecast</source>
+            <translation>예측</translation>
+        </message>
+        <message>
+            <source>Previous</source>
+            <translation>이전</translation>
+        </message>
+        <message>
+            <source>Revised From</source>
+            <translation>수정 전</translation>
+        </message>
+        <message>
+            <source>Importance</source>
+            <translation>중요도</translation>
+        </message>
+        <message>
+            <source>Category</source>
+            <translation>카테고리</translation>
+        </message>
+        <message>
+            <source>Trading Economics calendar via Fincept</source>
+            <translation>Trading Economics 캘린더 (Fincept 경유)</translation>
+        </message>
+        <message>
+            <source>Times as published by the source calendar</source>
+            <translation>출처 캘린더에 게시된 시각 기준</translation>
+        </message>
+        <message>
+            <source>Showing the first %1 of %2 events — shorten DAYS or add filters.</source>
+            <translation>이벤트 %2개 중 처음 %1개만 표시합니다 — 일수를 줄이거나 필터를 추가하세요.</translation>
+        </message>
+        <message>
+            <source>Indicator</source>
+            <translation>지표</translation>
+        </message>
+        <message>
+            <source>Unit</source>
+            <translation>단위</translation>
+        </message>
+        <message>
+            <source>Frequency</source>
+            <translation>주기</translation>
+        </message>
+        <message>
+            <source>Coverage</source>
+            <translation>수록 기간</translation>
+        </message>
+        <message>
+            <source>Slug</source>
+            <translation>슬러그</translation>
+        </message>
+        <message>
+            <source>Series ID</source>
+            <translation>시계열 ID</translation>
+        </message>
+        <message>
+            <source>CEIC via Fincept</source>
+            <translation>CEIC (Fincept 경유)</translation>
+        </message>
+        <message>
+            <source>CEIC catalogue — %1</source>
+            <translation>CEIC 지표 목록 — %1</translation>
+        </message>
+        <message>
+            <source>Showing %1 of %2 indicators — add a CATEGORY filter to narrow the list.</source>
+            <translation>지표 %2개 중 %1개만 표시합니다 — 카테고리 필터를 추가해 목록을 좁히세요.</translation>
+        </message>
+        <message>
+            <source>Value</source>
+            <translation>값</translation>
+        </message>
+        <message>
+            <source>CEIC — latest values, %1</source>
+            <translation>CEIC — 최신값, %1</translation>
+        </message>
+        <message>
+            <source>Each row is a different indicator — units differ; see the CEIC Indicator Catalogue</source>
+            <translation>행마다 지표가 달라 단위도 다릅니다 — CEIC 지표 목록을 참고하세요</translation>
+        </message>
+        <message>
+            <source>CEIC — %1, %2</source>
+            <translation>CEIC — %1, %2</translation>
+        </message>
+        <message>
+            <source>Units not included in CEIC series rows — open the CEIC Indicator Catalogue view for this country to label them</source>
+            <translation>CEIC 시계열 행에는 단위가 없습니다 — 단위를 확인하려면 이 국가의 CEIC 지표 목록 보기를 여세요</translation>
+        </message>
+        <message>
+            <source>Showing the OLDEST %1 of %2 observations (the API returns oldest first) — raise the first YEAR to include the latest.</source>
+            <translation>관측치 %2개 중 가장 오래된 %1개를 표시합니다(API가 오래된 순으로 반환) — 최신 값을 보려면 시작 연도를 올리세요.</translation>
+        </message>
+        <message>
+            <source>OFFLINE — the live request failed (%1). Showing the copy retrieved %2.</source>
+            <translation>오프라인 — 실시간 요청이 실패했습니다 (%1). %2에 받은 사본을 표시합니다.</translation>
+        </message>
+        <message>
+            <source>FINCEPT API ERROR — %1. Showing the copy retrieved %2.</source>
+            <translation>Fincept API 오류 — %1. %2에 받은 사본을 표시합니다.</translation>
         </message>
     </context>
     <context>
@@ -12389,6 +18851,82 @@ API 키가 필요하지 않습니다</translation>
         <message>
             <source>  CONTINUE TO LOGIN  </source>
             <translation>  로그인으로 이동  </translation>
+        </message>
+        <message>
+            <source>Verification code re-sent to %1</source>
+            <translation>%1 주소로 인증 코드를 다시 보냈습니다</translation>
+        </message>
+        <message>
+            <source>Email address</source>
+            <translation>이메일 주소</translation>
+        </message>
+        <message>
+            <source>Send verification code</source>
+            <translation>인증 코드 보내기</translation>
+        </message>
+        <message>
+            <source>Back to sign in</source>
+            <translation>로그인으로 돌아가기</translation>
+        </message>
+        <message>
+            <source>Password reset error</source>
+            <translation>비밀번호 재설정 오류</translation>
+        </message>
+        <message>
+            <source>I have the code</source>
+            <translation>코드를 이미 받았습니다</translation>
+        </message>
+        <message>
+            <source>Resend the verification code</source>
+            <translation>인증 코드 다시 보내기</translation>
+        </message>
+        <message>
+            <source>Verification code from email</source>
+            <translation>이메일로 받은 인증 코드</translation>
+        </message>
+        <message>
+            <source>New password</source>
+            <translation>새 비밀번호</translation>
+        </message>
+        <message>
+            <source>Confirm new password</source>
+            <translation>새 비밀번호 확인</translation>
+        </message>
+        <message>
+            <source>Reset password</source>
+            <translation>비밀번호 재설정</translation>
+        </message>
+        <message>
+            <source>Email is required</source>
+            <translation>이메일을 입력하세요</translation>
+        </message>
+        <message>
+            <source>Invalid email format</source>
+            <translation>이메일 형식이 올바르지 않습니다</translation>
+        </message>
+        <message>
+            <source>  SENDING...  </source>
+            <translation>  보내는 중...  </translation>
+        </message>
+        <message>
+            <source>Enter the verification code from your email</source>
+            <translation>이메일로 받은 인증 코드를 입력하세요</translation>
+        </message>
+        <message>
+            <source>Enter a new password</source>
+            <translation>새 비밀번호를 입력하세요</translation>
+        </message>
+        <message>
+            <source>Password must be at least 8 characters</source>
+            <translation>비밀번호는 8자 이상이어야 합니다</translation>
+        </message>
+        <message>
+            <source>Passwords do not match</source>
+            <translation>비밀번호가 일치하지 않습니다</translation>
+        </message>
+        <message>
+            <source>Sending a new code to %1…</source>
+            <translation>%1 주소로 새 코드를 보내는 중…</translation>
         </message>
     </context>
     <context>
@@ -12998,6 +19536,94 @@ API 전체 이벤트: %3</translation>
             <source>ERROR</source>
             <translation>오류</translation>
         </message>
+        <message>
+            <source>◀ PREV</source>
+            <translation>◀ 이전</translation>
+        </message>
+        <message>
+            <source>NEXT ▶</source>
+            <translation>다음 ▶</translation>
+        </message>
+        <message>
+            <source>Filter by country</source>
+            <translation>국가별 필터</translation>
+        </message>
+        <message>
+            <source>Filter by city</source>
+            <translation>도시별 필터</translation>
+        </message>
+        <message>
+            <source>Filter by event category</source>
+            <translation>이벤트 카테고리별 필터</translation>
+        </message>
+        <message>
+            <source>PAGE %1</source>
+            <translation>%1페이지</translation>
+        </message>
+        <message>
+            <source>Newer events (previous page)</source>
+            <translation>최근 이벤트(이전 페이지)</translation>
+        </message>
+        <message>
+            <source>Older events (next page) — each page uses API credits</source>
+            <translation>과거 이벤트(다음 페이지) — 페이지마다 API 크레딧이 사용됩니다</translation>
+        </message>
+        <message>
+            <source>AUTO ⟳ OFF</source>
+            <translation>자동 ⟳ 꺼짐</translation>
+        </message>
+        <message>
+            <source>Re-fetch the current events page every 5 minutes while this screen is visible. Each fetch uses API credits; off by default.</source>
+            <translation>이 화면이 보이는 동안 현재 이벤트 페이지를 5분마다 다시 가져옵니다. 가져올 때마다 API 크레딧이 사용되며, 기본값은 꺼짐입니다.</translation>
+        </message>
+        <message>
+            <source>Fincept API credit balance after the last events request</source>
+            <translation>마지막 이벤트 요청 후 Fincept API 크레딧 잔액</translation>
+        </message>
+        <message>
+            <source>PLANS</source>
+            <translation>요금제</translation>
+        </message>
+        <message>
+            <source>Credits are running low — see Plans &amp; Pricing</source>
+            <translation>크레딧이 얼마 남지 않았습니다 — 요금제 및 가격을 확인하세요</translation>
+        </message>
+        <message>
+            <source>PAGE %1 / %2</source>
+            <translation>%1 / %2페이지</translation>
+        </message>
+        <message>
+            <source>Balance after the last request (it used %1 credits)</source>
+            <translation>마지막 요청 후 잔액(크레딧 %1 사용)</translation>
+        </message>
+        <message>
+            <source>Fincept API credit balance</source>
+            <translation>Fincept API 크레딧 잔액</translation>
+        </message>
+        <message>
+            <source>AUTO ⟳ 5m</source>
+            <translation>자동 ⟳ 5분</translation>
+        </message>
+        <message>
+            <source>OUT OF CREDITS</source>
+            <translation>크레딧 소진</translation>
+        </message>
+        <message>
+            <source>ERROR: %1</source>
+            <translation>오류: %1</translation>
+        </message>
+        <message>
+            <source>%1
+
+%2
+
+Click APPLY FILTERS to retry.</source>
+            <translation>%1
+
+%2
+
+다시 시도하려면 필터 적용을 누르세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::GlobalCentralBanksPanel</name>
@@ -13024,6 +19650,46 @@ No API key required for any source</source>
         <message>
             <source>No data returned</source>
             <translation>데이터가 없습니다</translation>
+        </message>
+        <message>
+            <source>Select a central bank and series, then click FETCH
+Sources: BOE, RBA, Bank of Canada, Riksbank, SNB, Norges Bank,
+CNB (Czechia), NBP (Poland), MNB (Hungary), BNR (Romania),
+HNB (Croatia), TCMB (Türkiye), BOI (Israel), BNM (Malaysia)
+No API key required for any source</source>
+            <translation>중앙은행과 시계열을 선택한 후 가져오기를 누르세요
+출처: BOE, RBA, Bank of Canada, Riksbank, SNB, Norges Bank,
+CNB(체코), NBP(폴란드), MNB(헝가리), BNR(루마니아),
+HNB(크로아티아), TCMB(튀르키예), BOI(이스라엘), BNM(말레이시아)
+모든 출처에서 API 키가 필요하지 않습니다</translation>
+        </message>
+        <message>
+            <source>CCY</source>
+            <translation>통화</translation>
+        </message>
+        <message>
+            <source>ISO currency code for the single-currency series (e.g. USD, EUR, GBP)</source>
+            <translation>단일 통화 시계열의 ISO 통화 코드(예: USD, EUR, GBP)</translation>
+        </message>
+        <message>
+            <source>Currency code</source>
+            <translation>통화 코드</translation>
+        </message>
+        <message>
+            <source>DAYS</source>
+            <translation>일수</translation>
+        </message>
+        <message>
+            <source>Look-back window for date-range series</source>
+            <translation>기간 시계열의 조회 기간</translation>
+        </message>
+        <message>
+            <source>Look-back days</source>
+            <translation>조회 일수</translation>
+        </message>
+        <message>
+            <source>Enter a 3-letter currency code (e.g. USD)</source>
+            <translation>3자리 통화 코드를 입력하세요(예: USD)</translation>
         </message>
     </context>
     <context>
@@ -13780,6 +20446,34 @@ Try searching by name using the search box above.</source>
             <source>✓ SAVED</source>
             <translation>✓ 저장됨</translation>
         </message>
+        <message>
+            <source>CKAN portal</source>
+            <translation>CKAN 포털</translation>
+        </message>
+        <message>
+            <source>Search datasets</source>
+            <translation>데이터셋 검색</translation>
+        </message>
+        <message>
+            <source>Fetch</source>
+            <translation>가져오기</translation>
+        </message>
+        <message>
+            <source>Export current view as CSV</source>
+            <translation>현재 보기를 CSV로 내보내기</translation>
+        </message>
+        <message>
+            <source>Loading portals…</source>
+            <translation>포털 불러오는 중…</translation>
+        </message>
+        <message>
+            <source>The script listed no portals</source>
+            <translation>스크립트가 반환한 포털이 없습니다</translation>
+        </message>
+        <message>
+            <source>Open resource %1 in browser</source>
+            <translation>브라우저에서 리소스 %1 열기</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::GovDataScreen</name>
@@ -13820,6 +20514,10 @@ The selector shows all CKAN portals covered by the universal provider.</source>
         <message>
             <source>READY</source>
             <translation>준비됨</translation>
+        </message>
+        <message>
+            <source>Sovereign open-data portals</source>
+            <translation>국가별 공공 데이터 포털</translation>
         </message>
     </context>
     <context>
@@ -14194,6 +20892,46 @@ The selector shows all CKAN portals covered by the universal provider.</source>
             <source>%1 datasets</source>
             <translation>데이터셋 %1개</translation>
         </message>
+        <message>
+            <source>Failed to load HDX data (%1):
+%2
+
+Adjust the query and search again.</source>
+            <translation>HDX 데이터를 불러오지 못했습니다(%1):
+%2
+
+검색 조건을 바꿔 다시 검색하세요.</translation>
+        </message>
+        <message>
+            <source>HDX datasets</source>
+            <translation>HDX 데이터셋</translation>
+        </message>
+        <message>
+            <source>Humanitarian Data Exchange datasets. Press Enter on a row to open it on data.humdata.org.</source>
+            <translation>Humanitarian Data Exchange 데이터셋입니다. 행에서 Enter를 누르면 data.humdata.org에서 열립니다.</translation>
+        </message>
+        <message>
+            <source>Country (or ISO3 code). Leave empty to search by topic instead.</source>
+            <translation>국가(또는 ISO3 코드). 비워 두면 주제로 검색합니다.</translation>
+        </message>
+        <message>
+            <source>Enter a country or pick a topic, then press SEARCH.</source>
+            <translation>국가를 입력하거나 주제를 선택한 후 검색을 누르세요.</translation>
+        </message>
+        <message>
+            <source>Source: &lt;a href="https://data.humdata.org"&gt;Humanitarian Data Exchange (HDX)&lt;/a&gt;, OCHA. Each dataset carries its own licence and attribution — open the dataset page before redistributing or citing it.</source>
+            <translation>출처: &lt;a href="https://data.humdata.org"&gt;Humanitarian Data Exchange (HDX)&lt;/a&gt;, OCHA. 데이터셋마다 라이선스와 출처 표기 조건이 따로 있습니다 — 재배포하거나 인용하기 전에 데이터셋 페이지를 확인하세요.</translation>
+        </message>
+        <message>
+            <source>Licence: %1</source>
+            <translation>라이선스: %1</translation>
+        </message>
+        <message>
+            <source>No HDX datasets matched this query.
+Try a broader term or a different country.</source>
+            <translation>검색 조건에 맞는 HDX 데이터셋이 없습니다.
+더 넓은 검색어나 다른 국가로 검색하세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::HelpScreen</name>
@@ -14397,6 +21135,70 @@ The selector shows all CKAN portals covered by the universal provider.</source>
             <source>GitHub</source>
             <translation>GitHub</translation>
         </message>
+        <message>
+            <source>Open the in-app documentation</source>
+            <translation>앱 내 문서 열기</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal Enterprise ↗</source>
+            <translation>Fincept Terminal Enterprise ↗</translation>
+        </message>
+        <message>
+            <source>Open a GitHub issue</source>
+            <translation>GitHub 이슈 등록</translation>
+        </message>
+        <message>
+            <source>Open a ticket in the Support tab</source>
+            <translation>고객 지원 탭에서 문의 작성</translation>
+        </message>
+        <message>
+            <source>Replay Welcome Tour</source>
+            <translation>시작 둘러보기 다시 보기</translation>
+        </message>
+        <message>
+            <source>A 30-second walkthrough</source>
+            <translation>30초 안내</translation>
+        </message>
+        <message>
+            <source>support@fincept.in</source>
+            <translation>support@fincept.in</translation>
+        </message>
+        <message>
+            <source>Click "Forgot Password" on the login screen and enter your email address. We'll email you a verification code — enter it on the next screen together with your new password.</source>
+            <translation>로그인 화면에서 "비밀번호 찾기"를 누르고 이메일 주소를 입력하세요. 인증 코드를 이메일로 보내 드립니다 — 다음 화면에서 새 비밀번호와 함께 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Do I need an account?</source>
+            <translation>계정이 필요합니까?</translation>
+        </message>
+        <message>
+            <source>Yes. Register with your email (you'll confirm it with a verification code) or sign in with Google. Every account starts on the Free plan: signup credits and community support. Pro ($10/month) adds a monthly credit allowance, higher limits, every cloud analytics module and priority support — open Plans &amp; Pricing from the plan badge in the toolbar or from Profile → Billing.</source>
+            <translation>예. 이메일로 가입하거나(인증 코드로 이메일을 확인합니다) Google로 로그인하세요. 모든 계정은 Free 플랜으로 시작하며 가입 크레딧과 커뮤니티 지원이 제공됩니다. Pro(월 $10)는 매월 크레딧, 더 높은 한도, 모든 클라우드 분석 모듈, 우선 지원을 추가로 제공합니다 — 툴바의 플랜 배지나 프로필 → 결제에서 요금제 및 가격을 여세요.</translation>
+        </message>
+        <message>
+            <source>Credits pay for cloud-backed features such as AI analysis, premium data calls and the cloud quantitative analytics modules. Free accounts receive credits on signup; Pro adds a fresh allowance every month. Your balance is shown in the toolbar and, with your payment history, under Profile → Billing.</source>
+            <translation>크레딧은 AI 분석, 프리미엄 데이터 호출, 클라우드 퀀트 분석 모듈 같은 클라우드 기반 기능에 사용합니다. Free 계정은 가입할 때 크레딧을 받고, Pro는 매월 새 크레딧이 지급됩니다. 잔액은 툴바에 표시되며, 결제 내역과 함께 프로필 → 결제에서도 확인할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Is there an edition for firms and teams?</source>
+            <translation>기업·팀용 에디션이 있습니까?</translation>
+        </message>
+        <message>
+            <source>Yes — Fincept Terminal Enterprise, the private, closed-source edition the team develops daily for funds, family offices and research desks: proprietary and private datasets with deeper point-in-time history, multi-agent AI research with AI credits included and a private dataroom, 41 modules across six desks, and SSO/SAML, audit logs, role-based access and SLA-backed support. It is a separate product with its own accounts — see fincept.in/enterprise, or Help → Book an Enterprise Demo. This open-source edition stays free under AGPL-3.0.</source>
+            <translation>예 — Fincept Terminal Enterprise입니다. 팀이 매일 개발하는 비공개·클로즈드 소스 에디션으로, 펀드, 패밀리 오피스, 리서치 데스크를 위한 제품입니다. 더 긴 시점 기준(point-in-time) 이력을 갖춘 독점·비공개 데이터셋, AI 크레딧이 포함된 멀티 에이전트 AI 리서치와 비공개 데이터룸, 6개 데스크에 걸친 41개 모듈, SSO/SAML, 감사 로그, 역할 기반 접근 제어, SLA 기반 지원을 제공합니다. 계정이 따로 있는 별도 제품입니다 — fincept.in/enterprise 또는 도움말 → Enterprise 데모 예약을 확인하세요. 이 오픈소스 에디션은 AGPL-3.0으로 계속 무료입니다.</translation>
+        </message>
+        <message>
+            <source>Open Equity Trading and click ACCOUNTS to add a broker account, then enter your API key and secret (or follow the broker's sign-in flow) and press CONNECT. Fincept supports 20+ brokers including Zerodha, Angel One, Upstox, Interactive Brokers, Alpaca, and more. API keys for data providers and crypto exchanges are managed under Settings → Credentials.</source>
+            <translation>주식 거래를 열고 계좌를 눌러 증권사 계좌를 추가한 다음, API 키와 시크릿을 입력하고(또는 증권사의 로그인 절차를 따르고) 연결을 누르세요. Fincept는 Zerodha, Angel One, Upstox, Interactive Brokers, Alpaca 등 20개 이상의 증권사를 지원합니다. 데이터 공급자와 가상자산 거래소의 API 키는 설정 → 인증 정보에서 관리합니다.</translation>
+        </message>
+        <message>
+            <source>Fincept embeds Python 3.11 for its analytics scripts covering equity, portfolio, derivatives, and quant analysis. The one-time install happens automatically in the background.</source>
+            <translation>Fincept는 주식, 포트폴리오, 파생상품, 퀀트 분석 스크립트를 실행하려고 Python 3.11을 내장하고 있습니다. 최초 1회 설치는 백그라운드에서 자동으로 진행됩니다.</translation>
+        </message>
+        <message>
+            <source>Open a ticket in the Support tab with category "Bug Report", or file a GitHub issue. Include your OS and version (About → Diagnostics → Copy System Info), steps to reproduce, and any error messages you see. If the app crashed, attach the dump from About → Diagnostics.</source>
+            <translation>고객 지원 탭에서 카테고리를 "버그 신고"로 선택해 문의를 작성하거나 GitHub 이슈를 등록하세요. OS와 버전(정보 → 진단 → 시스템 정보 복사), 재현 단계, 표시된 오류 메시지를 함께 적어 주세요. 앱이 비정상 종료되었다면 정보 → 진단에서 덤프 파일을 첨부하세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::HoldingsBar</name>
@@ -14463,6 +21265,14 @@ The selector shows all CKAN portals covered by the universal provider.</source>
         <message>
             <source>✕ ERROR</source>
             <translation>✕ 오류</translation>
+        </message>
+        <message>
+            <source>%1% OFF · PLANNED</source>
+            <translation>%1% 할인 · 예정</translation>
+        </message>
+        <message>
+            <source>Holding ≥ %1 $FNCPT qualifies for the planned fee discount. Not active yet — no purchase in the terminal is discounted.</source>
+            <translation>$FNCPT를 %1개 이상 보유하면 예정된 수수료 할인 대상입니다. 아직 시행 전이라 터미널에서 구매해도 할인되지 않습니다.</translation>
         </message>
     </context>
     <context>
@@ -14551,6 +21361,34 @@ PHASE 5   BUYBACK &amp; BURN          UPCOMING       terminal revenue auto-buys 
 4단계   예측 시장              예정            실적, 연준, 날씨 — $FNCPT로 정산
 5단계   바이백 및 소각         예정            터미널 수익으로 $FNCPT 자동 매입 및 소각</translation>
         </message>
+        <message>
+            <source>Solana cluster derived from the configured RPC endpoint (Settings → Helius / solana.rpc_url).</source>
+            <translation>설정된 RPC 엔드포인트에서 판별한 Solana 클러스터입니다(설정 → Helius / solana.rpc_url).</translation>
+        </message>
+        <message>
+            <source>Copy wallet address to clipboard</source>
+            <translation>지갑 주소를 클립보드에 복사</translation>
+        </message>
+        <message>
+            <source>Disconnect wallet</source>
+            <translation>지갑 연결 해제</translation>
+        </message>
+        <message>
+            <source>Refresh balances now</source>
+            <translation>지금 잔고 새로고침</translation>
+        </message>
+        <message>
+            <source>Poll balances on a timer</source>
+            <translation>일정 간격으로 잔고 조회</translation>
+        </message>
+        <message>
+            <source>Stream balances over WebSocket</source>
+            <translation>WebSocket으로 잔고 실시간 수신</translation>
+        </message>
+        <message>
+            <source>Connected wallet address</source>
+            <translation>연결된 지갑 주소</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::IlostatPanel</name>
@@ -14602,6 +21440,44 @@ All countries: ALL</source>
             <source>No data returned — try a different country code or year range</source>
             <translation>데이터 없음 — 다른 국가 코드나 연도 범위로 시도해 보세요</translation>
         </message>
+        <message>
+            <source>Select a series, enter a country code, then click FETCH
+Source: ILO ILOSTAT SDMX REST API (sdmx.ilo.org) — no API key required
+Series are ANNUAL, both sexes, age 15+, harmonised (modelled) estimates — percent.
+Country codes (ISO-3): USA, GBR, DEU, FRA, IND, CHN, JPN, BRA, ZAF · G7 = CAN+USA+GBR+DEU+FRA+ITA+JPN</source>
+            <translation>시계열을 선택하고 국가 코드를 입력한 후 가져오기를 누르세요
+출처: ILO ILOSTAT SDMX REST API (sdmx.ilo.org) — API 키 필요 없음
+시계열은 연간, 남녀 전체, 15세 이상, 조화(모형) 추정치이며 단위는 퍼센트입니다.
+국가 코드(ISO-3): USA, GBR, DEU, FRA, IND, CHN, JPN, BRA, ZAF · G7 = CAN+USA+GBR+DEU+FRA+ITA+JPN</translation>
+        </message>
+        <message>
+            <source>ISO-3 code…</source>
+            <translation>ISO-3 코드…</translation>
+        </message>
+        <message>
+            <source>ISO-3 country code, e.g. USA, GBR, DEU
+Multiple: CAN+USA+GBR
+All countries: ALL</source>
+            <translation>ISO-3 국가 코드(예: USA, GBR, DEU)
+여러 국가: CAN+USA+GBR
+모든 국가: ALL</translation>
+        </message>
+        <message>
+            <source>ILOSTAT country code</source>
+            <translation>ILOSTAT 국가 코드</translation>
+        </message>
+        <message>
+            <source>Percent</source>
+            <translation>퍼센트</translation>
+        </message>
+        <message>
+            <source>Annual</source>
+            <translation>연간</translation>
+        </message>
+        <message>
+            <source>ILO modelled estimates, both sexes, age 15+</source>
+            <translation>ILO 모형 추정치, 남녀 전체, 15세 이상</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::ImfPanel</name>
@@ -14636,6 +21512,26 @@ All countries: ALL</source>
         <message>
             <source> — All Countries</source>
             <translation> — 모든 국가</translation>
+        </message>
+        <message>
+            <source>Annual</source>
+            <translation>연간</translation>
+        </message>
+        <message>
+            <source>Years from %1 on are IMF WEO projections</source>
+            <translation>%1년 이후는 IMF WEO 전망치입니다</translation>
+        </message>
+        <message>
+            <source>%1 (proj.)</source>
+            <translation>%1 (전망)</translation>
+        </message>
+        <message>
+            <source>IMF projection</source>
+            <translation>IMF 전망치</translation>
+        </message>
+        <message>
+            <source>Actual / estimate</source>
+            <translation>실적 / 추정치</translation>
         </message>
     </context>
     <context>
@@ -14718,6 +21614,22 @@ You can now import it using the BROWSE button.</source>
             <source>File selected: %1</source>
             <translation>선택한 파일: %1</translation>
         </message>
+        <message>
+            <source>Choose a JSON file first — press BROWSE.</source>
+            <translation>먼저 JSON 파일을 선택하세요 — 찾아보기를 누르세요.</translation>
+        </message>
+        <message>
+            <source>No existing portfolio to merge into. Choose 'Create new' instead.</source>
+            <translation>병합할 기존 포트폴리오가 없습니다. 대신 '파일에서 새 포트폴리오 만들기'를 선택하세요.</translation>
+        </message>
+        <message>
+            <source>Choose a portfolio JSON file</source>
+            <translation>포트폴리오 JSON 파일 선택</translation>
+        </message>
+        <message>
+            <source>Portfolio to merge into</source>
+            <translation>병합할 포트폴리오</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::KeyCaptureDialog</name>
@@ -14744,6 +21656,18 @@ You can now import it using the BROWSE button.</source>
         <message>
             <source>Warning: already used by "%1"</source>
             <translation>경고: "%1"에서 이미 사용 중</translation>
+        </message>
+        <message>
+            <source>That is already the current binding.</source>
+            <translation>이미 지정된 단축키입니다.</translation>
+        </message>
+        <message>
+            <source>A global shortcut needs Ctrl or Alt with this key — on its own it would stop working in every text field and dialog.</source>
+            <translation>전역 단축키는 이 키와 함께 Ctrl 또는 Alt를 눌러야 합니다 — 이 키만 지정하면 모든 입력란과 대화상자에서 이 키가 동작하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Already used by "%1". Choose another combination, or rebind "%1" first.</source>
+            <translation>"%1"에서 이미 사용 중입니다. 다른 조합을 선택하거나 먼저 "%1"의 단축키를 바꾸세요.</translation>
         </message>
     </context>
     <context>
@@ -14779,6 +21703,82 @@ All of your custom bindings will be lost.</source>
             <translation>모든 키보드 단축키를 기본값으로 초기화하시겠습니까?
 
 사용자 지정 단축키가 모두 사라집니다.</translation>
+        </message>
+        <message>
+            <source>No action or key matches "%1".</source>
+            <translation>"%1"에 해당하는 동작이나 키가 없습니다.</translation>
+        </message>
+        <message>
+            <source>Click to rebind</source>
+            <translation>클릭하여 단축키 변경</translation>
+        </message>
+        <message>
+            <source>(unbound)</source>
+            <translation>(지정 안 됨)</translation>
+        </message>
+        <message>
+            <source>Default: %1</source>
+            <translation>기본값: %1</translation>
+        </message>
+        <message>
+            <source>CONFLICT</source>
+            <translation>충돌</translation>
+        </message>
+        <message>
+            <source>Also bound to "%1" — neither fires until one is changed.</source>
+            <translation>"%1"에도 지정되어 있습니다 — 하나를 바꿀 때까지 둘 다 동작하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Active in every terminal window.</source>
+            <translation>모든 터미널 창에서 동작합니다.</translation>
+        </message>
+        <message>
+            <source>Active while the command bar's suggestion list is open.</source>
+            <translation>명령 표시줄의 추천 목록이 열려 있을 때 동작합니다.</translation>
+        </message>
+        <message>
+            <source>Active while the News screen has focus.</source>
+            <translation>뉴스 화면에 포커스가 있을 때 동작합니다.</translation>
+        </message>
+        <message>
+            <source>Active while a notebook cell or the cell list has focus.</source>
+            <translation>노트북 셀이나 셀 목록에 포커스가 있을 때 동작합니다.</translation>
+        </message>
+        <message>
+            <source>GLOBAL</source>
+            <translation>전역</translation>
+        </message>
+        <message>
+            <source>COMMAND BAR</source>
+            <translation>명령 표시줄</translation>
+        </message>
+        <message>
+            <source>NEWS</source>
+            <translation>뉴스</translation>
+        </message>
+        <message>
+            <source>CODE EDITOR</source>
+            <translation>코드 편집기</translation>
+        </message>
+        <message>
+            <source>WINDOWS</source>
+            <translation>창</translation>
+        </message>
+        <message>
+            <source>Click a row to rebind it. Changes apply immediately in every window and are saved — no restart needed. Amber keys are your custom bindings.</source>
+            <translation>행을 클릭하면 단축키를 바꿀 수 있습니다. 변경 사항은 모든 창에 바로 적용되고 저장되며, 다시 시작할 필요가 없습니다. 주황색 키는 사용자 지정 단축키입니다.</translation>
+        </message>
+        <message>
+            <source>Search actions or keys (e.g. refresh, Ctrl+K)...</source>
+            <translation>동작 또는 키 검색 (예: 새로고침, Ctrl+K)...</translation>
+        </message>
+        <message>
+            <source>Restore %1</source>
+            <translation>기본 단축키 복원: %1</translation>
+        </message>
+        <message>
+            <source>Already the default</source>
+            <translation>이미 기본값입니다</translation>
         </message>
     </context>
     <context>
@@ -14850,6 +21850,58 @@ All of your custom bindings will be lost.</source>
         <message>
             <source>(No saved layouts yet — use 'layout save "&lt;name&gt;"' to save the current state)</source>
             <translation>(아직 저장된 레이아웃 없음 — 'layout save "&lt;name&gt;"'으로 현재 상태를 저장하세요)</translation>
+        </message>
+        <message>
+            <source>Filter saved layouts</source>
+            <translation>저장된 레이아웃 필터</translation>
+        </message>
+        <message>
+            <source>Recent layouts</source>
+            <translation>최근 레이아웃</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal Enterprise — the private edition for firms ↗</source>
+            <translation>Fincept Terminal Enterprise — 기업용 비공개 에디션 ↗</translation>
+        </message>
+        <message>
+            <source>Invalid Profile Name</source>
+            <translation>잘못된 프로필 이름</translation>
+        </message>
+        <message>
+            <source>Use 1-32 characters: lowercase letters, digits, hyphen or underscore.</source>
+            <translation>영문 소문자, 숫자, 하이픈 또는 밑줄로 1-32자를 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Switch to profile "%1"?
+
+Fincept Terminal will restart.</source>
+            <translation>"%1" 프로필로 전환하시겠습니까?
+
+Fincept Terminal이 다시 시작됩니다.</translation>
+        </message>
+        <message>
+            <source>Could not restart Fincept Terminal with profile "%1".</source>
+            <translation>"%1" 프로필로 Fincept Terminal을 다시 시작하지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>Cannot open layout</source>
+            <translation>레이아웃을 열 수 없음</translation>
+        </message>
+        <message>
+            <source>That layout could not be loaded:
+%1</source>
+            <translation>레이아웃을 불러오지 못했습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>Cannot start from this template</source>
+            <translation>이 템플릿으로 시작할 수 없음</translation>
+        </message>
+        <message>
+            <source>The template could not be saved:
+%1</source>
+            <translation>템플릿을 저장하지 못했습니다:
+%1</translation>
         </message>
     </context>
     <context>
@@ -15228,6 +22280,10 @@ Agents assigned to it fall back to the default profile. This cannot be undone.</
             <source>Linked to your Fincept account: ••••%1</source>
             <translation>Fincept 계정에 연결됨: ••••%1</translation>
         </message>
+        <message>
+            <source>Base URL must be a full http:// or https:// address</source>
+            <translation>기본 URL은 http:// 또는 https://로 시작하는 전체 주소여야 합니다</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::LockScreen</name>
@@ -15332,6 +22388,66 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         <message>
             <source>Locked for %1 — too many failed attempts</source>
             <translation>%1 동안 잠김 — 실패 횟수가 너무 많습니다</translation>
+        </message>
+        <message>
+            <source>PIN must be exactly 6 digits</source>
+            <translation>PIN은 6자리 숫자여야 합니다</translation>
+        </message>
+        <message>
+            <source>New PIN</source>
+            <translation>새 PIN</translation>
+        </message>
+        <message>
+            <source>Six digit PIN used to unlock the terminal</source>
+            <translation>터미널 잠금 해제에 쓰는 6자리 PIN</translation>
+        </message>
+        <message>
+            <source>Confirm new PIN</source>
+            <translation>새 PIN 확인</translation>
+        </message>
+        <message>
+            <source>Set PIN</source>
+            <translation>PIN 설정</translation>
+        </message>
+        <message>
+            <source>PIN setup error</source>
+            <translation>PIN 설정 오류</translation>
+        </message>
+        <message>
+            <source>Forgot PIN?  Sign in again</source>
+            <translation>PIN을 잊은 경우  다시 로그인</translation>
+        </message>
+        <message>
+            <source>Unlock PIN</source>
+            <translation>잠금 해제 PIN</translation>
+        </message>
+        <message>
+            <source>Six digit PIN that unlocks the terminal</source>
+            <translation>터미널 잠금을 해제하는 6자리 PIN</translation>
+        </message>
+        <message>
+            <source>Unlock terminal</source>
+            <translation>터미널 잠금 해제</translation>
+        </message>
+        <message>
+            <source>Forgot PIN, sign in again</source>
+            <translation>PIN 분실, 다시 로그인</translation>
+        </message>
+        <message>
+            <source>Unlock error</source>
+            <translation>잠금 해제 오류</translation>
+        </message>
+        <message>
+            <source>Lockout status</source>
+            <translation>잠금 상태</translation>
+        </message>
+        <message>
+            <source>Sign in again to reset your PIN</source>
+            <translation>다시 로그인하여 PIN 재설정</translation>
+        </message>
+        <message>
+            <source>Account locked message</source>
+            <translation>계정 잠김 안내</translation>
         </message>
     </context>
     <context>
@@ -15503,6 +22619,102 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
             <source>Please enter the code</source>
             <translation>코드를 입력하세요</translation>
         </message>
+        <message>
+            <source>Sign-in could not be completed. Please try again.</source>
+            <translation>로그인을 완료하지 못했습니다. 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Email address</source>
+            <translation>이메일 주소</translation>
+        </message>
+        <message>
+            <source>The email address of your Fincept account</source>
+            <translation>Fincept 계정의 이메일 주소</translation>
+        </message>
+        <message>
+            <source>Password</source>
+            <translation>비밀번호</translation>
+        </message>
+        <message>
+            <source>Show or hide password</source>
+            <translation>비밀번호 표시/숨기기</translation>
+        </message>
+        <message>
+            <source>Sign in</source>
+            <translation>로그인</translation>
+        </message>
+        <message>
+            <source>Forgot password</source>
+            <translation>비밀번호 찾기</translation>
+        </message>
+        <message>
+            <source>Continue with Google</source>
+            <translation>Google로 계속하기</translation>
+        </message>
+        <message>
+            <source>Create an account</source>
+            <translation>계정 만들기</translation>
+        </message>
+        <message>
+            <source>Sign-in error</source>
+            <translation>로그인 오류</translation>
+        </message>
+        <message>
+            <source>Two-factor verification code</source>
+            <translation>2단계 인증 코드</translation>
+        </message>
+        <message>
+            <source>Verify code</source>
+            <translation>코드 확인</translation>
+        </message>
+        <message>
+            <source>Back to sign in</source>
+            <translation>로그인으로 돌아가기</translation>
+        </message>
+        <message>
+            <source>Verification error</source>
+            <translation>인증 오류</translation>
+        </message>
+        <message>
+            <source>Log out the other session and continue</source>
+            <translation>다른 세션 로그아웃 후 계속</translation>
+        </message>
+        <message>
+            <source>Cancel sign in</source>
+            <translation>로그인 취소</translation>
+        </message>
+        <message>
+            <source>Session conflict details</source>
+            <translation>세션 충돌 상세 정보</translation>
+        </message>
+        <message>
+            <source>or</source>
+            <translation>또는</translation>
+        </message>
+        <message>
+            <source>CONTINUE WITH GOOGLE</source>
+            <translation>Google로 계속하기</translation>
+        </message>
+        <message>
+            <source>Enterprise customer? Enterprise has its own sign-in and installer</source>
+            <translation>Enterprise 고객은 별도의 로그인과 설치 프로그램을 사용합니다</translation>
+        </message>
+        <message>
+            <source>fincept.in/enterprise ↗</source>
+            <translation>fincept.in/enterprise ↗</translation>
+        </message>
+        <message>
+            <source>Email is required</source>
+            <translation>이메일을 입력하세요</translation>
+        </message>
+        <message>
+            <source>Invalid email format</source>
+            <translation>이메일 형식이 올바르지 않습니다</translation>
+        </message>
+        <message>
+            <source>WAITING FOR BROWSER…</source>
+            <translation>브라우저 대기 중…</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::MAAnalyticsScreen</name>
@@ -15569,6 +22781,18 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         <message>
             <source>%1 module</source>
             <translation>%1 모듈</translation>
+        </message>
+        <message>
+            <source>Categories</source>
+            <translation>카테고리</translation>
+        </message>
+        <message>
+            <source>Capabilities</source>
+            <translation>기능</translation>
+        </message>
+        <message>
+            <source>Engine</source>
+            <translation>엔진</translation>
         </message>
     </context>
     <context>
@@ -16665,6 +23889,66 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
             <source>Industry</source>
             <translation>업종</translation>
         </message>
+        <message>
+            <source>The analysis failed</source>
+            <translation>분석에 실패했습니다</translation>
+        </message>
+        <message>
+            <source>No deals stored yet - use SCAN SEC FILINGS, then LOAD ALL DEALS</source>
+            <translation>저장된 거래가 아직 없습니다 - SEC 공시 스캔 후 모든 거래 불러오기를 누르세요</translation>
+        </message>
+        <message>
+            <source>%1 filing(s) found - pick one under Filing and press PARSE FILING</source>
+            <translation>공시 %1건을 찾았습니다 - 공시에서 하나를 선택하고 공시 분석을 누르세요</translation>
+        </message>
+        <message>
+            <source>Comparable deals (optional) - JSON array: [{"acquirer":"A","target":"B","deal_value":1e9,"revenue":4e8,"ebitda":1e8,"premium":28}, ...]. Leave empty to use the local deal database.</source>
+            <translation>비교 거래(선택) - JSON 배열: [{"acquirer":"A","target":"B","deal_value":1e9,"revenue":4e8,"ebitda":1e8,"premium":28}, ...]. 비워 두면 로컬 거래 데이터베이스를 사용합니다.</translation>
+        </message>
+        <message>
+            <source>Comparable deals must be a valid JSON array (%1).</source>
+            <translation>비교 거래는 올바른 JSON 배열이어야 합니다(%1).</translation>
+        </message>
+        <message>
+            <source>Filing:</source>
+            <translation>공시:</translation>
+        </message>
+        <message>
+            <source>Accession no. (e.g. 0001193125-24-012345) - scan first</source>
+            <translation>접수번호(예: 0001193125-24-012345) - 먼저 스캔하세요</translation>
+        </message>
+        <message>
+            <source>Pick a filing found by SCAN SEC FILINGS, or paste its accession number / EDGAR URL</source>
+            <translation>SEC 공시 스캔으로 찾은 공시를 선택하거나 접수번호 / EDGAR URL을 붙여 넣으세요</translation>
+        </message>
+        <message>
+            <source>Filing form type</source>
+            <translation>공시 양식 유형</translation>
+        </message>
+        <message>
+            <source>PARSE FILING</source>
+            <translation>공시 분석</translation>
+        </message>
+        <message>
+            <source>Enter an accession number, or pick a filing after SCAN SEC FILINGS</source>
+            <translation>접수번호를 입력하거나 SEC 공시 스캔 후 공시를 선택하세요</translation>
+        </message>
+        <message>
+            <source>Parsing filing %1...</source>
+            <translation>공시 %1 분석 중...</translation>
+        </message>
+        <message>
+            <source>Comparable companies (optional) - JSON array: [{"name":"A","ev":5e9,"revenue":1e9,"ebitda":2e8,"growth":0.1}, ...] (at least 3). Leave empty to use the local deal database.</source>
+            <translation>비교 기업(선택) - JSON 배열: [{"name":"A","ev":5e9,"revenue":1e9,"ebitda":2e8,"growth":0.1}, ...] (최소 3개). 비워 두면 로컬 거래 데이터베이스를 사용합니다.</translation>
+        </message>
+        <message>
+            <source>Invalid JSON</source>
+            <translation>잘못된 JSON</translation>
+        </message>
+        <message>
+            <source>Comparable companies must be a valid JSON array (%1).</source>
+            <translation>비교 기업은 올바른 JSON 배열이어야 합니다(%1).</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::MaritimeScreen</name>
@@ -17060,6 +24344,134 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
             <source>HISTORY: %1 (%2 positions)</source>
             <translation>이력: %1 (위치 %2개)</translation>
         </message>
+        <message>
+            <source>LIVE VESSEL MAP</source>
+            <translation>실시간 선박 지도</translation>
+        </message>
+        <message>
+            <source>⟳ REFRESH</source>
+            <translation>⟳ 새로고침</translation>
+        </message>
+        <message>
+            <source>AUTO ⟳ 5m</source>
+            <translation>자동 ⟳ 5분</translation>
+        </message>
+        <message>
+            <source>AUTO ⟳ OFF</source>
+            <translation>자동 ⟳ 꺼짐</translation>
+        </message>
+        <message>
+            <source>BASEMAP</source>
+            <translation>배경 지도</translation>
+        </message>
+        <message>
+            <source>FLEET INTELLIGENCE</source>
+            <translation>선단 정보</translation>
+        </message>
+        <message>
+            <source>LOADED</source>
+            <translation>불러옴</translation>
+        </message>
+        <message>
+            <source>IN REGION</source>
+            <translation>지역 내</translation>
+        </message>
+        <message>
+            <source>MOVING</source>
+            <translation>운항 중</translation>
+        </message>
+        <message>
+            <source>AVG SPEED</source>
+            <translation>평균 속도</translation>
+        </message>
+        <message>
+            <source>DEST PORTS</source>
+            <translation>목적항</translation>
+        </message>
+        <message>
+            <source>UPDATED:</source>
+            <translation>업데이트:</translation>
+        </message>
+        <message>
+            <source>Fincept API credit balance after the last vessel request</source>
+            <translation>마지막 선박 요청 후 Fincept API 크레딧 잔액</translation>
+        </message>
+        <message>
+            <source>PLANS</source>
+            <translation>요금제</translation>
+        </message>
+        <message>
+            <source>Credits are running low — see Plans &amp; Pricing</source>
+            <translation>크레딧이 얼마 남지 않았습니다 — 요금제 및 가격을 확인하세요</translation>
+        </message>
+        <message>
+            <source>Place search results</source>
+            <translation>장소 검색 결과</translation>
+        </message>
+        <message>
+            <source>Click or press Enter on a place to load vessels in its bounding box.</source>
+            <translation>장소를 클릭하거나 Enter를 누르면 해당 영역의 선박을 불러옵니다.</translation>
+        </message>
+        <message>
+            <source>Port search results</source>
+            <translation>항구 검색 결과</translation>
+        </message>
+        <message>
+            <source>Click or press Enter on a port to plot it on the map.</source>
+            <translation>항구를 클릭하거나 Enter를 누르면 지도에 표시합니다.</translation>
+        </message>
+        <message>
+            <source>IMO numbers are 7 digits (e.g. 9344745).</source>
+            <translation>IMO 번호는 7자리입니다(예: 9344745).</translation>
+        </message>
+        <message>
+            <source>INVALID IMO</source>
+            <translation>잘못된 IMO</translation>
+        </message>
+        <message>
+            <source>%1
+IMO %2
+Position reported: %3 (%4)</source>
+            <translation>%1
+IMO %2
+위치 보고: %3 (%4)</translation>
+        </message>
+        <message>
+            <source>unknown</source>
+            <translation>알 수 없음</translation>
+        </message>
+        <message>
+            <source>UNAVAILABLE</source>
+            <translation>사용 불가</translation>
+        </message>
+        <message>
+            <source>History unavailable: %1</source>
+            <translation>이력을 불러올 수 없음: %1</translation>
+        </message>
+        <message>
+            <source>OUT OF CREDITS</source>
+            <translation>크레딧 소진</translation>
+        </message>
+        <message>
+            <source>Position: %1, %2  ·  %3</source>
+            <translation>위치: %1, %2  ·  %3</translation>
+        </message>
+        <message>
+            <source>Reported %1 UTC</source>
+            <translation>%1 UTC 보고</translation>
+        </message>
+        <message>
+            <source>The API did not report a position timestamp for this vessel.</source>
+            <translation>API가 이 선박의 위치 보고 시각을 제공하지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>ORIGIN: %1</source>
+            <translation>출발지: %1</translation>
+        </message>
+        <message>
+            <source>DEST: %1</source>
+            <translation>목적지: %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::MarketPanel</name>
@@ -17135,6 +24547,62 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
             <source>Backtest This Symbol</source>
             <translation>이 종목 백테스트</translation>
         </message>
+        <message>
+            <source>Choose columns</source>
+            <translation>열 선택</translation>
+        </message>
+        <message>
+            <source>Choose which columns this panel shows</source>
+            <translation>이 패널에 표시할 열 선택</translation>
+        </message>
+        <message>
+            <source>Edit panel</source>
+            <translation>패널 편집</translation>
+        </message>
+        <message>
+            <source>Edit this panel's title and symbols</source>
+            <translation>이 패널의 제목과 종목 편집</translation>
+        </message>
+        <message>
+            <source>Remove panel</source>
+            <translation>패널 제거</translation>
+        </message>
+        <message>
+            <source>Remove this panel</source>
+            <translation>이 패널 제거</translation>
+        </message>
+        <message>
+            <source>Retry loading this panel</source>
+            <translation>이 패널 다시 불러오기</translation>
+        </message>
+        <message>
+            <source>No symbols in this panel — use [EDIT] to add some.</source>
+            <translation>이 패널에 종목이 없습니다 — [편집]으로 추가하세요.</translation>
+        </message>
+        <message>
+            <source>Failed to load market data</source>
+            <translation>시장 데이터를 불러오지 못했습니다</translation>
+        </message>
+        <message>
+            <source>Load failed: %1</source>
+            <translation>불러오기 실패: %1</translation>
+        </message>
+        <message>
+            <source>Open in Equity Research</source>
+            <translation>주식 리서치에서 열기</translation>
+        </message>
+        <message>
+            <source>Open in Equity Trading</source>
+            <translation>주식 거래에서 열기</translation>
+        </message>
+        <message>
+            <source>Open in News</source>
+            <translation>뉴스에서 열기</translation>
+        </message>
+        <message>
+            <source>Add to Watchlist</source>
+            <translation>관심종목에 추가</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::MarketPanelEditor</name>
@@ -17169,6 +24637,38 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         <message>
             <source>Search symbol or name: AAPL, Reliance, Bitcoin ...</source>
             <translation>종목코드 또는 이름 검색: AAPL, Reliance, Bitcoin ...</translation>
+        </message>
+        <message>
+            <source>Enter a panel title.</source>
+            <translation>패널 제목을 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Add at least one ticker.</source>
+            <translation>종목을 하나 이상 추가하세요.</translation>
+        </message>
+        <message>
+            <source>Panel title</source>
+            <translation>패널 제목</translation>
+        </message>
+        <message>
+            <source>Search for a ticker to add</source>
+            <translation>추가할 종목 검색</translation>
+        </message>
+        <message>
+            <source>Tickers in this panel</source>
+            <translation>이 패널의 종목</translation>
+        </message>
+        <message>
+            <source>Remove the selected ticker</source>
+            <translation>선택한 종목 제거</translation>
+        </message>
+        <message>
+            <source>Ticker search results</source>
+            <translation>종목 검색 결과</translation>
+        </message>
+        <message>
+            <source>Symbol search is unavailable — press Enter to add "%1" as typed.</source>
+            <translation>종목 검색을 사용할 수 없습니다 — Enter를 누르면 입력한 "%1" 그대로 추가합니다.</translation>
         </message>
     </context>
     <context>
@@ -17260,6 +24760,38 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         <message>
             <source>NSE (INDIA)</source>
             <translation>NSE (인도)</translation>
+        </message>
+        <message>
+            <source>BASKET SENTIMENT</source>
+            <translation>바스켓 심리</translation>
+        </message>
+        <message>
+            <source>0-100 score from the share of 50 US large caps up/down more than 0.3% today, adjusted by the VIX level.</source>
+            <translation>미국 대형주 50종목 중 오늘 0.3% 넘게 오르거나 내린 종목의 비율로 계산하고 VIX 수준으로 보정한 0-100 점수입니다.</translation>
+        </message>
+        <message>
+            <source>NYSE · 20 NAMES</source>
+            <translation>NYSE · 20종목</translation>
+        </message>
+        <message>
+            <source>NASDAQ · 10 TECH</source>
+            <translation>NASDAQ · 기술주 10</translation>
+        </message>
+        <message>
+            <source>S&amp;P · TOP 20</source>
+            <translation>S&amp;P · 상위 20</translation>
+        </message>
+        <message>
+            <source>Advancers / decliners among the panel's fixed 50-stock basket (moves beyond ±0.3%), grouped by venue/size. A proxy, not exchange-wide breadth.</source>
+            <translation>패널에 고정된 50종목 바스켓의 상승·하락 종목 수(±0.3% 초과 변동)를 거래소·규모별로 묶었습니다. 거래소 전체 등락 비율이 아닌 대용 지표입니다.</translation>
+        </message>
+        <message>
+            <source>Double-click to open %1 in Equity Research</source>
+            <translation>더블클릭하여 주식 리서치에서 %1 열기</translation>
+        </message>
+        <message>
+            <source>BASKET BREADTH</source>
+            <translation>바스켓 등락 종목</translation>
         </message>
     </context>
     <context>
@@ -17383,6 +24915,52 @@ PIN을 재설정하고 접근 권한을 복구해야 합니다.</translation>
         <message>
             <source>LAST UPDATE  %1</source>
             <translation>마지막 업데이트  %1</translation>
+        </message>
+        <message>
+            <source>No market panels.
+Use [+] PANEL to add one, or RESET for the defaults.</source>
+            <translation>시장 패널이 없습니다.
+[+] 패널로 추가하거나 초기화로 기본 패널을 복원하세요.</translation>
+        </message>
+        <message>
+            <source>Refresh all market panels</source>
+            <translation>모든 시장 패널 새로고침</translation>
+        </message>
+        <message>
+            <source>Refresh all market panels (F5)</source>
+            <translation>모든 시장 패널 새로고침 (F5)</translation>
+        </message>
+        <message>
+            <source>Toggle auto-refresh</source>
+            <translation>자동 새로고침 켜기/끄기</translation>
+        </message>
+        <message>
+            <source>Toggle auto-refresh (F9)</source>
+            <translation>자동 새로고침 켜기/끄기 (F9)</translation>
+        </message>
+        <message>
+            <source>Auto-refresh interval</source>
+            <translation>자동 새로고침 간격</translation>
+        </message>
+        <message>
+            <source>Add a market panel</source>
+            <translation>시장 패널 추가</translation>
+        </message>
+        <message>
+            <source>Reset all panels to defaults</source>
+            <translation>모든 패널을 기본값으로 초기화</translation>
+        </message>
+        <message>
+            <source>Refresh status</source>
+            <translation>새로고침 상태</translation>
+        </message>
+        <message>
+            <source>Last update time</source>
+            <translation>마지막 업데이트 시각</translation>
+        </message>
+        <message>
+            <source>US market session</source>
+            <translation>미국 장 운영 상태</translation>
         </message>
     </context>
     <context>
@@ -17619,6 +25197,184 @@ Use MARKETPLACE to add one, or click ADD CUSTOM MCP SERVER below.</source>
             <source>%1 running</source>
             <translation>%1개 실행 중</translation>
         </message>
+        <message>
+            <source>Search servers and tools</source>
+            <translation>서버 및 도구 검색</translation>
+        </message>
+        <message>
+            <source>Refresh</source>
+            <translation>새로고침</translation>
+        </message>
+        <message>
+            <source>Add a custom MCP server</source>
+            <translation>사용자 지정 MCP 서버 추가</translation>
+        </message>
+        <message>
+            <source>Add %1</source>
+            <translation>%1 추가</translation>
+        </message>
+        <message>
+            <source>Start MCP Server</source>
+            <translation>MCP 서버 시작</translation>
+        </message>
+        <message>
+            <source>Start "%1"?</source>
+            <translation>"%1" 서버를 시작하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>This runs a program on your machine and exposes its tools to the assistant, which can then call them without asking again.
+
+Command:
+%1</source>
+            <translation>이 컴퓨터에서 프로그램을 실행하고 그 도구를 어시스턴트에 공개합니다. 이후 어시스턴트는 다시 묻지 않고 도구를 호출할 수 있습니다.
+
+명령:
+%1</translation>
+        </message>
+        <message>
+            <source>
+
+Environment passed to it: %1</source>
+            <translation>
+
+전달되는 환경 변수: %1</translation>
+        </message>
+        <message>
+            <source>Stop %1</source>
+            <translation>%1 중지</translation>
+        </message>
+        <message>
+            <source>Start %1</source>
+            <translation>%1 시작</translation>
+        </message>
+        <message>
+            <source>⟳ STOPPING...</source>
+            <translation>⟳ 중지 중...</translation>
+        </message>
+        <message>
+            <source>Show logs for %1</source>
+            <translation>%1 로그 보기</translation>
+        </message>
+        <message>
+            <source>AUTO-START: ON</source>
+            <translation>자동 시작: 켜짐</translation>
+        </message>
+        <message>
+            <source>AUTO-START: OFF</source>
+            <translation>자동 시작: 꺼짐</translation>
+        </message>
+        <message>
+            <source>Toggle auto-start for %1</source>
+            <translation>%1 자동 시작 켜기/끄기</translation>
+        </message>
+        <message>
+            <source>When on, this server is launched automatically at terminal startup — without the confirmation prompt.</source>
+            <translation>켜면 터미널을 시작할 때 확인 창 없이 이 서버를 자동으로 실행합니다.</translation>
+        </message>
+        <message>
+            <source>Auto-start Server</source>
+            <translation>서버 자동 시작</translation>
+        </message>
+        <message>
+            <source>Launch this server automatically every time the terminal starts?
+
+It will run without asking for confirmation.</source>
+            <translation>터미널을 시작할 때마다 이 서버를 자동으로 실행하시겠습니까?
+
+확인을 묻지 않고 실행됩니다.</translation>
+        </message>
+        <message>
+            <source>RESTART</source>
+            <translation>다시 시작</translation>
+        </message>
+        <message>
+            <source>Restart %1</source>
+            <translation>%1 다시 시작</translation>
+        </message>
+        <message>
+            <source>Stop the server and start it again.</source>
+            <translation>서버를 중지한 후 다시 시작합니다.</translation>
+        </message>
+        <message>
+            <source>RESTARTING...</source>
+            <translation>다시 시작하는 중...</translation>
+        </message>
+        <message>
+            <source>Server Failed to Restart</source>
+            <translation>서버 다시 시작 실패</translation>
+        </message>
+        <message>
+            <source>Remove %1</source>
+            <translation>%1 제거</translation>
+        </message>
+        <message>
+            <source>SHOW</source>
+            <translation>보기</translation>
+        </message>
+        <message>
+            <source>Reveal %1</source>
+            <translation>%1 값 보기</translation>
+        </message>
+        <message>
+            <source>Values are stored locally and handed to the server process as environment variables.</source>
+            <translation>값은 로컬에 저장되며 서버 프로세스에 환경 변수로 전달됩니다.</translation>
+        </message>
+        <message>
+            <source>Add Server</source>
+            <translation>서버 추가</translation>
+        </message>
+        <message>
+            <source>A name is required.</source>
+            <translation>이름을 입력하세요.</translation>
+        </message>
+        <message>
+            <source>A command is required — this is the program to run.</source>
+            <translation>명령을 입력하세요 — 실행할 프로그램입니다.</translation>
+        </message>
+        <message>
+            <source>%1 is required — this server cannot start without it.</source>
+            <translation>%1 값이 필요합니다 — 이 값이 없으면 서버를 시작할 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Replace Server</source>
+            <translation>서버 교체</translation>
+        </message>
+        <message>
+            <source>A server named "%1" already exists and will be overwritten.
+
+Continue?</source>
+            <translation>"%1" 서버가 이미 있으며 덮어쓰게 됩니다.
+
+계속하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Could not save "%1":
+
+%2</source>
+            <translation>"%1" 서버를 저장하지 못했습니다:
+
+%2</translation>
+        </message>
+        <message>
+            <source>Environment variables</source>
+            <translation>환경 변수</translation>
+        </message>
+        <message>
+            <source>Show env values</source>
+            <translation>환경 변수 값 보기</translation>
+        </message>
+        <message>
+            <source>Launches this server at terminal startup without asking for confirmation.</source>
+            <translation>터미널을 시작할 때 확인을 묻지 않고 이 서버를 실행합니다.</translation>
+        </message>
+        <message>
+            <source>This runs a program on your machine and exposes its tools to the assistant. Only add servers you trust.</source>
+            <translation>이 컴퓨터에서 프로그램을 실행하고 그 도구를 어시스턴트에 공개합니다. 신뢰하는 서버만 추가하세요.</translation>
+        </message>
+        <message>
+            <source>Env Vars must be KEY=value pairs — one entry is missing its "=".</source>
+            <translation>환경 변수는 KEY=value 형식이어야 합니다 — 한 항목에 "="가 없습니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::McpServersSection</name>
@@ -17816,6 +25572,26 @@ Click '+ Add' to add one.</source>
             <source>Server stopped</source>
             <translation>서버 중지됨</translation>
         </message>
+        <message>
+            <source>MCP (Model Context Protocol) servers are programs that give the AI assistant extra tools, such as database access, file search or third-party APIs. Fincept Terminal also ships its own built-in (internal) tools.</source>
+            <translation>MCP(Model Context Protocol) 서버는 데이터베이스 접근, 파일 검색, 외부 API 같은 추가 도구를 AI 어시스턴트에 제공하는 프로그램입니다. Fincept Terminal에는 자체 내장(내부) 도구도 들어 있습니다.</translation>
+        </message>
+        <message>
+            <source>Servers are managed on the MCP Servers screen: add one from the marketplace or as a custom server, start or stop it, view its logs and choose whether it starts automatically.</source>
+            <translation>서버는 MCP 서버 화면에서 관리합니다. 마켓플레이스나 사용자 지정 서버로 추가하고, 시작·중지하고, 로그를 보고, 자동 시작 여부를 정할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Individual internal tools can be switched on or off in that screen's TOOLS view. Your choices are kept across restarts.</source>
+            <translation>내부 도구는 그 화면의 도구 보기에서 하나씩 켜거나 끌 수 있습니다. 선택한 설정은 다시 시작해도 유지됩니다.</translation>
+        </message>
+        <message>
+            <source>OPEN MCP SERVERS</source>
+            <translation>MCP 서버 열기</translation>
+        </message>
+        <message>
+            <source>Open the MCP Servers screen</source>
+            <translation>MCP 서버 화면 열기</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::NewsCommandBar</name>
@@ -17938,6 +25714,46 @@ Click '+ Add' to add one.</source>
         <message>
             <source>%1 WATCHES</source>
             <translation>감시 항목 %1개</translation>
+        </message>
+        <message>
+            <source>BRIEF</source>
+            <translation>브리핑</translation>
+        </message>
+        <message>
+            <source>Headline brief — the top stories of the current filter, most important first, grouped by category (built locally, no AI, no credits)</source>
+            <translation>헤드라인 브리핑 — 현재 필터의 주요 기사를 중요도순으로 카테고리별로 묶어 보여 줍니다(로컬에서 생성, AI·크레딧 사용 안 함)</translation>
+        </message>
+        <message>
+            <source>Search headlines</source>
+            <translation>헤드라인 검색</translation>
+        </message>
+        <message>
+            <source>Category %1</source>
+            <translation>카테고리 %1</translation>
+        </message>
+        <message>
+            <source>Time range %1</source>
+            <translation>기간 %1</translation>
+        </message>
+        <message>
+            <source>Headline brief</source>
+            <translation>헤드라인 브리핑</translation>
+        </message>
+        <message>
+            <source>Dismiss the brief</source>
+            <translation>브리핑 닫기</translation>
+        </message>
+        <message>
+            <source>Dismiss headline brief</source>
+            <translation>헤드라인 브리핑 닫기</translation>
+        </message>
+        <message>
+            <source>Refresh news feed</source>
+            <translation>뉴스 피드 새로고침</translation>
+        </message>
+        <message>
+            <source>News-volume spikes: last-hour article count vs the category's hourly baseline, in standard deviations (z-score)</source>
+            <translation>뉴스량 급증: 최근 1시간 기사 수와 카테고리의 시간당 기준치 차이를 표준편차 단위(z-score)로 표시</translation>
         </message>
     </context>
     <context>
@@ -18146,6 +25962,58 @@ Click '+ Add' to add one.</source>
             <source>[%1] %2 — %3 km</source>
             <translation>[%1] %2 — %3 km</translation>
         </message>
+        <message>
+            <source>Click a ticker for research, chart, backtest and watchlist actions</source>
+            <translation>종목코드를 클릭하면 리서치, 차트, 백테스트, 관심종목 기능을 이용할 수 있습니다</translation>
+        </message>
+        <message>
+            <source>Fincept AI analysis of the full article — uses Fincept API credits (the cost and remaining balance are shown after each run)</source>
+            <translation>기사 전문을 Fincept AI로 분석합니다 — Fincept API 크레딧이 사용됩니다(실행할 때마다 사용량과 남은 잔액을 표시)</translation>
+        </message>
+        <message>
+            <source>SAVED</source>
+            <translation>저장됨</translation>
+        </message>
+        <message>
+            <source>FAILED</source>
+            <translation>실패</translation>
+        </message>
+        <message>
+            <source>ALREADY EN</source>
+            <translation>이미 영어</translation>
+        </message>
+        <message>
+            <source>NO CREDITS</source>
+            <translation>크레딧 없음</translation>
+        </message>
+        <message>
+            <source>INSUFFICIENT CREDITS — SEE PLANS</source>
+            <translation>크레딧 부족 — 요금제 확인</translation>
+        </message>
+        <message>
+            <source>FAILED - RETRY</source>
+            <translation>실패 - 다시 시도</translation>
+        </message>
+        <message>
+            <source>Analysis failed: %1</source>
+            <translation>분석 실패: %1</translation>
+        </message>
+        <message>
+            <source>Credits used: %1</source>
+            <translation>사용 크레딧: %1</translation>
+        </message>
+        <message>
+            <source>remaining: %1</source>
+            <translation>잔여: %1</translation>
+        </message>
+        <message>
+            <source>LOW CREDITS — SEE PLANS</source>
+            <translation>크레딧 얼마 남지 않음 — 요금제 확인</translation>
+        </message>
+        <message>
+            <source>Related article: %1</source>
+            <translation>관련 기사: %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::NewsFeedDelegate</name>
@@ -18194,6 +26062,70 @@ Click '+ Add' to add one.</source>
         <message>
             <source>BREAKING</source>
             <translation>속보</translation>
+        </message>
+        <message>
+            <source>News feed</source>
+            <translation>뉴스 피드</translation>
+        </message>
+        <message>
+            <source>Article list. Use the arrow keys to move, Enter to open the article in a browser.</source>
+            <translation>기사 목록입니다. 화살표 키로 이동하고 Enter를 누르면 브라우저에서 기사를 엽니다.</translation>
+        </message>
+        <message>
+            <source>Empty news feed</source>
+            <translation>빈 뉴스 피드</translation>
+        </message>
+        <message>
+            <source>Breaking news banner</source>
+            <translation>속보 배너</translation>
+        </message>
+        <message>
+            <source>Open article in browser</source>
+            <translation>브라우저에서 기사 열기</translation>
+        </message>
+        <message>
+            <source>Copy link</source>
+            <translation>링크 복사</translation>
+        </message>
+        <message>
+            <source>Open %1 in Equity Research</source>
+            <translation>주식 리서치에서 %1 열기</translation>
+        </message>
+        <message>
+            <source>Open %1 chart / order ticket (Equity Trading)</source>
+            <translation>%1 차트 / 주문창 열기 (주식 거래)</translation>
+        </message>
+        <message>
+            <source>Backtest %1</source>
+            <translation>%1 백테스트</translation>
+        </message>
+        <message>
+            <source>Add %1 to Watchlist</source>
+            <translation>%1 관심종목에 추가</translation>
+        </message>
+        <message>
+            <source>No watchlists yet — create one on the Watchlist screen</source>
+            <translation>관심종목 목록이 아직 없습니다 — 관심종목 화면에서 만드세요</translation>
+        </message>
+        <message>
+            <source>%1 is already in %2</source>
+            <translation>%1: 이미 %2에 있습니다</translation>
+        </message>
+        <message>
+            <source>Added %1 to %2</source>
+            <translation>%2에 %1 추가됨</translation>
+        </message>
+        <message>
+            <source>Could not add %1 to %2</source>
+            <translation>%2에 %1 추가 실패</translation>
+        </message>
+        <message>
+            <source>Filter feed by %1</source>
+            <translation>피드 필터: %1</translation>
+        </message>
+        <message>
+            <source>Copy %1</source>
+            <translation>%1 복사</translation>
         </message>
     </context>
     <context>
@@ -18253,6 +26185,20 @@ Click '+ Add' to add one.</source>
         <message>
             <source>OFF</source>
             <translation>꺼짐</translation>
+        </message>
+        <message>
+            <source>Last-hour volume is %1 standard deviations above this category's hourly baseline</source>
+            <translation>최근 1시간 기사량이 이 카테고리의 시간당 기준치보다 표준편차의 %1배만큼 높습니다</translation>
+        </message>
+        <message>
+            <source>YES %1%  %2</source>
+            <translation>예 %1%  %2</translation>
+        </message>
+        <message>
+            <source>%1
+YES %2% · volume %3 (play-money mana)</source>
+            <translation>%1
+예 %2% · 거래량 %3 (게임 머니 mana)</translation>
         </message>
     </context>
     <context>
@@ -18373,6 +26319,152 @@ Click '+ Add' to add one.</source>
             <source>TICKERS: %1</source>
             <translation>종목코드: %1</translation>
         </message>
+        <message>
+            <source>Discard changes</source>
+            <translation>변경 사항 버리기</translation>
+        </message>
+        <message>
+            <source>Discard every change made since you started editing this note?</source>
+            <translation>이 노트를 편집하기 시작한 뒤의 변경 사항을 모두 버리시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Write your note here... (Markdown: # heading, **bold**, - list, $AAPL)</source>
+            <translation>여기에 노트를 작성하세요... (Markdown: # 제목, **굵게**, - 목록, $AAPL)</translation>
+        </message>
+        <message>
+            <source>Unsaved note</source>
+            <translation>저장하지 않은 노트</translation>
+        </message>
+        <message>
+            <source>This note has unsaved changes.
+
+Save them before leaving?</source>
+            <translation>이 노트에 저장하지 않은 변경 사항이 있습니다.
+
+나가기 전에 저장하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Title required</source>
+            <translation>제목 필요</translation>
+        </message>
+        <message>
+            <source>Give the note a title before saving.</source>
+            <translation>저장하기 전에 노트 제목을 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Save failed</source>
+            <translation>저장 실패</translation>
+        </message>
+        <message>
+            <source>The note could not be written to the local database. Your text is still in the editor.</source>
+            <translation>노트를 로컬 데이터베이스에 저장하지 못했습니다. 작성한 내용은 편집기에 그대로 있습니다.</translation>
+        </message>
+        <message>
+            <source>Delete failed</source>
+            <translation>삭제 실패</translation>
+        </message>
+        <message>
+            <source>The note could not be deleted.</source>
+            <translation>노트를 삭제하지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>AUTOSAVE: needs a title</source>
+            <translation>자동 저장: 제목 필요</translation>
+        </message>
+        <message>
+            <source>AUTOSAVE FAILED — use SAVE</source>
+            <translation>자동 저장 실패 — 저장을 누르세요</translation>
+        </message>
+        <message>
+            <source>AUTOSAVED %1</source>
+            <translation>자동 저장됨 %1</translation>
+        </message>
+        <message>
+            <source>Open %1 in…</source>
+            <translation>%1 열기…</translation>
+        </message>
+        <message>
+            <source>Equity Research</source>
+            <translation>주식 리서치</translation>
+        </message>
+        <message>
+            <source>Equity Trading</source>
+            <translation>주식 거래</translation>
+        </message>
+        <message>
+            <source>News</source>
+            <translation>뉴스</translation>
+        </message>
+        <message>
+            <source>Watchlist</source>
+            <translation>관심종목</translation>
+        </message>
+        <message>
+            <source>Backtesting</source>
+            <translation>백테스트</translation>
+        </message>
+        <message>
+            <source>Export failed</source>
+            <translation>내보내기 실패</translation>
+        </message>
+        <message>
+            <source>Could not write the note to:
+%1</source>
+            <translation>노트를 다음 위치에 저장하지 못했습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>Note exported</source>
+            <translation>노트 내보냄</translation>
+        </message>
+        <message>
+            <source>Saved as "%1" — it is now available in the File Manager.</source>
+            <translation>"%1" 이름으로 저장했습니다 — 이제 파일 관리자에서 열 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>UNARCHIVE</source>
+            <translation>보관 해제</translation>
+        </message>
+        <message>
+            <source>Note categories</source>
+            <translation>노트 카테고리</translation>
+        </message>
+        <message>
+            <source>Notes</source>
+            <translation>노트</translation>
+        </message>
+        <message>
+            <source>Search notes</source>
+            <translation>노트 검색</translation>
+        </message>
+        <message>
+            <source>Note title</source>
+            <translation>노트 제목</translation>
+        </message>
+        <message>
+            <source>Note content</source>
+            <translation>노트 내용</translation>
+        </message>
+        <message>
+            <source>Note category</source>
+            <translation>노트 카테고리</translation>
+        </message>
+        <message>
+            <source>Note priority</source>
+            <translation>노트 우선순위</translation>
+        </message>
+        <message>
+            <source>Note sentiment</source>
+            <translation>노트 시장 심리</translation>
+        </message>
+        <message>
+            <source>Note tags</source>
+            <translation>노트 태그</translation>
+        </message>
+        <message>
+            <source>Note tickers</source>
+            <translation>노트 종목코드</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::NotificationsSection</name>
@@ -18475,6 +26567,22 @@ Click '+ Add' to add one.</source>
         <message>
             <source>Could not read this provider's saved settings — saving is disabled so the blank fields cannot overwrite them. Reopen Settings to retry.</source>
             <translation>이 공급자의 저장된 설정을 읽지 못했습니다. 빈 입력란이 기존 설정을 덮어쓰지 않도록 저장을 비활성화했습니다. 설정을 다시 열어 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Notification Settings</source>
+            <translation>알림 설정</translation>
+        </message>
+        <message>
+            <source>These providers were not saved:
+
+%1</source>
+            <translation>다음 공급자는 저장되지 않았습니다:
+
+%1</translation>
+        </message>
+        <message>
+            <source>Saved ✓</source>
+            <translation>저장됨 ✓</translation>
         </message>
     </context>
     <context>
@@ -18590,6 +26698,18 @@ Click '+ Add' to add one.</source>
             <source>Step %1 of %2</source>
             <translation>%2단계 중 %1단계</translation>
         </message>
+        <message>
+            <source>Two editions</source>
+            <translation>두 가지 에디션</translation>
+        </message>
+        <message>
+            <source>You're on the free, open-source edition (AGPL-3.0). Your Fincept account is Free, or Pro at $10/month for monthly credits and higher limits. Fincept Terminal Enterprise is the private edition for funds and research desks — a separate product with its own accounts.</source>
+            <translation>지금 사용 중인 것은 무료 오픈소스 에디션(AGPL-3.0)입니다. Fincept 계정은 Free 또는 Pro(월 $10, 매월 크레딧 지급 및 더 높은 한도)입니다. Fincept Terminal Enterprise는 펀드와 리서치 데스크를 위한 비공개 에디션으로, 계정이 따로 있는 별도 제품입니다.</translation>
+        </message>
+        <message>
+            <source>Tip: Ctrl+Shift+P → "plans" or "enterprise" — or use the Help menu.</source>
+            <translation>팁: Ctrl+Shift+P → "plans" 또는 "enterprise" — 또는 도움말 메뉴를 이용하세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::OnsPanel</name>
@@ -18612,6 +26732,10 @@ api.beta.ons.gov.uk 제공 데이터 — GDP, CPI, 노동시장, 주택</transla
         <message>
             <source>No data returned</source>
             <translation>데이터가 없습니다</translation>
+        </message>
+        <message>
+            <source>Seasonally adjusted</source>
+            <translation>계절조정</translation>
         </message>
     </context>
     <context>
@@ -18738,6 +26862,78 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         <message>
             <source>N/A</source>
             <translation>해당 없음</translation>
+        </message>
+        <message>
+            <source>EXPORT CSV</source>
+            <translation>CSV 내보내기</translation>
+        </message>
+        <message>
+            <source>Export the time-weighted return series (date, NAV, net flow, period and cumulative return) as CSV</source>
+            <translation>시간가중 수익률 시계열(날짜, NAV, 순유입, 기간·누적 수익률)을 CSV로 내보냅니다</translation>
+        </message>
+        <message>
+            <source>Sharpe / Sortino / alpha / max drawdown: realised time-weighted returns (buys and sells are treated as capital flows, not performance)</source>
+            <translation>샤프지수 / 소르티노지수 / 알파 / 최대낙폭: 실현 시간가중 수익률 기준(매수·매도는 성과가 아닌 자금 유출입으로 처리)</translation>
+        </message>
+        <message>
+            <source>, %1 periods %2 → %3</source>
+            <translation>, %1개 기간 %2 → %3</translation>
+        </message>
+        <message>
+            <source> (%1 implausible period(s) excluded — likely unrecorded deposits/withdrawals)</source>
+            <translation> (비정상 기간 %1개 제외 — 기록되지 않은 입출금일 가능성이 큼)</translation>
+        </message>
+        <message>
+            <source>. Risk-free %1% — %2.</source>
+            <translation>. 무위험이자율 %1% — %2.</translation>
+        </message>
+        <message>
+            <source> Volatility / beta / VaR: ex-ante, current weights × %1 trailing daily returns.</source>
+            <translation> 변동성 / 베타 / VaR: 사전 추정, 현재 비중 × 최근 일간 수익률 %1개.</translation>
+        </message>
+        <message>
+            <source> Volatility / VaR: realised series (price history not loaded yet).</source>
+            <translation> 변동성 / VaR: 실현 시계열 기준(가격 이력을 아직 불러오지 않음).</translation>
+        </message>
+        <message>
+            <source>Export CSV</source>
+            <translation>CSV 내보내기</translation>
+        </message>
+        <message>
+            <source>No performance history to export yet.</source>
+            <translation>내보낼 성과 이력이 아직 없습니다.</translation>
+        </message>
+        <message>
+            <source>Not enough NAV history for %1 yet — history is rebuilt from your transactions in the background.</source>
+            <translation>%1에 필요한 NAV 이력이 아직 부족합니다. 거래 내역으로 이력을 백그라운드에서 다시 만들고 있습니다.</translation>
+        </message>
+        <message>
+            <source>vs %1, ex-ante (current weights)</source>
+            <translation>%1 대비, 사전 추정(현재 비중)</translation>
+        </message>
+        <message>
+            <source>vs %1, realised</source>
+            <translation>%1 대비, 실현</translation>
+        </message>
+        <message>
+            <source>Jensen's alpha vs %1, annualised</source>
+            <translation>%1 대비 젠센 알파, 연율화</translation>
+        </message>
+        <message>
+            <source>Annualised, ex-ante</source>
+            <translation>연율화, 사전 추정</translation>
+        </message>
+        <message>
+            <source>Annualised, realised TWR</source>
+            <translation>연율화, 실현 TWR</translation>
+        </message>
+        <message>
+            <source>Sensitivity vs the benchmark</source>
+            <translation>벤치마크 대비 민감도</translation>
+        </message>
+        <message>
+            <source>Peak-to-trough, time-weighted</source>
+            <translation>고점 대비 저점, 시간가중</translation>
         </message>
     </context>
     <context>
@@ -18897,6 +27093,14 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         <message>
             <source>DOWN</source>
             <translation>아래로</translation>
+        </message>
+        <message>
+            <source>INVALID TYPE</source>
+            <translation>잘못된 유형</translation>
+        </message>
+        <message>
+            <source>Describe this step...</source>
+            <translation>이 단계를 설명하세요...</translation>
         </message>
     </context>
     <context>
@@ -19137,6 +27341,42 @@ Country examples: United States, China, Germany, India, Japan, World</source>
             <source>Stress: a %1%% drawdown (your historical max) near retirement would cut the projection to %2 %3 — %4%% of target.</source>
             <translation>스트레스: 은퇴 시점 부근에 %1%% 낙폭(과거 최대낙폭)이 발생하면 예상 자산은 %2 %3으로 감소합니다 — 목표의 %4%%입니다.</translation>
         </message>
+        <message>
+            <source>Monte Carlo: &lt;b&gt;&lt;span style='color:%1'&gt;%2% chance&lt;/span&gt;&lt;/b&gt; of reaching %3 %4 — likely %3 %5 – %3 %6.</source>
+            <translation>몬테카를로: %3 %4 도달 확률 &lt;b&gt;&lt;span style='color:%1'&gt;%2%&lt;/span&gt;&lt;/b&gt; — 예상 범위 %3 %5 – %3 %6.</translation>
+        </message>
+        <message>
+            <source>◉ Calibrated to your portfolio: %1% annualised time-weighted return, %2% volatility (from %3 periods of history). Edit any field to override.</source>
+            <translation>◉ 내 포트폴리오로 보정함: 연율화 시간가중 수익률 %1%, 변동성 %2%(이력 %3개 기간 기준). 값을 고치면 직접 지정할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Goals Not Saved</source>
+            <translation>목표를 저장하지 못함</translation>
+        </message>
+        <message>
+            <source>Your saved goals could not be read from the database, so this change was not saved — nothing stored was overwritten. Reopen this view to retry.</source>
+            <translation>저장된 목표를 데이터베이스에서 읽지 못해 이번 변경을 저장하지 않았습니다. 저장된 내용은 덮어쓰지 않았습니다. 이 화면을 다시 열어 재시도하세요.</translation>
+        </message>
+        <message>
+            <source>Remove Goal</source>
+            <translation>목표 삭제</translation>
+        </message>
+        <message>
+            <source>Remove the goal "%1"? This cannot be undone.</source>
+            <translation>목표 "%1"을(를) 삭제하시겠습니까? 되돌릴 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Monte Carlo (2000 runs, %1% vol): &lt;b&gt;&lt;span style='color:%2'&gt;%3% chance&lt;/span&gt;&lt;/b&gt; of reaching your target. Likely range %4 %5 – %6 %7 (median %4 %8).</source>
+            <translation>몬테카를로(2000회, 변동성 %1%): 목표 도달 확률 &lt;b&gt;&lt;span style='color:%2'&gt;%3%&lt;/span&gt;&lt;/b&gt;. 예상 범위 %4 %5 – %6 %7(중앙값 %4 %8).</translation>
+        </message>
+        <message>
+            <source>Stress: a %1% drawdown (your historical max) near retirement would cut the projection to %2 %3 — %4% of target.</source>
+            <translation>스트레스: 은퇴 직전에 %1% 낙폭(과거 최대낙폭)이 오면 예상 금액이 %2 %3(목표의 %4%)로 줄어듭니다.</translation>
+        </message>
+        <message>
+            <source>Stress: an assumed %1% drawdown (no measured history yet) near retirement would cut the projection to %2 %3 — %4% of target.</source>
+            <translation>스트레스: 은퇴 직전에 %1% 낙폭(가정값, 측정된 이력 없음)이 오면 예상 금액이 %2 %3(목표의 %4%)로 줄어듭니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::PolymarketScreen</name>
@@ -19183,6 +27423,22 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         <message>
             <source>Fees: %1</source>
             <translation>수수료: %1</translation>
+        </message>
+        <message>
+            <source>No adapter registered for %1</source>
+            <translation>%1에 등록된 어댑터가 없습니다</translation>
+        </message>
+        <message>
+            <source>Cancel failed (%1): %2</source>
+            <translation>취소 실패(%1): %2</translation>
+        </message>
+        <message>
+            <source>Amend failed (%1): %2</source>
+            <translation>정정 실패(%1): %2</translation>
+        </message>
+        <message>
+            <source>Cancel-all failed: %1</source>
+            <translation>전체 취소 실패: %1</translation>
         </message>
     </context>
     <context>
@@ -19282,6 +27538,58 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         <message>
             <source>%1 (native)</source>
             <translation>%1 (원래 통화)</translation>
+        </message>
+        <message>
+            <source>No positions match the current filter.</source>
+            <translation>현재 필터에 맞는 포지션이 없습니다.</translation>
+        </message>
+        <message>
+            <source>No positions yet — use BUY to add your first holding.</source>
+            <translation>아직 포지션이 없습니다. 매수로 첫 종목을 추가하세요.</translation>
+        </message>
+        <message>
+            <source>Open in</source>
+            <translation>다른 화면에서 열기</translation>
+        </message>
+        <message>
+            <source>Equity Research</source>
+            <translation>주식 리서치</translation>
+        </message>
+        <message>
+            <source>Equity Trading</source>
+            <translation>주식 거래</translation>
+        </message>
+        <message>
+            <source>News</source>
+            <translation>뉴스</translation>
+        </message>
+        <message>
+            <source>Watchlist</source>
+            <translation>관심종목</translation>
+        </message>
+        <message>
+            <source>Backtesting</source>
+            <translation>백테스트</translation>
+        </message>
+        <message>
+            <source>Copy Symbol</source>
+            <translation>종목코드 복사</translation>
+        </message>
+        <message>
+            <source>Export Positions (CSV)…</source>
+            <translation>포지션 내보내기(CSV)…</translation>
+        </message>
+        <message>
+            <source>Export Positions</source>
+            <translation>포지션 내보내기</translation>
+        </message>
+        <message>
+            <source>There are no positions to export.</source>
+            <translation>내보낼 포지션이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Rows per page</source>
+            <translation>페이지당 행 수</translation>
         </message>
     </context>
     <context>
@@ -19398,6 +27706,46 @@ Country examples: United States, China, Germany, India, Japan, World</source>
             <source>Backtest Portfolio</source>
             <translation>포트폴리오 백테스트</translation>
         </message>
+        <message>
+            <source>Refresh portfolio data (F5)</source>
+            <translation>포트폴리오 데이터 새로고침(F5)</translation>
+        </message>
+        <message>
+            <source>Buy / add to a position  (Ctrl+B)</source>
+            <translation>매수 / 포지션 추가  (Ctrl+B)</translation>
+        </message>
+        <message>
+            <source>Buy or add to a position</source>
+            <translation>매수 또는 포지션 추가</translation>
+        </message>
+        <message>
+            <source>Sell / trim a position  (Ctrl+S)</source>
+            <translation>매도 / 포지션 축소  (Ctrl+S)</translation>
+        </message>
+        <message>
+            <source>Sell or trim a position</source>
+            <translation>매도 또는 포지션 축소</translation>
+        </message>
+        <message>
+            <source>Record a dividend payment  (Ctrl+D)</source>
+            <translation>배당금 입금 기록  (Ctrl+D)</translation>
+        </message>
+        <message>
+            <source>Record a dividend payment</source>
+            <translation>배당금 입금 기록</translation>
+        </message>
+        <message>
+            <source>Open AI analysis of this portfolio</source>
+            <translation>이 포트폴리오의 AI 분석 열기</translation>
+        </message>
+        <message>
+            <source>Run a configured research agent against this portfolio</source>
+            <translation>설정한 리서치 에이전트로 이 포트폴리오 분석</translation>
+        </message>
+        <message>
+            <source>NO PORTFOLIOS — CREATE ONE ▾</source>
+            <translation>포트폴리오 없음 — 새로 만들기 ▾</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::PortfolioDetailWrapper</name>
@@ -19444,6 +27792,14 @@ Country examples: United States, China, Germany, India, Japan, World</source>
         <message>
             <source>DETAIL VIEW</source>
             <translation>상세 보기</translation>
+        </message>
+        <message>
+            <source>Back to the portfolio workspace  (Esc)</source>
+            <translation>포트폴리오 작업 공간으로 돌아가기  (Esc)</translation>
+        </message>
+        <message>
+            <source>Back to the portfolio workspace</source>
+            <translation>포트폴리오 작업 공간으로 돌아가기</translation>
         </message>
     </context>
     <context>
@@ -19720,6 +28076,72 @@ to track 60-day rolling correlations.</source>
                 <numerusform>FFN 완료 — 종목 %n개</numerusform>
             </translation>
         </message>
+        <message>
+            <source>Back to the portfolio workspace  (Esc)</source>
+            <translation>포트폴리오 작업 공간으로 돌아가기  (Esc)</translation>
+        </message>
+        <message>
+            <source>Back to the portfolio workspace</source>
+            <translation>포트폴리오 작업 공간으로 돌아가기</translation>
+        </message>
+        <message>
+            <source>BENCHMARK (%1)</source>
+            <translation>벤치마크(%1)</translation>
+        </message>
+        <message>
+            <source>Portfolio column: the CURRENT weights applied to 1-year daily price history (a back-test of today's mix, not your realised performance).
+Benchmark column: %1, 1-year daily closes. Sharpe = (CAGR − risk-free %2%) / volatility.</source>
+            <translation>포트폴리오 열: 현재 비중을 1년 일간 가격 이력에 적용한 값입니다(실제 실현 성과가 아니라 지금 구성의 백테스트).
+벤치마크 열: %1, 1년 일간 종가. 샤프지수 = (CAGR − 무위험이자율 %2%) / 변동성.</translation>
+        </message>
+        <message>
+            <source>Annualized Return (1Y, current weights)</source>
+            <translation>연율화 수익률(1년, 현재 비중)</translation>
+        </message>
+        <message>
+            <source>Best Day (any holding)</source>
+            <translation>최고 수익일(전 종목)</translation>
+        </message>
+        <message>
+            <source>Worst Day (any holding)</source>
+            <translation>최저 수익일(전 종목)</translation>
+        </message>
+        <message>
+            <source>Best Holding (1Y)</source>
+            <translation>최고 수익 종목(1년)</translation>
+        </message>
+        <message>
+            <source>Worst Holding (1Y)</source>
+            <translation>최저 수익 종목(1년)</translation>
+        </message>
+        <message>
+            <source>Unrealized P&amp;L (vs cost)</source>
+            <translation>평가손익(매입금액 대비)</translation>
+        </message>
+        <message>
+            <source>Holdings in Profit</source>
+            <translation>수익 중인 종목</translation>
+        </message>
+        <message>
+            <source>Date</source>
+            <translation>날짜</translation>
+        </message>
+        <message>
+            <source>Value (Base = 100)</source>
+            <translation>가치(기준 = 100)</translation>
+        </message>
+        <message>
+            <source>Drawdown %</source>
+            <translation>낙폭 %</translation>
+        </message>
+        <message>
+            <source>Correlation</source>
+            <translation>상관관계</translation>
+        </message>
+        <message>
+            <source>FFN failed: %1</source>
+            <translation>FFN 실패: %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::PortfolioHeatmap</name>
@@ -19742,6 +28164,22 @@ to track 60-day rolling correlations.</source>
         <message>
             <source>TOP MOVERS</source>
             <translation>급등락 종목</translation>
+        </message>
+        <message>
+            <source>Colour blocks by unrealized profit and loss</source>
+            <translation>평가손익으로 블록 색칠</translation>
+        </message>
+        <message>
+            <source>Colour blocks by portfolio weight</source>
+            <translation>포트폴리오 비중으로 블록 색칠</translation>
+        </message>
+        <message>
+            <source>Colour blocks by today's change</source>
+            <translation>당일 등락으로 블록 색칠</translation>
+        </message>
+        <message>
+            <source>%1 — %2 %3  •  %4% of portfolio</source>
+            <translation>%1 — %2 %3  •  포트폴리오의 %4%</translation>
         </message>
     </context>
     <context>
@@ -20177,6 +28615,50 @@ Select a portfolio to see estimated impact per scenario.</source>
             <source>B-L WT</source>
             <translation>B-L 비중</translation>
         </message>
+        <message>
+            <source>TARGET RETURN:</source>
+            <translation>목표 수익률:</translation>
+        </message>
+        <message>
+            <source>RUNNING...</source>
+            <translation>실행 중...</translation>
+        </message>
+        <message>
+            <source>BUY &amp; HOLD BACKTEST RESULTS</source>
+            <translation>매수 후 보유 백테스트 결과</translation>
+        </message>
+        <message>
+            <source>ERROR: %1</source>
+            <translation>오류: %1</translation>
+        </message>
+        <message>
+            <source>Optimization: %1</source>
+            <translation>최적화: %1</translation>
+        </message>
+        <message>
+            <source>n/a</source>
+            <translation>해당 없음</translation>
+        </message>
+        <message>
+            <source>NO DATA</source>
+            <translation>데이터 없음</translation>
+        </message>
+        <message>
+            <source>Done — %1 | Exp. Return: %2%  Vol: %3%  Sharpe: %4 (cached)</source>
+            <translation>완료 — %1 | 기대수익률: %2%  변동성: %3%  샤프지수: %4 (캐시)</translation>
+        </message>
+        <message>
+            <source>Done — %1 | Exp. Return: %2%  Vol: %3%  Sharpe: %4</source>
+            <translation>완료 — %1 | 기대수익률: %2%  변동성: %3%  샤프지수: %4</translation>
+        </message>
+        <message>
+            <source>  |  Target %1% not reachable with these holdings — closest result shown</source>
+            <translation>  |  지금 보유종목으로는 목표 %1%에 도달할 수 없어 가장 가까운 결과를 표시합니다</translation>
+        </message>
+        <message>
+            <source>  |  No price history, left out: %1</source>
+            <translation>  |  가격 이력이 없어 제외함: %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::PortfolioOrderPanel</name>
@@ -20217,6 +28699,14 @@ in your portfolio</source>
         <message>
             <source>OPEN SELL ORDER</source>
             <translation>매도 주문 열기</translation>
+        </message>
+        <message>
+            <source>Buy side</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>Sell side</source>
+            <translation>매도</translation>
         </message>
     </context>
     <context>
@@ -20262,6 +28752,46 @@ the selected period. Use when comparing different currencies.</source>
         <message>
             <source>COST %1 %2</source>
             <translation>매입금액 %1 %2</translation>
+        </message>
+        <message>
+            <source>Show %1 of performance history</source>
+            <translation>성과 이력 %1 표시</translation>
+        </message>
+        <message>
+            <source>Toggle benchmark overlay</source>
+            <translation>벤치마크 겹쳐 보기 켜기/끄기</translation>
+        </message>
+        <message>
+            <source>Toggle base-100 indexed view</source>
+            <translation>기준 100 지수화 보기 켜기/끄기</translation>
+        </message>
+        <message>
+            <source>NAV Δ</source>
+            <translation>NAV 변동</translation>
+        </message>
+        <message>
+            <source>TWR</source>
+            <translation>TWR</translation>
+        </message>
+        <message>
+            <source>TWR since %1</source>
+            <translation>%1 이후 TWR</translation>
+        </message>
+        <message>
+            <source>Time-weighted return over the period: buys and sells are capital flows, not performance.</source>
+            <translation>기간 시간가중 수익률: 매수·매도는 성과가 아닌 자금 유출입으로 봅니다.</translation>
+        </message>
+        <message>
+            <source>Change in NAV over the period — includes money added or withdrawn (time-weighted history not available yet).</source>
+            <translation>기간 NAV 변동 — 입금·출금한 금액이 포함됩니다(시간가중 이력이 아직 없음).</translation>
+        </message>
+        <message>
+            <source>UNREAL.  %1%2%</source>
+            <translation>평가손익  %1%2%</translation>
+        </message>
+        <message>
+            <source>Unrealized P&amp;L of the open positions versus their average cost.</source>
+            <translation>보유 포지션의 평균단가 대비 평가손익입니다.</translation>
         </message>
     </context>
     <context>
@@ -20412,6 +28942,160 @@ Expected format:
             <source>Native history. Historical snapshots do not record their currency; changing display currency does not convert this chart.</source>
             <translation>원래 금액의 과거 기록입니다. 과거 스냅샷에는 통화가 저장되지 않아 표시 통화를 바꿔도 이 차트는 환산되지 않습니다.</translation>
         </message>
+        <message>
+            <source>Export Failed</source>
+            <translation>내보내기 실패</translation>
+        </message>
+        <message>
+            <source>Could not export the portfolio to:
+%1
+
+%2</source>
+            <translation>포트폴리오를 내보내지 못했습니다:
+%1
+
+%2</translation>
+        </message>
+        <message>
+            <source>
+
+Accepted formats (either one):
+1) Terminal export — a ledger of trades:
+{ "portfolio_name": "My Portfolio", "currency": "USD",
+  "transactions": [ {"date": "YYYY-MM-DD", "symbol": "AAPL",
+     "type": "BUY" | "SELL" | "DIVIDEND", "quantity": 10, "price": 150.0} ] }
+
+2) Holdings snapshot — each holding becomes a BUY:
+{ "name": "My Portfolio", "currency": "USD",
+  "holdings": [ {"symbol": "AAPL", "quantity": 10, "avg_cost": 150.0,
+     "date": "YYYY-MM-DD" (optional), "sector": "Technology" (optional)} ] }</source>
+            <translation>
+
+가져올 수 있는 형식(둘 중 하나):
+1) 터미널 내보내기 — 거래 원장:
+{ "portfolio_name": "My Portfolio", "currency": "USD",
+  "transactions": [ {"date": "YYYY-MM-DD", "symbol": "AAPL",
+     "type": "BUY" | "SELL" | "DIVIDEND", "quantity": 10, "price": 150.0} ] }
+
+2) 보유종목 스냅샷 — 각 보유종목이 매수(BUY) 1건이 됩니다:
+{ "name": "My Portfolio", "currency": "USD",
+  "holdings": [ {"symbol": "AAPL", "quantity": 10, "avg_cost": 150.0,
+     "date": "YYYY-MM-DD" (선택), "sector": "Technology" (선택)} ] }</translation>
+        </message>
+        <message>
+            <source>… and %1 more</source>
+            <translation>… 외 %1개</translation>
+        </message>
+        <message>
+            <source>Import Completed With Warnings</source>
+            <translation>가져오기 완료(경고 있음)</translation>
+        </message>
+        <message>
+            <source>Imported %1 transaction(s), but %2 could not be applied:
+
+%3</source>
+            <translation>거래 %1건을 가져왔지만 %2건은 반영하지 못했습니다:
+
+%3</translation>
+        </message>
+        <message>
+            <source>Edit Transaction</source>
+            <translation>거래 편집</translation>
+        </message>
+        <message>
+            <source>No ledger rows recorded for %1.</source>
+            <translation>%1의 원장 기록이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Close Position</source>
+            <translation>포지션 청산</translation>
+        </message>
+        <message>
+            <source>Close the entire %1 position (%2 shares) at the last price of %3 %4?
+
+A SELL transaction is recorded; the transaction history is kept.</source>
+            <translation>%1 포지션 전체(%2주)를 현재가 %3 %4에 청산하시겠습니까?
+
+매도 거래가 기록되고 거래 내역은 그대로 남습니다.</translation>
+        </message>
+        <message>
+            <source>Delete Transaction</source>
+            <translation>거래 삭제</translation>
+        </message>
+        <message>
+            <source>Delete %1 %2 %3 @ %4 on %5?
+
+The %3 position is re-derived from the remaining ledger rows.</source>
+            <translation>%5의 %1 %2 %3 @ %4 거래를 삭제하시겠습니까?
+
+%3 포지션은 남은 원장 기록으로 다시 계산합니다.</translation>
+        </message>
+        <message>
+            <source>Export Ledger</source>
+            <translation>원장 내보내기</translation>
+        </message>
+        <message>
+            <source>No transactions recorded for this portfolio yet.</source>
+            <translation>이 포트폴리오에 기록된 거래가 아직 없습니다.</translation>
+        </message>
+        <message>
+            <source>Portfolio</source>
+            <translation>포트폴리오</translation>
+        </message>
+        <message>
+            <source>RISK DATA UNAVAILABLE</source>
+            <translation>리스크 데이터 없음</translation>
+        </message>
+        <message>
+            <source>Price history for the risk figures could not be downloaded:
+%1
+Volatility, beta and VaR fall back to the portfolio's own history. Press ↻ (F5) to retry.</source>
+            <translation>리스크 지표용 가격 이력을 내려받지 못했습니다:
+%1
+변동성, 베타, VaR은 포트폴리오 자체 이력으로 계산합니다. ↻ (F5)를 눌러 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Risk figures use daily closes up to %1 (%2 observations, %3% of the book by weight).
+Benchmark: %4. Risk-free rate: %5% — %6.</source>
+            <translation>리스크 지표는 %1까지의 일간 종가를 씁니다(관측치 %2개, 비중 기준 포트폴리오의 %3%).
+벤치마크: %4. 무위험이자율: %5% — %6.</translation>
+        </message>
+        <message>
+            <source>
+No price history (excluded): %1</source>
+            <translation>
+가격 이력 없음(제외): %1</translation>
+        </message>
+        <message>
+            <source>
+Latest refresh failed — showing the previous result: %1</source>
+            <translation>
+최근 새로고침 실패 — 이전 결과 표시 중: %1</translation>
+        </message>
+        <message>
+            <source>RISK DATA %1</source>
+            <translation>리스크 데이터 %1</translation>
+        </message>
+        <message>
+            <source>The last refresh failed — values shown may be out of date.</source>
+            <translation>마지막 새로고침에 실패했습니다. 표시된 값이 최신이 아닐 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>The last refresh failed — values shown may be out of date.
+%1</source>
+            <translation>마지막 새로고침에 실패했습니다. 표시된 값이 최신이 아닐 수 있습니다.
+%1</translation>
+        </message>
+        <message>
+            <source>Could not load this portfolio. Press ↻ (F5) to retry.</source>
+            <translation>이 포트폴리오를 불러오지 못했습니다. ↻ (F5)를 눌러 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Could not load this portfolio: %1
+Press ↻ (F5) to retry.</source>
+            <translation>이 포트폴리오를 불러오지 못했습니다: %1
+↻ (F5)를 눌러 다시 시도하세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::PortfolioSectorPanel</name>
@@ -20482,6 +29166,72 @@ Expected format:
             <source>▲ %1 positions</source>
             <translation>▲ 포지션 %1개</translation>
         </message>
+        <message>
+            <source>VOL</source>
+            <translation>변동성</translation>
+        </message>
+        <message>
+            <source>the benchmark</source>
+            <translation>벤치마크</translation>
+        </message>
+        <message>
+            <source>%1 periods, %2 → %3</source>
+            <translation>%1개 기간, %2 → %3</translation>
+        </message>
+        <message>
+            <source>no history yet</source>
+            <translation>아직 이력 없음</translation>
+        </message>
+        <message>
+            <source>risk-free %1% (%2)</source>
+            <translation>무위험이자율 %1%(%2)</translation>
+        </message>
+        <message>
+            <source>Sharpe ratio — annualised excess return per unit of volatility, from the realised time-weighted return series (buys/sells treated as capital flows): %1; %2. Needs 20+ periods.</source>
+            <translation>샤프지수 — 변동성 한 단위당 연율화 초과수익입니다. 실현 시간가중 수익률 시계열로 계산합니다(매수·매도는 자금 유출입으로 처리): %1; %2. 20개 기간 이상이 필요합니다.</translation>
+        </message>
+        <message>
+            <source>Concentration — combined weight of your three largest positions.</source>
+            <translation>집중도 — 비중 상위 3개 포지션의 합계 비중입니다.</translation>
+        </message>
+        <message>
+            <source>Beta vs %1 — current weights regressed on %2 trailing daily returns (ex-ante). 1.0 moves with the market.</source>
+            <translation>%1 대비 베타 — 현재 비중을 최근 일간 수익률 %2개에 회귀한 값입니다(사전 추정). 1.0이면 시장과 같이 움직입니다.</translation>
+        </message>
+        <message>
+            <source>Beta vs %1 — regression of the realised return series (%2). 1.0 moves with the market.</source>
+            <translation>%1 대비 베타 — 실현 수익률 시계열의 회귀 값입니다(%2). 1.0이면 시장과 같이 움직입니다.</translation>
+        </message>
+        <message>
+            <source>Volatility — annualised standard deviation of daily returns at CURRENT weights over %1 trailing trading days (ex-ante).</source>
+            <translation>변동성 — 현재 비중 기준 최근 거래일 %1일 일간 수익률의 연율화 표준편차입니다(사전 추정).</translation>
+        </message>
+        <message>
+            <source>Volatility — annualised standard deviation of the realised time-weighted returns (%1).</source>
+            <translation>변동성 — 실현 시간가중 수익률의 연율화 표준편차입니다(%1).</translation>
+        </message>
+        <message>
+            <source>Maximum drawdown — worst peak-to-trough fall of the time-weighted return index (%1). Deposits and withdrawals do not count as drawdowns.</source>
+            <translation>최대낙폭 — 시간가중 수익률 지수의 고점 대비 최대 하락폭입니다(%1). 입금·출금은 낙폭으로 치지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Composite risk score, 0–100, from volatility, concentration, drawdown and beta. Lower is calmer; above 60 is aggressive. Blank until volatility is known.</source>
+            <translation>변동성, 집중도, 낙폭, 베타로 계산한 0–100 종합 리스크 점수입니다. 낮을수록 안정적이고 60 초과는 공격적입니다. 변동성을 알기 전까지는 비워 둡니다.</translation>
+        </message>
+        <message>
+            <source>   R %1%2   D +%3</source>
+            <translation>   실현 %1%2   배당 +%3</translation>
+        </message>
+        <message>
+            <source>Unrealized P&amp;L: market value of open positions minus their average cost.
+Realized P&amp;L (closed lots, average-cost method): %1 %2
+Dividends received: %1 %3
+Total return incl. realized and dividends: %1 %4</source>
+            <translation>평가손익: 보유 포지션의 평가금액에서 평균단가 기준 매입금액을 뺀 값입니다.
+실현손익(청산 물량, 평균단가법): %1 %2
+받은 배당금: %1 %3
+실현손익·배당 포함 총수익: %1 %4</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::PortfolioStatusBar</name>
@@ -20508,6 +29258,30 @@ Expected format:
         <message>
             <source>P&amp;L %1%2</source>
             <translation>손익 %1%2</translation>
+        </message>
+        <message>
+            <source>STALE</source>
+            <translation>지연</translation>
+        </message>
+        <message>
+            <source>Market data refreshed successfully.</source>
+            <translation>시세를 새로고침했습니다.</translation>
+        </message>
+        <message>
+            <source>The last refresh failed — values shown may be out of date.</source>
+            <translation>마지막 새로고침에 실패했습니다. 표시된 값이 최신이 아닐 수 있습니다.</translation>
+        </message>
+        <message numerus="yes">
+            <source>⚠ %n HOLDING(S) NOT FX-CONVERTED</source>
+            <translation>
+                <numerusform>⚠ 환산되지 않은 종목 %n개</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>These holdings trade in a currency other than the portfolio's %1 and their prices are summed WITHOUT conversion, so NAV, P&amp;L and weights are not in %1:
+%2</source>
+            <translation>이 종목들은 포트폴리오 통화 %1이(가) 아닌 통화로 거래되며, 가격을 환산하지 않고 그대로 더합니다. 따라서 NAV, 손익, 비중이 %1 기준이 아닙니다:
+%2</translation>
         </message>
     </context>
     <context>
@@ -20551,6 +29325,56 @@ Expected format:
         <message>
             <source>%1 transactions</source>
             <translation>거래 %1건</translation>
+        </message>
+        <message>
+            <source>Open %1 in</source>
+            <translation>%1 다른 화면에서 열기</translation>
+        </message>
+        <message>
+            <source>Equity Research</source>
+            <translation>주식 리서치</translation>
+        </message>
+        <message>
+            <source>Equity Trading</source>
+            <translation>주식 거래</translation>
+        </message>
+        <message>
+            <source>News</source>
+            <translation>뉴스</translation>
+        </message>
+        <message>
+            <source>Watchlist</source>
+            <translation>관심종목</translation>
+        </message>
+        <message>
+            <source>Backtesting</source>
+            <translation>백테스트</translation>
+        </message>
+        <message>
+            <source>Edit Transaction…</source>
+            <translation>거래 편집…</translation>
+        </message>
+        <message>
+            <source>Delete Transaction…</source>
+            <translation>거래 삭제…</translation>
+        </message>
+        <message>
+            <source>Export Full Ledger (CSV)…</source>
+            <translation>전체 원장 내보내기(CSV)…</translation>
+        </message>
+        <message>
+            <source>latest %1 — right-click to export the full ledger</source>
+            <translation>최근 %1건 — 우클릭하면 전체 원장을 내보냅니다</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n transaction(s)</source>
+            <translation>
+                <numerusform>거래 %n건</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>No transactions recorded for this portfolio yet.</source>
+            <translation>이 포트폴리오에 기록된 거래가 아직 없습니다.</translation>
         </message>
     </context>
     <context>
@@ -20642,6 +29466,154 @@ Expected format:
         <message>
             <source>Charged in USD: %1</source>
             <translation>실제 USD 청구액: %1</translation>
+        </message>
+        <message>
+            <source>Credits power cloud analytics, AI and data in this terminal. Start free — move to Pro when you need more.</source>
+            <translation>크레딧으로 이 터미널의 클라우드 분석, AI, 데이터를 이용합니다. 무료로 시작하고, 더 필요하면 Pro로 바꾸세요.</translation>
+        </message>
+        <message>
+            <source>Checkout runs securely on fincept.in and your plan updates here automatically. Fincept Terminal Enterprise is a separate product with its own accounts and billing.</source>
+            <translation>결제는 fincept.in에서 안전하게 진행되며 요금제는 여기에 자동으로 반영됩니다. Fincept Terminal Enterprise는 계정과 결제가 따로 있는 별도 제품입니다.</translation>
+        </message>
+        <message>
+            <source>← BACK TO TERMINAL</source>
+            <translation>← 터미널로 돌아가기</translation>
+        </message>
+        <message>
+            <source>RETRY</source>
+            <translation>다시 시도</translation>
+        </message>
+        <message>
+            <source>%1  ·  %2 plan  ·  %3 credits</source>
+            <translation>%1  ·  %2 요금제  ·  크레딧 %3</translation>
+        </message>
+        <message>
+            <source>Loading plans…</source>
+            <translation>요금제 불러오는 중…</translation>
+        </message>
+        <message>
+            <source>Offline — showing the plans from your last visit.</source>
+            <translation>오프라인 — 마지막으로 방문했을 때의 요금제를 표시합니다.</translation>
+        </message>
+        <message>
+            <source>Couldn't refresh plans — showing the last known list.</source>
+            <translation>요금제를 새로고침하지 못했습니다. 마지막으로 확인한 목록을 표시합니다.</translation>
+        </message>
+        <message>
+            <source>Can't reach Fincept right now. Check your connection and retry.</source>
+            <translation>지금은 Fincept에 연결할 수 없습니다. 연결 상태를 확인하고 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Plans could not be loaded.</source>
+            <translation>요금제를 불러오지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>No plans are available right now.</source>
+            <translation>지금 이용할 수 있는 요금제가 없습니다.</translation>
+        </message>
+        <message>
+            <source>CURRENT PLAN</source>
+            <translation>현재 요금제</translation>
+        </message>
+        <message>
+            <source>no card required</source>
+            <translation>카드 등록 필요 없음</translation>
+        </message>
+        <message>
+            <source>/ month</source>
+            <translation>/ 월</translation>
+        </message>
+        <message>
+            <source>CONTINUE WITH FREE</source>
+            <translation>무료로 계속</translation>
+        </message>
+        <message>
+            <source>Credits valid until %1</source>
+            <translation>크레딧 유효기간: %1까지</translation>
+        </message>
+        <message>
+            <source>SWITCH TO %1</source>
+            <translation>%1(으)로 변경</translation>
+        </message>
+        <message>
+            <source>UPGRADE TO %1</source>
+            <translation>%1(으)로 업그레이드</translation>
+        </message>
+        <message>
+            <source>Secure checkout on fincept.in — opens in your browser</source>
+            <translation>fincept.in에서 안전하게 결제 — 브라우저에서 열립니다</translation>
+        </message>
+        <message>
+            <source>PRIVATE EDITION</source>
+            <translation>비공개 에디션</translation>
+        </message>
+        <message>
+            <source>ENTERPRISE</source>
+            <translation>ENTERPRISE</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal Enterprise — the private edition for funds, family offices and research desks.</source>
+            <translation>Fincept Terminal Enterprise — 펀드, 패밀리 오피스, 리서치 데스크용 프라이빗 에디션입니다.</translation>
+        </message>
+        <message>
+            <source>See plans &amp; pricing ↗</source>
+            <translation>요금제 및 가격 보기 ↗</translation>
+        </message>
+        <message>
+            <source>Proprietary and private datasets with deeper point-in-time history</source>
+            <translation>더 긴 시점 기준(point-in-time) 이력을 갖춘 독점·비공개 데이터셋</translation>
+        </message>
+        <message>
+            <source>Multi-agent AI research — AI credits included, private dataroom</source>
+            <translation>멀티 에이전트 AI 리서치 — AI 크레딧 포함, 비공개 데이터룸</translation>
+        </message>
+        <message>
+            <source>41 modules across six research desks</source>
+            <translation>6개 리서치 데스크, 41개 모듈</translation>
+        </message>
+        <message>
+            <source>SSO/SAML, audit logs and role-based access</source>
+            <translation>SSO/SAML, 감사 로그, 역할 기반 접근 제어</translation>
+        </message>
+        <message>
+            <source>SLA-backed priority support</source>
+            <translation>SLA 기반 우선 지원</translation>
+        </message>
+        <message>
+            <source>SEE ENTERPRISE ↗</source>
+            <translation>Enterprise 보기 ↗</translation>
+        </message>
+        <message>
+            <source>BOOK A DEMO</source>
+            <translation>데모 신청</translation>
+        </message>
+        <message>
+            <source>Separate product · separate account</source>
+            <translation>별도 제품 · 별도 계정</translation>
+        </message>
+        <message>
+            <source>OPENING CHECKOUT…</source>
+            <translation>결제 화면 여는 중…</translation>
+        </message>
+        <message>
+            <source>Could not start checkout. Please try again.</source>
+            <translation>결제를 시작하지 못했습니다. 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>No checkout token received from the server. Please try again.</source>
+            <translation>서버에서 결제 토큰을 받지 못했습니다. 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Checkout opened in your browser. Complete the payment there — this screen updates automatically.</source>
+            <translation>브라우저에서 결제 화면을 열었습니다. 거기서 결제를 마치세요. 이 화면은 자동으로 바뀝니다.</translation>
+        </message>
+        <message>
+            <source>Checkout not completed yet. Your plan updates as soon as the payment clears — reopen Plans &amp; Pricing any time to check.</source>
+            <translation>아직 결제가 끝나지 않았습니다. 결제가 처리되는 대로 요금제가 반영됩니다. 언제든 요금제·가격 화면을 다시 열어 확인하세요.</translation>
+        </message>
+        <message>
+            <source>Payment received — your %1 plan is active.</source>
+            <translation>결제를 받았습니다. 이제 %1 요금제를 이용할 수 있습니다.</translation>
         </message>
     </context>
     <context>
@@ -21193,6 +30165,210 @@ support@fincept.in으로 문의하세요</translation>
             <source>Charged in USD: %1</source>
             <translation>실제 USD 청구액: %1</translation>
         </message>
+        <message>
+            <source>%1 (NOW %2)</source>
+            <translation>%1 (현재 %2)</translation>
+        </message>
+        <message>
+            <source>MEMBER SINCE</source>
+            <translation>가입일</translation>
+        </message>
+        <message>
+            <source>LAST LOGIN</source>
+            <translation>마지막 로그인</translation>
+        </message>
+        <message>
+            <source>CREDITS EXPIRE</source>
+            <translation>크레딧 만료</translation>
+        </message>
+        <message>
+            <source>Show or hide the API key</source>
+            <translation>API 키 보기/숨기기</translation>
+        </message>
+        <message>
+            <source>CLEARS 60s</source>
+            <translation>60초 뒤 지움</translation>
+        </message>
+        <message>
+            <source>Copy the API key to the clipboard</source>
+            <translation>API 키를 클립보드에 복사</translation>
+        </message>
+        <message>
+            <source>Your current API key will be invalidated immediately. Anything using it — scripts, integrations, other machines — stops working until you paste the new key.
+
+Continue?</source>
+            <translation>현재 API 키는 즉시 무효가 됩니다. 이 키를 쓰는 스크립트, 연동, 다른 컴퓨터는 새 키를 붙여 넣을 때까지 작동하지 않습니다.
+
+계속하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Regeneration Failed</source>
+            <translation>재발급 실패</translation>
+        </message>
+        <message>
+            <source>Could not regenerate your API key. Your existing key is still valid.</source>
+            <translation>API 키를 재발급하지 못했습니다. 기존 키는 그대로 쓸 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>TIME (LOCAL)</source>
+            <translation>시간(현지)</translation>
+        </message>
+        <message>
+            <source>DEVICE</source>
+            <translation>기기</translation>
+        </message>
+        <message>
+            <source>MANAGE PLAN</source>
+            <translation>요금제 관리</translation>
+        </message>
+        <message>
+            <source>UPGRADE TO PRO</source>
+            <translation>Pro로 업그레이드</translation>
+        </message>
+        <message>
+            <source>See plans and credits, or compare with Fincept Terminal Enterprise for teams.</source>
+            <translation>요금제와 크레딧을 보거나, 팀용 Fincept Terminal Enterprise와 비교하세요.</translation>
+        </message>
+        <message>
+            <source>Pro — $10/month: monthly credits, higher limits, every cloud analytics module and priority support.</source>
+            <translation>Pro — 월 $10: 매월 크레딧, 더 높은 한도, 모든 클라우드 분석 모듈, 우선 지원.</translation>
+        </message>
+        <message>
+            <source>Loading...</source>
+            <translation>불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Could not load usage data — press REFRESH to retry.</source>
+            <translation>사용량 데이터를 불러오지 못했습니다. 새로고침을 눌러 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>No usage recorded in the last 30 days.</source>
+            <translation>최근 30일간 사용 기록이 없습니다.</translation>
+        </message>
+        <message>
+            <source>No endpoint activity recorded.</source>
+            <translation>엔드포인트 사용 기록이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Could not load payment history — press REFRESH to retry.</source>
+            <translation>결제 내역을 불러오지 못했습니다. 새로고침을 눌러 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>No payments yet.</source>
+            <translation>아직 결제 내역이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Showing the latest %1 of %2 payments.</source>
+            <translation>결제 %2건 중 최근 %1건을 표시합니다.</translation>
+        </message>
+        <message>
+            <source>Could not load login history — press REFRESH to retry.</source>
+            <translation>로그인 기록을 불러오지 못했습니다. 새로고침을 눌러 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>FAILED</source>
+            <translation>실패</translation>
+        </message>
+        <message>
+            <source>SUCCESS</source>
+            <translation>성공</translation>
+        </message>
+        <message>
+            <source>No login history recorded.</source>
+            <translation>로그인 기록이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Nothing to save — change at least one field.</source>
+            <translation>저장할 내용이 없습니다. 항목을 하나 이상 바꾸세요.</translation>
+        </message>
+        <message>
+            <source>SAVING…</source>
+            <translation>저장 중…</translation>
+        </message>
+        <message>
+            <source>Update Failed</source>
+            <translation>업데이트 실패</translation>
+        </message>
+        <message>
+            <source>Could not update your profile. Please try again.</source>
+            <translation>프로필을 업데이트하지 못했습니다. 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Signed in with Google, or forgot your password? Email me a code</source>
+            <translation>Google로 로그인했거나 비밀번호를 잊으셨나요? 이메일로 코드 받기</translation>
+        </message>
+        <message>
+            <source>6-DIGIT CODE FROM YOUR EMAIL:</source>
+            <translation>이메일로 받은 6자리 코드:</translation>
+        </message>
+        <message>
+            <source>Verification code</source>
+            <translation>인증 코드</translation>
+        </message>
+        <message>
+            <source>NEW PASSWORD (MIN 8 CHARACTERS):</source>
+            <translation>새 비밀번호(8자 이상):</translation>
+        </message>
+        <message>
+            <source>New password</source>
+            <translation>새 비밀번호</translation>
+        </message>
+        <message>
+            <source>Confirm new password</source>
+            <translation>새 비밀번호 확인</translation>
+        </message>
+        <message>
+            <source>SET PASSWORD</source>
+            <translation>비밀번호 설정</translation>
+        </message>
+        <message>
+            <source>Re-send code</source>
+            <translation>코드 다시 보내기</translation>
+        </message>
+        <message>
+            <source>Sending a verification code to %1 ...</source>
+            <translation>%1(으)로 인증 코드를 보내는 중...</translation>
+        </message>
+        <message>
+            <source>Code sent to %1. Enter it above with a new password.</source>
+            <translation>%1(으)로 코드를 보냈습니다. 위에 새 비밀번호와 함께 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Could not send code: %1</source>
+            <translation>코드를 보내지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Enter the verification code from your email</source>
+            <translation>이메일로 받은 인증 코드를 입력하세요</translation>
+        </message>
+        <message>
+            <source>Password must be at least 8 characters</source>
+            <translation>비밀번호는 8자 이상이어야 합니다</translation>
+        </message>
+        <message>
+            <source>Passwords do not match</source>
+            <translation>비밀번호가 일치하지 않습니다</translation>
+        </message>
+        <message>
+            <source>Setting password ...</source>
+            <translation>비밀번호 설정 중 ...</translation>
+        </message>
+        <message>
+            <source>Password set. You can now delete your account.</source>
+            <translation>비밀번호를 설정했습니다. 이제 계정을 삭제할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Could not set password: %1</source>
+            <translation>비밀번호를 설정하지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>%1
+
+If you just set a new password, sign out and back in, then retry.</source>
+            <translation>%1
+
+방금 새 비밀번호를 설정했다면 로그아웃한 뒤 다시 로그인하고 재시도하세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::ProfilesSection</name>
@@ -21291,6 +30467,10 @@ Fincept Terminal will restart. Unsaved work in the current session may be lost.<
             <translation>"%1" 프로필을 만들고 전환하시겠습니까?
 
 Fincept Terminal이 다시 시작됩니다. 현재 세션에서 저장하지 않은 작업은 사라질 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Could not launch Fincept Terminal for profile "%1". The current session stays open.</source>
+            <translation>프로필 "%1"로 Fincept Terminal을 실행하지 못했습니다. 현재 세션은 그대로 열려 있습니다.</translation>
         </message>
     </context>
     <context>
@@ -21493,6 +30673,14 @@ Heading components.</source>
             <source>Delete</source>
             <translation>삭제</translation>
         </message>
+        <message>
+            <source>Cell data (first row = header):</source>
+            <translation>셀 데이터(첫 행 = 머리글):</translation>
+        </message>
+        <message>
+            <source>As of %1</source>
+            <translation>%1 기준</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::PythonEnvSection</name>
@@ -21611,6 +30799,18 @@ Heading components.</source>
         <message>
             <source>Select %1</source>
             <translation>%1 선택</translation>
+        </message>
+        <message>
+            <source>Upgrade Packages</source>
+            <translation>패키지 업그레이드</translation>
+        </message>
+        <message>
+            <source>Upgrade %1 package(s) to the newest versions their requirement specs allow?
+
+Incompatible versions can make analytics scripts crash or return wrong results, and this panel cannot roll them back.</source>
+            <translation>패키지 %1개를 요구 사항이 허용하는 최신 버전으로 업그레이드하시겠습니까?
+
+호환되지 않는 버전 때문에 분석 스크립트가 멈추거나 잘못된 결과를 낼 수 있고, 이 패널에서는 되돌릴 수 없습니다.</translation>
         </message>
     </context>
     <context>
@@ -21732,6 +30932,142 @@ Example: {"spot": 100, "strike": 105, "risk_free_rate": 0.05}</source>
         <message>
             <source>COMPUTING...</source>
             <translation>계산 중...</translation>
+        </message>
+        <message>
+            <source>FREE</source>
+            <translation>무료</translation>
+        </message>
+        <message>
+            <source>1 CR</source>
+            <translation>1크레딧</translation>
+        </message>
+        <message>
+            <source>PRO</source>
+            <translation>Pro</translation>
+        </message>
+        <message>
+            <source>QuantLib modules</source>
+            <translation>QuantLib 모듈</translation>
+        </message>
+        <message>
+            <source>UPGRADE</source>
+            <translation>업그레이드</translation>
+        </message>
+        <message>
+            <source>Open Plans &amp; Pricing</source>
+            <translation>요금제 및 가격 열기</translation>
+        </message>
+        <message>
+            <source>Search endpoints</source>
+            <translation>엔드포인트 검색</translation>
+        </message>
+        <message>
+            <source>Endpoint</source>
+            <translation>엔드포인트</translation>
+        </message>
+        <message>
+            <source>REQUEST</source>
+            <translation>요청</translation>
+        </message>
+        <message>
+            <source>EXECUTE</source>
+            <translation>실행</translation>
+        </message>
+        <message>
+            <source>Execute computation</source>
+            <translation>계산 실행</translation>
+        </message>
+        <message>
+            <source>%1 MODULES | %2 QUANTITATIVE ENDPOINTS</source>
+            <translation>모듈 %1개 | 정량 분석 엔드포인트 %2개</translation>
+        </message>
+        <message>
+            <source>Search all endpoints (Ctrl+F) — e.g. garch, implied-vol, swap</source>
+            <translation>모든 엔드포인트 검색(Ctrl+F) — 예: garch, implied-vol, swap</translation>
+        </message>
+        <message>
+            <source>Run the selected endpoint (Enter in a field, or Ctrl+Enter)</source>
+            <translation>선택한 엔드포인트 실행(필드에서 Enter 또는 Ctrl+Enter)</translation>
+        </message>
+        <message>
+            <source>PRO PLAN</source>
+            <translation>Pro 요금제</translation>
+        </message>
+        <message>
+            <source>FREE PLAN</source>
+            <translation>무료 요금제</translation>
+        </message>
+        <message>
+            <source>SIGNED OUT</source>
+            <translation>로그아웃됨</translation>
+        </message>
+        <message>
+            <source>All %1 endpoints included · 0 credits per call</source>
+            <translation>엔드포인트 %1개 모두 포함 · 호출당 0크레딧</translation>
+        </message>
+        <message>
+            <source>Unlock every module with Pro — $10/month</source>
+            <translation>Pro로 모든 모듈 이용 — 월 $10</translation>
+        </message>
+        <message>
+            <source>Sign in to run QuantLib computations</source>
+            <translation>QuantLib 계산을 실행하려면 로그인하세요</translation>
+        </message>
+        <message>
+            <source>MIXED</source>
+            <translation>혼재</translation>
+        </message>
+        <message>
+            <source>Free plan: %1 free · %2 at 1 credit per call · %3 need Pro</source>
+            <translation>무료 요금제: 무료 %1개 · 호출당 1크레딧 %2개 · Pro 필요 %3개</translation>
+        </message>
+        <message>
+            <source>Free on your plan</source>
+            <translation>현재 요금제에서 무료</translation>
+        </message>
+        <message>
+            <source>1 credit per call on the Free plan</source>
+            <translation>무료 요금제에서 호출당 1크레딧</translation>
+        </message>
+        <message>
+            <source>Needs Pro ($10/month)</source>
+            <translation>Pro 필요(월 $10)</translation>
+        </message>
+        <message>
+            <source>INCLUDED IN YOUR PRO PLAN · 0 credits per call</source>
+            <translation>Pro 요금제에 포함 · 호출당 0크레딧</translation>
+        </message>
+        <message>
+            <source>FREE · 0 credits on the Free plan</source>
+            <translation>무료 · 무료 요금제에서 0크레딧</translation>
+        </message>
+        <message>
+            <source>1 CREDIT PER CALL on the Free plan · included in Pro at 0 credits</source>
+            <translation>무료 요금제에서 호출당 1크레딧 · Pro에서는 0크레딧으로 포함</translation>
+        </message>
+        <message>
+            <source>PRO · this endpoint needs Pro ($10/month) — on the Free plan the server answers with an upgrade notice</source>
+            <translation>Pro · 이 엔드포인트는 Pro(월 $10)가 필요합니다. 무료 요금제에서는 서버가 업그레이드 안내로 응답합니다</translation>
+        </message>
+        <message>
+            <source>Select an endpoint first.</source>
+            <translation>먼저 엔드포인트를 선택하세요.</translation>
+        </message>
+        <message>
+            <source>ENDPOINT — SEARCH (%1 of %2)</source>
+            <translation>엔드포인트 — 검색(%2개 중 %1개)</translation>
+        </message>
+        <message>
+            <source>ENDPOINT — %1 (%2 of %3)</source>
+            <translation>엔드포인트 — %1(%3개 중 %2개)</translation>
+        </message>
+        <message>
+            <source>ENDPOINT (%1)</source>
+            <translation>엔드포인트(%1)</translation>
+        </message>
+        <message>
+            <source>1 credit</source>
+            <translation>1크레딧</translation>
         </message>
     </context>
     <context>
@@ -28472,6 +37808,814 @@ KPSS: H₀ = 정상. p ≥ 0.05 ⇒ 정상.
             <source>OPEN IN BACKTESTING TERMINAL</source>
             <translation>백테스트 터미널에서 열기</translation>
         </message>
+        <message>
+            <source>Run this analysis (Ctrl+Enter)</source>
+            <translation>이 분석 실행(Ctrl+Enter)</translation>
+        </message>
+        <message>
+            <source>LOAD SYNTHETIC SAMPLE</source>
+            <translation>합성 샘플 불러오기</translation>
+        </message>
+        <message>
+            <source>%1
+Generated (synthetic) data for trying the module — not market data. Results computed on it are flagged SAMPLE INPUT.</source>
+            <translation>%1
+모듈을 시험해 보기 위해 생성한(합성) 데이터이며 시장 데이터가 아닙니다. 이 데이터로 계산한 결과에는 샘플 입력 표시가 붙습니다.</translation>
+        </message>
+        <message>
+            <source>Load synthetic sample input</source>
+            <translation>합성 샘플 입력 불러오기</translation>
+        </message>
+        <message>
+            <source>JSON parameters must be an object like {"ticker":"AAPL"} — %1</source>
+            <translation>JSON 매개변수는 {"ticker":"AAPL"} 같은 객체여야 합니다 — %1</translation>
+        </message>
+        <message>
+            <source>Running %1 %2...</source>
+            <translation>%1 %2 실행 중...</translation>
+        </message>
+        <message>
+            <source>… (%1 earlier characters omitted) …
+
+</source>
+            <translation>… (앞부분 %1자 생략) …
+
+</translation>
+        </message>
+        <message>
+            <source>Error details</source>
+            <translation>오류 상세</translation>
+        </message>
+        <message>
+            <source>Elapsed %1:%2 — running on the embedded Python runtime; the first run per session is slower (cold start).</source>
+            <translation>경과 시간 %1:%2 — 내장 Python 런타임에서 실행 중입니다. 세션의 첫 실행은 더 느립니다(콜드 스타트).</translation>
+        </message>
+        <message>
+            <source>Training failed — see the log below.</source>
+            <translation>학습 실패 — 아래 로그를 확인하세요.</translation>
+        </message>
+        <message>
+            <source>%1 failed with no diagnostic output.</source>
+            <translation>%1 실패, 진단 출력이 없습니다.</translation>
+        </message>
+        <message>
+            <source>%1 failed:
+
+%2</source>
+            <translation>%1 실패:
+
+%2</translation>
+        </message>
+        <message>
+            <source>Error — see output below</source>
+            <translation>오류 — 아래 출력을 확인하세요</translation>
+        </message>
+        <message>
+            <source>PROCESSED DATA  |  FIRST %1 OF %2 ROWS</source>
+            <translation>처리된 데이터  |  %2행 중 처음 %1행</translation>
+        </message>
+        <message>
+            <source>IC (FULL SAMPLE)</source>
+            <translation>IC(전체 표본)</translation>
+        </message>
+        <message>
+            <source>Quantile analysis unavailable</source>
+            <translation>분위 분석을 할 수 없습니다</translation>
+        </message>
+        <message>
+            <source>Scaled weights sum to %1% of capital to reach the target volatility (100% = fully invested).</source>
+            <translation>목표 변동성에 맞추기 위해 조정한 비중의 합은 자본의 %1%입니다(100% = 전액 투자).</translation>
+        </message>
+        <message>
+            <source>UNSCALED WEIGHTS (FULLY INVESTED)</source>
+            <translation>조정 전 비중(전액 투자)</translation>
+        </message>
+        <message>
+            <source>SPY (Yahoo Finance symbol; blank = SPY)</source>
+            <translation>SPY(Yahoo Finance 심볼, 비우면 SPY)</translation>
+        </message>
+        <message>
+            <source>Enter at least one instrument, e.g. AAPL,MSFT,GOOG.</source>
+            <translation>종목을 하나 이상 입력하세요. 예: AAPL,MSFT,GOOG.</translation>
+        </message>
+        <message>
+            <source>Start date (%1) must be before end date (%2).</source>
+            <translation>시작일(%1)은 종료일(%2)보다 앞서야 합니다.</translation>
+        </message>
+        <message>
+            <source>Backtesting %1 over %2 instrument(s), %3 → %4...</source>
+            <translation>%1 백테스트 중: 종목 %2개, %3 → %4...</translation>
+        </message>
+        <message>
+            <source>Enter at least one instrument before opening the Backtesting terminal.</source>
+            <translation>백테스트 터미널을 열기 전에 종목을 하나 이상 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Market Impact</source>
+            <translation>시장 충격</translation>
+        </message>
+        <message>
+            <source>Running %1 on %2...</source>
+            <translation>%2에 %1 실행 중...</translation>
+        </message>
+        <message>
+            <source>Running %1...</source>
+            <translation>%1 실행 중...</translation>
+        </message>
+        <message>
+            <source>Running multi-agent analysis...
+
+The LangGraph orchestrator delegates to specialist subagents and calls the LLM several times; this typically takes a few minutes. Results replace this message.</source>
+            <translation>멀티 에이전트 분석 실행 중...
+
+LangGraph 오케스트레이터가 전문 하위 에이전트에 작업을 나누고 LLM을 여러 번 호출하므로 보통 몇 분 걸립니다. 결과가 나오면 이 메시지를 대신합니다.</translation>
+        </message>
+        <message>
+            <source>START MCP TOOLS</source>
+            <translation>MCP 도구 시작</translation>
+        </message>
+        <message>
+            <source>Start the Fincept MCP tool server.
+Gives RD-Agent loops access to market data,
+financial news and economics tools.
+The server keeps running until the terminal exits.</source>
+            <translation>Fincept MCP 도구 서버를 시작합니다.
+RD-Agent 루프가 시장 데이터,
+금융 뉴스, 경제 도구를 쓸 수 있게 됩니다.
+서버는 터미널을 종료할 때까지 계속 실행됩니다.</translation>
+        </message>
+        <message>
+            <source>MCP STATUS</source>
+            <translation>MCP 상태</translation>
+        </message>
+        <message>
+            <source>Report whether the MCP tool server is installed and which ports are live.</source>
+            <translation>MCP 도구 서버가 설치되어 있는지와 활성 포트를 알려 줍니다.</translation>
+        </message>
+        <message>
+            <source>Querying MCP status...</source>
+            <translation>MCP 상태 조회 중...</translation>
+        </message>
+        <message>
+            <source>Select an LLM profile before running (Settings → LLM Config).</source>
+            <translation>실행하기 전에 LLM 프로필을 선택하세요(설정 → LLM 구성).</translation>
+        </message>
+        <message>
+            <source>GET MODEL</source>
+            <translation>모델 가져오기</translation>
+        </message>
+        <message>
+            <source>TASK STATUS</source>
+            <translation>작업 상태</translation>
+        </message>
+        <message>
+            <source>Refreshing task list...</source>
+            <translation>작업 목록 새로고침 중...</translation>
+        </message>
+        <message>
+            <source>Select a row or type a task ID first.</source>
+            <translation>먼저 행을 선택하거나 작업 ID를 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Select a task row (or paste a task ID) before using this action.</source>
+            <translation>이 기능을 쓰기 전에 작업 행을 선택하거나 작업 ID를 붙여 넣으세요.</translation>
+        </message>
+        <message>
+            <source>Stopping %1...</source>
+            <translation>%1 중지 중...</translation>
+        </message>
+        <message>
+            <source>Select an LLM profile before resuming (Settings → LLM Config).</source>
+            <translation>재개하기 전에 LLM 프로필을 선택하세요(설정 → LLM 구성).</translation>
+        </message>
+        <message>
+            <source>Resuming %1...</source>
+            <translation>%1 재개 중...</translation>
+        </message>
+        <message>
+            <source>Loading factors for %1...</source>
+            <translation>%1의 팩터 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Loading optimized model for %1...</source>
+            <translation>%1의 최적화된 모델 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Querying %1...</source>
+            <translation>%1 조회 중...</translation>
+        </message>
+        <message>
+            <source>Need at least 30 observations; you provided %1. Click LOAD SYNTHETIC SAMPLE for 200.</source>
+            <translation>관측치가 30개 이상 필요한데 %1개를 입력했습니다. 합성 샘플 불러오기를 누르면 200개를 넣습니다.</translation>
+        </message>
+        <message>
+            <source>Need at least 5 daily returns; you provided %1. Click LOAD SYNTHETIC SAMPLE to insert 252 synthetic values.</source>
+            <translation>일간 수익률이 5개 이상 필요한데 %1개를 입력했습니다. 합성 샘플 불러오기를 누르면 합성 값 252개를 넣습니다.</translation>
+        </message>
+        <message>
+            <source>Enter a symbol (e.g. BTC/USDT) before running.</source>
+            <translation>실행하기 전에 심볼(예: BTC/USDT)을 입력하세요.</translation>
+        </message>
+        <message>
+            <source>'%1' is not a valid pair. Use BASE/QUOTE form, e.g. BTC/USDT.</source>
+            <translation>'%1'은(는) 올바른 거래쌍이 아닙니다. BASE/QUOTE 형식으로 입력하세요. 예: BTC/USDT.</translation>
+        </message>
+        <message>
+            <source>Enter at least one instrument, e.g. aapl,msft.</source>
+            <translation>종목을 하나 이상 입력하세요. 예: aapl,msft.</translation>
+        </message>
+        <message>
+            <source>Enter at least one field, e.g. $close,$volume.</source>
+            <translation>필드를 하나 이상 입력하세요. 예: $close,$volume.</translation>
+        </message>
+        <message>
+            <source>Fetching %1 field(s) for %2 instrument(s)...</source>
+            <translation>종목 %2개의 필드 %1개를 가져오는 중...</translation>
+        </message>
+        <message>
+            <source>Running factor analysis on %1 instrument(s)...</source>
+            <translation>종목 %1개로 팩터 분석 실행 중...</translation>
+        </message>
+        <message>
+            <source>Enter the ID of a trained model.</source>
+            <translation>학습된 모델의 ID를 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Loading feature importance for %1...</source>
+            <translation>%1의 특성 중요도 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Loading online models...</source>
+            <translation>온라인 모델 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Creating %1 online model...</source>
+            <translation>%1 온라인 모델 만드는 중...</translation>
+        </message>
+        <message>
+            <source>Enter the ID of a model created in the Create Model tab.</source>
+            <translation>모델 만들기 탭에서 만든 모델의 ID를 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Features must be a non-empty JSON object like {"close":94.0,"rsi":55.0} — %1</source>
+            <translation>특성은 {"close":94.0,"rsi":55.0} 같은 비어 있지 않은 JSON 객체여야 합니다 — %1</translation>
+        </message>
+        <message>
+            <source>Target must be a number (e.g. 0.02).</source>
+            <translation>목표값은 숫자여야 합니다(예: 0.02).</translation>
+        </message>
+        <message>
+            <source>Feeding one sample to %1...</source>
+            <translation>%1에 샘플 1개를 입력하는 중...</translation>
+        </message>
+        <message>
+            <source>Enter a model ID.</source>
+            <translation>모델 ID를 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Features must be a non-empty JSON object — %1</source>
+            <translation>특성은 비어 있지 않은 JSON 객체여야 합니다 — %1</translation>
+        </message>
+        <message>
+            <source>Predicting with %1...</source>
+            <translation>%1(으)로 예측 중...</translation>
+        </message>
+        <message>
+            <source>Loading performance for %1...</source>
+            <translation>%1의 성과 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Loading candidate model catalog...</source>
+            <translation>후보 모델 목록 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Model selection needs at least two candidates, e.g. lightgbm,xgboost.</source>
+            <translation>모델 선택에는 후보가 2개 이상 필요합니다. 예: lightgbm,xgboost.</translation>
+        </message>
+        <message>
+            <source>Training and ranking %1 candidate model(s)...</source>
+            <translation>후보 모델 %1개 학습 및 순위 매기는 중...</translation>
+        </message>
+        <message>
+            <source>An ensemble needs at least two model keys from the Model Selection output.</source>
+            <translation>앙상블에는 모델 선택 결과의 모델 키가 2개 이상 필요합니다.</translation>
+        </message>
+        <message>
+            <source>Building a %1 ensemble from %2 model(s)...</source>
+            <translation>모델 %2개로 %1 앙상블 만드는 중...</translation>
+        </message>
+        <message>
+            <source>Param Grid must be a non-empty JSON object like {"n_estimators":[50,100],"max_depth":[3,5]} — %1</source>
+            <translation>매개변수 그리드는 {"n_estimators":[50,100],"max_depth":[3,5]} 같은 비어 있지 않은 JSON 객체여야 합니다 — %1</translation>
+        </message>
+        <message>
+            <source>%1 search over %2 hyperparameter(s) — this can take a while...</source>
+            <translation>하이퍼파라미터 %2개에 대해 %1 탐색 중 — 시간이 걸릴 수 있습니다...</translation>
+        </message>
+        <message>
+            <source>Loading meta-learning results...</source>
+            <translation>메타러닝 결과 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Step must be a positive whole number of trading days (got '%1').</source>
+            <translation>간격은 거래일 수를 나타내는 양의 정수여야 합니다(입력값: '%1').</translation>
+        </message>
+        <message>
+            <source>Generating rolling-window preview...</source>
+            <translation>롤링 윈도 미리보기 생성 중...</translation>
+        </message>
+        <message>
+            <source>Window must be a positive whole number of trading days (got '%1').</source>
+            <translation>윈도는 거래일 수를 나타내는 양의 정수여야 합니다(입력값: '%1').</translation>
+        </message>
+        <message>
+            <source>Creating schedule for %1...</source>
+            <translation>%1 일정 만드는 중...</translation>
+        </message>
+        <message>
+            <source>Executes a full rolling retrain for a scheduled model. Each window trains independently; the progress bar and per-window log below update as each window starts. Long runs can take many minutes.</source>
+            <translation>예약된 모델의 롤링 재학습 전체를 실행합니다. 윈도마다 따로 학습하며, 각 윈도가 시작될 때마다 아래 진행률 표시줄과 윈도별 로그가 갱신됩니다. 오래 걸리는 실행은 수십 분이 걸릴 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Per-window training log appears here as the run progresses...</source>
+            <translation>실행이 진행되면 윈도별 학습 로그가 여기에 표시됩니다...</translation>
+        </message>
+        <message>
+            <source>Creating and training %1 (%2 epochs) — this can take several minutes...</source>
+            <translation>%1 생성 및 학습 중(%2 에포크) — 몇 분 걸릴 수 있습니다...</translation>
+        </message>
+        <message>
+            <source>Price Data: '%1' is not numeric.</source>
+            <translation>가격 데이터: '%1'은(는) 숫자가 아닙니다.</translation>
+        </message>
+        <message>
+            <source>A %1-period window needs at least %1 prices; you provided %2.</source>
+            <translation>%1기간 윈도에는 가격이 %1개 이상 필요한데 %2개를 입력했습니다.</translation>
+        </message>
+        <message>
+            <source>Computing %1 over %2 prices...</source>
+            <translation>가격 %2개로 %1 계산 중...</translation>
+        </message>
+        <message>
+            <source>Features must be a JSON object like {"rsi":[…],"macd":[…]} — %1</source>
+            <translation>특성은 {"rsi":[…],"macd":[…]} 같은 JSON 객체여야 합니다 — %1</translation>
+        </message>
+        <message>
+            <source>Enter the target return series.</source>
+            <translation>목표 수익률 시계열을 입력하세요.</translation>
+        </message>
+        <message>
+            <source>IC ranking needs at least 10 paired observations; you provided %1 returns.</source>
+            <translation>IC 순위에는 짝지어진 관측치가 10개 이상 필요한데 수익률 %1개를 입력했습니다.</translation>
+        </message>
+        <message>
+            <source>Ranking %1 feature(s) by IC...</source>
+            <translation>특성 %1개를 IC로 순위 매기는 중...</translation>
+        </message>
+        <message>
+            <source>OHLCV Data must be a JSON object like {"close":[…],"volume":[…]} — %1</source>
+            <translation>OHLCV 데이터는 {"close":[…],"volume":[…]} 같은 JSON 객체여야 합니다 — %1</translation>
+        </message>
+        <message>
+            <source>Enter an expression, e.g. Mean(close, 5) / Std(close, 20).</source>
+            <translation>수식을 입력하세요. 예: Mean(close, 5) / Std(close, 20).</translation>
+        </message>
+        <message>
+            <source>Evaluating %1...</source>
+            <translation>%1 계산 중...</translation>
+        </message>
+        <message>
+            <source>Annualised covariance matrix (decimals), JSON: [[0.04,0.01],[0.01,0.09]]</source>
+            <translation>연율화 공분산 행렬(소수), JSON: [[0.04,0.01],[0.01,0.09]]</translation>
+        </message>
+        <message>
+            <source>Annual expected returns as decimals (e.g. 0.10,0.15,0.12)</source>
+            <translation>연간 기대수익률(소수, 예: 0.10,0.15,0.12)</translation>
+        </message>
+        <message>
+            <source>3 synthetic assets: annualised vols 20% / 15% / 8%, mild correlations.</source>
+            <translation>합성 자산 3개: 연율화 변동성 20% / 15% / 8%, 약한 상관관계.</translation>
+        </message>
+        <message>
+            <source>Enter at least two asset names, e.g. AAPL,GOOG,MSFT.</source>
+            <translation>자산 이름을 2개 이상 입력하세요. 예: AAPL,GOOG,MSFT.</translation>
+        </message>
+        <message>
+            <source>Covariance Matrix must be a JSON 2-D array like [[0.04,0.01],[0.01,0.09]] — %1</source>
+            <translation>공분산 행렬은 [[0.04,0.01],[0.01,0.09]] 같은 JSON 2차원 배열이어야 합니다 — %1</translation>
+        </message>
+        <message>
+            <source>Covariance matrix has %1 row(s) but you listed %2 assets - they must match.</source>
+            <translation>공분산 행렬은 %1행인데 자산은 %2개입니다. 두 수가 같아야 합니다.</translation>
+        </message>
+        <message>
+            <source>Covariance Matrix must be square (N×N for N assets): %1</source>
+            <translation>공분산 행렬은 정사각 행렬이어야 합니다(자산 N개면 N×N): %1</translation>
+        </message>
+        <message>
+            <source>Expected Returns: '%1' is not numeric.</source>
+            <translation>기대수익률: '%1'은(는) 숫자가 아닙니다.</translation>
+        </message>
+        <message>
+            <source>Expected Returns has %1 entries but you listed %2 assets.</source>
+            <translation>기대수익률 항목은 %1개인데 자산은 %2개입니다.</translation>
+        </message>
+        <message>
+            <source>Optimising %1 assets...</source>
+            <translation>자산 %1개 최적화 중...</translation>
+        </message>
+        <message>
+            <source>Only relative size matters — they set the equilibrium (market) weights.</source>
+            <translation>상대적 크기만 의미가 있습니다. 균형(시장) 비중을 정합니다.</translation>
+        </message>
+        <message>
+            <source>Annual expected return per asset as decimals, in the order listed (e.g. 0.05,0.10)</source>
+            <translation>자산별 연간 기대수익률(소수, 나열한 순서대로, 예: 0.05,0.10)</translation>
+        </message>
+        <message>
+            <source>Confidence per view, 0–1 (e.g. 0.8,0.6)</source>
+            <translation>전망별 신뢰도, 0–1(예: 0.8,0.6)</translation>
+        </message>
+        <message>
+            <source>Enter at least two asset names.</source>
+            <translation>자산 이름을 2개 이상 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Market Caps: '%1' is not numeric.</source>
+            <translation>시가총액: '%1'은(는) 숫자가 아닙니다.</translation>
+        </message>
+        <message>
+            <source>Market Caps has %1 entries but you listed %2 assets.</source>
+            <translation>시가총액 항목은 %1개인데 자산은 %2개입니다.</translation>
+        </message>
+        <message>
+            <source>Views: '%1' is not numeric.</source>
+            <translation>전망: '%1'은(는) 숫자가 아닙니다.</translation>
+        </message>
+        <message>
+            <source>View Confidences: '%1' is not numeric.</source>
+            <translation>전망 신뢰도: '%1'은(는) 숫자가 아닙니다.</translation>
+        </message>
+        <message>
+            <source>Each view needs exactly one confidence — got %1 view(s) and %2 confidence(s).</source>
+            <translation>전망마다 신뢰도가 정확히 하나씩 필요합니다. 전망 %1개, 신뢰도 %2개를 입력했습니다.</translation>
+        </message>
+        <message>
+            <source>You gave %1 view(s) but only %2 asset(s); views map to assets in order.</source>
+            <translation>전망은 %1개인데 자산은 %2개뿐입니다. 전망은 순서대로 자산에 대응합니다.</translation>
+        </message>
+        <message>
+            <source>Covariance Matrix must be a JSON 2-D array — %1</source>
+            <translation>공분산 행렬은 JSON 2차원 배열이어야 합니다 — %1</translation>
+        </message>
+        <message>
+            <source>Blending %1 view(s) into the equilibrium prior...</source>
+            <translation>전망 %1개를 균형 사전분포에 결합하는 중...</translation>
+        </message>
+        <message>
+            <source>252 synthetic predictions</source>
+            <translation>합성 예측값 252개</translation>
+        </message>
+        <message>
+            <source>252 synthetic realised returns (independent of the predictions, so IC ≈ 0)</source>
+            <translation>합성 실현 수익률 252개(예측값과 독립이므로 IC ≈ 0)</translation>
+        </message>
+        <message>
+            <source>IC needs at least 3 paired observations; you provided %1.</source>
+            <translation>IC에는 짝지어진 관측치가 3개 이상 필요한데 %1개를 입력했습니다.</translation>
+        </message>
+        <message>
+            <source>Computing %1 IC over %2 observations...</source>
+            <translation>관측치 %2개로 %1 IC 계산 중...</translation>
+        </message>
+        <message>
+            <source>252 synthetic realised returns</source>
+            <translation>합성 실현 수익률 252개</translation>
+        </message>
+        <message>
+            <source>Need at least 3 paired observations; you provided %1.</source>
+            <translation>짝지어진 관측치가 3개 이상 필요한데 %1개를 입력했습니다.</translation>
+        </message>
+        <message>
+            <source>Scoring factor '%1' over %2 observations...</source>
+            <translation>관측치 %2개로 팩터 '%1' 평가 중...</translation>
+        </message>
+        <message>
+            <source>unnamed</source>
+            <translation>이름 없음</translation>
+        </message>
+        <message>
+            <source>252 synthetic daily returns (mu=0.05%, sigma=1.2%)</source>
+            <translation>합성 일간 수익률 252개(mu=0.05%, sigma=1.2%)</translation>
+        </message>
+        <message>
+            <source>Risk metrics need at least 5 daily returns; you provided %1. Annualised figures only become meaningful past ~30 observations.</source>
+            <translation>리스크 지표에는 일간 수익률이 5개 이상 필요한데 %1개를 입력했습니다. 연율화 수치는 관측치가 약 30개를 넘어야 의미가 있습니다.</translation>
+        </message>
+        <message>
+            <source>Benchmark returns: '%1' is not numeric.</source>
+            <translation>벤치마크 수익률: '%1'은(는) 숫자가 아닙니다.</translation>
+        </message>
+        <message>
+            <source>Benchmark (%1) must have the same length as returns (%2).</source>
+            <translation>벤치마크(%1)는 수익률(%2)과 길이가 같아야 합니다.</translation>
+        </message>
+        <message>
+            <source>Computing risk metrics over %1 observations...</source>
+            <translation>관측치 %1개로 리스크 지표 계산 중...</translation>
+        </message>
+        <message>
+            <source>Signal: '%1' is not numeric.</source>
+            <translation>신호: '%1'은(는) 숫자가 아닙니다.</translation>
+        </message>
+        <message>
+            <source>Enter the cross-sectional signal values.</source>
+            <translation>횡단면 신호 값을 입력하세요.</translation>
+        </message>
+        <message>
+            <source>N-Drop (%1) must be smaller than Top-K (%2).</source>
+            <translation>N-Drop(%1)은 Top-K(%2)보다 작아야 합니다.</translation>
+        </message>
+        <message>
+            <source>Building TopK-Dropout over %1 names...</source>
+            <translation>종목 %1개로 TopK-Dropout 구성 중...</translation>
+        </message>
+        <message>
+            <source>DAILY returns as decimals, one row per day, one column per asset: [[0.01,-0.02],[0.00,0.01]]</source>
+            <translation>일간 수익률(소수), 하루에 한 행, 자산마다 한 열: [[0.01,-0.02],[0.00,0.01]]</translation>
+        </message>
+        <message>
+            <source>Annualised portfolio volatility the risk-parity weights are scaled to.</source>
+            <translation>리스크 패리티 비중을 맞출 연율화 포트폴리오 변동성입니다.</translation>
+        </message>
+        <message>
+            <source>Target Vol (ann.)</source>
+            <translation>목표 변동성(연율)</translation>
+        </message>
+        <message>
+            <source>Returns Matrix must be a JSON 2-D array like [[0.01,-0.02],[0.00,0.01]] — %1</source>
+            <translation>수익률 행렬은 [[0.01,-0.02],[0.00,0.01]] 같은 JSON 2차원 배열이어야 합니다 — %1</translation>
+        </message>
+        <message>
+            <source>Returns Matrix must contain at least one row of per-asset returns.</source>
+            <translation>수익률 행렬에는 자산별 수익률 행이 하나 이상 있어야 합니다.</translation>
+        </message>
+        <message>
+            <source>Returns Matrix: %1 Every row needs one return per asset.</source>
+            <translation>수익률 행렬: %1 행마다 자산별 수익률이 하나씩 있어야 합니다.</translation>
+        </message>
+        <message>
+            <source>Risk parity needs at least 2 assets (columns) and 3 periods (rows); got %1 × %2.</source>
+            <translation>리스크 패리티에는 자산(열) 2개 이상, 기간(행) 3개 이상이 필요합니다. 입력: %1 × %2.</translation>
+        </message>
+        <message>
+            <source>Solving risk parity over %1 period(s)...</source>
+            <translation>%1개 기간으로 리스크 패리티 계산 중...</translation>
+        </message>
+        <message>
+            <source>252 synthetic daily portfolio returns</source>
+            <translation>합성 일간 포트폴리오 수익률 252개</translation>
+        </message>
+        <message>
+            <source>Portfolio metrics need at least 5 daily returns; you provided %1. Annualised Sharpe/Sortino/Calmar only become meaningful past ~30 observations.</source>
+            <translation>포트폴리오 지표에는 일간 수익률이 5개 이상 필요한데 %1개를 입력했습니다. 연율화 샤프·소르티노·칼마지수는 관측치가 약 30개를 넘어야 의미가 있습니다.</translation>
+        </message>
+        <message>
+            <source>Computing portfolio metrics over %1 observations...</source>
+            <translation>관측치 %1개로 포트폴리오 지표 계산 중...</translation>
+        </message>
+        <message>
+            <source>Loading processor catalog...</source>
+            <translation>프로세서 목록 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Enter a pipeline ID — you need it to run PROCESS DATA later.</source>
+            <translation>파이프라인 ID를 입력하세요. 나중에 데이터 처리를 실행할 때 필요합니다.</translation>
+        </message>
+        <message>
+            <source>Processors must be a non-empty JSON array like [{"type":"zscore"}] — %1</source>
+            <translation>프로세서는 [{"type":"zscore"}] 같은 비어 있지 않은 JSON 배열이어야 합니다 — %1</translation>
+        </message>
+        <message>
+            <source>Creating pipeline '%1' with %2 stage(s)...</source>
+            <translation>단계 %2개로 파이프라인 '%1' 만드는 중...</translation>
+        </message>
+        <message>
+            <source>Enter the ID of a pipeline you created in the Create Pipeline tab.</source>
+            <translation>파이프라인 만들기 탭에서 만든 파이프라인의 ID를 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Data must be a non-empty JSON object of column → values — %1</source>
+            <translation>데이터는 열 → 값 형태의 비어 있지 않은 JSON 객체여야 합니다 — %1</translation>
+        </message>
+        <message>
+            <source>Running pipeline '%1' over %2 column(s)...</source>
+            <translation>열 %2개로 파이프라인 '%1' 실행 중...</translation>
+        </message>
+        <message>
+            <source>Enter the Model ID printed by TRAIN MODEL.</source>
+            <translation>모델 학습이 출력한 모델 ID를 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Backtesting %1 on %2 instrument(s)...</source>
+            <translation>종목 %2개로 %1 백테스트 중...</translation>
+        </message>
+        <message>
+            <source>e.g. AAPL — daily bars fetched from Yahoo Finance</source>
+            <translation>예: AAPL — Yahoo Finance에서 일봉을 가져옵니다</translation>
+        </message>
+        <message>
+            <source>Enter a ticker (e.g. AAPL, SPY, MSFT) before training.</source>
+            <translation>학습하기 전에 티커(예: AAPL, SPY, MSFT)를 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Training %1 on %2 — this can take several minutes.</source>
+            <translation>%2에서 %1 학습 중 — 몇 분 걸릴 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Nested fields (see raw JSON): %1</source>
+            <translation>중첩 필드(원본 JSON 참고): %1</translation>
+        </message>
+        <message>
+            <source>%1  |  empty</source>
+            <translation>%1  |  비어 있음</translation>
+        </message>
+        <message>
+            <source>first %1 of %2 rows</source>
+            <translation>%2행 중 처음 %1행</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n row(s)</source>
+            <translation>
+                <numerusform>%n행</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>%1  |  series of %2 values</source>
+            <translation>%1  |  값 %2개 시계열</translation>
+        </message>
+        <message>
+            <source>Count</source>
+            <translation>개수</translation>
+        </message>
+        <message numerus="yes">
+            <source>%1  |  %n item(s)</source>
+            <translation>
+                <numerusform>%1  |  항목 %n개</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source> … (+%1 more)</source>
+            <translation> … (외 %1개)</translation>
+        </message>
+        <message>
+            <source>SHOW RAW JSON</source>
+            <translation>원본 JSON 보기</translation>
+        </message>
+        <message>
+            <source>HIDE RAW JSON</source>
+            <translation>원본 JSON 숨기기</translation>
+        </message>
+        <message>
+            <source>Exported to File Manager: %1</source>
+            <translation>파일 관리자로 내보냈습니다: %1</translation>
+        </message>
+        <message>
+            <source>Export failed: %1</source>
+            <translation>내보내기 실패: %1</translation>
+        </message>
+        <message>
+            <source>SAMPLE INPUT — computed on generated (synthetic) data from LOAD SYNTHETIC SAMPLE, not on market data. Replace the inputs with your own series for a real analysis.</source>
+            <translation>샘플 입력 — 시장 데이터가 아니라 합성 샘플 불러오기로 생성한 데이터로 계산했습니다. 실제 분석을 하려면 입력을 직접 가진 시계열로 바꾸세요.</translation>
+        </message>
+        <message>
+            <source>Deep analysis failed:
+
+%1</source>
+            <translation>심층 분석 실패:
+
+%1</translation>
+        </message>
+        <message>
+            <source>%1 task(s) · auto-refreshing every 5 s</source>
+            <translation>작업 %1개 · 5초마다 자동 새로고침</translation>
+        </message>
+        <message>
+            <source>%1 optimized model(s)</source>
+            <translation>최적화된 모델 %1개</translation>
+        </message>
+        <message>
+            <source>The log viewer did not report a URL.</source>
+            <translation>로그 뷰어가 URL을 알려 주지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>Quotes</source>
+            <translation>호가</translation>
+        </message>
+        <message>
+            <source>Toxic flow</source>
+            <translation>독성 주문흐름</translation>
+        </message>
+        <message>
+            <source>Slippage</source>
+            <translation>슬리피지</translation>
+        </message>
+        <message>
+            <source>Analysis incomplete — %1</source>
+            <translation>분석 미완료 — %1</translation>
+        </message>
+        <message>
+            <source>OUT-OF-SAMPLE EVALUATION  |  %1  |  %2 → %3</source>
+            <translation>표본 외 평가  |  %1  |  %2 → %3</translation>
+        </message>
+        <message>
+            <source>AGENT RETURN</source>
+            <translation>에이전트 수익률</translation>
+        </message>
+        <message>
+            <source>BUY &amp; HOLD</source>
+            <translation>매수 후 보유</translation>
+        </message>
+        <message>
+            <source>EXCESS VS HOLD</source>
+            <translation>보유 대비 초과수익</translation>
+        </message>
+        <message>
+            <source>TRAIN BARS</source>
+            <translation>학습 봉 수</translation>
+        </message>
+        <message>
+            <source>TEST BARS</source>
+            <translation>테스트 봉 수</translation>
+        </message>
+        <message>
+            <source>EVAL EPISODES</source>
+            <translation>평가 에피소드</translation>
+        </message>
+        <message>
+            <source>Model saved to %1</source>
+            <translation>모델을 %1에 저장했습니다</translation>
+        </message>
+        <message>
+            <source>EXCESS ANN. RETURN</source>
+            <translation>연율화 초과수익률</translation>
+        </message>
+        <message>
+            <source>AVG DAILY TURNOVER</source>
+            <translation>일평균 회전율</translation>
+        </message>
+        <message>
+            <source>TRADING DAYS</source>
+            <translation>거래일 수</translation>
+        </message>
+        <message>
+            <source>%1  |  top-%2, drop %3  |  %4 → %5  |  benchmark: %6</source>
+            <translation>%1  |  상위 %2, 제외 %3  |  %4 → %5  |  벤치마크: %6</translation>
+        </message>
+        <message>
+            <source>Backtest: return %1  |  Sharpe %2</source>
+            <translation>백테스트: 수익률 %1  |  샤프지수 %2</translation>
+        </message>
+        <message>
+            <source>TOP FACTORS</source>
+            <translation>상위 팩터</translation>
+        </message>
+        <message>
+            <source>FACTORS TESTED</source>
+            <translation>검정한 팩터 수</translation>
+        </message>
+        <message>
+            <source>%1 → %2</source>
+            <translation>%1 → %2</translation>
+        </message>
+        <message>
+            <source>Loading Qlib factor library...</source>
+            <translation>Qlib 팩터 라이브러리 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Loading instrument universe...</source>
+            <translation>종목 유니버스 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Start date (%1) is after end date (%2).</source>
+            <translation>시작일(%1)이 종료일(%2)보다 뒤입니다.</translation>
+        </message>
+        <message>
+            <source>Loading trading calendar %1 → %2...</source>
+            <translation>거래일 달력 불러오는 중 %1 → %2...</translation>
+        </message>
+        <message>
+            <source>Loading Qlib model catalog...</source>
+            <translation>Qlib 모델 목록 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Checking Qlib runtime status...</source>
+            <translation>Qlib 런타임 상태 확인 중...</translation>
+        </message>
+        <message>
+            <source>Training %1 on %2 instrument(s) — this can take several minutes...</source>
+            <translation>종목 %2개로 %1 학습 중 — 몇 분 걸릴 수 있습니다...</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::QuantStatsView</name>
@@ -28797,6 +38941,14 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
             <source>Complete — %1 paths simulated</source>
             <translation>완료 — 경로 %1개 시뮬레이션됨</translation>
         </message>
+        <message>
+            <source>Excess Kurtosis</source>
+            <translation>초과 첨도</translation>
+        </message>
+        <message>
+            <source>EXCESS KURTOSIS</source>
+            <translation>초과 첨도</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::RegisterScreen</name>
@@ -28927,6 +39079,98 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         <message>
             <source>Enter the verification code</source>
             <translation>인증 코드를 입력하세요</translation>
+        </message>
+        <message>
+            <source>A verification code was sent to %1. Enter it below to activate your account.</source>
+            <translation>%1(으)로 인증 코드를 보냈습니다. 아래에 입력하여 계정을 활성화하세요.</translation>
+        </message>
+        <message>
+            <source>First name</source>
+            <translation>이름</translation>
+        </message>
+        <message>
+            <source>Last name</source>
+            <translation>성</translation>
+        </message>
+        <message>
+            <source>Username</source>
+            <translation>사용자 이름</translation>
+        </message>
+        <message>
+            <source>Email address</source>
+            <translation>이메일 주소</translation>
+        </message>
+        <message>
+            <source>Country calling code</source>
+            <translation>국가번호</translation>
+        </message>
+        <message>
+            <source>Phone number</source>
+            <translation>전화번호</translation>
+        </message>
+        <message>
+            <source>Password</source>
+            <translation>비밀번호</translation>
+        </message>
+        <message>
+            <source>Confirm password</source>
+            <translation>비밀번호 확인</translation>
+        </message>
+        <message>
+            <source>Create account</source>
+            <translation>계정 만들기</translation>
+        </message>
+        <message>
+            <source>Go to sign in</source>
+            <translation>로그인으로 이동</translation>
+        </message>
+        <message>
+            <source>Registration error</source>
+            <translation>가입 오류</translation>
+        </message>
+        <message>
+            <source>Email verification code</source>
+            <translation>이메일 인증 코드</translation>
+        </message>
+        <message>
+            <source>Verification error</source>
+            <translation>인증 오류</translation>
+        </message>
+        <message>
+            <source>Verify email</source>
+            <translation>이메일 인증</translation>
+        </message>
+        <message>
+            <source>Resend verification code</source>
+            <translation>인증 코드 다시 보내기</translation>
+        </message>
+        <message>
+            <source>Back to the registration form</source>
+            <translation>가입 양식으로 돌아가기</translation>
+        </message>
+        <message>
+            <source>USERNAME</source>
+            <translation>사용자 이름</translation>
+        </message>
+        <message>
+            <source>3-50 chars, letters/numbers/_</source>
+            <translation>3~50자, 영문/숫자/_</translation>
+        </message>
+        <message>
+            <source>RESEND IN %1s</source>
+            <translation>%1초 후 다시 보내기</translation>
+        </message>
+        <message>
+            <source>Username may only contain letters, numbers, and underscores</source>
+            <translation>사용자 이름에는 영문, 숫자, 밑줄(_)만 사용할 수 있습니다</translation>
+        </message>
+        <message>
+            <source>Email is required</source>
+            <translation>이메일을 입력하세요</translation>
+        </message>
+        <message>
+            <source>Invalid email format</source>
+            <translation>이메일 형식이 올바르지 않습니다</translation>
         </message>
     </context>
     <context>
@@ -29091,6 +39335,42 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
             <source>QUALITY: %1%</source>
             <translation>데이터 품질: %1%</translation>
         </message>
+        <message>
+            <source>Search assets</source>
+            <translation>종목 검색</translation>
+        </message>
+        <message>
+            <source>Asset suggestions</source>
+            <translation>종목 검색 제안</translation>
+        </message>
+        <message>
+            <source>Zoom %1% — click to fit (Home)</source>
+            <translation>확대/축소 %1% — 클릭하면 화면에 맞춤(Home)</translation>
+        </message>
+        <message>
+            <source>Error: %1 — press ANALYZE to retry</source>
+            <translation>오류: %1 — 다시 시도하려면 분석을 누르세요</translation>
+        </message>
+        <message>
+            <source>NO DATA</source>
+            <translation>데이터 없음</translation>
+        </message>
+        <message>
+            <source>Rel. value</source>
+            <translation>상대가치</translation>
+        </message>
+        <message>
+            <source>%1 (P/E %2x peer median, %3 peers)</source>
+            <translation>%1 (PER 동종업체 중앙값의 %2배, 동종업체 %3개)</translation>
+        </message>
+        <message>
+            <source>OPEN IN EQUITY RESEARCH</source>
+            <translation>주식 리서치에서 열기</translation>
+        </message>
+        <message>
+            <source>RE-CENTER MAP ON %1</source>
+            <translation>%1 중심으로 관계도 다시 그리기</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::RelationshipPanel</name>
@@ -29117,6 +39397,34 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         <message>
             <source>datasets</source>
             <translation>데이터 세트</translation>
+        </message>
+        <message>
+            <source>SAMPLE DATA</source>
+            <translation>예시 데이터</translation>
+        </message>
+        <message>
+            <source>Illustrative network — not sourced from a live data feed.</source>
+            <translation>예시 관계망 — 실시간 데이터 피드에서 가져온 데이터가 아닙니다.</translation>
+        </message>
+        <message>
+            <source>Sample data — this relationship network is illustrative and is not sourced from a live feed. Severities and connections are placeholders, not real-time conflict metrics. Click a conflict or crisis card for its live events and HDX datasets.</source>
+            <translation>예시 데이터 — 이 관계망은 예시이며 실시간 피드에서 가져온 것이 아닙니다. 심각도와 연결은 임시 값이며 실시간 분쟁 지표가 아닙니다. 분쟁이나 위기 카드를 클릭하면 실시간 이벤트와 HDX 데이터셋을 볼 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Click for related events and HDX datasets</source>
+            <translation>관련 이벤트와 HDX 데이터셋을 보려면 클릭하세요</translation>
+        </message>
+        <message>
+            <source>Show %1 events in Monitor</source>
+            <translation>모니터에서 %1 이벤트 보기</translation>
+        </message>
+        <message>
+            <source>Browse %1 datasets on HDX</source>
+            <translation>HDX에서 %1 데이터셋 둘러보기</translation>
+        </message>
+        <message>
+            <source>Browse HDX datasets: %1</source>
+            <translation>HDX 데이터셋 둘러보기: %1</translation>
         </message>
     </context>
     <context>
@@ -29454,6 +39762,80 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
         <message>
             <source>Failed to start PDF painter.</source>
             <translation>PDF 페인터를 시작하지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>Refresh Data</source>
+            <translation>데이터 새로고침</translation>
+        </message>
+        <message>
+            <source>Fetch fresh quotes for every market-data block (stamped with the time)</source>
+            <translation>모든 시장 데이터 블록의 최신 시세를 가져옵니다(조회 시각 표시)</translation>
+        </message>
+        <message>
+            <source>Export HTML</source>
+            <translation>HTML 내보내기</translation>
+        </message>
+        <message>
+            <source>Self-contained web page: charts and images embedded</source>
+            <translation>단일 웹 페이지: 차트와 이미지 포함</translation>
+        </message>
+        <message>
+            <source>Undo last change</source>
+            <translation>마지막 변경 실행 취소</translation>
+        </message>
+        <message>
+            <source>Redo last change</source>
+            <translation>마지막 변경 다시 실행</translation>
+        </message>
+        <message>
+            <source>Open a saved report</source>
+            <translation>저장된 보고서 열기</translation>
+        </message>
+        <message>
+            <source>Save this report</source>
+            <translation>이 보고서 저장</translation>
+        </message>
+        <message>
+            <source>Export this report as PDF</source>
+            <translation>이 보고서를 PDF로 내보내기</translation>
+        </message>
+        <message>
+            <source>Print preview</source>
+            <translation>인쇄 미리보기</translation>
+        </message>
+        <message>
+            <source>Save  (Ctrl+S)</source>
+            <translation>저장  (Ctrl+S)</translation>
+        </message>
+        <message>
+            <source>Open  (Ctrl+O)</source>
+            <translation>열기  (Ctrl+O)</translation>
+        </message>
+        <message>
+            <source>Preview  (Ctrl+P)</source>
+            <translation>미리보기  (Ctrl+P)</translation>
+        </message>
+        <message>
+            <source>Failed to export the report to:
+%1</source>
+            <translation>보고서를 다음 위치로 내보내지 못했습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>Web page (*.html)</source>
+            <translation>웹 페이지 (*.html)</translation>
+        </message>
+        <message>
+            <source>The current report has unsaved changes.
+
+Discard them?</source>
+            <translation>현재 보고서에 저장하지 않은 변경 사항이 있습니다.
+
+변경 사항을 버리시겠습니까?</translation>
+        </message>
+        <message>
+            <source>no quote received within 20 s</source>
+            <translation>20초 안에 시세를 받지 못함</translation>
         </message>
     </context>
     <context>
@@ -29814,6 +40196,54 @@ distributions of future returns, drawdowns, and terminal wealth.</source>
             <source>LOW</source>
             <translation>낮음</translation>
         </message>
+        <message>
+            <source>P&amp;L IMPACT</source>
+            <translation>손익 영향</translation>
+        </message>
+        <message>
+            <source>Waiting for price history</source>
+            <translation>가격 이력 대기 중</translation>
+        </message>
+        <message>
+            <source>1-day historical, loss</source>
+            <translation>1일 과거 데이터 기준, 손실액</translation>
+        </message>
+        <message>
+            <source>1-day expected shortfall beyond VaR</source>
+            <translation>VaR 초과 시 1일 기대손실</translation>
+        </message>
+        <message>
+            <source>ANN. VOL</source>
+            <translation>연율화 변동성</translation>
+        </message>
+        <message>
+            <source>BETA</source>
+            <translation>베타</translation>
+        </message>
+        <message>
+            <source>Ex-ante: current weights, %1 daily obs.</source>
+            <translation>사전 추정: 현재 비중, 일간 관측치 %1개</translation>
+        </message>
+        <message>
+            <source>Realised: %1 TWR periods</source>
+            <translation>실현: TWR 기간 %1개</translation>
+        </message>
+        <message>
+            <source>N/A</source>
+            <translation>해당 없음</translation>
+        </message>
+        <message>
+            <source>Ex-ante, current weights x trailing daily returns to %1 (%2 obs.). RISK CONTRIB = share of portfolio variance (Euler decomposition, sums to 100%); BETA vs %3.</source>
+            <translation>사전 추정: 현재 비중 × %1까지의 과거 일간 수익률(관측치 %2개). 리스크 기여도 = 포트폴리오 분산에서 차지하는 비율(오일러 분해, 합계 100%), 베타는 %3 대비입니다.</translation>
+        </message>
+        <message>
+            <source>Per-holding risk appears once the price-history download completes.</source>
+            <translation>가격 이력 다운로드가 끝나면 보유종목별 리스크가 표시됩니다.</translation>
+        </message>
+        <message>
+            <source>no data</source>
+            <translation>데이터 없음</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::RssFeedEditDialog</name>
@@ -29960,6 +40390,18 @@ Save the feed anyway?</source>
         <message>
             <source>The last URL test didn't return valid RSS. Save anyway?</source>
             <translation>최근 URL 테스트 결과가 유효한 RSS가 아닙니다. 그래도 저장하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>A feed's ID cannot be changed after it is created.</source>
+            <translation>피드 ID는 만든 후에 변경할 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>ID already in use</source>
+            <translation>이미 사용 중인 ID</translation>
+        </message>
+        <message>
+            <source>A feed with the ID "%1" already exists. Choose a different ID.</source>
+            <translation>ID가 "%1"인 피드가 이미 있습니다. 다른 ID를 입력하세요.</translation>
         </message>
     </context>
     <context>
@@ -30128,6 +40570,18 @@ Save the feed anyway?</source>
             <source>Test unclear.</source>
             <translation>테스트 결과 불확실.</translation>
         </message>
+        <message>
+            <source>%1: OK</source>
+            <translation>%1: 정상</translation>
+        </message>
+        <message>
+            <source>%1: failed</source>
+            <translation>%1: 실패</translation>
+        </message>
+        <message>
+            <source>Test — %1</source>
+            <translation>테스트 — %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::ScannerPanel</name>
@@ -30246,6 +40700,26 @@ Save the feed anyway?</source>
         <message>
             <source>Error [%1]: %2</source>
             <translation>오류 [%1]: %2</translation>
+        </message>
+        <message>
+            <source>RANGE</source>
+            <translation>범위</translation>
+        </message>
+        <message>
+            <source>+ CREATE ALERT</source>
+            <translation>+ 알림 만들기</translation>
+        </message>
+        <message>
+            <source>Add a condition first.</source>
+            <translation>먼저 조건을 추가하세요.</translation>
+        </message>
+        <message>
+            <source>  ·  %1 not evaluated (hover for details)</source>
+            <translation>  ·  %1개 평가 안 됨(마우스를 올리면 자세히 표시)</translation>
+        </message>
+        <message>
+            <source> (now %1)</source>
+            <translation> (현재 %1)</translation>
         </message>
     </context>
     <context>
@@ -30496,6 +40970,30 @@ Save the feed anyway?</source>
             <source>SELL</source>
             <translation>매도</translation>
         </message>
+        <message>
+            <source>Trade date:</source>
+            <translation>거래일:</translation>
+        </message>
+        <message>
+            <source>Quantity must be greater than 0</source>
+            <translation>수량은 0보다 커야 합니다</translation>
+        </message>
+        <message>
+            <source>You only hold %1</source>
+            <translation>보유 수량은 %1뿐입니다</translation>
+        </message>
+        <message>
+            <source>Price must be greater than 0</source>
+            <translation>가격은 0보다 커야 합니다</translation>
+        </message>
+        <message>
+            <source>Quantity to sell</source>
+            <translation>매도 수량</translation>
+        </message>
+        <message>
+            <source>Sale price per share</source>
+            <translation>주당 매도가</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::SettingsScreen</name>
@@ -30582,6 +41080,14 @@ Save the feed anyway?</source>
         <message>
             <source>Cloud Sync</source>
             <translation>클라우드 동기화</translation>
+        </message>
+        <message>
+            <source>No settings match "%1".</source>
+            <translation>"%1"와(과) 일치하는 설정이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal Enterprise ↗</source>
+            <translation>Fincept Terminal Enterprise ↗</translation>
         </message>
     </context>
     <context>
@@ -30681,6 +41187,30 @@ Save the feed anyway?</source>
         <message>
             <source>affects holdings</source>
             <translation>보유 자산에 적용</translation>
+        </message>
+        <message>
+            <source>Helius API key</source>
+            <translation>Helius API 키</translation>
+        </message>
+        <message>
+            <source>Save Helius API key</source>
+            <translation>Helius API 키 저장</translation>
+        </message>
+        <message>
+            <source>Remove stored Helius API key</source>
+            <translation>저장된 Helius API 키 삭제</translation>
+        </message>
+        <message>
+            <source>Maximum price drift PumpSwap may fill your swap at before it reverts. Applies to every swap on the TRADE tab — there is no per-swap override. PumpPortal accepts whole percents only, so the value is rounded up to the next percent and clamped to 5%.</source>
+            <translation>PumpSwap이 스왑을 되돌리기 전까지 허용하는 최대 가격 변동폭입니다. 거래 탭의 모든 스왑에 적용되며 스왑별로 바꿀 수 없습니다. PumpPortal은 정수 퍼센트만 받으므로 값은 다음 정수 퍼센트로 올림하고 최대 5%로 제한합니다.</translation>
+        </message>
+        <message>
+            <source>Default swap slippage tolerance</source>
+            <translation>기본 스왑 슬리피지 허용치</translation>
+        </message>
+        <message>
+            <source>Saved. Balances are refreshing through the new key.</source>
+            <translation>저장했습니다. 새 키로 잔고를 새로고침하는 중입니다.</translation>
         </message>
     </context>
     <context>
@@ -30849,6 +41379,150 @@ You can wait or skip and continue with limited functionality.</source>
             <source>Everything is installed and ready to go.</source>
             <translation>모든 항목이 설치되어 사용할 준비가 되었습니다.</translation>
         </message>
+        <message>
+            <source>Fincept Terminal — First-Time Setup</source>
+            <translation>Fincept Terminal — 초기 설정</translation>
+        </message>
+        <message>
+            <source>FINCEPT TERMINAL — FIRST-TIME SETUP</source>
+            <translation>FINCEPT TERMINAL — 초기 설정</translation>
+        </message>
+        <message>
+            <source>QUIT</source>
+            <translation>종료</translation>
+        </message>
+        <message>
+            <source>RUNTIME</source>
+            <translation>런타임</translation>
+        </message>
+        <message>
+            <source>TRADING LIBRARIES</source>
+            <translation>트레이딩 라이브러리</translation>
+        </message>
+        <message>
+            <source>ANALYTICS CORE</source>
+            <translation>분석 핵심 라이브러리</translation>
+        </message>
+        <message>
+            <source>ANALYTICS FULL</source>
+            <translation>분석 전체 라이브러리</translation>
+        </message>
+        <message>
+            <source>uv package manager + Python 3.11</source>
+            <translation>uv 패키지 관리자 + Python 3.11</translation>
+        </message>
+        <message>
+            <source>Backtesting and portfolio tools (NumPy 1.x environment)</source>
+            <translation>백테스트 및 포트폴리오 도구(NumPy 1.x 환경)</translation>
+        </message>
+        <message>
+            <source>Market data, news and research essentials — unlocks LAUNCH</source>
+            <translation>시장 데이터, 뉴스, 리서치 필수 구성 — 설치되면 터미널 실행 가능</translation>
+        </message>
+        <message>
+            <source>Machine learning, AI agents and quant libraries — finishes in the background</source>
+            <translation>머신러닝, AI 에이전트, 퀀트 라이브러리 — 백그라운드에서 설치 완료</translation>
+        </message>
+        <message>
+            <source>Already installed</source>
+            <translation>이미 설치됨</translation>
+        </message>
+        <message>
+            <source>WAITING</source>
+            <translation>대기 중</translation>
+        </message>
+        <message>
+            <source>RUNNING</source>
+            <translation>진행 중</translation>
+        </message>
+        <message>
+            <source>INSTALLED</source>
+            <translation>설치됨</translation>
+        </message>
+        <message>
+            <source>ELAPSED %1</source>
+            <translation>경과 %1</translation>
+        </message>
+        <message>
+            <source>Part of the Python environment is already in place — only the missing pieces are installed.</source>
+            <translation>Python 환경 일부가 이미 설치되어 있습니다 — 누락된 항목만 설치합니다.</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal installs its own Python runtime and analytics libraries once. Later launches start instantly.</source>
+            <translation>Fincept Terminal은 전용 Python 런타임과 분석 라이브러리를 한 번만 설치합니다. 이후에는 바로 실행됩니다.</translation>
+        </message>
+        <message>
+            <source>Needs an internet connection. The terminal opens as soon as the analytics core is installed; the remaining libraries finish in the background.</source>
+            <translation>인터넷 연결이 필요합니다. 분석 핵심 라이브러리가 설치되면 바로 터미널이 열리고, 나머지 라이브러리는 백그라운드에서 설치됩니다.</translation>
+        </message>
+        <message>
+            <source>LAUNCH TERMINAL</source>
+            <translation>터미널 실행</translation>
+        </message>
+        <message>
+            <source>The analytics core is ready — you can start using the terminal now.</source>
+            <translation>분석 핵심 라이브러리가 준비되었습니다 — 이제 터미널을 사용할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Remaining analytics libraries keep installing in the background.</source>
+            <translation>나머지 분석 라이브러리는 백그라운드에서 계속 설치됩니다.</translation>
+        </message>
+        <message>
+            <source>INSTALLING…</source>
+            <translation>설치 중…</translation>
+        </message>
+        <message>
+            <source>Installing the Python runtime and the analytics core…</source>
+            <translation>Python 런타임과 분석 핵심 라이브러리 설치 중…</translation>
+        </message>
+        <message>
+            <source>LAUNCH TERMINAL unlocks as soon as the analytics core is installed.</source>
+            <translation>분석 핵심 라이브러리가 설치되면 바로 터미널 실행 버튼이 활성화됩니다.</translation>
+        </message>
+        <message>
+            <source>Everything is installed.</source>
+            <translation>모두 설치되었습니다.</translation>
+        </message>
+        <message>
+            <source>Launching Fincept Terminal…</source>
+            <translation>Fincept Terminal 실행 중…</translation>
+        </message>
+        <message>
+            <source>Some libraries could not be installed — the terminal can still launch.</source>
+            <translation>일부 라이브러리를 설치하지 못했습니다 — 터미널은 실행할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Retry now, or later from the PYTHON ENV indicator in the status bar.</source>
+            <translation>지금 다시 시도하거나, 나중에 상태 표시줄의 Python 환경 표시에서 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Setup did not finish — the details are below.</source>
+            <translation>설정을 완료하지 못했습니다 — 자세한 내용은 아래와 같습니다.</translation>
+        </message>
+        <message>
+            <source>A retry resumes where it stopped: everything already downloaded is cached.</source>
+            <translation>다시 시도하면 멈춘 곳부터 이어서 진행합니다. 이미 다운로드한 항목은 캐시되어 있습니다.</translation>
+        </message>
+        <message>
+            <source>Retry failed steps</source>
+            <translation>실패한 단계 다시 시도</translation>
+        </message>
+        <message>
+            <source>Continue without Python (limited)</source>
+            <translation>Python 없이 계속(기능 제한)</translation>
+        </message>
+        <message>
+            <source>NETWORK ↓ %1</source>
+            <translation>네트워크 ↓ %1</translation>
+        </message>
+        <message>
+            <source>Quit Fincept Terminal</source>
+            <translation>Fincept Terminal 종료</translation>
+        </message>
+        <message>
+            <source>Setup is still running. Quit Fincept Terminal?</source>
+            <translation>설정이 아직 진행 중입니다. Fincept Terminal을 종료하시겠습니까?</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::SpreadsheetWidget</name>
@@ -30891,6 +41565,112 @@ You can wait or skip and continue with limited functionality.</source>
         <message>
             <source>Clear Cell</source>
             <translation>셀 지우기</translation>
+        </message>
+        <message>
+            <source>The built-in engine can't evaluate this formula (%1). Showing the value saved in the file — it will not update when its inputs change.</source>
+            <translation>내장 엔진으로 이 수식(%1)을 계산할 수 없습니다. 파일에 저장된 값을 표시하며, 입력값이 바뀌어도 갱신되지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Type a value or a formula starting with = and press Enter.
+Functions: %1</source>
+            <translation>값이나 =로 시작하는 수식을 입력하고 Enter를 누르세요.
+함수: %1</translation>
+        </message>
+        <message>
+            <source>Spreadsheet grid</source>
+            <translation>스프레드시트 표</translation>
+        </message>
+        <message>
+            <source>Formula bar</source>
+            <translation>수식 입력줄</translation>
+        </message>
+        <message>
+            <source>Active cell reference</source>
+            <translation>활성 셀 참조</translation>
+        </message>
+        <message>
+            <source>Edit %1</source>
+            <translation>%1 편집</translation>
+        </message>
+        <message>
+            <source>%1+ cells selected</source>
+            <translation>셀 %1개 이상 선택됨</translation>
+        </message>
+        <message>
+            <source>COUNT %1</source>
+            <translation>개수 %1</translation>
+        </message>
+        <message>
+            <source>SUM %1  ·  AVG %2  ·  %3</source>
+            <translation>합계 %1  ·  평균 %2  ·  %3</translation>
+        </message>
+        <message>
+            <source>Undo %1</source>
+            <translation>%1 실행 취소</translation>
+        </message>
+        <message>
+            <source>Redo %1</source>
+            <translation>%1 다시 실행</translation>
+        </message>
+        <message>
+            <source>Paste Values</source>
+            <translation>값만 붙여넣기</translation>
+        </message>
+        <message>
+            <source>Clear Cells</source>
+            <translation>셀 지우기</translation>
+        </message>
+        <message>
+            <source>Find…</source>
+            <translation>찾기…</translation>
+        </message>
+        <message numerus="yes">
+            <source>Insert %n row(s)</source>
+            <translation>
+                <numerusform>행 %n개 삽입</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>Delete %n row(s)</source>
+            <translation>
+                <numerusform>행 %n개 삭제</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>Insert %n column(s)</source>
+            <translation>
+                <numerusform>열 %n개 삽입</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>Delete %n column(s)</source>
+            <translation>
+                <numerusform>열 %n개 삭제</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Delete rows</source>
+            <translation>행 삭제</translation>
+        </message>
+        <message>
+            <source>Delete columns</source>
+            <translation>열 삭제</translation>
+        </message>
+        <message>
+            <source>Paste values</source>
+            <translation>값만 붙여넣기</translation>
+        </message>
+        <message>
+            <source>Clear</source>
+            <translation>지우기</translation>
+        </message>
+        <message>
+            <source>Find</source>
+            <translation>찾기</translation>
+        </message>
+        <message>
+            <source>Find text:</source>
+            <translation>찾을 텍스트:</translation>
         </message>
     </context>
     <context>
@@ -31194,6 +41974,172 @@ Are you absolutely sure?</source>
             <translation>모든 데이터가 영구 삭제됩니다.
 정말 삭제하시겠습니까?</translation>
         </message>
+        <message>
+            <source>Manage all persistent data, databases, and files. Inspect terminal databases with the read-only SQL console.</source>
+            <translation>모든 영구 데이터, 데이터베이스, 파일을 관리합니다. 읽기 전용 SQL 콘솔로 터미널 데이터베이스를 조회할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>%1 failed:
+%2</source>
+            <translation>%1 실패:
+%2</translation>
+        </message>
+        <message>
+            <source>Clear the "%1" cache category</source>
+            <translation>"%1" 캐시 카테고리 지우기</translation>
+        </message>
+        <message>
+            <source>SQL CONSOLE (READ-ONLY)</source>
+            <translation>SQL 콘솔(읽기 전용)</translation>
+        </message>
+        <message>
+            <source>Read-only inspection: SELECT, WITH, VALUES, EXPLAIN and schema PRAGMAs. Credential tables are blocked and secret-looking values are masked. Shows the first %1 rows.</source>
+            <translation>읽기 전용 조회: SELECT, WITH, VALUES, EXPLAIN, 스키마 PRAGMA를 쓸 수 있습니다. 인증 정보 테이블은 차단되고 비밀값으로 보이는 값은 가려집니다. 처음 %1행만 표시합니다.</translation>
+        </message>
+        <message>
+            <source>Database to query</source>
+            <translation>조회할 데이터베이스</translation>
+        </message>
+        <message>
+            <source>SQL statement</source>
+            <translation>SQL 문</translation>
+        </message>
+        <message>
+            <source>RUN</source>
+            <translation>실행</translation>
+        </message>
+        <message>
+            <source>Run the statement (Enter)</source>
+            <translation>SQL 문 실행(Enter)</translation>
+        </message>
+        <message>
+            <source>Permanently delete all databases, files, cache, and UI state. Encrypted API keys (Settings → Credentials) are kept.</source>
+            <translation>모든 데이터베이스, 파일, 캐시, UI 상태를 영구 삭제합니다. 암호화된 API 키(설정 → 인증 정보)는 유지됩니다.</translation>
+        </message>
+        <message>
+            <source>WARNING: This will permanently delete ALL data:
+
+  Chat history, notes, reports, watchlists
+  Portfolios, transactions, paper trades
+  Workflows, dashboard layouts
+  News articles, RSS feeds, monitors
+  Data sources, MCP servers
+  Agent configs, LLM configs &amp; profiles
+  App settings, credentials, key-value storage
+  All cache, log files, workspaces, UI state
+
+Encrypted API keys (Settings → Credentials) are NOT deleted.
+This action CANNOT be undone.</source>
+            <translation>경고: 모든 데이터가 영구 삭제됩니다:
+
+  채팅 이력, 메모, 보고서, 관심종목
+  포트폴리오, 거래 내역, 모의투자 내역
+  워크플로, 대시보드 레이아웃
+  뉴스 기사, RSS 피드, 모니터
+  데이터 소스, MCP 서버
+  에이전트 설정, LLM 설정 및 프로필
+  앱 설정, 인증 정보, 키-값 저장소
+  모든 캐시, 로그 파일, 작업 공간, UI 상태
+
+암호화된 API 키(설정 → 인증 정보)는 삭제되지 않습니다.
+이 작업은 되돌릴 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Log files</source>
+            <translation>로그 파일</translation>
+        </message>
+        <message>
+            <source>Workspace files</source>
+            <translation>작업 공간 파일</translation>
+        </message>
+        <message>
+            <source>Window &amp; UI state</source>
+            <translation>창 및 UI 상태</translation>
+        </message>
+        <message>
+            <source>All user data was deleted. Restart Fincept Terminal so every screen starts from a clean state.</source>
+            <translation>모든 사용자 데이터를 삭제했습니다. 모든 화면을 깨끗한 상태에서 시작하려면 Fincept Terminal을 다시 시작하세요.</translation>
+        </message>
+        <message>
+            <source>Some items could not be deleted:
+
+%1
+
+Restart Fincept Terminal and try again.</source>
+            <translation>일부 항목을 삭제하지 못했습니다:
+
+%1
+
+Fincept Terminal을 다시 시작한 후 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Not run — the statement has an unterminated quote.</source>
+            <translation>실행 안 함 — SQL 문에 닫히지 않은 따옴표가 있습니다.</translation>
+        </message>
+        <message>
+            <source>Not run — one statement at a time.</source>
+            <translation>실행 안 함 — 한 번에 SQL 문 하나만 실행할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Not run — the console is read-only (%1). Use SELECT, WITH, VALUES, EXPLAIN or a schema PRAGMA.</source>
+            <translation>실행 안 함 — 콘솔은 읽기 전용입니다(%1). SELECT, WITH, VALUES, EXPLAIN 또는 스키마 PRAGMA를 사용하세요.</translation>
+        </message>
+        <message>
+            <source>Not run — only read-only schema PRAGMAs are allowed (e.g. PRAGMA table_info(t)).</source>
+            <translation>실행 안 함 — 읽기 전용 스키마 PRAGMA만 허용됩니다(예: PRAGMA table_info(t)).</translation>
+        </message>
+        <message>
+            <source>Not run — %1 is not available in the console.</source>
+            <translation>실행 안 함 — 콘솔에서는 %1을(를) 사용할 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Not run — %1 stores credentials and cannot be queried here. Manage keys in Settings → Credentials.</source>
+            <translation>실행 안 함 — %1에는 인증 정보가 저장되어 있어 여기서 조회할 수 없습니다. 키는 설정 → 인증 정보에서 관리하세요.</translation>
+        </message>
+        <message>
+            <source>Not run — %1 can hold a secret. List the columns you need instead of * and leave that one out.</source>
+            <translation>실행 안 함 — %1에는 비밀값이 들어 있을 수 있습니다. * 대신 필요한 열을 나열하고 이 열은 빼세요.</translation>
+        </message>
+        <message>
+            <source>Not run — the database is not open.</source>
+            <translation>실행 안 함 — 데이터베이스가 열려 있지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Running…</source>
+            <translation>실행 중…</translation>
+        </message>
+        <message>
+            <source>OK — first %1 rows shown (more exist; add WHERE / LIMIT to narrow)</source>
+            <translation>성공 — 처음 %1행만 표시(행이 더 있습니다. WHERE / LIMIT로 범위를 좁히세요)</translation>
+        </message>
+        <message>
+            <source>OK — %1 row(s)</source>
+            <translation>성공 — 행 %1개</translation>
+        </message>
+        <message>
+            <source> · %1 value(s) masked</source>
+            <translation> · 값 %1개 가림</translation>
+        </message>
+        <message>
+            <source> · %1 ms</source>
+            <translation> · %1ms</translation>
+        </message>
+        <message>
+            <source>Copied %1 row(s) to the clipboard</source>
+            <translation>행 %1개를 클립보드에 복사했습니다</translation>
+        </message>
+        <message>
+            <source>COPY</source>
+            <translation>복사</translation>
+        </message>
+        <message>
+            <source>Copy the result (masked values stay masked) as tab-separated text</source>
+            <translation>결과를 탭으로 구분한 텍스트로 복사(가린 값은 그대로 가려짐)</translation>
+        </message>
+        <message>
+            <source>Query results</source>
+            <translation>쿼리 결과</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::StrategyBuilderPanel</name>
@@ -31284,6 +42230,170 @@ Are you absolutely sure?</source>
         <message>
             <source>Backtest complete.</source>
             <translation>백테스트 완료.</translation>
+        </message>
+        <message>
+            <source>Bar timeframe the entry/exit rules evaluate on</source>
+            <translation>진입/청산 규칙을 평가할 봉 주기</translation>
+        </message>
+        <message>
+            <source>Load a ready-made strategy as a starting point</source>
+            <translation>기본 제공 전략을 불러와 시작점으로 사용</translation>
+        </message>
+        <message>
+            <source>Equity</source>
+            <translation>주식</translation>
+        </message>
+        <message>
+            <source>Option</source>
+            <translation>옵션</translation>
+        </message>
+        <message>
+            <source>Future</source>
+            <translation>선물</translation>
+        </message>
+        <message>
+            <source>Instrument type this strategy trades</source>
+            <translation>이 전략이 거래하는 상품 유형</translation>
+        </message>
+        <message>
+            <source>NEW DRAFT</source>
+            <translation>새 초안</translation>
+        </message>
+        <message>
+            <source>Save this strategy to My Strategies</source>
+            <translation>이 전략을 내 전략에 저장</translation>
+        </message>
+        <message>
+            <source>Deploy ▸</source>
+            <translation>배포 ▸</translation>
+        </message>
+        <message>
+            <source>Go live (paper or real) with this strategy</source>
+            <translation>이 전략으로 운용 시작(모의투자 또는 실전투자)</translation>
+        </message>
+        <message>
+            <source>NAME</source>
+            <translation>이름</translation>
+        </message>
+        <message>
+            <source>DESC</source>
+            <translation>설명</translation>
+        </message>
+        <message>
+            <source>TF</source>
+            <translation>주기</translation>
+        </message>
+        <message>
+            <source>TYPE</source>
+            <translation>유형</translation>
+        </message>
+        <message>
+            <source>BACKTEST SETUP</source>
+            <translation>백테스트 설정</translation>
+        </message>
+        <message>
+            <source>Symbol</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>From</source>
+            <translation>시작일</translation>
+        </message>
+        <message>
+            <source>To</source>
+            <translation>종료일</translation>
+        </message>
+        <message>
+            <source>▶  RUN BACKTEST</source>
+            <translation>▶  백테스트 실행</translation>
+        </message>
+        <message>
+            <source>RESULTS</source>
+            <translation>결과</translation>
+        </message>
+        <message>
+            <source>Underlying instrument</source>
+            <translation>기초자산</translation>
+        </message>
+        <message>
+            <source>Expiry selection rule</source>
+            <translation>만기 선택 규칙</translation>
+        </message>
+        <message>
+            <source>Weekly</source>
+            <translation>주간</translation>
+        </message>
+        <message>
+            <source>Monthly</source>
+            <translation>월간</translation>
+        </message>
+        <message>
+            <source>Nearest DTE</source>
+            <translation>최근접 잔존만기</translation>
+        </message>
+        <message>
+            <source>Absolute</source>
+            <translation>만기일 지정</translation>
+        </message>
+        <message>
+            <source>Underlying</source>
+            <translation>기초자산</translation>
+        </message>
+        <message>
+            <source>Expiry</source>
+            <translation>만기</translation>
+        </message>
+        <message>
+            <source>(connect broker)</source>
+            <translation>(증권사 연결 필요)</translation>
+        </message>
+        <message>
+            <source>Enter a strategy name before deploying.</source>
+            <translation>배포하기 전에 전략 이름을 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Entry</source>
+            <translation>진입</translation>
+        </message>
+        <message>
+            <source>Exit</source>
+            <translation>청산</translation>
+        </message>
+        <message>
+            <source>Deploy — check conditions</source>
+            <translation>배포 — 조건 확인</translation>
+        </message>
+        <message>
+            <source>%1 is at %2, but some rules may never trigger:
+
+%3
+
+Deploy anyway?</source>
+            <translation>%1 현재가는 %2이지만 일부 규칙은 발동하지 않을 수 있습니다:
+
+%3
+
+그래도 배포하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Already deployed</source>
+            <translation>이미 배포됨</translation>
+        </message>
+        <message>
+            <source>An identical deployment is already running:
+
+%1 · %2 · %3 · %4
+
+Deploy another copy anyway?</source>
+            <translation>같은 배포가 이미 실행 중입니다:
+
+%1 · %2 · %3 · %4
+
+그래도 하나 더 배포하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>EDITING</source>
+            <translation>편집 중</translation>
         </message>
     </context>
     <context>
@@ -31403,6 +42513,30 @@ Are you absolutely sure?</source>
         <message>
             <source>Delete "%1"?</source>
             <translation>"%1"을(를) 삭제하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Edit strategy %1</source>
+            <translation>전략 %1 편집</translation>
+        </message>
+        <message>
+            <source>Backtest strategy %1</source>
+            <translation>전략 %1 백테스트</translation>
+        </message>
+        <message>
+            <source>Deploy strategy %1</source>
+            <translation>전략 %1 배포</translation>
+        </message>
+        <message>
+            <source>Delete strategy %1</source>
+            <translation>전략 %1 삭제</translation>
+        </message>
+        <message>
+            <source>Deploy</source>
+            <translation>배포</translation>
+        </message>
+        <message>
+            <source>"%1" is an F&amp;O strategy. Open it in the Builder to pick the underlying and expiry, then deploy from there.</source>
+            <translation>"%1"은(는) 선물·옵션 전략입니다. 빌더에서 열어 기초자산과 만기를 고른 후 그곳에서 배포하세요.</translation>
         </message>
     </context>
     <context>
@@ -31701,6 +42835,180 @@ Create a real ticket and our team will respond within 24 hours.</source>
             <source>Done</source>
             <translation>완료</translation>
         </message>
+        <message>
+            <source>Search tickets</source>
+            <translation>문의 검색</translation>
+        </message>
+        <message>
+            <source>Filter tickets by status</source>
+            <translation>상태별 문의 필터</translation>
+        </message>
+        <message>
+            <source>Ticket subject</source>
+            <translation>문의 제목</translation>
+        </message>
+        <message>
+            <source>✓  Include your OS, version, and any error messages (About → Diagnostics → Copy System Info)</source>
+            <translation>✓  OS, 버전, 오류 메시지를 포함하세요(정보 → 진단 → 시스템 정보 복사)</translation>
+        </message>
+        <message>
+            <source>✓  Attach the crash-dump path from About → Diagnostics if the app crashed</source>
+            <translation>✓  앱이 비정상 종료되었다면 정보 → 진단에서 크래시 덤프 경로를 첨부하세요</translation>
+        </message>
+        <message>
+            <source>Reply message</source>
+            <translation>답변 메시지</translation>
+        </message>
+        <message>
+            <source>Send reply</source>
+            <translation>답변 보내기</translation>
+        </message>
+        <message>
+            <source>Urgent</source>
+            <translation>긴급</translation>
+        </message>
+        <message>
+            <source>Ticket description</source>
+            <translation>문의 내용</translation>
+        </message>
+        <message>
+            <source>Offline</source>
+            <translation>오프라인</translation>
+        </message>
+        <message>
+            <source>Offline — showing last loaded</source>
+            <translation>오프라인 — 마지막으로 불러온 내용 표시</translation>
+        </message>
+        <message>
+            <source>Could not load tickets.
+Check your connection and press ↻ to retry.</source>
+            <translation>문의를 불러오지 못했습니다.
+연결을 확인하고 ↻를 눌러 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>No tickets match this search or filter.</source>
+            <translation>검색어나 필터와 일치하는 문의가 없습니다.</translation>
+        </message>
+        <message>
+            <source>No tickets yet.
+Use “New Ticket” to contact the Fincept team.</source>
+            <translation>아직 문의가 없습니다.
+“새 문의”로 Fincept 팀에 문의하세요.</translation>
+        </message>
+        <message>
+            <source>Loading…</source>
+            <translation>불러오는 중…</translation>
+        </message>
+        <message>
+            <source>Could not load this conversation.</source>
+            <translation>이 대화를 불러오지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>Could not load this conversation: %1</source>
+            <translation>이 대화를 불러오지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Retry</source>
+            <translation>다시 시도</translation>
+        </message>
+        <message>
+            <source>Description unavailable.</source>
+            <translation>설명을 불러올 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>No replies yet. The support team answers here; you will also get an email.</source>
+            <translation>아직 답변이 없습니다. 지원팀이 여기에 답변하며, 이메일로도 알려 드립니다.</translation>
+        </message>
+        <message>
+            <source>Subject required</source>
+            <translation>제목 필요</translation>
+        </message>
+        <message>
+            <source>Please enter a short subject for your ticket.</source>
+            <translation>문의 제목을 간단히 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Description required</source>
+            <translation>설명 필요</translation>
+        </message>
+        <message>
+            <source>Please describe the issue you are reporting.</source>
+            <translation>문의할 문제를 설명하세요.</translation>
+        </message>
+        <message>
+            <source>Description too long</source>
+            <translation>설명이 너무 김</translation>
+        </message>
+        <message>
+            <source>Descriptions are limited to 2000 characters (currently %1).</source>
+            <translation>설명은 2000자까지 입력할 수 있습니다(현재 %1자).</translation>
+        </message>
+        <message>
+            <source>Reply not sent</source>
+            <translation>답변 전송 실패</translation>
+        </message>
+        <message>
+            <source>Your reply could not be sent. It has been kept in the box so you can try again.</source>
+            <translation>답변을 보내지 못했습니다. 입력란에 그대로 남겨 두었으니 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Your reply could not be sent:
+%1</source>
+            <translation>답변을 보내지 못했습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>Close ticket</source>
+            <translation>문의 종료</translation>
+        </message>
+        <message>
+            <source>Close this ticket? You can reopen it later.</source>
+            <translation>이 문의를 종료하시겠습니까? 나중에 다시 열 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Could not close ticket</source>
+            <translation>문의를 종료하지 못했습니다</translation>
+        </message>
+        <message>
+            <source>The ticket status could not be updated.</source>
+            <translation>문의 상태를 업데이트하지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>The ticket status could not be updated:
+%1</source>
+            <translation>문의 상태를 업데이트하지 못했습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>Could not reopen ticket</source>
+            <translation>문의를 다시 열지 못했습니다</translation>
+        </message>
+        <message>
+            <source>Created %1</source>
+            <translation>%1 작성됨</translation>
+        </message>
+        <message>
+            <source>Could not create ticket</source>
+            <translation>문의를 작성하지 못했습니다</translation>
+        </message>
+        <message>
+            <source>The ticket could not be submitted. Please check your connection and try again — your text has been kept.</source>
+            <translation>문의를 제출하지 못했습니다. 연결을 확인하고 다시 시도하세요. 입력한 내용은 그대로 남아 있습니다.</translation>
+        </message>
+        <message>
+            <source>The ticket could not be submitted:
+%1</source>
+            <translation>문의를 제출하지 못했습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>General</source>
+            <translation>일반</translation>
+        </message>
+        <message>
+            <source>Search tickets…</source>
+            <translation>문의 검색…</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::SystemViewPanel</name>
@@ -31895,6 +43203,62 @@ Create a real ticket and our team will respond within 24 hours.</source>
             <source>Executing...</source>
             <translation>실행 중...</translation>
         </message>
+        <message>
+            <source>SAVE TEAM</source>
+            <translation>팀 저장</translation>
+        </message>
+        <message>
+            <source>Save this team (members, mode, leader) so it can be loaded later</source>
+            <translation>나중에 불러올 수 있도록 이 팀(팀원, 모드, 리더)을 저장</translation>
+        </message>
+        <message>
+            <source>LOAD TEAM</source>
+            <translation>팀 불러오기</translation>
+        </message>
+        <message>
+            <source>Replace the current team with a saved one</source>
+            <translation>현재 팀을 저장된 팀으로 바꾸기</translation>
+        </message>
+        <message>
+            <source>STOPPED</source>
+            <translation>중지됨</translation>
+        </message>
+        <message>
+            <source>STOP</source>
+            <translation>중지</translation>
+        </message>
+        <message>
+            <source>[!] Add at least one agent before saving the team</source>
+            <translation>[!] 팀을 저장하기 전에 에이전트를 하나 이상 추가하세요</translation>
+        </message>
+        <message>
+            <source>Save Team</source>
+            <translation>팀 저장</translation>
+        </message>
+        <message>
+            <source>Team name:</source>
+            <translation>팀 이름:</translation>
+        </message>
+        <message>
+            <source>My Team</source>
+            <translation>내 팀</translation>
+        </message>
+        <message>
+            <source>[!] No saved teams yet - build a team and press SAVE TEAM</source>
+            <translation>[!] 저장된 팀이 없습니다 - 팀을 구성한 후 팀 저장을 누르세요</translation>
+        </message>
+        <message>
+            <source>Load Team</source>
+            <translation>팀 불러오기</translation>
+        </message>
+        <message>
+            <source>Saved teams:</source>
+            <translation>저장된 팀:</translation>
+        </message>
+        <message>
+            <source>[!] %1 saved member(s) no longer exist and were skipped</source>
+            <translation>[!] 저장된 팀원 %1개가 더 이상 없어 건너뛰었습니다</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::TemplatePicker</name>
@@ -32060,6 +43424,30 @@ Create a real ticket and our team will respond within 24 hours.</source>
             <source>Edit Symbols...</source>
             <translation>종목 편집...</translation>
         </message>
+        <message>
+            <source>Market ticker</source>
+            <translation>시세 티커</translation>
+        </message>
+        <message>
+            <source>Scrolling price ticker. Right-click to edit the symbol list.</source>
+            <translation>시세가 흐르는 티커입니다. 마우스 오른쪽 버튼을 클릭해 종목 목록을 편집하세요.</translation>
+        </message>
+        <message>
+            <source>Double-click a symbol to open it; right-click to edit ticker symbols</source>
+            <translation>종목을 더블클릭하면 열리고, 마우스 오른쪽 버튼을 클릭하면 티커 종목을 편집합니다</translation>
+        </message>
+        <message>
+            <source>Ticker symbols</source>
+            <translation>티커 종목</translation>
+        </message>
+        <message>
+            <source>Cancel</source>
+            <translation>취소</translation>
+        </message>
+        <message>
+            <source>Apply ticker symbols</source>
+            <translation>티커 종목 적용</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::ToolsViewPanel</name>
@@ -32198,6 +43586,10 @@ Create a real ticket and our team will respond within 24 hours.</source>
         <message>
             <source>Error saving to %1</source>
             <translation>%1에 저장 중 오류</translation>
+        </message>
+        <message>
+            <source>● Team: %1</source>
+            <translation>● 팀: %1</translation>
         </message>
     </context>
     <context>
@@ -32537,6 +43929,106 @@ Create a real ticket and our team will respond within 24 hours.</source>
             <source>Notes</source>
             <translation>메모</translation>
         </message>
+        <message>
+            <source>Save the partner table as a CSV file</source>
+            <translation>교역 상대국 표를 CSV 파일로 저장</translation>
+        </message>
+        <message>
+            <source>Not available — no GDP series is connected to this view</source>
+            <translation>사용할 수 없음 — 이 보기에 연결된 GDP 시계열이 없습니다</translation>
+        </message>
+        <message>
+            <source>Not available — annual data only</source>
+            <translation>사용할 수 없음 — 연간 데이터만 있습니다</translation>
+        </message>
+        <message>
+            <source>Previous year</source>
+            <translation>이전 연도</translation>
+        </message>
+        <message>
+            <source>Next year</source>
+            <translation>다음 연도</translation>
+        </message>
+        <message>
+            <source>Total ($M)</source>
+            <translation>총교역액 ($M)</translation>
+        </message>
+        <message>
+            <source>Imports ($M)</source>
+            <translation>수입액 ($M)</translation>
+        </message>
+        <message>
+            <source>Exports ($M)</source>
+            <translation>수출액 ($M)</translation>
+        </message>
+        <message>
+            <source>Balance ($M)</source>
+            <translation>무역수지 ($M)</translation>
+        </message>
+        <message>
+            <source>Export is disabled for the illustrative static snapshot — load live UN Comtrade data first</source>
+            <translation>예시용 고정 스냅샷은 내보낼 수 없습니다 — 먼저 실시간 UN Comtrade 데이터를 불러오세요</translation>
+        </message>
+        <message>
+            <source>ILLUSTRATIVE — not live data. %1</source>
+            <translation>예시 — 실시간 데이터가 아닙니다. %1</translation>
+        </message>
+        <message>
+            <source>Illustrative — US bilateral trade, 2024 estimates (static). %1</source>
+            <translation>예시 — 미국 양자 교역, 2024년 추정치(고정). %1</translation>
+        </message>
+        <message>
+            <source>UN Comtrade — %1 — %2</source>
+            <translation>UN Comtrade — %1 — %2</translation>
+        </message>
+        <message>
+            <source>Loading UN Comtrade trade flows…</source>
+            <translation>UN Comtrade 무역 흐름 불러오는 중…</translation>
+        </message>
+        <message>
+            <source>(live data unavailable: %1)</source>
+            <translation>(실시간 데이터 사용 불가: %1)</translation>
+        </message>
+        <message>
+            <source>Could not load UN Comtrade data:
+%1</source>
+            <translation>UN Comtrade 데이터를 불러오지 못했습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>No UN Comtrade records for this country and year yet.
+Try an earlier year (data is published with a delay).</source>
+            <translation>이 국가와 연도의 UN Comtrade 기록이 아직 없습니다.
+이전 연도를 선택하세요(데이터는 시차를 두고 공개됩니다).</translation>
+        </message>
+        <message>
+            <source>%1 · goods, USD millions</source>
+            <translation>%1 · 상품, 백만 USD</translation>
+        </message>
+        <message>
+            <source>Export trade partners</source>
+            <translation>교역 상대국 내보내기</translation>
+        </message>
+        <message>
+            <source>CSV files (*.csv)</source>
+            <translation>CSV 파일 (*.csv)</translation>
+        </message>
+        <message>
+            <source>Could not write %1:
+%2</source>
+            <translation>%1에 쓸 수 없습니다:
+%2</translation>
+        </message>
+        <message>
+            <source>Writing %1 failed:
+%2</source>
+            <translation>%1 쓰기 실패:
+%2</translation>
+        </message>
+        <message>
+            <source>Loading live data…</source>
+            <translation>실시간 데이터 불러오는 중…</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::TrademarksScreen</name>
@@ -32664,6 +44156,22 @@ Create a real ticket and our team will respond within 24 hours.</source>
             <source>Email: support@fincept.in</source>
             <translation>이메일: support@fincept.in</translation>
         </message>
+        <message>
+            <source>This software is licensed under AGPL-3.0-or-later, and under no other licence. Fincept Terminal Enterprise is a separate closed-source product and is not covered by this licence.</source>
+            <translation>이 소프트웨어는 AGPL-3.0-or-later 라이선스로만 제공되며, 다른 라이선스는 적용되지 않습니다. Fincept Terminal Enterprise는 별도의 비공개 소스 제품으로, 이 라이선스가 적용되지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Map data © OpenStreetMap contributors, available under the Open Database License (ODbL)</source>
+            <translation>지도 데이터 © OpenStreetMap 기여자, Open Database License(ODbL)에 따라 이용 가능</translation>
+        </message>
+        <message>
+            <source>THIRD-PARTY SOFTWARE</source>
+            <translation>서드파티 소프트웨어</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal is built on the following open source components, used under their respective licenses:</source>
+            <translation>Fincept Terminal은 다음 오픈 소스 구성요소를 각 라이선스에 따라 사용합니다:</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::TradingEconomicsPanel</name>
@@ -32750,6 +44258,38 @@ TRADING_ECONOMICS_API_KEY 환경 변수를 설정하세요.
             <source>Fetching UN Comtrade data…</source>
             <translation>UN Comtrade 데이터 가져오는 중…</translation>
         </message>
+        <message>
+            <source>Select reporter, flow, year and commodity level, then click FETCH
+Source: UN Comtrade — annual (A) merchandise trade, HS classification
+Values are current US dollars. Free tier: up to 500 records per request;
+set UN_COMTRADE_API_KEY for 100,000 records/call (register at comtradedeveloper.un.org)</source>
+            <translation>보고국, 흐름, 연도, 품목 수준을 선택한 후 가져오기를 누르세요
+출처: UN Comtrade — 연간(A) 상품 무역, HS 분류
+값은 경상 미국 달러입니다. 무료 등급: 요청당 최대 500건,
+UN_COMTRADE_API_KEY를 설정하면 호출당 100,000건(comtradedeveloper.un.org에서 등록)</translation>
+        </message>
+        <message>
+            <source>Total (all commodities)</source>
+            <translation>전체(모든 품목)</translation>
+        </message>
+        <message>
+            <source>HS 2-digit chapters</source>
+            <translation>HS 2단위(류)</translation>
+        </message>
+        <message>
+            <source>COMMODITY</source>
+            <translation>품목</translation>
+        </message>
+        <message>
+            <source>Fetching UN Comtrade: %1 %2 %3…</source>
+            <translation>UN Comtrade 가져오는 중: %1 %2 %3…</translation>
+        </message>
+        <message>
+            <source>No trade records returned for this reporter/flow/year.
+Free tier is capped at 500 records — set UN_COMTRADE_API_KEY for full access.</source>
+            <translation>이 보고국/흐름/연도에 대한 무역 기록이 없습니다.
+무료 등급은 500건으로 제한됩니다 — 전체 데이터를 받으려면 UN_COMTRADE_API_KEY를 설정하세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::UnescoPanel</name>
@@ -32826,6 +44366,14 @@ Try a different country code or check the indicator is available</source>
         <message>
             <source>Indicator</source>
             <translation>지표</translation>
+        </message>
+        <message>
+            <source>Select a theme, indicator and country code, then click FETCH
+Source: UNESCO Institute for Statistics (UIS) — free, no API key required
+Use 3-letter ISO country codes: USA, GBR, IND, CHN, BRA, DEU</source>
+            <translation>주제, 지표, 국가 코드를 선택한 후 가져오기를 누르세요
+출처: UNESCO 통계연구소(UIS) — 무료, API 키 불필요
+3자리 ISO 국가 코드를 사용하세요: USA, GBR, IND, CHN, BRA, DEU</translation>
         </message>
     </context>
     <context>
@@ -33058,6 +44606,14 @@ Try a different country code or check the indicator is available</source>
             <source>Show or hide the Deepgram API key</source>
             <translation>Deepgram API 키 표시 또는 숨기기</translation>
         </message>
+        <message>
+            <source>Saved — but Deepgram is selected and no API key is set, so voice will fail until you add one.</source>
+            <translation>저장했습니다. 다만 Deepgram이 선택되어 있는데 API 키가 없어, 키를 추가할 때까지 음성 기능이 동작하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Deepgram Python SDK is missing from venv-numpy2. Open Settings → Python Env → Install Missing, then test again.</source>
+            <translation>venv-numpy2에 Deepgram Python SDK가 없습니다. 설정 → Python 환경 → 미설치 패키지 설치를 실행한 후 다시 테스트하세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::WalletActionConfirmDialog</name>
@@ -33227,6 +44783,114 @@ Try a different country code or check the indicator is available</source>
         <message>
             <source>BACKTEST</source>
             <translation>백테스트</translation>
+        </message>
+        <message>
+            <source>Watchlist quotes</source>
+            <translation>관심종목 시세</translation>
+        </message>
+        <message>
+            <source>Select a watchlist on the left, or press + to create one.</source>
+            <translation>왼쪽에서 관심종목 목록을 선택하거나 +를 눌러 새로 만드세요.</translation>
+        </message>
+        <message>
+            <source>This watchlist is empty.
+
+Type one or more tickers in the ADD box above
+(comma-separated), or drag a symbol in from another panel.</source>
+            <translation>이 관심종목 목록이 비어 있습니다.
+
+위의 추가 입력란에 종목코드를 하나 이상 입력하거나(쉼표로 구분)
+다른 패널에서 종목을 끌어다 놓으세요.</translation>
+        </message>
+        <message>
+            <source>Could not create the watchlist.</source>
+            <translation>관심종목 목록을 만들지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>Rename Watchlist</source>
+            <translation>관심종목 목록 이름 변경</translation>
+        </message>
+        <message>
+            <source>Could not rename the watchlist.</source>
+            <translation>관심종목 목록 이름을 변경하지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>Rename…</source>
+            <translation>이름 변경…</translation>
+        </message>
+        <message>
+            <source>Delete…</source>
+            <translation>삭제…</translation>
+        </message>
+        <message>
+            <source>Already in this watchlist: %1</source>
+            <translation>이미 이 관심종목 목록에 있음: %1</translation>
+        </message>
+        <message>
+            <source>Not a valid ticker (or could not be saved): %1</source>
+            <translation>유효하지 않은 종목코드(또는 저장 실패): %1</translation>
+        </message>
+        <message>
+            <source>Add symbols</source>
+            <translation>종목 추가</translation>
+        </message>
+        <message>
+            <source>Remove symbol</source>
+            <translation>종목 제거</translation>
+        </message>
+        <message>
+            <source>Select a row in the table first.</source>
+            <translation>먼저 표에서 행을 선택하세요.</translation>
+        </message>
+        <message>
+            <source>Remove %1 from this watchlist?</source>
+            <translation>이 관심종목 목록에서 %1을(를) 제거하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Writing the file failed:
+%1</source>
+            <translation>파일 쓰기 실패:
+%1</translation>
+        </message>
+        <message>
+            <source>Export complete</source>
+            <translation>내보내기 완료</translation>
+        </message>
+        <message numerus="yes">
+            <source>Exported %n symbol(s) to:
+%1</source>
+            <translation>
+                <numerusform>종목 %n개를 다음 위치로 내보냈습니다:
+%1</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>The file is empty.</source>
+            <translation>파일이 비어 있습니다.</translation>
+        </message>
+        <message>
+            <source>Open in Equity Research</source>
+            <translation>주식 리서치에서 열기</translation>
+        </message>
+        <message>
+            <source>Open in Equity Trading</source>
+            <translation>주식 거래에서 열기</translation>
+        </message>
+        <message>
+            <source>Open in News</source>
+            <translation>뉴스에서 열기</translation>
+        </message>
+        <message>
+            <source>Backtest This Symbol</source>
+            <translation>이 종목 백테스트</translation>
+        </message>
+        <message>
+            <source>Copy Symbol</source>
+            <translation>종목코드 복사</translation>
+        </message>
+        <message>
+            <source>Remove from Watchlist</source>
+            <translation>관심종목에서 제거</translation>
         </message>
     </context>
     <context>
@@ -33535,6 +45199,26 @@ Try a different country code or check the indicator is available</source>
             <source>Candlestick chart for a single ticker — set symbol via gear icon</source>
             <translation>개별 종목 캔들 차트 — 톱니바퀴 아이콘으로 종목 설정</translation>
         </message>
+        <message>
+            <source>Editable symbol list with live prices (kept in this tile)</source>
+            <translation>실시간 시세가 표시되는 편집 가능한 종목 목록(이 타일에 저장)</translation>
+        </message>
+        <message>
+            <source>VIX regime, high-beta movers and relative-return spreads</source>
+            <translation>VIX 국면, 고베타 급등락 종목, 상대수익률 스프레드</translation>
+        </message>
+        <message>
+            <source>Quote lookup + order ticket preview — hands off to Equity Trading to place</source>
+            <translation>시세 조회 + 주문서 미리보기 — 주문은 주식 거래에서 넣습니다</translation>
+        </message>
+        <message>
+            <source>Biggest gainers and losers today within a configurable symbol list</source>
+            <translation>설정한 종목 목록에서 오늘 가장 많이 오르고 내린 종목</translation>
+        </message>
+        <message>
+            <source>Breadth score of 24 large caps adjusted by VIX — not a market-wide index</source>
+            <translation>VIX로 보정한 대형주 24개의 시장 폭 점수 — 시장 전체 지수가 아닙니다</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::WorkflowsViewPanel</name>
@@ -33642,6 +45326,18 @@ Try a different country code or check the indicator is available</source>
             <source>Query is required</source>
             <translation>질의를 입력해야 합니다</translation>
         </message>
+        <message>
+            <source>PORTFOLIO</source>
+            <translation>포트폴리오</translation>
+        </message>
+        <message>
+            <source>Portfolio whose holdings the workflow analyses</source>
+            <translation>워크플로가 보유종목을 분석할 포트폴리오</translation>
+        </message>
+        <message>
+            <source>None (let the agent look it up)</source>
+            <translation>없음(에이전트가 직접 조회)</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::WorldBankHealthPanel</name>
@@ -33666,6 +45362,14 @@ Source: World Bank — Health &amp; Development indicators</source>
         <message>
             <source>No data available for this selection</source>
             <translation>선택한 항목에 사용 가능한 데이터가 없습니다</translation>
+        </message>
+        <message>
+            <source>Select an indicator and country, then click FETCH
+Source: World Bank Open Data (World Development Indicators) — CC BY-4.0
+Annual observations; years with no survey are omitted, not zero-filled</source>
+            <translation>지표와 국가를 선택한 후 가져오기를 누르세요
+출처: World Bank Open Data(세계개발지표) — CC BY-4.0
+연간 관측치이며, 조사가 없는 연도는 0으로 채우지 않고 생략합니다</translation>
         </message>
     </context>
     <context>
@@ -33725,6 +45429,10 @@ Source: World Bank — Health &amp; Development indicators</source>
         <message>
             <source>Select a country and indicator, then click FETCH</source>
             <translation>국가와 지표를 선택한 다음 가져오기를 클릭하세요</translation>
+        </message>
+        <message>
+            <source>Annual</source>
+            <translation>연간</translation>
         </message>
     </context>
     <context>
@@ -34019,6 +45727,122 @@ This cannot be undone.</source>
         <message>
             <source>HYPERLIQUID • LIVE</source>
             <translation>HYPERLIQUID • 실전투자</translation>
+        </message>
+        <message>
+            <source>next %1:%2</source>
+            <translation>다음 %1:%2</translation>
+        </message>
+        <message>
+            <source>ROUND %1</source>
+            <translation>라운드 %1</translation>
+        </message>
+        <message>
+            <source>ROUND 0</source>
+            <translation>라운드 0</translation>
+        </message>
+        <message>
+            <source>⏸ PAUSE</source>
+            <translation>⏸ 일시 중지</translation>
+        </message>
+        <message>
+            <source>⚡ FORCE ROUND</source>
+            <translation>⚡ 라운드 강제 실행</translation>
+        </message>
+        <message>
+            <source>Alpha Arena — LIVE</source>
+            <translation>Alpha Arena — 실전투자</translation>
+        </message>
+        <message>
+            <source>Force an immediate trading round?
+
+This competition is LIVE — every active agent will place real orders now.</source>
+            <translation>지금 바로 거래 라운드를 실행하시겠습니까?
+
+이 대회는 실전투자입니다 — 활성화된 모든 에이전트가 지금 실제 주문을 냅니다.</translation>
+        </message>
+        <message>
+            <source>✖ KILL ALL</source>
+            <translation>✖ 전체 긴급 중지</translation>
+        </message>
+        <message>
+            <source>Close every position at fresh marks and end the competition</source>
+            <translation>모든 포지션을 최신 마크 가격으로 청산하고 대회 종료</translation>
+        </message>
+        <message>
+            <source>+ NEW</source>
+            <translation>+ 새로 만들기</translation>
+        </message>
+        <message>
+            <source>Round cadence (60–3600 seconds)</source>
+            <translation>라운드 실행 주기(60–3600초)</translation>
+        </message>
+        <message>
+            <source>Apply cadence to the running competition</source>
+            <translation>실행 중인 대회에 실행 주기 적용</translation>
+        </message>
+        <message>
+            <source>Pit LLMs against each other in a live crypto trading competition.
+Real Hyperliquid market data · paper money · any provider, or free with Ollama.</source>
+            <translation>LLM끼리 실시간 가상자산 거래 대회로 겨루게 합니다.
+실제 Hyperliquid 시장 데이터 · 모의 자금 · 모든 공급자 지원, Ollama로 무료 이용 가능.</translation>
+        </message>
+        <message>
+            <source>+  NEW COMPETITION</source>
+            <translation>+  새 대회</translation>
+        </message>
+        <message>
+            <source>Close all positions of %1 and halt it?</source>
+            <translation>%1의 모든 포지션을 청산하고 중지하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Alpha Arena — Resume LIVE Competition</source>
+            <translation>Alpha Arena — 실전투자 대회 재개</translation>
+        </message>
+        <message>
+            <source>"%1" was running in LIVE mode on Hyperliquid with real funds.
+
+Resuming restarts automated order placement immediately — agents may open, close and reverse real positions without further prompts.
+
+Resume live trading now?</source>
+            <translation>"%1"은(는) Hyperliquid에서 실제 자금으로 실전투자 모드로 실행 중이었습니다.
+
+재개하면 자동 주문이 즉시 다시 시작되며, 에이전트가 추가 확인 없이 실제 포지션을 열고, 청산하고, 반대로 전환할 수 있습니다.
+
+지금 실전투자를 재개하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>The previous session left %1 competition(s) running.
+Resume "%2" (paper mode)?</source>
+            <translation>이전 세션에서 대회 %1개가 실행 상태로 남았습니다.
+"%2"(모의투자 모드)를 재개하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Another competition is running. Stop it (KILL ALL) before resuming this one.</source>
+            <translation>다른 대회가 실행 중입니다. 이 대회를 재개하기 전에 실행 중인 대회를 중지(전체 긴급 중지)하세요.</translation>
+        </message>
+        <message>
+            <source>"%1" is a LIVE competition. Resuming restarts automated order placement with real funds.
+
+Resume now?</source>
+            <translation>"%1"은(는) 실전투자 대회입니다. 재개하면 실제 자금으로 자동 주문이 다시 시작됩니다.
+
+지금 재개하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Close every position and end the competition?</source>
+            <translation>모든 포지션을 청산하고 대회를 종료하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>KILLING…</source>
+            <translation>긴급 중지 중…</translation>
+        </message>
+        <message>
+            <source>A competition is already running. Stop it (KILL ALL) before starting a new one.</source>
+            <translation>이미 대회가 실행 중입니다. 새 대회를 시작하기 전에 실행 중인 대회를 중지(전체 긴급 중지)하세요.</translation>
+        </message>
+        <message>
+            <source>▶ RESUME</source>
+            <translation>▶ 재개</translation>
         </message>
     </context>
     <context>
@@ -34458,6 +46282,106 @@ Are you sure?</source>
             <source>Cancel order</source>
             <translation>주문 취소</translation>
         </message>
+        <message>
+            <source>LIVE BALANCE</source>
+            <translation>실전 잔고</translation>
+        </message>
+        <message>
+            <source>LIVE EQUITY</source>
+            <translation>실전 총자산</translation>
+        </message>
+        <message>
+            <source>USED MARGIN</source>
+            <translation>사용 증거금</translation>
+        </message>
+        <message>
+            <source>Close every open position at market</source>
+            <translation>보유 포지션을 모두 시장가로 청산</translation>
+        </message>
+        <message>
+            <source>This will close ALL open paper positions at market.
+
+Are you sure?</source>
+            <translation>보유 중인 모의투자 포지션을 모두 시장가로 청산합니다.
+
+계속하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>This will close ALL open LIVE positions with real market orders on the exchange.
+
+Are you sure?</source>
+            <translation>거래소에 실제 시장가 주문을 내서 보유 중인 실전 포지션을 모두 청산합니다.
+
+계속하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Right-click a position to close it</source>
+            <translation>포지션을 마우스 오른쪽 버튼으로 클릭하면 청산할 수 있습니다</translation>
+        </message>
+        <message>
+            <source>Close position (%1) at market</source>
+            <translation>포지션(%1) 시장가 청산</translation>
+        </message>
+        <message>
+            <source>Close Position</source>
+            <translation>포지션 청산</translation>
+        </message>
+        <message>
+            <source>Close your paper position in %1 at market?</source>
+            <translation>%1 모의투자 포지션을 시장가로 청산하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Close your LIVE position in %1 with a real reduce-only market order?</source>
+            <translation>%1 실전 포지션을 실제 포지션 축소 전용 시장가 주문으로 청산하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Cancel every pending order</source>
+            <translation>미체결 주문 모두 취소</translation>
+        </message>
+        <message>
+            <source>This will cancel ALL pending paper orders.
+
+Are you sure?</source>
+            <translation>모의투자 미체결 주문을 모두 취소합니다.
+
+계속하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>This will cancel ALL open LIVE orders on the exchange.
+
+Are you sure?</source>
+            <translation>거래소의 실전 미체결 주문을 모두 취소합니다.
+
+계속하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Live positions unavailable</source>
+            <translation>실전 포지션을 불러올 수 없음</translation>
+        </message>
+        <message>
+            <source>Live positions unavailable: %1</source>
+            <translation>실전 포지션을 불러올 수 없음: %1</translation>
+        </message>
+        <message>
+            <source>Live orders unavailable</source>
+            <translation>실전 주문을 불러올 수 없음</translation>
+        </message>
+        <message>
+            <source>Live orders unavailable: %1</source>
+            <translation>실전 주문을 불러올 수 없음: %1</translation>
+        </message>
+        <message>
+            <source>UNAVAILABLE</source>
+            <translation>사용 불가</translation>
+        </message>
+        <message>
+            <source>Balance unavailable</source>
+            <translation>잔고를 불러올 수 없음</translation>
+        </message>
+        <message>
+            <source>Balance unavailable: %1</source>
+            <translation>잔고를 불러올 수 없음: %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::crypto::CryptoChart</name>
@@ -34823,12 +46747,119 @@ Keys are stored locally in encrypted secure storage.</source>
             <source>⚠ Insufficient balance for this order</source>
             <translation>⚠ 이 주문에 필요한 잔고가 부족합니다</translation>
         </message>
+        <message>
+            <source>Buy side</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>Sell side</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>Order type: %1</source>
+            <translation>주문 유형: %1</translation>
+        </message>
+        <message>
+            <source>Order quantity</source>
+            <translation>주문 수량</translation>
+        </message>
+        <message>
+            <source>Quantity in the base asset of the selected pair</source>
+            <translation>선택한 통화쌍의 기준 자산 수량</translation>
+        </message>
+        <message>
+            <source>Limit price</source>
+            <translation>지정가</translation>
+        </message>
+        <message>
+            <source>Stop trigger price</source>
+            <translation>스톱 발동 가격</translation>
+        </message>
+        <message>
+            <source>Stop loss trigger price</source>
+            <translation>손절 발동 가격</translation>
+        </message>
+        <message>
+            <source>Take profit trigger price</source>
+            <translation>익절 발동 가격</translation>
+        </message>
+        <message>
+            <source>Submit order</source>
+            <translation>주문 제출</translation>
+        </message>
+        <message>
+            <source>Account balance</source>
+            <translation>계좌 잔고</translation>
+        </message>
+        <message>
+            <source>Mark price</source>
+            <translation>마크 가격</translation>
+        </message>
+        <message>
+            <source>Balance available after this order</source>
+            <translation>이 주문 후 가용 잔고</translation>
+        </message>
+        <message>
+            <source>Trading mode, paper or live</source>
+            <translation>거래 모드(모의투자 또는 실전투자)</translation>
+        </message>
+        <message>
+            <source>Order validation message</source>
+            <translation>주문 검증 메시지</translation>
+        </message>
+        <message>
+            <source>Order preview</source>
+            <translation>주문 미리보기</translation>
+        </message>
+        <message>
+            <source>Leverage multiplier</source>
+            <translation>레버리지 배수</translation>
+        </message>
+        <message>
+            <source>Margin mode</source>
+            <translation>증거금 방식</translation>
+        </message>
+        <message>
+            <source>Reduce only — never increase position size</source>
+            <translation>포지션 축소 전용 — 포지션 규모를 늘리지 않습니다</translation>
+        </message>
+        <message>
+            <source>SENDING…</source>
+            <translation>전송 중…</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::crypto::CryptoTimeSales</name>
         <message>
             <source>Waiting for trades...</source>
             <translation>체결 대기 중...</translation>
+        </message>
+        <message>
+            <source>TIME</source>
+            <translation>시간</translation>
+        </message>
+        <message>
+            <source>PRICE</source>
+            <translation>가격</translation>
+        </message>
+        <message>
+            <source>QTY</source>
+            <translation>수량</translation>
+        </message>
+        <message>
+            <source>S</source>
+            <comment>column header: trade side (buy/sell)</comment>
+            <translation>구분</translation>
+        </message>
+        <message>
+            <source>B</source>
+            <comment>trade side: buy</comment>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>S</source>
+            <comment>trade side: sell</comment>
+            <translation>매도</translation>
         </message>
     </context>
     <context>
@@ -34852,6 +46883,18 @@ Keys are stored locally in encrypted secure storage.</source>
         <message>
             <source>%</source>
             <translation>%</translation>
+        </message>
+        <message>
+            <source>Open in News ("%1")</source>
+            <translation>뉴스에서 열기("%1")</translation>
+        </message>
+        <message>
+            <source>Open in Equity Research</source>
+            <translation>주식 리서치에서 열기</translation>
+        </message>
+        <message>
+            <source>Copy Symbol</source>
+            <translation>심볼 복사</translation>
         </message>
     </context>
     <context>
@@ -35148,6 +47191,166 @@ Keys are stored locally in encrypted secure storage.</source>
             <source>Unreachable: %1</source>
             <translation>접속 불가: %1</translation>
         </message>
+        <message>
+            <source>CATALOG</source>
+            <translation>카탈로그</translation>
+        </message>
+        <message>
+            <source>Every Python data connector — browse, add API keys, run and export</source>
+            <translation>모든 Python 데이터 커넥터 — 둘러보기, API 키 추가, 실행, 내보내기</translation>
+        </message>
+        <message>
+            <source>Search connectors</source>
+            <translation>커넥터 검색</translation>
+        </message>
+        <message>
+            <source>Import connections</source>
+            <translation>연결 가져오기</translation>
+        </message>
+        <message>
+            <source>Load connections from a JSON file</source>
+            <translation>JSON 파일에서 연결 불러오기</translation>
+        </message>
+        <message>
+            <source>Export connections</source>
+            <translation>연결 내보내기</translation>
+        </message>
+        <message>
+            <source>Write connections to a JSON file (secrets are redacted by default)</source>
+            <translation>연결을 JSON 파일로 저장(비밀값은 기본적으로 가림)</translation>
+        </message>
+        <message>
+            <source>Download connector template</source>
+            <translation>커넥터 템플릿 다운로드</translation>
+        </message>
+        <message>
+            <source>Write a blank JSON template containing every connector</source>
+            <translation>모든 커넥터가 담긴 빈 JSON 템플릿 저장</translation>
+        </message>
+        <message>
+            <source>Add connection for the selected connector</source>
+            <translation>선택한 커넥터에 연결 추가</translation>
+        </message>
+        <message>
+            <source>Edit selected connection</source>
+            <translation>선택한 연결 편집</translation>
+        </message>
+        <message>
+            <source>Test selected connection</source>
+            <translation>선택한 연결 테스트</translation>
+        </message>
+        <message>
+            <source>Opens a TCP connection to the endpoint (file connectors: checks the saved path exists and is readable). Does not validate API keys.</source>
+            <translation>엔드포인트에 TCP 연결을 엽니다(파일 커넥터는 저장된 경로가 있고 읽을 수 있는지 확인합니다). API 키는 검증하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Filter saved connections</source>
+            <translation>저장된 연결 필터</translation>
+        </message>
+        <message>
+            <source>Enable all listed connections</source>
+            <translation>목록의 연결 모두 활성화</translation>
+        </message>
+        <message>
+            <source>Enables every connection currently listed (the filter applies)</source>
+            <translation>현재 목록에 표시된 연결을 모두 활성화합니다(필터 적용)</translation>
+        </message>
+        <message>
+            <source>Disable all listed connections</source>
+            <translation>목록의 연결 모두 비활성화</translation>
+        </message>
+        <message>
+            <source>Disables every connection currently listed (the filter applies)</source>
+            <translation>현재 목록에 표시된 연결을 모두 비활성화합니다(필터 적용)</translation>
+        </message>
+        <message>
+            <source>Delete selected connections</source>
+            <translation>선택한 연결 삭제</translation>
+        </message>
+        <message>
+            <source>No connectors match the current search or filter.</source>
+            <translation>현재 검색어나 필터에 맞는 커넥터가 없습니다.</translation>
+        </message>
+        <message>
+            <source>No connections match the current filter.</source>
+            <translation>현재 필터에 맞는 연결이 없습니다.</translation>
+        </message>
+        <message>
+            <source>No connections yet — use + ADD to configure a data source.</source>
+            <translation>아직 연결이 없습니다. + 추가를 눌러 데이터 소스를 설정하세요.</translation>
+        </message>
+        <message>
+            <source>Enable %1</source>
+            <translation>%1 활성화</translation>
+        </message>
+        <message>
+            <source>Delete Connection</source>
+            <translation>연결 삭제</translation>
+        </message>
+        <message>
+            <source>Delete the connection "%1"?
+
+This cannot be undone.</source>
+            <translation>연결 "%1"을(를) 삭제하시겠습니까?
+
+이 작업은 되돌릴 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Could not delete "%1":
+
+%2</source>
+            <translation>"%1"을(를) 삭제하지 못했습니다:
+
+%2</translation>
+        </message>
+        <message>
+            <source>Edit...</source>
+            <translation>편집...</translation>
+        </message>
+        <message>
+            <source>Duplicate...</source>
+            <translation>복제...</translation>
+        </message>
+        <message>
+            <source>Test connection</source>
+            <translation>연결 테스트</translation>
+        </message>
+        <message>
+            <source>Delete...</source>
+            <translation>삭제...</translation>
+        </message>
+        <message>
+            <source>TESTING...</source>
+            <translation>테스트 중...</translation>
+        </message>
+        <message>
+            <source>TESTING</source>
+            <translation>테스트 중</translation>
+        </message>
+        <message>
+            <source>Enable Connections</source>
+            <translation>연결 활성화</translation>
+        </message>
+        <message numerus="yes">
+            <source>Enable %n listed connection(s)?
+
+Enabled connections are contacted by the background reachability check.</source>
+            <translation>
+                <numerusform>목록의 연결 %n개를 활성화하시겠습니까?
+
+활성화한 연결은 백그라운드 연결 확인 대상이 됩니다.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Disable Connections</source>
+            <translation>연결 비활성화</translation>
+        </message>
+        <message numerus="yes">
+            <source>Disable %n listed connection(s)?</source>
+            <translation>
+                <numerusform>목록의 연결 %n개를 비활성화하시겠습니까?</numerusform>
+            </translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::devtools::DataHubInspector</name>
@@ -35186,6 +47389,26 @@ Keys are stored locally in encrypted secure storage.</source>
         <message>
             <source>idle</source>
             <translation>대기</translation>
+        </message>
+        <message>
+            <source>Filter topics...</source>
+            <translation>토픽 필터...</translation>
+        </message>
+        <message>
+            <source>Filter DataHub topics</source>
+            <translation>DataHub 토픽 필터</translation>
+        </message>
+        <message>
+            <source>Errors</source>
+            <translation>오류</translation>
+        </message>
+        <message>
+            <source>Last error (%1 ago): %2</source>
+            <translation>마지막 오류(%1 전): %2</translation>
+        </message>
+        <message>
+            <source>error</source>
+            <translation>오류</translation>
         </message>
     </context>
     <context>
@@ -35600,6 +47823,114 @@ This action cannot be undone.</source>
             <source>Semi-Auto — require approval</source>
             <translation>반자동 — 승인 필요</translation>
         </message>
+        <message>
+            <source>Order approval mode</source>
+            <translation>주문 승인 모드</translation>
+        </message>
+        <message>
+            <source>One-click trading</source>
+            <translation>원클릭 주문</translation>
+        </message>
+        <message>
+            <source>One-click trading for the selected account</source>
+            <translation>선택한 계좌의 원클릭 주문</translation>
+        </message>
+        <message>
+            <source>RISK LIMITS…</source>
+            <translation>리스크 한도…</translation>
+        </message>
+        <message>
+            <source>Pre-trade limits applied to every order path (ticket, MCP, workflows, algos)</source>
+            <translation>모든 주문 경로(주문창, MCP, 워크플로, 알고리즘)에 적용되는 주문 전 한도</translation>
+        </message>
+        <message>
+            <source>⚠  LIVE + One-click: BUY / SELL on the order ticket sends a real order immediately, with no confirmation dialog.</source>
+            <translation>⚠  실전투자 + 원클릭: 주문창에서 매수 / 매도를 누르면 확인 창 없이 실제 주문이 바로 전송됩니다.</translation>
+        </message>
+        <message>
+            <source>One-click trading for %1 — skip the confirmation dialog for LIVE orders from the order ticket</source>
+            <translation>%1 원클릭 주문 — 주문창의 실전 주문에서 확인 창을 건너뜁니다</translation>
+        </message>
+        <message>
+            <source>Enable One-click Trading</source>
+            <translation>원클릭 주문 사용</translation>
+        </message>
+        <message>
+            <source>Enable one-click trading for %1?
+
+LIVE orders placed from the order ticket on this account will be sent to the broker IMMEDIATELY when you press BUY / SELL — the order confirmation dialog (with the margin and fat-finger checks) will no longer be shown.
+
+Orders from AI agents, MCP tools, workflows and algos are not affected.</source>
+            <translation>%1 계좌에서 원클릭 주문을 사용하시겠습니까?
+
+이 계좌의 주문창에서 낸 실전 주문은 매수 / 매도를 누르는 즉시 증권사로 전송됩니다. 주문 확인 창(증거금·착오주문 점검 포함)은 더 이상 표시되지 않습니다.
+
+AI 에이전트, MCP 도구, 워크플로, 알고리즘의 주문에는 영향이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Risk Limits</source>
+            <translation>리스크 한도</translation>
+        </message>
+        <message>
+            <source>The risk settings could not be read, so they cannot be edited safely right now.</source>
+            <translation>리스크 설정을 읽지 못해 지금은 안전하게 편집할 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Pre-trade Risk Limits</source>
+            <translation>주문 전 리스크 한도</translation>
+        </message>
+        <message>
+            <source>Checked on every order path — order ticket, broadcasts, approvals, MCP tools, workflows, algos. 0 / empty = no limit. Orders that only reduce an open position are always allowed.</source>
+            <translation>모든 주문 경로(주문창, 다중 계좌 주문, 승인, MCP 도구, 워크플로, 알고리즘)에서 확인합니다. 0 또는 빈칸은 제한 없음입니다. 보유 포지션을 줄이기만 하는 주문은 항상 허용합니다.</translation>
+        </message>
+        <message>
+            <source>No limit</source>
+            <translation>제한 없음</translation>
+        </message>
+        <message>
+            <source>Max order value</source>
+            <translation>최대 주문금액</translation>
+        </message>
+        <message>
+            <source>Max order quantity</source>
+            <translation>최대 주문수량</translation>
+        </message>
+        <message>
+            <source>Once today's position P&amp;L on an account is at or below minus this amount, only position-reducing orders are accepted.</source>
+            <translation>계좌의 당일 포지션 손익이 -(이 금액) 이하로 내려가면 포지션을 줄이는 주문만 받습니다.</translation>
+        </message>
+        <message>
+            <source>Daily loss limit</source>
+            <translation>일일 손실 한도</translation>
+        </message>
+        <message>
+            <source>e.g. YESBANK, NSE:IDEA</source>
+            <translation>예: YESBANK, NSE:IDEA</translation>
+        </message>
+        <message>
+            <source>Blocked symbols</source>
+            <translation>주문 차단 종목</translation>
+        </message>
+        <message>
+            <source>Reject absurd orders (quantity &gt; 10,000,000, or cash-segment value &gt; 10× available buying power)</source>
+            <translation>비정상 주문 거부(수량 10,000,000 초과 또는 현금 거래 주문금액이 주문가능금액의 10배 초과)</translation>
+        </message>
+        <message>
+            <source>Saving the risk limits failed — see the log.</source>
+            <translation>리스크 한도를 저장하지 못했습니다. 로그를 확인하세요.</translation>
+        </message>
+        <message>
+            <source>Rename Account</source>
+            <translation>계좌 이름 변경</translation>
+        </message>
+        <message>
+            <source>Select an account first, then rename it.</source>
+            <translation>먼저 계좌를 선택한 뒤 이름을 변경하세요.</translation>
+        </message>
+        <message>
+            <source>New account name:</source>
+            <translation>새 계좌 이름:</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::equity::BroadcastOrderDialog</name>
@@ -35674,6 +48005,22 @@ This action cannot be undone.</source>
         <message>
             <source>Placing %1 order(s); %2 queued for approval...</source>
             <translation>주문 %1건 제출 중, %2건 승인 대기 중...</translation>
+        </message>
+        <message>
+            <source>Could not queue the order for approval — nothing was sent</source>
+            <translation>주문을 승인 대기열에 등록하지 못했습니다. 아무것도 전송되지 않았습니다</translation>
+        </message>
+        <message>
+            <source>%1 order(s) queued for approval; %2 could not be queued</source>
+            <translation>주문 %1건을 승인 대기열에 등록했습니다. %2건은 등록하지 못했습니다</translation>
+        </message>
+        <message>
+            <source> (%1 could not be queued)</source>
+            <translation> (%1건 등록 실패)</translation>
+        </message>
+        <message>
+            <source>  ·  %1 queued for approval</source>
+            <translation>  ·  %1건 승인 대기</translation>
         </message>
     </context>
     <context>
@@ -35954,12 +48301,280 @@ Are you sure?</source>
             <source>Opens %1</source>
             <translation>%1 장 시작</translation>
         </message>
+        <message>
+            <source>Product</source>
+            <translation>상품 유형</translation>
+        </message>
+        <message>
+            <source>Day P&amp;L</source>
+            <translation>당일 손익</translation>
+        </message>
+        <message>
+            <source>AVAILABLE BALANCE</source>
+            <translation>주문가능금액</translation>
+        </message>
+        <message>
+            <source>USED MARGIN</source>
+            <translation>사용 증거금</translation>
+        </message>
+        <message>
+            <source>TOTAL EQUITY</source>
+            <translation>총자산</translation>
+        </message>
+        <message>
+            <source>REALIZED P&amp;L</source>
+            <translation>실현손익</translation>
+        </message>
+        <message>
+            <source>UNREALIZED P&amp;L</source>
+            <translation>평가손익</translation>
+        </message>
+        <message>
+            <source>HOLDINGS VALUE</source>
+            <translation>보유종목 평가금액</translation>
+        </message>
+        <message>
+            <source>OPENING BALANCE</source>
+            <translation>기초 잔고</translation>
+        </message>
+        <message>
+            <source>MARGIN USED %</source>
+            <translation>증거금 사용률 %</translation>
+        </message>
+        <message>
+            <source>COLLATERAL</source>
+            <translation>담보</translation>
+        </message>
+        <message>
+            <source>NET P&amp;L</source>
+            <translation>순손익</translation>
+        </message>
+        <message>
+            <source>WIN RATE</source>
+            <translation>승률</translation>
+        </message>
+        <message>
+            <source>PROFIT FACTOR</source>
+            <translation>프로핏 팩터</translation>
+        </message>
+        <message>
+            <source>TOTAL TRADES</source>
+            <translation>총 거래 횟수</translation>
+        </message>
+        <message>
+            <source>AVG WIN</source>
+            <translation>평균 수익</translation>
+        </message>
+        <message>
+            <source>AVG LOSS</source>
+            <translation>평균 손실</translation>
+        </message>
+        <message>
+            <source>TURNOVER</source>
+            <translation>거래대금</translation>
+        </message>
+        <message>
+            <source>LARGEST WIN</source>
+            <translation>최대 수익</translation>
+        </message>
+        <message>
+            <source>LARGEST LOSS</source>
+            <translation>최대 손실</translation>
+        </message>
+        <message>
+            <source>TOTAL CHARGES</source>
+            <translation>총 비용</translation>
+        </message>
+        <message>
+            <source>Total P&amp;L  --</source>
+            <translation>총손익  --</translation>
+        </message>
+        <message>
+            <source>Square off all winning positions</source>
+            <translation>수익 중인 포지션 모두 청산</translation>
+        </message>
+        <message>
+            <source>Square Off Winning Positions</source>
+            <translation>수익 포지션 청산</translation>
+        </message>
+        <message>
+            <source>This will close ALL positions currently in profit.
+
+Are you sure?</source>
+            <translation>현재 수익 중인 포지션을 모두 청산합니다.
+
+계속하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Square off all losing positions</source>
+            <translation>손실 중인 포지션 모두 청산</translation>
+        </message>
+        <message>
+            <source>Square Off Losing Positions</source>
+            <translation>손실 포지션 청산</translation>
+        </message>
+        <message>
+            <source>This will close ALL positions currently in loss.
+
+Are you sure?</source>
+            <translation>현재 손실 중인 포지션을 모두 청산합니다.
+
+계속하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Total P&amp;L  %1</source>
+            <translation>총손익  %1</translation>
+        </message>
+        <message>
+            <source>MKT</source>
+            <translation>시장가</translation>
+        </message>
+        <message>
+            <source>BUY</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>SELL</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>Buy to cover %1</source>
+            <translation>%1 환매수</translation>
+        </message>
+        <message>
+            <source>Sell to exit %1</source>
+            <translation>%1 매도 청산</translation>
+        </message>
+        <message>
+            <source>Buy / cover %1 — opens an order ticket pre-filled with the held quantity</source>
+            <translation>%1 매수 / 환매수 — 보유 수량이 입력된 주문창을 엽니다</translation>
+        </message>
+        <message>
+            <source>Sell / exit %1 — opens an order ticket pre-filled with the held quantity</source>
+            <translation>%1 매도 / 청산 — 보유 수량이 입력된 주문창을 엽니다</translation>
+        </message>
+        <message>
+            <source>→ CNC</source>
+            <translation>→ CNC</translation>
+        </message>
+        <message>
+            <source>Convert %1 to delivery</source>
+            <translation>%1 인수도로 전환</translation>
+        </message>
+        <message>
+            <source>Convert to CNC delivery (carry overnight, locks full cash)</source>
+            <translation>CNC 인수도로 전환(익일로 이월, 매수 대금 전액이 묶임)</translation>
+        </message>
+        <message>
+            <source>Square off holding %1</source>
+            <translation>%1 보유분 청산</translation>
+        </message>
+        <message>
+            <source>Square off %1 — sells the full holding at market</source>
+            <translation>%1 청산 — 보유 수량 전체를 시장가로 매도합니다</translation>
+        </message>
+        <message>
+            <source>Collapse panel</source>
+            <translation>패널 접기</translation>
+        </message>
+        <message>
+            <source>Expand panel</source>
+            <translation>패널 펼치기</translation>
+        </message>
+        <message>
+            <source>TODAY'S P&amp;L</source>
+            <translation>당일 손익</translation>
+        </message>
+        <message>
+            <source>Buy / Add  %1</source>
+            <translation>매수 / 추가 매수  %1</translation>
+        </message>
+        <message>
+            <source>Buy / Cover  %1</source>
+            <translation>매수 / 환매수  %1</translation>
+        </message>
+        <message>
+            <source>Sell / Reduce  %1</source>
+            <translation>매도 / 축소  %1</translation>
+        </message>
+        <message>
+            <source>Open %1 in Equity Research</source>
+            <translation>주식 리서치에서 %1 열기</translation>
+        </message>
+        <message>
+            <source>News for %1</source>
+            <translation>%1 뉴스</translation>
+        </message>
+        <message>
+            <source>REPLICATE → PAPER</source>
+            <translation>복제 → 모의투자</translation>
+        </message>
+        <message>
+            <source>Square Off All Holdings</source>
+            <translation>보유종목 전체 청산</translation>
+        </message>
+        <message>
+            <source>This will place MARKET SELL orders to exit ALL %1 holding(s).
+
+Positions are NOT affected. Are you sure?</source>
+            <translation>보유종목 %1개를 모두 시장가 매도 주문으로 청산합니다.
+
+포지션에는 영향이 없습니다. 계속하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>DATE</source>
+            <translation>날짜</translation>
+        </message>
+        <message>
+            <source>Modify order %1</source>
+            <translation>주문 %1 정정</translation>
+        </message>
+        <message>
+            <source>Enter a valid quantity.</source>
+            <translation>올바른 수량을 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Enter a valid price.</source>
+            <translation>올바른 가격을 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Cancel order %1</source>
+            <translation>주문 %1 취소</translation>
+        </message>
+        <message>
+            <source>Cancel Order</source>
+            <translation>주문 취소</translation>
+        </message>
+        <message>
+            <source>Cancel order %1?</source>
+            <translation>주문 %1을(를) 취소하시겠습니까?</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::equity::EquityChart</name>
         <message>
             <source>CHART</source>
             <translation>차트</translation>
+        </message>
+        <message>
+            <source>Buy @ %1</source>
+            <translation>%1에 매수</translation>
+        </message>
+        <message>
+            <source>Buy</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>Sell @ %1</source>
+            <translation>%1에 매도</translation>
+        </message>
+        <message>
+            <source>Sell</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>Add to watchlist</source>
+            <translation>관심종목에 추가</translation>
         </message>
     </context>
     <context>
@@ -35991,6 +48606,52 @@ Are you sure?</source>
         <message>
             <source>ORDERS</source>
             <translation>건수</translation>
+        </message>
+        <message>
+            <source>L1 · synthetic</source>
+            <translation>L1 · 합성</translation>
+        </message>
+        <message>
+            <source>L2 · %1×%2</source>
+            <translation>L2 · %1×%2</translation>
+        </message>
+        <message>
+            <source>%1  %2
+Size  %3
+Cumulative  %4</source>
+            <translation>%1  %2
+잔량  %3
+누적  %4</translation>
+        </message>
+        <message>
+            <source>ASK</source>
+            <translation>매도호가</translation>
+        </message>
+        <message>
+            <source>BID</source>
+            <translation>매수호가</translation>
+        </message>
+        <message>
+            <source>
+Orders  %1</source>
+            <translation>
+주문 건수  %1</translation>
+        </message>
+        <message>
+            <source>SIZE</source>
+            <translation>잔량</translation>
+        </message>
+        <message>
+            <source>TOTAL</source>
+            <translation>누적</translation>
+        </message>
+        <message>
+            <source>SPREAD</source>
+            <translation>스프레드</translation>
+        </message>
+        <message>
+            <source>%1% %2</source>
+            <translation>%2 %1%</translation>
         </message>
     </context>
     <context>
@@ -36219,6 +48880,202 @@ Are you sure?</source>
             <source>Select a strategy and enter valid expiry / strike / width</source>
             <translation>전략을 선택하고 유효한 만기 / 행사가 / 간격을 입력하세요</translation>
         </message>
+        <message>
+            <source>LTP --</source>
+            <translation>현재가 --</translation>
+        </message>
+        <message>
+            <source>Bal --</source>
+            <translation>잔고 --</translation>
+        </message>
+        <message>
+            <source>BASKETS</source>
+            <translation>바스켓</translation>
+        </message>
+        <message>
+            <source>No confirmation from the broker — check the order book before retrying</source>
+            <translation>증권사에서 확인 응답이 없습니다. 다시 시도하기 전에 주문내역을 확인하세요</translation>
+        </message>
+        <message>
+            <source>Order entry ticket</source>
+            <translation>주문 입력창</translation>
+        </message>
+        <message>
+            <source>Buy side</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>Sell side</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>Market order</source>
+            <translation>시장가 주문</translation>
+        </message>
+        <message>
+            <source>Limit order</source>
+            <translation>지정가 주문</translation>
+        </message>
+        <message>
+            <source>Stop-loss market order</source>
+            <translation>스톱 시장가 주문</translation>
+        </message>
+        <message>
+            <source>Stop-loss limit order</source>
+            <translation>스톱 지정가 주문</translation>
+        </message>
+        <message>
+            <source>Product type</source>
+            <translation>상품 유형</translation>
+        </message>
+        <message>
+            <source>Exchange</source>
+            <translation>거래소</translation>
+        </message>
+        <message>
+            <source>Quantity</source>
+            <translation>수량</translation>
+        </message>
+        <message>
+            <source>Stop loss price</source>
+            <translation>손절가</translation>
+        </message>
+        <message>
+            <source>Take profit price</source>
+            <translation>익절가</translation>
+        </message>
+        <message>
+            <source>Submit order</source>
+            <translation>주문 제출</translation>
+        </message>
+        <message>
+            <source>Broadcast order to multiple accounts</source>
+            <translation>여러 계좌로 주문 전송</translation>
+        </message>
+        <message>
+            <source>Target broker accounts</source>
+            <translation>대상 증권사 계좌</translation>
+        </message>
+        <message>
+            <source>Saved order baskets</source>
+            <translation>저장된 바스켓</translation>
+        </message>
+        <message>
+            <source>Last traded price</source>
+            <translation>현재가</translation>
+        </message>
+        <message>
+            <source>Available balance</source>
+            <translation>주문가능금액</translation>
+        </message>
+        <message>
+            <source>Estimated order value</source>
+            <translation>예상 주문금액</translation>
+        </message>
+        <message>
+            <source>Order status</source>
+            <translation>주문 상태</translation>
+        </message>
+        <message>
+            <source>Place options strategy</source>
+            <translation>옵션 전략 주문</translation>
+        </message>
+        <message>
+            <source>Buy side (Ctrl+Shift+B)</source>
+            <translation>매수 (Ctrl+Shift+B)</translation>
+        </message>
+        <message>
+            <source>Sell side (Ctrl+Shift+S)</source>
+            <translation>매도 (Ctrl+Shift+S)</translation>
+        </message>
+        <message>
+            <source>Quantity (Ctrl+Shift+Q to focus, Esc to clear the ticket)</source>
+            <translation>수량 (Ctrl+Shift+Q로 이동, Esc로 주문창 비우기)</translation>
+        </message>
+        <message>
+            <source>Ticket cleared</source>
+            <translation>주문창을 비웠습니다</translation>
+        </message>
+        <message>
+            <source>Buy %1</source>
+            <translation>%1 매수</translation>
+        </message>
+        <message>
+            <source>Sell %1</source>
+            <translation>%1 매도</translation>
+        </message>
+        <message>
+            <source>Bal %1%2</source>
+            <translation>잔고 %1%2</translation>
+        </message>
+        <message>
+            <source>Quantity is not a number (use plain digits, no separators)</source>
+            <translation>수량이 숫자가 아닙니다(구분 기호 없이 숫자만 입력하세요)</translation>
+        </message>
+        <message>
+            <source>Enter a valid limit price</source>
+            <translation>올바른 지정가를 입력하세요</translation>
+        </message>
+        <message>
+            <source>Enter a valid trigger price</source>
+            <translation>올바른 발동 가격을 입력하세요</translation>
+        </message>
+        <message>
+            <source>Stop loss is not a valid price</source>
+            <translation>손절가가 올바른 가격이 아닙니다</translation>
+        </message>
+        <message>
+            <source>Take profit is not a valid price</source>
+            <translation>익절가가 올바른 가격이 아닙니다</translation>
+        </message>
+        <message>
+            <source>Selected broker accounts no longer exist — pick targets again</source>
+            <translation>선택한 증권사 계좌가 더 이상 없습니다. 대상을 다시 선택하세요</translation>
+        </message>
+        <message>
+            <source>[LIVE]</source>
+            <translation>[실전]</translation>
+        </message>
+        <message>
+            <source>[PAPER]</source>
+            <translation>[모의]</translation>
+        </message>
+        <message>
+            <source>No active accounts</source>
+            <translation>활성 계좌 없음</translation>
+        </message>
+        <message>
+            <source>BROKERS: FOCUSED ▾</source>
+            <translation>증권사: 현재 계좌 ▾</translation>
+        </message>
+        <message>
+            <source>BROKERS: %1 SELECTED ▾</source>
+            <translation>증권사: %1개 선택 ▾</translation>
+        </message>
+        <message>
+            <source>Orders go to the focused account. Click to pick multiple brokers.</source>
+            <translation>주문은 현재 계좌로 전송됩니다. 여러 증권사를 선택하려면 클릭하세요.</translation>
+        </message>
+        <message>
+            <source>BUY/SELL will fire this order on %1 account(s)</source>
+            <translation>매수/매도를 누르면 이 주문이 계좌 %1개로 전송됩니다</translation>
+        </message>
+        <message>
+            <source>Limit price %1 taken from market depth</source>
+            <translation>호가창에서 지정가 %1을(를) 가져왔습니다</translation>
+        </message>
+        <message>
+            <source>LTP %1%2  ⚠ STALE</source>
+            <translation>현재가 %1%2  ⚠ 지연</translation>
+        </message>
+        <message>
+            <source>LTP %1%2</source>
+            <translation>현재가 %1%2</translation>
+        </message>
+        <message>
+            <source>This price has not updated for over %1s — the feed may be down or the market closed. Do not treat it as the live price.</source>
+            <translation>이 가격은 %1초 넘게 갱신되지 않았습니다. 피드가 중단됐거나 장이 마감됐을 수 있습니다. 실시간 가격으로 보지 마세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::equity::EquityWatchlist</name>
@@ -36245,6 +49102,86 @@ Are you sure?</source>
         <message>
             <source>CHG%</source>
             <translation>등락률</translation>
+        </message>
+        <message>
+            <source>Active watchlist</source>
+            <translation>현재 관심종목 목록</translation>
+        </message>
+        <message>
+            <source>New / Rename / Delete watchlist</source>
+            <translation>관심종목 목록 새로 만들기 / 이름 변경 / 삭제</translation>
+        </message>
+        <message>
+            <source>Watchlist</source>
+            <translation>관심종목</translation>
+        </message>
+        <message>
+            <source>Watchlist actions</source>
+            <translation>관심종목 작업</translation>
+        </message>
+        <message>
+            <source>Filter watchlist</source>
+            <translation>관심종목 필터</translation>
+        </message>
+        <message>
+            <source>Add symbol to watchlist</source>
+            <translation>관심종목에 종목 추가</translation>
+        </message>
+        <message>
+            <source>Add symbol</source>
+            <translation>종목 추가</translation>
+        </message>
+        <message>
+            <source>Symbol count</source>
+            <translation>종목 수</translation>
+        </message>
+        <message>
+            <source>Watchlist symbols</source>
+            <translation>관심종목 목록의 종목</translation>
+        </message>
+        <message>
+            <source>New watchlist…</source>
+            <translation>새 관심종목 목록…</translation>
+        </message>
+        <message>
+            <source>Rename…</source>
+            <translation>이름 변경…</translation>
+        </message>
+        <message>
+            <source>Delete</source>
+            <translation>삭제</translation>
+        </message>
+        <message>
+            <source>New Watchlist</source>
+            <translation>새 관심종목 목록</translation>
+        </message>
+        <message>
+            <source>Name:</source>
+            <translation>이름:</translation>
+        </message>
+        <message>
+            <source>Rename Watchlist</source>
+            <translation>관심종목 목록 이름 변경</translation>
+        </message>
+        <message>
+            <source>Delete Watchlist</source>
+            <translation>관심종목 목록 삭제</translation>
+        </message>
+        <message>
+            <source>Delete "%1"?</source>
+            <translation>"%1"을(를) 삭제하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Open %1 in Equity Research</source>
+            <translation>주식 리서치에서 %1 열기</translation>
+        </message>
+        <message>
+            <source>News for %1</source>
+            <translation>%1 뉴스</translation>
+        </message>
+        <message>
+            <source>Remove %1</source>
+            <translation>%1 제거</translation>
         </message>
     </context>
     <context>
@@ -36288,6 +49225,18 @@ Are you sure?</source>
         <message>
             <source>Margin</source>
             <translation>증거금</translation>
+        </message>
+        <message>
+            <source>Position vega: change in strategy value (₹) for a 1-point (1%) move in implied volatility.</source>
+            <translation>포지션 베가: 내재변동성이 1포인트(1%) 움직일 때 전략 가치(₹)의 변화입니다.</translation>
+        </message>
+        <message>
+            <source>Position theta: change in strategy value (₹) per calendar day.</source>
+            <translation>포지션 세타: 달력일 하루당 전략 가치(₹)의 변화입니다.</translation>
+        </message>
+        <message>
+            <source>Position delta: change in strategy value (₹) per 1-point move in the underlying.</source>
+            <translation>포지션 델타: 기초자산이 1포인트 움직일 때 전략 가치(₹)의 변화입니다.</translation>
         </message>
     </context>
     <context>
@@ -36406,6 +49355,98 @@ Are you sure?</source>
             <source>Delete '%1'? This can't be undone.</source>
             <translation>'%1'을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</translation>
         </message>
+        <message>
+            <source>Load or delete a saved strategy</source>
+            <translation>저장된 전략 불러오기 또는 삭제</translation>
+        </message>
+        <message>
+            <source>Days to target date</source>
+            <translation>목표일까지 남은 일수</translation>
+        </message>
+        <message>
+            <source>Trade all active legs as paper orders</source>
+            <translation>활성 레그를 모두 모의투자 주문으로 거래</translation>
+        </message>
+        <message>
+            <source>row %1 (%2)</source>
+            <translation>%1행 (%2)</translation>
+        </message>
+        <message>
+            <source>%1 — no contract symbol</source>
+            <translation>%1 — 계약 종목코드 없음</translation>
+        </message>
+        <message>
+            <source>%1 — lot size not resolved</source>
+            <translation>%1 — 계약 단위를 확인하지 못함</translation>
+        </message>
+        <message>
+            <source>%1 — instrument type not set</source>
+            <translation>%1 — 상품 종류가 설정되지 않음</translation>
+        </message>
+        <message>
+            <source>Nothing to trade</source>
+            <translation>주문할 레그 없음</translation>
+        </message>
+        <message>
+            <source>Switch on at least one leg with a non-zero lot count.</source>
+            <translation>계약 수가 0이 아닌 레그를 하나 이상 켜세요.</translation>
+        </message>
+        <message>
+            <source>Cannot trade this strategy</source>
+            <translation>이 전략은 주문할 수 없음</translation>
+        </message>
+        <message>
+            <source>These legs are not fully resolved, so the order quantity would be wrong:
+
+%1
+
+Add legs by clicking a premium in the Chain tab (or use a template) so the contract symbol and lot size come from the live chain.</source>
+            <translation>다음 레그는 확인이 끝나지 않아 주문 수량이 틀어집니다:
+
+%1
+
+옵션 체인 탭에서 프리미엄을 클릭해(또는 템플릿을 써서) 레그를 추가하면 계약 종목코드와 계약 단위를 실시간 체인에서 가져옵니다.</translation>
+        </message>
+        <message>
+            <source>Trade Strategy</source>
+            <translation>전략 주문</translation>
+        </message>
+        <message>
+            <source>No connected %1 account. Connect one in Equity Trading to paper-trade this strategy.</source>
+            <translation>연결된 %1 계좌가 없습니다. 이 전략을 모의투자하려면 주식 거래에서 계좌를 연결하세요.</translation>
+        </message>
+        <message>
+            <source>trading</source>
+            <translation>거래</translation>
+        </message>
+        <message>
+            <source>Paper trade only</source>
+            <translation>모의투자 전용</translation>
+        </message>
+        <message>
+            <source>The %1 account is in LIVE mode.
+
+“Trade All (Paper)” only places simulated paper orders — it will not place live orders. To trade this strategy live, place each leg from the option chain (right-click a strike → Buy / Sell), which confirms each live order individually.</source>
+            <translation>%1 계좌가 실전투자 모드입니다.
+
+“전체 주문(모의)”은 가상 모의투자 주문만 내고 실전 주문은 내지 않습니다. 이 전략을 실전으로 거래하려면 옵션 체인에서 레그마다 주문하세요(행사가를 마우스 오른쪽 버튼으로 클릭 → 매수 / 매도). 실전 주문을 하나씩 확인합니다.</translation>
+        </message>
+        <message>
+            <source>Strategy is for a different chain</source>
+            <translation>다른 옵션 체인의 전략입니다</translation>
+        </message>
+        <message>
+            <source>'%1' was saved for %2 %3, but the Chain tab is showing %4 %5.
+
+Live premiums, Greeks, spot and the payoff range come from the chain on screen, so they will not match these legs. Open the matching underlying and expiry in the Chain tab to see correct figures.</source>
+            <translation>'%1'은(는) %2 %3 기준으로 저장했지만 옵션 체인 탭은 %4 %5을(를) 표시하고 있습니다.
+
+실시간 프리미엄, 그릭스, 현물가, 손익 구간은 화면의 체인에서 가져오므로 이 레그들과 맞지 않습니다. 올바른 수치를 보려면 옵션 체인 탭에서 같은 기초자산과 만기를 여세요.</translation>
+        </message>
+        <message>
+            <source>?</source>
+            <translation>?</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::fno::ChainSubTab</name>
@@ -36469,6 +49510,138 @@ Are you sure?</source>
             <source>Chain unavailable: %1</source>
             <translation>옵션 체인 사용 불가: %1</translation>
         </message>
+        <message>
+            <source>Loading %1 %2 chain…</source>
+            <translation>%1 %2 옵션 체인 불러오는 중…</translation>
+        </message>
+        <message>
+            <source>Place Order</source>
+            <translation>주문</translation>
+        </message>
+        <message>
+            <source>Connect a trading broker to place F&amp;O orders.</source>
+            <translation>F&amp;O 주문을 내려면 거래 증권사를 연결하세요.</translation>
+        </message>
+        <message>
+            <source>No connected %1 account. Connect one in Equity Trading.</source>
+            <translation>연결된 %1 계좌가 없습니다. 주식 거래에서 계좌를 연결하세요.</translation>
+        </message>
+        <message>
+            <source>Could not resolve the contract for this strike.</source>
+            <translation>이 행사가의 계약을 확인하지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>The chain changed while the order was being prepared (you picked %1, the contract now resolves to %2). Nothing was sent — please pick the strike again.</source>
+            <translation>주문을 준비하는 동안 옵션 체인이 바뀌었습니다(선택한 계약은 %1, 지금 확인된 계약은 %2). 아무것도 전송하지 않았습니다. 행사가를 다시 선택하세요.</translation>
+        </message>
+        <message>
+            <source>Could not resolve the lot size for %1.</source>
+            <translation>%1의 계약 단위를 확인하지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>Buy %1</source>
+            <translation>%1 매수</translation>
+        </message>
+        <message>
+            <source>Sell %1</source>
+            <translation>%1 매도</translation>
+        </message>
+        <message>
+            <source>BUY</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>SELL</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>Market</source>
+            <translation>시장가</translation>
+        </message>
+        <message>
+            <source>Limit</source>
+            <translation>지정가</translation>
+        </message>
+        <message>
+            <source>Order type</source>
+            <translation>주문 유형</translation>
+        </message>
+        <message>
+            <source>Type</source>
+            <translation>유형</translation>
+        </message>
+        <message>
+            <source>Quantity in lots</source>
+            <translation>계약 수 기준 수량</translation>
+        </message>
+        <message>
+            <source>Qty (lots)</source>
+            <translation>수량(계약)</translation>
+        </message>
+        <message>
+            <source>= %1 qty  (lot size %2)</source>
+            <translation>= 수량 %1  (계약 단위 %2)</translation>
+        </message>
+        <message>
+            <source>Limit price per share</source>
+            <translation>주당 지정가</translation>
+        </message>
+        <message>
+            <source>Limit price</source>
+            <translation>지정가</translation>
+        </message>
+        <message>
+            <source>NRML (positional)</source>
+            <translation>NRML (이월)</translation>
+        </message>
+        <message>
+            <source>MIS (intraday)</source>
+            <translation>MIS (당일 거래)</translation>
+        </message>
+        <message>
+            <source>Product type</source>
+            <translation>상품 유형</translation>
+        </message>
+        <message>
+            <source>Product</source>
+            <translation>상품 유형</translation>
+        </message>
+        <message>
+            <source>LTP %1 at ticket open</source>
+            <translation>주문창을 열 때 현재가 %1</translation>
+        </message>
+        <message>
+            <source>PAPER</source>
+            <translation>모의투자</translation>
+        </message>
+        <message>
+            <source>LIVE</source>
+            <translation>실전투자</translation>
+        </message>
+        <message>
+            <source>Place Buy</source>
+            <translation>매수 주문</translation>
+        </message>
+        <message>
+            <source>Place Sell</source>
+            <translation>매도 주문</translation>
+        </message>
+        <message>
+            <source>Place buy order</source>
+            <translation>매수 주문 제출</translation>
+        </message>
+        <message>
+            <source>Place sell order</source>
+            <translation>매도 주문 제출</translation>
+        </message>
+        <message>
+            <source>Order placed: %1</source>
+            <translation>주문 제출됨: %1</translation>
+        </message>
+        <message>
+            <source>Order failed: %1</source>
+            <translation>주문 실패: %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::fno::FiiDiiChart</name>
@@ -36530,6 +49703,14 @@ Are you sure?</source>
         <message>
             <source>FII / DII flows — last update: %1   ·   %2 days cached</source>
             <translation>FII / DII 수급 — 최근 업데이트: %1   ·   %2일 캐시됨</translation>
+        </message>
+        <message>
+            <source>FII Net (₹ Cr)</source>
+            <translation>FII 순매수 (₹ Cr)</translation>
+        </message>
+        <message>
+            <source>DII Net (₹ Cr)</source>
+            <translation>DII 순매수 (₹ Cr)</translation>
         </message>
     </context>
     <context>
@@ -36594,6 +49775,78 @@ Are you sure?</source>
             <source>Updated %1</source>
             <translation>%1 업데이트됨</translation>
         </message>
+        <message>
+            <source>OPEN ▾</source>
+            <translation>열기 ▾</translation>
+        </message>
+        <message>
+            <source>Open the underlying in Equity Research, Equity Trading or News</source>
+            <translation>기초자산을 주식 리서치, 주식 거래, 뉴스에서 열기</translation>
+        </message>
+        <message>
+            <source>Open underlying in another screen</source>
+            <translation>다른 화면에서 기초자산 열기</translation>
+        </message>
+        <message>
+            <source>Broker</source>
+            <translation>증권사</translation>
+        </message>
+        <message>
+            <source>Underlying</source>
+            <translation>기초자산</translation>
+        </message>
+        <message>
+            <source>Expiry</source>
+            <translation>만기</translation>
+        </message>
+        <message>
+            <source>Refresh option chain</source>
+            <translation>옵션 체인 새로고침</translation>
+        </message>
+        <message>
+            <source>Chain freshness</source>
+            <translation>옵션 체인 갱신 상태</translation>
+        </message>
+        <message>
+            <source>…%1/30</source>
+            <translation>…%1/30</translation>
+        </message>
+        <message>
+            <source>Building IV history — %1 of 30 days needed for a percentile.</source>
+            <translation>내재변동성 이력 수집 중 — 백분위를 계산하려면 30일이 필요합니다(현재 %1일).</translation>
+        </message>
+        <message>
+            <source>Last chain snapshot at %1 (%2 s ago).</source>
+            <translation>마지막 옵션 체인 스냅샷: %1 (%2초 전).</translation>
+        </message>
+        <message>
+            <source>STALE · %1 (%2m old)</source>
+            <translation>지연 · %1 (%2분 경과)</translation>
+        </message>
+        <message>
+            <source>No chain update for %1 seconds. The market may be closed, or the feed may be down — press REFRESH to re-request.</source>
+            <translation>%1초 동안 옵션 체인이 갱신되지 않았습니다. 장이 마감됐거나 피드가 중단됐을 수 있습니다. 새로고침을 눌러 다시 요청하세요.</translation>
+        </message>
+        <message>
+            <source>Updated %1 (%2s)</source>
+            <translation>%1 업데이트됨 (%2초)</translation>
+        </message>
+        <message>
+            <source>Select an underlying first</source>
+            <translation>먼저 기초자산을 선택하세요</translation>
+        </message>
+        <message>
+            <source>Open %1 in Equity Research</source>
+            <translation>주식 리서치에서 %1 열기</translation>
+        </message>
+        <message>
+            <source>Open %1 chart in Equity Trading</source>
+            <translation>주식 거래에서 %1 차트 열기</translation>
+        </message>
+        <message>
+            <source>Open %1 in News</source>
+            <translation>뉴스에서 %1 열기</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::fno::FnoScreen</name>
@@ -36648,6 +49901,38 @@ Are you sure?</source>
         <message>
             <source>%1 — coming in a later phase</source>
             <translation>%1 — 향후 단계에서 제공 예정</translation>
+        </message>
+        <message>
+            <source>Positions</source>
+            <translation>포지션</translation>
+        </message>
+        <message>
+            <source>Live option chain</source>
+            <translation>실시간 옵션 체인</translation>
+        </message>
+        <message>
+            <source>Strategy builder + payoff</source>
+            <translation>전략 구성 + 손익</translation>
+        </message>
+        <message>
+            <source>Open Interest analytics</source>
+            <translation>미결제약정 분석</translation>
+        </message>
+        <message>
+            <source>Multi straddle / strangle charts</source>
+            <translation>다중 스트래들 / 스트랭글 차트</translation>
+        </message>
+        <message>
+            <source>Institutional flows</source>
+            <translation>기관 수급</translation>
+        </message>
+        <message>
+            <source>Chain screener</source>
+            <translation>옵션 체인 스크리너</translation>
+        </message>
+        <message>
+            <source>Paper positions, orders &amp; square-off</source>
+            <translation>모의투자 포지션, 주문, 청산</translation>
         </message>
     </context>
     <context>
@@ -36715,6 +50000,46 @@ Are you sure?</source>
             <source>P&amp;L</source>
             <translation>손익</translation>
         </message>
+        <message>
+            <source>Include this leg in analytics and in the order basket.</source>
+            <translation>이 레그를 분석과 주문 바스켓에 포함합니다.</translation>
+        </message>
+        <message>
+            <source>Buy when Lots is positive, Sell when negative.</source>
+            <translation>계약 수가 양수면 매수, 음수면 매도합니다.</translation>
+        </message>
+        <message>
+            <source>CE = call, PE = put. Double-click to switch side.</source>
+            <translation>CE = 콜, PE = 풋. 두 번 클릭하면 콜/풋이 바뀝니다.</translation>
+        </message>
+        <message>
+            <source>Strike price. Double-click to change - the contract, lot size, premium and IV are re-read from the live chain (a strike the chain doesn't carry stays a what-if row that can't be traded).</source>
+            <translation>행사가격입니다. 두 번 클릭해 바꾸면 계약, 계약 단위, 프리미엄, 내재변동성을 실시간 체인에서 다시 읽습니다(체인에 없는 행사가는 거래할 수 없는 가정 행으로 남습니다).</translation>
+        </message>
+        <message>
+            <source>Signed lots: positive = buy, negative = sell. Quantity = lots × lot size.</source>
+            <translation>부호 있는 계약 수: 양수 = 매수, 음수 = 매도. 수량 = 계약 수 × 계약 단위.</translation>
+        </message>
+        <message>
+            <source>Entry premium per share (not per lot).</source>
+            <translation>주당 진입 프리미엄(계약당 아님).</translation>
+        </message>
+        <message>
+            <source>Implied volatility captured when the leg was added.</source>
+            <translation>레그를 추가할 때 기록한 내재변동성입니다.</translation>
+        </message>
+        <message>
+            <source>Live premium per share from the option chain.</source>
+            <translation>옵션 체인의 주당 실시간 프리미엄입니다.</translation>
+        </message>
+        <message>
+            <source>Position delta = per-share delta × lots × lot size (signed).</source>
+            <translation>포지션 델타 = 주당 델타 × 계약 수 × 계약 단위(부호 포함).</translation>
+        </message>
+        <message>
+            <source>Mark-to-market P&amp;L = (LTP − entry) × lots × lot size.</source>
+            <translation>평가손익 = (현재가 − 진입가) × 계약 수 × 계약 단위.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::fno::MaxPainChart</name>
@@ -36767,6 +50092,30 @@ Are you sure?</source>
         <message>
             <source>Double-click to remove.</source>
             <translation>제거하려면 두 번 클릭하세요.</translation>
+        </message>
+        <message>
+            <source>Straddle or strangle type</source>
+            <translation>스트래들 또는 스트랭글 유형</translation>
+        </message>
+        <message>
+            <source>Anchor strike</source>
+            <translation>기준 행사가</translation>
+        </message>
+        <message>
+            <source>Add this straddle to the chart</source>
+            <translation>이 스트래들을 차트에 추가</translation>
+        </message>
+        <message>
+            <source>That anchor strike is no longer in the chain. Pick another.</source>
+            <translation>그 기준 행사가가 더 이상 체인에 없습니다. 다른 행사가를 선택하세요.</translation>
+        </message>
+        <message>
+            <source>The ±%1 wings fall outside the loaded strike range. Pick a strike nearer the middle of the chain, or a narrower strangle.</source>
+            <translation>±%1 날개가 불러온 행사가 범위를 벗어납니다. 체인 가운데에 더 가까운 행사가나 더 좁은 스트랭글을 선택하세요.</translation>
+        </message>
+        <message>
+            <source>This provider published no instrument token for one side of that strike, so its intraday history can't be fetched. Pick another strike.</source>
+            <translation>이 공급자가 해당 행사가 한쪽의 상품 토큰을 제공하지 않아 장중 이력을 가져올 수 없습니다. 다른 행사가를 선택하세요.</translation>
         </message>
     </context>
     <context>
@@ -36836,6 +50185,10 @@ Are you sure?</source>
         <message>
             <source>STRIKE</source>
             <translation>행사가</translation>
+        </message>
+        <message>
+            <source>Strike for intraday open-interest chart</source>
+            <translation>장중 미결제약정 차트의 행사가</translation>
         </message>
     </context>
     <context>
@@ -36950,6 +50303,42 @@ Are you sure?</source>
         <message>
             <source>Margin unavailable</source>
             <translation>증거금 정보 없음</translation>
+        </message>
+        <message>
+            <source>Lots</source>
+            <translation>계약 수</translation>
+        </message>
+        <message>
+            <source>Order legs</source>
+            <translation>주문 레그</translation>
+        </message>
+        <message>
+            <source>Cancel without placing orders</source>
+            <translation>주문하지 않고 취소</translation>
+        </message>
+        <message>
+            <source>Place the listed legs as paper orders</source>
+            <translation>목록의 레그를 모의투자 주문으로 제출</translation>
+        </message>
+        <message>
+            <source>Not submitted — leg is switched off or has zero lots.</source>
+            <translation>제출 안 함 — 레그가 꺼져 있거나 계약 수가 0입니다.</translation>
+        </message>
+        <message>
+            <source>%1  (skipped)</source>
+            <translation>%1  (건너뜀)</translation>
+        </message>
+        <message>
+            <source>%1  (×%2)</source>
+            <translation>%1  (×%2)</translation>
+        </message>
+        <message>
+            <source>— lot size unknown</source>
+            <translation>— 계약 단위 알 수 없음</translation>
+        </message>
+        <message>
+            <source>%1 of %2 legs will be placed as market orders at the shown entry premium.</source>
+            <translation>레그 %2개 중 %1개를 표시된 진입 프리미엄 기준 시장가 주문으로 제출합니다.</translation>
         </message>
     </context>
     <context>
@@ -37114,6 +50503,54 @@ Target P/L: %3</source>
             <source>DEMO</source>
             <translation>데모</translation>
         </message>
+        <message>
+            <source>No lock positions — on-chain staking is not live yet.
+Your locks will appear here once the fincept_lock program launches.</source>
+            <translation>락업 포지션이 없습니다 — 온체인 스테이킹은 아직 시작되지 않았습니다.
+fincept_lock 프로그램이 출시되면 락업이 여기에 표시됩니다.</translation>
+        </message>
+        <message>
+            <source>COMING SOON</source>
+            <translation>출시 예정</translation>
+        </message>
+        <message>
+            <source>Locks unavailable — the locks feed returned an error.</source>
+            <translation>락업을 불러올 수 없습니다 — 락업 피드가 오류를 반환했습니다.</translation>
+        </message>
+        <message>
+            <source>No active locks.</source>
+            <translation>활성 락업이 없습니다.</translation>
+        </message>
+        <message>
+            <source>UNAVAILABLE</source>
+            <translation>사용 불가</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n position(s) · %1 veFNCPT</source>
+            <translation>
+                <numerusform>포지션 %n개 · %1 veFNCPT</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Extend lock… (coming soon)</source>
+            <translation>락업 연장… (출시 예정)</translation>
+        </message>
+        <message>
+            <source>Withdraw (coming soon)</source>
+            <translation>출금 (출시 예정)</translation>
+        </message>
+        <message>
+            <source>Extending a lock is not implemented in this build.</source>
+            <translation>이 빌드에서는 락업 연장을 지원하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Withdrawing is not implemented in this build.</source>
+            <translation>이 빌드에서는 출금을 지원하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Unlocks %1. Withdrawing is not implemented in this build.</source>
+            <translation>%1에 락업이 해제됩니다. 이 빌드에서는 출금을 지원하지 않습니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::panels::BuybackBurnPanel</name>
@@ -37197,6 +50634,42 @@ Target P/L: %3</source>
             <source>DEMO</source>
             <translation>데모</translation>
         </message>
+        <message>
+            <source>BUYBACK</source>
+            <translation>바이백</translation>
+        </message>
+        <message>
+            <source>STAKER YIELD</source>
+            <translation>스테이커 수익</translation>
+        </message>
+        <message>
+            <source>TREASURY TOPUP</source>
+            <translation>트레저리 충전</translation>
+        </message>
+        <message>
+            <source>THIS EPOCH · SAMPLE DATA</source>
+            <translation>이번 에포크 · 샘플 데이터</translation>
+        </message>
+        <message>
+            <source>ALL-TIME · SAMPLE DATA</source>
+            <translation>전체 기간 · 샘플 데이터</translation>
+        </message>
+        <message>
+            <source>Demo data — no such transaction exists on-chain. Configure fincept.treasury_endpoint for real burn data.</source>
+            <translation>데모 데이터 — 온체인에 이런 트랜잭션은 없습니다. 실제 소각 데이터를 보려면 fincept.treasury_endpoint를 설정하세요.</translation>
+        </message>
+        <message>
+            <source>SAMPLE DATA · %1</source>
+            <translation>샘플 데이터 · %1</translation>
+        </message>
+        <message>
+            <source>demo — no on-chain tx</source>
+            <translation>데모 — 온체인 트랜잭션 없음</translation>
+        </message>
+        <message>
+            <source>Demo signature — no such transaction exists on-chain. Configure fincept.treasury_endpoint for real burn data.</source>
+            <translation>데모 서명 — 온체인에 이런 트랜잭션은 없습니다. 실제 소각 데이터를 보려면 fincept.treasury_endpoint를 설정하세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::panels::FeeDiscountPanel</name>
@@ -37235,6 +50708,30 @@ Target P/L: %3</source>
         <message>
             <source>LOCKED</source>
             <translation>락업됨</translation>
+        </message>
+        <message>
+            <source>PLANNED FOR</source>
+            <translation>적용 예정 대상</translation>
+        </message>
+        <message>
+            <source>Planned: holding ≥ %1 $FNCPT will qualify for a discount on premium screens, AI reports and deep backtests. Not active yet — no purchase in the terminal applies it, so nothing is discounted today.</source>
+            <translation>예정: $FNCPT를 %1개 이상 보유하면 프리미엄 화면, AI 보고서, 심층 백테스트 할인을 받을 수 있습니다. 아직 적용되지 않았고 터미널의 어떤 결제에도 반영되지 않으므로 지금 할인되는 항목은 없습니다.</translation>
+        </message>
+        <message>
+            <source>● ELIGIBLE · NOT ACTIVE YET</source>
+            <translation>● 대상 · 아직 적용 안 됨</translation>
+        </message>
+        <message>
+            <source>%1 → %2  (would save %3 once live)</source>
+            <translation>%1 → %2  (적용되면 %3 절약)</translation>
+        </message>
+        <message>
+            <source>PLANNED · NOT ELIGIBLE</source>
+            <translation>예정 · 대상 아님</translation>
+        </message>
+        <message>
+            <source>%1 more $FNCPT needed to qualify for the planned %2% discount.</source>
+            <translation>예정된 %2% 할인을 받으려면 $FNCPT가 %1개 더 필요합니다.</translation>
         </message>
     </context>
     <context>
@@ -37418,6 +50915,94 @@ Target P/L: %3</source>
             <source>LOCK $FNCPT</source>
             <translation>$FNCPT 락업</translation>
         </message>
+        <message>
+            <source>UNLOCKS ON</source>
+            <translation>락업 해제일</translation>
+        </message>
+        <message>
+            <source>WALLET</source>
+            <translation>지갑</translation>
+        </message>
+        <message>
+            <source>Amount of FNCPT to lock</source>
+            <translation>락업할 FNCPT 수량</translation>
+        </message>
+        <message>
+            <source>Locked tokens cannot be withdrawn before the unlock date</source>
+            <translation>락업한 토큰은 해제일 전에 출금할 수 없습니다</translation>
+        </message>
+        <message>
+            <source>Lock the maximum available balance</source>
+            <translation>사용 가능한 최대 잔고 락업</translation>
+        </message>
+        <message>
+            <source>Build and review lock transaction</source>
+            <translation>락업 트랜잭션 생성 및 검토</translation>
+        </message>
+        <message>
+            <source>Available FNCPT balance</source>
+            <translation>사용 가능한 FNCPT 잔고</translation>
+        </message>
+        <message>
+            <source>Resulting veFNCPT weight</source>
+            <translation>락업 후 veFNCPT 가중치</translation>
+        </message>
+        <message>
+            <source>Estimated yield upper bound</source>
+            <translation>예상 수익 상한</translation>
+        </message>
+        <message>
+            <source>Billing tier after lock</source>
+            <translation>락업 후 결제 등급</translation>
+        </message>
+        <message>
+            <source>Lock status</source>
+            <translation>락업 상태</translation>
+        </message>
+        <message>
+            <source>Lock for three months</source>
+            <translation>3개월 락업</translation>
+        </message>
+        <message>
+            <source>Lock for six months</source>
+            <translation>6개월 락업</translation>
+        </message>
+        <message>
+            <source>Lock for one year</source>
+            <translation>1년 락업</translation>
+        </message>
+        <message>
+            <source>Lock for two years</source>
+            <translation>2년 락업</translation>
+        </message>
+        <message>
+            <source>Lock for four years</source>
+            <translation>4년 락업</translation>
+        </message>
+        <message>
+            <source>COMING SOON — on-chain staking is not live</source>
+            <translation>출시 예정 — 온체인 스테이킹은 아직 시작되지 않았습니다</translation>
+        </message>
+        <message>
+            <source>COMING SOON</source>
+            <translation>출시 예정</translation>
+        </message>
+        <message>
+            <source>n/a — staking not live</source>
+            <translation>해당 없음 — 스테이킹 미시작</translation>
+        </message>
+        <message>
+            <source>%1 (planned tier for this lock size)</source>
+            <translation>%1 (이 락업 규모의 예정 등급)</translation>
+        </message>
+        <message>
+            <source>≤ %1 / week (USDC) — ≤ %2% weekly at %3 stake · upper bound, assumes no other lockers</source>
+            <translation>주당 ≤ %1 (USDC) — %3 스테이크 기준 주간 ≤ %2% · 상한값이며 다른 락업 참여자가 없다고 가정</translation>
+        </message>
+        <message>
+            <source>DEMO · </source>
+            <translation>데모 · </translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::panels::MarketsListPanel</name>
@@ -37465,6 +51050,30 @@ Target P/L: %3</source>
             <source>● LIVE</source>
             <translation>● 실시간</translation>
         </message>
+        <message>
+            <source>No markets are listed yet.</source>
+            <translation>아직 상장된 마켓이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Trading on "%1" opens once the fincept_market program is deployed — order entry is not available yet.</source>
+            <translation>"%1" 거래는 fincept_market 프로그램이 배포되면 시작됩니다 — 아직 주문을 낼 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>SAMPLE · %1</source>
+            <translation>샘플 · %1</translation>
+        </message>
+        <message>
+            <source>%1 · expired</source>
+            <translation>%1 · 만료됨</translation>
+        </message>
+        <message>
+            <source>Sample market — illustrative price and volume, not live data and not tradable.</source>
+            <translation>샘플 마켓 — 예시용 가격과 거래량이며 실시간 데이터가 아니고 거래할 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>SAMPLE MARKETS — illustrative questions and prices, not live and not tradable. Fincept prediction markets are not launched yet.</source>
+            <translation>샘플 마켓 — 예시용 질문과 가격이며 실시간이 아니고 거래할 수 없습니다. Fincept 예측 시장은 아직 출시되지 않았습니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::panels::SupplyChartPanel</name>
@@ -37487,6 +51096,14 @@ Target P/L: %3</source>
         <message>
             <source>DEMO</source>
             <translation>데모</translation>
+        </message>
+        <message>
+            <source>The supply-history feed returned no data points yet.</source>
+            <translation>공급량 이력 피드에서 아직 받은 데이터가 없습니다.</translation>
+        </message>
+        <message>
+            <source>SUPPLY CHART · 12 MONTHS · SAMPLE DATA</source>
+            <translation>공급량 차트 · 12개월 · 샘플 데이터</translation>
         </message>
     </context>
     <context>
@@ -37587,6 +51204,54 @@ Target P/L: %3</source>
             <source>estimate unavailable</source>
             <translation>추정치 없음</translation>
         </message>
+        <message>
+            <source>Amount to pay</source>
+            <translation>지불 수량</translation>
+        </message>
+        <message>
+            <source>Quantity of the FROM token to swap</source>
+            <translation>보낼 토큰 중 스왑할 수량</translation>
+        </message>
+        <message>
+            <source>Pay with token</source>
+            <translation>지불할 토큰</translation>
+        </message>
+        <message>
+            <source>Receive token</source>
+            <translation>받을 토큰</translation>
+        </message>
+        <message>
+            <source>Use maximum available balance</source>
+            <translation>사용 가능한 잔고 전부 사용</translation>
+        </message>
+        <message>
+            <source>Build and review swap transaction</source>
+            <translation>스왑 트랜잭션 구성 및 검토</translation>
+        </message>
+        <message>
+            <source>Estimated amount received</source>
+            <translation>예상 수령량</translation>
+        </message>
+        <message>
+            <source>Available balance</source>
+            <translation>사용 가능 잔고</translation>
+        </message>
+        <message>
+            <source>Swap status</source>
+            <translation>스왑 상태</translation>
+        </message>
+        <message>
+            <source>Swap error</source>
+            <translation>스왑 오류</translation>
+        </message>
+        <message>
+            <source>Spot price is %1 s old — the estimate above may be wrong. PumpSwap still fills at execution within your slippage budget.</source>
+            <translation>현물가가 %1초 전 가격입니다 — 위 추정치가 틀릴 수 있습니다. PumpSwap은 실행 시 설정한 슬리피지 한도 안에서 체결합니다.</translation>
+        </message>
+        <message>
+            <source>Ready — quote %1 s old.</source>
+            <translation>준비됨 — %1초 전 견적입니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::panels::TierPanel</name>
@@ -37654,6 +51319,54 @@ Target P/L: %3</source>
             <source>[achieved]</source>
             <translation>[달성]</translation>
         </message>
+        <message>
+            <source>planned: basic API quota</source>
+            <translation>예정: 기본 API 할당량</translation>
+        </message>
+        <message>
+            <source>planned: premium screens</source>
+            <translation>예정: 프리미엄 화면</translation>
+        </message>
+        <message>
+            <source>planned: all agents + arena</source>
+            <translation>예정: 모든 에이전트 + 아레나</translation>
+        </message>
+        <message>
+            <source>[reached]</source>
+            <translation>[달성]</translation>
+        </message>
+        <message>
+            <source>[not reached]</source>
+            <translation>[미달성]</translation>
+        </message>
+        <message>
+            <source>[planned]</source>
+            <translation>[예정]</translation>
+        </message>
+        <message>
+            <source>PLANNED · NOT ACTIVE</source>
+            <translation>예정 · 미적용</translation>
+        </message>
+        <message>
+            <source>Tiers are planned, not active: no feature in this build is unlocked or restricted by tier, and holding $FNCPT does not change what you can use. Tiers will be computed from locked veFNCPT weight once on-chain staking launches.</source>
+            <translation>등급은 예정 기능이며 아직 적용되지 않습니다. 이 빌드에서 등급에 따라 열리거나 제한되는 기능은 없고, $FNCPT를 보유해도 사용할 수 있는 기능은 달라지지 않습니다. 온체인 스테이킹이 시작되면 락업한 veFNCPT 가중치로 등급을 계산합니다.</translation>
+        </message>
+        <message>
+            <source>current %1</source>
+            <translation>현재 %1</translation>
+        </message>
+        <message>
+            <source>%1 more veFNCPT weight needed to reach the next tier. Tier benefits are planned and not active yet.</source>
+            <translation>다음 등급까지 veFNCPT 가중치가 %1 더 필요합니다. 등급 혜택은 예정 기능이며 아직 적용되지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Top tier reached. Tier benefits are planned and not active yet.</source>
+            <translation>최상위 등급에 도달했습니다. 등급 혜택은 예정 기능이며 아직 적용되지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Tier benefits are planned and not active yet.</source>
+            <translation>등급 혜택은 예정 기능이며 아직 적용되지 않습니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::panels::TreasuryPanel</name>
@@ -37697,6 +51410,30 @@ Target P/L: %3</source>
             <source>DEMO</source>
             <translation>데모</translation>
         </message>
+        <message>
+            <source>%1 SOL  (USD price n/a)</source>
+            <translation>%1 SOL  (USD 가격 없음)</translation>
+        </message>
+        <message>
+            <source>%1 + SOL (unpriced)</source>
+            <translation>%1 + SOL (가격 미반영)</translation>
+        </message>
+        <message>
+            <source>No live SOL price yet — the total excludes the SOL balance.</source>
+            <translation>아직 실시간 SOL 가격이 없습니다 — 합계에서 SOL 잔고가 빠져 있습니다.</translation>
+        </message>
+        <message>
+            <source>— (monthly opex not configured)</source>
+            <translation>— (월 운영비 미설정)</translation>
+        </message>
+        <message>
+            <source>Refusing to open a non-https treasury link: %1</source>
+            <translation>https가 아닌 트레저리 링크는 열지 않습니다: %1</translation>
+        </message>
+        <message>
+            <source>TREASURY · SAMPLE DATA</source>
+            <translation>트레저리 · 샘플 데이터</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::polymarket::PolymarketActivityFeed</name>
@@ -37738,6 +51475,18 @@ Target P/L: %3</source>
         <message>
             <source>LOADING...</source>
             <translation>불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Market list</source>
+            <translation>시장 목록</translation>
+        </message>
+        <message>
+            <source>Previous page</source>
+            <translation>이전 페이지</translation>
+        </message>
+        <message>
+            <source>Next page</source>
+            <translation>다음 페이지</translation>
         </message>
     </context>
     <context>
@@ -37801,6 +51550,18 @@ Target P/L: %3</source>
         <message>
             <source>Account</source>
             <translation>계좌</translation>
+        </message>
+        <message>
+            <source>Live WebSocket feed connected</source>
+            <translation>실시간 WebSocket 피드 연결됨</translation>
+        </message>
+        <message>
+            <source>Live streaming is not available for %1 in this build — prices, books and trades update when you refresh or re-select a market.</source>
+            <translation>이 빌드에서는 %1의 실시간 스트리밍을 지원하지 않습니다 — 가격, 호가창, 체결내역은 새로고침하거나 시장을 다시 선택할 때 갱신됩니다.</translation>
+        </message>
+        <message>
+            <source>WebSocket disconnected — it reconnects when a market is selected.</source>
+            <translation>WebSocket 연결 끊김 — 시장을 선택하면 다시 연결합니다.</translation>
         </message>
     </context>
     <context>
@@ -37971,6 +51732,142 @@ to place orders</source>
             <source>  · %1 likes</source>
             <translation>  · 좋아요 %1개</translation>
         </message>
+        <message>
+            <source>Show the %1 panel for the selected market</source>
+            <translation>선택한 시장의 %1 패널 표시</translation>
+        </message>
+        <message>
+            <source>NEWS ↗</source>
+            <translation>뉴스 ↗</translation>
+        </message>
+        <message>
+            <source>Open related news</source>
+            <translation>관련 뉴스 열기</translation>
+        </message>
+        <message>
+            <source>Buy side</source>
+            <translation>매수 선택</translation>
+        </message>
+        <message>
+            <source>Sell side</source>
+            <translation>매도 선택</translation>
+        </message>
+        <message>
+            <source>Order outcome</source>
+            <translation>주문할 결과</translation>
+        </message>
+        <message>
+            <source>Limit price between 0 and 1</source>
+            <translation>0과 1 사이의 지정가</translation>
+        </message>
+        <message>
+            <source>Order size in shares</source>
+            <translation>주문 수량(주)</translation>
+        </message>
+        <message>
+            <source>Order type</source>
+            <translation>주문 유형</translation>
+        </message>
+        <message>
+            <source>Place order</source>
+            <translation>주문 제출</translation>
+        </message>
+        <message>
+            <source>≈ %1 %2 cost</source>
+            <translation>≈ %1 %2 (매수 금액)</translation>
+        </message>
+        <message>
+            <source>≈ %1 %2 proceeds</source>
+            <translation>≈ %1 %2 (매도 금액)</translation>
+        </message>
+        <message>
+            <source>Kalshi contracts are whole numbers — enter an integer size</source>
+            <translation>Kalshi 계약은 정수 단위입니다 — 수량을 정수로 입력하세요</translation>
+        </message>
+        <message>
+            <source>Size below the exchange minimum of %1</source>
+            <translation>수량이 거래소 최소 수량 %1보다 작습니다</translation>
+        </message>
+        <message>
+            <source>Price must be a multiple of the %1 tick — try %2</source>
+            <translation>가격은 호가 단위 %1의 배수여야 합니다 — %2(으)로 입력해 보세요</translation>
+        </message>
+        <message>
+            <source>Select an outcome before placing an order</source>
+            <translation>주문하기 전에 결과를 선택하세요</translation>
+        </message>
+        <message>
+            <source>This outcome has no tradable asset id — cannot place order</source>
+            <translation>이 결과에는 거래 가능한 자산 ID가 없어 주문할 수 없습니다</translation>
+        </message>
+        <message>
+            <source>Market is closed — no further trading</source>
+            <translation>마감된 시장입니다 — 더 이상 거래할 수 없습니다</translation>
+        </message>
+        <message>
+            <source>%1  %2  ×  %3 shares  @  %4</source>
+            <translation>%1  %2  ×  %3주  @  %4</translation>
+        </message>
+        <message>
+            <source>Exact price: %1</source>
+            <translation>정확한 가격: %1</translation>
+        </message>
+        <message>
+            <source>Market: %1</source>
+            <translation>시장: %1</translation>
+        </message>
+        <message>
+            <source>Order type: %1</source>
+            <translation>주문 유형: %1</translation>
+        </message>
+        <message>
+            <source>Cost: %1 %2</source>
+            <translation>매수 금액: %1 %2</translation>
+        </message>
+        <message>
+            <source>Proceeds: %1 %2</source>
+            <translation>매도 금액: %1 %2</translation>
+        </message>
+        <message>
+            <source>Confirm order</source>
+            <translation>주문 확인</translation>
+        </message>
+        <message>
+            <source>Place this order on %1?</source>
+            <translation>%1에 이 주문을 제출하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Cancelled — no order sent</source>
+            <translation>취소됨 — 주문을 보내지 않았습니다</translation>
+        </message>
+        <message>
+            <source>%1 %2</source>
+            <translation>%1 %2</translation>
+        </message>
+        <message>
+            <source>other</source>
+            <translation>기타</translation>
+        </message>
+        <message>
+            <source>%1 @ %2</source>
+            <translation>%1 @ %2</translation>
+        </message>
+        <message>
+            <source>Position in the outcome selected in the ticket; other outcomes in brackets.</source>
+            <translation>주문창에서 선택한 결과의 포지션입니다. 다른 결과는 괄호 안에 표시합니다.</translation>
+        </message>
+        <message>
+            <source>No subject found in this market's question</source>
+            <translation>이 시장의 질문에서 주제를 찾지 못했습니다</translation>
+        </message>
+        <message>
+            <source>Search News for "%1"</source>
+            <translation>뉴스에서 "%1" 검색</translation>
+        </message>
+        <message>
+            <source>Related market: %1</source>
+            <translation>관련 시장: %1</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::polymarket::PolymarketLeaderboard</name>
@@ -37997,6 +51894,34 @@ to place orders</source>
         <message>
             <source>TRADES</source>
             <translation>거래 횟수</translation>
+        </message>
+        <message>
+            <source>Trader leaderboard</source>
+            <translation>트레이더 순위표</translation>
+        </message>
+        <message>
+            <source>Double-click a trader to open their Polymarket profile</source>
+            <translation>트레이더를 두 번 클릭하면 Polymarket 프로필을 엽니다</translation>
+        </message>
+        <message>
+            <source>Leaderboard data not available</source>
+            <translation>순위표 데이터가 없습니다</translation>
+        </message>
+        <message>
+            <source>No leaderboard entries</source>
+            <translation>순위표 항목 없음</translation>
+        </message>
+        <message>
+            <source>Leaderboard unavailable</source>
+            <translation>순위표를 불러올 수 없음</translation>
+        </message>
+        <message>
+            <source>Leaderboard unavailable: %1</source>
+            <translation>순위표를 불러올 수 없음: %1</translation>
+        </message>
+        <message>
+            <source>Loading…</source>
+            <translation>불러오는 중…</translation>
         </message>
     </context>
     <context>
@@ -38036,6 +51961,50 @@ to place orders</source>
             <source>New limit price (0.01 – 0.99):</source>
             <translation>새 지정가 (0.01 – 0.99):</translation>
         </message>
+        <message>
+            <source>Open orders</source>
+            <translation>미체결 주문</translation>
+        </message>
+        <message>
+            <source>Expires %1</source>
+            <translation>만료 %1</translation>
+        </message>
+        <message>
+            <source>No expiry (good-till-cancelled)</source>
+            <translation>만료 없음(취소 시까지 유효)</translation>
+        </message>
+        <message>
+            <source>Order ID: %1</source>
+            <translation>주문번호: %1</translation>
+        </message>
+        <message>
+            <source>Refresh order %1</source>
+            <translation>주문 %1 새로고침</translation>
+        </message>
+        <message>
+            <source>Cancel %1 %2 @ %3 (id %4)</source>
+            <translation>%1 %2 @ %3 취소 (ID %4)</translation>
+        </message>
+        <message>
+            <source>Cancel order %1</source>
+            <translation>주문 %1 취소</translation>
+        </message>
+        <message>
+            <source>Cancel all orders?</source>
+            <translation>모든 주문을 취소하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Cancel all %1 open order(s) on %2?
+
+This cannot be undone — any partially filled quantity stays filled.</source>
+            <translation>%2의 미체결 주문 %1건을 모두 취소하시겠습니까?
+
+이 작업은 되돌릴 수 없습니다 — 이미 부분 체결된 수량은 체결된 그대로 남습니다.</translation>
+        </message>
+        <message>
+            <source>this exchange</source>
+            <translation>이 거래소</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::polymarket::PolymarketOrderBook</name>
@@ -38058,6 +52027,14 @@ to place orders</source>
         <message>
             <source>No order book data</source>
             <translation>호가 데이터 없음</translation>
+        </message>
+        <message>
+            <source>Order book</source>
+            <translation>호가창</translation>
+        </message>
+        <message>
+            <source>Click a price level to load it into the trade ticket.</source>
+            <translation>호가를 클릭하면 주문창에 해당 가격이 입력됩니다.</translation>
         </message>
     </context>
     <context>
@@ -38300,6 +52277,18 @@ to place orders</source>
             <source>Loaded PEM from %1.</source>
             <translation>%1에서 PEM을 불러왔습니다.</translation>
         </message>
+        <message>
+            <source>Connection OK</source>
+            <translation>연결 정상</translation>
+        </message>
+        <message>
+            <source>Connection failed</source>
+            <translation>연결 실패</translation>
+        </message>
+        <message>
+            <source>&lt;span style='color:#dc2626'&gt;Funder address should be 0x + 40 hex chars.&lt;/span&gt;</source>
+            <translation>&lt;span style='color:#dc2626'&gt;자금 제공 주소는 0x와 16진수 40자로 이루어져야 합니다.&lt;/span&gt;</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::AgentErrorsWidget</name>
@@ -38350,6 +52339,50 @@ to place orders</source>
             <source>No data yet — click refresh to retry</source>
             <translation>아직 데이터 없음 — 새로고침을 클릭하여 다시 시도하세요</translation>
         </message>
+        <message>
+            <source>Double-click to open %1 in Equity Research · right-click for more</source>
+            <translation>두 번 클릭하면 주식 리서치에서 %1을(를) 엽니다 · 오른쪽 클릭으로 더 보기</translation>
+        </message>
+        <message>
+            <source>Open in Equity Research</source>
+            <translation>주식 리서치에서 열기</translation>
+        </message>
+        <message>
+            <source>Open in Crypto Trading</source>
+            <translation>가상자산 거래에서 열기</translation>
+        </message>
+        <message>
+            <source>Open in Equity Trading</source>
+            <translation>주식 거래에서 열기</translation>
+        </message>
+        <message>
+            <source>Open in News</source>
+            <translation>뉴스에서 열기</translation>
+        </message>
+        <message>
+            <source>Backtest This Symbol</source>
+            <translation>이 종목 백테스트</translation>
+        </message>
+        <message>
+            <source>Add to Watchlist</source>
+            <translation>관심종목에 추가</translation>
+        </message>
+        <message>
+            <source>%1 is already in %2</source>
+            <translation>%1은(는) 이미 %2에 있습니다</translation>
+        </message>
+        <message>
+            <source>Added %1 to %2</source>
+            <translation>%2에 %1을(를) 추가했습니다</translation>
+        </message>
+        <message>
+            <source>Could not add %1 to %2</source>
+            <translation>%2에 %1을(를) 추가하지 못했습니다</translation>
+        </message>
+        <message>
+            <source>Copy Symbol</source>
+            <translation>종목코드 복사</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::BrokerHoldingsWidget</name>
@@ -38396,6 +52429,64 @@ to place orders</source>
         <message>
             <source>LTP (native)</source>
             <translation>현재가 (거래 통화)</translation>
+        </message>
+        <message>
+            <source>SQUARE OFF ALL</source>
+            <translation>전체 매도</translation>
+        </message>
+        <message>
+            <source>Double-click a holding to open it in Equity Trading</source>
+            <translation>보유종목을 두 번 클릭하면 주식 거래에서 엽니다</translation>
+        </message>
+        <message>
+            <source>No holdings</source>
+            <translation>보유종목 없음</translation>
+        </message>
+        <message>
+            <source>Exit</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>Square Off Holding</source>
+            <translation>보유종목 매도</translation>
+        </message>
+        <message>
+            <source>Place a MARKET SELL order for %1 %2 (CNC)?</source>
+            <translation>%2 %1주를 시장가로 매도하시겠습니까? (CNC)</translation>
+        </message>
+        <message>
+            <source>Sell order placed for %1 (order %2).</source>
+            <translation>%1 매도 주문을 제출했습니다 (주문번호 %2).</translation>
+        </message>
+        <message>
+            <source>Failed to square off %1: %2</source>
+            <translation>%1 매도 실패: %2</translation>
+        </message>
+        <message>
+            <source>Square Off All Holdings</source>
+            <translation>보유종목 전체 매도</translation>
+        </message>
+        <message>
+            <source>No holdings to square off.</source>
+            <translation>매도할 보유종목이 없습니다.</translation>
+        </message>
+        <message>
+            <source>This will place MARKET SELL orders to exit ALL %1 holding(s) in this account.
+
+Positions are NOT affected. Continue?</source>
+            <translation>이 계좌의 보유종목 %1개 전체에 시장가 매도 주문을 제출합니다.
+
+포지션에는 영향을 주지 않습니다. 계속하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Placed %1 sell order(s).</source>
+            <translation>매도 주문 %1건을 제출했습니다.</translation>
+        </message>
+        <message>
+            <source>Placed %1 order(s). %2 failed:
+%3</source>
+            <translation>주문 %1건을 제출했습니다. %2건 실패:
+%3</translation>
         </message>
     </context>
     <context>
@@ -38513,6 +52604,10 @@ to place orders</source>
             <source>LOW</source>
             <translation>낮음</translation>
         </message>
+        <message>
+            <source>Double-click to open the Economics screen</source>
+            <translation>두 번 클릭하면 경제 화면을 엽니다</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::GeopoliticsEventsWidget</name>
@@ -38559,6 +52654,14 @@ to place orders</source>
         <message>
             <source>Max rows</source>
             <translation>최대 행 수</translation>
+        </message>
+        <message>
+            <source>Geopolitics feed failed: %1 — click refresh to retry</source>
+            <translation>지정학 피드 오류: %1 — 새로고침을 눌러 다시 시도하세요</translation>
+        </message>
+        <message>
+            <source>Double-click to open the Geopolitics screen</source>
+            <translation>두 번 클릭하면 지정학 화면을 엽니다</translation>
         </message>
     </context>
     <context>
@@ -38614,6 +52717,10 @@ to place orders</source>
             <source>Broker account</source>
             <translation>증권사 계좌</translation>
         </message>
+        <message>
+            <source>Used margin exceeds the account balance</source>
+            <translation>사용 증거금이 계좌 잔고를 초과합니다</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::MaritimeVesselsWidget</name>
@@ -38656,6 +52763,10 @@ to place orders</source>
         <message>
             <source>IMO numbers</source>
             <translation>IMO 번호</translation>
+        </message>
+        <message>
+            <source>Double-click to open the Maritime screen</source>
+            <translation>두 번 클릭하면 해운 화면을 엽니다</translation>
         </message>
     </context>
     <context>
@@ -38735,6 +52846,18 @@ to place orders</source>
             <source>BEAR</source>
             <translation>약세</translation>
         </message>
+        <message>
+            <source>Up / Down (%1 large caps)</source>
+            <translation>상승 / 하락 (대형주 %1개)</translation>
+        </message>
+        <message>
+            <source>Composite of %1 US large caps: share moving more than ±0.5% today, adjusted by the VIX level. A basket indicator, not a market-wide index.</source>
+            <translation>미국 대형주 %1개 종합: 오늘 ±0.5% 넘게 움직인 종목 비율을 VIX 수준으로 보정한 값입니다. 시장 전체 지수가 아니라 바스켓 지표입니다.</translation>
+        </message>
+        <message>
+            <source>%1 up / %2 down</source>
+            <translation>상승 %1 / 하락 %2</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::NewsCategoryWidget</name>
@@ -38758,6 +52881,18 @@ to place orders</source>
             <source>Max rows</source>
             <translation>최대 행 수</translation>
         </message>
+        <message>
+            <source>Click a headline to open the article</source>
+            <translation>헤드라인을 클릭하면 기사를 엽니다</translation>
+        </message>
+        <message>
+            <source>News feed failed: %1 — click refresh to retry</source>
+            <translation>뉴스 피드 오류: %1 — 새로고침을 눌러 다시 시도하세요</translation>
+        </message>
+        <message>
+            <source>No articles in this category</source>
+            <translation>이 카테고리에 기사가 없습니다</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::NewsWidget</name>
@@ -38768,6 +52903,10 @@ to place orders</source>
         <message>
             <source>No news available.</source>
             <translation>뉴스가 없습니다.</translation>
+        </message>
+        <message>
+            <source>News feed failed: %1 — click refresh to retry</source>
+            <translation>뉴스 피드 오류: %1 — 새로고침을 눌러 다시 시도하세요</translation>
         </message>
     </context>
     <context>
@@ -38859,6 +52998,14 @@ to place orders</source>
             <source>Broker account</source>
             <translation>증권사 계좌</translation>
         </message>
+        <message>
+            <source>Double-click a position to open it in Equity Trading</source>
+            <translation>포지션을 두 번 클릭하면 주식 거래에서 엽니다</translation>
+        </message>
+        <message>
+            <source>No open positions</source>
+            <translation>보유 포지션 없음</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::OrderBookMiniWidget</name>
@@ -38913,6 +53060,10 @@ to place orders</source>
         <message>
             <source>Broker account</source>
             <translation>증권사 계좌</translation>
+        </message>
+        <message>
+            <source>No working orders</source>
+            <translation>미체결 주문 없음</translation>
         </message>
     </context>
     <context>
@@ -38979,6 +53130,10 @@ to place orders</source>
         <message>
             <source>Markets</source>
             <translation>시장</translation>
+        </message>
+        <message>
+            <source>Double-click to open the Polymarket screen</source>
+            <translation>두 번 클릭하면 Polymarket 화면을 엽니다</translation>
         </message>
     </context>
     <context>
@@ -39192,6 +53347,46 @@ Order sent to trading engine.</source>
             <source>EST. TOTAL %1 · display %2</source>
             <translation>예상 총액 %1 · 환산 표시 %2</translation>
         </message>
+        <message>
+            <source>Symbol</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>Look up symbol</source>
+            <translation>종목코드 검색</translation>
+        </message>
+        <message>
+            <source>Order side</source>
+            <translation>매매 구분</translation>
+        </message>
+        <message>
+            <source>Order type</source>
+            <translation>주문 유형</translation>
+        </message>
+        <message>
+            <source>Quantity</source>
+            <translation>수량</translation>
+        </message>
+        <message>
+            <source>Limit / stop price</source>
+            <translation>지정가 / 스톱 가격</translation>
+        </message>
+        <message>
+            <source>Place order</source>
+            <translation>주문 제출</translation>
+        </message>
+        <message>
+            <source>Quick Trade is a preview widget and is not connected to a trading account — no order was placed.
+
+To place %1 %2 %3, use the Equity Trading or Crypto Trading screen, which routes the order to your selected broker/paper account with confirmation.</source>
+            <translation>빠른 주문은 미리보기 위젯이며 거래 계좌에 연결되어 있지 않습니다 — 주문을 제출하지 않았습니다.
+
+%3 %2 %1 주문은 주식 거래 또는 가상자산 거래 화면에서 하세요. 이 화면은 확인을 거쳐 선택한 증권사/모의투자 계좌로 주문을 보냅니다.</translation>
+        </message>
+        <message>
+            <source>Open Equity Trading</source>
+            <translation>주식 거래 열기</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::QuoteTableWidget</name>
@@ -39227,6 +53422,10 @@ Order sent to trading engine.</source>
             <source>GLOBAL INDICES</source>
             <translation>글로벌 지수</translation>
         </message>
+        <message>
+            <source>Double-click a row to open it in Equity Research · right-click for more</source>
+            <translation>행을 두 번 클릭하면 주식 리서치에서 엽니다 · 오른쪽 클릭으로 더 보기</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::RecentFilesWidget</name>
@@ -39237,6 +53436,10 @@ Order sent to trading engine.</source>
         <message>
             <source>No files yet</source>
             <translation>아직 파일 없음</translation>
+        </message>
+        <message>
+            <source>Click to open the File Manager</source>
+            <translation>클릭하면 파일 관리자를 엽니다</translation>
         </message>
     </context>
     <context>
@@ -39288,6 +53491,22 @@ Order sent to trading engine.</source>
         <message>
             <source>EXTREME FEAR</source>
             <translation>극도의 공포</translation>
+        </message>
+        <message>
+            <source>SPY − QQQ day return</source>
+            <translation>SPY − QQQ 당일 수익률</translation>
+        </message>
+        <message>
+            <source>SPY − IWM day return</source>
+            <translation>SPY − IWM 당일 수익률</translation>
+        </message>
+        <message>
+            <source>SPY − TLT day return</source>
+            <translation>SPY − TLT 당일 수익률</translation>
+        </message>
+        <message>
+            <source>Today's return of the first ETF minus the second, in percentage points (pp).</source>
+            <translation>첫 번째 ETF의 당일 수익률에서 두 번째 ETF의 당일 수익률을 뺀 값입니다(단위: %p).</translation>
         </message>
     </context>
     <context>
@@ -39343,6 +53562,14 @@ Order sent to trading engine.</source>
         <message>
             <source>FILTER:</source>
             <translation>필터:</translation>
+        </message>
+        <message>
+            <source>Waiting for quotes...</source>
+            <translation>시세 대기 중...</translation>
+        </message>
+        <message>
+            <source>Screener sort order</source>
+            <translation>스크리너 정렬 순서</translation>
         </message>
     </context>
     <context>
@@ -39445,6 +53672,22 @@ Order sent to trading engine.</source>
             <source>VOLUME</source>
             <translation>거래량</translation>
         </message>
+        <message>
+            <source>Configure — Stock Quote</source>
+            <translation>설정 — 주식 시세</translation>
+        </message>
+        <message>
+            <source>e.g. AAPL</source>
+            <translation>예: AAPL</translation>
+        </message>
+        <message>
+            <source>Symbol</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>Session open is not available in the batch quote feed</source>
+            <translation>일괄 시세 피드에는 당일 시가가 없습니다</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::TodayPnLWidget</name>
@@ -39476,6 +53719,18 @@ Order sent to trading engine.</source>
             <source>Broker account</source>
             <translation>증권사 계좌</translation>
         </message>
+        <message>
+            <source>NET P&amp;L · ALL POSITIONS</source>
+            <translation>순손익 · 전체 포지션</translation>
+        </message>
+        <message>
+            <source>n/a</source>
+            <translation>해당 없음</translation>
+        </message>
+        <message>
+            <source>This broker's positions feed does not report day (mark-to-market) P&amp;L.</source>
+            <translation>이 증권사의 포지션 피드는 당일 손익(시가평가)을 제공하지 않습니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::TopMoversWidget</name>
@@ -39502,6 +53757,50 @@ Order sent to trading engine.</source>
         <message>
             <source>CHG%</source>
             <translation>등락률</translation>
+        </message>
+        <message>
+            <source>Show top gainers</source>
+            <translation>상승률 상위 보기</translation>
+        </message>
+        <message>
+            <source>Show top losers</source>
+            <translation>하락률 상위 보기</translation>
+        </message>
+        <message>
+            <source>Double-click a row to open it in Equity Research · right-click for more</source>
+            <translation>행을 두 번 클릭하면 주식 리서치에서 엽니다 · 오른쪽 클릭으로 더 보기</translation>
+        </message>
+        <message>
+            <source>Configure — Top Movers</source>
+            <translation>설정 — 급등락 종목</translation>
+        </message>
+        <message>
+            <source>e.g. AAPL, MSFT, NVDA (empty = default list)</source>
+            <translation>예: AAPL, MSFT, NVDA (비워 두면 기본 목록)</translation>
+        </message>
+        <message>
+            <source>Movers are ranked within these symbols only (up to %1).</source>
+            <translation>이 종목들 안에서만 순위를 매깁니다(최대 %1개).</translation>
+        </message>
+        <message>
+            <source>Universe</source>
+            <translation>대상 종목</translation>
+        </message>
+        <message>
+            <source>Ranked among %1 tracked symbols</source>
+            <translation>추적 종목 %1개 중 순위</translation>
+        </message>
+        <message>
+            <source> (%1 quoted)</source>
+            <translation> (시세 수신 %1개)</translation>
+        </message>
+        <message>
+            <source> — none is up today</source>
+            <translation> — 오늘 상승한 종목 없음</translation>
+        </message>
+        <message>
+            <source> — none is down today</source>
+            <translation> — 오늘 하락한 종목 없음</translation>
         </message>
     </context>
     <context>
@@ -39611,6 +53910,10 @@ Build with Qt6 Multimedia for inline playback.</source>
             <source>Resolving stream via yt-dlp...</source>
             <translation>yt-dlp로 스트림 확인 중...</translation>
         </message>
+        <message>
+            <source>yt-dlp did not answer within 45 s — check the network and try again.</source>
+            <translation>yt-dlp가 45초 안에 응답하지 않았습니다 — 네트워크를 확인하고 다시 시도하세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::widgets::WatchlistWidget</name>
@@ -39641,6 +53944,22 @@ Build with Qt6 Multimedia for inline playback.</source>
         <message>
             <source>CHG%</source>
             <translation>등락률</translation>
+        </message>
+        <message>
+            <source>Watchlist symbols</source>
+            <translation>관심종목 종목코드</translation>
+        </message>
+        <message>
+            <source>Comma-separated symbols, e.g. AAPL, MSFT, BTC-USD</source>
+            <translation>쉼표로 구분한 종목코드, 예: AAPL, MSFT, BTC-USD</translation>
+        </message>
+        <message>
+            <source>Apply watchlist symbols</source>
+            <translation>관심종목 종목코드 적용</translation>
+        </message>
+        <message>
+            <source>Double-click a row to open it in Equity Research · right-click for more</source>
+            <translation>행을 두 번 클릭하면 주식 리서치에서 엽니다 · 오른쪽 클릭으로 더 보기</translation>
         </message>
     </context>
     <context>
@@ -39759,6 +54078,36 @@ X-API-Key: xyz</translation>
             <source>Auto-detects HTML tables, JSON arrays/objects, CSV/TSV, XML/RSS/Atom. If the page renders tables via JavaScript, use its underlying API URL instead.</source>
             <translation>HTML 표, JSON 배열/객체, CSV/TSV, XML/RSS/Atom을 자동 감지합니다. 페이지가 JavaScript로 표를 렌더링한다면 해당 데이터를 제공하는 API URL을 사용하세요.</translation>
         </message>
+        <message>
+            <source>Refresh failed: %1 — showing previous data</source>
+            <translation>새로고침 실패: %1 — 이전 데이터를 표시합니다</translation>
+        </message>
+        <message>
+            <source>No tabular data found — the site may build its tables with JavaScript. Try its JSON API URL instead.</source>
+            <translation>표 데이터를 찾지 못했습니다 — 사이트가 JavaScript로 표를 만드는 것일 수 있습니다. 대신 해당 사이트의 JSON API URL을 사용해 보세요.</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n table(s) · %1 · %2</source>
+            <translation>
+                <numerusform>표 %n개 · %1 · %2</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>0 = manual refresh only; otherwise at least 10 seconds</source>
+            <translation>0 = 수동 새로고침만, 그 밖에는 최소 10초</translation>
+        </message>
+        <message>
+            <source>default Fincept user agent</source>
+            <translation>기본 Fincept 사용자 에이전트</translation>
+        </message>
+        <message>
+            <source>Stored in the dashboard layout in plain text — use a read-only key.</source>
+            <translation>대시보드 레이아웃에 평문으로 저장됩니다 — 읽기 전용 키를 사용하세요.</translation>
+        </message>
+        <message>
+            <source>Auto-detects HTML tables, JSON arrays/objects, CSV/TSV, XML/RSS/Atom. Responses are capped at 10 MB and 30 s. If the page renders tables via JavaScript, use its underlying API URL instead.</source>
+            <translation>HTML 표, JSON 배열/객체, CSV/TSV, XML/RSS/Atom을 자동으로 감지합니다. 응답은 최대 10MB, 30초로 제한됩니다. 페이지가 JavaScript로 표를 그리면 대신 해당 페이지가 쓰는 API URL을 사용하세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::surface::Surface3DWidget</name>
@@ -39856,6 +54205,78 @@ X-API-Key: xyz</translation>
         <message>
             <source>Fetch failed</source>
             <translation>가져오기 실패</translation>
+        </message>
+        <message>
+            <source>SAMPLE DATA — synthetic values, not a live market surface. Do not trade or quote from this.</source>
+            <translation>샘플 데이터 — 실제 시장 곡면이 아닌 합성 값입니다. 이 값으로 거래하거나 시세로 인용하지 마세요.</translation>
+        </message>
+        <message>
+            <source>Regenerated synthetic sample data — this surface has no live source.</source>
+            <translation>합성 샘플 데이터를 다시 생성했습니다 — 이 곡면에는 실시간 소스가 없습니다.</translation>
+        </message>
+        <message>
+            <source>Regenerated synthetic sample data — no Databento API key configured.</source>
+            <translation>합성 샘플 데이터를 다시 생성했습니다 — Databento API 키가 설정되지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>Waiting for a live %1 quote</source>
+            <translation>%1 실시간 시세 대기 중</translation>
+        </message>
+        <message>
+            <source>No live spot price for %1 yet, and an option surface can't be built without one. A quote has been requested - press FETCH again in a moment.</source>
+            <translation>아직 %1의 실시간 현물가가 없어 옵션 곡면을 만들 수 없습니다. 시세를 요청했습니다 - 잠시 후 가져오기를 다시 누르세요.</translation>
+        </message>
+        <message>
+            <source>no data rows found</source>
+            <translation>데이터 행이 없습니다</translation>
+        </message>
+        <message>
+            <source>CSV import failed: %1</source>
+            <translation>CSV 가져오기 실패: %1</translation>
+        </message>
+        <message>
+            <source>Imported %1 rows from %2</source>
+            <translation>%2에서 %1개 행을 가져왔습니다</translation>
+        </message>
+        <message>
+            <source>Computed %1 from %2 symbol(s) x %3 trading days of daily closes.</source>
+            <translation>종목 %2개 × %3거래일의 일별 종가로 %1을(를) 계산했습니다.</translation>
+        </message>
+        <message>
+            <source> Windows / horizons longer than the sample use all of it.</source>
+            <translation> 표본보다 긴 윈도/기간은 표본 전체를 사용합니다.</translation>
+        </message>
+        <message>
+            <source> The sample is short - widen the date range for stable estimates.</source>
+            <translation> 표본이 짧습니다 - 안정적으로 추정하려면 날짜 범위를 넓히세요.</translation>
+        </message>
+        <message>
+            <source>Factor exposure needs factor-return series (size, value, momentum ...) that daily closes do not carry - this surface is still sample data.</source>
+            <translation>팩터 익스포저에는 일별 종가에 없는 팩터 수익률 시계열(규모, 가치, 모멘텀 등)이 필요합니다 - 이 곡면은 아직 샘플 데이터입니다.</translation>
+        </message>
+        <message>
+            <source>Beta is measured against SPY - add SPY to the basket and fetch again. This surface is still sample data.</source>
+            <translation>베타는 SPY 기준으로 계산합니다 - 바스켓에 SPY를 추가하고 다시 가져오세요. 이 곡면은 아직 샘플 데이터입니다.</translation>
+        </message>
+        <message>
+            <source>Correlation needs at least two symbols in the basket.</source>
+            <translation>상관관계를 계산하려면 바스켓에 종목이 2개 이상 있어야 합니다.</translation>
+        </message>
+        <message>
+            <source>PCA needs at least two symbols in the basket.</source>
+            <translation>PCA를 계산하려면 바스켓에 종목이 2개 이상 있어야 합니다.</translation>
+        </message>
+        <message>
+            <source>The response carried no grid for the surface on screen — it is still showing sample data.</source>
+            <translation>응답에 화면의 곡면에 해당하는 격자가 없습니다 — 계속 샘플 데이터를 표시합니다.</translation>
+        </message>
+        <message>
+            <source>The response replaced no grid for the surface on screen — it is still showing sample data.</source>
+            <translation>응답으로 바뀐 화면 곡면의 격자가 없습니다 — 계속 샘플 데이터를 표시합니다.</translation>
+        </message>
+        <message>
+            <source>Synthetic data warning</source>
+            <translation>합성 데이터 경고</translation>
         </message>
     </context>
     <context>
@@ -39971,6 +54392,50 @@ X-API-Key: xyz</translation>
         <message>
             <source>No Databento source for this surface — viewing synthetic data</source>
             <translation>이 곡면에 Databento 소스가 없습니다. 합성 데이터를 표시합니다</translation>
+        </message>
+        <message>
+            <source>not configured</source>
+            <translation>설정 안 됨</translation>
+        </message>
+        <message>
+            <source>Fetch this surface from Databento</source>
+            <translation>Databento에서 이 곡면 가져오기</translation>
+        </message>
+        <message>
+            <source>Underlying symbol</source>
+            <translation>기초자산 종목코드</translation>
+        </message>
+        <message>
+            <source>Databento dataset</source>
+            <translation>Databento 데이터 세트</translation>
+        </message>
+        <message>
+            <source>Spot price</source>
+            <translation>현물가</translation>
+        </message>
+        <message>
+            <source>Data tier</source>
+            <translation>데이터 등급</translation>
+        </message>
+        <message>
+            <source>Spot: %1</source>
+            <translation>현물가: %1</translation>
+        </message>
+        <message>
+            <source>connected</source>
+            <translation>연결됨</translation>
+        </message>
+        <message>
+            <source>disconnected</source>
+            <translation>연결 끊김</translation>
+        </message>
+        <message>
+            <source>error</source>
+            <translation>오류</translation>
+        </message>
+        <message>
+            <source>configured</source>
+            <translation>설정됨</translation>
         </message>
     </context>
     <context>
@@ -40321,6 +54786,10 @@ X-API-Key: xyz</translation>
             <source>KRX 4분 예측</source>
             <translation>KRX 4분 예측</translation>
         </message>
+        <message>
+            <source>Agent Workbench</source>
+            <translation>에이전트 워크벤치</translation>
+        </message>
     </context>
     <context>
         <name>fincept::ui::CommandPalette</name>
@@ -40501,6 +54970,18 @@ X-API-Key: xyz</translation>
         <message>
             <source>BUSY</source>
             <translation>작업 중</translation>
+        </message>
+        <message>
+            <source>OPEN SOURCE</source>
+            <translation>오픈 소스</translation>
+        </message>
+        <message>
+            <source>ENTERPRISE ↗</source>
+            <translation>Enterprise ↗</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal Enterprise — the private edition for firms (opens fincept.in)</source>
+            <translation>Fincept Terminal Enterprise — 기업용 비공개 에디션 (fincept.in 열기)</translation>
         </message>
     </context>
     <context>
@@ -40711,7 +55192,7 @@ X-API-Key: xyz</translation>
         </message>
         <message>
             <source>Trade Viz</source>
-            <translation>거래 시각화</translation>
+            <translation>무역 시각화</translation>
         </message>
         <message>
             <source>Notes</source>
@@ -40905,6 +55386,38 @@ X-API-Key: xyz</translation>
             <source>KRX 4분 예측</source>
             <translation>KRX 4분 예측</translation>
         </message>
+        <message>
+            <source>Plans &amp; pricing — Pro is $10/month</source>
+            <translation>요금제 및 가격 — Pro는 월 $10</translation>
+        </message>
+        <message>
+            <source>ENTERPRISE</source>
+            <translation>Enterprise</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal Enterprise — the private edition for firms</source>
+            <translation>Fincept Terminal Enterprise — 기업용 비공개 에디션</translation>
+        </message>
+        <message>
+            <source>Agent Workbench</source>
+            <translation>에이전트 워크벤치</translation>
+        </message>
+        <message>
+            <source>Plans &amp;&amp; Pricing…</source>
+            <translation>요금제 및 가격…</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal Enterprise…</source>
+            <translation>Fincept Terminal Enterprise…</translation>
+        </message>
+        <message>
+            <source>Compare Editions</source>
+            <translation>에디션 비교</translation>
+        </message>
+        <message>
+            <source>Book an Enterprise Demo</source>
+            <translation>Enterprise 데모 예약</translation>
+        </message>
     </context>
     <context>
         <name>fincept::ui::algo::BacktestReportPanel</name>
@@ -41071,6 +55584,18 @@ X-API-Key: xyz</translation>
         <message>
             <source>Holding period</source>
             <translation>보유 기간</translation>
+        </message>
+        <message>
+            <source>Entry %1</source>
+            <translation>진입가 %1</translation>
+        </message>
+        <message>
+            <source>Exit %1</source>
+            <translation>청산가 %1</translation>
+        </message>
+        <message>
+            <source>Final %1%2</source>
+            <translation>최종 %1%2</translation>
         </message>
     </context>
     <context>
@@ -41364,6 +55889,48 @@ X-API-Key: xyz</translation>
             <source>DEPLOY</source>
             <translation>배포</translation>
         </message>
+        <message>
+            <source>Save &amp; Run Workflow</source>
+            <translation>워크플로 저장 후 실행</translation>
+        </message>
+        <message>
+            <source>SAVE &amp; RUN LIVE</source>
+            <translation>저장 후 실행(실전투자)</translation>
+        </message>
+        <message>
+            <source>SAVE &amp; RUN (PAPER)</source>
+            <translation>저장 후 실행(모의투자)</translation>
+        </message>
+        <message>
+            <source>SAVE &amp; RUN WORKFLOW</source>
+            <translation>워크플로 저장 후 실행</translation>
+        </message>
+        <message>
+            <source>EXECUTION MODE</source>
+            <translation>실행 모드</translation>
+        </message>
+        <message>
+            <source>PAPER — every order node is simulated (default)</source>
+            <translation>모의투자 — 모든 주문 노드를 모의로 실행합니다 (기본값)</translation>
+        </message>
+        <message>
+            <source>LIVE — order nodes set to "live" send REAL orders to your broker</source>
+            <translation>실전투자 — "live"로 설정한 주문 노드는 증권사에 실제 주문을 보냅니다</translation>
+        </message>
+        <message>
+            <source>No order node in this workflow is set to live, so LIVE changes nothing yet. Set a node's Mode to "live" to let it trade.</source>
+            <translation>이 워크플로에는 live로 설정한 주문 노드가 없어 실전투자를 골라도 아직 달라지는 것이 없습니다. 노드가 거래하게 하려면 노드의 Mode를 "live"로 설정하세요.</translation>
+        </message>
+        <message numerus="yes">
+            <source>In LIVE mode these %n node(s) act for real, with real money:</source>
+            <translation>
+                <numerusform>실전투자 모드에서는 다음 노드 %n개가 실제 돈으로 실제로 동작합니다:</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Type LIVE to confirm. Later runs started with EXECUTE will ask you to type it again.</source>
+            <translation>확인하려면 LIVE를 입력하세요. 이후 실행 버튼으로 시작할 때도 다시 입력해야 합니다.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::workflow::EdgeItem</name>
@@ -41429,6 +55996,46 @@ X-API-Key: xyz</translation>
         <message>
             <source>FAILED  %1</source>
             <translation>실패  %1</translation>
+        </message>
+        <message>
+            <source>RUN LOG</source>
+            <translation>실행 로그</translation>
+        </message>
+        <message>
+            <source>RUNNING</source>
+            <translation>실행 중</translation>
+        </message>
+        <message>
+            <source>Workflow</source>
+            <translation>워크플로</translation>
+        </message>
+        <message>
+            <source>Result: %1 in %2</source>
+            <translation>결과: %1 (%2 소요)</translation>
+        </message>
+        <message>
+            <source>completed</source>
+            <translation>완료</translation>
+        </message>
+        <message>
+            <source>failed: %1</source>
+            <translation>실패: %1</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n failed</source>
+            <translation>
+                <numerusform>%n개 실패</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <source>%n skipped</source>
+            <translation>
+                <numerusform>%n개 건너뜀</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Copy the run log to the clipboard</source>
+            <translation>실행 로그를 클립보드에 복사</translation>
         </message>
     </context>
     <context>
@@ -41548,6 +56155,238 @@ X-API-Key: xyz</translation>
             <source>Select a template:</source>
             <translation>템플릿을 선택하세요:</translation>
         </message>
+        <message>
+            <source>Delete %1 nodes</source>
+            <translation>노드 %1개 삭제</translation>
+        </message>
+        <message>
+            <source>Delete node</source>
+            <translation>노드 삭제</translation>
+        </message>
+        <message>
+            <source>Duplicate %1 node(s)</source>
+            <translation>노드 %1개 복제</translation>
+        </message>
+        <message>
+            <source>Paste %1 node(s)</source>
+            <translation>노드 %1개 붙여넣기</translation>
+        </message>
+        <message>
+            <source>Duplicate %1</source>
+            <translation>%1 복제</translation>
+        </message>
+        <message>
+            <source>SAVED</source>
+            <translation>저장됨</translation>
+        </message>
+        <message>
+            <source>PARTIAL LOAD</source>
+            <translation>일부만 불러옴</translation>
+        </message>
+        <message>
+            <source>UNSAVED</source>
+            <translation>저장 안 됨</translation>
+        </message>
+        <message>
+            <source>Add %1</source>
+            <translation>%1 추가</translation>
+        </message>
+        <message>
+            <source>Delete %1</source>
+            <translation>%1 삭제</translation>
+        </message>
+        <message>
+            <source>Clear all %1 node(s) and their connections?
+
+This can be undone with Ctrl+Z.</source>
+            <translation>노드 %1개와 연결을 모두 지우시겠습니까?
+
+Ctrl+Z로 되돌릴 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Clear workflow</source>
+            <translation>워크플로 지우기</translation>
+        </message>
+        <message>
+            <source>Importing replaces the %1 node(s) currently on the canvas.
+
+Continue?</source>
+            <translation>가져오면 지금 캔버스에 있는 노드 %1개를 대체합니다.
+
+계속하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Could not import the workflow:
+
+%1</source>
+            <translation>워크플로를 가져오지 못했습니다:
+
+%1</translation>
+        </message>
+        <message>
+            <source>DRAFT</source>
+            <translation>초안</translation>
+        </message>
+        <message>
+            <source>%1 of %2 node(s) use a node type this version does not know and were skipped (together with their connections).</source>
+            <translation>노드 %2개 중 %1개는 이 버전이 모르는 노드 유형이라 연결과 함께 건너뛰었습니다.</translation>
+        </message>
+        <message>
+            <source>There is nothing on the canvas to export.</source>
+            <translation>캔버스에 내보낼 내용이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Could not export the workflow:
+
+%1</source>
+            <translation>워크플로를 내보내지 못했습니다:
+
+%1</translation>
+        </message>
+        <message>
+            <source>EXPORTED %1</source>
+            <translation>%1 내보냄</translation>
+        </message>
+        <message>
+            <source>Save Workflow</source>
+            <translation>워크플로 저장</translation>
+        </message>
+        <message>
+            <source>The workflow could not be saved:
+
+%1</source>
+            <translation>워크플로를 저장하지 못했습니다:
+
+%1</translation>
+        </message>
+        <message>
+            <source>SAVE FAILED</source>
+            <translation>저장 실패</translation>
+        </message>
+        <message>
+            <source>SAVED %1</source>
+            <translation>%1 저장됨</translation>
+        </message>
+        <message>
+            <source>The workflow could not be loaded:
+
+%1</source>
+            <translation>워크플로를 불러오지 못했습니다:
+
+%1</translation>
+        </message>
+        <message>
+            <source>Execute Workflow</source>
+            <translation>워크플로 실행</translation>
+        </message>
+        <message>
+            <source>Execute From Here</source>
+            <translation>여기서 실행</translation>
+        </message>
+        <message numerus="yes">
+            <source>MODE: LIVE — %n node(s) can send real orders</source>
+            <translation>
+                <numerusform>모드: 실전투자 — 노드 %n개가 실제 주문을 보낼 수 있습니다</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>MODE: LIVE — no order node is set to live; nothing reaches a broker</source>
+            <translation>모드: 실전투자 — live로 설정한 주문 노드가 없어 증권사로 가는 주문은 없습니다</translation>
+        </message>
+        <message>
+            <source>MODE: PAPER — every order is simulated</source>
+            <translation>모드: 모의투자 — 모든 주문을 모의로 실행합니다</translation>
+        </message>
+        <message numerus="yes">
+            <source>MODE: PAPER — %n order node(s) set to live will be simulated</source>
+            <translation>
+                <numerusform>모드: 모의투자 — live로 설정한 주문 노드 %n개도 모의로 실행합니다</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Workflow</source>
+            <translation>워크플로</translation>
+        </message>
+        <message numerus="yes">
+            <source>…and %n more</source>
+            <translation>
+                <numerusform>…외 %n개</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Workflow not ready</source>
+            <translation>워크플로 준비 안 됨</translation>
+        </message>
+        <message>
+            <source>Fix these before running (offending nodes are outlined in red):
+
+%1</source>
+            <translation>실행하기 전에 다음 문제를 고치세요 (문제가 있는 노드는 빨간 테두리로 표시됩니다):
+
+%1</translation>
+        </message>
+        <message numerus="yes">
+            <source>  …and %n more</source>
+            <translation>
+                <numerusform>  …외 %n개</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>LIVE MODE — this run sends REAL orders with REAL money:
+
+%1
+
+Type LIVE to run, or Cancel.</source>
+            <translation>실전투자 모드 — 이번 실행은 실제 돈으로 실제 주문을 보냅니다:
+
+%1
+
+실행하려면 LIVE를 입력하고, 그만두려면 취소를 누르세요.</translation>
+        </message>
+        <message>
+            <source>Not confirmed — nothing was run.</source>
+            <translation>확인되지 않았습니다 — 아무것도 실행하지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>This workflow changes data outside the editor.</source>
+            <translation>이 워크플로는 편집기 밖의 데이터를 변경합니다.</translation>
+        </message>
+        <message>
+            <source>These nodes call destructive tools:
+
+%1</source>
+            <translation>다음 노드가 데이터를 변경하거나 삭제하는 도구를 호출합니다:
+
+%1</translation>
+        </message>
+        <message>
+            <source>Run</source>
+            <translation>실행</translation>
+        </message>
+        <message>
+            <source>15. Signal Automation — Signal → validate → risk check → order</source>
+            <translation>15. 신호 자동화 — 신호 → 검증 → 리스크 점검 → 주문</translation>
+        </message>
+        <message>
+            <source>Loading a template replaces the %1 node(s) on the canvas.
+
+This can be undone with Ctrl+Z. Continue?</source>
+            <translation>템플릿을 불러오면 캔버스의 노드 %1개를 대체합니다.
+
+Ctrl+Z로 되돌릴 수 있습니다. 계속하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Load template</source>
+            <translation>템플릿 불러오기</translation>
+        </message>
+        <message>
+            <source>Save &amp; Run</source>
+            <translation>저장 후 실행</translation>
+        </message>
+        <message>
+            <source>A run is in progress — stop it first.</source>
+            <translation>실행 중입니다 — 먼저 중지하세요.</translation>
+        </message>
     </context>
     <context>
         <name>fincept::workflow::NodeEditorToolbar</name>
@@ -41619,6 +56458,54 @@ X-API-Key: xyz</translation>
             <source>DEPLOY</source>
             <translation>배포</translation>
         </message>
+        <message>
+            <source>LIVE</source>
+            <translation>실전투자</translation>
+        </message>
+        <message>
+            <source>PAPER</source>
+            <translation>모의투자</translation>
+        </message>
+        <message>
+            <source>This workflow is armed for LIVE trading: order nodes whose Mode is "live" send real orders. Change it in SAVE &amp; RUN.</source>
+            <translation>이 워크플로는 실전투자로 설정되어 있습니다: Mode가 "live"인 주문 노드는 실제 주문을 보냅니다. 저장 후 실행에서 바꿀 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>PAPER mode: every order node is simulated. Arm LIVE in SAVE &amp; RUN.</source>
+            <translation>모의투자 모드: 모든 주문 노드를 모의로 실행합니다. 실전투자는 저장 후 실행에서 켜세요.</translation>
+        </message>
+        <message>
+            <source>Stop the run (press again to abandon nodes that do not report back)</source>
+            <translation>실행 중지 (응답하지 않는 노드를 포기하려면 한 번 더 누르세요)</translation>
+        </message>
+        <message>
+            <source>Run this workflow once now in its current mode (Ctrl+Enter).</source>
+            <translation>현재 모드로 이 워크플로를 지금 한 번 실행합니다 (Ctrl+Enter).</translation>
+        </message>
+        <message>
+            <source>SAVE &amp; RUN</source>
+            <translation>저장 후 실행</translation>
+        </message>
+        <message>
+            <source>Undo last graph change</source>
+            <translation>마지막 그래프 변경 실행 취소</translation>
+        </message>
+        <message>
+            <source>Redo last undone graph change</source>
+            <translation>마지막으로 취소한 그래프 변경 다시 실행</translation>
+        </message>
+        <message>
+            <source>Remove every node and connection (undoable)</source>
+            <translation>모든 노드와 연결 제거 (되돌리기 가능)</translation>
+        </message>
+        <message>
+            <source>Clear the whole workflow</source>
+            <translation>워크플로 전체 지우기</translation>
+        </message>
+        <message>
+            <source>Run the workflow</source>
+            <translation>워크플로 실행</translation>
+        </message>
     </context>
     <context>
         <name>fincept::workflow::NodeItem</name>
@@ -41652,6 +56539,10 @@ X-API-Key: xyz</translation>
         <message>
             <source>Search nodes...</source>
             <translation>노드 검색...</translation>
+        </message>
+        <message>
+            <source>Add %1 node — drag onto the canvas</source>
+            <translation>%1 노드 추가 — 캔버스로 끌어다 놓으세요</translation>
         </message>
     </context>
     <context>
@@ -41690,6 +56581,14 @@ to edit properties</source>
             <source>Continue on Fail</source>
             <translation>실패 시 계속</translation>
         </message>
+        <message>
+            <source>Skip this node during execution</source>
+            <translation>실행할 때 이 노드 건너뛰기</translation>
+        </message>
+        <message>
+            <source>Keep running the workflow if this node errors</source>
+            <translation>이 노드에서 오류가 나도 워크플로 계속 실행</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::OrderConfirmDialog</name>
@@ -41709,6 +56608,142 @@ to edit properties</source>
             <source>⚠  SEMI-AUTO — review before sending</source>
             <translation>⚠  반자동 — 전송 전 검토하세요</translation>
         </message>
+        <message>
+            <source>BUY</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>SELL</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>⚠  LIVE ORDER — real money. Review before sending.</source>
+            <translation>⚠  실전 주문 — 실제 자금이 사용됩니다. 전송 전에 확인하세요.</translation>
+        </message>
+        <message>
+            <source>PAPER ORDER — simulated. Review before sending.</source>
+            <translation>모의 주문 — 시뮬레이션입니다. 전송 전에 확인하세요.</translation>
+        </message>
+        <message>
+            <source>MARKET</source>
+            <translation>시장가</translation>
+        </message>
+        <message>
+            <source>Account</source>
+            <translation>계좌</translation>
+        </message>
+        <message>
+            <source>Mode</source>
+            <translation>모드</translation>
+        </message>
+        <message>
+            <source>LIVE</source>
+            <translation>실전투자</translation>
+        </message>
+        <message>
+            <source>PAPER</source>
+            <translation>모의투자</translation>
+        </message>
+        <message>
+            <source>Action</source>
+            <translation>매매구분</translation>
+        </message>
+        <message>
+            <source>Symbol</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>Exchange</source>
+            <translation>거래소</translation>
+        </message>
+        <message>
+            <source>(broker default)</source>
+            <translation>(증권사 기본값)</translation>
+        </message>
+        <message>
+            <source>Product</source>
+            <translation>상품 유형</translation>
+        </message>
+        <message>
+            <source>Quantity</source>
+            <translation>수량</translation>
+        </message>
+        <message>
+            <source>Type</source>
+            <translation>유형</translation>
+        </message>
+        <message>
+            <source>Limit price</source>
+            <translation>지정가</translation>
+        </message>
+        <message>
+            <source>Trigger</source>
+            <translation>트리거</translation>
+        </message>
+        <message>
+            <source>Stop loss</source>
+            <translation>손절</translation>
+        </message>
+        <message>
+            <source>Take profit</source>
+            <translation>익절</translation>
+        </message>
+        <message>
+            <source>Validity</source>
+            <translation>유효기간</translation>
+        </message>
+        <message>
+            <source>Reference LTP</source>
+            <translation>기준 현재가</translation>
+        </message>
+        <message>
+            <source>Est. margin</source>
+            <translation>예상 증거금</translation>
+        </message>
+        <message>
+            <source>Loading…</source>
+            <translation>불러오는 중…</translation>
+        </message>
+        <message>
+            <source>limit price</source>
+            <translation>지정가</translation>
+        </message>
+        <message>
+            <source>trigger price</source>
+            <translation>발동 가격</translation>
+        </message>
+        <message>
+            <source>⚠  The %1 (%2) is %3% away from the last traded price (%4). Check for a typo before sending.</source>
+            <translation>⚠  %1 %2: 현재가(%4)와 %3% 차이가 납니다. 전송 전에 오타가 없는지 확인하세요.</translation>
+        </message>
+        <message>
+            <source>CANCEL</source>
+            <translation>취소</translation>
+        </message>
+        <message>
+            <source>Cancel order</source>
+            <translation>주문 취소</translation>
+        </message>
+        <message>
+            <source>SEND BUY ORDER</source>
+            <translation>매수 주문 전송</translation>
+        </message>
+        <message>
+            <source>SEND SELL ORDER</source>
+            <translation>매도 주문 전송</translation>
+        </message>
+        <message>
+            <source>Send order to broker</source>
+            <translation>증권사로 주문 전송</translation>
+        </message>
+        <message>
+            <source>Margin unavailable</source>
+            <translation>증거금 정보 없음</translation>
+        </message>
+        <message>
+            <source>— (timeout)</source>
+            <translation>— (시간 초과)</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::PendingOrdersBadge</name>
@@ -41716,12 +56751,428 @@ to edit properties</source>
             <source>Orders awaiting approval — click to review</source>
             <translation>승인 대기 중인 주문 — 클릭하여 검토</translation>
         </message>
+        <message>
+            <source>Action Center — no orders awaiting approval. Click for history and the kill switch.</source>
+            <translation>작업 센터 — 승인 대기 주문이 없습니다. 클릭하면 내역과 킬 스위치를 볼 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>%1 order(s) awaiting approval — click to review</source>
+            <translation>승인 대기 주문 %1건 — 클릭하여 검토</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::PendingOrdersPanel</name>
         <message>
             <source>PENDING ORDERS</source>
             <translation>승인 대기 주문</translation>
+        </message>
+        <message>
+            <source>Account:</source>
+            <translation>계좌:</translation>
+        </message>
+        <message>
+            <source>Show:</source>
+            <translation>표시:</translation>
+        </message>
+        <message>
+            <source>Pending</source>
+            <translation>대기 중</translation>
+        </message>
+        <message>
+            <source>Approved</source>
+            <translation>승인됨</translation>
+        </message>
+        <message>
+            <source>Rejected</source>
+            <translation>거부됨</translation>
+        </message>
+        <message>
+            <source>All</source>
+            <translation>전체</translation>
+        </message>
+        <message>
+            <source>Expire after:</source>
+            <translation>만료 시간:</translation>
+        </message>
+        <message>
+            <source> min</source>
+            <translation> 분</translation>
+        </message>
+        <message>
+            <source>Approval window for newly queued orders. An order not approved in time is auto-rejected — it is never sent at a price that is minutes old.</source>
+            <translation>새로 대기열에 등록된 주문의 승인 가능 시간입니다. 시간 안에 승인하지 않은 주문은 자동으로 거부되며, 몇 분 지난 가격으로 전송되지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Pending order approval window in minutes</source>
+            <translation>승인 대기 주문의 승인 가능 시간(분)</translation>
+        </message>
+        <message>
+            <source>KILL SWITCH</source>
+            <translation>킬 스위치</translation>
+        </message>
+        <message>
+            <source>Cancel every open order and square off every open position on all LIVE accounts</source>
+            <translation>모든 실전투자 계좌의 미체결 주문을 모두 취소하고 보유 포지션을 모두 청산</translation>
+        </message>
+        <message>
+            <source>Kill switch: cancel all orders and square off all positions on live accounts</source>
+            <translation>킬 스위치: 실전투자 계좌의 모든 주문 취소 및 모든 포지션 청산</translation>
+        </message>
+        <message>
+            <source>PENDING</source>
+            <translation>대기 중</translation>
+        </message>
+        <message>
+            <source>APPROVED</source>
+            <translation>승인됨</translation>
+        </message>
+        <message>
+            <source>REJECTED</source>
+            <translation>거부됨</translation>
+        </message>
+        <message>
+            <source>BUY</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>SELL</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>APPROVE ALL</source>
+            <translation>모두 승인</translation>
+        </message>
+        <message>
+            <source>REJECT ALL</source>
+            <translation>모두 거부</translation>
+        </message>
+        <message>
+            <source>Time</source>
+            <translation>시간</translation>
+        </message>
+        <message>
+            <source>Expires</source>
+            <translation>만료</translation>
+        </message>
+        <message>
+            <source>Account</source>
+            <translation>계좌</translation>
+        </message>
+        <message>
+            <source>Type</source>
+            <translation>유형</translation>
+        </message>
+        <message>
+            <source>Symbol</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>Side</source>
+            <translation>매매구분</translation>
+        </message>
+        <message>
+            <source>Qty</source>
+            <translation>수량</translation>
+        </message>
+        <message>
+            <source>Price Type</source>
+            <translation>가격 유형</translation>
+        </message>
+        <message>
+            <source>Status</source>
+            <translation>상태</translation>
+        </message>
+        <message>
+            <source>Actions</source>
+            <translation>작업</translation>
+        </message>
+        <message>
+            <source>Approve all pending orders</source>
+            <translation>승인 대기 주문 모두 승인</translation>
+        </message>
+        <message>
+            <source>Reject all pending orders</source>
+            <translation>승인 대기 주문 모두 거부</translation>
+        </message>
+        <message>
+            <source>Approve All</source>
+            <translation>모두 승인</translation>
+        </message>
+        <message>
+            <source>There are no pending orders to approve.</source>
+            <translation>승인할 대기 주문이 없습니다.</translation>
+        </message>
+        <message>
+            <source>ALL accounts</source>
+            <translation>모든 계좌</translation>
+        </message>
+        <message>
+            <source>Send %1 pending order(s) to the broker now?
+
+  Account scope: %2
+  %3 BUY  ·  %4 SELL
+
+Each order executes immediately. There is no per-order review.</source>
+            <translation>승인 대기 주문 %1건을 지금 증권사로 전송하시겠습니까?
+
+  대상 계좌: %2
+  매수 %3건  ·  매도 %4건
+
+각 주문은 바로 실행되며, 주문별 검토 단계가 없습니다.</translation>
+        </message>
+        <message>
+            <source>
+
+⚠  %1 of these are past their approval window and will be REFUSED
+as expired rather than executed. Re-place them if you still want the trade.</source>
+            <translation>
+
+⚠  이 중 %1건은 승인 가능 시간이 지나 실행되지 않고 만료로 거부됩니다.
+그래도 거래하려면 다시 주문하세요.</translation>
+        </message>
+        <message>
+            <source>Reject All</source>
+            <translation>모두 거부</translation>
+        </message>
+        <message>
+            <source>Select a specific account to reject all its pending orders.</source>
+            <translation>대기 중인 주문을 모두 거부할 계좌를 선택하세요.</translation>
+        </message>
+        <message>
+            <source>Rejection reason:</source>
+            <translation>거부 사유:</translation>
+        </message>
+        <message>
+            <source>Rejected by user</source>
+            <translation>사용자가 거부함</translation>
+        </message>
+        <message>
+            <source>All Accounts</source>
+            <translation>모든 계좌</translation>
+        </message>
+        <message>
+            <source>Queued %1</source>
+            <translation>%1 등록됨</translation>
+        </message>
+        <message>
+            <source>Auto-rejected at %1 if not approved</source>
+            <translation>승인하지 않으면 %1에 자동 거부</translation>
+        </message>
+        <message>
+            <source>Unknown queue time — this order cannot be approved</source>
+            <translation>등록 시각을 알 수 없음 — 이 주문은 승인할 수 없습니다</translation>
+        </message>
+        <message>
+            <source>Approve</source>
+            <translation>승인</translation>
+        </message>
+        <message>
+            <source>Approve %1 %2 %3</source>
+            <translation>%1 %2 %3 승인</translation>
+        </message>
+        <message>
+            <source>Reject</source>
+            <translation>거부</translation>
+        </message>
+        <message>
+            <source>Reject %1 %2 %3</source>
+            <translation>%1 %2 %3 거부</translation>
+        </message>
+        <message>
+            <source>EXPIRED</source>
+            <translation>만료됨</translation>
+        </message>
+        <message>
+            <source>%1h %2m</source>
+            <translation>%1시간 %2분</translation>
+        </message>
+        <message>
+            <source>unknown age</source>
+            <translation>경과 시간 알 수 없음</translation>
+        </message>
+        <message>
+            <source>%1s ago</source>
+            <translation>%1초 전</translation>
+        </message>
+        <message>
+            <source>%1m ago</source>
+            <translation>%1분 전</translation>
+        </message>
+        <message>
+            <source>%1h %2m ago</source>
+            <translation>%1시간 %2분 전</translation>
+        </message>
+        <message>
+            <source>%1d ago</source>
+            <translation>%1일 전</translation>
+        </message>
+        <message>
+            <source>Approve Order</source>
+            <translation>주문 승인</translation>
+        </message>
+        <message>
+            <source>This order is no longer in the queue. Refreshing the list.</source>
+            <translation>이 주문은 더 이상 대기열에 없습니다. 목록을 새로고침합니다.</translation>
+        </message>
+        <message>
+            <source>This order was already %1 — nothing was sent.</source>
+            <translation>이 주문은 이미 %1 상태입니다 — 아무것도 전송하지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>This order's approval window has closed — it was rejected as expired and nothing was sent. Re-place it if you still want the trade.</source>
+            <translation>이 주문의 승인 가능 시간이 지났습니다 — 만료로 거부되어 전송되지 않았습니다. 그래도 거래하려면 다시 주문하세요.</translation>
+        </message>
+        <message>
+            <source>Send this order to the broker now?
+
+  Symbol:     %1
+  Exchange:   %2
+  Side:       %3
+  Quantity:   %4
+  Price type: %5
+  Order type: %6
+  Account:    %7
+  Strategy:   %8
+  Queued:     %9</source>
+            <translation>이 주문을 지금 증권사로 전송하시겠습니까?
+
+  종목코드:   %1
+  거래소:     %2
+  매매구분:   %3
+  수량:       %4
+  가격 유형:  %5
+  주문 유형:  %6
+  계좌:       %7
+  전략:       %8
+  등록:       %9</translation>
+        </message>
+        <message>
+            <source>—</source>
+            <translation>—</translation>
+        </message>
+        <message>
+            <source>
+  Expires in: %1</source>
+            <translation>
+  만료까지: %1</translation>
+        </message>
+        <message>
+            <source>
+
+⚠  This order's approval window is about to close. If it closes while
+this dialog is open the order is refused, not sent.</source>
+            <translation>
+
+⚠  이 주문의 승인 가능 시간이 곧 끝납니다. 이 창이 열려 있는 동안
+시간이 끝나면 주문은 전송되지 않고 거부됩니다.</translation>
+        </message>
+        <message>
+            <source>
+
+A MARKET order fills at the price when you approve, not the price
+that existed when it was queued.</source>
+            <translation>
+
+시장가 주문은 대기열에 등록될 때의 가격이 아니라
+승인하는 시점의 가격으로 체결됩니다.</translation>
+        </message>
+        <message>
+            <source>Reject Order</source>
+            <translation>주문 거부</translation>
+        </message>
+        <message>
+            <source>Kill Switch</source>
+            <translation>킬 스위치</translation>
+        </message>
+        <message>
+            <source>The kill switch is already running — wait for its report.</source>
+            <translation>킬 스위치가 이미 실행 중입니다 — 결과 보고를 기다리세요.</translation>
+        </message>
+        <message>
+            <source>There is no active LIVE account — nothing to cancel or square off.
+
+Paper accounts are not touched by the kill switch; use SQUARE OFF ALL on the trading screen for those.</source>
+            <translation>활성 실전투자 계좌가 없습니다 — 취소하거나 청산할 것이 없습니다.
+
+킬 스위치는 모의투자 계좌를 건드리지 않습니다. 모의투자 계좌는 거래 화면의 전체 포지션 청산을 사용하세요.</translation>
+        </message>
+        <message>
+            <source>KILL SWITCH — real money.
+
+On EVERY active LIVE account below this will:
+  1. reject every order still waiting for approval here
+  2. cancel ALL open / pending orders at the broker
+  3. square off ALL open positions with MARKET orders
+
+Holdings (delivery stock already in your demat) are NOT sold. Paper accounts are skipped.
+Algo deployments and agents are NOT stopped by this — pause them separately.
+
+Accounts (%1):
+%2
+
+Type KILL to confirm.</source>
+            <translation>킬 스위치 — 실제 자금이 움직입니다.
+
+아래의 모든 활성 실전투자 계좌에서 다음을 실행합니다:
+  1. 여기서 승인을 기다리는 주문을 모두 거부
+  2. 증권사의 미체결·대기 주문을 모두 취소
+  3. 보유 포지션을 모두 시장가 주문으로 청산
+
+보유종목(이미 계좌에 입고된 주식)은 매도하지 않습니다. 모의투자 계좌는 건너뜁니다.
+알고리즘 배포와 에이전트는 이 기능으로 멈추지 않습니다 — 따로 일시 중지하세요.
+
+계좌(%1개):
+%2
+
+확인하려면 KILL을 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Not confirmed — nothing was done.</source>
+            <translation>확인되지 않았습니다 — 아무 작업도 하지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>• %1 [%2] — skipped (%3)%4</source>
+            <translation>• %1 [%2] — 건너뜀 (%3)%4</translation>
+        </message>
+        <message>
+            <source>, %1 queued rejected</source>
+            <translation>, 대기 주문 %1건 거부</translation>
+        </message>
+        <message>
+            <source>• %1 [%2] — %3: %4 orders cancelled (%5 failed), %6 positions closed (%7 failed), %8 queued rejected</source>
+            <translation>• %1 [%2] — %3: 주문 %4건 취소(%5건 실패), 포지션 %6개 청산(%7건 실패), 대기 주문 %8건 거부</translation>
+        </message>
+        <message>
+            <source>OK</source>
+            <translation>정상</translation>
+        </message>
+        <message>
+            <source>CHECK BROKER</source>
+            <translation>증권사 확인 필요</translation>
+        </message>
+        <message>
+            <source>Kill switch finished. Every live account reported success.
+
+</source>
+            <translation>킬 스위치가 완료되었습니다. 모든 실전투자 계좌가 성공을 보고했습니다.
+
+</translation>
+        </message>
+        <message>
+            <source>Kill switch finished WITH ERRORS. Verify the accounts marked CHECK BROKER in the broker's own terminal now.
+
+</source>
+            <translation>킬 스위치가 오류와 함께 끝났습니다. '증권사 확인 필요'로 표시된 계좌를 지금 증권사 자체 HTS에서 확인하세요.
+
+</translation>
+        </message>
+        <message>
+            <source>Kill Switch Report</source>
+            <translation>킬 스위치 결과</translation>
+        </message>
+        <message>
+            <source>The kill switch is already running.</source>
+            <translation>킬 스위치가 이미 실행 중입니다.</translation>
         </message>
     </context>
     <context>
@@ -41776,6 +57227,260 @@ to edit properties</source>
             <source>%1 (native quote)</source>
             <translation>%1 (거래 통화 시세)</translation>
         </message>
+        <message>
+            <source>DCF — LEVERED FREE CASH FLOW</source>
+            <translation>DCF — 레버드 잉여현금흐름</translation>
+        </message>
+        <message>
+            <source>BASE FREE CASH FLOW</source>
+            <translation>기준 잉여현금흐름</translation>
+        </message>
+        <message>
+            <source> M</source>
+            <translation> 백만</translation>
+        </message>
+        <message>
+            <source>GROWTH (PROJECTION)</source>
+            <translation>성장률 (예측 기간)</translation>
+        </message>
+        <message>
+            <source>TERMINAL GROWTH</source>
+            <translation>영구성장률</translation>
+        </message>
+        <message>
+            <source>DISCOUNT RATE</source>
+            <translation>할인율</translation>
+        </message>
+        <message>
+            <source>PROJECTION YEARS</source>
+            <translation>예측 기간</translation>
+        </message>
+        <message>
+            <source> yrs</source>
+            <translation> 년</translation>
+        </message>
+        <message>
+            <source>SHARES OUTSTANDING</source>
+            <translation>발행주식수</translation>
+        </message>
+        <message>
+            <source>Re-run the DCF with the inputs above (Enter)</source>
+            <translation>위 입력값으로 DCF 다시 계산 (Enter)</translation>
+        </message>
+        <message>
+            <source>INTRINSIC VALUE / SHARE</source>
+            <translation>주당 내재가치</translation>
+        </message>
+        <message>
+            <source>CURRENT PRICE</source>
+            <translation>현재가</translation>
+        </message>
+        <message>
+            <source>UPSIDE TO INTRINSIC</source>
+            <translation>내재가치 대비 상승여력</translation>
+        </message>
+        <message>
+            <source>TERMINAL VALUE SHARE</source>
+            <translation>잔존가치 비중</translation>
+        </message>
+        <message>
+            <source>Open a symbol to pre-fill the model from its trailing free cash flow, beta and share count.</source>
+            <translation>종목을 열면 최근 잉여현금흐름, 베타, 주식수로 모델 입력값을 미리 채웁니다.</translation>
+        </message>
+        <message>
+            <source>CREDIT &amp; QUALITY SCORES — ANNUAL STATEMENTS</source>
+            <translation>신용·퀄리티 점수 — 연간 재무제표</translation>
+        </message>
+        <message>
+            <source>ALTMAN Z-SCORE</source>
+            <translation>알트만 Z-스코어</translation>
+        </message>
+        <message>
+            <source>PIOTROSKI F-SCORE</source>
+            <translation>피오트로스키 F-스코어</translation>
+        </message>
+        <message>
+            <source>BENEISH M-SCORE</source>
+            <translation>베니시 M-스코어</translation>
+        </message>
+        <message>
+            <source>MULTIPLES — TRAILING 12 MONTHS</source>
+            <translation>멀티플 — 최근 12개월</translation>
+        </message>
+        <message>
+            <source>EV / EBITDA</source>
+            <translation>EV / EBITDA</translation>
+        </message>
+        <message>
+            <source>EV / REVENUE</source>
+            <translation>EV / 매출액</translation>
+        </message>
+        <message>
+            <source>PRICE / SALES</source>
+            <translation>PSR</translation>
+        </message>
+        <message>
+            <source>FCF YIELD</source>
+            <translation>FCF 수익률</translation>
+        </message>
+        <message>
+            <source>GRAHAM NUMBER</source>
+            <translation>그레이엄 넘버</translation>
+        </message>
+        <message>
+            <source>√(22.5 × trailing EPS × book value per share) — Graham's ceiling price for a defensive investor (P/E ≤ 15 and P/B ≤ 1.5).</source>
+            <translation>√(22.5 × 최근 EPS × 주당순자산) — 방어적 투자자가 지불할 수 있는 그레이엄의 최고 가격 (PER ≤ 15, PBR ≤ 1.5).</translation>
+        </message>
+        <message>
+            <source>FCF = trailing-12-month levered free cash flow (Yahoo)</source>
+            <translation>FCF = 최근 12개월 레버드 잉여현금흐름 (Yahoo)</translation>
+        </message>
+        <message>
+            <source>growth = latest-quarter YoY %1 growth (%2), capped to %3…%4 for a multi-year horizon</source>
+            <translation>성장률 = 최근 분기 전년 대비 %1 성장률(%2), 여러 해에 걸친 예측이라 %3…%4로 제한</translation>
+        </message>
+        <message>
+            <source>revenue</source>
+            <translation>매출</translation>
+        </message>
+        <message>
+            <source>earnings</source>
+            <translation>이익</translation>
+        </message>
+        <message>
+            <source>discount = %1 risk-free + β %2 × %3 equity premium (floor %4)</source>
+            <translation>할인율 = 무위험이자율 %1 + β %2 × 주식 위험프리미엄 %3 (하한 %4)</translation>
+        </message>
+        <message>
+            <source>discount left at %1 — no beta reported</source>
+            <translation>할인율은 %1 유지 — 보고된 베타 없음</translation>
+        </message>
+        <message>
+            <source>Pre-filled assumptions (edit and press CALCULATE): %1.</source>
+            <translation>미리 채운 가정 (수정한 다음 계산을 누르세요): %1.</translation>
+        </message>
+        <message>
+            <source>%1 of the value sits in the terminal year — the result is very sensitive to terminal growth and the discount rate.</source>
+            <translation>가치 중 %1를 잔존가치가 차지합니다 — 결과가 영구성장률과 할인율에 매우 민감합니다.</translation>
+        </message>
+        <message>
+            <source>n/c</source>
+            <translation>비교 불가</translation>
+        </message>
+        <message>
+            <source>Statements are reported in %1 but the stock trades in %2 (and an ADR may represent several ordinary shares), so the per-share value is not compared with the price.</source>
+            <translation>재무제표는 %1 기준이고 주가는 %2 기준이라(ADR은 보통주 여러 주를 나타낼 수도 있음) 주당 가치를 주가와 비교하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>BELOW DCF VALUE</source>
+            <translation>DCF 가치보다 낮음</translation>
+        </message>
+        <message>
+            <source>ABOVE DCF VALUE</source>
+            <translation>DCF 가치보다 높음</translation>
+        </message>
+        <message>
+            <source>NEAR DCF VALUE</source>
+            <translation>DCF 가치 근접</translation>
+        </message>
+        <message>
+            <source>Annual statements could not be loaded for %1 — open the FINANCIALS tab and press RETRY, or check the symbol.</source>
+            <translation>%1의 연간 재무제표를 불러올 수 없습니다 — 재무 탭을 열고 재시도를 누르거나 종목코드를 확인하세요.</translation>
+        </message>
+        <message>
+            <source>Loading annual statements…</source>
+            <translation>연간 재무제표 불러오는 중…</translation>
+        </message>
+        <message>
+            <source>No annual statements on file for %1 — ETFs, funds, indices and some foreign listings have none.</source>
+            <translation>%1의 연간 재무제표가 없습니다 — ETF, 펀드, 지수와 일부 해외 상장 종목에는 재무제표가 없습니다.</translation>
+        </message>
+        <message>
+            <source>Fiscal year ended %1 vs %2 (annual statements, as reported).</source>
+            <translation>%1 종료 회계연도와 %2 종료 회계연도 비교 (연간 재무제표, 보고 기준).</translation>
+        </message>
+        <message>
+            <source>Fiscal year ended %1 (annual statements, as reported).</source>
+            <translation>%1 종료 회계연도 (연간 재무제표, 보고 기준).</translation>
+        </message>
+        <message>
+            <source>Cached statements — refreshing.</source>
+            <translation>캐시된 재무제표 — 새로고침 중.</translation>
+        </message>
+        <message>
+            <source>Altman Z and Beneish M were built for industrial companies; read them with caution for banks and insurers.</source>
+            <translation>알트만 Z와 베니시 M은 일반 산업 기업용으로 만든 지표라 은행과 보험사에는 주의해서 해석하세요.</translation>
+        </message>
+        <message>
+            <source>CURRENCY MISMATCH</source>
+            <translation>통화 불일치</translation>
+        </message>
+        <message>
+            <source>Market cap (%1) and statements (%2) are in different currencies.</source>
+            <translation>시가총액(%1)과 재무제표(%2)의 통화가 다릅니다.</translation>
+        </message>
+        <message>
+            <source>NO DATA — %1</source>
+            <translation>데이터 없음 — %1</translation>
+        </message>
+        <message>
+            <source>X1 working capital/assets %1 · X2 retained earnings/assets %2 · X3 EBIT/assets %3 · X4 market cap/liabilities %4 · X5 sales/assets %5</source>
+            <translation>X1 운전자본/자산 %1 · X2 이익잉여금/자산 %2 · X3 EBIT/자산 %3 · X4 시가총액/부채 %4 · X5 매출액/자산 %5</translation>
+        </message>
+        <message>
+            <source>SAFE ZONE (&gt; 2.99)</source>
+            <translation>안전 구간 (&gt; 2.99)</translation>
+        </message>
+        <message>
+            <source>GREY ZONE (1.81–2.99)</source>
+            <translation>회색 구간 (1.81–2.99)</translation>
+        </message>
+        <message>
+            <source>DISTRESS ZONE (&lt; 1.81)</source>
+            <translation>부실 위험 구간 (&lt; 1.81)</translation>
+        </message>
+        <message>
+            <source>NO DATA — one fiscal year on file</source>
+            <translation>데이터 없음 — 회계연도 1개뿐</translation>
+        </message>
+        <message>
+            <source>STRONG (8–9)</source>
+            <translation>우수 (8–9)</translation>
+        </message>
+        <message>
+            <source>AVERAGE (5–7)</source>
+            <translation>보통 (5–7)</translation>
+        </message>
+        <message>
+            <source>WEAK (0–4)</source>
+            <translation>취약 (0–4)</translation>
+        </message>
+        <message>
+            <source>
+%1 index(es) set to the neutral 1.0 — statement line not reported.</source>
+            <translation>
+재무제표 항목이 보고되지 않아 지표 %1개를 중립값 1.0으로 두었습니다.</translation>
+        </message>
+        <message>
+            <source>MANIPULATION RISK (&gt; −1.78)</source>
+            <translation>이익 조작 위험 (&gt; −1.78)</translation>
+        </message>
+        <message>
+            <source>UNLIKELY MANIPULATOR (≤ −1.78)</source>
+            <translation>조작 가능성 낮음 (≤ −1.78)</translation>
+        </message>
+        <message>
+            <source>Price is in %1 but the statements are in %2 — Yahoo's TTM ratios mix the two, so they are not shown.</source>
+            <translation>주가는 %1, 재무제표는 %2 기준입니다 — Yahoo의 TTM 비율은 두 통화를 섞어 계산하므로 표시하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Trailing-12-month figures from Yahoo Finance; FCF yield = levered FCF ÷ market cap.</source>
+            <translation>Yahoo Finance의 최근 12개월 수치입니다. FCF 수익률 = 레버드 FCF ÷ 시가총액.</translation>
+        </message>
+        <message>
+            <source>an unreported currency</source>
+            <translation>보고되지 않은 통화</translation>
+        </message>
     </context>
     <context>
         <name>fincept::screens::equity::EquityChartPanel</name>
@@ -41786,6 +57491,6920 @@ to edit properties</source>
         <message>
             <source>currency unavailable</source>
             <translation>통화 확인 불가</translation>
+        </message>
+        <message>
+            <source>EXIT</source>
+            <translation>청산</translation>
+        </message>
+        <message>
+            <source>LONG</source>
+            <translation>롱</translation>
+        </message>
+        <message>
+            <source>SHORT</source>
+            <translation>숏</translation>
+        </message>
+    </context>
+    <context>
+        <name>AddEdgeCommand</name>
+        <message>
+            <source>Connect nodes</source>
+            <translation>노드 연결</translation>
+        </message>
+    </context>
+    <context>
+        <name>AgentWorkbench</name>
+        <message>
+            <source>QUEUED</source>
+            <translation>대기 중</translation>
+        </message>
+        <message>
+            <source>RUNNING</source>
+            <translation>실행 중</translation>
+        </message>
+        <message>
+            <source>SUCCEEDED</source>
+            <translation>성공</translation>
+        </message>
+        <message>
+            <source>FAILED</source>
+            <translation>실패</translation>
+        </message>
+        <message>
+            <source>CANCELLED</source>
+            <translation>취소됨</translation>
+        </message>
+        <message>
+            <source>INTERRUPTED</source>
+            <translation>중단됨</translation>
+        </message>
+        <message>
+            <source>CODEX</source>
+            <translation>Codex</translation>
+        </message>
+        <message>
+            <source>CLAUDE CODE</source>
+            <translation>Claude Code</translation>
+        </message>
+    </context>
+    <context>
+        <name>AgentWorkbenchTemplates</name>
+        <message>
+            <source>Morning brief for my watchlist</source>
+            <translation>내 관심종목 아침 브리핑</translation>
+        </message>
+        <message>
+            <source>Prepare my morning brief for &lt;WATCHLIST NAME&gt; (or my default watchlist).
+For each symbol: last price, 1-day and 5-day change, pre-market move if available, and the most important news or filing of the last 24 hours.
+Then summarise the overall market tone (indices, rates, FX, commodities), the three biggest movers and why, and today's scheduled catalysts (earnings, macro releases).
+Finish with a short list of what to watch at the open.</source>
+            <translation>&lt;WATCHLIST NAME&gt;(또는 기본 관심종목 목록)의 아침 브리핑을 작성하세요.
+종목마다 현재가, 1일 및 5일 등락, 가능하면 프리마켓 변동, 최근 24시간의 가장 중요한 뉴스나 공시를 정리하세요.
+이어서 전체 시장 분위기(지수, 금리, 환율, 원자재), 가장 크게 움직인 세 종목과 그 이유, 오늘 예정된 주요 일정(실적 발표, 거시경제 지표 발표)을 요약하세요.
+마지막으로 장 시작 때 지켜볼 항목을 짧게 정리하세요.</translation>
+        </message>
+        <message>
+            <source>Earnings preview: &lt;TICKER&gt;</source>
+            <translation>실적 프리뷰: &lt;TICKER&gt;</translation>
+        </message>
+        <message>
+            <source>Earnings preview for &lt;TICKER&gt;.
+Cover the report date and time, consensus EPS and revenue against the last four quarters' actuals, guidance history, the options-implied move if available, the KPIs and segments to watch, recent news and estimate revisions, and how the stock traded after each of the last four reports.
+End with the bull case, the bear case and what would surprise the market.</source>
+            <translation>&lt;TICKER&gt;의 실적 프리뷰를 작성하세요.
+발표 일시, 최근 4개 분기 실적 대비 컨센서스 EPS와 매출액, 가이던스 이력, 가능하면 옵션 시장이 반영한 예상 변동폭, 주목할 KPI와 사업부문, 최근 뉴스와 추정치 변경, 최근 네 번의 실적 발표 후 주가 흐름을 다루세요.
+마지막에 강세 시나리오, 약세 시나리오, 시장을 놀라게 할 만한 요인을 정리하세요.</translation>
+        </message>
+        <message>
+            <source>10-K risk-factor diff vs last year: &lt;TICKER&gt;</source>
+            <translation>10-K 위험 요인 전년 대비 변경 사항: &lt;TICKER&gt;</translation>
+        </message>
+        <message>
+            <source>Compare the Risk Factors section (Item 1A) of &lt;TICKER&gt;'s latest 10-K with the previous year's 10-K.
+List the risks that are new, removed or materially reworded, quote the key sentences, and rate each change by its likely importance to investors.
+Cite both filings' dates and accession numbers.</source>
+            <translation>&lt;TICKER&gt;의 최신 10-K와 전년도 10-K의 위험 요인(Risk Factors, Item 1A) 항목을 비교하세요.
+새로 생기거나 삭제되거나 표현이 크게 바뀐 위험을 나열하고, 핵심 문장을 인용하고, 각 변경이 투자자에게 얼마나 중요할지 평가하세요.
+두 공시의 제출일과 접수번호(accession number)를 밝히세요.</translation>
+        </message>
+        <message>
+            <source>Portfolio risk &amp; concentration review</source>
+            <translation>포트폴리오 리스크 및 집중도 점검</translation>
+        </message>
+        <message>
+            <source>Review the risk of my portfolio &lt;PORTFOLIO NAME&gt;.
+Show position weights, sector / country / currency concentration, the five largest contributors to risk, beta and volatility against &lt;BENCHMARK&gt;, correlation clusters, and the drawdown over the last three months.
+Flag any single name above 10% or sector above 30%, and suggest concrete ways to reduce risk without changing the overall thesis.</source>
+            <translation>내 포트폴리오 &lt;PORTFOLIO NAME&gt;의 리스크를 점검하세요.
+포지션별 비중, 업종 / 국가 / 통화 집중도, 리스크 기여도 상위 5개, &lt;BENCHMARK&gt; 대비 베타와 변동성, 상관관계 군집, 최근 3개월 낙폭을 제시하세요.
+비중이 10%를 넘는 단일 종목이나 30%를 넘는 업종을 표시하고, 전체 투자 논리를 바꾸지 않고 리스크를 줄일 구체적인 방법을 제안하세요.</translation>
+        </message>
+        <message>
+            <source>Macro dashboard: rates, inflation, FX — what changed this week</source>
+            <translation>거시경제 대시보드: 금리, 물가, 환율 — 이번 주 변화</translation>
+        </message>
+        <message>
+            <source>Build a macro dashboard for &lt;COUNTRY OR REGION&gt;: policy rate and the market-implied path, 2y and 10y yields and the curve slope, the latest CPI / PCE and core inflation, PMIs, unemployment, and the main FX crosses.
+For each, show the latest value, the change over the past week and month, and the next release date.
+Summarise what changed this week and what it means for equities and bonds.</source>
+            <translation>&lt;COUNTRY OR REGION&gt;의 거시경제 대시보드를 만드세요: 기준금리와 시장이 반영한 금리 경로, 2년물·10년물 금리와 수익률곡선 기울기, 최신 CPI / PCE와 근원 물가, PMI, 실업률, 주요 통화 환율.
+항목마다 최신 값, 지난 1주와 1개월 동안의 변동, 다음 발표일을 제시하세요.
+이번 주에 무엇이 바뀌었고 그것이 주식과 채권에 어떤 의미인지 요약하세요.</translation>
+        </message>
+        <message>
+            <source>Screen for &lt;CRITERIA&gt; and rank</source>
+            <translation>&lt;CRITERIA&gt; 조건으로 스크리닝 후 순위 매기기</translation>
+        </message>
+        <message>
+            <source>Screen &lt;UNIVERSE, e.g. S&amp;P 500&gt; for &lt;CRITERIA, e.g. P/E below 15, revenue growth above 10%, net debt / EBITDA below 2&gt;.
+Rank the matches by &lt;RANKING METRIC&gt;, show the top 15 in a table with the screening metrics, and add one line on each company's investment case and main risk.</source>
+            <translation>&lt;UNIVERSE, 예: S&amp;P 500&gt;에서 &lt;CRITERIA, 예: PER 15 미만, 매출 성장률 10% 초과, 순차입금 / EBITDA 2 미만&gt; 조건으로 종목을 스크리닝하세요.
+조건에 맞는 종목을 &lt;RANKING METRIC&gt; 기준으로 순위를 매겨 상위 15개를 스크리닝 지표와 함께 표로 정리하고, 기업마다 투자 포인트와 주요 리스크를 한 줄씩 덧붙이세요.</translation>
+        </message>
+        <message>
+            <source>Build a DCF for &lt;TICKER&gt; and save it as a spreadsheet</source>
+            <translation>&lt;TICKER&gt; DCF 모델 작성 후 스프레드시트로 저장</translation>
+        </message>
+        <message>
+            <source>Build a discounted cash flow model for &lt;TICKER&gt;.
+Use the last five years of financials from the terminal, project five years of revenue, margins, capex and working capital with explicit assumptions, derive WACC from the terminal's market data, and compute equity value per share with a sensitivity table for WACC and terminal growth.
+Save the model as a spreadsheet (CSV or XLSX) in the working folder and summarise the result against the current share price.</source>
+            <translation>&lt;TICKER&gt;의 현금흐름할인(DCF) 모델을 만드세요.
+터미널의 최근 5년 재무 데이터를 사용하고, 가정을 명시해 향후 5년의 매출액, 이익률, 설비투자, 운전자본을 추정하고, 터미널의 시장 데이터로 WACC를 산출한 뒤, WACC와 영구성장률 민감도 표와 함께 주당 주식가치를 계산하세요.
+모델을 작업 폴더에 스프레드시트(CSV 또는 XLSX)로 저장하고, 결과를 현재 주가와 비교해 요약하세요.</translation>
+        </message>
+        <message>
+            <source>Summarise today's geopolitical risks for my holdings</source>
+            <translation>내 보유종목 관련 오늘의 지정학 리스크 요약</translation>
+        </message>
+        <message>
+            <source>Summarise today's geopolitical risks that matter for my holdings in &lt;PORTFOLIO NAME&gt;.
+Map each relevant event (conflicts, sanctions, elections, trade measures, shipping disruptions) to the positions, sectors and regions it affects, estimate the direction and size of the impact, and list hedges or signals to monitor.</source>
+            <translation>&lt;PORTFOLIO NAME&gt;의 보유종목에 영향을 주는 오늘의 지정학 리스크를 요약하세요.
+관련 사건(분쟁, 제재, 선거, 무역 조치, 해운 차질)마다 영향을 받는 포지션, 업종, 지역을 연결하고, 영향의 방향과 크기를 추정하고, 헤지 수단이나 지켜볼 신호를 나열하세요.</translation>
+        </message>
+    </context>
+    <context>
+        <name>AgenticTasksPanel</name>
+        <message>
+            <source>yes</source>
+            <translation>예</translation>
+        </message>
+        <message>
+            <source>no</source>
+            <translation>아니요</translation>
+        </message>
+    </context>
+    <context>
+        <name>AltInvestmentsScreen</name>
+        <message>
+            <source>Fundamental metrics</source>
+            <translation>펀더멘털 지표</translation>
+        </message>
+        <message>
+            <source>Gross vs net performance</source>
+            <translation>보수 차감 전후 성과</translation>
+        </message>
+        <message>
+            <source>Futures basis</source>
+            <translation>선물 베이시스</translation>
+        </message>
+        <message>
+            <source>Key metrics</source>
+            <translation>주요 지표</translation>
+        </message>
+        <message>
+            <source>Net operating income</source>
+            <translation>순영업소득(NOI)</translation>
+        </message>
+        <message>
+            <source>Cap rate</source>
+            <translation>자본환원율</translation>
+        </message>
+        <message>
+            <source>DCF valuation</source>
+            <translation>DCF 가치평가</translation>
+        </message>
+        <message>
+            <source>Real yield</source>
+            <translation>실질수익률</translation>
+        </message>
+        <message>
+            <source>Inflation scenarios</source>
+            <translation>인플레이션 시나리오</translation>
+        </message>
+        <message>
+            <source>Tax efficiency</source>
+            <translation>세금 효율성</translation>
+        </message>
+        <message>
+            <source>Composite rate</source>
+            <translation>복합 금리</translation>
+        </message>
+        <message>
+            <source>Early redemption penalty</source>
+            <translation>중도 환매 페널티</translation>
+        </message>
+        <message>
+            <source>Compare to TIPS</source>
+            <translation>TIPS와 비교</translation>
+        </message>
+        <message>
+            <source>Credit spread analysis</source>
+            <translation>신용 스프레드 분석</translation>
+        </message>
+        <message>
+            <source>Default probability</source>
+            <translation>부도 확률</translation>
+        </message>
+        <message>
+            <source>Yield analysis</source>
+            <translation>수익률 분석</translation>
+        </message>
+        <message>
+            <source>Call risk</source>
+            <translation>콜 리스크</translation>
+        </message>
+        <message>
+            <source>Dividend safety</source>
+            <translation>배당 안정성</translation>
+        </message>
+        <message>
+            <source>Conversion premium</source>
+            <translation>전환 프리미엄</translation>
+        </message>
+        <message>
+            <source>Upside participation</source>
+            <translation>상승 참여율</translation>
+        </message>
+        <message>
+            <source>Payout analysis</source>
+            <translation>지급액 분석</translation>
+        </message>
+        <message>
+            <source>Compare to fixed annuity</source>
+            <translation>고정 연금과 비교</translation>
+        </message>
+        <message>
+            <source>Compare to TIPS ladder</source>
+            <translation>TIPS 래더와 비교</translation>
+        </message>
+        <message>
+            <source>Longevity break-even</source>
+            <translation>장수 손익분기점</translation>
+        </message>
+        <message>
+            <source>Inflation protection value</source>
+            <translation>인플레이션 방어 가치</translation>
+        </message>
+        <message>
+            <source>Yield spread</source>
+            <translation>수익률 스프레드</translation>
+        </message>
+        <message>
+            <source>Sovereign default risk</source>
+            <translation>국가 부도 리스크</translation>
+        </message>
+        <message>
+            <source>Currency risk</source>
+            <translation>환리스크</translation>
+        </message>
+        <message>
+            <source>Fee impact</source>
+            <translation>수수료 영향</translation>
+        </message>
+        <message>
+            <source>Leverage risk</source>
+            <translation>레버리지 리스크</translation>
+        </message>
+        <message>
+            <source>Market-to-book</source>
+            <translation>시장가치/장부가치 비율</translation>
+        </message>
+        <message>
+            <source>Crediting rate</source>
+            <translation>적립 이율</translation>
+        </message>
+        <message>
+            <source>Suitability</source>
+            <translation>적합성</translation>
+        </message>
+        <message>
+            <source>Credited return</source>
+            <translation>적립 수익률</translation>
+        </message>
+        <message>
+            <source>Upside limitation</source>
+            <translation>상승 제한</translation>
+        </message>
+        <message>
+            <source>Surrender charges</source>
+            <translation>해지 수수료</translation>
+        </message>
+        <message>
+            <source>Optimal location</source>
+            <translation>최적 계좌 배치</translation>
+        </message>
+        <message>
+            <source>Value added</source>
+            <translation>추가 가치</translation>
+        </message>
+        <message>
+            <source>Municipal bond decision</source>
+            <translation>지방채 투자 판단</translation>
+        </message>
+        <message>
+            <source>Tax consequences</source>
+            <translation>세금 영향</translation>
+        </message>
+        <message>
+            <source>Opportunity cost</source>
+            <translation>기회비용</translation>
+        </message>
+        <message>
+            <source>Better alternative</source>
+            <translation>더 나은 대안</translation>
+        </message>
+        <message>
+            <source>Verdict</source>
+            <translation>판정</translation>
+        </message>
+        <message>
+            <source>Performance</source>
+            <translation>성과</translation>
+        </message>
+        <message>
+            <source>Screening impact</source>
+            <translation>스크리닝 영향</translation>
+        </message>
+        <message>
+            <source>Expenses</source>
+            <translation>비용</translation>
+        </message>
+        <message>
+            <source>SRI approaches</source>
+            <translation>SRI 투자 방식</translation>
+        </message>
+        <message>
+            <source>Volatility decay</source>
+            <translation>변동성 끌림</translation>
+        </message>
+        <message>
+            <source>Analysis verdict</source>
+            <translation>분석 판정</translation>
+        </message>
+        <message>
+            <source>Total annual cost</source>
+            <translation>연간 총비용</translation>
+        </message>
+        <message>
+            <source>Tax deferral</source>
+            <translation>과세 이연</translation>
+        </message>
+        <message>
+            <source>Alternatives</source>
+            <translation>대안</translation>
+        </message>
+    </context>
+    <context>
+        <name>AsiaSymbolLinks</name>
+        <message>
+            <source>Open in Equity Research</source>
+            <translation>주식 리서치에서 열기</translation>
+        </message>
+        <message>
+            <source>Open in Equity Trading</source>
+            <translation>주식 거래에서 열기</translation>
+        </message>
+        <message>
+            <source>Open in News</source>
+            <translation>뉴스에서 열기</translation>
+        </message>
+        <message>
+            <source>Backtest This Symbol</source>
+            <translation>이 종목 백테스트</translation>
+        </message>
+        <message>
+            <source>Add to Watchlist</source>
+            <translation>관심종목에 추가</translation>
+        </message>
+        <message>
+            <source>%1 is already in %2</source>
+            <translation>%1은(는) 이미 %2에 있습니다</translation>
+        </message>
+        <message>
+            <source>Added %1 to %2</source>
+            <translation>%2에 %1을(를) 추가했습니다</translation>
+        </message>
+        <message>
+            <source>Could not add %1 to %2</source>
+            <translation>%2에 %1을(를) 추가할 수 없습니다</translation>
+        </message>
+        <message>
+            <source>Copy Symbol</source>
+            <translation>종목코드 복사</translation>
+        </message>
+    </context>
+    <context>
+        <name>AuthTypes</name>
+        <message>
+            <source>Email is required</source>
+            <translation>이메일을 입력하세요</translation>
+        </message>
+        <message>
+            <source>Invalid email format</source>
+            <translation>이메일 형식이 올바르지 않습니다</translation>
+        </message>
+    </context>
+    <context>
+        <name>BacktestingScreen</name>
+        <message>
+            <source>YES</source>
+            <translation>예</translation>
+        </message>
+        <message>
+            <source>NO</source>
+            <translation>아니요</translation>
+        </message>
+    </context>
+    <context>
+        <name>CloudSyncSection</name>
+        <message>
+            <source>Out of credits — cloud sync is paused.</source>
+            <translation>크레딧 소진 — 클라우드 동기화가 일시 중지되었습니다.</translation>
+        </message>
+        <message>
+            <source>Get more credits with Pro</source>
+            <translation>Pro로 크레딧 더 받기</translation>
+        </message>
+        <message>
+            <source>off</source>
+            <translation>꺼짐</translation>
+        </message>
+        <message>
+            <source>%1 pending</source>
+            <translation>대기 %1건</translation>
+        </message>
+        <message>
+            <source>synced</source>
+            <translation>동기화됨</translation>
+        </message>
+        <message>
+            <source>syncing…</source>
+            <translation>동기화 중…</translation>
+        </message>
+        <message>
+            <source>paused — out of credits</source>
+            <translation>일시 중지됨 — 크레딧 소진</translation>
+        </message>
+        <message>
+            <source>error: %1</source>
+            <translation>오류: %1</translation>
+        </message>
+    </context>
+    <context>
+        <name>EquityFilingsTab</name>
+        <message>
+            <source>Buy</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>Sell</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>Grant</source>
+            <translation>부여</translation>
+        </message>
+        <message>
+            <source>Exercise</source>
+            <translation>행사</translation>
+        </message>
+        <message>
+            <source>Tax w/h</source>
+            <translation>원천징수</translation>
+        </message>
+        <message>
+            <source>Gift</source>
+            <translation>증여</translation>
+        </message>
+        <message>
+            <source>To issuer</source>
+            <translation>발행사 처분</translation>
+        </message>
+        <message>
+            <source>Conversion</source>
+            <translation>전환</translation>
+        </message>
+        <message>
+            <source>Revenue</source>
+            <translation>매출액</translation>
+        </message>
+        <message>
+            <source>Operating income</source>
+            <translation>영업이익</translation>
+        </message>
+        <message>
+            <source>Net income</source>
+            <translation>당기순이익</translation>
+        </message>
+        <message>
+            <source>EPS (diluted)</source>
+            <translation>희석 EPS</translation>
+        </message>
+        <message>
+            <source>Operating cash flow</source>
+            <translation>영업활동현금흐름</translation>
+        </message>
+        <message>
+            <source>Capital expenditure</source>
+            <translation>설비투자(CAPEX)</translation>
+        </message>
+        <message>
+            <source>Free cash flow (OCF − capex)</source>
+            <translation>잉여현금흐름 (OCF − CAPEX)</translation>
+        </message>
+        <message>
+            <source>Total assets</source>
+            <translation>자산총계</translation>
+        </message>
+        <message>
+            <source>Total liabilities</source>
+            <translation>부채총계</translation>
+        </message>
+        <message>
+            <source>Shareholders' equity</source>
+            <translation>자본총계</translation>
+        </message>
+        <message>
+            <source>Cash &amp; equivalents</source>
+            <translation>현금 및 현금성자산</translation>
+        </message>
+        <message>
+            <source>Long-term debt (non-current)</source>
+            <translation>장기차입금 (비유동)</translation>
+        </message>
+    </context>
+    <context>
+        <name>EquityResearchLinks</name>
+        <message>
+            <source>Open in Equity Trading (chart + order ticket)</source>
+            <translation>주식 거래에서 열기 (차트 + 주문창)</translation>
+        </message>
+        <message>
+            <source>No broker route for this market</source>
+            <translation>이 시장을 지원하는 증권사가 없습니다</translation>
+        </message>
+        <message>
+            <source>Open in News</source>
+            <translation>뉴스에서 열기</translation>
+        </message>
+        <message>
+            <source>Open in Backtesting</source>
+            <translation>백테스트에서 열기</translation>
+        </message>
+        <message>
+            <source>Add %1 to watchlist</source>
+            <translation>관심종목에 %1 추가</translation>
+        </message>
+        <message>
+            <source>No watchlists yet — create one in the Watchlist screen</source>
+            <translation>관심종목 목록이 없습니다 — 관심종목 화면에서 만드세요</translation>
+        </message>
+        <message>
+            <source>%1 is already in %2</source>
+            <translation>%1은(는) 이미 %2에 있습니다</translation>
+        </message>
+        <message>
+            <source>Added %1 to %2</source>
+            <translation>%2에 %1을(를) 추가했습니다</translation>
+        </message>
+        <message>
+            <source>Could not add %1 to %2</source>
+            <translation>%2에 %1을(를) 추가할 수 없습니다</translation>
+        </message>
+    </context>
+    <context>
+        <name>EquityResearchScreen</name>
+        <message>
+            <source>Overview</source>
+            <translation>개요</translation>
+        </message>
+        <message>
+            <source>Financials</source>
+            <translation>재무</translation>
+        </message>
+        <message>
+            <source>Filings</source>
+            <translation>공시</translation>
+        </message>
+        <message>
+            <source>Analysis</source>
+            <translation>분석</translation>
+        </message>
+        <message>
+            <source>Technicals</source>
+            <translation>기술적 분석</translation>
+        </message>
+        <message>
+            <source>Peers</source>
+            <translation>동종업체</translation>
+        </message>
+        <message>
+            <source>News</source>
+            <translation>뉴스</translation>
+        </message>
+        <message>
+            <source>Sentiment</source>
+            <translation>시장 심리</translation>
+        </message>
+        <message>
+            <source>Valuation</source>
+            <translation>밸류에이션</translation>
+        </message>
+    </context>
+    <context>
+        <name>EquityValuationModels</name>
+        <message>
+            <source>Net income positive</source>
+            <translation>당기순이익 흑자</translation>
+        </message>
+        <message>
+            <source>Operating cash flow positive</source>
+            <translation>영업활동현금흐름 양(+)</translation>
+        </message>
+        <message>
+            <source>Return on assets improved</source>
+            <translation>총자산이익률(ROA) 개선</translation>
+        </message>
+        <message>
+            <source>Cash flow exceeds net income</source>
+            <translation>현금흐름이 당기순이익보다 큼</translation>
+        </message>
+        <message>
+            <source>Leverage (LT debt / assets) fell</source>
+            <translation>레버리지(장기부채 / 자산) 감소</translation>
+        </message>
+        <message>
+            <source>Current ratio improved</source>
+            <translation>유동비율 개선</translation>
+        </message>
+        <message>
+            <source>No new shares issued</source>
+            <translation>신주 발행 없음</translation>
+        </message>
+        <message>
+            <source>Gross margin improved</source>
+            <translation>매출총이익률 개선</translation>
+        </message>
+        <message>
+            <source>Asset turnover improved</source>
+            <translation>자산회전율 개선</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::fno::LegEditorTable</name>
+        <message>
+            <source>Strategy legs</source>
+            <translation>전략 레그</translation>
+        </message>
+        <message>
+            <source>Editable list of option legs. Space toggles a leg on or off; edit Lots (signed) and Entry premium.</source>
+            <translation>편집 가능한 옵션 레그 목록입니다. Space 키로 레그를 켜거나 끄고, 계약 수(부호 포함)와 진입가를 편집하세요.</translation>
+        </message>
+    </context>
+    <context>
+        <name>MAComparisonPanel</name>
+        <message>
+            <source>Deals JSON is not valid: %1 (offset %2)</source>
+            <translation>거래 JSON이 올바르지 않습니다: %1 (위치 %2)</translation>
+        </message>
+        <message>
+            <source>Enter a non-empty JSON array of deals, e.g. [{"acquirer":"...","target":"...","deal_value":N}]</source>
+            <translation>거래가 하나 이상 담긴 JSON 배열을 입력하세요. 예: [{"acquirer":"...","target":"...","deal_value":N}]</translation>
+        </message>
+    </context>
+    <context>
+        <name>MaritimeScreen</name>
+        <message>
+            <source>position age unknown</source>
+            <translation>위치 갱신 시각 알 수 없음</translation>
+        </message>
+        <message>
+            <source>just now</source>
+            <translation>방금</translation>
+        </message>
+    </context>
+    <context>
+        <name>MoveNodesCommand</name>
+        <message>
+            <source>Move %1 nodes</source>
+            <translation>노드 %1개 이동</translation>
+        </message>
+        <message>
+            <source>Move node</source>
+            <translation>노드 이동</translation>
+        </message>
+    </context>
+    <context>
+        <name>NewsCorrelationService</name>
+        <message>
+            <source>Manifold Markets (play money)</source>
+            <translation>Manifold Markets (모의 화폐)</translation>
+        </message>
+    </context>
+    <context>
+        <name>NodeEditorToolbar</name>
+        <message>
+            <source>Undo last graph change — add, delete, connect, move, clear (Ctrl+Z).
+Text typed in the properties panel is undone in that field.</source>
+            <translation>마지막 그래프 변경 실행 취소 — 추가, 삭제, 연결, 이동, 지우기 (Ctrl+Z).
+속성 패널에 입력한 텍스트는 그 필드에서 실행 취소됩니다.</translation>
+        </message>
+        <message>
+            <source>Redo last undone graph change (Ctrl+Y)</source>
+            <translation>실행 취소한 마지막 그래프 변경 다시 실행 (Ctrl+Y)</translation>
+        </message>
+    </context>
+    <context>
+        <name>NotificationsSection</name>
+        <message>
+            <source>must be a number between 1 and 65535</source>
+            <translation>1~65535 사이의 숫자여야 합니다</translation>
+        </message>
+        <message>
+            <source>must be a full http:// or https:// URL</source>
+            <translation>http:// 또는 https://로 시작하는 전체 URL이어야 합니다</translation>
+        </message>
+    </context>
+    <context>
+        <name>PortfolioCsv</name>
+        <message>
+            <source>Export CSV</source>
+            <translation>CSV 내보내기</translation>
+        </message>
+        <message>
+            <source>CSV Files (*.csv)</source>
+            <translation>CSV 파일 (*.csv)</translation>
+        </message>
+        <message>
+            <source>Export Failed</source>
+            <translation>내보내기 실패</translation>
+        </message>
+        <message>
+            <source>Could not write %1:
+%2</source>
+            <translation>%1에 쓸 수 없습니다:
+%2</translation>
+        </message>
+        <message>
+            <source>Write error while saving %1.</source>
+            <translation>%1 저장 중 쓰기 오류가 발생했습니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::python::PythonSetupManager</name>
+        <message>
+            <source>musl libc detected — Fincept Terminal needs a glibc-based Linux. The Python 3.11 runtime is published for glibc only, and several analytics libraries (PyTorch among them) ship no musl wheels.</source>
+            <translation>musl libc가 감지되었습니다 — Fincept Terminal은 glibc 기반 Linux가 필요합니다. Python 3.11 런타임은 glibc용으로만 배포되며, 일부 분석 라이브러리(PyTorch 등)는 musl용 휠을 제공하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Hint: the program could not be launched — antivirus software may have quarantined or blocked it. Allow %1 in your antivirus, then retry.</source>
+            <translation>도움말: 프로그램을 실행할 수 없습니다 — 백신 프로그램이 격리하거나 차단했을 수 있습니다. 백신에서 %1을(를) 허용한 뒤 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Hint: a TLS certificate was rejected — a corporate proxy or antivirus is probably intercepting HTTPS. Ask IT to allow pypi.org, files.pythonhosted.org, github.com and download.pytorch.org, or to install the proxy's root certificate in the system store.</source>
+            <translation>도움말: TLS 인증서가 거부되었습니다 — 회사 프록시나 백신이 HTTPS를 가로채고 있을 가능성이 높습니다. IT 담당자에게 pypi.org, files.pythonhosted.org, github.com, download.pytorch.org를 허용하거나 프록시의 루트 인증서를 시스템 저장소에 설치해 달라고 요청하세요.</translation>
+        </message>
+        <message>
+            <source>Hint: the download servers could not be found (DNS). Check that this computer is online, then retry.</source>
+            <translation>도움말: 다운로드 서버를 찾을 수 없습니다(DNS). 이 컴퓨터가 인터넷에 연결되어 있는지 확인한 뒤 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Hint: a proxy refused the connection. Set HTTPS_PROXY and HTTP_PROXY for Fincept Terminal (with credentials in the URL if required), then retry.</source>
+            <translation>도움말: 프록시가 연결을 거부했습니다. Fincept Terminal에 HTTPS_PROXY와 HTTP_PROXY를 설정한 뒤(필요하면 URL에 인증 정보 포함) 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Hint: the disk is full. Setup needs about 6 GB free on the drive that holds %1.</source>
+            <translation>도움말: 디스크가 가득 찼습니다. 설치하려면 %1이(가) 있는 드라이브에 약 6 GB의 여유 공간이 필요합니다.</translation>
+        </message>
+        <message>
+            <source>Hint: a file is in use. Close other Fincept Terminal windows and Python processes, then retry (antivirus scans can also hold files briefly).</source>
+            <translation>도움말: 파일이 사용 중입니다. 다른 Fincept Terminal 창과 Python 프로세스를 닫은 뒤 다시 시도하세요(백신 검사가 파일을 잠시 붙잡고 있을 수도 있습니다).</translation>
+        </message>
+        <message>
+            <source>Hint: antivirus blocked a downloaded package. Allow %1 in your antivirus, then retry.</source>
+            <translation>도움말: 백신이 다운로드한 패키지를 차단했습니다. 백신에서 %1을(를) 허용한 뒤 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Hint: access was denied — antivirus may be blocking %1, or the folder is read-only. Allow the folder in your antivirus, then retry.</source>
+            <translation>도움말: 접근이 거부되었습니다 — 백신이 %1을(를) 차단하고 있거나 폴더가 읽기 전용입니다. 백신에서 이 폴더를 허용한 뒤 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Hint: a file path is too long for Windows. Enable long paths (LongPathsEnabled) or use a shorter user folder, then retry.</source>
+            <translation>도움말: 파일 경로가 Windows에서 허용하는 길이보다 깁니다. 긴 경로(LongPathsEnabled)를 사용하도록 설정하거나 더 짧은 사용자 폴더를 사용한 뒤 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Hint: no compatible package versions exist for this platform. Please report this together with the log file.</source>
+            <translation>도움말: 이 플랫폼과 호환되는 패키지 버전이 없습니다. 로그 파일과 함께 이 문제를 신고하세요.</translation>
+        </message>
+        <message>
+            <source>Hint: a package had to be compiled from source and the build failed. Retry; if it fails again, please report it together with the log file.</source>
+            <translation>도움말: 소스에서 컴파일해야 하는 패키지의 빌드가 실패했습니다. 다시 시도하고, 또 실패하면 로그 파일과 함께 신고하세요.</translation>
+        </message>
+        <message>
+            <source>Hint: a network error interrupted the download. Retry — everything already downloaded is cached, so a retry resumes where it stopped.</source>
+            <translation>도움말: 네트워크 오류로 다운로드가 중단되었습니다. 다시 시도하세요 — 이미 받은 파일은 캐시되어 있어 멈춘 곳부터 이어서 받습니다.</translation>
+        </message>
+        <message>
+            <source>Waiting for another uv process to release its lock…</source>
+            <translation>다른 uv 프로세스가 잠금을 해제하기를 기다리는 중…</translation>
+        </message>
+        <message>
+            <source>%1 — could not start %2 (%3).</source>
+            <translation>%1 — %2을(를) 시작할 수 없습니다 (%3).</translation>
+        </message>
+        <message>
+            <source>%1 — no result after %2 minutes; the process was stopped.</source>
+            <translation>%1 — %2분이 지나도 결과가 없어 프로세스를 중지했습니다.</translation>
+        </message>
+        <message>
+            <source>%1 — %2 crashed.</source>
+            <translation>%1 — %2이(가) 비정상 종료되었습니다.</translation>
+        </message>
+        <message>
+            <source>%1 — %2 exited with code %3.</source>
+            <translation>%1 — %2이(가) 종료되었습니다 (종료 코드 %3).</translation>
+        </message>
+        <message>
+            <source>Already installed</source>
+            <translation>이미 설치됨</translation>
+        </message>
+        <message>
+            <source>Checking uv…</source>
+            <translation>uv 확인 중…</translation>
+        </message>
+        <message>
+            <source>Waiting for the Python runtime</source>
+            <translation>Python 런타임 대기 중</translation>
+        </message>
+        <message>
+            <source>Verifying installed core libraries</source>
+            <translation>설치된 핵심 라이브러리 확인 중</translation>
+        </message>
+        <message>
+            <source>Starts after the analytics core</source>
+            <translation>분석 핵심 라이브러리 설치 후 시작</translation>
+        </message>
+        <message>
+            <source>Setup was cancelled.</source>
+            <translation>설정이 취소되었습니다.</translation>
+        </message>
+        <message>
+            <source>Setup complete — all Python environments are ready.</source>
+            <translation>설정 완료 — 모든 Python 환경이 준비되었습니다.</translation>
+        </message>
+        <message>
+            <source>Python environment ready — all analytics libraries are installed.</source>
+            <translation>Python 환경 준비 완료 — 모든 분석 라이브러리가 설치되었습니다.</translation>
+        </message>
+        <message>
+            <source>Installing Python libraries failed. Click PYTHON ENV in the status bar to see why and retry.</source>
+            <translation>Python 라이브러리 설치에 실패했습니다. 상태 표시줄의 Python 환경 항목을 클릭해 원인을 확인하고 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Not started — the Python runtime is missing</source>
+            <translation>시작 안 함 — Python 런타임이 없습니다</translation>
+        </message>
+        <message>
+            <source>Runtime: %1</source>
+            <translation>런타임: %1</translation>
+        </message>
+        <message>
+            <source>uv %1 ready</source>
+            <translation>uv %1 준비됨</translation>
+        </message>
+        <message>
+            <source>The downloaded uv reports "%1" instead of uv %2.</source>
+            <translation>다운로드한 uv가 uv %2 대신 "%1"을(를) 출력합니다.</translation>
+        </message>
+        <message>
+            <source>Running the downloaded uv</source>
+            <translation>다운로드한 uv 실행</translation>
+        </message>
+        <message>
+            <source>Cannot create %1 — check disk space and folder permissions.</source>
+            <translation>%1을(를) 만들 수 없습니다 — 디스크 공간과 폴더 권한을 확인하세요.</translation>
+        </message>
+        <message>
+            <source>Cannot write %1: %2</source>
+            <translation>%1에 쓸 수 없습니다: %2</translation>
+        </message>
+        <message>
+            <source>Downloading uv %1…</source>
+            <translation>uv %1 다운로드 중…</translation>
+        </message>
+        <message>
+            <source>Downloading uv %1 — %2 of %3</source>
+            <translation>uv %1 다운로드 중 — %3 중 %2</translation>
+        </message>
+        <message>
+            <source>Downloading uv %1 — %2</source>
+            <translation>uv %1 다운로드 중 — %2</translation>
+        </message>
+        <message>
+            <source>Writing the uv download failed (%1). Check free disk space.</source>
+            <translation>다운로드한 uv를 저장하지 못했습니다(%1). 디스크 여유 공간을 확인하세요.</translation>
+        </message>
+        <message>
+            <source>The uv download failed its SHA-256 integrity check (%1 bytes received). This usually means a captive portal or proxy returned a web page instead of the file — sign in to the network, then retry.</source>
+            <translation>다운로드한 uv가 SHA-256 무결성 검사를 통과하지 못했습니다(%1바이트 수신). 보통 네트워크 로그인 페이지(캡티브 포털)나 프록시가 파일 대신 웹 페이지를 돌려준 경우입니다 — 네트워크에 로그인한 뒤 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Cannot move the uv download into place (%1).</source>
+            <translation>다운로드한 uv를 설치 위치로 옮길 수 없습니다(%1).</translation>
+        </message>
+        <message>
+            <source>Direct download failed — retrying with curl…</source>
+            <translation>직접 다운로드 실패 — curl로 다시 시도하는 중…</translation>
+        </message>
+        <message>
+            <source>Could not download uv.
+Direct download: %1
+%2</source>
+            <translation>uv를 다운로드할 수 없습니다.
+직접 다운로드: %1
+%2</translation>
+        </message>
+        <message>
+            <source>curl fallback</source>
+            <translation>curl 대체 다운로드</translation>
+        </message>
+        <message>
+            <source>Verifying download (SHA-256)…</source>
+            <translation>다운로드 검증 중 (SHA-256)…</translation>
+        </message>
+        <message>
+            <source>Extracting uv…</source>
+            <translation>uv 압축 해제 중…</translation>
+        </message>
+        <message>
+            <source>The old uv binary at %1 is locked — another Fincept Terminal or uv process is still running, or antivirus is holding it. Close it (or restart the computer), then retry.</source>
+            <translation>%1의 기존 uv 실행 파일이 잠겨 있습니다 — 다른 Fincept Terminal이나 uv 프로세스가 아직 실행 중이거나 백신이 붙잡고 있습니다. 해당 프로세스를 닫은 뒤(또는 컴퓨터를 다시 시작한 뒤) 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Extracting uv</source>
+            <translation>uv 압축 해제</translation>
+        </message>
+        <message>
+            <source>uv was not found after extracting the archive (%1).</source>
+            <translation>압축을 푼 뒤에도 uv를 찾을 수 없습니다(%1).</translation>
+        </message>
+        <message>
+            <source>Installing Python %1…</source>
+            <translation>Python %1 설치 중…</translation>
+        </message>
+        <message>
+            <source>Installing Python %1</source>
+            <translation>Python %1 설치</translation>
+        </message>
+        <message>
+            <source>Python %1 was installed but its interpreter is missing under %2.</source>
+            <translation>Python %1을(를) 설치했지만 %2 아래에 인터프리터가 없습니다.</translation>
+        </message>
+        <message>
+            <source>uv %1 · Python %2</source>
+            <translation>uv %1 · Python %2</translation>
+        </message>
+        <message>
+            <source>Setup file missing: %1 — reinstall Fincept Terminal.</source>
+            <translation>설치 파일 누락: %1 — Fincept Terminal을 다시 설치하세요.</translation>
+        </message>
+        <message>
+            <source>Creating virtual environment…</source>
+            <translation>가상환경 생성 중…</translation>
+        </message>
+        <message>
+            <source>Creating %1</source>
+            <translation>%1 생성</translation>
+        </message>
+        <message>
+            <source>Reading installed packages…</source>
+            <translation>설치된 패키지 읽는 중…</translation>
+        </message>
+        <message>
+            <source>Resolving dependencies…</source>
+            <translation>의존성 분석 중…</translation>
+        </message>
+        <message>
+            <source>Resolved %1 packages</source>
+            <translation>패키지 %1개 분석 완료</translation>
+        </message>
+        <message>
+            <source>Resolving dependencies — %1 packages</source>
+            <translation>의존성 분석 중 — 패키지 %1개</translation>
+        </message>
+        <message>
+            <source>Installing core libraries…</source>
+            <translation>핵심 라이브러리 설치 중…</translation>
+        </message>
+        <message>
+            <source>Downloading %1 / %2 packages</source>
+            <translation>패키지 다운로드 중 %1 / %2</translation>
+        </message>
+        <message>
+            <source>Installing %1 packages…</source>
+            <translation>패키지 %1개 설치 중…</translation>
+        </message>
+        <message>
+            <source>Installing the analytics core</source>
+            <translation>분석 핵심 라이브러리 설치</translation>
+        </message>
+        <message>
+            <source>%1 core packages ready</source>
+            <translation>핵심 패키지 %1개 준비됨</translation>
+        </message>
+        <message>
+            <source>Resolved %1 packages — queued until the analytics core is installed</source>
+            <translation>패키지 %1개 분석 완료 — 분석 핵심 라이브러리 설치 후 진행</translation>
+        </message>
+        <message>
+            <source>Queued until the analytics core is installed</source>
+            <translation>분석 핵심 라이브러리 설치 후 진행</translation>
+        </message>
+        <message>
+            <source>Installing together with the full analytics set…</source>
+            <translation>전체 분석 라이브러리와 함께 설치하는 중…</translation>
+        </message>
+        <message>
+            <source>Preparing installation…</source>
+            <translation>설치 준비 중…</translation>
+        </message>
+        <message>
+            <source>Resolving — %1 packages</source>
+            <translation>의존성 분석 중 — 패키지 %1개</translation>
+        </message>
+        <message>
+            <source>Checking %1 packages…</source>
+            <translation>패키지 %1개 확인 중…</translation>
+        </message>
+        <message>
+            <source>Compiling bytecode…</source>
+            <translation>바이트코드 컴파일 중…</translation>
+        </message>
+        <message>
+            <source>Installing the trading libraries</source>
+            <translation>트레이딩 라이브러리 설치</translation>
+        </message>
+        <message>
+            <source>Installing the analytics libraries</source>
+            <translation>분석 라이브러리 설치</translation>
+        </message>
+        <message>
+            <source>Core libraries ready</source>
+            <translation>핵심 라이브러리 준비됨</translation>
+        </message>
+        <message>
+            <source>%1 packages ready</source>
+            <translation>패키지 %1개 준비됨</translation>
+        </message>
+        <message>
+            <source>Up to date</source>
+            <translation>최신 상태</translation>
+        </message>
+        <message>
+            <source>Trading libraries</source>
+            <translation>트레이딩 라이브러리</translation>
+        </message>
+        <message>
+            <source>Analytics libraries</source>
+            <translation>분석 라이브러리</translation>
+        </message>
+        <message>
+            <source>Analytics core</source>
+            <translation>분석 핵심 라이브러리</translation>
+        </message>
+        <message>
+            <source>Not started — the analytics core did not install</source>
+            <translation>시작 안 함 — 분석 핵심 라이브러리가 설치되지 않았습니다</translation>
+        </message>
+    </context>
+    <context>
+        <name>RemoveEdgeCommand</name>
+        <message>
+            <source>Delete connection</source>
+            <translation>연결 삭제</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::fno::ScreenerSubTab</name>
+        <message>
+            <source>Minimum implied volatility</source>
+            <translation>최소 내재변동성</translation>
+        </message>
+        <message>
+            <source>Maximum implied volatility</source>
+            <translation>최대 내재변동성</translation>
+        </message>
+        <message>
+            <source>Maximum strikes away from at-the-money</source>
+            <translation>등가격에서 떨어진 최대 행사가 수</translation>
+        </message>
+        <message>
+            <source>Minimum call open interest in lakhs</source>
+            <translation>최소 콜 미결제약정 (10만 단위)</translation>
+        </message>
+        <message>
+            <source>Minimum put open interest in lakhs</source>
+            <translation>최소 풋 미결제약정 (10만 단위)</translation>
+        </message>
+        <message>
+            <source>Screened strikes</source>
+            <translation>스크리닝된 행사가</translation>
+        </message>
+        <message>
+            <source>No chain loaded — open the Chain tab and pick a broker, underlying and expiry first.</source>
+            <translation>불러온 옵션 체인이 없습니다 — 먼저 옵션 체인 탭을 열고 증권사, 기초자산, 만기를 선택하세요.</translation>
+        </message>
+        <message>
+            <source>No strikes match — widen the IV band, the ± strike range, or lower the OI floors. (%1 strikes in the chain.)</source>
+            <translation>일치하는 행사가가 없습니다 — IV 범위나 ± 행사가 범위를 넓히거나 미결제약정 하한을 낮추세요. (옵션 체인의 행사가 %1개)</translation>
+        </message>
+        <message>
+            <source>IV Min</source>
+            <translation>최소 IV</translation>
+        </message>
+        <message>
+            <source>IV Max</source>
+            <translation>최대 IV</translation>
+        </message>
+        <message>
+            <source>± Strikes</source>
+            <translation>± 행사가 수</translation>
+        </message>
+        <message>
+            <source>CE OI ≥</source>
+            <translation>CE OI ≥</translation>
+        </message>
+        <message>
+            <source>PE OI ≥</source>
+            <translation>PE OI ≥</translation>
+        </message>
+        <message>
+            <source>0 of 0 strikes match</source>
+            <translation>행사가 0개 중 0개 일치</translation>
+        </message>
+        <message>
+            <source>%1 of %2 strikes match</source>
+            <translation>행사가 %2개 중 %1개 일치</translation>
+        </message>
+    </context>
+    <context>
+        <name>StakingService</name>
+        <message>
+            <source>On-chain staking is not live yet — the fincept_lock program is not deployed, so lock positions can't be read or created in this build.</source>
+            <translation>온체인 스테이킹은 아직 운영되지 않습니다 — fincept_lock 프로그램이 배포되지 않아 이 빌드에서는 락업 포지션을 읽거나 만들 수 없습니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>SurfaceAnalyticsScreen</name>
+        <message>
+            <source>The response carried no price bars.</source>
+            <translation>응답에 가격 봉 데이터가 없습니다.</translation>
+        </message>
+        <message>
+            <source>Only %1 trading day(s) are common to %2 - at least %3 are needed. A symbol with a short history (a recent listing) limits the whole basket.</source>
+            <translation>%2의 공통 거래일이 %1일뿐입니다 - 최소 %3일이 필요합니다. 이력이 짧은 종목(최근 상장 종목)이 하나라도 있으면 바스켓 전체가 그만큼 제한됩니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::DatabentoService</name>
+        <message>
+            <source>Choose a dataset, schema, symbol and a valid date range first.</source>
+            <translation>먼저 데이터셋, 스키마, 종목코드, 올바른 날짜 범위를 선택하세요.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::auth::AuthApi</name>
+        <message>
+            <source>Bad request. Please check your input.</source>
+            <translation>잘못된 요청입니다. 입력 내용을 확인하세요.</translation>
+        </message>
+        <message>
+            <source>Incorrect email or password.</source>
+            <translation>이메일 또는 비밀번호가 올바르지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Access denied. Your account may be suspended.</source>
+            <translation>접근이 거부되었습니다. 계정이 정지되었을 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Account not found. Please check your email.</source>
+            <translation>계정을 찾을 수 없습니다. 이메일을 확인하세요.</translation>
+        </message>
+        <message>
+            <source>An account with this email or username already exists.</source>
+            <translation>이 이메일 또는 사용자 이름으로 가입된 계정이 이미 있습니다.</translation>
+        </message>
+        <message>
+            <source>Please check your input and try again.</source>
+            <translation>입력 내용을 확인한 뒤 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Too many attempts. Please wait a moment and try again.</source>
+            <translation>시도 횟수가 너무 많습니다. 잠시 후 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Server error. Please try again later.</source>
+            <translation>서버 오류입니다. 나중에 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Service unavailable. Please try again later.</source>
+            <translation>서비스를 이용할 수 없습니다. 나중에 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Request failed (HTTP %1). Please try again.</source>
+            <translation>요청에 실패했습니다 (HTTP %1). 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Network error. Check your connection.</source>
+            <translation>네트워크 오류입니다. 연결 상태를 확인하세요.</translation>
+        </message>
+        <message>
+            <source>Request failed. Please try again.</source>
+            <translation>요청에 실패했습니다. 다시 시도하세요.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::auth::AuthManager</name>
+        <message>
+            <source>Sign-in could not be completed: the server rejected the new session. Please try again.</source>
+            <translation>로그인을 완료할 수 없습니다: 서버가 새 세션을 거부했습니다. 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Login failed</source>
+            <translation>로그인 실패</translation>
+        </message>
+        <message>
+            <source>You are already logged in on another device.</source>
+            <translation>이미 다른 기기에서 로그인되어 있습니다.</translation>
+        </message>
+        <message>
+            <source>No API key returned from server</source>
+            <translation>서버가 API 키를 반환하지 않았습니다</translation>
+        </message>
+        <message>
+            <source>Google login failed</source>
+            <translation>Google 로그인 실패</translation>
+        </message>
+        <message>
+            <source>Registration failed</source>
+            <translation>회원가입 실패</translation>
+        </message>
+        <message>
+            <source>Verification failed</source>
+            <translation>인증 실패</translation>
+        </message>
+        <message>
+            <source>No API key returned</source>
+            <translation>API 키가 반환되지 않았습니다</translation>
+        </message>
+        <message>
+            <source>MFA verification failed</source>
+            <translation>MFA 인증 실패</translation>
+        </message>
+        <message>
+            <source>Failed to send reset code</source>
+            <translation>재설정 코드 전송 실패</translation>
+        </message>
+        <message>
+            <source>Password reset failed</source>
+            <translation>비밀번호 재설정 실패</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::auth::GoogleDesktopLogin</name>
+        <message>
+            <source>Could not start the local login listener.</source>
+            <translation>로컬 로그인 수신기를 시작할 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Login timed out. Please try again.</source>
+            <translation>로그인 시간이 초과되었습니다. 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Could not open the browser for Google sign-in.</source>
+            <translation>Google 로그인을 위한 브라우저를 열 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Fincept</source>
+            <translation>Fincept</translation>
+        </message>
+        <message>
+            <source>Malformed request.</source>
+            <translation>잘못된 형식의 요청입니다.</translation>
+        </message>
+        <message>
+            <source>Request rejected.</source>
+            <translation>요청이 거부되었습니다.</translation>
+        </message>
+        <message>
+            <source>Fincept Terminal</source>
+            <translation>Fincept Terminal</translation>
+        </message>
+        <message>
+            <source>Waiting for sign-in to complete…</source>
+            <translation>로그인 완료를 기다리는 중…</translation>
+        </message>
+        <message>
+            <source>Login already completed — you can close this tab.</source>
+            <translation>이미 로그인을 완료했습니다 — 이 탭을 닫아도 됩니다.</translation>
+        </message>
+        <message>
+            <source>Login complete</source>
+            <translation>로그인 완료</translation>
+        </message>
+        <message>
+            <source>You can close this tab and return to Fincept Terminal.</source>
+            <translation>이 탭을 닫고 Fincept Terminal로 돌아가세요.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::auth::UserApi</name>
+        <message>
+            <source>Session expired. Please log in again.</source>
+            <translation>세션이 만료되었습니다. 다시 로그인하세요.</translation>
+        </message>
+        <message>
+            <source>Access denied.</source>
+            <translation>접근이 거부되었습니다.</translation>
+        </message>
+        <message>
+            <source>Resource not found.</source>
+            <translation>리소스를 찾을 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Invalid request data.</source>
+            <translation>요청 데이터가 올바르지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Server error. Please try again.</source>
+            <translation>서버 오류입니다. 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>Request failed (HTTP %1)</source>
+            <translation>요청 실패 (HTTP %1)</translation>
+        </message>
+        <message>
+            <source>Network error. Check your connection.</source>
+            <translation>네트워크 오류입니다. 연결 상태를 확인하세요.</translation>
+        </message>
+        <message>
+            <source>Request failed</source>
+            <translation>요청 실패</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::chat_mode::TerminalToolBridge</name>
+        <message>
+            <source>Blocked unsafe remote tool call: %1</source>
+            <translation>안전하지 않은 원격 도구 호출을 차단했습니다: %1</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::feeds::FeedConfigDialog</name>
+        <message>
+            <source>Add Feed</source>
+            <translation>피드 추가</translation>
+        </message>
+        <message>
+            <source>Edit Feed</source>
+            <translation>피드 편집</translation>
+        </message>
+        <message>
+            <source> s</source>
+            <translation> 초</translation>
+        </message>
+        <message>
+            <source>Cards</source>
+            <translation>카드</translation>
+        </message>
+        <message>
+            <source>Table</source>
+            <translation>표</translation>
+        </message>
+        <message>
+            <source>Auto</source>
+            <translation>자동</translation>
+        </message>
+        <message>
+            <source>Manual</source>
+            <translation>수동</translation>
+        </message>
+        <message>
+            <source>Store history (offline cache + past items)</source>
+            <translation>기록 저장 (오프라인 캐시 + 지난 항목)</translation>
+        </message>
+        <message>
+            <source>Keep fetched items in the local database so they show when the feed is unreachable, and can be queried later.</source>
+            <translation>가져온 항목을 로컬 데이터베이스에 보관해 피드에 접속할 수 없을 때도 표시하고, 나중에 조회할 수 있게 합니다.</translation>
+        </message>
+        <message>
+            <source>Name</source>
+            <translation>이름</translation>
+        </message>
+        <message>
+            <source>URL</source>
+            <translation>URL</translation>
+        </message>
+        <message>
+            <source>Refresh</source>
+            <translation>새로고침 간격</translation>
+        </message>
+        <message>
+            <source>Display</source>
+            <translation>표시 방식</translation>
+        </message>
+        <message>
+            <source>Parse</source>
+            <translation>파싱 방식</translation>
+        </message>
+        <message>
+            <source>Format</source>
+            <translation>형식</translation>
+        </message>
+        <message>
+            <source>Records</source>
+            <translation>레코드</translation>
+        </message>
+        <message>
+            <source>The repeating tag/element that marks one entry (auto-filled by Discover).</source>
+            <translation>항목 하나를 나타내는 반복 태그/요소입니다 (필드 찾기로 자동 입력).</translation>
+        </message>
+        <message>
+            <source>🔍 Discover fields from feed</source>
+            <translation>🔍 피드에서 필드 찾기</translation>
+        </message>
+        <message>
+            <source>Pick what each tag is, rename it, or remove it. Add your own with “+ Add field”.</source>
+            <translation>태그마다 역할을 고르고, 이름을 바꾸거나 제거하세요. “+ 필드 추가”로 직접 추가할 수도 있습니다.</translation>
+        </message>
+        <message>
+            <source>+ Add field</source>
+            <translation>+ 필드 추가</translation>
+        </message>
+        <message>
+            <source>Test / Preview</source>
+            <translation>테스트 / 미리보기</translation>
+        </message>
+        <message>
+            <source>Delete</source>
+            <translation>삭제</translation>
+        </message>
+        <message>
+            <source>Delete feed</source>
+            <translation>피드 삭제</translation>
+        </message>
+        <message>
+            <source>Delete this feed and its stored history? This cannot be undone.</source>
+            <translation>이 피드와 저장된 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>URL required</source>
+            <translation>URL 필요</translation>
+        </message>
+        <message>
+            <source>Enter the address of the feed you want to add.</source>
+            <translation>추가할 피드의 주소를 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Feed name</source>
+            <translation>피드 이름</translation>
+        </message>
+        <message>
+            <source>Feed URL</source>
+            <translation>피드 URL</translation>
+        </message>
+        <message>
+            <source>Refresh interval in seconds</source>
+            <translation>새로고침 간격(초)</translation>
+        </message>
+        <message>
+            <source>Display mode</source>
+            <translation>표시 방식</translation>
+        </message>
+        <message>
+            <source>Parse mode</source>
+            <translation>파싱 방식</translation>
+        </message>
+        <message>
+            <source>Feed format</source>
+            <translation>피드 형식</translation>
+        </message>
+        <message>
+            <source>Column</source>
+            <translation>열</translation>
+        </message>
+        <message>
+            <source>Title</source>
+            <translation>제목</translation>
+        </message>
+        <message>
+            <source>Summary</source>
+            <translation>요약</translation>
+        </message>
+        <message>
+            <source>Link</source>
+            <translation>링크</translation>
+        </message>
+        <message>
+            <source>Time</source>
+            <translation>시간</translation>
+        </message>
+        <message>
+            <source>Title/Summary/Link/Time feed the card view; Column shows only in the table.</source>
+            <translation>제목/요약/링크/시간은 카드 보기에 쓰이고, 열은 표에만 표시됩니다.</translation>
+        </message>
+        <message>
+            <source>Display name</source>
+            <translation>표시 이름</translation>
+        </message>
+        <message>
+            <source>Which feed tag to read this from.</source>
+            <translation>이 값을 읽어 올 피드 태그입니다.</translation>
+        </message>
+        <message>
+            <source>Remove</source>
+            <translation>제거</translation>
+        </message>
+        <message>
+            <source>Discovering…</source>
+            <translation>찾는 중…</translation>
+        </message>
+        <message>
+            <source>e.g. %1</source>
+            <translation>예: %1</translation>
+        </message>
+        <message>
+            <source>✗ Enter a feed URL first.</source>
+            <translation>✗ 먼저 피드 URL을 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Testing…</source>
+            <translation>테스트 중…</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::feeds::FeedPanel</name>
+        <message>
+            <source>FEEDS</source>
+            <translation>피드</translation>
+        </message>
+        <message>
+            <source>+ Add Feed</source>
+            <translation>+ 피드 추가</translation>
+        </message>
+        <message>
+            <source>No feeds configured.
+Click “+ Add Feed”.</source>
+            <translation>설정된 피드가 없습니다.
+“+ 피드 추가”를 클릭하세요.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::feeds::FeedTableView</name>
+        <message>
+            <source>Time</source>
+            <translation>시간</translation>
+        </message>
+        <message>
+            <source>Title</source>
+            <translation>제목</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::feeds::FeedView</name>
+        <message>
+            <source>Refresh now</source>
+            <translation>지금 새로고침</translation>
+        </message>
+        <message>
+            <source>Pop out</source>
+            <translation>새 창으로 분리</translation>
+        </message>
+        <message>
+            <source>Configure</source>
+            <translation>설정</translation>
+        </message>
+        <message>
+            <source>Dock back into panel</source>
+            <translation>패널에 다시 붙이기</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::mcp::ToolApprovalDialog</name>
+        <message>
+            <source>Approval needed — Fincept Terminal</source>
+            <translation>승인 필요 — Fincept Terminal</translation>
+        </message>
+        <message>
+            <source>%1 wants to run "%2". Approve or deny it in Fincept Terminal.</source>
+            <translation>%1이(가) "%2" 실행을 요청했습니다. Fincept Terminal에서 승인하거나 거부하세요.</translation>
+        </message>
+        <message>
+            <source>LIVE TRADING · REAL MONEY</source>
+            <translation>실전투자 · 실제 자금</translation>
+        </message>
+        <message>
+            <source>LIVE BROKER ACCOUNT</source>
+            <translation>실전 증권사 계좌</translation>
+        </message>
+        <message>
+            <source>CHANGES TERMINAL STATE</source>
+            <translation>터미널 상태 변경</translation>
+        </message>
+        <message>
+            <source>CONFIRMATION REQUIRED</source>
+            <translation>확인 필요</translation>
+        </message>
+        <message>
+            <source>Approve external agent request</source>
+            <translation>외부 에이전트 요청 승인</translation>
+        </message>
+        <message>
+            <source>EXTERNAL AGENT REQUEST</source>
+            <translation>외부 에이전트 요청</translation>
+        </message>
+        <message>
+            <source>An AI agent connected to Fincept Terminal over MCP wants to run a tool that needs your approval. Nothing runs unless you approve it.</source>
+            <translation>MCP로 Fincept Terminal에 연결된 AI 에이전트가 승인이 필요한 도구를 실행하려고 합니다. 승인하지 않으면 아무것도 실행되지 않습니다.</translation>
+        </message>
+        <message>
+            <source>CLIENT</source>
+            <translation>클라이언트</translation>
+        </message>
+        <message>
+            <source>TOOL</source>
+            <translation>도구</translation>
+        </message>
+        <message>
+            <source>WHAT IT DOES</source>
+            <translation>동작 설명</translation>
+        </message>
+        <message>
+            <source>ARGUMENTS</source>
+            <translation>인수</translation>
+        </message>
+        <message>
+            <source>Allow this tool for this client for %1 minutes</source>
+            <translation>이 클라이언트에 이 도구를 %1분 동안 허용</translation>
+        </message>
+        <message>
+            <source>Session only. Further calls of this tool from this client run without asking until the time is up or the terminal restarts.</source>
+            <translation>이번 세션에만 적용됩니다. 시간이 다 되거나 터미널을 다시 시작할 때까지 이 클라이언트가 이 도구를 다시 호출하면 묻지 않고 실행합니다.</translation>
+        </message>
+        <message>
+            <source>Not available for live-trading actions: every real-money action is approved individually.</source>
+            <translation>실전투자 작업에는 사용할 수 없습니다: 실제 자금이 오가는 작업은 하나씩 승인해야 합니다.</translation>
+        </message>
+        <message>
+            <source>DENY</source>
+            <translation>거부</translation>
+        </message>
+        <message>
+            <source>APPROVE</source>
+            <translation>승인</translation>
+        </message>
+        <message>
+            <source>[preview truncated — %1 more characters not shown]</source>
+            <translation>[미리보기 잘림 — 나머지 %1자는 표시하지 않음]</translation>
+        </message>
+        <message>
+            <source>AUTO-DENY IN %1s</source>
+            <translation>%1초 후 자동 거부</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::python::PythonRunner</name>
+        <message>
+            <source>Analytics libraries are still installing (%1%). This feature will work when setup finishes.</source>
+            <translation>분석 라이브러리를 아직 설치하고 있습니다(%1%). 설치가 끝나면 이 기능을 쓸 수 있습니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::AgentActivityModel</name>
+        <message>
+            <source>TIME</source>
+            <translation>시간</translation>
+        </message>
+        <message>
+            <source>CLIENT</source>
+            <translation>클라이언트</translation>
+        </message>
+        <message>
+            <source>TOOL</source>
+            <translation>도구</translation>
+        </message>
+        <message>
+            <source>OUTCOME</source>
+            <translation>결과</translation>
+        </message>
+        <message>
+            <source>DURATION</source>
+            <translation>소요 시간</translation>
+        </message>
+        <message>
+            <source>unknown</source>
+            <translation>알 수 없음</translation>
+        </message>
+        <message>
+            <source>DENIED</source>
+            <translation>거부됨</translation>
+        </message>
+        <message>
+            <source>OK</source>
+            <translation>정상</translation>
+        </message>
+        <message>
+            <source>ERROR</source>
+            <translation>오류</translation>
+        </message>
+        <message>
+            <source>%1 ms</source>
+            <translation>%1 ms</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::AgentConnectPanel</name>
+        <message>
+            <source>FINCEPT MCP SERVER — LET YOUR OWN AGENTS USE THIS TERMINAL</source>
+            <translation>Fincept MCP 서버 — 내 에이전트가 이 터미널을 쓰게 하기</translation>
+        </message>
+        <message>
+            <source>COPY URL</source>
+            <translation>URL 복사</translation>
+        </message>
+        <message>
+            <source>START</source>
+            <translation>시작</translation>
+        </message>
+        <message>
+            <source>STOP</source>
+            <translation>중지</translation>
+        </message>
+        <message>
+            <source>Start with the terminal</source>
+            <translation>터미널과 함께 시작</translation>
+        </message>
+        <message>
+            <source>TOOLSET</source>
+            <translation>도구 세트</translation>
+        </message>
+        <message>
+            <source>Essentials (recommended)</source>
+            <translation>필수(권장)</translation>
+        </message>
+        <message>
+            <source>Discovery + job tools and a curated set of research tools. Everything else stays reachable through tool_list and tool_invoke.</source>
+            <translation>탐색·작업 도구와 엄선한 리서치 도구입니다. 나머지 도구는 모두 tool_list와 tool_invoke로 쓸 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Full catalogue (~900 tools)</source>
+            <translation>전체 카탈로그(도구 약 900개)</translation>
+        </message>
+        <message>
+            <source>Advertise every tool. Only for clients that search large tool lists.</source>
+            <translation>모든 도구를 알립니다. 큰 도구 목록을 검색할 수 있는 클라이언트에만 쓰세요.</translation>
+        </message>
+        <message>
+            <source>Allow external agents to run actions (orders, files, settings)</source>
+            <translation>외부 에이전트의 작업 실행 허용(주문, 파일, 설정)</translation>
+        </message>
+        <message>
+            <source>Off by default. When on, connected agents may call tools that change state. Every live-trading action still needs your approval in the terminal.</source>
+            <translation>기본값은 꺼짐입니다. 켜면 연결된 에이전트가 상태를 바꾸는 도구를 호출할 수 있습니다. 실전투자 작업은 그래도 매번 터미널에서 승인해야 합니다.</translation>
+        </message>
+        <message>
+            <source>PORT</source>
+            <translation>포트</translation>
+        </message>
+        <message>
+            <source>ACCESS TOKEN</source>
+            <translation>액세스 토큰</translation>
+        </message>
+        <message>
+            <source>HIDE</source>
+            <translation>숨기기</translation>
+        </message>
+        <message>
+            <source>SHOW</source>
+            <translation>보기</translation>
+        </message>
+        <message>
+            <source>COPY</source>
+            <translation>복사</translation>
+        </message>
+        <message>
+            <source>REGENERATE</source>
+            <translation>재발급</translation>
+        </message>
+        <message>
+            <source>Mint a new token — every connected client must be updated</source>
+            <translation>새 토큰을 발급합니다 — 연결된 모든 클라이언트를 업데이트해야 합니다</translation>
+        </message>
+        <message>
+            <source>CONNECT YOUR AGENTS</source>
+            <translation>에이전트 연결</translation>
+        </message>
+        <message>
+            <source>CLAUDE CODE</source>
+            <translation>Claude Code</translation>
+        </message>
+        <message>
+            <source>Adds the terminal as an HTTP MCP server for your user (all projects). Then ask Claude Code for quotes, filings, portfolios — tools appear as mcp__fincept_terminal__*.</source>
+            <translation>이 터미널을 내 사용자 계정(모든 프로젝트)의 HTTP MCP 서버로 추가합니다. 그다음 Claude Code에 시세, 공시, 포트폴리오를 물어보세요. 도구는 mcp__fincept_terminal__*로 표시됩니다.</translation>
+        </message>
+        <message>
+            <source>COPY COMMAND</source>
+            <translation>명령 복사</translation>
+        </message>
+        <message>
+            <source>ADD TO CLAUDE CODE</source>
+            <translation>Claude Code에 추가</translation>
+        </message>
+        <message>
+            <source>OPENAI CODEX CLI</source>
+            <translation>OpenAI Codex CLI</translation>
+        </message>
+        <message>
+            <source>Registers the terminal through the bundled stdio bridge (Python, standard library only).</source>
+            <translation>함께 제공되는 stdio 브리지(Python, 표준 라이브러리만 사용)로 터미널을 등록합니다.</translation>
+        </message>
+        <message>
+            <source>ADD TO CODEX</source>
+            <translation>Codex에 추가</translation>
+        </message>
+        <message>
+            <source>Or add this to ~/.codex/config.toml and set FINCEPT_MCP_TOKEN in your environment:</source>
+            <translation>또는 ~/.codex/config.toml에 다음을 추가하고 환경 변수에 FINCEPT_MCP_TOKEN을 설정하세요:</translation>
+        </message>
+        <message>
+            <source>COPY TOML</source>
+            <translation>TOML 복사</translation>
+        </message>
+        <message>
+            <source>CURSOR / OTHER HTTP CLIENTS</source>
+            <translation>Cursor / 기타 HTTP 클라이언트</translation>
+        </message>
+        <message>
+            <source>Paste into ~/.cursor/mcp.json or your client's MCP settings (Streamable HTTP).</source>
+            <translation>~/.cursor/mcp.json이나 클라이언트의 MCP 설정(Streamable HTTP)에 붙여 넣으세요.</translation>
+        </message>
+        <message>
+            <source>COPY JSON</source>
+            <translation>JSON 복사</translation>
+        </message>
+        <message>
+            <source>CLAUDE DESKTOP</source>
+            <translation>Claude Desktop</translation>
+        </message>
+        <message>
+            <source>Paste into claude_desktop_config.json (Settings › Developer › Edit Config), then restart Claude Desktop.</source>
+            <translation>claude_desktop_config.json(Settings › Developer › Edit Config)에 붙여 넣은 뒤 Claude Desktop을 다시 시작하세요.</translation>
+        </message>
+        <message>
+            <source>EXTERNAL ACTIVITY — LAST 200 CALLS</source>
+            <translation>외부 활동 — 최근 호출 200건</translation>
+        </message>
+        <message>
+            <source>● RUNNING</source>
+            <translation>● 실행 중</translation>
+        </message>
+        <message>
+            <source>● STOPPED</source>
+            <translation>● 중지됨</translation>
+        </message>
+        <message>
+            <source>● ERROR</source>
+            <translation>● 오류</translation>
+        </message>
+        <message>
+            <source>not listening</source>
+            <translation>수신 대기 안 함</translation>
+        </message>
+        <message>
+            <source>%1 client(s) connected since start</source>
+            <translation>시작 후 연결된 클라이언트 %1개</translation>
+        </message>
+        <message>
+            <source>Listening on %1 (the configured port was busy). Changes apply on the next start.</source>
+            <translation>%1에서 수신 대기 중입니다(설정한 포트를 이미 쓰고 있었습니다). 변경 사항은 다음 시작 때 적용됩니다.</translation>
+        </message>
+        <message>
+            <source>Changes apply the next time the server starts.</source>
+            <translation>변경 사항은 다음에 서버를 시작할 때 적용됩니다.</translation>
+        </message>
+        <message>
+            <source>Claude Code CLI not found on this computer</source>
+            <translation>이 컴퓨터에서 Claude Code CLI를 찾을 수 없습니다</translation>
+        </message>
+        <message>
+            <source>Codex CLI not found on this computer</source>
+            <translation>이 컴퓨터에서 Codex CLI를 찾을 수 없습니다</translation>
+        </message>
+        <message>
+            <source>MCP server</source>
+            <translation>MCP 서버</translation>
+        </message>
+        <message>
+            <source>The server could not start: %1</source>
+            <translation>서버를 시작하지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>unknown error</source>
+            <translation>알 수 없는 오류</translation>
+        </message>
+        <message>
+            <source>Stop MCP server</source>
+            <translation>MCP 서버 중지</translation>
+        </message>
+        <message>
+            <source>Agent runs in the workbench are using the terminal tools. Stopping the server cuts them off. Stop anyway?</source>
+            <translation>워크벤치의 에이전트 실행이 터미널 도구를 쓰고 있습니다. 서버를 중지하면 연결이 끊깁니다. 그래도 중지하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Regenerate access token</source>
+            <translation>액세스 토큰 재발급</translation>
+        </message>
+        <message>
+            <source>Mint a new access token? Every connected client (Claude Code, Codex, Cursor, Claude Desktop) stops working until it is updated with the new token.</source>
+            <translation>새 액세스 토큰을 발급하시겠습니까? 연결된 모든 클라이언트(Claude Code, Codex, Cursor, Claude Desktop)는 새 토큰으로 업데이트할 때까지 작동하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Allow external actions?</source>
+            <translation>외부 작업을 허용하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Agents connected to this terminal will be able to call tools that change state — place or cancel orders, write files, change settings.
+
+Live-trading actions still ask for your approval in the terminal each time.
+
+Only enable this if you trust every client that holds the access token.</source>
+            <translation>이 터미널에 연결된 에이전트가 상태를 바꾸는 도구를 호출할 수 있게 됩니다 — 주문 제출·취소, 파일 쓰기, 설정 변경.
+
+실전투자 작업은 그래도 매번 터미널에서 승인을 받습니다.
+
+액세스 토큰을 가진 모든 클라이언트를 신뢰할 때만 켜세요.</translation>
+        </message>
+        <message>
+            <source>Working…</source>
+            <translation>처리 중…</translation>
+        </message>
+        <message>
+            <source>Codex</source>
+            <translation>Codex</translation>
+        </message>
+        <message>
+            <source>Claude Code</source>
+            <translation>Claude Code</translation>
+        </message>
+        <message>
+            <source>Replace existing server?</source>
+            <translation>기존 서버를 바꾸시겠습니까?</translation>
+        </message>
+        <message>
+            <source>%1 already has an MCP server named “fincept_terminal”:
+
+%2
+
+Replace it with this terminal's server?</source>
+            <translation>%1에 이미 “fincept_terminal”이라는 MCP 서버가 있습니다:
+
+%2
+
+이 터미널의 서버로 바꾸시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Replacing…</source>
+            <translation>바꾸는 중…</translation>
+        </message>
+        <message>
+            <source>Kept the existing entry.</source>
+            <translation>기존 항목을 유지했습니다.</translation>
+        </message>
+        <message>
+            <source>Added. Restart %1 sessions to pick it up.</source>
+            <translation>추가했습니다. 적용하려면 %1 세션을 다시 시작하세요.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::AgentRunPanel</name>
+        <message>
+            <source>NEW AGENT RUN</source>
+            <translation>새 에이전트 실행</translation>
+        </message>
+        <message>
+            <source>AGENT</source>
+            <translation>에이전트</translation>
+        </message>
+        <message>
+            <source>CLAUDE CODE</source>
+            <translation>Claude Code</translation>
+        </message>
+        <message>
+            <source>CODEX</source>
+            <translation>Codex</translation>
+        </message>
+        <message>
+            <source>MODEL</source>
+            <translation>모델</translation>
+        </message>
+        <message>
+            <source>MODE</source>
+            <translation>모드</translation>
+        </message>
+        <message>
+            <source>Analysis (read-only)</source>
+            <translation>분석(읽기 전용)</translation>
+        </message>
+        <message>
+            <source>Workspace edits (may write files)</source>
+            <translation>작업 공간 편집(파일을 쓸 수 있음)</translation>
+        </message>
+        <message>
+            <source>Use Fincept terminal tools (live data over MCP)</source>
+            <translation>Fincept 터미널 도구 사용(MCP로 실시간 데이터)</translation>
+        </message>
+        <message>
+            <source>Connects the agent to this terminal's MCP server: quotes, history, fundamentals, filings, news, macro and portfolio tools. Orders still need your approval.</source>
+            <translation>에이전트를 이 터미널의 MCP 서버에 연결합니다: 시세, 과거 데이터, 펀더멘털, 공시, 뉴스, 거시경제, 포트폴리오 도구. 주문은 그래도 승인이 필요합니다.</translation>
+        </message>
+        <message>
+            <source>MAX BUDGET</source>
+            <translation>최대 예산</translation>
+        </message>
+        <message>
+            <source>No cap</source>
+            <translation>제한 없음</translation>
+        </message>
+        <message>
+            <source>Claude Code only — the run stops at this spend</source>
+            <translation>Claude Code 전용 — 이 비용에 이르면 실행을 멈춥니다</translation>
+        </message>
+        <message>
+            <source>WORKING FOLDER</source>
+            <translation>작업 폴더</translation>
+        </message>
+        <message>
+            <source>Auto — a new folder per run</source>
+            <translation>자동 — 실행마다 새 폴더</translation>
+        </message>
+        <message>
+            <source>BROWSE</source>
+            <translation>찾아보기</translation>
+        </message>
+        <message>
+            <source>TEMPLATE</source>
+            <translation>템플릿</translation>
+        </message>
+        <message>
+            <source>Insert a starter prompt…</source>
+            <translation>시작용 프롬프트 넣기…</translation>
+        </message>
+        <message>
+            <source>PROMPT</source>
+            <translation>프롬프트</translation>
+        </message>
+        <message>
+            <source>Describe the task — e.g. “Earnings preview for NVDA”. Templates insert a starting point; &lt;PLACEHOLDERS&gt; are highlighted.</source>
+            <translation>작업을 설명하세요 — 예: “NVDA 실적 프리뷰”. 템플릿을 고르면 시작점이 들어가고 &lt;PLACEHOLDERS&gt; 자리는 강조 표시됩니다.</translation>
+        </message>
+        <message>
+            <source>RUN  ▶</source>
+            <translation>실행  ▶</translation>
+        </message>
+        <message>
+            <source>Start the agent (Ctrl+Enter)</source>
+            <translation>에이전트 시작(Ctrl+Enter)</translation>
+        </message>
+        <message>
+            <source>RUN</source>
+            <translation>실행</translation>
+        </message>
+        <message>
+            <source>Stop the agent (press again to kill it immediately)</source>
+            <translation>에이전트 중지(한 번 더 누르면 바로 강제 종료)</translation>
+        </message>
+        <message>
+            <source>OPEN FOLDER</source>
+            <translation>폴더 열기</translation>
+        </message>
+        <message>
+            <source>VIEW RESULT</source>
+            <translation>결과 보기</translation>
+        </message>
+        <message>
+            <source>COPY RESULT</source>
+            <translation>결과 복사</translation>
+        </message>
+        <message>
+            <source>EXPORT .MD</source>
+            <translation>.md 내보내기</translation>
+        </message>
+        <message>
+            <source>Follow-up question — resumes this run's session…</source>
+            <translation>후속 질문 — 이 실행의 세션을 이어 갑니다…</translation>
+        </message>
+        <message>
+            <source>FOLLOW UP</source>
+            <translation>후속 질문</translation>
+        </message>
+        <message>
+            <source>CLI default — or e.g. sonnet, opus</source>
+            <translation>CLI 기본값 — 또는 예: sonnet, opus</translation>
+        </message>
+        <message>
+            <source>CLI default (from ~/.codex/config.toml) — or a model id</source>
+            <translation>CLI 기본값(~/.codex/config.toml) — 또는 모델 ID</translation>
+        </message>
+        <message>
+            <source>detecting version…</source>
+            <translation>버전 확인 중…</translation>
+        </message>
+        <message>
+            <source>version unknown</source>
+            <translation>버전 알 수 없음</translation>
+        </message>
+        <message>
+            <source>npm launcher</source>
+            <translation>npm 런처</translation>
+        </message>
+        <message>
+            <source>Not installed</source>
+            <translation>설치 안 됨</translation>
+        </message>
+        <message>
+            <source>Install guide</source>
+            <translation>설치 안내</translation>
+        </message>
+        <message>
+            <source>Claude Code CLI not found</source>
+            <translation>Claude Code CLI를 찾을 수 없습니다</translation>
+        </message>
+        <message>
+            <source>Codex CLI not found</source>
+            <translation>Codex CLI를 찾을 수 없습니다</translation>
+        </message>
+        <message>
+            <source>Ctrl+Enter to run · %1 running · %2 queued · max %3 at once</source>
+            <translation>Ctrl+Enter로 실행 · 실행 중 %1개 · 대기 %2개 · 동시에 최대 %3개</translation>
+        </message>
+        <message>
+            <source>Choose the agent's working folder</source>
+            <translation>에이전트 작업 폴더 선택</translation>
+        </message>
+        <message>
+            <source>Agent Workbench</source>
+            <translation>에이전트 워크벤치</translation>
+        </message>
+        <message>
+            <source>The prompt still contains placeholders such as &lt;TICKER&gt;. Run it anyway?</source>
+            <translation>프롬프트에 아직 &lt;TICKER&gt; 같은 자리표시자가 있습니다. 그래도 실행하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>— select a run —</source>
+            <translation>— 실행을 선택하세요 —</translation>
+        </message>
+        <message>
+            <source>FORCE STOP</source>
+            <translation>강제 중지</translation>
+        </message>
+        <message>
+            <source>STOP</source>
+            <translation>중지</translation>
+        </message>
+        <message>
+            <source>No run selected</source>
+            <translation>선택한 실행 없음</translation>
+        </message>
+        <message>
+            <source>Compose a prompt on the left and press RUN, or pick a run above.
+
+Runs keep going in the background when you leave this screen — you get a desktop notification when one finishes.</source>
+            <translation>왼쪽에서 프롬프트를 쓰고 실행을 누르거나, 위에서 실행을 고르세요.
+
+이 화면을 떠나도 실행은 백그라운드에서 계속되며, 끝나면 데스크톱 알림이 옵니다.</translation>
+        </message>
+        <message>
+            <source>default model</source>
+            <translation>기본 모델</translation>
+        </message>
+        <message>
+            <source>workspace edits</source>
+            <translation>작업 공간 편집</translation>
+        </message>
+        <message>
+            <source>read-only</source>
+            <translation>읽기 전용</translation>
+        </message>
+        <message>
+            <source>queue position %1</source>
+            <translation>대기 순번 %1</translation>
+        </message>
+        <message>
+            <source>%1 in / %2 out tok</source>
+            <translation>입력 %1 / 출력 %2 토큰</translation>
+        </message>
+        <message>
+            <source>session %1</source>
+            <translation>세션 %1</translation>
+        </message>
+        <message>
+            <source>terminal tools off</source>
+            <translation>터미널 도구 꺼짐</translation>
+        </message>
+        <message>
+            <source>Follow-up of &lt;a href='run:%1'&gt;%2&lt;/a&gt;</source>
+            <translation>&lt;a href='run:%1'&gt;%2&lt;/a&gt;의 후속 질문</translation>
+        </message>
+        <message>
+            <source>Follow-up of a deleted run</source>
+            <translation>삭제된 실행의 후속 질문</translation>
+        </message>
+        <message>
+            <source>%1 earlier events are not shown — EXPORT writes the full transcript.</source>
+            <translation>이전 이벤트 %1개는 표시하지 않습니다 — 내보내기를 하면 전체 기록이 저장됩니다.</translation>
+        </message>
+        <message>
+            <source>Loading transcript…</source>
+            <translation>기록 불러오는 중…</translation>
+        </message>
+        <message>
+            <source>CLOSE</source>
+            <translation>닫기</translation>
+        </message>
+        <message>
+            <source>Export transcript</source>
+            <translation>기록 내보내기</translation>
+        </message>
+        <message>
+            <source>Markdown (*.md);;All files (*)</source>
+            <translation>Markdown (*.md);;모든 파일 (*)</translation>
+        </message>
+        <message>
+            <source>Could not write %1: %2</source>
+            <translation>%1에 쓰지 못했습니다: %2</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::AgentRunsPanel</name>
+        <message>
+            <source>All statuses</source>
+            <translation>모든 상태</translation>
+        </message>
+        <message>
+            <source>Active</source>
+            <translation>활성</translation>
+        </message>
+        <message>
+            <source>Succeeded</source>
+            <translation>성공</translation>
+        </message>
+        <message>
+            <source>Failed</source>
+            <translation>실패</translation>
+        </message>
+        <message>
+            <source>Cancelled</source>
+            <translation>취소됨</translation>
+        </message>
+        <message>
+            <source>Interrupted</source>
+            <translation>중단됨</translation>
+        </message>
+        <message>
+            <source>All agents</source>
+            <translation>모든 에이전트</translation>
+        </message>
+        <message>
+            <source>Claude Code</source>
+            <translation>Claude Code</translation>
+        </message>
+        <message>
+            <source>Codex</source>
+            <translation>Codex</translation>
+        </message>
+        <message>
+            <source>Search title or prompt…</source>
+            <translation>제목이나 프롬프트 검색…</translation>
+        </message>
+        <message>
+            <source>OPEN</source>
+            <translation>열기</translation>
+        </message>
+        <message>
+            <source>DELETE</source>
+            <translation>삭제</translation>
+        </message>
+        <message>
+            <source>CLEAR FINISHED</source>
+            <translation>완료된 실행 지우기</translation>
+        </message>
+        <message>
+            <source>Double-click a run to open its transcript. Deleting a run removes its transcript; the working folder stays on disk.</source>
+            <translation>실행을 더블클릭하면 기록을 엽니다. 실행을 삭제하면 기록이 지워지고, 작업 폴더는 디스크에 남습니다.</translation>
+        </message>
+        <message>
+            <source>%1 of %2 runs</source>
+            <translation>실행 %2개 중 %1개</translation>
+        </message>
+        <message>
+            <source>Delete runs</source>
+            <translation>실행 삭제</translation>
+        </message>
+        <message>
+            <source>Delete %1 run(s) and their transcripts?
+
+Running or queued runs are skipped. Working folders and the files the agents produced stay on disk.</source>
+            <translation>실행 %1개와 그 기록을 삭제하시겠습니까?
+
+실행 중이거나 대기 중인 실행은 건너뜁니다. 작업 폴더와 에이전트가 만든 파일은 디스크에 남습니다.</translation>
+        </message>
+        <message>
+            <source>Clear finished runs</source>
+            <translation>완료된 실행 지우기</translation>
+        </message>
+        <message>
+            <source>Delete every finished run (succeeded, failed, cancelled, interrupted) and its transcript?
+
+Working folders stay on disk.</source>
+            <translation>완료된 실행(성공, 실패, 취소됨, 중단됨)과 그 기록을 모두 삭제하시겠습니까?
+
+작업 폴더는 디스크에 남습니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::AgentRunsTableModel</name>
+        <message>
+            <source>STATUS</source>
+            <translation>상태</translation>
+        </message>
+        <message>
+            <source>TITLE</source>
+            <translation>제목</translation>
+        </message>
+        <message>
+            <source>AGENT</source>
+            <translation>에이전트</translation>
+        </message>
+        <message>
+            <source>STARTED</source>
+            <translation>시작</translation>
+        </message>
+        <message>
+            <source>DURATION</source>
+            <translation>소요 시간</translation>
+        </message>
+        <message>
+            <source>COST</source>
+            <translation>비용</translation>
+        </message>
+        <message>
+            <source>SCHEDULE / ORIGIN</source>
+            <translation>일정 / 출처</translation>
+        </message>
+        <message>
+            <source>(deleted schedule)</source>
+            <translation>(삭제된 일정)</translation>
+        </message>
+        <message>
+            <source>AI assistant</source>
+            <translation>AI 어시스턴트</translation>
+        </message>
+        <message>
+            <source>follow-up</source>
+            <translation>후속 질문</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::AgentSchedulesPanel</name>
+        <message>
+            <source>SCHEDULES</source>
+            <translation>일정</translation>
+        </message>
+        <message>
+            <source>NEW</source>
+            <translation>새로 만들기</translation>
+        </message>
+        <message>
+            <source>DELETE</source>
+            <translation>삭제</translation>
+        </message>
+        <message>
+            <source>NEW SCHEDULE</source>
+            <translation>새 일정</translation>
+        </message>
+        <message>
+            <source>EDIT SCHEDULE</source>
+            <translation>일정 편집</translation>
+        </message>
+        <message>
+            <source>NAME</source>
+            <translation>이름</translation>
+        </message>
+        <message>
+            <source>e.g. Morning brief</source>
+            <translation>예: 아침 브리핑</translation>
+        </message>
+        <message>
+            <source>AGENT</source>
+            <translation>에이전트</translation>
+        </message>
+        <message>
+            <source>Claude Code</source>
+            <translation>Claude Code</translation>
+        </message>
+        <message>
+            <source>Codex</source>
+            <translation>Codex</translation>
+        </message>
+        <message>
+            <source>MODEL</source>
+            <translation>모델</translation>
+        </message>
+        <message>
+            <source>CLI default</source>
+            <translation>CLI 기본값</translation>
+        </message>
+        <message>
+            <source>MODE</source>
+            <translation>모드</translation>
+        </message>
+        <message>
+            <source>Analysis (read-only)</source>
+            <translation>분석(읽기 전용)</translation>
+        </message>
+        <message>
+            <source>Workspace edits</source>
+            <translation>작업 공간 편집</translation>
+        </message>
+        <message>
+            <source>MAX BUDGET</source>
+            <translation>최대 예산</translation>
+        </message>
+        <message>
+            <source>No cap</source>
+            <translation>제한 없음</translation>
+        </message>
+        <message>
+            <source>Use Fincept terminal tools (live data over MCP)</source>
+            <translation>Fincept 터미널 도구 사용(MCP로 실시간 데이터)</translation>
+        </message>
+        <message>
+            <source>WHEN</source>
+            <translation>시점</translation>
+        </message>
+        <message>
+            <source>Daily at</source>
+            <translation>매일</translation>
+        </message>
+        <message>
+            <source>Every</source>
+            <translation>간격</translation>
+        </message>
+        <message>
+            <source> min</source>
+            <translation> 분</translation>
+        </message>
+        <message>
+            <source>Enabled</source>
+            <translation>사용</translation>
+        </message>
+        <message>
+            <source>TEMPLATE</source>
+            <translation>템플릿</translation>
+        </message>
+        <message>
+            <source>Insert a starter prompt…</source>
+            <translation>시작용 프롬프트 넣기…</translation>
+        </message>
+        <message>
+            <source>PROMPT</source>
+            <translation>프롬프트</translation>
+        </message>
+        <message>
+            <source>What should the agent do on every run?</source>
+            <translation>실행할 때마다 에이전트가 할 일을 적으세요</translation>
+        </message>
+        <message>
+            <source>RUN NOW</source>
+            <translation>지금 실행</translation>
+        </message>
+        <message>
+            <source>SAVE</source>
+            <translation>저장</translation>
+        </message>
+        <message>
+            <source>Every %1 h</source>
+            <translation>%1시간마다</translation>
+        </message>
+        <message>
+            <source>Every %1 min</source>
+            <translation>%1분마다</translation>
+        </message>
+        <message>
+            <source>every day</source>
+            <translation>매일</translation>
+        </message>
+        <message>
+            <source>Mon–Fri</source>
+            <translation>월–금</translation>
+        </message>
+        <message>
+            <source>weekends</source>
+            <translation>주말</translation>
+        </message>
+        <message>
+            <source>Daily %1 · %2</source>
+            <translation>매일 %1 · %2</translation>
+        </message>
+        <message>
+            <source>paused</source>
+            <translation>일시정지됨</translation>
+        </message>
+        <message>
+            <source>next %1</source>
+            <translation>다음 %1</translation>
+        </message>
+        <message>
+            <source>not scheduled</source>
+            <translation>예약 없음</translation>
+        </message>
+        <message>
+            <source>Scheduled runs start in the background while the terminal is open. A run missed while the terminal was closed runs once at the next start if it is less than 12 hours late.</source>
+            <translation>예약 실행은 터미널이 열려 있는 동안 백그라운드에서 시작됩니다. 터미널이 닫혀 있어 놓친 실행은 12시간이 지나지 않았으면 다음 시작 때 한 번 실행됩니다.</translation>
+        </message>
+        <message>
+            <source>Next run: %1  ·  Last run: %2  ·  Runs in history: %3</source>
+            <translation>다음 실행: %1  ·  최근 실행: %2  ·  실행 기록: %3건</translation>
+        </message>
+        <message>
+            <source>a run of this schedule is in progress</source>
+            <translation>이 일정의 실행이 진행 중입니다</translation>
+        </message>
+        <message>
+            <source>Save schedule</source>
+            <translation>일정 저장</translation>
+        </message>
+        <message>
+            <source>The prompt still contains placeholders such as &lt;TICKER&gt;. Save it anyway?</source>
+            <translation>프롬프트에 아직 &lt;TICKER&gt; 같은 자리표시자가 있습니다. 그래도 저장하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Delete schedule</source>
+            <translation>일정 삭제</translation>
+        </message>
+        <message>
+            <source>Delete this schedule? Runs it already produced stay in the history.</source>
+            <translation>이 일정을 삭제하시겠습니까? 이미 실행된 기록은 그대로 남습니다.</translation>
+        </message>
+        <message>
+            <source>Run now</source>
+            <translation>지금 실행</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::AgentTranscriptDelegate</name>
+        <message>
+            <source>AGENT</source>
+            <translation>에이전트</translation>
+        </message>
+        <message>
+            <source>THINK</source>
+            <translation>생각</translation>
+        </message>
+        <message>
+            <source>TOOL</source>
+            <translation>도구</translation>
+        </message>
+        <message>
+            <source>FAILED</source>
+            <translation>실패</translation>
+        </message>
+        <message>
+            <source>RESULT</source>
+            <translation>결과</translation>
+        </message>
+        <message>
+            <source>CMD</source>
+            <translation>명령</translation>
+        </message>
+        <message>
+            <source>FILES</source>
+            <translation>파일</translation>
+        </message>
+        <message>
+            <source>USAGE</source>
+            <translation>사용량</translation>
+        </message>
+        <message>
+            <source>ERROR</source>
+            <translation>오류</translation>
+        </message>
+        <message>
+            <source>ANSWER</source>
+            <translation>답변</translation>
+        </message>
+        <message>
+            <source>WARN</source>
+            <translation>경고</translation>
+        </message>
+        <message>
+            <source>INFO</source>
+            <translation>정보</translation>
+        </message>
+        <message>
+            <source>… (%1 more characters — right-click › View full event)</source>
+            <translation>… (%1자 더 있음 — 오른쪽 클릭 › 전체 이벤트 보기)</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::AgentTranscriptView</name>
+        <message>
+            <source>Copy selected</source>
+            <translation>선택 항목 복사</translation>
+        </message>
+        <message>
+            <source>Copy whole transcript</source>
+            <translation>전체 기록 복사</translation>
+        </message>
+        <message>
+            <source>View full event…</source>
+            <translation>전체 이벤트 보기…</translation>
+        </message>
+        <message>
+            <source>Expand all</source>
+            <translation>모두 펼치기</translation>
+        </message>
+        <message>
+            <source>Collapse all</source>
+            <translation>모두 접기</translation>
+        </message>
+        <message>
+            <source>CLOSE</source>
+            <translation>닫기</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::AgentWorkbenchScreen</name>
+        <message>
+            <source>AGENT WORKBENCH</source>
+            <translation>에이전트 워크벤치</translation>
+        </message>
+        <message>
+            <source>RUN</source>
+            <translation>실행</translation>
+        </message>
+        <message>
+            <source>RUNS</source>
+            <translation>실행 목록</translation>
+        </message>
+        <message>
+            <source>SCHEDULES</source>
+            <translation>일정</translation>
+        </message>
+        <message>
+            <source>CONNECT</source>
+            <translation>연결</translation>
+        </message>
+        <message>
+            <source>SETTINGS</source>
+            <translation>설정</translation>
+        </message>
+        <message>
+            <source>CLI paths, concurrency and notifications</source>
+            <translation>CLI 경로, 동시 실행, 알림</translation>
+        </message>
+        <message>
+            <source>%1 RUNNING</source>
+            <translation>실행 중 %1</translation>
+        </message>
+        <message>
+            <source>%1 QUEUED</source>
+            <translation>대기 %1</translation>
+        </message>
+        <message>
+            <source>MCP ● ON :%1</source>
+            <translation>MCP ● 켜짐 :%1</translation>
+        </message>
+        <message>
+            <source>MCP ○ OFF</source>
+            <translation>MCP ○ 꺼짐</translation>
+        </message>
+        <message>
+            <source>Agent Workbench settings</source>
+            <translation>에이전트 워크벤치 설정</translation>
+        </message>
+        <message>
+            <source>CLAUDE CODE PATH</source>
+            <translation>Claude Code 경로</translation>
+        </message>
+        <message>
+            <source>CODEX PATH</source>
+            <translation>Codex 경로</translation>
+        </message>
+        <message>
+            <source>Auto-detected: %1</source>
+            <translation>자동 감지됨: %1</translation>
+        </message>
+        <message>
+            <source>Auto-detect</source>
+            <translation>자동 감지</translation>
+        </message>
+        <message>
+            <source>BROWSE</source>
+            <translation>찾아보기</translation>
+        </message>
+        <message>
+            <source>Executables (*.exe *.cmd *.bat);;All files (*)</source>
+            <translation>실행 파일 (*.exe *.cmd *.bat);;모든 파일 (*)</translation>
+        </message>
+        <message>
+            <source>All files (*)</source>
+            <translation>모든 파일 (*)</translation>
+        </message>
+        <message>
+            <source>Select the CLI executable</source>
+            <translation>CLI 실행 파일 선택</translation>
+        </message>
+        <message>
+            <source>MAX CONCURRENT RUNS</source>
+            <translation>최대 동시 실행 수</translation>
+        </message>
+        <message>
+            <source>Extra runs wait in a queue.</source>
+            <translation>초과한 실행은 대기열에서 기다립니다.</translation>
+        </message>
+        <message>
+            <source>Desktop notification when a run finishes while the workbench is not in view</source>
+            <translation>워크벤치를 보고 있지 않을 때 실행이 끝나면 데스크톱 알림</translation>
+        </message>
+        <message>
+            <source>WORKSPACE</source>
+            <translation>작업 공간</translation>
+        </message>
+        <message>
+            <source>OPEN</source>
+            <translation>열기</translation>
+        </message>
+        <message>
+            <source>RE-DETECT</source>
+            <translation>다시 감지</translation>
+        </message>
+        <message>
+            <source>CANCEL</source>
+            <translation>취소</translation>
+        </message>
+        <message>
+            <source>SAVE</source>
+            <translation>저장</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::AlertsPanel</name>
+        <message>
+            <source>ALERT CONDITIONS</source>
+            <translation>알림 조건</translation>
+        </message>
+        <message>
+            <source>SYMBOLS &amp; FEED</source>
+            <translation>종목코드 및 피드</translation>
+        </message>
+        <message>
+            <source>TIMEFRAME</source>
+            <translation>주기</translation>
+        </message>
+        <message>
+            <source>DATA SOURCE</source>
+            <translation>데이터 소스</translation>
+        </message>
+        <message>
+            <source>Broker Only</source>
+            <translation>증권사만</translation>
+        </message>
+        <message>
+            <source>Auto (Broker → YFinance)</source>
+            <translation>자동(증권사 → YFinance)</translation>
+        </message>
+        <message>
+            <source>YFinance Only</source>
+            <translation>YFinance만</translation>
+        </message>
+        <message>
+            <source>BROKER ACCOUNT</source>
+            <translation>증권사 계좌</translation>
+        </message>
+        <message>
+            <source>None (use YFinance fallback)</source>
+            <translation>없음(YFinance 대체 사용)</translation>
+        </message>
+        <message>
+            <source>POLL INTERVAL (SEC)</source>
+            <translation>조회 간격(초)</translation>
+        </message>
+        <message>
+            <source>COOLDOWN (MIN)</source>
+            <translation>재알림 대기(분)</translation>
+        </message>
+        <message>
+            <source>Send to external providers</source>
+            <translation>외부 알림 채널로 보내기</translation>
+        </message>
+        <message>
+            <source>WATCH NAME</source>
+            <translation>감시 이름</translation>
+        </message>
+        <message>
+            <source>My Volume Watch</source>
+            <translation>내 거래량 감시</translation>
+        </message>
+        <message>
+            <source>SAVE WATCH</source>
+            <translation>감시 저장</translation>
+        </message>
+        <message>
+            <source>LIVE WATCHES</source>
+            <translation>실행 중인 감시</translation>
+        </message>
+        <message>
+            <source>NAME</source>
+            <translation>이름</translation>
+        </message>
+        <message>
+            <source>SYMBOLS</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>STATUS</source>
+            <translation>상태</translation>
+        </message>
+        <message>
+            <source>ACTIVE</source>
+            <translation>활성</translation>
+        </message>
+        <message>
+            <source>ACTIONS</source>
+            <translation>작업</translation>
+        </message>
+        <message>
+            <source>ALERT HISTORY</source>
+            <translation>알림 기록</translation>
+        </message>
+        <message>
+            <source>TIME</source>
+            <translation>시간</translation>
+        </message>
+        <message>
+            <source>SYMBOL</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>DETAIL</source>
+            <translation>상세</translation>
+        </message>
+        <message>
+            <source>Add at least one condition before saving a watch.</source>
+            <translation>감시를 저장하기 전에 조건을 하나 이상 추가하세요.</translation>
+        </message>
+        <message>
+            <source>Watch %1</source>
+            <translation>감시 %1</translation>
+        </message>
+        <message>
+            <source>Enter at least one symbol.</source>
+            <translation>종목코드를 하나 이상 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Data source is 'Broker Only' but no broker account is selected — pick an account, or switch the data source to Auto / YFinance.</source>
+            <translation>데이터 소스가 '증권사만'인데 선택한 증권사 계좌가 없습니다 — 계좌를 고르거나 데이터 소스를 자동 / YFinance로 바꾸세요.</translation>
+        </message>
+        <message>
+            <source>Update failed: %1</source>
+            <translation>업데이트 실패: %1</translation>
+        </message>
+        <message>
+            <source>Watch '%1' updated and re-watching.</source>
+            <translation>감시 '%1'을(를) 업데이트하고 다시 감시합니다.</translation>
+        </message>
+        <message>
+            <source>Save failed: %1</source>
+            <translation>저장 실패: %1</translation>
+        </message>
+        <message>
+            <source>Watch '%1' saved and monitoring.</source>
+            <translation>감시 '%1'을(를) 저장하고 감시를 시작했습니다.</translation>
+        </message>
+        <message>
+            <source>UPDATE WATCH</source>
+            <translation>감시 업데이트</translation>
+        </message>
+        <message>
+            <source>Editing '%1' — change conditions/symbols and press UPDATE WATCH.</source>
+            <translation>'%1' 편집 중 — 조건/종목코드를 바꾸고 감시 업데이트를 누르세요.</translation>
+        </message>
+        <message>
+            <source>Edit</source>
+            <translation>편집</translation>
+        </message>
+        <message>
+            <source>Edit watch %1</source>
+            <translation>감시 %1 편집</translation>
+        </message>
+        <message>
+            <source>Test</source>
+            <translation>테스트</translation>
+        </message>
+        <message>
+            <source>Fire a test alert for watch %1</source>
+            <translation>감시 %1의 테스트 알림 보내기</translation>
+        </message>
+        <message>
+            <source>Delete</source>
+            <translation>삭제</translation>
+        </message>
+        <message>
+            <source>Delete watch %1</source>
+            <translation>감시 %1 삭제</translation>
+        </message>
+        <message>
+            <source>Delete Watch</source>
+            <translation>감시 삭제</translation>
+        </message>
+        <message>
+            <source>Delete watch "%1"?
+
+It stops monitoring immediately. Its alert history is kept.</source>
+            <translation>감시 "%1"을(를) 삭제하시겠습니까?
+
+감시를 바로 멈춥니다. 알림 기록은 남습니다.</translation>
+        </message>
+        <message>
+            <source>The watch being edited was deleted — this is now a new watch.</source>
+            <translation>편집 중이던 감시가 삭제되었습니다 — 이제 새 감시로 저장됩니다.</translation>
+        </message>
+        <message>
+            <source>Pre-filled from Scanner — name it and SAVE WATCH.</source>
+            <translation>스캐너에서 미리 채웠습니다 — 이름을 정하고 감시 저장을 누르세요.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::DashboardScreen</name>
+        <message>
+            <source>FINCEPT TERMINAL ENTERPRISE</source>
+            <translation>Fincept Terminal Enterprise</translation>
+        </message>
+        <message>
+            <source>— the private edition for funds and research desks: private datasets, multi-agent research, SSO and SLA.</source>
+            <translation>— 펀드와 리서치 데스크를 위한 전용 에디션: 비공개 데이터셋, 멀티 에이전트 리서치, SSO, SLA.</translation>
+        </message>
+        <message>
+            <source>SEE ENTERPRISE ↗</source>
+            <translation>Enterprise 보기 ↗</translation>
+        </message>
+        <message>
+            <source>Hide until the next release</source>
+            <translation>다음 릴리스까지 숨기기</translation>
+        </message>
+        <message>
+            <source>Hide the Enterprise strip</source>
+            <translation>Enterprise 배너 숨기기</translation>
+        </message>
+        <message>
+            <source>Dashboard layout unavailable</source>
+            <translation>대시보드 레이아웃을 불러올 수 없음</translation>
+        </message>
+        <message>
+            <source>Your saved layout could not be read, so a default is shown. Changes will not be saved this session — restart to retry.</source>
+            <translation>저장된 레이아웃을 읽을 수 없어 기본 레이아웃을 표시합니다. 이번 세션에서는 변경 사항이 저장되지 않습니다 — 다시 시도하려면 앱을 다시 시작하세요.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::EquityFilingsTab</name>
+        <message>
+            <source>Open a US-listed symbol to see its SEC filings.</source>
+            <translation>미국 상장 종목을 열면 SEC 공시를 볼 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>RECENT FILINGS</source>
+            <translation>최근 공시</translation>
+        </message>
+        <message>
+            <source>KEY FINANCIALS — 10-K / 10-Q (XBRL)</source>
+            <translation>주요 재무 — 10-K / 10-Q (XBRL)</translation>
+        </message>
+        <message>
+            <source>8-K CURRENT EVENTS</source>
+            <translation>8-K 수시공시</translation>
+        </message>
+        <message>
+            <source>INSIDER ACTIVITY — FORM 4</source>
+            <translation>내부자 거래 — Form 4</translation>
+        </message>
+        <message>
+            <source>INSTITUTIONAL HOLDERS — 13F</source>
+            <translation>기관 보유 현황 — 13F</translation>
+        </message>
+        <message>
+            <source>SEC FILINGS</source>
+            <translation>SEC 공시</translation>
+        </message>
+        <message>
+            <source>EDGAR ↗</source>
+            <translation>EDGAR ↗</translation>
+        </message>
+        <message>
+            <source>Open this company's filing index on sec.gov</source>
+            <translation>sec.gov에서 이 회사의 공시 목록 열기</translation>
+        </message>
+        <message>
+            <source>REFRESH</source>
+            <translation>새로고침</translation>
+        </message>
+        <message>
+            <source>Re-fetch every panel from SEC EDGAR, bypassing the cache</source>
+            <translation>캐시를 건너뛰고 모든 패널을 SEC EDGAR에서 다시 가져오기</translation>
+        </message>
+        <message>
+            <source>RETRY</source>
+            <translation>다시 시도</translation>
+        </message>
+        <message>
+            <source>All forms (excl. insider Forms 3/4/5/144)</source>
+            <translation>모든 서식 (내부자 Form 3/4/5/144 제외)</translation>
+        </message>
+        <message>
+            <source>Annual &amp; quarterly reports</source>
+            <translation>사업보고서·분기보고서</translation>
+        </message>
+        <message>
+            <source>Current reports (8-K)</source>
+            <translation>수시공시 (8-K)</translation>
+        </message>
+        <message>
+            <source>Proxy statements</source>
+            <translation>위임장 설명서</translation>
+        </message>
+        <message>
+            <source>Registrations &amp; prospectuses</source>
+            <translation>증권신고서·투자설명서</translation>
+        </message>
+        <message>
+            <source>Ownership (13D/13G/13F)</source>
+            <translation>지분 보유 (13D/13G/13F)</translation>
+        </message>
+        <message>
+            <source>Other</source>
+            <translation>기타</translation>
+        </message>
+        <message>
+            <source>Double-click to open the filing on sec.gov · right-click for more</source>
+            <translation>더블클릭하면 sec.gov에서 공시를 엽니다 · 오른쪽 클릭으로 더 보기</translation>
+        </message>
+        <message>
+            <source>Double-click to open the 8-K on sec.gov</source>
+            <translation>더블클릭하면 sec.gov에서 8-K를 엽니다</translation>
+        </message>
+        <message>
+            <source>Double-click to open the Form 4 on sec.gov</source>
+            <translation>더블클릭하면 sec.gov에서 Form 4를 엽니다</translation>
+        </message>
+        <message>
+            <source>Double-click a position to research it</source>
+            <translation>종목을 더블클릭하면 리서치를 엽니다</translation>
+        </message>
+        <message>
+            <source>No 8-K filings in the recent filing history.</source>
+            <translation>최근 공시 내역에 8-K가 없습니다.</translation>
+        </message>
+        <message>
+            <source>refresh failed — showing copy from %1</source>
+            <translation>새로고침 실패 — %1 기준 사본 표시 중</translation>
+        </message>
+        <message>
+            <source>Loading from SEC EDGAR…</source>
+            <translation>SEC EDGAR에서 불러오는 중…</translation>
+        </message>
+        <message>
+            <source>Could not load this panel.</source>
+            <translation>이 패널을 불러올 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>cached copy from %1 — refreshing…</source>
+            <translation>%1 캐시 사본 — 새로고침 중…</translation>
+        </message>
+        <message>
+            <source>refreshing…</source>
+            <translation>새로고침 중…</translation>
+        </message>
+        <message>
+            <source>as of %1</source>
+            <translation>%1 기준</translation>
+        </message>
+        <message>
+            <source>FILED</source>
+            <translation>제출일</translation>
+        </message>
+        <message>
+            <source>FORM</source>
+            <translation>서식</translation>
+        </message>
+        <message>
+            <source>PERIOD</source>
+            <translation>기간</translation>
+        </message>
+        <message>
+            <source>DESCRIPTION / 8-K ITEMS</source>
+            <translation>설명 / 8-K 항목</translation>
+        </message>
+        <message>
+            <source>EVENT (8-K ITEMS)</source>
+            <translation>사건 (8-K 항목)</translation>
+        </message>
+        <message>
+            <source>TRADE DATE</source>
+            <translation>거래일</translation>
+        </message>
+        <message>
+            <source>INSIDER</source>
+            <translation>내부자</translation>
+        </message>
+        <message>
+            <source>ROLE</source>
+            <translation>직위</translation>
+        </message>
+        <message>
+            <source>TXN</source>
+            <translation>거래 유형</translation>
+        </message>
+        <message>
+            <source>SHARES</source>
+            <translation>주식수</translation>
+        </message>
+        <message>
+            <source>PRICE</source>
+            <translation>가격</translation>
+        </message>
+        <message>
+            <source>VALUE</source>
+            <translation>금액</translation>
+        </message>
+        <message>
+            <source>OWNED AFTER</source>
+            <translation>거래 후 보유</translation>
+        </message>
+        <message>
+            <source>HOLDER</source>
+            <translation>보유자</translation>
+        </message>
+        <message>
+            <source>% OUT</source>
+            <translation>지분율</translation>
+        </message>
+        <message>
+            <source>Δ SHARES QoQ</source>
+            <translation>Δ 주식수 (전분기 대비)</translation>
+        </message>
+        <message>
+            <source>REPORTED</source>
+            <translation>보고일</translation>
+        </message>
+        <message>
+            <source>POSITION</source>
+            <translation>종목</translation>
+        </message>
+        <message>
+            <source>TICKER</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>VALUE (USD)</source>
+            <translation>금액 (USD)</translation>
+        </message>
+        <message>
+            <source>CIK %1</source>
+            <translation>CIK %1</translation>
+        </message>
+        <message>
+            <source>SIC %1</source>
+            <translation>SIC %1</translation>
+        </message>
+        <message>
+            <source>SIC %1 %2</source>
+            <translation>SIC %1 %2</translation>
+        </message>
+        <message>
+            <source>FY ends %1-%2</source>
+            <translation>회계연도 종료 %1-%2</translation>
+        </message>
+        <message>
+            <source>LATEST: %1</source>
+            <translation>최신: %1</translation>
+        </message>
+        <message>
+            <source>Open the latest annual/quarterly report or proxy on sec.gov</source>
+            <translation>sec.gov에서 최신 사업보고서·분기보고서나 위임장 설명서 열기</translation>
+        </message>
+        <message>
+            <source>[Amended] </source>
+            <translation>[정정] </translation>
+        </message>
+        <message>
+            <source>(no items listed)</source>
+            <translation>(항목 없음)</translation>
+        </message>
+        <message>
+            <source>Items %1</source>
+            <translation>항목 %1</translation>
+        </message>
+        <message>
+            <source>%1 · items %2</source>
+            <translation>%1 · 항목 %2</translation>
+        </message>
+        <message>
+            <source>%1 shown · %2 insider forms in the Form 4 panel</source>
+            <translation>%1건 표시 · 내부자 서식 %2건은 Form 4 패널에 있음</translation>
+        </message>
+        <message>
+            <source>%1 FY%2</source>
+            <translation>%1 FY%2</translation>
+        </message>
+        <message>
+            <source>%1 %2 FY%3</source>
+            <translation>%1 %2 FY%3</translation>
+        </message>
+        <message>
+            <source>METRIC</source>
+            <translation>지표</translation>
+        </message>
+        <message>
+            <source>ANNUAL</source>
+            <translation>연간</translation>
+        </message>
+        <message>
+            <source>YoY</source>
+            <translation>전년 대비</translation>
+        </message>
+        <message>
+            <source>QUARTER</source>
+            <translation>분기</translation>
+        </message>
+        <message>
+            <source>12 months to %1 · filed %2</source>
+            <translation>%1 종료 12개월 · %2 제출</translation>
+        </message>
+        <message>
+            <source>Quarter to %1 · filed %2</source>
+            <translation>%1 종료 분기 · %2 제출</translation>
+        </message>
+        <message>
+            <source>n/m</source>
+            <translation>n/m</translation>
+        </message>
+        <message>
+            <source>Prior period: %1</source>
+            <translation>이전 기간: %1</translation>
+        </message>
+        <message>
+            <source> (%1M YTD)</source>
+            <translation> (연초 이후 %1개월)</translation>
+        </message>
+        <message>
+            <source>%1 · %2 months</source>
+            <translation>%1 · %2개월</translation>
+        </message>
+        <message>
+            <source>%1 · balance at period end</source>
+            <translation>%1 · 기말 잔액</translation>
+        </message>
+        <message>
+            <source>Source: SEC XBRL company facts (%1), values as filed. YoY compares the same period a year earlier; "n/m" = prior period zero or negative.</source>
+            <translation>출처: SEC XBRL company facts(%1), 제출된 값 그대로. 전년 대비는 1년 전 같은 기간과 비교합니다. "n/m" = 이전 기간 값이 0 이하.</translation>
+        </message>
+        <message>
+            <source>Shares outstanding %1 as of %2 (cover page).</source>
+            <translation>발행주식수 %1 (%2 기준, 표지).</translation>
+        </message>
+        <message>
+            <source>No 10-Q on file — foreign private issuers report interim results on Form 6-K without XBRL.</source>
+            <translation>제출된 10-Q가 없습니다 — 외국 민간 발행사는 중간 실적을 XBRL 없이 Form 6-K로 보고합니다.</translation>
+        </message>
+        <message>
+            <source>open %1</source>
+            <translation>%1 열기</translation>
+        </message>
+        <message>
+            <source>none</source>
+            <translation>없음</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n trade(s) · %1 shares · %2</source>
+            <translation>
+                <numerusform>거래 %n건 · %1주 · %2</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>OPEN-MARKET BUYS (P): %1</source>
+            <translation>장내 매수 (P): %1</translation>
+        </message>
+        <message>
+            <source>OPEN-MARKET SELLS (S): %1</source>
+            <translation>장내 매도 (S): %1</translation>
+        </message>
+        <message>
+            <source>Last %1 Form 4 filings (%2 → %3), %4 insider(s).</source>
+            <translation>최근 Form 4 %1건 (%2 → %3), 내부자 %4명.</translation>
+        </message>
+        <message>
+            <source>%1 of %2 sales under Rule 10b5-1 plans (pre-scheduled).</source>
+            <translation>매도 %2건 중 %1건은 Rule 10b5-1 계획에 따른 사전 예약 매도입니다.</translation>
+        </message>
+        <message>
+            <source>Not trading decisions: %1.</source>
+            <translation>매매 결정이 아닌 거래: %1.</translation>
+        </message>
+        <message>
+            <source>%1 filing(s) could not be parsed.</source>
+            <translation>공시 %1건을 해석할 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Filed %1</source>
+            <translation>%1 제출</translation>
+        </message>
+        <message>
+            <source> · under a Rule 10b5-1 plan</source>
+            <translation> · Rule 10b5-1 계획에 따름</translation>
+        </message>
+        <message>
+            <source>No non-derivative transactions in this window.</source>
+            <translation>이 기간에 비파생 거래가 없습니다.</translation>
+        </message>
+        <message>
+            <source>Institutions hold %1 of shares outstanding (%2 of float) across %3 holders · insiders %4.</source>
+            <translation>기관 %3곳이 발행주식의 %1(유통주식의 %2)를 보유 · 내부자 %4.</translation>
+        </message>
+        <message>
+            <source>Ownership breakdown not reported.</source>
+            <translation>지분 구성이 보고되지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>THIS COMPANY FILES 13F-HR AS AN INSTITUTIONAL MANAGER — top positions of its %1 report (%2 across %3 positions, filed %4):</source>
+            <translation>이 회사는 기관 운용사로서 13F-HR을 제출합니다 — %1 보고서의 상위 보유 종목 (%3개 종목, 총 %2, %4 제출):</translation>
+        </message>
+        <message>
+            <source>Source: %1. Δ shares = change in the holder's position vs the prior quarter.</source>
+            <translation>출처: %1. Δ 주식수 = 보유자의 보유 주식수 전분기 대비 변화.</translation>
+        </message>
+        <message>
+            <source>No institutional holder list is published for %1.</source>
+            <translation>%1의 기관 보유자 목록이 공개되지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>Open document on sec.gov</source>
+            <translation>sec.gov에서 문서 열기</translation>
+        </message>
+        <message>
+            <source>Open filing index (all exhibits)</source>
+            <translation>공시 목록 열기 (모든 첨부 서류)</translation>
+        </message>
+        <message>
+            <source>Copy link</source>
+            <translation>링크 복사</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::KrxChartToolbar</name>
+        <message>
+            <source>ATR(14)</source>
+            <translation>ATR(14)</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::KrxDrawingPopup</name>
+        <message>
+            <source>%1px</source>
+            <translation>%1px</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::KrxQuantScreen</name>
+        <message>
+            <source>%1 · %2</source>
+            <translation>%1 · %2</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::KrxStatsWindow</name>
+        <message>
+            <source>lift</source>
+            <translation>lift</translation>
+        </message>
+        <message>
+            <source>p</source>
+            <translation>p</translation>
+        </message>
+        <message>
+            <source>q</source>
+            <translation>q</translation>
+        </message>
+        <message>
+            <source>%1 · %2</source>
+            <translation>%1 · %2</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::NberPanel</name>
+        <message>
+            <source>Select a dataset and click FETCH
+Source: NBER Business Cycle Dating Committee (nber.org)
+No API key and no network required — the committee's dates ship with the app</source>
+            <translation>데이터셋을 선택한 후 가져오기를 누르세요
+출처: NBER 경기순환 판정위원회 (nber.org)
+API 키와 네트워크가 필요하지 않습니다 — 위원회 판정 날짜가 앱에 포함되어 있습니다</translation>
+        </message>
+        <message>
+            <source>DATASET</source>
+            <translation>데이터셋</translation>
+        </message>
+        <message>
+            <source>NBER dataset</source>
+            <translation>NBER 데이터셋</translation>
+        </message>
+        <message>
+            <source>Fetching NBER: %1…</source>
+            <translation>NBER 가져오는 중: %1…</translation>
+        </message>
+        <message>
+            <source>No data returned</source>
+            <translation>데이터가 없습니다</translation>
+        </message>
+        <message>
+            <source> (last trough %1)</source>
+            <translation> (최근 저점 %1)</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::NewsScreen</name>
+        <message>
+            <source>No headlines to brief for the current filter.</source>
+            <translation>현재 필터에 브리핑할 헤드라인이 없습니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::NewsTickerStrip</name>
+        <message>
+            <source>Breaking news ticker</source>
+            <translation>속보 티커</translation>
+        </message>
+        <message>
+            <source>No breaking headlines</source>
+            <translation>속보 없음</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n breaking headline(s); click to open one</source>
+            <translation>
+                <numerusform>속보 %n건, 클릭하여 기사 열기</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::PortfolioMonitorScreen</name>
+        <message>
+            <source>POSITIONS</source>
+            <translation>포지션</translation>
+        </message>
+        <message>
+            <source>HOLDINGS</source>
+            <translation>보유종목</translation>
+        </message>
+        <message>
+            <source>Detach into its own window</source>
+            <translation>별도 창으로 분리</translation>
+        </message>
+        <message>
+            <source>PAPER</source>
+            <translation>모의투자</translation>
+        </message>
+        <message>
+            <source>POSITIONS P&amp;L</source>
+            <translation>포지션 손익</translation>
+        </message>
+        <message>
+            <source>DAY P&amp;L</source>
+            <translation>당일 손익</translation>
+        </message>
+        <message>
+            <source>HOLDINGS P&amp;L</source>
+            <translation>보유종목 손익</translation>
+        </message>
+        <message>
+            <source>INVESTED</source>
+            <translation>매입금액</translation>
+        </message>
+        <message>
+            <source>CURRENT</source>
+            <translation>평가금액</translation>
+        </message>
+        <message>
+            <source>RETURN %</source>
+            <translation>수익률</translation>
+        </message>
+        <message>
+            <source>ACCOUNTS</source>
+            <translation>계좌</translation>
+        </message>
+        <message>
+            <source>REFRESH</source>
+            <translation>새로고침</translation>
+        </message>
+        <message>
+            <source>+ NEW ORDER</source>
+            <translation>+ 새 주문</translation>
+        </message>
+        <message>
+            <source>SQUARE OFF ALL</source>
+            <translation>전체 포지션 청산</translation>
+        </message>
+        <message>
+            <source>Square Off All</source>
+            <translation>전체 청산</translation>
+        </message>
+        <message>
+            <source>Square off ALL intraday positions across EVERY connected account?</source>
+            <translation>연결된 모든 계좌의 당일 포지션을 모두 청산하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Dock back into the equity tab</source>
+            <translation>주식 탭으로 다시 붙이기</translation>
+        </message>
+        <message>
+            <source>LIVE</source>
+            <translation>실전투자</translation>
+        </message>
+        <message>
+            <source>Showing REAL broker positions — click for paper</source>
+            <translation>실제 증권사 포지션 표시 중 — 누르면 모의투자</translation>
+        </message>
+        <message>
+            <source>Showing paper portfolios — click for live</source>
+            <translation>모의투자 포트폴리오 표시 중 — 누르면 실전투자</translation>
+        </message>
+        <message>
+            <source>Symbol / Account</source>
+            <translation>종목코드 / 계좌</translation>
+        </message>
+        <message>
+            <source>Today's P&amp;L</source>
+            <translation>당일 손익</translation>
+        </message>
+        <message>
+            <source>Product</source>
+            <translation>상품</translation>
+        </message>
+        <message>
+            <source>Qty</source>
+            <translation>수량</translation>
+        </message>
+        <message>
+            <source>Avg Price</source>
+            <translation>평균단가</translation>
+        </message>
+        <message>
+            <source>LTP</source>
+            <translation>현재가</translation>
+        </message>
+        <message>
+            <source>P&amp;L</source>
+            <translation>손익</translation>
+        </message>
+        <message>
+            <source>P&amp;L %</source>
+            <translation>수익률</translation>
+        </message>
+        <message>
+            <source>Action</source>
+            <translation>작업</translation>
+        </message>
+        <message>
+            <source>Invested %1   Current %2</source>
+            <translation>매입금액 %1   평가금액 %2</translation>
+        </message>
+        <message>
+            <source> acct</source>
+            <translation> 계좌</translation>
+        </message>
+        <message>
+            <source>EXIT ALL</source>
+            <translation>전체 청산</translation>
+        </message>
+        <message>
+            <source>EXIT</source>
+            <translation>청산</translation>
+        </message>
+        <message>
+            <source>%1/%2 LIVE</source>
+            <translation>%1/%2 연결</translation>
+        </message>
+        <message>
+            <source>Open %1 in</source>
+            <translation>%1 다른 화면에서 열기</translation>
+        </message>
+        <message>
+            <source>Equity Trading</source>
+            <translation>주식 거래</translation>
+        </message>
+        <message>
+            <source>Equity Research</source>
+            <translation>주식 리서치</translation>
+        </message>
+        <message>
+            <source>News</source>
+            <translation>뉴스</translation>
+        </message>
+        <message>
+            <source>Watchlist</source>
+            <translation>관심종목</translation>
+        </message>
+        <message>
+            <source>Copy Symbol</source>
+            <translation>종목코드 복사</translation>
+        </message>
+        <message>
+            <source>Export Holdings (CSV)…</source>
+            <translation>보유종목 내보내기(CSV)…</translation>
+        </message>
+        <message>
+            <source>Export Positions (CSV)…</source>
+            <translation>포지션 내보내기(CSV)…</translation>
+        </message>
+        <message>
+            <source>Export</source>
+            <translation>내보내기</translation>
+        </message>
+        <message>
+            <source>Nothing to export.</source>
+            <translation>내보낼 항목이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Export CSV</source>
+            <translation>CSV 내보내기</translation>
+        </message>
+        <message>
+            <source>CSV Files (*.csv)</source>
+            <translation>CSV 파일 (*.csv)</translation>
+        </message>
+        <message>
+            <source>Export Failed</source>
+            <translation>내보내기 실패</translation>
+        </message>
+        <message>
+            <source>Could not write %1:
+%2</source>
+            <translation>%1에 쓰지 못했습니다:
+%2</translation>
+        </message>
+        <message>
+            <source>Exported to %1</source>
+            <translation>%1(으)로 내보냈습니다</translation>
+        </message>
+        <message>
+            <source>Write error: %1</source>
+            <translation>쓰기 오류: %1</translation>
+        </message>
+        <message>
+            <source>Exit Position</source>
+            <translation>포지션 청산</translation>
+        </message>
+        <message>
+            <source>Square off %1 × %2 on %3 (%4)?</source>
+            <translation>%3(%4) 계좌의 %2 %1주를 청산하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Exit All</source>
+            <translation>전체 청산</translation>
+        </message>
+        <message>
+            <source>Square off %1 across %2 account(s)?</source>
+            <translation>계좌 %2개의 %1을(를) 청산하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>New Order</source>
+            <translation>새 주문</translation>
+        </message>
+        <message>
+            <source>No active INR broker accounts.</source>
+            <translation>사용 중인 INR 증권사 계좌가 없습니다.</translation>
+        </message>
+        <message>
+            <source>New Order — Any Account</source>
+            <translation>새 주문 — 모든 계좌</translation>
+        </message>
+        <message>
+            <source> (offline)</source>
+            <translation> (오프라인)</translation>
+        </message>
+        <message>
+            <source>e.g. RELIANCE</source>
+            <translation>예: RELIANCE</translation>
+        </message>
+        <message>
+            <source>BUY</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>SELL</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>MARKET</source>
+            <translation>시장가</translation>
+        </message>
+        <message>
+            <source>LIMIT</source>
+            <translation>지정가</translation>
+        </message>
+        <message>
+            <source>INTRADAY</source>
+            <translation>당일 거래</translation>
+        </message>
+        <message>
+            <source>DELIVERY</source>
+            <translation>인수도</translation>
+        </message>
+        <message>
+            <source>MARGIN</source>
+            <translation>증거금</translation>
+        </message>
+        <message>
+            <source>Account</source>
+            <translation>계좌</translation>
+        </message>
+        <message>
+            <source>Symbol</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>Exchange</source>
+            <translation>거래소</translation>
+        </message>
+        <message>
+            <source>Side</source>
+            <translation>매매구분</translation>
+        </message>
+        <message>
+            <source>Quantity</source>
+            <translation>수량</translation>
+        </message>
+        <message>
+            <source>Type</source>
+            <translation>유형</translation>
+        </message>
+        <message>
+            <source>Limit Price</source>
+            <translation>지정가격</translation>
+        </message>
+        <message>
+            <source>PLACE ORDER</source>
+            <translation>주문 제출</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::PortfolioReplicationDialog</name>
+        <message>
+            <source>Replicate Portfolio → Paper</source>
+            <translation>포트폴리오 복제 → 모의투자</translation>
+        </message>
+        <message>
+            <source>Source account</source>
+            <translation>원본 계좌</translation>
+        </message>
+        <message>
+            <source>Target (paper)</source>
+            <translation>대상(모의투자)</translation>
+        </message>
+        <message>
+            <source>Holdings</source>
+            <translation>보유종목</translation>
+        </message>
+        <message>
+            <source>Positions</source>
+            <translation>포지션</translation>
+        </message>
+        <message>
+            <source>Include:</source>
+            <translation>포함:</translation>
+        </message>
+        <message>
+            <source>Type</source>
+            <translation>유형</translation>
+        </message>
+        <message>
+            <source>Source</source>
+            <translation>원본</translation>
+        </message>
+        <message>
+            <source>Target</source>
+            <translation>대상</translation>
+        </message>
+        <message>
+            <source>Side</source>
+            <translation>매매구분</translation>
+        </message>
+        <message>
+            <source>Qty</source>
+            <translation>수량</translation>
+        </message>
+        <message>
+            <source>Est Price</source>
+            <translation>예상 가격</translation>
+        </message>
+        <message>
+            <source>Est Value / Note</source>
+            <translation>예상 금액 / 비고</translation>
+        </message>
+        <message>
+            <source>Top up paper balance</source>
+            <translation>모의투자 잔고 충전</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>닫기</translation>
+        </message>
+        <message>
+            <source>REPLICATE</source>
+            <translation>복제</translation>
+        </message>
+        <message>
+            <source>No paper accounts found. Create one via ACCOUNTS first.</source>
+            <translation>모의투자 계좌가 없습니다. 먼저 계좌 메뉴에서 만드세요.</translation>
+        </message>
+        <message>
+            <source>Loading source portfolio…</source>
+            <translation>원본 포트폴리오 불러오는 중…</translation>
+        </message>
+        <message>
+            <source>No credentials for source account</source>
+            <translation>원본 계좌의 인증 정보가 없습니다</translation>
+        </message>
+        <message>
+            <source>Source account has no holdings or positions.</source>
+            <translation>원본 계좌에 보유종목이나 포지션이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Holding</source>
+            <translation>보유종목</translation>
+        </message>
+        <message>
+            <source>Position</source>
+            <translation>포지션</translation>
+        </message>
+        <message>
+            <source>%1 stock(s) selected  •  Required %2  vs  Paper available %3</source>
+            <translation>종목 %1개 선택  •  필요 금액 %2  /  모의투자 가용 금액 %3</translation>
+        </message>
+        <message>
+            <source>Top up paper balance to %1</source>
+            <translation>모의투자 잔고를 %1(으)로 충전</translation>
+        </message>
+        <message>
+            <source>Paper balance set to %1</source>
+            <translation>모의투자 잔고를 %1(으)로 설정했습니다</translation>
+        </message>
+        <message>
+            <source>Top up failed</source>
+            <translation>충전 실패</translation>
+        </message>
+        <message>
+            <source>Confirm replication</source>
+            <translation>복제 확인</translation>
+        </message>
+        <message>
+            <source>Place %1 paper order(s) into the target account?
+This is paper trading — no real money.</source>
+            <translation>대상 계좌에 모의 주문 %1건을 넣으시겠습니까?
+모의투자이므로 실제 돈은 쓰이지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Placed %1  •  Failed %2  •  Skipped %3</source>
+            <translation>주문 %1  •  실패 %2  •  건너뜀 %3</translation>
+        </message>
+        <message>
+            <source>Replication results</source>
+            <translation>복제 결과</translation>
+        </message>
+        <message>
+            <source>Placed %1, failed %2, skipped %3.
+
+%4</source>
+            <translation>주문 %1건, 실패 %2건, 건너뜀 %3건.
+
+%4</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::QuantLibParamForm</name>
+        <message>
+            <source>basis points</source>
+            <translation>베이시스 포인트(bp)</translation>
+        </message>
+        <message>
+            <source>absolute, price units</source>
+            <translation>절댓값, 가격 단위</translation>
+        </message>
+        <message>
+            <source>variance · 0.04 = 20% vol</source>
+            <translation>분산 · 0.04 = 변동성 20%</translation>
+        </message>
+        <message>
+            <source>decimal · 0.20 = 20% (20% accepted)</source>
+            <translation>소수 · 0.20 = 20% (20%로 입력해도 됨)</translation>
+        </message>
+        <message>
+            <source>probability 0–1</source>
+            <translation>확률 0–1</translation>
+        </message>
+        <message>
+            <source>decimal · 0.05 = 5% (5% accepted)</source>
+            <translation>소수 · 0.05 = 5% (5%로 입력해도 됨)</translation>
+        </message>
+        <message>
+            <source>years</source>
+            <translation>년</translation>
+        </message>
+        <message>
+            <source>correlation −1 to 1</source>
+            <translation>상관계수 −1 ~ 1</translation>
+        </message>
+        <message>
+            <source>time steps</source>
+            <translation>시간 단계 수</translation>
+        </message>
+        <message>
+            <source>simulated paths</source>
+            <translation>시뮬레이션 경로 수</translation>
+        </message>
+        <message>
+            <source>RNG seed, optional</source>
+            <translation>난수 시드, 선택</translation>
+        </message>
+        <message>
+            <source>mean reversion, per year</source>
+            <translation>평균회귀 속도, 연 단위</translation>
+        </message>
+        <message>
+            <source>events per year</source>
+            <translation>연간 발생 횟수</translation>
+        </message>
+        <message>
+            <source>same units as spot / forward</source>
+            <translation>현물가 / 선도가와 같은 단위</translation>
+        </message>
+        <message>
+            <source>price</source>
+            <translation>가격</translation>
+        </message>
+        <message>
+            <source>currency amount</source>
+            <translation>통화 금액</translation>
+        </message>
+        <message>
+            <source>PARAMETERS</source>
+            <translation>매개변수</translation>
+        </message>
+        <message>
+            <source>RESET</source>
+            <translation>초기화</translation>
+        </message>
+        <message>
+            <source>Restore this endpoint's example values</source>
+            <translation>이 엔드포인트의 예시 값으로 되돌리기</translation>
+        </message>
+        <message>
+            <source>JSON</source>
+            <translation>JSON</translation>
+        </message>
+        <message>
+            <source>Edit the raw JSON request body (add optional fields the form does not show)</source>
+            <translation>원본 JSON 요청 본문 편집(폼에 없는 선택 필드 추가)</translation>
+        </message>
+        <message>
+            <source>Request body (JSON)</source>
+            <translation>요청 본문(JSON)</translation>
+        </message>
+        <message>
+            <source>This endpoint takes no parameters.</source>
+            <translation>이 엔드포인트는 매개변수가 없습니다.</translation>
+        </message>
+        <message>
+            <source>JSON array</source>
+            <translation>JSON 배열</translation>
+        </message>
+        <message>
+            <source>JSON object</source>
+            <translation>JSON 객체</translation>
+        </message>
+        <message>
+            <source>optional</source>
+            <translation>선택 사항</translation>
+        </message>
+        <message>
+            <source>%1 is required.</source>
+            <translation>%1은(는) 필수입니다.</translation>
+        </message>
+        <message>
+            <source>%1: "%2" is not a number.</source>
+            <translation>%1: "%2"은(는) 숫자가 아닙니다.</translation>
+        </message>
+        <message>
+            <source>%1 must be a whole number.</source>
+            <translation>%1은(는) 정수여야 합니다.</translation>
+        </message>
+        <message>
+            <source>%1: invalid JSON — %2</source>
+            <translation>%1: 잘못된 JSON — %2</translation>
+        </message>
+        <message>
+            <source>Invalid JSON in the request body — %1 (offset %2).</source>
+            <translation>요청 본문의 JSON이 잘못되었습니다 — %1(위치 %2).</translation>
+        </message>
+        <message>
+            <source>The request body must be a JSON object: {"key": value, ...}.</source>
+            <translation>요청 본문은 JSON 객체여야 합니다: {"key": value, ...}.</translation>
+        </message>
+        <message>
+            <source>Fix the JSON before switching back to the form: %1</source>
+            <translation>폼으로 돌아가기 전에 JSON을 고치세요: %1</translation>
+        </message>
+        <message>
+            <source>the body must be a JSON object</source>
+            <translation>본문은 JSON 객체여야 합니다</translation>
+        </message>
+        <message>
+            <source>%1 = %2 reads as %3% — this API takes decimals (0.20 = 20%). Type "%2%" if you meant percent.</source>
+            <translation>%1 = %2은(는) %3%로 읽힙니다. 이 API는 소수를 받습니다(0.20 = 20%). 퍼센트로 입력하려면 "%2%"를 입력하세요.</translation>
+        </message>
+        <message>
+            <source>%1 = %2 reads as %3% — this API takes decimals (0.05 = 5%). Type "%2%" if you meant percent.</source>
+            <translation>%1 = %2은(는) %3%로 읽힙니다. 이 API는 소수를 받습니다(0.05 = 5%). 퍼센트로 입력하려면 "%2%"를 입력하세요.</translation>
+        </message>
+        <message>
+            <source>%1 must be between 0 and 1.</source>
+            <translation>%1은(는) 0과 1 사이여야 합니다.</translation>
+        </message>
+        <message>
+            <source>%1 is a time in years and should be positive.</source>
+            <translation>%1은(는) 연 단위 기간이므로 양수여야 합니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::QuantLibResultView</name>
+        <message>
+            <source>RESULTS</source>
+            <translation>결과</translation>
+        </message>
+        <message>
+            <source>TABLE</source>
+            <translation>표</translation>
+        </message>
+        <message>
+            <source>CHART</source>
+            <translation>차트</translation>
+        </message>
+        <message>
+            <source>JSON</source>
+            <translation>JSON</translation>
+        </message>
+        <message>
+            <source>COPY</source>
+            <translation>복사</translation>
+        </message>
+        <message>
+            <source>Copy the current view (table as tab-separated text, chart as an image)</source>
+            <translation>현재 보기 복사(표는 탭 구분 텍스트, 차트는 이미지)</translation>
+        </message>
+        <message>
+            <source>CSV</source>
+            <translation>CSV</translation>
+        </message>
+        <message>
+            <source>Export the selected section — every row — to a CSV file</source>
+            <translation>선택한 구역의 모든 행을 CSV 파일로 내보내기</translation>
+        </message>
+        <message>
+            <source>VIEW</source>
+            <translation>보기</translation>
+        </message>
+        <message>
+            <source>Result section</source>
+            <translation>결과 구역</translation>
+        </message>
+        <message>
+            <source>QuantLib result table</source>
+            <translation>QuantLib 결과 표</translation>
+        </message>
+        <message>
+            <source>RETRY</source>
+            <translation>다시 시도</translation>
+        </message>
+        <message>
+            <source>Pick a module and an endpoint, set the parameters, then press Enter or EXECUTE.</source>
+            <translation>모듈과 엔드포인트를 고르고 매개변수를 설정한 뒤 Enter 또는 실행을 누르세요.</translation>
+        </message>
+        <message>
+            <source>Computing…</source>
+            <translation>계산 중…</translation>
+        </message>
+        <message>
+            <source>Computing… (%1)</source>
+            <translation>계산 중… (%1)</translation>
+        </message>
+        <message>
+            <source>Computing %1 …</source>
+            <translation>%1 계산 중 …</translation>
+        </message>
+        <message>
+            <source>Not sent</source>
+            <translation>전송 안 함</translation>
+        </message>
+        <message>
+            <source>INVALID INPUT</source>
+            <translation>잘못된 입력</translation>
+        </message>
+        <message>
+            <source>Nothing was sent — fix the highlighted field and run again.</source>
+            <translation>아무것도 전송하지 않았습니다. 강조 표시된 필드를 고치고 다시 실행하세요.</translation>
+        </message>
+        <message>
+            <source>HTTP %1</source>
+            <translation>HTTP %1</translation>
+        </message>
+        <message>
+            <source>Failed</source>
+            <translation>실패</translation>
+        </message>
+        <message>
+            <source>THIS MODULE NEEDS PRO</source>
+            <translation>이 모듈은 Pro 전용입니다</translation>
+        </message>
+        <message>
+            <source>Pro ($10/month) includes every QuantLib module — all endpoints at 0 credits per call.</source>
+            <translation>Pro(월 $10)에는 모든 QuantLib 모듈이 포함되며, 모든 엔드포인트를 호출당 0크레딧으로 이용할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>UPGRADE TO PRO</source>
+            <translation>Pro로 업그레이드</translation>
+        </message>
+        <message>
+            <source>OUT OF CREDITS</source>
+            <translation>크레딧 소진</translation>
+        </message>
+        <message>
+            <source>On the Free plan this endpoint costs 1 credit per call. Pro includes every QuantLib endpoint at 0 credits.</source>
+            <translation>무료 요금제에서는 이 엔드포인트 호출마다 1크레딧이 듭니다. Pro에서는 모든 QuantLib 엔드포인트가 0크레딧입니다.</translation>
+        </message>
+        <message>
+            <source>VIEW PLANS</source>
+            <translation>요금제 보기</translation>
+        </message>
+        <message>
+            <source>SIGN-IN REQUIRED</source>
+            <translation>로그인 필요</translation>
+        </message>
+        <message>
+            <source>Your session is missing or has expired. Sign in again, then retry.</source>
+            <translation>세션이 없거나 만료되었습니다. 다시 로그인한 뒤 재시도하세요.</translation>
+        </message>
+        <message>
+            <source>RATE LIMITED</source>
+            <translation>요청 한도 초과</translation>
+        </message>
+        <message>
+            <source>Too many requests right now — wait a moment, then retry.</source>
+            <translation>지금 요청이 너무 많습니다. 잠시 기다린 뒤 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>The server rejected the request body. Check the field names and units (decimals: 0.05 = 5%).</source>
+            <translation>서버가 요청 본문을 거부했습니다. 필드 이름과 단위를 확인하세요(소수: 0.05 = 5%).</translation>
+        </message>
+        <message>
+            <source>NETWORK ERROR</source>
+            <translation>네트워크 오류</translation>
+        </message>
+        <message>
+            <source>The request did not reach the QuantLib service. Check your connection and retry.</source>
+            <translation>요청이 QuantLib 서비스에 닿지 않았습니다. 연결 상태를 확인하고 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>SERVICE ERROR</source>
+            <translation>서비스 오류</translation>
+        </message>
+        <message>
+            <source>The QuantLib service did not return a usable answer. Retry in a moment.</source>
+            <translation>QuantLib 서비스가 쓸 수 있는 응답을 돌려주지 않았습니다. 잠시 뒤 다시 시도하세요.</translation>
+        </message>
+        <message>
+            <source>COMPUTATION FAILED</source>
+            <translation>계산 실패</translation>
+        </message>
+        <message>
+            <source>The model could not be evaluated with these inputs. Adjust the parameters and run again.</source>
+            <translation>이 입력값으로는 모델을 계산할 수 없습니다. 매개변수를 조정하고 다시 실행하세요.</translation>
+        </message>
+        <message>
+            <source>Summary</source>
+            <translation>요약</translation>
+        </message>
+        <message>
+            <source>Result</source>
+            <translation>결과</translation>
+        </message>
+        <message>
+            <source>%1  (%2 rows)</source>
+            <translation>%1  (%2행)</translation>
+        </message>
+        <message>
+            <source>showing %1 of %2 rows</source>
+            <translation>%2행 중 %1행 표시</translation>
+        </message>
+        <message>
+            <source>%1 rows</source>
+            <translation>%1행</translation>
+        </message>
+        <message>
+            <source>%1 fields</source>
+            <translation>필드 %1개</translation>
+        </message>
+        <message>
+            <source>1 value</source>
+            <translation>값 1개</translation>
+        </message>
+        <message>
+            <source>%1 · %2 ms</source>
+            <translation>%1 · %2 ms</translation>
+        </message>
+        <message>
+            <source>No numeric series in this section to chart</source>
+            <translation>이 구역에는 차트로 그릴 숫자 시계열이 없습니다</translation>
+        </message>
+        <message>
+            <source>Field</source>
+            <translation>필드</translation>
+        </message>
+        <message>
+            <source>Value</source>
+            <translation>값</translation>
+        </message>
+        <message>
+            <source>index</source>
+            <translation>인덱스</translation>
+        </message>
+        <message>
+            <source>value</source>
+            <translation>값</translation>
+        </message>
+        <message>
+            <source>y</source>
+            <translation>y</translation>
+        </message>
+        <message>
+            <source>row %1</source>
+            <translation>%1행</translation>
+        </message>
+        <message>
+            <source>%1 %2</source>
+            <translation>%1 %2</translation>
+        </message>
+        <message>
+            <source>%1[%2]</source>
+            <translation>%1[%2]</translation>
+        </message>
+        <message>
+            <source>%1 series</source>
+            <translation>시계열 %1개</translation>
+        </message>
+        <message>
+            <source> · downsampled to %1 points</source>
+            <translation> · %1개 점으로 줄임</translation>
+        </message>
+        <message>
+            <source>truncated: %1 of %2 bytes shown — use CSV to export everything</source>
+            <translation>잘림: %2바이트 중 %1바이트 표시 — 전체를 내보내려면 CSV를 쓰세요</translation>
+        </message>
+        <message>
+            <source>Chart copied as an image</source>
+            <translation>차트를 이미지로 복사했습니다</translation>
+        </message>
+        <message>
+            <source>JSON copied</source>
+            <translation>JSON을 복사했습니다</translation>
+        </message>
+        <message>
+            <source>%1 lines copied</source>
+            <translation>%1줄을 복사했습니다</translation>
+        </message>
+        <message>
+            <source>Export CSV</source>
+            <translation>CSV 내보내기</translation>
+        </message>
+        <message>
+            <source>CSV Files (*.csv)</source>
+            <translation>CSV 파일 (*.csv)</translation>
+        </message>
+        <message>
+            <source>Could not write %1</source>
+            <translation>%1에 쓰지 못했습니다</translation>
+        </message>
+        <message>
+            <source>Exported %1 rows</source>
+            <translation>%1행을 내보냈습니다</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::ScreenerCriteriaBuilder</name>
+        <message>
+            <source>UNIVERSE</source>
+            <translation>검색 대상</translation>
+        </message>
+        <message>
+            <source>CRITERIA</source>
+            <translation>조건</translation>
+        </message>
+        <message>
+            <source>SORT</source>
+            <translation>정렬</translation>
+        </message>
+        <message>
+            <source>+ ADD CRITERION</source>
+            <translation>+ 조건 추가</translation>
+        </message>
+        <message>
+            <source>Values accept K / M / B / T (10B = 10 billion). Percent fields take percent points (25 = 25%). Price and market cap compare in the listing's quote currency.</source>
+            <translation>값에 K / M / B / T를 쓸 수 있습니다(10B = 100억). 퍼센트 항목은 퍼센트포인트로 입력합니다(25 = 25%). 가격과 시가총액은 해당 종목의 시세 통화로 비교합니다.</translation>
+        </message>
+        <message>
+            <source>Region</source>
+            <translation>지역</translation>
+        </message>
+        <message>
+            <source>Exchange</source>
+            <translation>거래소</translation>
+        </message>
+        <message>
+            <source>Sector</source>
+            <translation>업종</translation>
+        </message>
+        <message>
+            <source>Industry</source>
+            <translation>세부 업종</translation>
+        </message>
+        <message>
+            <source>Peer group</source>
+            <translation>동종업체 그룹</translation>
+        </message>
+        <message>
+            <source>Sort by</source>
+            <translation>정렬 기준</translation>
+        </message>
+        <message>
+            <source>Order</source>
+            <translation>정렬 순서</translation>
+        </message>
+        <message>
+            <source>Yahoo cannot filter some industries (banks, insurers, REITs, utilities, software, drug makers, beverages) - use Peer group for those.</source>
+            <translation>Yahoo는 일부 세부 업종(은행, 보험, 리츠, 유틸리티, 소프트웨어, 제약, 음료)을 필터링할 수 없습니다. 이런 업종은 동종업체 그룹을 사용하세요.</translation>
+        </message>
+        <message>
+            <source>Industry peer group (e.g. Banks, Insurance, Utilities, Software &amp; Services).</source>
+            <translation>업종별 동종업체 그룹(예: 은행, 보험, 유틸리티, 소프트웨어 및 서비스).</translation>
+        </message>
+        <message>
+            <source>Yahoo sorts the whole matching universe by this field before paging.</source>
+            <translation>Yahoo는 페이지를 나누기 전에 조건에 맞는 전체 종목을 이 항목으로 정렬합니다.</translation>
+        </message>
+        <message>
+            <source>High to low</source>
+            <translation>높은 순</translation>
+        </message>
+        <message>
+            <source>Low to high</source>
+            <translation>낮은 순</translation>
+        </message>
+        <message>
+            <source>Any region</source>
+            <translation>모든 지역</translation>
+        </message>
+        <message>
+            <source>Any exchange</source>
+            <translation>모든 거래소</translation>
+        </message>
+        <message>
+            <source>Any sector</source>
+            <translation>모든 업종</translation>
+        </message>
+        <message>
+            <source>Any industry</source>
+            <translation>모든 세부 업종</translation>
+        </message>
+        <message>
+            <source>Any peer group</source>
+            <translation>모든 동종업체 그룹</translation>
+        </message>
+        <message>
+            <source>between</source>
+            <translation>범위</translation>
+        </message>
+        <message>
+            <source>Remove this criterion</source>
+            <translation>이 조건 삭제</translation>
+        </message>
+        <message>
+            <source>min</source>
+            <translation>최소</translation>
+        </message>
+        <message>
+            <source>max</source>
+            <translation>최대</translation>
+        </message>
+        <message>
+            <source>e.g. 10B</source>
+            <translation>예: 10B</translation>
+        </message>
+        <message>
+            <source>value</source>
+            <translation>값</translation>
+        </message>
+        <message>
+            <source>Criterion %1 (%2): enter a number such as 15, 2.5, 500M or 10B.</source>
+            <translation>조건 %1 (%2): 15, 2.5, 500M, 10B 같은 숫자를 입력하세요.</translation>
+        </message>
+        <message>
+            <source>Add at least one criterion: a region, a sector or a numeric filter.</source>
+            <translation>조건을 하나 이상 추가하세요: 지역, 업종 또는 숫자 필터.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::ScreenerScreen</name>
+        <message>
+            <source>Loading screener fields...</source>
+            <translation>스크리너 항목 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>Select rows first (Ctrl / Shift-click for several)</source>
+            <translation>먼저 행을 선택하세요(여러 개는 Ctrl / Shift-클릭)</translation>
+        </message>
+        <message>
+            <source>Loading the screener...</source>
+            <translation>스크리너 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>EQUITY SCREENER</source>
+            <translation>종목 스크리너</translation>
+        </message>
+        <message>
+            <source>Filter results: symbol, name, sector...</source>
+            <translation>결과 필터: 종목코드, 종목명, 업종...</translation>
+        </message>
+        <message>
+            <source>Filters the rows on screen (Esc clears). RUN asks Yahoo again.</source>
+            <translation>화면에 표시된 행을 필터링합니다(Esc로 지우기). 실행을 누르면 Yahoo에 다시 요청합니다.</translation>
+        </message>
+        <message>
+            <source>SCREENS</source>
+            <translation>조건식</translation>
+        </message>
+        <message>
+            <source>SCREEN BUILDER</source>
+            <translation>조건식 편집</translation>
+        </message>
+        <message>
+            <source>NEW</source>
+            <translation>새로 만들기</translation>
+        </message>
+        <message>
+            <source>Start a new screen from the defaults</source>
+            <translation>기본값으로 새 조건식 시작</translation>
+        </message>
+        <message>
+            <source>RETRY</source>
+            <translation>다시 시도</translation>
+        </message>
+        <message>
+            <source>RUN</source>
+            <translation>실행</translation>
+        </message>
+        <message>
+            <source>RUNNING...</source>
+            <translation>실행 중...</translation>
+        </message>
+        <message>
+            <source>Run the screen (Enter in a value field, Ctrl+Enter anywhere). F5 re-fetches even when a result less than a minute old is cached.</source>
+            <translation>조건식을 실행합니다(값 입력란에서 Enter, 어디서나 Ctrl+Enter). F5를 누르면 1분이 지나지 않은 캐시 결과가 있어도 다시 가져옵니다.</translation>
+        </message>
+        <message>
+            <source>SAVE SCREEN</source>
+            <translation>조건식 저장</translation>
+        </message>
+        <message>
+            <source>Save the builder's criteria under a name</source>
+            <translation>편집 중인 조건에 이름을 붙여 저장</translation>
+        </message>
+        <message>
+            <source>EXPORT CSV</source>
+            <translation>CSV 내보내기</translation>
+        </message>
+        <message>
+            <source>Export the rows on screen (filtered, in display order) with raw values</source>
+            <translation>화면에 표시된 행(필터 적용, 표시 순서)을 원래 값으로 내보내기</translation>
+        </message>
+        <message>
+            <source>ADD TO WATCHLIST</source>
+            <translation>관심종목에 추가</translation>
+        </message>
+        <message>
+            <source>Add the selected rows to a watchlist</source>
+            <translation>선택한 행을 관심종목 목록에 추가</translation>
+        </message>
+        <message>
+            <source>Rows</source>
+            <translation>행 수</translation>
+        </message>
+        <message>
+            <source>Rows per page (Yahoo returns at most 250 per request)</source>
+            <translation>페이지당 행 수(Yahoo는 요청당 최대 250개 반환)</translation>
+        </message>
+        <message>
+            <source>Previous page</source>
+            <translation>이전 페이지</translation>
+        </message>
+        <message>
+            <source>Next page</source>
+            <translation>다음 페이지</translation>
+        </message>
+        <message>
+            <source>SYMBOL</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>NAME</source>
+            <translation>종목명</translation>
+        </message>
+        <message>
+            <source>PRICE</source>
+            <translation>현재가</translation>
+        </message>
+        <message>
+            <source>CHG %</source>
+            <translation>등락률</translation>
+        </message>
+        <message>
+            <source>VOLUME</source>
+            <translation>거래량</translation>
+        </message>
+        <message>
+            <source>MKT CAP</source>
+            <translation>시가총액</translation>
+        </message>
+        <message>
+            <source>P/E</source>
+            <translation>PER</translation>
+        </message>
+        <message>
+            <source>SECTOR</source>
+            <translation>업종</translation>
+        </message>
+        <message>
+            <source>EXCHANGE</source>
+            <translation>거래소</translation>
+        </message>
+        <message>
+            <source>CCY</source>
+            <translation>통화</translation>
+        </message>
+        <message>
+            <source>Yahoo Finance symbol</source>
+            <translation>Yahoo Finance 종목코드</translation>
+        </message>
+        <message>
+            <source>Company name (hover for the industry)</source>
+            <translation>회사명(마우스를 올리면 세부 업종 표시)</translation>
+        </message>
+        <message>
+            <source>Last price in the listing's quote currency (CCY), exchange-delayed</source>
+            <translation>해당 종목의 시세 통화(통화 열) 기준 현재가, 거래소 지연 시세</translation>
+        </message>
+        <message>
+            <source>Change vs. previous close, from the current quote</source>
+            <translation>현재 시세 기준 전일 종가 대비 등락률</translation>
+        </message>
+        <message>
+            <source>Shares traded this session (hover for the 3-month average)</source>
+            <translation>이번 거래일 거래량(마우스를 올리면 3개월 평균 표시)</translation>
+        </message>
+        <message>
+            <source>Market cap in the listing's currency, not converted (hover for the exact figure)</source>
+            <translation>환산하지 않은 원래 통화 기준 시가총액(마우스를 올리면 정확한 값 표시)</translation>
+        </message>
+        <message>
+            <source>Price / trailing 12-month EPS (hover for forward P/E)</source>
+            <translation>주가 / 최근 12개월 EPS(마우스를 올리면 선행 PER 표시)</translation>
+        </message>
+        <message>
+            <source>Sector (hover for the industry)</source>
+            <translation>업종(마우스를 올리면 세부 업종 표시)</translation>
+        </message>
+        <message>
+            <source>Listing exchange (hover for Yahoo's code)</source>
+            <translation>상장 거래소(마우스를 올리면 Yahoo 코드 표시)</translation>
+        </message>
+        <message>
+            <source>Quote currency. GBp, ZAc, ILA and KWF are minor units (pence, cents, agorot, fils).</source>
+            <translation>시세 통화. GBp, ZAc, ILA, KWF는 보조 단위(펜스, 센트, 아고롯, 필스)입니다.</translation>
+        </message>
+        <message>
+            <source>Pick a screen on the left or build one, then press RUN.</source>
+            <translation>왼쪽에서 조건식을 고르거나 새로 만든 후 실행을 누르세요.</translation>
+        </message>
+        <message>
+            <source>Screener fields unavailable: %1</source>
+            <translation>스크리너 항목을 불러올 수 없음: %1</translation>
+        </message>
+        <message>
+            <source>The screener could not start.
+%1</source>
+            <translation>스크리너를 시작하지 못했습니다.
+%1</translation>
+        </message>
+        <message>
+            <source>Screener unavailable: %1</source>
+            <translation>스크리너 사용 불가: %1</translation>
+        </message>
+        <message>
+            <source>LIVE</source>
+            <translation>실시간</translation>
+        </message>
+        <message>
+            <source>US Large-Cap Basket</source>
+            <translation>미국 대형주 바스켓</translation>
+        </message>
+        <message>
+            <source>%1 US large caps with streaming quotes (the screener's original view)</source>
+            <translation>실시간 시세가 표시되는 미국 대형주 %1개(스크리너의 기존 화면)</translation>
+        </message>
+        <message>
+            <source>SAVED SCREENS</source>
+            <translation>저장한 조건식</translation>
+        </message>
+        <message>
+            <source>Saved screens unavailable</source>
+            <translation>저장한 조건식을 불러올 수 없음</translation>
+        </message>
+        <message>
+            <source>None yet: build a screen, then SAVE</source>
+            <translation>아직 없음: 조건식을 만든 후 저장하세요</translation>
+        </message>
+        <message>
+            <source>Saved %1 UTC</source>
+            <translation>%1 UTC 저장</translation>
+        </message>
+        <message>
+            <source>Run</source>
+            <translation>실행</translation>
+        </message>
+        <message>
+            <source>Delete Saved Screen</source>
+            <translation>저장한 조건식 삭제</translation>
+        </message>
+        <message>
+            <source>Delete the saved screen "%1"?</source>
+            <translation>저장한 조건식 "%1"을(를) 삭제하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Could not delete "%1": %2</source>
+            <translation>"%1"을(를) 삭제하지 못했습니다: %2</translation>
+        </message>
+        <message>
+            <source>Deleted saved screen "%1".</source>
+            <translation>저장한 조건식 "%1"을(를) 삭제했습니다.</translation>
+        </message>
+        <message>
+            <source>US Large-Cap Basket (live quotes)</source>
+            <translation>미국 대형주 바스켓(실시간 시세)</translation>
+        </message>
+        <message>
+            <source>Custom screen</source>
+            <translation>사용자 조건식</translation>
+        </message>
+        <message>
+            <source>%1 (modified)</source>
+            <translation>%1 (수정됨)</translation>
+        </message>
+        <message>
+            <source>Pick a screen</source>
+            <translation>조건식 선택</translation>
+        </message>
+        <message>
+            <source>Saved screen "%1" was not found.</source>
+            <translation>저장한 조건식 "%1"을(를) 찾을 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>The screener fields are still loading.</source>
+            <translation>스크리너 항목을 아직 불러오는 중입니다.</translation>
+        </message>
+        <message>
+            <source>Running %1...</source>
+            <translation>%1 실행 중...</translation>
+        </message>
+        <message>
+            <source>The screen could not be run.
+%1</source>
+            <translation>조건식을 실행하지 못했습니다.
+%1</translation>
+        </message>
+        <message>
+            <source>Screen failed: %1</source>
+            <translation>조건식 실행 실패: %1</translation>
+        </message>
+        <message>
+            <source>No rows on this page (the screen has %1 matches).</source>
+            <translation>이 페이지에 행이 없습니다(조건에 맞는 종목 %1개).</translation>
+        </message>
+        <message>
+            <source>No stocks match these criteria. Loosen a filter and press RUN.</source>
+            <translation>조건에 맞는 종목이 없습니다. 필터를 완화한 후 실행을 누르세요.</translation>
+        </message>
+        <message>
+            <source>%1-%2 of %3 matches</source>
+            <translation>검색 결과 %3개 중 %1-%2</translation>
+        </message>
+        <message>
+            <source>0 of %1 matches</source>
+            <translation>검색 결과 %1개 중 0개</translation>
+        </message>
+        <message>
+            <source>quotes as of %1 %2</source>
+            <translation>%1 %2 기준 시세</translation>
+        </message>
+        <message>
+            <source>(exchange delay up to %1 min)</source>
+            <translation>(거래소 지연 최대 %1분)</translation>
+        </message>
+        <message>
+            <source>fetched %1, cached (F5 re-fetches)</source>
+            <translation>%1에 가져옴, 캐시됨(F5로 다시 가져오기)</translation>
+        </message>
+        <message>
+            <source>fetched %1</source>
+            <translation>%1에 가져옴</translation>
+        </message>
+        <message>
+            <source>Refresh failed (%1); showing the last good result.</source>
+            <translation>새로고침 실패(%1). 마지막 정상 결과를 표시합니다.</translation>
+        </message>
+        <message>
+            <source>Criteria: %1</source>
+            <translation>조건: %1</translation>
+        </message>
+        <message>
+            <source>%1 of %2 rows</source>
+            <translation>행 %2개 중 %1개</translation>
+        </message>
+        <message>
+            <source>Criteria changed: press RUN (or Enter) to apply.</source>
+            <translation>조건이 바뀌었습니다: 적용하려면 실행(또는 Enter)을 누르세요.</translation>
+        </message>
+        <message>
+            <source>New screen: adjust the criteria, then press RUN.</source>
+            <translation>새 조건식: 조건을 조정한 후 실행을 누르세요.</translation>
+        </message>
+        <message>
+            <source>Save Screen</source>
+            <translation>조건식 저장</translation>
+        </message>
+        <message>
+            <source>Name:</source>
+            <translation>이름:</translation>
+        </message>
+        <message>
+            <source>A saved screen named "%1" already exists. Replace it?</source>
+            <translation>이름이 "%1"인 조건식이 이미 있습니다. 덮어쓰시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Could not save the screen: %1</source>
+            <translation>조건식을 저장하지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Saved screen "%1".</source>
+            <translation>조건식 "%1"을(를) 저장했습니다.</translation>
+        </message>
+        <message>
+            <source>Quotes are unavailable right now. Press RUN to try again.</source>
+            <translation>지금은 시세를 받을 수 없습니다. 다시 시도하려면 실행을 누르세요.</translation>
+        </message>
+        <message>
+            <source>Loading live quotes...</source>
+            <translation>실시간 시세 불러오는 중...</translation>
+        </message>
+        <message>
+            <source>%1 of %2 symbols quoted</source>
+            <translation>종목 %2개 중 %1개 시세 수신</translation>
+        </message>
+        <message>
+            <source>%1 unavailable</source>
+            <translation>%1개 수신 불가</translation>
+        </message>
+        <message>
+            <source>live quotes via DataHub (Yahoo Finance, exchange-delayed)</source>
+            <translation>DataHub 경유 실시간 시세(Yahoo Finance, 거래소 지연)</translation>
+        </message>
+        <message>
+            <source>A fixed basket of US large caps; sort by clicking a column header. RUN re-requests every quote.</source>
+            <translation>미국 대형주로 고정된 바스켓입니다. 열 머리글을 클릭해 정렬하세요. 실행을 누르면 모든 시세를 다시 요청합니다.</translation>
+        </message>
+        <message>
+            <source>Requesting fresh quotes for %1 symbols...</source>
+            <translation>종목 %1개의 최신 시세 요청 중...</translation>
+        </message>
+        <message>
+            <source>Open %1 in Equity Research</source>
+            <translation>주식 리서치에서 %1 열기</translation>
+        </message>
+        <message>
+            <source>Open %1 in Equity Trading</source>
+            <translation>주식 거래에서 %1 열기</translation>
+        </message>
+        <message>
+            <source>Open %1 in News</source>
+            <translation>뉴스에서 %1 열기</translation>
+        </message>
+        <message>
+            <source>Open %1 in Backtesting</source>
+            <translation>백테스트에서 %1 열기</translation>
+        </message>
+        <message>
+            <source>Add %1 Selected to Watchlist</source>
+            <translation>선택한 %1개를 관심종목에 추가</translation>
+        </message>
+        <message>
+            <source>Add to Watchlist</source>
+            <translation>관심종목에 추가</translation>
+        </message>
+        <message>
+            <source>Copy %1 Symbols</source>
+            <translation>종목코드 %1개 복사</translation>
+        </message>
+        <message>
+            <source>Copy Symbol</source>
+            <translation>종목코드 복사</translation>
+        </message>
+        <message>
+            <source>Watchlists unavailable</source>
+            <translation>관심종목 목록을 불러올 수 없음</translation>
+        </message>
+        <message>
+            <source>New Watchlist...</source>
+            <translation>새 관심종목 목록...</translation>
+        </message>
+        <message>
+            <source>New Watchlist</source>
+            <translation>새 관심종목 목록</translation>
+        </message>
+        <message>
+            <source>Screener</source>
+            <translation>스크리너</translation>
+        </message>
+        <message>
+            <source>Could not create the watchlist: %1</source>
+            <translation>관심종목 목록을 만들지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Could not add to "%1": %2</source>
+            <translation>"%1"에 추가하지 못했습니다: %2</translation>
+        </message>
+        <message>
+            <source>Added %1 to "%2".</source>
+            <translation>"%2"에 %1개를 추가했습니다.</translation>
+        </message>
+        <message>
+            <source>%1 already on the list.</source>
+            <translation>%1개는 이미 목록에 있습니다.</translation>
+        </message>
+        <message>
+            <source>%1 could not be added.</source>
+            <translation>%1개는 추가하지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>Export CSV</source>
+            <translation>CSV 내보내기</translation>
+        </message>
+        <message>
+            <source>CSV Files (*.csv)</source>
+            <translation>CSV 파일 (*.csv)</translation>
+        </message>
+        <message>
+            <source>Could not write %1:
+%2</source>
+            <translation>%1에 쓸 수 없습니다:
+%2</translation>
+        </message>
+        <message>
+            <source>Exported %1 rows to %2</source>
+            <translation>행 %1개를 %2(으)로 내보냈습니다</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::UniverseScannerPanel</name>
+        <message>
+            <source>START SCAN</source>
+            <translation>검색 시작</translation>
+        </message>
+        <message>
+            <source>Could not start the scan: the selected universe is empty. Load this broker's instrument list (connect the broker in Equity Trading) or pick another universe.</source>
+            <translation>검색을 시작할 수 없습니다: 선택한 대상 종목군이 비어 있습니다. 이 증권사의 종목 목록을 불러오거나(주식 거래에서 증권사 연결) 다른 대상 종목군을 선택하세요.</translation>
+        </message>
+        <message>
+            <source>STRATEGY</source>
+            <translation>전략</translation>
+        </message>
+        <message>
+            <source>UNIVERSE</source>
+            <translation>대상 종목군</translation>
+        </message>
+        <message>
+            <source>All NSE Equity</source>
+            <translation>NSE 전체 주식</translation>
+        </message>
+        <message>
+            <source>All BSE Equity</source>
+            <translation>BSE 전체 주식</translation>
+        </message>
+        <message>
+            <source>NIFTY 50</source>
+            <translation>NIFTY 50</translation>
+        </message>
+        <message>
+            <source>Custom symbols</source>
+            <translation>사용자 지정 종목</translation>
+        </message>
+        <message>
+            <source>CUSTOM SYMBOLS</source>
+            <translation>사용자 지정 종목</translation>
+        </message>
+        <message>
+            <source>BROKER ACCOUNT</source>
+            <translation>증권사 계좌</translation>
+        </message>
+        <message>
+            <source>EVAL SWEEP (ms)</source>
+            <translation>평가 주기(ms)</translation>
+        </message>
+        <message>
+            <source>COOLDOWN (min)</source>
+            <translation>재신호 대기(분)</translation>
+        </message>
+        <message>
+            <source>LIVE MATCHES</source>
+            <translation>실시간 일치 종목</translation>
+        </message>
+        <message>
+            <source>SYMBOL</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>SIGNAL</source>
+            <translation>신호</translation>
+        </message>
+        <message>
+            <source>PRICE</source>
+            <translation>현재가</translation>
+        </message>
+        <message>
+            <source>MATCHED RULES</source>
+            <translation>일치한 규칙</translation>
+        </message>
+        <message>
+            <source>DEPLOY</source>
+            <translation>배포</translation>
+        </message>
+        <message>
+            <source>Stopped.</source>
+            <translation>중지했습니다.</translation>
+        </message>
+        <message>
+            <source>Select a strategy first.</source>
+            <translation>먼저 전략을 선택하세요.</translation>
+        </message>
+        <message>
+            <source>The selected strategy has no entry conditions.</source>
+            <translation>선택한 전략에 진입 조건이 없습니다.</translation>
+        </message>
+        <message>
+            <source>Select a connected broker account (live feed required).</source>
+            <translation>연결된 증권사 계좌를 선택하세요(실시간 시세 필요).</translation>
+        </message>
+        <message>
+            <source>Enter custom symbols or pick a universe.</source>
+            <translation>사용자 지정 종목을 입력하거나 대상 종목군을 선택하세요.</translation>
+        </message>
+        <message>
+            <source>Could not save scan: %1</source>
+            <translation>검색을 저장하지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>STOP SCAN</source>
+            <translation>검색 중지</translation>
+        </message>
+        <message>
+            <source>Scanning live — warming history, matches will appear below.</source>
+            <translation>실시간 검색 중 — 과거 데이터를 준비하고 있으며, 일치 종목은 아래에 표시됩니다.</translation>
+        </message>
+        <message>
+            <source>MATCH</source>
+            <translation>일치</translation>
+        </message>
+        <message>
+            <source>BULLISH</source>
+            <translation>강세</translation>
+        </message>
+        <message>
+            <source>BEARISH</source>
+            <translation>약세</translation>
+        </message>
+        <message>
+            <source>Deploy the selected strategy on %1</source>
+            <translation>%1에 선택한 전략 배포</translation>
+        </message>
+        <message>
+            <source>Strategy no longer selected — cannot deploy.</source>
+            <translation>전략이 선택되어 있지 않아 배포할 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Deployed %1.</source>
+            <translation>%1을(를) 배포했습니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::WatchlistColumnPrefs</name>
+        <message>
+            <source>Right-click to choose columns</source>
+            <translation>마우스 오른쪽 버튼을 클릭해 열 선택</translation>
+        </message>
+        <message>
+            <source>Column %1</source>
+            <translation>%1열</translation>
+        </message>
+        <message>
+            <source>Reset columns</source>
+            <translation>열 초기화</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::alpha_arena::ArenaPanelGrid</name>
+        <message>
+            <source>⚠ APPROVALS</source>
+            <translation>⚠ 승인 대기</translation>
+        </message>
+        <message>
+            <source>Agent</source>
+            <translation>에이전트</translation>
+        </message>
+        <message>
+            <source>Coin</source>
+            <translation>코인</translation>
+        </message>
+        <message>
+            <source>Side</source>
+            <translation>매매구분</translation>
+        </message>
+        <message>
+            <source>Qty</source>
+            <translation>수량</translation>
+        </message>
+        <message>
+            <source>Entry</source>
+            <translation>진입가</translation>
+        </message>
+        <message>
+            <source>Lev</source>
+            <translation>레버리지</translation>
+        </message>
+        <message>
+            <source>uPnL $</source>
+            <translation>평가손익 $</translation>
+        </message>
+        <message>
+            <source>Time</source>
+            <translation>시간</translation>
+        </message>
+        <message>
+            <source>Action</source>
+            <translation>구분</translation>
+        </message>
+        <message>
+            <source>Price</source>
+            <translation>가격</translation>
+        </message>
+        <message>
+            <source>Notional</source>
+            <translation>명목금액</translation>
+        </message>
+        <message>
+            <source>Fee</source>
+            <translation>수수료</translation>
+        </message>
+        <message>
+            <source>rPnL</source>
+            <translation>실현손익</translation>
+        </message>
+        <message>
+            <source>Status</source>
+            <translation>상태</translation>
+        </message>
+        <message>
+            <source>Reason</source>
+            <translation>사유</translation>
+        </message>
+        <message>
+            <source>Fails</source>
+            <translation>실패 횟수</translation>
+        </message>
+        <message>
+            <source>Halt reason</source>
+            <translation>중지 사유</translation>
+        </message>
+        <message>
+            <source>MODEL CHAT</source>
+            <translation>모델 채팅</translation>
+        </message>
+        <message>
+            <source>POSITIONS</source>
+            <translation>포지션</translation>
+        </message>
+        <message>
+            <source>TRADES</source>
+            <translation>체결내역</translation>
+        </message>
+        <message>
+            <source>RISK</source>
+            <translation>리스크</translation>
+        </message>
+        <message>
+            <source>AUDIT</source>
+            <translation>감사</translation>
+        </message>
+        <message>
+            <source>POSITIONS · %1</source>
+            <translation>포지션 · %1</translation>
+        </message>
+        <message>
+            <source>TRADES · %1</source>
+            <translation>체결내역 · %1</translation>
+        </message>
+        <message>
+            <source>AUDIT · %1</source>
+            <translation>감사 · %1</translation>
+        </message>
+        <message>
+            <source>✓ APPROVE</source>
+            <translation>✓ 승인</translation>
+        </message>
+        <message>
+            <source>✖ REJECT</source>
+            <translation>✖ 거부</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::alpha_arena::LeaderboardCards</name>
+        <message>
+            <source>MODEL</source>
+            <translation>모델</translation>
+        </message>
+        <message>
+            <source>EQUITY $</source>
+            <translation>자산 $</translation>
+        </message>
+        <message>
+            <source>RET %</source>
+            <translation>수익률 %</translation>
+        </message>
+        <message>
+            <source>MAX DD %</source>
+            <translation>최대낙폭 %</translation>
+        </message>
+        <message>
+            <source>SHARPE</source>
+            <translation>샤프지수</translation>
+        </message>
+        <message>
+            <source>uPnL $</source>
+            <translation>평가손익 $</translation>
+        </message>
+        <message>
+            <source>POS</source>
+            <translation>포지션</translation>
+        </message>
+        <message>
+            <source>TOK</source>
+            <translation>토큰</translation>
+        </message>
+        <message>
+            <source>ST</source>
+            <translation>상태</translation>
+        </message>
+        <message>
+            <source>ACT</source>
+            <translation>조작</translation>
+        </message>
+        <message>
+            <source>Rank by equity</source>
+            <translation>자산 기준 순위</translation>
+        </message>
+        <message>
+            <source>Model</source>
+            <translation>모델</translation>
+        </message>
+        <message>
+            <source>Account equity: free balance + margin + unrealised PnL (net of funding)</source>
+            <translation>계좌 자산: 가용 잔고 + 증거금 + 평가손익(펀딩비 반영)</translation>
+        </message>
+        <message>
+            <source>Return on starting capital, fees and funding included</source>
+            <translation>시작 자본 대비 수익률(수수료와 펀딩비 포함)</translation>
+        </message>
+        <message>
+            <source>Largest peak-to-trough fall of equity, as % of the peak (starting capital counts as the first peak)</source>
+            <translation>자산이 고점에서 저점까지 가장 크게 떨어진 폭(고점 대비 %, 시작 자본을 첫 고점으로 봄)</translation>
+        </message>
+        <message>
+            <source>Annualised Sharpe ratio of per-round returns (risk-free rate 0, 365-day year). Shown once %1 rounds have settled.</source>
+            <translation>라운드별 수익률의 연환산 샤프지수입니다(무위험이자율 0, 1년 365일). 라운드가 %1회 정산되면 표시합니다.</translation>
+        </message>
+        <message>
+            <source>Unrealised PnL of open positions, net of accrued funding</source>
+            <translation>보유 포지션의 평가손익(누적 펀딩비 반영)</translation>
+        </message>
+        <message>
+            <source>Open positions</source>
+            <translation>보유 포지션 수</translation>
+        </message>
+        <message>
+            <source>LLM tokens used (prompt + completion)</source>
+            <translation>사용한 LLM 토큰(프롬프트 + 응답)</translation>
+        </message>
+        <message>
+            <source>Status: ▶ active · ⏸ halted by user · ⚡ halted by circuit breaker</source>
+            <translation>상태: ▶ 실행 중 · ⏸ 사용자가 중지 · ⚡ 서킷브레이커로 중지</translation>
+        </message>
+        <message>
+            <source>Halt / resume · close positions &amp; halt</source>
+            <translation>중지 / 재개 · 포지션 청산 후 중지</translation>
+        </message>
+        <message numerus="yes">
+            <source>From %n per-round return(s)</source>
+            <translation>
+                <numerusform>라운드별 수익률 %n개 기준</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Needs at least %1 per-round returns (%2 so far)</source>
+            <translation>라운드별 수익률이 최소 %1개 필요합니다(현재 %2개)</translation>
+        </message>
+        <message>
+            <source>Halt agent</source>
+            <translation>에이전트 중지</translation>
+        </message>
+        <message>
+            <source>Resume agent</source>
+            <translation>에이전트 재개</translation>
+        </message>
+        <message>
+            <source>Close positions &amp; halt (kill)</source>
+            <translation>포지션 청산 후 중지(강제 종료)</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::alpha_arena::NewCompetitionWizard</name>
+        <message>
+            <source>New Competition</source>
+            <translation>새 대회</translation>
+        </message>
+        <message>
+            <source>BACK</source>
+            <translation>뒤로</translation>
+        </message>
+        <message>
+            <source>NEXT</source>
+            <translation>다음</translation>
+        </message>
+        <message>
+            <source>CANCEL</source>
+            <translation>취소</translation>
+        </message>
+        <message>
+            <source>1 · Pick the competing models</source>
+            <translation>1 · 참가 모델 선택</translation>
+        </message>
+        <message>
+            <source>Selected: none</source>
+            <translation>선택: 없음</translation>
+        </message>
+        <message>
+            <source>Pick a provider on the left, then check its models — selections from several providers combine. Greyed entries need an API key in Settings → LLM Configuration. Ollama and Fincept work without one.</source>
+            <translation>왼쪽에서 공급자를 고른 뒤 모델을 체크하세요. 여러 공급자에서 고른 모델이 함께 선택됩니다. 회색 항목은 설정 → LLM 설정에서 API 키를 등록해야 합니다. Ollama와 Fincept는 키 없이 사용할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>  — needs API key</source>
+            <translation>  — API 키 필요</translation>
+        </message>
+        <message>
+            <source> — needs key</source>
+            <translation> — 키 필요</translation>
+        </message>
+        <message>
+            <source>Selected: </source>
+            <translation>선택: </translation>
+        </message>
+        <message>
+            <source>2 · Arena settings</source>
+            <translation>2 · 아레나 설정</translation>
+        </message>
+        <message>
+            <source>Name</source>
+            <translation>이름</translation>
+        </message>
+        <message>
+            <source>Arena-%1</source>
+            <translation>아레나-%1</translation>
+        </message>
+        <message>
+            <source>Instruments</source>
+            <translation>종목</translation>
+        </message>
+        <message>
+            <source>Capital / agent ($)</source>
+            <translation>에이전트당 자본 ($)</translation>
+        </message>
+        <message>
+            <source>Round cadence (s)</source>
+            <translation>라운드 주기 (초)</translation>
+        </message>
+        <message>
+            <source>Max leverage</source>
+            <translation>최대 레버리지</translation>
+        </message>
+        <message>
+            <source>Advanced</source>
+            <translation>고급</translation>
+        </message>
+        <message>
+            <source>Custom system prompt (JSON output contract is always appended):</source>
+            <translation>사용자 지정 시스템 프롬프트(JSON 출력 규약은 항상 뒤에 덧붙습니다):</translation>
+        </message>
+        <message>
+            <source>Leave empty for the default arena prompt.</source>
+            <translation>비워 두면 기본 아레나 프롬프트를 사용합니다.</translation>
+        </message>
+        <message>
+            <source>Paper (real market data, simulated fills)</source>
+            <translation>모의투자(실제 시장 데이터, 가상 체결)</translation>
+        </message>
+        <message>
+            <source>Hyperliquid LIVE (real funds)</source>
+            <translation>Hyperliquid 실전투자(실제 자금)</translation>
+        </message>
+        <message>
+            <source>Hyperliquid LIVE — not available in this build</source>
+            <translation>Hyperliquid 실전투자 — 이 빌드에서는 사용할 수 없음</translation>
+        </message>
+        <message>
+            <source>The live order path is not production-ready yet. Paper mode uses the same live Hyperliquid market data with simulated fills.</source>
+            <translation>실전 주문 경로는 아직 운영 준비가 되지 않았습니다. 모의투자 모드도 같은 Hyperliquid 실시간 시장 데이터를 쓰고 체결만 가상으로 처리합니다.</translation>
+        </message>
+        <message>
+            <source>CREATE &amp;&amp; START</source>
+            <translation>만들고 시작</translation>
+        </message>
+        <message>
+            <source>Pick at least one model.</source>
+            <translation>모델을 하나 이상 선택하세요.</translation>
+        </message>
+        <message>
+            <source>Pick at least one instrument.</source>
+            <translation>종목을 하나 이상 선택하세요.</translation>
+        </message>
+        <message>
+            <source>Live trading on Hyperliquid is not yet available in this build — paper mode is fully supported. (Live mode is disabled so no real wallet key is stored for a path that cannot execute a trade.)</source>
+            <translation>이 빌드에서는 아직 Hyperliquid 실전투자를 사용할 수 없습니다. 모의투자 모드는 모두 지원합니다. (거래를 실행할 수 없는 경로에 실제 지갑 키가 저장되지 않도록 실전투자 모드를 꺼 두었습니다.)</translation>
+        </message>
+        <message>
+            <source>Live mode is unavailable in your jurisdiction.</source>
+            <translation>현재 관할지역에서는 실전투자 모드를 사용할 수 없습니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::common::PaperBlotterPanel</name>
+        <message>
+            <source>No open paper positions</source>
+            <translation>보유 중인 모의투자 포지션 없음</translation>
+        </message>
+        <message>
+            <source>Paper trading summary</source>
+            <translation>모의투자 요약</translation>
+        </message>
+        <message>
+            <source>SQUARE OFF ALL</source>
+            <translation>전체 포지션 청산</translation>
+        </message>
+        <message>
+            <source>Square off all open paper positions</source>
+            <translation>보유 중인 모의투자 포지션 모두 청산</translation>
+        </message>
+        <message>
+            <source>Account</source>
+            <translation>계좌</translation>
+        </message>
+        <message>
+            <source>Symbol</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>Product</source>
+            <translation>상품 유형</translation>
+        </message>
+        <message>
+            <source>Side</source>
+            <translation>매매구분</translation>
+        </message>
+        <message>
+            <source>Qty</source>
+            <translation>수량</translation>
+        </message>
+        <message>
+            <source>Avg</source>
+            <translation>평균단가</translation>
+        </message>
+        <message>
+            <source>LTP</source>
+            <translation>현재가</translation>
+        </message>
+        <message>
+            <source>P&amp;L</source>
+            <translation>손익</translation>
+        </message>
+        <message>
+            <source>P&amp;L %</source>
+            <translation>수익률</translation>
+        </message>
+        <message>
+            <source>Type</source>
+            <translation>유형</translation>
+        </message>
+        <message>
+            <source>Price</source>
+            <translation>가격</translation>
+        </message>
+        <message>
+            <source>Status</source>
+            <translation>상태</translation>
+        </message>
+        <message>
+            <source>Time</source>
+            <translation>시간</translation>
+        </message>
+        <message>
+            <source>Open paper positions</source>
+            <translation>보유 중인 모의투자 포지션</translation>
+        </message>
+        <message>
+            <source>Working paper orders</source>
+            <translation>모의투자 미체결 주문</translation>
+        </message>
+        <message>
+            <source>Executed paper trades</source>
+            <translation>모의투자 체결내역</translation>
+        </message>
+        <message>
+            <source>Positions</source>
+            <translation>포지션</translation>
+        </message>
+        <message>
+            <source>Orders</source>
+            <translation>주문</translation>
+        </message>
+        <message>
+            <source>Trades</source>
+            <translation>체결</translation>
+        </message>
+        <message>
+            <source>Exit</source>
+            <translation>청산</translation>
+        </message>
+        <message>
+            <source>Exit %1 position</source>
+            <translation>%1 포지션 청산</translation>
+        </message>
+        <message>
+            <source>Close %1 at market</source>
+            <translation>%1 시장가 청산</translation>
+        </message>
+        <message>
+            <source>MKT</source>
+            <translation>시장가</translation>
+        </message>
+        <message>
+            <source>%1 open · unrealized %2%3</source>
+            <translation>보유 포지션 %1개 · 평가손익 %2%3</translation>
+        </message>
+        <message>
+            <source>Square off all</source>
+            <translation>전체 청산</translation>
+        </message>
+        <message>
+            <source>Close all %1 open paper position(s) at market?</source>
+            <translation>보유 중인 모의투자 포지션 %1개를 모두 시장가로 청산하시겠습니까?</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::datasources::CatalogListModel</name>
+        <message>
+            <source>● ready</source>
+            <translation>● 사용 가능</translation>
+        </message>
+        <message>
+            <source>◐ partial</source>
+            <translation>◐ 일부 설정</translation>
+        </message>
+        <message>
+            <source>○ needs key</source>
+            <translation>○ 키 필요</translation>
+        </message>
+        <message>
+            <source>○ optional</source>
+            <translation>○ 키 선택 사항</translation>
+        </message>
+        <message>
+            <source>Known issue: %1</source>
+            <translation>알려진 문제: %1</translation>
+        </message>
+        <message>
+            <source>CONNECTOR</source>
+            <translation>커넥터</translation>
+        </message>
+        <message>
+            <source>CATEGORY</source>
+            <translation>카테고리</translation>
+        </message>
+        <message>
+            <source>REGION</source>
+            <translation>지역</translation>
+        </message>
+        <message>
+            <source>KEY</source>
+            <translation>키</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::datasources::ConnectorCatalogPanel</name>
+        <message>
+            <source>CONNECTOR CATALOG</source>
+            <translation>커넥터 카탈로그</translation>
+        </message>
+        <message>
+            <source>Search name, description, category, region, key, command…</source>
+            <translation>이름, 설명, 카테고리, 지역, 키, 명령 검색…</translation>
+        </message>
+        <message>
+            <source>Search data connectors</source>
+            <translation>데이터 커넥터 검색</translation>
+        </message>
+        <message>
+            <source>Connector category</source>
+            <translation>커넥터 카테고리</translation>
+        </message>
+        <message>
+            <source>All categories</source>
+            <translation>모든 카테고리</translation>
+        </message>
+        <message>
+            <source>Keyless only</source>
+            <translation>키 불필요만</translation>
+        </message>
+        <message>
+            <source>Only connectors that need no API key</source>
+            <translation>API 키가 필요 없는 커넥터만 표시</translation>
+        </message>
+        <message>
+            <source>Configured keys</source>
+            <translation>키 설정됨</translation>
+        </message>
+        <message>
+            <source>Only connectors whose API keys are already stored</source>
+            <translation>API 키가 이미 저장된 커넥터만 표시</translation>
+        </message>
+        <message>
+            <source>Data connectors</source>
+            <translation>데이터 커넥터</translation>
+        </message>
+        <message>
+            <source>CONNECTOR</source>
+            <translation>커넥터</translation>
+        </message>
+        <message>
+            <source>Select a connector</source>
+            <translation>커넥터 선택</translation>
+        </message>
+        <message>
+            <source>Pick a connector on the left to see its commands, key requirements and to run it.</source>
+            <translation>왼쪽에서 커넥터를 선택하면 명령과 필요한 키를 확인하고 실행할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>COMMAND</source>
+            <translation>명령</translation>
+        </message>
+        <message>
+            <source>Connector command</source>
+            <translation>커넥터 명령</translation>
+        </message>
+        <message>
+            <source>ARGUMENTS — space-separated, one per line, or a JSON object</source>
+            <translation>인수 — 공백으로 구분하거나 한 줄에 하나씩, 또는 JSON 객체</translation>
+        </message>
+        <message>
+            <source>Command arguments</source>
+            <translation>명령 인수</translation>
+        </message>
+        <message>
+            <source>RUN</source>
+            <translation>실행</translation>
+        </message>
+        <message>
+            <source>Run the command (Ctrl+Enter)</source>
+            <translation>명령 실행 (Ctrl+Enter)</translation>
+        </message>
+        <message>
+            <source>Bypass cache</source>
+            <translation>캐시 무시</translation>
+        </message>
+        <message>
+            <source>Fetch fresh data even when a cached result is still valid</source>
+            <translation>캐시된 결과가 아직 유효해도 새 데이터를 가져옵니다</translation>
+        </message>
+        <message>
+            <source>EXPORT CSV</source>
+            <translation>CSV 내보내기</translation>
+        </message>
+        <message>
+            <source>COPY AS AI TOOL CALL</source>
+            <translation>AI 도구 호출로 복사</translation>
+        </message>
+        <message>
+            <source>Copy the equivalent MCP tool call (tool name + arguments) to the clipboard</source>
+            <translation>같은 동작의 MCP 도구 호출(도구 이름 + 인수)을 클립보드에 복사합니다</translation>
+        </message>
+        <message>
+            <source>Select a connector, pick a command and press RUN (Ctrl+Enter).</source>
+            <translation>커넥터와 명령을 선택한 뒤 실행(Ctrl+Enter)을 누르세요.</translation>
+        </message>
+        <message>
+            <source>TABLE</source>
+            <translation>표</translation>
+        </message>
+        <message>
+            <source>JSON</source>
+            <translation>JSON</translation>
+        </message>
+        <message>
+            <source>RAW</source>
+            <translation>원본</translation>
+        </message>
+        <message>
+            <source>The connector catalogue could not be loaded: %1</source>
+            <translation>커넥터 카탈로그를 불러오지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>UNAVAILABLE</source>
+            <translation>사용 불가</translation>
+        </message>
+        <message>
+            <source>%1 CONNECTORS · %2 WORKING</source>
+            <translation>커넥터 %1개 · 작동 %2개</translation>
+        </message>
+        <message>
+            <source>%1 OF %2</source>
+            <translation>%2개 중 %1개</translation>
+        </message>
+        <message>
+            <source>No connector matches the search and filters.</source>
+            <translation>검색어와 필터에 맞는 커넥터가 없습니다.</translation>
+        </message>
+        <message>
+            <source>Provider docs / get a key ↗</source>
+            <translation>공급자 문서 / 키 발급 ↗</translation>
+        </message>
+        <message>
+            <source>KNOWN ISSUE — %1. You can still run it here; it is not offered to the AI.</source>
+            <translation>알려진 문제 — %1. 여기서는 실행할 수 있지만 AI에는 제공하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Not an AI tool: a dedicated tool already covers this provider</source>
+            <translation>AI 도구 아님: 이 공급자는 전용 도구가 이미 있습니다</translation>
+        </message>
+        <message>
+            <source>No arguments</source>
+            <translation>인수 없음</translation>
+        </message>
+        <message>
+            <source>%1 value</source>
+            <translation>%1 값</translation>
+        </message>
+        <message>
+            <source>SAVE</source>
+            <translation>저장</translation>
+        </message>
+        <message>
+            <source>Save %1</source>
+            <translation>%1 저장</translation>
+        </message>
+        <message>
+            <source>No API key needed.</source>
+            <translation>API 키가 필요 없습니다.</translation>
+        </message>
+        <message>
+            <source>● API key configured (%1).</source>
+            <translation>● API 키가 설정되어 있습니다(%1).</translation>
+        </message>
+        <message>
+            <source>◐ Some keys are missing (%1).</source>
+            <translation>◐ 일부 키가 없습니다(%1).</translation>
+        </message>
+        <message>
+            <source>○ Needs an API key: %1. Paste it below — it is stored encrypted and passed to the connector.</source>
+            <translation>○ API 키가 필요합니다: %1. 아래에 붙여 넣으세요. 암호화해 저장하고 커넥터에 전달합니다.</translation>
+        </message>
+        <message>
+            <source>○ Optional key: %1 — the connector works without it.</source>
+            <translation>○ 선택 키: %1 — 키가 없어도 커넥터가 작동합니다.</translation>
+        </message>
+        <message>
+            <source>Checking stored keys…</source>
+            <translation>저장된 키 확인 중…</translation>
+        </message>
+        <message>
+            <source>•••••••• stored — paste a new value to replace</source>
+            <translation>•••••••• 저장됨 — 바꾸려면 새 값을 붙여 넣으세요</translation>
+        </message>
+        <message>
+            <source>paste key…</source>
+            <translation>키 붙여 넣기…</translation>
+        </message>
+        <message>
+            <source>Paste the %1 value first.</source>
+            <translation>먼저 %1 값을 붙여 넣으세요.</translation>
+        </message>
+        <message>
+            <source>%1 saved. Python connectors receive it from the next run.</source>
+            <translation>%1을(를) 저장했습니다. Python 커넥터는 다음 실행부터 이 값을 받습니다.</translation>
+        </message>
+        <message>
+            <source>no arguments</source>
+            <translation>인수 없음</translation>
+        </message>
+        <message>
+            <source>args: %1</source>
+            <translation>인수: %1</translation>
+        </message>
+        <message>
+            <source>No arguments needed</source>
+            <translation>인수 필요 없음</translation>
+        </message>
+        <message>
+            <source>Running %1 …</source>
+            <translation>%1 실행 중…</translation>
+        </message>
+        <message>
+            <source>RUNNING  %1</source>
+            <translation>실행 중  %1</translation>
+        </message>
+        <message numerus="yes">
+            <source>%n row(s)</source>
+            <translation>
+                <numerusform>행 %n개</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source> from '%1'</source>
+            <translation> ('%1' 경로)</translation>
+        </message>
+        <message>
+            <source>%1 ms</source>
+            <translation>%1 ms</translation>
+        </message>
+        <message>
+            <source>cached %1 ago</source>
+            <translation>%1 전 캐시</translation>
+        </message>
+        <message>
+            <source>fresh</source>
+            <translation>새로 가져옴</translation>
+        </message>
+        <message>
+            <source>⚠ upstream: %1</source>
+            <translation>⚠ 공급자 경고: %1</translation>
+        </message>
+        <message>
+            <source>Failed</source>
+            <translation>실패</translation>
+        </message>
+        <message>
+            <source>ERROR
+
+%1</source>
+            <translation>오류
+
+%1</translation>
+        </message>
+        <message>
+            <source>%1 s</source>
+            <translation>%1초</translation>
+        </message>
+        <message>
+            <source>%1 min</source>
+            <translation>%1분</translation>
+        </message>
+        <message>
+            <source>%1 h</source>
+            <translation>%1시간</translation>
+        </message>
+        <message>
+            <source>Export CSV</source>
+            <translation>CSV 내보내기</translation>
+        </message>
+        <message>
+            <source>CSV files (*.csv)</source>
+            <translation>CSV 파일 (*.csv)</translation>
+        </message>
+        <message>
+            <source>Cannot write %1: %2</source>
+            <translation>%1에 쓸 수 없습니다: %2</translation>
+        </message>
+        <message>
+            <source>Exported %1 row(s) to %2</source>
+            <translation>행 %1개를 %2(으)로 내보냈습니다</translation>
+        </message>
+        <message>
+            <source>Copied the %1 tool call to the clipboard.</source>
+            <translation>%1 도구 호출을 클립보드에 복사했습니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::equity::BasketOrdersDialog</name>
+        <message>
+            <source>Order Baskets</source>
+            <translation>바스켓 주문</translation>
+        </message>
+        <message>
+            <source>BASKETS</source>
+            <translation>바스켓</translation>
+        </message>
+        <message>
+            <source>+ NEW</source>
+            <translation>+ 새로 만들기</translation>
+        </message>
+        <message>
+            <source>DELETE</source>
+            <translation>삭제</translation>
+        </message>
+        <message>
+            <source>Name:</source>
+            <translation>이름:</translation>
+        </message>
+        <message>
+            <source>e.g. Nifty Core 5</source>
+            <translation>예: Nifty Core 5</translation>
+        </message>
+        <message>
+            <source>SAVE BASKET</source>
+            <translation>바스켓 저장</translation>
+        </message>
+        <message>
+            <source>Symbol</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>Exch</source>
+            <translation>거래소</translation>
+        </message>
+        <message>
+            <source>Side</source>
+            <translation>매매구분</translation>
+        </message>
+        <message>
+            <source>Qty</source>
+            <translation>수량</translation>
+        </message>
+        <message>
+            <source>Type</source>
+            <translation>유형</translation>
+        </message>
+        <message>
+            <source>Price</source>
+            <translation>가격</translation>
+        </message>
+        <message>
+            <source>Product</source>
+            <translation>상품 유형</translation>
+        </message>
+        <message>
+            <source>SYMBOL</source>
+            <translation>종목코드</translation>
+        </message>
+        <message>
+            <source>BUY</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>SELL</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>MARKET</source>
+            <translation>시장가</translation>
+        </message>
+        <message>
+            <source>LIMIT</source>
+            <translation>지정가</translation>
+        </message>
+        <message>
+            <source>INTRADAY</source>
+            <translation>당일 거래</translation>
+        </message>
+        <message>
+            <source>DELIVERY</source>
+            <translation>인수도</translation>
+        </message>
+        <message>
+            <source>MARGIN</source>
+            <translation>증거금</translation>
+        </message>
+        <message>
+            <source>+ ADD</source>
+            <translation>+ 추가</translation>
+        </message>
+        <message>
+            <source>EXECUTE ON</source>
+            <translation>실행 대상</translation>
+        </message>
+        <message>
+            <source>LIVE</source>
+            <translation>실전투자</translation>
+        </message>
+        <message>
+            <source>PAPER</source>
+            <translation>모의투자</translation>
+        </message>
+        <message>
+            <source>EXECUTE BASKET</source>
+            <translation>바스켓 실행</translation>
+        </message>
+        <message>
+            <source>New Basket</source>
+            <translation>새 바스켓</translation>
+        </message>
+        <message>
+            <source>Delete Basket</source>
+            <translation>바스켓 삭제</translation>
+        </message>
+        <message>
+            <source>Delete basket '%1'?</source>
+            <translation>바스켓 '%1'을(를) 삭제하시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Unnamed</source>
+            <translation>이름 없음</translation>
+        </message>
+        <message>
+            <source>Basket saved</source>
+            <translation>바스켓을 저장했습니다</translation>
+        </message>
+        <message>
+            <source>MKT</source>
+            <translation>시장가</translation>
+        </message>
+        <message>
+            <source>LMT</source>
+            <translation>지정가</translation>
+        </message>
+        <message>
+            <source>CNC</source>
+            <translation>CNC</translation>
+        </message>
+        <message>
+            <source>NRML</source>
+            <translation>NRML</translation>
+        </message>
+        <message>
+            <source>MIS</source>
+            <translation>MIS</translation>
+        </message>
+        <message>
+            <source>Create or select a basket first</source>
+            <translation>먼저 바스켓을 만들거나 선택하세요</translation>
+        </message>
+        <message>
+            <source>Enter a limit price for %1</source>
+            <translation>%1의 지정가를 입력하세요</translation>
+        </message>
+        <message>
+            <source>Basket is empty — add legs first</source>
+            <translation>바스켓이 비어 있습니다. 먼저 주문 항목을 추가하세요</translation>
+        </message>
+        <message>
+            <source>Select at least one account</source>
+            <translation>계좌를 하나 이상 선택하세요</translation>
+        </message>
+        <message>
+            <source>Execute Basket</source>
+            <translation>바스켓 실행</translation>
+        </message>
+        <message>
+            <source>Execute '%1' (%2 leg(s)) on %3 account(s)?
+
+%4</source>
+            <translation>'%1'(주문 항목 %2개)을(를) 계좌 %3개에서 실행하시겠습니까?
+
+%4</translation>
+        </message>
+        <message>
+            <source>Could not queue the basket for approval — nothing was sent</source>
+            <translation>바스켓을 승인 대기열에 등록하지 못했습니다. 아무것도 전송되지 않았습니다</translation>
+        </message>
+        <message>
+            <source>%1 basket(s) queued for approval</source>
+            <translation>바스켓 %1개를 승인 대기열에 등록했습니다</translation>
+        </message>
+        <message>
+            <source>Executing on %1 account(s); %2 queued for approval…</source>
+            <translation>계좌 %1개에서 실행 중, %2개는 승인 대기열에 등록됨…</translation>
+        </message>
+        <message>
+            <source>Executing on %1 account(s)…</source>
+            <translation>계좌 %1개에서 실행 중…</translation>
+        </message>
+        <message>
+            <source>✓ %1 leg(s) placed</source>
+            <translation>✓ 주문 항목 %1개 제출됨</translation>
+        </message>
+        <message>
+            <source>, %1 basket(s) queued for approval</source>
+            <translation>, 바스켓 %1개 승인 대기</translation>
+        </message>
+        <message>
+            <source> — ✗ %1 failed: %2</source>
+            <translation> — ✗ %1개 실패: %2</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::fno::OptionChainTable</name>
+        <message>
+            <source>Option chain</source>
+            <translation>옵션 체인</translation>
+        </message>
+        <message>
+            <source>Strikes with call data on the left and put data on the right. Arrow keys move between strikes, Return adds the focused leg to the strategy builder, and the context-menu key offers Buy and Sell.</source>
+            <translation>왼쪽은 콜, 오른쪽은 풋 데이터가 있는 행사가 목록입니다. 화살표 키로 행사가를 이동하고, Return 키로 선택한 레그를 전략 구성에 추가하며, 메뉴 키로 매수와 매도를 선택할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>Buy %1</source>
+            <translation>%1 매수</translation>
+        </message>
+        <message>
+            <source>Sell %1</source>
+            <translation>%1 매도</translation>
+        </message>
+        <message>
+            <source>Add to Builder</source>
+            <translation>전략 구성에 추가</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::screens::fno::PayoffStripWidget</name>
+        <message>
+            <source>Payoff at expiry</source>
+            <translation>만기 손익</translation>
+        </message>
+        <message>
+            <source>Profit and loss across underlying prices. Solid line is P/L at expiry; the dashed line is P/L on the selected target date. Vertical markers show the current spot and each breakeven.</source>
+            <translation>기초자산 가격별 손익입니다. 실선은 만기 손익, 점선은 선택한 목표일의 손익입니다. 세로 표시선은 현재 현물가와 각 손익분기점입니다.</translation>
+        </message>
+        <message>
+            <source>Solid: P/L at expiry.  Dashed: P/L at the TARGET date.  Amber vertical: spot.  Dotted verticals: breakevens.</source>
+            <translation>실선: 만기 손익.  점선: 목표일 손익.  주황색 세로선: 현물가.  점 세로선: 손익분기점.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::services::AgentService</name>
+        <message>
+            <source>Agent run finished</source>
+            <translation>에이전트 실행 완료</translation>
+        </message>
+        <message>
+            <source>Agent run failed</source>
+            <translation>에이전트 실행 실패</translation>
+        </message>
+        <message>
+            <source>Open Agent Studio to see the result.</source>
+            <translation>결과는 에이전트 스튜디오에서 확인하세요.</translation>
+        </message>
+        <message>
+            <source>Agentic task completed</source>
+            <translation>에이전틱 작업 완료</translation>
+        </message>
+        <message>
+            <source>Agentic task needs your input</source>
+            <translation>에이전틱 작업에 입력이 필요합니다</translation>
+        </message>
+        <message>
+            <source>Agentic task stopped: budget reached</source>
+            <translation>에이전틱 작업 중지: 예산 도달</translation>
+        </message>
+        <message>
+            <source>Agentic task failed</source>
+            <translation>에이전틱 작업 실패</translation>
+        </message>
+        <message>
+            <source>Open Agent Studio › AGENTIC for details.</source>
+            <translation>자세한 내용은 에이전트 스튜디오 › 에이전틱에서 확인하세요.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::services::DataNormalizationService</name>
+        <message>
+            <source>Base URL must start with http:// or https:// (got "%1")</source>
+            <translation>기본 URL은 http:// 또는 https://로 시작해야 합니다 (입력값: "%1")</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::services::NotebookLibraryService</name>
+        <message>
+            <source>The numpy1 environment (venv-numpy1) is not installed. Run the Python setup from Settings → Python Env, or switch the kernel back to NUMPY2.</source>
+            <translation>numpy1 환경(venv-numpy1)이 설치되어 있지 않습니다. 설정 → Python 환경에서 Python 설치를 실행하거나 커널을 NUMPY2로 되돌리세요.</translation>
+        </message>
+        <message>
+            <source>Cancelled before it started</source>
+            <translation>시작 전에 취소됨</translation>
+        </message>
+        <message>
+            <source>The cell process exited with code %1</source>
+            <translation>셀 프로세스가 코드 %1(으)로 종료되었습니다</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::services::PortfolioService</name>
+        <message>
+            <source>Could not create the portfolio: %1</source>
+            <translation>포트폴리오를 만들지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Could not delete the portfolio: %1</source>
+            <translation>포트폴리오를 삭제하지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>BUY rejected: a symbol, a quantity &gt; 0 and a price &gt; 0 are required.</source>
+            <translation>매수 거부: 종목코드, 0보다 큰 수량, 0보다 큰 가격이 필요합니다.</translation>
+        </message>
+        <message>
+            <source>Could not record the BUY of %1: %2</source>
+            <translation>%1 매수를 기록하지 못했습니다: %2</translation>
+        </message>
+        <message>
+            <source>SELL rejected: quantity and price must both be greater than 0.</source>
+            <translation>매도 거부: 수량과 가격은 모두 0보다 커야 합니다.</translation>
+        </message>
+        <message>
+            <source>Could not read the portfolio to record the SELL.</source>
+            <translation>포트폴리오를 읽지 못해 매도를 기록할 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>SELL rejected: %1 is not held in this portfolio.</source>
+            <translation>매도 거부: 이 포트폴리오는 %1을(를) 보유하고 있지 않습니다.</translation>
+        </message>
+        <message>
+            <source>SELL rejected: cannot sell %1 %2 — only %3 held.</source>
+            <translation>매도 거부: %2을(를) %1만큼 매도할 수 없습니다 — 보유 수량은 %3입니다.</translation>
+        </message>
+        <message>
+            <source>Edit rejected: quantity must be &gt; 0 and price ≥ 0.</source>
+            <translation>수정 거부: 수량은 0보다 커야 하고 가격은 0 이상이어야 합니다.</translation>
+        </message>
+        <message>
+            <source>Could not read the ledger to apply the edit.</source>
+            <translation>거래 내역을 읽지 못해 수정을 적용할 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>Edit rejected: the transaction no longer exists.</source>
+            <translation>수정 거부: 해당 거래가 더 이상 없습니다.</translation>
+        </message>
+        <message>
+            <source>Could not save the edit: %1</source>
+            <translation>수정 내용을 저장하지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Could not delete the transaction: %1</source>
+            <translation>거래를 삭제하지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Dividend rejected: the holding quantity and the amount per share must both be greater than 0.</source>
+            <translation>배당 거부: 보유 수량과 주당 배당금은 모두 0보다 커야 합니다.</translation>
+        </message>
+        <message>
+            <source>Could not record the dividend: %1</source>
+            <translation>배당을 기록하지 못했습니다: %1</translation>
+        </message>
+        <message>
+            <source>Could not read the portfolio from the database.</source>
+            <translation>데이터베이스에서 포트폴리오를 읽지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>Cannot open file: %1</source>
+            <translation>파일을 열 수 없습니다: %1</translation>
+        </message>
+        <message>
+            <source>Not valid JSON: %1 (at byte %2)</source>
+            <translation>올바른 JSON이 아닙니다: %1 (%2바이트 위치)</translation>
+        </message>
+        <message>
+            <source>The file must contain a JSON object at the top level, not an array.</source>
+            <translation>파일의 최상위는 배열이 아닌 JSON 객체여야 합니다.</translation>
+        </message>
+        <message>
+            <source>'portfolio_name' (or 'name') is missing or empty.</source>
+            <translation>'portfolio_name'(또는 'name')이 없거나 비어 있습니다.</translation>
+        </message>
+        <message>
+            <source>'currency' must be a 3-letter ISO code (got %1).</source>
+            <translation>'currency'는 3자리 ISO 코드여야 합니다 (입력값: %1).</translation>
+        </message>
+        <message>
+            <source>No 'transactions' array and no 'holdings' array found.</source>
+            <translation>'transactions' 배열과 'holdings' 배열이 모두 없습니다.</translation>
+        </message>
+        <message>
+            <source>'%1' is empty — nothing to import.</source>
+            <translation>'%1'이(가) 비어 있습니다 — 가져올 항목이 없습니다.</translation>
+        </message>
+        <message>
+            <source>%1[%2]: not an object.</source>
+            <translation>%1[%2]: 객체가 아닙니다.</translation>
+        </message>
+        <message>
+            <source>%1: 'symbol' is missing.</source>
+            <translation>%1: 'symbol'이 없습니다.</translation>
+        </message>
+        <message>
+            <source>%1: SPLIT rows are not supported and were skipped — record the post-split position as BUY/SELL rows.</source>
+            <translation>%1: SPLIT 행은 지원하지 않아 건너뛰었습니다 — 분할 후 포지션을 BUY/SELL 행으로 기록하세요.</translation>
+        </message>
+        <message>
+            <source>%1: 'type' must be BUY, SELL or DIVIDEND (got %2).</source>
+            <translation>%1: 'type'은 BUY, SELL, DIVIDEND 중 하나여야 합니다 (입력값: %2).</translation>
+        </message>
+        <message>
+            <source>%1: quantity must be a number &gt; 0 (got %2).</source>
+            <translation>%1: 수량은 0보다 큰 숫자여야 합니다 (입력값: %2).</translation>
+        </message>
+        <message>
+            <source>%1: %2 must be a number &gt; 0 (got %3).</source>
+            <translation>%1: %2은(는) 0보다 큰 숫자여야 합니다 (입력값: %3).</translation>
+        </message>
+        <message>
+            <source>%1: 'date' (YYYY-MM-DD) is missing.</source>
+            <translation>%1: 'date'(YYYY-MM-DD)가 없습니다.</translation>
+        </message>
+        <message>
+            <source>%1: date %2 is not YYYY-MM-DD.</source>
+            <translation>%1: 날짜 %2이(가) YYYY-MM-DD 형식이 아닙니다.</translation>
+        </message>
+        <message>
+            <source>%1: date %2 is in the future.</source>
+            <translation>%1: 날짜 %2이(가) 미래입니다.</translation>
+        </message>
+        <message>
+            <source>No portfolio selected to merge into.</source>
+            <translation>병합할 포트폴리오를 선택하지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>SELL %1 %2 on %3 exceeds the %4 held at that date.</source>
+            <translation>%3의 %2 매도 수량 %1이(가) 그날 보유 수량 %4보다 많습니다.</translation>
+        </message>
+        <message>
+            <source>… and %1 more problem(s).</source>
+            <translation>… 외 문제 %1건.</translation>
+        </message>
+        <message numerus="yes">
+            <source>Nothing was imported — %n problem(s) found:</source>
+            <translation>
+                <numerusform>가져온 항목이 없습니다 — 문제 %n건:</numerusform>
+            </translation>
+        </message>
+        <message>
+            <source>Failed to create portfolio: %1</source>
+            <translation>포트폴리오 생성 실패: %1</translation>
+        </message>
+        <message>
+            <source>%1 — last known value</source>
+            <translation>%1 — 마지막으로 확인된 값</translation>
+        </message>
+        <message>
+            <source>default %1% — live T-bill rate not fetched yet</source>
+            <translation>기본값 %1% — 실시간 T-bill 금리를 아직 가져오지 못했습니다</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::services::UpdateService</name>
+        <message>
+            <source>This is a development build (%1). Auto-update is disabled.</source>
+            <translation>개발 빌드(%1)입니다. 자동 업데이트가 꺼져 있습니다.</translation>
+        </message>
+        <message>
+            <source>Auto-update is not supported on this platform.</source>
+            <translation>이 플랫폼에서는 자동 업데이트를 지원하지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Auto-update is disabled in this build because no update-signing key is configured.
+
+Please download updates from the releases page.</source>
+            <translation>업데이트 서명 키가 설정되지 않아 이 빌드에서는 자동 업데이트가 꺼져 있습니다.
+
+릴리스 페이지에서 업데이트를 내려받으세요.</translation>
+        </message>
+        <message>
+            <source>Could not reach the update server.
+
+%1</source>
+            <translation>업데이트 서버에 연결할 수 없습니다.
+
+%1</translation>
+        </message>
+        <message>
+            <source>This update could not be authenticated (its signature is missing). Nothing has been downloaded.</source>
+            <translation>이 업데이트를 인증할 수 없습니다(서명 없음). 아무것도 내려받지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>This update failed authenticity verification and has been rejected. Nothing has been downloaded.</source>
+            <translation>이 업데이트는 진위 검증에 실패해 거부되었습니다. 아무것도 내려받지 않았습니다.</translation>
+        </message>
+        <message>
+            <source>The update manifest is malformed.</source>
+            <translation>업데이트 매니페스트 형식이 잘못되었습니다.</translation>
+        </message>
+        <message>
+            <source>The update manifest points to an insecure download address and has been rejected.</source>
+            <translation>업데이트 매니페스트가 안전하지 않은 다운로드 주소를 가리켜 거부되었습니다.</translation>
+        </message>
+        <message>
+            <source>You're running the latest version (%1).</source>
+            <translation>최신 버전(%1)을 사용 중입니다.</translation>
+        </message>
+        <message>
+            <source>A new version of Fincept Terminal is available.
+
+Current version: %1
+Latest version:  %2
+
+</source>
+            <translation>Fincept Terminal 새 버전이 있습니다.
+
+현재 버전: %1
+최신 버전: %2
+
+</translation>
+        </message>
+        <message>
+            <source>What's new:
+%1
+
+</source>
+            <translation>변경 사항:
+%1
+
+</translation>
+        </message>
+        <message>
+            <source>Download the installer now?</source>
+            <translation>지금 설치 파일을 내려받으시겠습니까?</translation>
+        </message>
+        <message>
+            <source>Update Available</source>
+            <translation>업데이트 있음</translation>
+        </message>
+        <message>
+            <source>Download &amp;&amp; Install</source>
+            <translation>다운로드 &amp;&amp; 설치</translation>
+        </message>
+        <message>
+            <source>View Release Notes</source>
+            <translation>릴리스 노트 보기</translation>
+        </message>
+        <message>
+            <source>This update cannot be verified (missing or malformed checksum). Aborting.</source>
+            <translation>이 업데이트를 검증할 수 없습니다(체크섬 없음 또는 형식 오류). 중단합니다.</translation>
+        </message>
+        <message>
+            <source>Cannot save the installer to disk:
+%1</source>
+            <translation>설치 파일을 디스크에 저장할 수 없습니다:
+%1</translation>
+        </message>
+        <message>
+            <source>The installer could not be downloaded.
+
+%1</source>
+            <translation>설치 파일을 내려받지 못했습니다.
+
+%1</translation>
+        </message>
+        <message>
+            <source>Could not verify the downloaded installer.</source>
+            <translation>내려받은 설치 파일을 검증하지 못했습니다.</translation>
+        </message>
+        <message>
+            <source>The downloaded installer failed integrity verification. It may be corrupt or tampered with.</source>
+            <translation>내려받은 설치 파일이 무결성 검증에 실패했습니다. 파일이 손상되었거나 변조되었을 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>This update cannot be verified (missing checksum). Aborting.</source>
+            <translation>이 업데이트를 검증할 수 없습니다(체크섬 없음). 중단합니다.</translation>
+        </message>
+        <message>
+            <source>Update Downloaded</source>
+            <translation>업데이트 다운로드 완료</translation>
+        </message>
+        <message>
+            <source>The installer has been downloaded to:
+%1
+
+Please run it manually to complete the update.</source>
+            <translation>설치 파일을 다음 위치에 내려받았습니다:
+%1
+
+업데이트를 마치려면 직접 실행하세요.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::services::WebScrapeService</name>
+        <message>
+            <source>Invalid URL</source>
+            <translation>잘못된 URL</translation>
+        </message>
+        <message>
+            <source>Only http:// and https:// URLs are supported</source>
+            <translation>http:// 및 https:// URL만 지원합니다</translation>
+        </message>
+        <message>
+            <source>URL has no host</source>
+            <translation>URL에 호스트가 없습니다</translation>
+        </message>
+        <message>
+            <source>Put credentials in the request headers, not in the URL</source>
+            <translation>인증 정보는 URL이 아닌 요청 헤더에 넣으세요</translation>
+        </message>
+        <message>
+            <source>Response is larger than the %1 MB limit</source>
+            <translation>응답이 %1MB 한도를 넘습니다</translation>
+        </message>
+        <message>
+            <source>Timed out after %1 s</source>
+            <translation>%1초 후 시간 초과</translation>
+        </message>
+        <message>
+            <source>No data for %1 s — timed out</source>
+            <translation>%1초 동안 데이터 없음 — 시간 초과</translation>
+        </message>
+        <message>
+            <source>HTTP %1 %2</source>
+            <translation>HTTP %1 %2</translation>
+        </message>
+        <message>
+            <source>Empty response</source>
+            <translation>빈 응답</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::services::connectors::ConnectorService</name>
+        <message>
+            <source>The key is empty.</source>
+            <translation>키가 비어 있습니다.</translation>
+        </message>
+        <message>
+            <source>%1 is not a key any catalogue connector uses.</source>
+            <translation>%1은(는) 카탈로그의 어떤 커넥터도 쓰지 않는 키입니다.</translation>
+        </message>
+        <message>
+            <source>Could not save the key: %1</source>
+            <translation>키를 저장하지 못했습니다: %1</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::services::equity::EquityResearchService</name>
+        <message>
+            <source>No symbol to download.</source>
+            <translation>내려받을 종목코드가 없습니다.</translation>
+        </message>
+        <message>
+            <source>The price history request failed.</source>
+            <translation>가격 이력 요청에 실패했습니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::services::equity::SecFilingsService</name>
+        <message>
+            <source>The SEC EDGAR request failed.</source>
+            <translation>SEC EDGAR 요청에 실패했습니다.</translation>
+        </message>
+        <message>
+            <source>The SEC EDGAR script failed (see the application log).</source>
+            <translation>SEC EDGAR 스크립트가 실패했습니다(애플리케이션 로그를 확인하세요).</translation>
+        </message>
+        <message>
+            <source>No symbol selected.</source>
+            <translation>선택한 종목이 없습니다.</translation>
+        </message>
+        <message>
+            <source>%1 is an index — SEC EDGAR filings exist only for registered issuers.</source>
+            <translation>%1은(는) 지수입니다 — SEC EDGAR 공시는 등록 발행사에만 있습니다.</translation>
+        </message>
+        <message>
+            <source>%1 is a currency or futures contract — SEC EDGAR has no filings for it.</source>
+            <translation>%1은(는) 통화 또는 선물 계약입니다 — SEC EDGAR에는 공시가 없습니다.</translation>
+        </message>
+        <message>
+            <source>%1 is a crypto pair — SEC EDGAR covers US-registered issuers only.</source>
+            <translation>%1은(는) 가상자산 거래쌍입니다 — SEC EDGAR는 미국 등록 발행사만 다룹니다.</translation>
+        </message>
+        <message>
+            <source>%1 trades outside the US (exchange suffix .%2). SEC EDGAR covers US-registered issuers only — open the company's US ticker or ADR instead.</source>
+            <translation>%1은(는) 미국 외 거래소에서 거래됩니다(거래소 접미사 .%2). SEC EDGAR는 미국 등록 발행사만 다룹니다 — 대신 해당 기업의 미국 종목코드나 ADR을 여세요.</translation>
+        </message>
+        <message>
+            <source>SEC EDGAR returned an unreadable response.</source>
+            <translation>SEC EDGAR가 읽을 수 없는 응답을 반환했습니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::ui::EnterpriseShowcase</name>
+        <message>
+            <source>DATA</source>
+            <translation>데이터</translation>
+        </message>
+        <message>
+            <source>Proprietary and private datasets</source>
+            <translation>독자 및 비공개 데이터 세트</translation>
+        </message>
+        <message>
+            <source>Deeper point-in-time history and data you won't find in public feeds — research you can defend.</source>
+            <translation>더 깊은 시점 기준(point-in-time) 이력과 공개 피드에서 찾을 수 없는 데이터 — 근거를 댈 수 있는 리서치.</translation>
+        </message>
+        <message>
+            <source>MULTI-AGENT RESEARCH</source>
+            <translation>멀티 에이전트 리서치</translation>
+        </message>
+        <message>
+            <source>Agents that plan, delegate and cite</source>
+            <translation>계획하고, 위임하고, 출처를 밝히는 에이전트</translation>
+        </message>
+        <message>
+            <source>Multi-agent AI research with AI credits included, plus a private dataroom for your own documents.</source>
+            <translation>AI 크레딧이 포함된 멀티 에이전트 AI 리서치와 내 문서를 위한 비공개 데이터룸.</translation>
+        </message>
+        <message>
+            <source>RESEARCH DESKS</source>
+            <translation>리서치 데스크</translation>
+        </message>
+        <message>
+            <source>41 modules across six desks</source>
+            <translation>6개 데스크, 41개 모듈</translation>
+        </message>
+        <message>
+            <source>Research, quant, portfolio, markets and macro workflows, organised the way a firm actually works.</source>
+            <translation>리서치, 퀀트, 포트폴리오, 시장, 매크로 워크플로를 실제 회사의 업무 방식대로 구성했습니다.</translation>
+        </message>
+        <message>
+            <source>CONTROLS</source>
+            <translation>보안 및 통제</translation>
+        </message>
+        <message>
+            <source>SSO, audit logs and an SLA</source>
+            <translation>SSO, 감사 로그, SLA</translation>
+        </message>
+        <message>
+            <source>SSO/SAML, role-based access and full audit trails, backed by SLA priority support.</source>
+            <translation>SSO/SAML, 역할 기반 접근 제어, 전체 감사 기록과 SLA 기반 우선 지원.</translation>
+        </message>
+        <message>
+            <source>BUILT FOR FIRMS</source>
+            <translation>기업용</translation>
+        </message>
+        <message>
+            <source>The private edition, developed daily</source>
+            <translation>매일 개발되는 비공개 에디션</translation>
+        </message>
+        <message>
+            <source>Closed-source and built for funds, family offices and research desks — a separate product with its own accounts.</source>
+            <translation>펀드, 패밀리 오피스, 리서치 데스크를 위한 비공개 소스 제품입니다 — 별도 계정을 쓰는 별개 제품입니다.</translation>
+        </message>
+        <message>
+            <source>Show slide %1: %2</source>
+            <translation>슬라이드 %1 보기: %2</translation>
+        </message>
+        <message>
+            <source>FINCEPT TERMINAL ENTERPRISE · PRIVATE EDITION</source>
+            <translation>Fincept Terminal Enterprise · 비공개 에디션</translation>
+        </message>
+        <message>
+            <source>SEE ENTERPRISE ↗</source>
+            <translation>Enterprise 보기 ↗</translation>
+        </message>
+        <message>
+            <source>BOOK A DEMO</source>
+            <translation>데모 신청</translation>
+        </message>
+        <message>
+            <source>Separate product · separate account. This open-source edition stays free under AGPL-3.0.</source>
+            <translation>별도 제품 · 별도 계정. 이 오픈 소스 에디션은 AGPL-3.0에 따라 계속 무료입니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::ui::KLineChartWidget</name>
+        <message>
+            <source>Buy</source>
+            <translation>매수</translation>
+        </message>
+        <message>
+            <source>Sell</source>
+            <translation>매도</translation>
+        </message>
+        <message>
+            <source>Add to watchlist</source>
+            <translation>관심종목에 추가</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::ui::PythonSetupChip</name>
+        <message>
+            <source>PYTHON ENV %1%</source>
+            <translation>Python 환경 %1%</translation>
+        </message>
+        <message>
+            <source>RUNTIME</source>
+            <translation>런타임</translation>
+        </message>
+        <message>
+            <source>TRADING LIBRARIES</source>
+            <translation>트레이딩 라이브러리</translation>
+        </message>
+        <message>
+            <source>ANALYTICS CORE</source>
+            <translation>분석 기본</translation>
+        </message>
+        <message>
+            <source>ANALYTICS FULL</source>
+            <translation>분석 전체</translation>
+        </message>
+        <message>
+            <source>Python environment setup — %1%</source>
+            <translation>Python 환경 설치 — %1%</translation>
+        </message>
+        <message>
+            <source>waiting</source>
+            <translation>대기 중</translation>
+        </message>
+        <message>
+            <source>running %1</source>
+            <translation>실행 중 %1</translation>
+        </message>
+        <message>
+            <source>done</source>
+            <translation>완료</translation>
+        </message>
+        <message>
+            <source>failed</source>
+            <translation>실패</translation>
+        </message>
+        <message>
+            <source>installed</source>
+            <translation>설치됨</translation>
+        </message>
+        <message>
+            <source>Libraries install in the background. Features that need one that is not installed yet start working when setup finishes.</source>
+            <translation>라이브러리는 백그라운드에서 설치됩니다. 아직 설치되지 않은 라이브러리가 필요한 기능은 설치가 끝나면 작동합니다.</translation>
+        </message>
+        <message>
+            <source>PYTHON ENV FAILED · RETRY</source>
+            <translation>Python 환경 설치 실패 · 다시 시도</translation>
+        </message>
+        <message>
+            <source>Installing the Python environment failed — click to retry. Only the failed parts run again; downloaded packages are cached.
+
+%1</source>
+            <translation>Python 환경 설치에 실패했습니다 — 클릭하면 다시 시도합니다. 실패한 부분만 다시 실행하며, 내려받은 패키지는 캐시에 남아 있습니다.
+
+%1</translation>
+        </message>
+        <message>
+            <source>PYTHON ENV READY</source>
+            <translation>Python 환경 준비됨</translation>
+        </message>
+        <message>
+            <source>All Python environments are installed and ready.</source>
+            <translation>모든 Python 환경이 설치되어 준비되었습니다.</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::ui::UpgradeDialog</name>
+        <message>
+            <source>Fincept Terminal Enterprise</source>
+            <translation>Fincept Terminal Enterprise</translation>
+        </message>
+        <message>
+            <source>PRIVATE EDITION</source>
+            <translation>비공개 에디션</translation>
+        </message>
+        <message>
+            <source>You are running the free, open-source edition. Enterprise is the private, closed-source edition the team develops daily — built for funds, family offices and research desks.</source>
+            <translation>지금 사용 중인 것은 무료 오픈 소스 에디션입니다. Enterprise는 팀이 매일 개발하는 비공개 소스 에디션으로, 펀드, 패밀리 오피스, 리서치 데스크를 위해 만들었습니다.</translation>
+        </message>
+        <message>
+            <source>Proprietary and private datasets with deeper point-in-time history</source>
+            <translation>더 깊은 시점 기준 이력을 갖춘 독자 및 비공개 데이터 세트</translation>
+        </message>
+        <message>
+            <source>Multi-agent AI research with AI credits included, plus a private dataroom</source>
+            <translation>AI 크레딧이 포함된 멀티 에이전트 AI 리서치와 비공개 데이터룸</translation>
+        </message>
+        <message>
+            <source>41 modules across six research desks</source>
+            <translation>6개 리서치 데스크, 41개 모듈</translation>
+        </message>
+        <message>
+            <source>SSO/SAML, audit logs and role-based access control</source>
+            <translation>SSO/SAML, 감사 로그, 역할 기반 접근 제어</translation>
+        </message>
+        <message>
+            <source>SLA-backed priority support</source>
+            <translation>SLA 기반 우선 지원</translation>
+        </message>
+        <message>
+            <source>Plans for individuals and teams are published on fincept.in.</source>
+            <translation>개인 및 팀 요금제는 fincept.in에서 확인할 수 있습니다.</translation>
+        </message>
+        <message>
+            <source>See plans &amp; pricing ↗</source>
+            <translation>요금제 및 가격 보기 ↗</translation>
+        </message>
+        <message>
+            <source>This open-source edition stays free under AGPL-3.0. Enterprise is a separate product with its own account — a Fincept login from this terminal does not sign in to it.</source>
+            <translation>이 오픈 소스 에디션은 AGPL-3.0에 따라 계속 무료입니다. Enterprise는 별도 계정을 쓰는 별개 제품이며, 이 터미널의 Fincept 로그인으로는 Enterprise에 로그인되지 않습니다.</translation>
+        </message>
+        <message>
+            <source>Don't remind me until the next release</source>
+            <translation>다음 릴리스까지 다시 알리지 않기</translation>
+        </message>
+        <message>
+            <source>Not now</source>
+            <translation>나중에</translation>
+        </message>
+        <message>
+            <source>Compare editions</source>
+            <translation>에디션 비교</translation>
+        </message>
+        <message>
+            <source>See Enterprise ↗</source>
+            <translation>Enterprise 보기 ↗</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::ui::algo::FnoLegRuleEditor</name>
+        <message>
+            <source>B/S</source>
+            <translation>매수/매도</translation>
+        </message>
+        <message>
+            <source>Type</source>
+            <translation>유형</translation>
+        </message>
+        <message>
+            <source>Strike</source>
+            <translation>행사가</translation>
+        </message>
+        <message>
+            <source>Value</source>
+            <translation>값</translation>
+        </message>
+        <message>
+            <source>Lots</source>
+            <translation>계약 수</translation>
+        </message>
+        <message>
+            <source>Add Leg</source>
+            <translation>레그 추가</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::ui::algo::SymbolChipInput</name>
+        <message>
+            <source>type a ticker…</source>
+            <translation>종목코드 입력…</translation>
+        </message>
+    </context>
+    <context>
+        <name>fincept::workflow::WorkflowService</name>
+        <message>
+            <source>NO %1 ACCOUNT CONFIGURED — this node will fail</source>
+            <translation>%1 계좌가 설정되지 않음 — 이 노드는 실패합니다</translation>
+        </message>
+        <message>
+            <source>account "%1" (account is in PAPER mode — the broker adapter simulates it)</source>
+            <translation>계좌 "%1" (모의투자 모드 계좌 — 증권사 어댑터가 모의로 실행합니다)</translation>
+        </message>
+        <message>
+            <source>account "%1" (LIVE account)</source>
+            <translation>계좌 "%1" (실전투자 계좌)</translation>
+        </message>
+        <message>
+            <source>live-trading MCP tool: %1</source>
+            <translation>실전 거래 MCP 도구: %1</translation>
+        </message>
+        <message>
+            <source>destructive MCP tool: %1</source>
+            <translation>데이터를 변경하거나 삭제하는 MCP 도구: %1</translation>
+        </message>
+        <message>
+            <source>(in sub-workflow: %1)</source>
+            <translation>(하위 워크플로: %1)</translation>
+        </message>
+        <message>
+            <source>Unknown node type '%1' — this build cannot run it.</source>
+            <translation>알 수 없는 노드 유형 '%1' — 이 빌드에서는 실행할 수 없습니다.</translation>
+        </message>
+        <message>
+            <source>'%1' needs a number.</source>
+            <translation>'%1'에는 숫자가 필요합니다.</translation>
+        </message>
+        <message>
+            <source>'%1' is required.</source>
+            <translation>'%1'은(는) 필수입니다.</translation>
+        </message>
+        <message>
+            <source>Mode is '%1' — it must be paper or live.</source>
+            <translation>Mode가 '%1'입니다 — paper 또는 live여야 합니다.</translation>
+        </message>
+        <message>
+            <source>Quantity must be greater than 0.</source>
+            <translation>수량은 0보다 커야 합니다.</translation>
+        </message>
+        <message>
+            <source>A %1 order needs a price greater than 0.</source>
+            <translation>%1 주문에는 0보다 큰 가격이 필요합니다.</translation>
+        </message>
+        <message>
+            <source>Stop loss and take profit must both be greater than 0.</source>
+            <translation>손절가와 익절가는 모두 0보다 커야 합니다.</translation>
+        </message>
+        <message>
+            <source>For a BUY bracket the stop loss must be below the take profit.</source>
+            <translation>매수 브래킷 주문에서는 손절가가 익절가보다 낮아야 합니다.</translation>
+        </message>
+        <message>
+            <source>For a SELL bracket the stop loss must be above the take profit.</source>
+            <translation>매도 브래킷 주문에서는 손절가가 익절가보다 높아야 합니다.</translation>
+        </message>
+        <message>
+            <source>The entry price must lie between the stop loss and the take profit.</source>
+            <translation>진입가는 손절가와 익절가 사이에 있어야 합니다.</translation>
+        </message>
+        <message>
+            <source>Total quantity must be greater than 0.</source>
+            <translation>총수량은 0보다 커야 합니다.</translation>
+        </message>
+        <message>
+            <source>Tranches must be at least 1.</source>
+            <translation>분할 횟수는 1 이상이어야 합니다.</translation>
+        </message>
+        <message>
+            <source>Trail value must be greater than 0.</source>
+            <translation>트레일링 값은 0보다 커야 합니다.</translation>
+        </message>
+        <message>
+            <source>Part of a cycle: %1. Workflows must be acyclic.</source>
+            <translation>순환 경로의 일부입니다: %1. 워크플로에는 순환이 없어야 합니다.</translation>
         </message>
     </context>
 </TS>
