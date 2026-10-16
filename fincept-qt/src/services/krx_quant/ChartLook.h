@@ -136,6 +136,10 @@ struct ChartLook {
     QList<Drawing> drawings;  ///< the symbol's, drawn over the prices but in a style without a time axis
     bool magnet = false;      ///< the points placed and dragged snap to a bar's open, high, low or close
     BrickSizes brick_sizes;   ///< those set; the others their defaults
+    /// The engine's daily supply data over the days held (krx-quant #226): the supply indicators'.
+    QList<SupplyDay> supply;
+    /// Whether the engine gives it: false once it answered 404 (an engine before krx-quant #226).
+    bool supply_served = true;
 };
 
 /// The bars a minute view's day separators fill (krx-quant #221), by time (chart_time): each

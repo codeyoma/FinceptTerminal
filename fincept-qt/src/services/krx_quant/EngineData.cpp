@@ -330,6 +330,48 @@ Result<QList<SpecialWindow>> parse_special(const QJsonDocument& doc) {
     return Result<QList<SpecialWindow>>::ok(windows);
 }
 
+QString supply_field_key(SupplyField field) {
+    switch (field) {
+        case SupplyField::ShortVolume:
+            return QStringLiteral("short_volume");
+        case SupplyField::IndividualNet:
+            return QStringLiteral("individual_net");
+        case SupplyField::InstitutionNet:
+            return QStringLiteral("institution_net");
+        case SupplyField::ForeignNet:
+            return QStringLiteral("foreign_net");
+        case SupplyField::ForeignHolding:
+            return QStringLiteral("foreign_holding");
+        case SupplyField::ForeignRatio:
+            return QStringLiteral("foreign_ratio");
+        case SupplyField::LendingBalance:
+            return QStringLiteral("lending_balance");
+        case SupplyField::CreditBalance:
+            return QStringLiteral("credit_balance");
+    }
+    return {};
+}
+
+Result<QList<SupplyDay>> parse_supply(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<QList<SupplyDay>>::err(obj.error());
+    QList<SupplyDay> days;
+    for (const auto& v : obj.value().value("days").toArray()) {
+        const QJsonObject d = v.toObject();
+        SupplyDay day;
+        day.date = QDate::fromString(d.value("date").toString(), Qt::ISODate);
+        if (!day.date.isValid())
+            continue;
+        for (std::size_t i = 0; i < kSupplyFields; ++i)
+            day.values[i] = number(d.value(supply_field_key(static_cast<SupplyField>(i))));
+        days.push_back(day);
+    }
+    // Oldest first, as the engine sends them; kept so if it does not.
+    std::stable_sort(days.begin(), days.end(), [](const SupplyDay& a, const SupplyDay& b) { return a.date < b.date; });
+    return Result<QList<SupplyDay>>::ok(days);
+}
+
 Result<QList<SymbolQuote>> parse_symbols(const QJsonDocument& doc) {
     const auto obj = object_of(doc);
     if (obj.is_err())

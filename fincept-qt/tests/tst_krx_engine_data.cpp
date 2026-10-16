@@ -377,6 +377,38 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!holiday.value().session_open.isValid());
     }
 
+    void a_symbols_daily_supply_data_is_read() {
+        // GET /v1/symbols/{symbol}/supply (krx-quant #226): eight fields a day, a null one none, kept
+        // oldest first; a day without a date dropped. Made-up values.
+        const auto read = parse_supply(json(R"json({"symbol": "005930", "from": "2026-10-01", "to": "2026-10-12",
+          "days": [
+            {"date": "2026-10-08", "short_volume": 1200, "individual_net": -3400, "institution_net": 560,
+             "foreign_net": 2840, "foreign_holding": 1988815054, "foreign_ratio": 49.72,
+             "lending_balance": 102529138, "credit_balance": null},
+            {"date": "2026-10-07", "short_volume": 10, "individual_net": 1, "institution_net": 2,
+             "foreign_net": -3, "foreign_holding": null, "foreign_ratio": null, "lending_balance": 4,
+             "credit_balance": 5},
+            {"date": null, "short_volume": 99}
+          ]})json"));
+        QVERIFY(read.is_ok());
+        const auto& days = read.value();
+        QCOMPARE(days.size(), 2);
+        QCOMPARE(days[0].date, QDate(2026, 10, 7));
+        QCOMPARE(days[0].value(SupplyField::ForeignNet), std::optional<double>(-3));
+        QVERIFY(!days[0].value(SupplyField::ForeignHolding)); // Toss's, null without it
+        QCOMPARE(days[1].value(SupplyField::ShortVolume), std::optional<double>(1200));
+        QCOMPARE(days[1].value(SupplyField::IndividualNet), std::optional<double>(-3400));
+        QCOMPARE(days[1].value(SupplyField::InstitutionNet), std::optional<double>(560));
+        QCOMPARE(days[1].value(SupplyField::ForeignHolding), std::optional<double>(1988815054));
+        QCOMPARE(days[1].value(SupplyField::ForeignRatio), std::optional<double>(49.72));
+        QCOMPARE(days[1].value(SupplyField::LendingBalance), std::optional<double>(102529138));
+        QVERIFY(!days[1].value(SupplyField::CreditBalance)); // the settlement day's comes a day later
+        QCOMPARE(supply_field_key(SupplyField::CreditBalance), QStringLiteral("credit_balance"));
+        // None, and the engine's error.
+        QVERIFY(parse_supply(json(R"({"symbol": "005930", "days": []})")).value().isEmpty());
+        QVERIFY(parse_supply(json(R"({"error": "from and to span at most 4000 days, got 4001"})")).is_err());
+    }
+
     void status_has_the_usd_futures_now() {
         const auto status = parse_status(json(kStatus));
         QVERIFY(status.is_ok());

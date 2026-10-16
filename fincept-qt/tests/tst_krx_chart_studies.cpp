@@ -92,6 +92,27 @@ bool same(const Values& got, const QList<V>& want) {
 
 const V n = std::nullopt;
 
+/// A made-up day of daily supply data (krx-quant #226): each field ``base`` + its index × 1000 (the
+/// ratio ``base`` / 1000 %), the net buys negative on odd fields' days when ``down``.
+SupplyDay supply_day(const char* date, double base, bool down = false) {
+    SupplyDay day;
+    day.date = QDate::fromString(QString::fromLatin1(date), Qt::ISODate);
+    for (std::size_t i = 0; i < kSupplyFields; ++i)
+        day.values[i] = base + double(i) * 1000;
+    day.values[std::size_t(SupplyField::ForeignRatio)] = base / 1000;
+    if (down)
+        day.values[std::size_t(SupplyField::ForeignNet)] = -base;
+    return day;
+}
+
+/// One bar at each of these moments (KST, ISO 8601), its close its index.
+QList<ChartBar> bars_at(const QList<const char*>& starts) {
+    QList<ChartBar> out;
+    for (const char* start : starts)
+        out << bar(at(start), 1, 1, 1, double(out.size()));
+    return out;
+}
+
 const LegendRow& row_of(const StudyDrawing& d, Study study) {
     for (const auto& row : d.legend)
         if (row.study == study)
@@ -1024,6 +1045,157 @@ class TstKrxChartStudies : public QObject {
                 QVERIFY2(!series(id).points.isEmpty(), qPrintable(id));
             }
         }
+    }
+
+    void the_supply_studies_are_the_engine_s_lower_ones() {
+        // The daily supply data's eight (krx-quant #226), in their own section, after the 25 below.
+        QCOMPARE(kSupplyStudies.size(), std::size_t(8));
+        QCOMPARE(kStudies.size(), std::size_t(45));
+        QCOMPARE(kStudies.back(), Study::CreditBalance);
+        const QList<std::pair<Study, SupplyField>> fields{
+            {Study::ShortVolume, SupplyField::ShortVolume},       {Study::IndividualNet, SupplyField::IndividualNet},
+            {Study::InstitutionNet, SupplyField::InstitutionNet}, {Study::ForeignNet, SupplyField::ForeignNet},
+            {Study::ForeignHolding, SupplyField::ForeignHolding}, {Study::ForeignRatio, SupplyField::ForeignRatio},
+            {Study::LendingBalance, SupplyField::LendingBalance}, {Study::CreditBalance, SupplyField::CreditBalance}};
+        for (const auto& [study, field] : fields) {
+            const StudySpec& spec = study_spec(study);
+            QVERIFY(!spec.upper);
+            QCOMPARE(spec.supply, std::optional(field));
+            QCOMPARE(study_key(study), supply_field_key(field)); // as the engine names it
+            QVERIFY(spec.inputs.isEmpty() && !spec.source);      // nothing to set but colours
+            QCOMPARE(warmup(default_settings(study)), 0);
+            QCOMPARE(settings_text(default_settings(study)), QString());
+            QVERIFY(!spec.about.isEmpty() && spec.help.contains(QStringLiteral("계단")));
+        }
+        for (const Study study : kLowerStudies)
+            QVERIFY(!study_spec(study).supply);
+        QCOMPARE(study_title(Study::ShortVolume), QStringLiteral("공매도 거래량"));
+        QCOMPARE(study_title(Study::ForeignHolding), QStringLiteral("외국인 보유수량"));
+        QCOMPARE(study_title(Study::ForeignRatio), QStringLiteral("외국인 지분율"));
+        QCOMPARE(study_title(Study::LendingBalance), QStringLiteral("대차잔고"));
+        QCOMPARE(study_title(Study::CreditBalance), QStringLiteral("신용잔고"));
+        // Flows are bars from 0 (the net buys by their sign, with a 0 line); balances step.
+        for (const Study study : {Study::ShortVolume, Study::IndividualNet, Study::InstitutionNet, Study::ForeignNet})
+            QVERIFY(study_spec(study).bars);
+        for (const Study study :
+             {Study::ForeignHolding, Study::ForeignRatio, Study::LendingBalance, Study::CreditBalance})
+            QVERIFY(!study_spec(study).bars);
+        QCOMPARE(study_spec(Study::ForeignNet).guides, (QList<double>{0}));
+        QCOMPARE(default_settings(Study::ForeignNet).lines.size(), 2); // 순매수, 순매도
+        QCOMPARE(study_spec(Study::ForeignRatio).decimals, 2);
+        QVERIFY(!study_spec(Study::ForeignRatio).volume_scale && study_spec(Study::CreditBalance).volume_scale);
+        // Kept and read again like the others; none on at first.
+        StudySet set = default_studies();
+        QVERIFY(!set.on(Study::ShortVolume));
+        set.turn(Study::ForeignNet, true);
+        set.of(Study::ForeignNet).lines[1].color = QStringLiteral("#123456");
+        QCOMPARE(parse_studies(studies_value(set)), set);
+        QCOMPARE(history_bars(set, 1), kFitBars + 119); // the moving averages' alone: no bars for them
+    }
+
+    void the_supply_studies_draw_from_an_engine_that_gives_them_on_bars() {
+        // Every view on bars; not on bricks (a day's value), nor from an engine that answered 404.
+        for (const int view : {1, 5, 240, kDayView, kWeekView, kMonthView, kYearView})
+            QVERIFY(study_drawn(Study::ForeignHolding, view));
+        QVERIFY(!study_drawn(Study::ForeignHolding, 1, true));
+        QVERIFY(!study_drawn(Study::ShortVolume, kDayView, false, false));
+        QVERIFY(study_drawn(Study::Rsi, 1, false, false)); // the others do not need the engine
+        QCOMPARE(study_unavailable(Study::ShortVolume, 1, true), QStringLiteral("시간축 없는 차트에서는 쓰지 않는다"));
+        QCOMPARE(study_unavailable(Study::ShortVolume, 1, false, false),
+                 QStringLiteral("이 엔진은 일별 수급을 주지 않는다"));
+        QVERIFY(study_unavailable(Study::ShortVolume, kYearView).isEmpty());
+    }
+
+    void a_day_s_supply_value_steps_over_its_bars() {
+        const QList<SupplyDay> days{supply_day("2026-10-07", 100), supply_day("2026-10-08", 200),
+                                    supply_day("2026-10-12", 300)};
+        // Minute bars (any minutes): each takes its KST date's value; a date without one, none.
+        const QList<ChartBar> minutes =
+            bars_at({"2026-10-07T19:59:00+09:00", "2026-10-08T08:00:00+09:00", "2026-10-08T15:30:00+09:00",
+                     "2026-10-08T19:00:00+09:00", "2026-10-13T08:00:00+09:00", "2026-10-13T09:01:00+09:00"});
+        QVERIFY(same(supply_values(minutes, days, SupplyField::ShortVolume, 1), {100, 200, 200, 200, n, n}));
+        QVERIFY(same(supply_values(minutes, days, SupplyField::ForeignRatio, 240), {0.1, 0.2, 0.2, 0.2, n, n}));
+        QVERIFY(same(supply_values(minutes, days, SupplyField::CreditBalance, 1), {7100, 7200, 7200, 7200, n, n}));
+        // Day candles: each its own day's; today's (not over) none.
+        const QList<ChartBar> candles = bars_at({"2026-10-07T00:00:00+09:00", "2026-10-08T00:00:00+09:00",
+                                                 "2026-10-12T00:00:00+09:00", "2026-10-13T00:00:00+09:00"});
+        QVERIFY(same(supply_values(candles, days, SupplyField::IndividualNet, kDayView), {1100, 1200, 1300, n}));
+        // A week, month or year: its last day with a value (the 8th for the week of the 5th, the 12th
+        // for the week going on); a period without any, none.
+        const QList<ChartBar> weeks =
+            bars_at({"2026-09-28T00:00:00+09:00", "2026-10-05T00:00:00+09:00", "2026-10-12T00:00:00+09:00"});
+        QVERIFY(same(supply_values(weeks, days, SupplyField::LendingBalance, kWeekView), {n, 6200, 6300}));
+        const QList<ChartBar> months = bars_at({"2026-09-01T00:00:00+09:00", "2026-10-01T00:00:00+09:00"});
+        QVERIFY(same(supply_values(months, days, SupplyField::ForeignHolding, kMonthView), {n, 4300}));
+        const QList<ChartBar> years = bars_at({"2025-01-01T00:00:00+09:00", "2026-01-01T00:00:00+09:00"});
+        QVERIFY(same(supply_values(years, days, SupplyField::ForeignHolding, kYearView), {n, 4300}));
+        // A field the engine lacks on a day: that day none, in a period the day before it that has one.
+        QList<SupplyDay> gap = days;
+        gap[2].values[std::size_t(SupplyField::ForeignHolding)] = std::nullopt;
+        QVERIFY(same(supply_values(candles, gap, SupplyField::ForeignHolding, kDayView), {4100, 4200, n, n}));
+        QVERIFY(same(supply_values(weeks, gap, SupplyField::ForeignHolding, kWeekView), {n, 4200, n}));
+        QVERIFY(same(supply_values(minutes, {}, SupplyField::ShortVolume, 1), {n, n, n, n, n, n}));
+    }
+
+    void the_page_draws_the_supply_studies_in_their_panes() {
+        const QList<SupplyDay> days{supply_day("2026-10-07", 100, true), supply_day("2026-10-08", 200)};
+        const QList<ChartBar> minutes = bars_at({"2026-10-07T15:00:00+09:00", "2026-10-07T15:01:00+09:00",
+                                                 "2026-10-08T09:00:00+09:00", "2026-10-12T09:00:00+09:00"});
+        StudySet set = default_studies();
+        for (const Study study : {Study::ForeignNet, Study::ShortVolume, Study::ForeignHolding, Study::ForeignRatio})
+            set.turn(study, true);
+        StudyDrawing d = draw_studies(minutes, set, 1, std::nullopt, false, false, {}, false, days);
+        const auto series = [&d](const QString& id) {
+            for (const auto& s : d.series)
+                if (s.id == id)
+                    return s;
+            return DrawnSeries{};
+        };
+        // The volume's pane first (on by default), then theirs in the order turned on.
+        QCOMPARE(d.panes.size(), 5);
+        QCOMPARE(d.panes[1].study, Study::ForeignNet);
+        QCOMPARE(d.panes[1].guides, (QList<double>{0}));
+        // The net buy: bars from 0, the 순매수 colour up and the 순매도 colour down, a day's value on each
+        // of its bars; today's bar (no value yet) ends it.
+        const DrawnSeries net = series("foreign_net");
+        QCOMPARE(net.pane, 2);
+        QVERIFY(net.histogram && !net.steps);
+        QCOMPARE(net.color, QStringLiteral("#22C55E"));
+        QCOMPARE(net.down_color, QStringLiteral("#EF4444"));
+        QCOMPARE(net.points.size(), 3);
+        QCOMPARE(net.points[0].second, V(-100));
+        QCOMPARE(net.points[1].second, V(-100));
+        QCOMPARE(net.points[2].second, V(3200));
+        QVERIFY(net.volume_scale);
+        // The short-sale volume: bars of one colour.
+        const DrawnSeries short_volume = series("short_volume");
+        QVERIFY(short_volume.histogram);
+        QCOMPARE(short_volume.down_color, short_volume.color);
+        // The holdings and the ratio: stepping lines; the ratio to two decimals.
+        QVERIFY(series("foreign_holding").steps && !series("foreign_holding").histogram);
+        QCOMPARE(series("foreign_ratio").decimals, 2);
+        QCOMPARE(series("foreign_ratio").points.last().second, V(0.2));
+        // The legend: the name, no settings, the value, and why none where a bar has none.
+        const LegendRow& row = row_of(d, Study::ForeignNet);
+        QCOMPARE(row.title, QStringLiteral("외국인 순매수량"));
+        QCOMPARE(row.settings, QString());
+        QCOMPARE(row.values, QStringList{QStringLiteral("foreign_net")});
+        QCOMPARE(row.missing, QStringLiteral("그날 값 없음"));
+        QVERIFY(row.latest);                              // without a crosshair, its latest value
+        QVERIFY(!row_of(d, Study::MovingAverage).latest); // the others, the last bar's
+        // From an engine without them, on bricks: neither drawn nor in the legend; kept on.
+        for (const StudyDrawing& none :
+             {draw_studies(minutes, set, 1, std::nullopt, false, false, {}, false, days, false),
+              draw_studies(minutes, set, 1, std::nullopt, false, false, {}, true, days)}) {
+            QCOMPARE(none.panes.size(), 1);                                        // the volume's alone
+            QCOMPARE(row_of(none, Study::ForeignNet).study, Study::MovingAverage); // none: the empty row
+        }
+        QVERIFY(set.on(Study::ForeignNet));
+        // Hidden: its pane stays, empty.
+        set.of(Study::ShortVolume).hidden = true;
+        d = draw_studies(minutes, set, kDayView, std::nullopt, false, false, {}, false, days);
+        QVERIFY(d.panes[2].hidden);
+        QCOMPARE(series("short_volume").id, QString());
     }
 
     void colours_as_css() {

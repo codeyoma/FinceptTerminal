@@ -19,6 +19,8 @@ constexpr int kMacroEvery = 60;  ///< 5 min
 constexpr int kLeaderboardDelayMs = 3000;
 /// The most days of special situations the engine gives in one answer (krx-quant #236: more is 400).
 constexpr int kSpecialDays = 60;
+/// The most days of daily supply data the engine gives in one answer (krx-quant #226: more is 400).
+constexpr int kSupplyDays = 4000;
 /// A bar window is read again this long after the stream touched it (krx-quant #255): a bar close
 /// brings a prediction of each predictor within seconds.
 constexpr int kBarDelayMs = 1000;
@@ -60,6 +62,7 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
                 read_kind_history(); // the kind's over the bars now shown too (krx-quant #182)
                 read_history();      // more for the indicators (krx-quant #222)
                 read_special(false); // the special situations of the days now held (krx-quant #236)
+                read_supply(false);  // and their daily supply data (krx-quant #226)
             });
     connect(service_, &KrxQuantService::predictions_ready, this,
             [this](const QString& symbol, const QDateTime& before, const QList<krx_quant::Prediction>& predictions,
@@ -135,6 +138,25 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
                 // The bands are left as they were; asked again within a minute. Another symbol's at once.
                 if (symbol != selected_)
                     read_special(false);
+            });
+    connect(service_, &KrxQuantService::supply_ready, this,
+            [this](const QString& symbol, const QDate& from, const QDate& to, const QList<krx_quant::SupplyDay>& days,
+                   bool served) {
+                if (symbol == selected_) {
+                    supply_read_ = std::pair(from, to);
+                    if (days != supply_ || served != supply_served_) {
+                        supply_ = days;
+                        supply_served_ = served;
+                        emit supply_changed();
+                    }
+                }
+                read_supply(false); // another symbol's, or more days held meanwhile
+            });
+    connect(service_, &KrxQuantService::supply_failed, this,
+            [this](const QString& symbol, const QDate&, const QDate&, const QString&) {
+                // The values are left as they were; asked again within 5 minutes. Another symbol's at once.
+                if (symbol != selected_)
+                    read_supply(false);
             });
     connect(service_, &KrxQuantService::algorithms_ready, this,
             [this](const QMap<QString, krx_quant::AlgorithmInfo>& algorithms) {
@@ -348,6 +370,9 @@ void KrxLive::apply_base_url(const QString& url) {
     forget_older(); // the old engine's
     special_.clear();
     special_read_.reset();
+    supply_.clear(); // and its daily supply data (krx-quant #226): the new one may give it
+    supply_read_.reset();
+    supply_served_ = true;
     status_.reset();
     macro_.reset(); // the new engine's is read below
     macro_failure_.clear();
@@ -385,6 +410,8 @@ void KrxLive::select(const QString& symbol) {
     forget_older();
     special_.clear(); // its own are read with its bars (krx-quant #236)
     special_read_.reset();
+    supply_.clear(); // likewise its daily supply data (krx-quant #226)
+    supply_read_.reset();
     emit selected_changed();
     emit chart_changed();
     emit predictions_changed();
@@ -603,6 +630,7 @@ void KrxLive::set_view(int minutes) {
     }
     // Nothing today yet (before the open, a holiday): the last day's bars, also in a minute view
     // chosen after the chart was read in a candle view. Before the day is read, its answer does it.
+    read_supply(false); // the days of this view's bars held (krx-quant #226)
     if (!candles && day_read_ && bars_.isEmpty() && older_.isEmpty()) {
         view_from_ = 0;
         return read_older();
@@ -690,6 +718,37 @@ void KrxLive::read_special(bool always) {
     if (!days || (!always && days == special_read_))
         return;
     service_->read_special(selected_, days->first, days->second);
+}
+
+std::optional<std::pair<QDate, QDate>> KrxLive::supply_days() const {
+    if (selected_.isEmpty())
+        return std::nullopt;
+    QDateTime first;
+    QDateTime last;
+    if (krx_quant::candle_view(view_minutes_)) {
+        const QList<krx_quant::Bar> candles = view_candles(view_minutes_);
+        if (!candles.isEmpty()) {
+            first = candles.first().start;
+            last = candles.last().start;
+        }
+    } else if (!older_.isEmpty() || !bars_.isEmpty()) {
+        first = !older_.isEmpty() ? older_.first().start : bars_.first().start;
+        last = !bars_.isEmpty() ? bars_.last().start : older_.last().start;
+    }
+    if (!first.isValid())
+        return std::nullopt;
+    const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+    const QDate from = first.toTimeZone(kst).date();
+    const QDate to = std::max(last.toTimeZone(kst).date(), engine_day());
+    // The engine answers at most kSupplyDays at a time: bars held further back have no values.
+    return std::pair(std::max(from, to.addDays(1 - kSupplyDays)), to);
+}
+
+void KrxLive::read_supply(bool always) {
+    const auto days = supply_days();
+    if (!days || (!always && days == supply_read_))
+        return;
+    service_->read_supply(selected_, days->first, days->second);
 }
 
 void KrxLive::read_latest(int view) {
@@ -789,8 +848,11 @@ void KrxLive::tick() {
     // The special situations over the days held (krx-quant #236): a halt or a VI shows within a minute.
     if (ticks_ % kChartEvery == 0)
         read_special();
-    if (ticks_ % kMacroEvery == 0)
+    // The daily supply data (krx-quant #226) changes twice a day (the engine's 20:30 and morning reads).
+    if (ticks_ % kMacroEvery == 0) {
         service_->read_macro();
+        read_supply();
+    }
 }
 
 void KrxLive::read_everything() {
@@ -887,6 +949,8 @@ void KrxLive::on_failure(const QString& reason) {
     forget_older();
     special_.clear(); // not shown as the engine's while it cannot be read (krx-quant #236)
     special_read_.reset();
+    supply_.clear(); // likewise its daily supply data (krx-quant #226)
+    supply_read_.reset();
     emit predictions_changed();
     emit kind_predictions_changed();
     emit chart_changed();
@@ -919,8 +983,8 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
     read_kind_history(); // the kind's over the bars now shown (krx-quant #182)
     // The view's candles, unless read (a symbol or an engine changed); in a minute view the bars
     // before that the indicators want (krx-quant #222), or with nothing today yet the last day's.
-    set_view(view_minutes_);
-    read_special(false); // the special situations of the days held, unless read (krx-quant #236)
+    set_view(view_minutes_); // also the daily supply data of the days held, unless read (krx-quant #226)
+    read_special(false);     // the special situations of the days held, unless read (krx-quant #236)
 }
 
 void KrxLive::on_event(const krx_quant::Event& event) {

@@ -10,8 +10,12 @@
 // A bar window (krx-quant #255) reads its bar close at once, then again each tick without the stream
 // until nothing more is to come: an earlier day's once, today's while not scored, none once closed.
 //
+// The daily supply data (krx-quant #226) is read over the days of the bars held; an engine without it
+// (404) is known as such, so the panel greys its indicators.
+//
 // The stand-in answers the routes these reads need (status, symbols, a symbol's bars, candles
-// and predictions); every other route is 404, which the screen shows as not read. Built
+// and predictions, and the daily supply data when a test gives it); every other route is 404, which
+// the screen shows as not read. Built
 // without Qt WebSockets, the stream never connects and the screen reads the API instead. The
 // settings (the engine's address) go to a temporary INI file: AppConfig is defined below, in
 // place of core/config/AppConfig.cpp, which keeps them in the app's own settings.
@@ -88,6 +92,8 @@ class StandIn : public QObject {
     QString now;         ///< the engine's clock
     QJsonArray today;    ///< GET …/bars: the bars of the engine's day
     QJsonArray last_day; ///< GET …/bars?limit=N: the latest bars before now (none before them)
+    /// GET …/supply?from=&to= (krx-quant #226): these days; none: 404, as an engine before it.
+    std::optional<QJsonArray> supply;
     QStringList asked;
 
     StandIn() {
@@ -139,6 +145,8 @@ class StandIn : public QObject {
             return {{"symbol", kSymbol}, {"bars", path.contains("before=") ? QJsonArray{} : last_day}};
         if (path.startsWith("/v1/symbols/" + kSymbol + "/predictions"))
             return {{"symbol", kSymbol}, {"predictions", QJsonArray{}}};
+        if (supply && path.startsWith("/v1/symbols/" + kSymbol + "/supply?"))
+            return {{"symbol", kSymbol}, {"days", *supply}};
         if (path.startsWith("/v1/symbols/" + kSymbol + "/candles")) {
             const QJsonArray candles{QJsonObject{{"date", "2026-10-15"}, {"open", 210000}, {"high", 211000},
                                                  {"low", 206000}, {"close", 207500}, {"volume", 15000000}}};
@@ -197,6 +205,34 @@ class TstKrxLive : public QObject {
         QTRY_COMPARE_WITH_TIMEOUT(live.bars().size(), qsizetype(60), 10000);
         QTest::qWait(300); // any other read under way answered
         QCOMPARE(engine.older_reads(), 1);
+    }
+
+    void the_daily_supply_data_of_the_days_held_is_read_and_an_engine_without_it_is_known() {
+        // An engine before krx-quant #226 answers 404: none, and the supply indicators are greyed.
+        StandIn old;
+        old.now = "2026-10-16T09:20:00+09:00";
+        old.today = bars_json("2026-10-16T09:00:00+09:00", 20);
+        services::KrxLive live;
+        live.set_view(1);
+        live.apply_base_url(old.url());
+        QTRY_VERIFY_WITH_TIMEOUT(!live.supply_served(), 10000);
+        QVERIFY(old.asked_for("/v1/symbols/" + kSymbol + "/supply?from=2026-10-16&to="));
+        QVERIFY(live.supply().isEmpty());
+        // An engine that gives it: the days of the bars held (made-up values), not greyed.
+        StandIn engine;
+        engine.now = old.now;
+        engine.today = old.today;
+        engine.supply = QJsonArray{QJsonObject{{"date", "2026-10-16"}, {"short_volume", 1200}, {"foreign_net", -3}}};
+        services::KrxLive fresh;
+        fresh.set_view(1);
+        fresh.apply_base_url(engine.url());
+        QTRY_COMPARE_WITH_TIMEOUT(fresh.supply().size(), qsizetype(1), 10000);
+        QVERIFY(fresh.supply_served());
+        QCOMPARE(fresh.supply().first().value(SupplyField::ForeignNet), std::optional<double>(-3));
+        QVERIFY(!fresh.supply().first().value(SupplyField::CreditBalance));
+        // Another address: not known to be without it until that one answers.
+        live.apply_base_url(engine.url());
+        QVERIFY(live.supply_served());
     }
 
     void a_symbol_chosen_in_a_minute_view_while_the_day_has_bars_reads_none_before_them() {
