@@ -495,6 +495,9 @@ QJsonObject KrxChart::data_json(const QList<krx_quant::ChartBar>& real, const QJ
                      {"bands", bands}};
     if (base_)
         data.insert("base", *base_);
+    // Nothing before the first bar to read (krx-quant #253): the engine has none, or bricks start at a
+    // fixed bar. A zoom out then slides the view off the left end rather than waiting for bars before.
+    data.insert("start", look_.first_day_whole || timeless_);
     // The last bar's own close, for the price line of a Heikin-Ashi chart and of bricks (krx-quant #225).
     if (!real.isEmpty())
         data.insert("last", QJsonObject{{"close", real.last().close}, {"rising", real.last().rising}});
