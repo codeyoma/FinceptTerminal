@@ -132,7 +132,7 @@ void KrxBarChart::paintEvent(QPaintEvent*) {
     }
     const double x1 = x_of(chart_.window_from), x2 = x_of(chart_.window_to);
     QColor shade = amber;
-    shade.setAlphaF(0.08);
+    shade.setAlphaF(0.08f);
     p.fillRect(QRectF(x1, r.top(), x2 - x1, r.height()), shade);
     if (chart_.open) {
         QPen edge(amber, 1);
