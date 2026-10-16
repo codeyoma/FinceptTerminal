@@ -4066,6 +4066,11 @@ if(FINCEPT_BUILD_INSTALLER)
         # user's machine, producing "could not load the Qt platform plugin".
         install(FILES "$<TARGET_FILE_DIR:FinceptTerminal>/qt.conf"
                 DESTINATION "." COMPONENT core OPTIONAL)
+        # fork addition (codeyoma/krx-quant#234): the update helper as a file too, so it is in
+        # the update ZIP. The helper of the build being replaced hands the swap over to this
+        # build's own (custom/README.md "앱 업데이트").
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/services/krx_quant/update/update-windows.ps1"
+                DESTINATION "krx-update" COMPONENT core)
         # Qt plugin directories. OPTIONAL keeps the install non-fatal when
         # a plugin dir isn't produced by windeployqt on a given host (e.g.
         # texttospeech only appears when Qt TTS is present).

@@ -1,4 +1,4 @@
-# The personal build's self-update on Windows (codeyoma/krx-quant#92, #130, custom/README.md
+﻿# The personal build's self-update on Windows (codeyoma/krx-quant#92, #130, custom/README.md
 # "앱 업데이트").
 #
 # The app downloads the new build, checks its sha256, starts this script and keeps running. The
@@ -21,7 +21,17 @@
 #   powershell ... -Mode Move -Setup <setup.exe> -OldRoot <install folder> -Root <user folder> ...
 #
 # -NoLaunch (CI): never start the app; the exit code tells. The downloaded file is removed when
-# done. A log goes to %TEMP%\fincept-update.log.
+# done. A log goes to %TEMP%\fincept-update.log. When the update does not go in, a message box
+# tells the user why (not with -NoLaunch).
+#
+# The new build's own helper does the swap: this script hands the run over to the copy in the
+# ZIP (krx-update\update-windows.ps1) with -Handoff and the parameters above, so a fix here
+# reaches an install on its next update. Builds up to krx.42 kept failing with a helper the build
+# they downloaded had already fixed (codeyoma/krx-quant#234). Keep accepting these parameters:
+# older helpers hand over with them.
+#
+# The file keeps its UTF-8 BOM: Windows PowerShell 5.1 reads a script without one in the ANSI
+# code page, and the message box is Korean.
 
 param(
     [ValidateSet('Swap', 'Move')][string]$Mode = 'Swap',
@@ -31,7 +41,8 @@ param(
     [string]$OldRoot,
     [Parameter(Mandatory = $true)][string]$Root,
     [string]$Relaunch,
-    [switch]$NoLaunch
+    [switch]$NoLaunch,
+    [switch]$Handoff
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,6 +62,64 @@ function Format-Dir([string]$path) {
 $Root = Format-Dir $Root
 $staging = "$Root.staging"
 $old = "$Root.old"
+# The app's data folder (AppPaths): its Python interpreters live there.
+$appData = if ($env:LOCALAPPDATA) { (Format-Dir (Join-Path $env:LOCALAPPDATA 'com.fincept.terminal')) + '\' } else { '' }
+
+# The folder a process stands in (its working directory), read from its PEB: Windows does not
+# move a folder a process stands in, and nothing else shows it (codeyoma/krx-quant#234). Empty
+# when the reader cannot be built here or the process cannot be read (64-bit processes only).
+$cwdReader = $true
+try {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+namespace FinceptUpdate {
+public static class WorkingDirectory {
+    [StructLayout(LayoutKind.Sequential)]
+    struct BasicInformation {
+        public IntPtr ExitStatus, PebBaseAddress, AffinityMask, BasePriority, UniqueProcessId, ParentId;
+    }
+    [DllImport("ntdll.dll")]
+    static extern int NtQueryInformationProcess(IntPtr process, int infoClass, ref BasicInformation info, int size, out int returned);
+    [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(int access, bool inherit, int id);
+    [DllImport("kernel32.dll")] static extern bool IsWow64Process(IntPtr process, out bool wow64);
+    [DllImport("kernel32.dll")]
+    static extern bool ReadProcessMemory(IntPtr process, IntPtr address, byte[] buffer, IntPtr size, out IntPtr read);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+
+    static byte[] Read(IntPtr process, IntPtr address, int size) {
+        byte[] buffer = new byte[size];
+        IntPtr read;
+        return ReadProcessMemory(process, address, buffer, (IntPtr)size, out read) && (long)read == size ? buffer : null;
+    }
+
+    // PEB.ProcessParameters at 0x20, then RTL_USER_PROCESS_PARAMETERS.CurrentDirectory at 0x38.
+    public static string Of(int id) {
+        if (IntPtr.Size != 8) return "";
+        IntPtr process = OpenProcess(0x0410, false, id); // PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
+        if (process == IntPtr.Zero) return "";
+        try {
+            bool wow64;
+            if (IsWow64Process(process, out wow64) && wow64) return "";
+            BasicInformation info = new BasicInformation();
+            int returned;
+            if (NtQueryInformationProcess(process, 0, ref info, Marshal.SizeOf(info), out returned) != 0) return "";
+            byte[] parameters = Read(process, info.PebBaseAddress + 0x20, 8);
+            if (parameters == null) return "";
+            byte[] path = Read(process, (IntPtr)BitConverter.ToInt64(parameters, 0) + 0x38, 16);
+            if (path == null) return "";
+            byte[] text = Read(process, (IntPtr)BitConverter.ToInt64(path, 8), BitConverter.ToUInt16(path, 0));
+            return text == null ? "" : System.Text.Encoding.Unicode.GetString(text);
+        } finally {
+            CloseHandle(process);
+        }
+    }
+}
+}
+'@
+} catch {
+    $cwdReader = $false
+}
 
 function Write-Log([string]$message) {
     Add-Content -Path $log -Value "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $message"
@@ -69,15 +138,36 @@ function Wait-App {
     }
 }
 
-# Processes started from <dir> (QtWebEngineProcess, another app window) keep its files open.
+function Test-Under([string]$path, [string]$prefix) {
+    return [bool]($path -and $prefix -and $path.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase))
+}
+
+function Get-StandingIn([int]$id) {
+    if (-not $cwdReader) { return '' }
+    return [FinceptUpdate.WorkingDirectory]::Of($id)
+}
+
+# The app's processes that keep <dir> in use: those started from it (QtWebEngineProcess, another
+# app window), and its Python, which stands in <dir>\scripts but is started from the data folder.
 function Get-ProcessesIn([string]$dir) {
     $prefix = (Format-Dir $dir) + '\'
     @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
-        $_.ExecutablePath -and $_.ExecutablePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)
+        $_.ProcessId -ne $PID -and ((Test-Under $_.ExecutablePath $prefix) -or
+            ((Test-Under $_.ExecutablePath $appData) -and (Test-Under (Get-StandingIn $_.ProcessId) $prefix)))
     })
 }
 
-# Waits up to two minutes for everything started from <dir> to exit. The app itself running again
+# Every process started from <dir> or standing in it, the app's or not, as "name (pid)": what
+# the message names when <dir> cannot move.
+function Get-Holders([string]$dir) {
+    $prefix = (Format-Dir $dir) + '\'
+    $found = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.ProcessId -ne $PID -and ((Test-Under $_.ExecutablePath $prefix) -or (Test-Under (Get-StandingIn $_.ProcessId) $prefix))
+    } | ForEach-Object { "$($_.Name) ($($_.ProcessId))" })
+    return $found -join ', '
+}
+
+# Waits up to two minutes for the app's processes in <dir> to exit. The app itself running again
 # (the user reopened it) stops the update; any other leftover is stopped.
 function Wait-FolderFree([string]$dir) {
     for ($i = 0; $i -lt 240; $i++) {
@@ -87,22 +177,36 @@ function Wait-FolderFree([string]$dir) {
     $left = Get-ProcessesIn $dir
     if ($left | Where-Object { $_.Name -ieq 'FinceptTerminal.exe' }) { throw "the app is running again from $dir" }
     foreach ($p in $left) {
-        Write-Log "stopping $($p.Name) ($($p.ProcessId)), still running from $dir"
+        Write-Log "stopping $($p.Name) ($($p.ProcessId)), still in $dir"
         Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
     }
     Start-Sleep -Seconds 1
 }
 
-# Move-Item, retried: a virus scanner or the search indexer can hold a file for a moment.
+# A folder renamed in one step, retried: a virus scanner or the search indexer can hold a file
+# for a moment. Not Move-Item: when a process stands in a subfolder, it moves what it can file by
+# file, then on a retry moves the folder into the half-made <to>, and the install is left split
+# with its exe gone (the old helper did this).
 function Move-WithRetry([string]$from, [string]$to) {
     for ($i = 0; ; $i++) {
         try {
-            Move-Item -LiteralPath $from -Destination $to
+            [IO.Directory]::Move($from, $to)
             return
         } catch {
-            if ($i -ge 20) { throw }
+            if ($i -ge 20) { throw $_.Exception.GetBaseException() }
             Start-Sleep -Milliseconds 500
         }
+    }
+}
+
+# Moves the install folder aside; when Windows says it is in use, the message names what holds it.
+function Move-Install([string]$from, [string]$to) {
+    try {
+        Move-WithRetry $from $to
+    } catch {
+        $holders = Get-Holders $from
+        if (-not $holders) { throw }
+        throw "$($_.Exception.Message) In it: $holders."
     }
 }
 
@@ -125,6 +229,22 @@ function Start-App([string]$exe) {
         Write-Log "opening $exe"
         # In its own folder, as the Start menu shortcut opens it.
         Start-Process -FilePath $exe -WorkingDirectory (Split-Path -Parent $exe)
+    }
+}
+
+# Tells the user the new build did not go in, and why. Without this the old build just opened
+# again, as if the update had worked (codeyoma/krx-quant#234).
+function Show-Failure([string]$reason) {
+    if ($NoLaunch) { return }
+    $build = if ("$Zip$Setup" -match 'custom-v[0-9.]+-krx\.[0-9]+') { $Matches[0] } else { '새 개인 빌드' }
+    $text = "$build 업데이트를 넣지 못했습니다. 지금 설치된 빌드를 그대로 씁니다.`n`n" +
+            "이유: $reason`n`n" +
+            "앱은 다음에 켤 때 새 빌드를 다시 받아 두고, 끌 때 다시 넣어 봅니다.`n기록: $log"
+    try {
+        # 0x30 warning icon, 0x40000 on top of the app that just opened again.
+        (New-Object -ComObject WScript.Shell).Popup($text, 0, 'Fincept Terminal 업데이트', 0x30 + 0x40000) | Out-Null
+    } catch {
+        Write-Log "could not show the failure: $($_.Exception.Message)"
     }
 }
 
@@ -170,8 +290,54 @@ function Restore-Shortcuts($shortcuts) {
     }
 }
 
+# The helper of the build in the ZIP, written next to this one; none when the ZIP holds none (up
+# to this change) or the same script as this one.
+function Get-NewHelper {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($Zip)
+    try {
+        $entry = $archive.Entries | Where-Object { ($_.FullName -replace '\\', '/') -ieq 'krx-update/update-windows.ps1' } |
+            Select-Object -First 1
+        if (-not $entry) { return $null }
+        $stream = $entry.Open()
+        $bytes = New-Object IO.MemoryStream
+        try { $stream.CopyTo($bytes) } finally { $stream.Dispose() }
+    } finally {
+        $archive.Dispose()
+    }
+    $new = [Convert]::ToBase64String($bytes.ToArray())
+    if ($new -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($PSCommandPath))) { return $null }
+    $path = Join-Path $env:TEMP 'update-windows-next.ps1'
+    [IO.File]::WriteAllBytes($path, $bytes.ToArray())
+    return $path
+}
+
+# Runs the swap with the new build's helper and ends with its exit code; returns, to swap with
+# this one, when there is none or it cannot be read. That helper reopens the app and tells the
+# user on a failure itself.
+function Invoke-NewHelper {
+    if ($Handoff) { return }
+    try {
+        $next = Get-NewHelper
+    } catch {
+        Write-Log "swapping with this helper, the ZIP's could not be read: $($_.Exception.Message)"
+        return
+    }
+    if (-not $next) { return }
+    Write-Log "handing over to the new build's helper"
+    $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $next, '-Handoff',
+                   '-Mode', 'Swap', '-AppPid', $AppPid, '-Zip', $Zip, '-Root', $Root)
+    if ($Relaunch) { $arguments += @('-Relaunch', $Relaunch) }
+    if ($NoLaunch) { $arguments += '-NoLaunch' }
+    & (Join-Path $PSHOME 'powershell.exe') @arguments
+    $code = $LASTEXITCODE
+    Remove-Quietly $next
+    exit $code
+}
+
 function Update-Swap {
     if (-not $Zip -or -not (Test-Path -LiteralPath $Zip)) { throw "no ZIP: $Zip" }
+    Invoke-NewHelper
     Remove-Quietly $staging # left over from an earlier run
     Remove-Quietly $old
     Write-Log "unpacking $Zip to $staging"
@@ -183,7 +349,7 @@ function Update-Swap {
 
     Wait-App
     Wait-FolderFree $Root
-    Move-WithRetry $Root $old
+    Move-Install $Root $old
     try {
         Move-WithRetry $staging $Root
         # Copied, not moved, so the old folder stays whole until the swap has worked.
@@ -254,11 +420,13 @@ function Update-Move {
 }
 
 try {
-    Write-Log "update ($Mode) of $Root"
+    Write-Log "update ($Mode) of $Root$(if ($Handoff) { ', by the new build''s helper' })"
+    if (-not $cwdReader) { Write-Log 'cannot read what processes stand in; only where they were started from is seen' }
     if ($Mode -eq 'Swap') { Update-Swap } else { Update-Move }
     exit 0
 } catch {
-    Write-Log "failed: $($_.Exception.Message)"
+    $reason = $_.Exception.Message
+    Write-Log "failed: $reason"
     Remove-Quietly $staging
     Remove-Quietly $Zip
     # The user pressed 지금 재시작: open what is installed, so the app does not just vanish.
@@ -266,5 +434,6 @@ try {
     elseif ($OldRoot -and (Test-Path -LiteralPath (Join-Path $OldRoot 'FinceptTerminal.exe'))) {
         Start-App (Join-Path $OldRoot 'FinceptTerminal.exe')
     } else { Start-App (Join-Path $Root 'FinceptTerminal.exe') }
+    Show-Failure $reason
     exit 1
 }

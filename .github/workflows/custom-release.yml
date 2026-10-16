@@ -24,6 +24,11 @@ name: Custom Release — personal Windows + macOS builds
 # and publishes the release. When a build or the land job fails, report-trial
 # opens an issue. The land job needs the SYNC_TOKEN secret.
 #
+# Windows check of a branch: Actions -> this workflow -> Run workflow on any
+# other branch, tag empty. Only the Windows build runs, with its install and
+# update checks; nothing is released, landed or reported. This fork's PRs get
+# no build check, so a change can be built before its merge.
+#
 # The build, deploy and package steps are copied from release.yml's
 # build-windows and build-macos jobs. When an upstream merge changes those
 # jobs, carry the change over here.
@@ -71,6 +76,7 @@ jobs:
       tag: ${{ steps.check.outputs.tag }}
       sha: ${{ steps.check.outputs.sha }}
       trial: ${{ steps.check.outputs.trial }}
+      check: ${{ steps.check.outputs.check }}
       upstream: ${{ steps.check.outputs.upstream }}
       branch: ${{ steps.check.outputs.branch }}
 
@@ -113,6 +119,19 @@ jobs:
               echo "sha=${SHA}"
               echo "trial=true"
               echo "upstream=${UPSTREAM}"
+              echo "branch=${REF_NAME}"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ -z "${INPUT_TAG}" && "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${GITHUB_REF_TYPE}" == "branch" && "${REF_NAME}" != "custom" ]]; then
+            # Windows check of a branch: built under build number 0, which no
+            # release uses, and never released.
+            TAG="custom-$(tr -d '[:space:]' < custom/UPSTREAM_BASE)-krx.0"
+            echo "Windows check of ${REF_NAME} (${GITHUB_SHA}), built as ${TAG}; nothing is released"
+            {
+              echo "tag=${TAG}"
+              echo "sha=${GITHUB_SHA}"
+              echo "check=true"
               echo "branch=${REF_NAME}"
             } >> "$GITHUB_OUTPUT"
             exit 0
@@ -732,6 +751,11 @@ jobs:
           }
           if (-not (Test-Path (Join-Path $tree 'FinceptTerminal.exe'))) { Write-Host "::error::FinceptTerminal.exe missing from the ZIP tree"; exit 1 }
           if (Test-Path (Join-Path $tree 'FinceptMaintenanceTool.exe')) { Write-Host "::error::the ZIP tree holds the maintenance tool"; exit 1 }
+          # The helper of the build being replaced hands the swap over to this one (codeyoma/krx-quant#234).
+          $shipped = Join-Path $tree 'krx-update/update-windows.ps1'
+          $source = Join-Path $env:GITHUB_WORKSPACE 'fincept-qt/src/services/krx_quant/update/update-windows.ps1'
+          if (-not (Test-Path $shipped)) { Write-Host "::error::krx-update/update-windows.ps1 missing from the ZIP tree"; exit 1 }
+          if ((Get-FileHash $shipped).Hash -ne (Get-FileHash $source).Hash) { Write-Host "::error::the ZIP's update helper is not this build's"; exit 1 }
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           [System.IO.Compression.ZipFile]::CreateFromDirectory($tree, $zip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
           Get-Item $zip | Format-Table Name, Length -AutoSize
@@ -743,7 +767,8 @@ jobs:
       # (codeyoma/krx-quant#101).
       #  - Swap: over the install the payload check made, swap in the ZIP's tree.
       #    A file only the old install has stays, and the maintenance tool still
-      #    uninstalls the result.
+      #    uninstalls the result. An older helper starts it and hands it over to
+      #    the ZIP's own (codeyoma/krx-quant#234).
       #  - Move: install this setup.exe somewhere else, then move it into a
       #    "user folder" with the helper; the old install is removed.
       # Each run starts the helper standing in the old install folder, as the
@@ -762,11 +787,17 @@ jobs:
           $log = Join-Path $env:TEMP 'fincept-update.log'
           $required = @('FinceptTerminal.exe', 'FinceptMaintenanceTool.exe', 'Qt6Core.dll', 'Qt6Gui.dll',
                         'Qt6Widgets.dll', 'qt.conf', 'platforms/qwindows.dll', 'sqldrivers/qsqlite.dll')
-          function Invoke-Helper([string]$arguments, [string]$workingDirectory) {
+          # Windows PowerShell 5.1 reads a script without a BOM in the ANSI code page: the
+          # helper's Korean message box would come out garbled.
+          $head = [IO.File]::ReadAllBytes($helper)[0..2]
+          if ($head[0] -ne 0xEF -or $head[1] -ne 0xBB -or $head[2] -ne 0xBF) { Write-Host "::error::update-windows.ps1 lost its UTF-8 BOM"; exit 1 }
+          $script:helperLog = ''
+          function Invoke-Helper([string]$arguments, [string]$workingDirectory, [string]$file = $helper) {
             $p = Start-Process -FilePath $powershell -Wait -PassThru -NoNewWindow -WorkingDirectory $workingDirectory -ArgumentList `
-                   "-NoProfile -ExecutionPolicy Bypass -File `"$helper`" $arguments -NoLaunch"
+                   "-NoProfile -ExecutionPolicy Bypass -File `"$file`" $arguments -NoLaunch"
             Write-Host "----- fincept-update.log -----"
-            Get-Content $log -ErrorAction SilentlyContinue | Write-Host
+            $script:helperLog = Get-Content $log -Raw -ErrorAction SilentlyContinue
+            Write-Host $script:helperLog
             Remove-Item $log -ErrorAction SilentlyContinue
             if ($p.ExitCode -ne 0) { Write-Host "::error::update helper exited $($p.ExitCode)"; exit 1 }
           }
@@ -784,16 +815,22 @@ jobs:
             }
           }
 
-          # Swap
+          # Swap, started with an older helper (this one with a line added): it hands the swap
+          # over to the ZIP's helper, which does it.
           $root = Join-Path $env:RUNNER_TEMP 'fincept-payload-check'
           $kept = Join-Path $root 'kept-by-the-update.txt'
           Set-Content -Path $kept -Value 'only the old install has this'
           $zipCopy = Join-Path $env:RUNNER_TEMP 'fincept-update.zip'
           Copy-Item $zip $zipCopy
-          Invoke-Helper "-Mode Swap -Zip `"$zipCopy`" -Root `"$root`"" $root
+          $older = Join-Path $env:RUNNER_TEMP 'update-windows-older.ps1'
+          [IO.File]::WriteAllBytes($older, [byte[]]([IO.File]::ReadAllBytes($helper) + [Text.Encoding]::ASCII.GetBytes("`r`n# an older helper`r`n")))
+          Invoke-Helper "-Mode Swap -Zip `"$zipCopy`" -Root `"$root`"" $root $older
+          if ($script:helperLog -notmatch "handing over to the new build's helper" -or $script:helperLog -notmatch "by the new build's helper") {
+            Write-Host "::error::the older helper did not hand the swap over to the ZIP's"; exit 1
+          }
           Assert-Installed $root
           if (-not (Test-Path $kept)) { Write-Host "::error::the swap lost a file only the old install had"; exit 1 }
-          foreach ($left in @("$root.staging", "$root.old", $zipCopy)) {
+          foreach ($left in @("$root.staging", "$root.old", $zipCopy, (Join-Path $env:TEMP 'update-windows-next.ps1'))) {
             if (Test-Path $left) { Write-Host "::error::the swap left $left behind"; exit 1 }
           }
           Invoke-Purge $root
@@ -833,6 +870,7 @@ jobs:
   build-macos:
     name: macOS arm64 DMG
     needs: verify-tag
+    if: needs.verify-tag.outputs.check != 'true' # a branch check builds Windows only
     runs-on: macos-15
     env:
       TAG: ${{ needs.verify-tag.outputs.tag }}
@@ -1523,7 +1561,7 @@ jobs:
   release:
     name: Create GitHub Release
     needs: [verify-tag, build-windows, build-macos]
-    if: needs.verify-tag.outputs.trial != 'true'
+    if: needs.verify-tag.outputs.trial != 'true' && needs.verify-tag.outputs.check != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
