@@ -19,6 +19,9 @@ constexpr int kMacroEvery = 60;  ///< 5 min
 constexpr int kLeaderboardDelayMs = 3000;
 /// The most days of special situations the engine gives in one answer (krx-quant #236: more is 400).
 constexpr int kSpecialDays = 60;
+/// A bar window is read again this long after the stream touched it (krx-quant #255): a bar close
+/// brings a prediction of each predictor within seconds.
+constexpr int kBarDelayMs = 1000;
 
 /// The final consensus among a symbol's latest predictions, if there.
 std::optional<krx_quant::Prediction> final_of(const krx_quant::Latest& latest) {
@@ -147,9 +150,15 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
     connect(service_, &KrxQuantService::kinds_ready, this, [this](const QList<krx_quant::KindInfo>& kinds) {
         const auto described = kind_info();
         const QString shown = kind_;
+        const QStringList windows = window_kinds();
         kinds_ = kinds;
         emit kinds_changed();
         apply_kind();
+        if (window_kinds() != windows) { // the bar windows' kinds (krx-quant #255): read again
+            for (auto& watch : bars_watched_)
+                watch.settled = false;
+            read_bars_due();
+        }
         if (kind_ == shown && kind_info() != described) {
             // The same kind, described anew (an engine upgrade: its title, classes or
             // baselines): what shows it is rebuilt with the new description.
@@ -160,9 +169,15 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
     });
     connect(service_, &KrxQuantService::kinds_failed, this, [this](const QString&) {
         // An engine before krx-quant #179, or one not answering: the direction alone.
+        const bool windows = !window_kinds().isEmpty();
         kinds_.reset();
         emit kinds_changed();
         apply_kind();
+        if (windows) { // the bar windows read without them now (krx-quant #255)
+            for (auto& watch : bars_watched_)
+                watch.settled = false;
+            read_bars_due();
+        }
     });
     connect(service_, &KrxQuantService::kind_latest_ready, this, [this](const krx_quant::KindLatest& latest) {
         if (latest.symbol != selected_ || latest.kind != kind_)
@@ -250,6 +265,19 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         if (details_.contains(algorithm))
             emit stats_failed(algorithm, reason);
     });
+    // The bar windows (krx-quant #255): each read until nothing more is to come for it.
+    connect(service_, &KrxQuantService::bar_ready, this, [this](const krx_quant::BarRead& read) {
+        const auto watch = bars_watched_.find(krx_quant::bar_key(read.symbol, read.bar_close));
+        if (watch == bars_watched_.end())
+            return; // its window closed meanwhile
+        watch->settled = krx_quant::bar_settled(read, engine_now());
+        emit bar_changed(read);
+    });
+    connect(service_, &KrxQuantService::bar_failed, this,
+            [this](const QString& symbol, const QDateTime& bar_close, const QString& reason) {
+                if (bars_watched_.contains(krx_quant::bar_key(symbol, bar_close)))
+                    emit bar_failed(symbol, bar_close, reason);
+            });
     connect(service_, &KrxQuantService::base_url_changed, this, [this](const QString& url) {
         marks_paging_ = false; // its page was dropped with the old engine's reads
         algorithms_.clear(); // the old engine's; the new one's come with the details
@@ -262,6 +290,10 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         apply_kind();
         service_->read_kinds();
         stream_->open(url); // also when another KRX panel applied an address
+        // The bar windows (krx-quant #255): read from the new engine.
+        for (auto& watch : bars_watched_)
+            watch.settled = false;
+        read_bars_due();
         // The old engine's macro row goes; the new engine's is read.
         macro_.reset();
         macro_failure_.clear();
@@ -285,6 +317,12 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
     leaderboard_soon_.setSingleShot(true);
     leaderboard_soon_.setInterval(kLeaderboardDelayMs);
     connect(&leaderboard_soon_, &QTimer::timeout, this, &KrxLive::read_leaderboard);
+    bars_soon_.setSingleShot(true);
+    bars_soon_.setInterval(kBarDelayMs);
+    connect(&bars_soon_, &QTimer::timeout, this, [this]() {
+        for (const QString& key : std::exchange(bars_due_, {}))
+            read_bar(key);
+    });
 }
 
 void KrxLive::start() {
@@ -415,6 +453,59 @@ void KrxLive::set_details(const QStringList& algorithms) {
         }
     if (opened)
         service_->read_algorithms();
+}
+
+void KrxLive::set_bars(const QList<QPair<QString, QDateTime>>& bars) {
+    QMap<QString, BarWatch> watched;
+    for (const auto& [symbol, bar_close] : bars) {
+        const QString key = krx_quant::bar_key(symbol, bar_close);
+        watched.insert(key, bars_watched_.value(key, BarWatch{symbol, bar_close, false}));
+    }
+    const QMap<QString, BarWatch> before = std::exchange(bars_watched_, watched);
+    for (auto it = bars_watched_.cbegin(); it != bars_watched_.cend(); ++it)
+        if (!before.contains(it.key()))
+            read_bar(it.key()); // a window opened: its bar at once
+    for (auto it = bars_due_.begin(); it != bars_due_.end();)
+        it = bars_watched_.contains(*it) ? std::next(it) : bars_due_.erase(it);
+}
+
+QStringList KrxLive::window_kinds() const {
+    QStringList out;
+    for (const auto& kind : krx_quant::bar_kinds())
+        if (krx_quant::kind_named(kinds_, kind))
+            out << kind;
+    return out;
+}
+
+void KrxLive::read_bar(const QString& key) {
+    if (const auto watch = bars_watched_.constFind(key); watch != bars_watched_.cend())
+        service_->read_bar(watch->symbol, watch->bar_close, window_kinds());
+}
+
+void KrxLive::read_bars_due() {
+    for (auto it = bars_watched_.cbegin(); it != bars_watched_.cend(); ++it)
+        if (!it->settled)
+            read_bar(it.key());
+}
+
+void KrxLive::bars_touched(const krx_quant::Event& event) {
+    if (bars_watched_.isEmpty())
+        return;
+    const auto touch = [this](const QString& symbol, const QDateTime& bar_close) {
+        for (auto it = bars_watched_.cbegin(); it != bars_watched_.cend(); ++it)
+            // Its own bar close's (a late model, an outcome, an answer), or a later one of its
+            // symbol: another of its four minutes is over, its bar in.
+            if (!it->settled && it->symbol == symbol && bar_close >= it->bar_close)
+                bars_due_.insert(it.key());
+    };
+    for (const auto& p : event.predictions)
+        touch(p.symbol, p.bar_close);
+    for (const auto& p : event.kind_predictions)
+        touch(p.symbol, p.bar_close);
+    for (const auto& a : event.kind_answers)
+        touch(a.symbol, a.bar_close);
+    if (!bars_due_.isEmpty() && !bars_soon_.isActive())
+        bars_soon_.start();
 }
 
 void KrxLive::set_selection(const QStringList& selection) {
@@ -668,6 +759,11 @@ QDateTime KrxLive::engine_now() const {
 void KrxLive::tick() {
     ++ticks_;
     const bool live = stream_->is_connected();
+    // The bar windows (krx-quant #255) stay open beside other screens too: without the stream they
+    // are read here until settled; with it, each minute as well (the engine clock alone settles one
+    // the engine never scores).
+    if (!live || ticks_ % kChartEvery == 0)
+        read_bars_due();
     if (!shown_) {
         // Only for the signal alerts: without the stream, the predictions are read here; and
         // an address another KRX panel applied is followed, not the old engine's stream.
@@ -703,6 +799,7 @@ void KrxLive::read_everything() {
     read_chart();
     read_leaderboard();
     service_->read_macro();
+    read_bars_due(); // what the stream did not bring them meanwhile (krx-quant #255)
 }
 
 void KrxLive::read_leaderboard() {
@@ -827,6 +924,7 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
 }
 
 void KrxLive::on_event(const krx_quant::Event& event) {
+    bars_touched(event); // any kind's, any symbol's (krx-quant #255)
     switch (event.type) {
         case krx_quant::Event::Type::Health:
             if (status_) {

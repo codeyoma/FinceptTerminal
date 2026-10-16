@@ -1,5 +1,6 @@
 #pragma once
 
+#include "services/krx_quant/BarView.h"
 #include "services/krx_quant/ChartModel.h"
 #include "services/krx_quant/EngineData.h"
 
@@ -135,6 +136,16 @@ class KrxQuantService : public QObject {
     /// answer (404, before krx-quant #236), or special_failed. Asked again while one is read, it is
     /// not read: KrxLive asks again once that one answers.
     void read_special(const QString& symbol, const QDate& from, const QDate& to);
+    /// What a bar's window shows (krx-quant #255, krx_quant::BarRead), read at once: every prediction
+    /// of ``bar_close`` (GET …/predictions?bar_close=), the algorithms' statuses now (GET
+    /// /v1/algorithms), the last kBarReadBars 1-minute bars before its scoring time (GET
+    /// …/bars?before=&limit=), each of ``kinds``' predictions there (GET
+    /// …/kinds/{kind}/predictions?bar_close=) and the symbol's special situations of that day (GET
+    /// …/special?from=&to=). bar_ready once all answered, or bar_failed when its predictions or bars
+    /// could not be read; without the statuses, a kind's predictions or the special situations it
+    /// still shows (a kind's failure in BarRead::kind_failures). Each bar's on its own, several at
+    /// once; asked again while that bar's is read, it is read again once that one answers.
+    void read_bar(const QString& symbol, const QDateTime& bar_close, const QStringList& kinds);
 
   signals:
     void snapshot_ready(const fincept::services::KrxQuantService::Snapshot& snapshot);
@@ -172,6 +183,8 @@ class KrxQuantService : public QObject {
     void special_ready(const QString& symbol, const QDate& from, const QDate& to,
                        const QList<fincept::krx_quant::SpecialWindow>& windows);
     void special_failed(const QString& symbol, const QDate& from, const QDate& to, const QString& reason);
+    void bar_ready(const fincept::krx_quant::BarRead& read);
+    void bar_failed(const QString& symbol, const QDateTime& bar_close, const QString& reason);
     /// The address this service reads changed (also when another panel set it).
     void base_url_changed(const QString& url);
 
@@ -225,7 +238,13 @@ class KrxQuantService : public QObject {
         std::optional<LeaderboardQuery> next;
     };
     QHash<QString, StatsRead> stats_reads_; ///< by algorithm
-    QString url_;                           ///< the address of the reads under way, or of the last ones
+    /// A bar's read under way (krx-quant #255): whether it was asked for again meanwhile, with what kinds.
+    struct BarReadAsked {
+        bool again = false;
+        QStringList kinds;
+    };
+    QHash<QString, BarReadAsked> bar_reads_; ///< by krx_quant::bar_key
+    QString url_;                            ///< the address of the reads under way, or of the last ones
 };
 
 /// Why a request failed, in Korean, from HttpClient's error string.

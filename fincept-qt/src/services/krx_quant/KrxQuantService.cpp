@@ -4,6 +4,7 @@
 #include "core/logging/Logger.h"
 #include "network/http/HttpClient.h"
 
+#include <QTimeZone>
 #include <QUrl>
 #include <QUrlQuery>
 
@@ -104,6 +105,7 @@ void KrxQuantService::restart() {
     next_leaderboard_.reset();
     next_close_.reset();
     stats_reads_.clear();
+    bar_reads_.clear();
     if (const QString url = base_url(); url != url_) {
         url_ = url;
         emit base_url_changed(url_);
@@ -466,6 +468,77 @@ void KrxQuantService::read_special(const QString& symbol, const QDate& from, con
             return emit special_failed(symbol, from, to, why(windows.error()));
         emit special_ready(symbol, from, to, windows.value());
     });
+}
+
+void KrxQuantService::read_bar(const QString& symbol, const QDateTime& bar_close, const QStringList& kinds) {
+    if (url_.isEmpty())
+        return;
+    const QString key = krx_quant::bar_key(symbol, bar_close);
+    if (auto under_way = bar_reads_.find(key); under_way != bar_reads_.end()) {
+        *under_way = {true, kinds}; // read again once it answers: what came meanwhile
+        return;
+    }
+    bar_reads_.insert(key, {false, kinds});
+    struct Parts {
+        krx_quant::BarRead read;
+        std::optional<QString> failure; ///< its predictions' or bars'
+        qsizetype waiting = 0;
+    };
+    auto parts = std::make_shared<Parts>();
+    parts->read.symbol = symbol;
+    parts->read.bar_close = bar_close;
+    parts->waiting = 4 + kinds.size();
+    const auto done = [this, parts, key]() {
+        if (--parts->waiting > 0)
+            return;
+        const BarReadAsked asked = bar_reads_.take(key);
+        if (asked.again) // this answer is older than what came meanwhile
+            return read_bar(parts->read.symbol, parts->read.bar_close, asked.kinds);
+        if (parts->failure)
+            return emit bar_failed(parts->read.symbol, parts->read.bar_close, *parts->failure);
+        emit bar_ready(parts->read);
+    };
+    const QString at = QString::fromUtf8(QUrl::toPercentEncoding(bar_close.toString(Qt::ISODate)));
+    get(symbol_path(symbol, "/predictions?bar_close=" + at), [parts, done](Result<QJsonDocument> answer) {
+        if (auto made = parsed(answer, krx_quant::parse_predictions); made.is_ok())
+            parts->read.predictions = made.value();
+        else
+            parts->failure = why(made.error());
+        done();
+    });
+    get("/v1/algorithms", [parts, done](Result<QJsonDocument> answer) {
+        // Without the statuses the predictions still show, their statuses blank.
+        if (auto statuses = parsed(answer, krx_quant::parse_statuses); statuses.is_ok())
+            parts->read.statuses = statuses.value();
+        done();
+    });
+    // The bar, the four up to its scoring time and those before it: bars that start before that time.
+    const QString before = QString::fromUtf8(QUrl::toPercentEncoding(bar_close.addSecs(240).toString(Qt::ISODate)));
+    get(symbol_path(symbol, QStringLiteral("/bars?limit=%1&before=%2").arg(krx_quant::kBarReadBars).arg(before)),
+        [parts, done](Result<QJsonDocument> answer) {
+            if (auto bars = parsed(answer, krx_quant::parse_bars); bars.is_ok())
+                parts->read.bars = bars.value();
+            else if (!parts->failure)
+                parts->failure = why(bars.error());
+            done();
+        });
+    const QString day = bar_close.toTimeZone(QTimeZone::fromSecondsAheadOfUtc(9 * 3600)).date().toString(Qt::ISODate);
+    get(symbol_path(symbol, QStringLiteral("/special?from=%1&to=%1").arg(day)),
+        [parts, done](Result<QJsonDocument> answer) {
+            // An engine before krx-quant #236 has none, and a failure leaves none: the bar still shows.
+            if (auto windows = parsed(answer, krx_quant::parse_special); windows.is_ok())
+                parts->read.special = windows.value();
+            done();
+        });
+    for (const QString& kind : kinds) {
+        get(kind_path(symbol, kind, "/predictions?bar_close=" + at), [parts, done, kind](Result<QJsonDocument> answer) {
+            if (auto made = parsed(answer, krx_quant::parse_kind_predictions); made.is_ok())
+                parts->read.kinds.insert(kind, made.value());
+            else
+                parts->read.kind_failures.insert(kind, why(made.error()));
+            done();
+        });
+    }
 }
 
 void KrxQuantService::read_macro() {

@@ -514,6 +514,7 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(phase_label("closed"), QStringLiteral("휴장"));
         QCOMPARE(status_label("vi"), QStringLiteral("VI 중"));
         QCOMPARE(status_label("timed_out"), QStringLiteral("시간 초과"));
+        QCOMPARE(status_label("no_previous"), QStringLiteral("직전 창 없음")); // krx-quant #255
         QCOMPARE(special_label("sidecar"), QStringLiteral("사이드카"));
     }
 
@@ -606,6 +607,7 @@ class TstKrxEngineData : public QObject {
                        "class_a": "flat", "class_b": "flat", "special": false, "unscorable": null,
                        "scored_at": "2026-10-12T09:35:00+09:00",
                        "touch": {"target_version": 2, "class": "up", "unscorable": null, "anchor": 81250,
+                                 "tick": 100, "k": 2,
                                  "upper": 81450, "lower": 81050, "upper_at": "2026-10-12T09:32:30+09:00",
                                  "upper_price": 81500, "lower_at": null, "lower_price": null}}},
           {"algorithm": "markov", "model_version": "m-1", "bar_close": "2026-10-12T09:31:00+09:00",
@@ -622,6 +624,9 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(touch->upper_reached->price, 81500.0);
         QCOMPARE(touch->upper_reached->at, QDateTime::fromString("2026-10-12T09:32:30+09:00", Qt::ISODate));
         QVERIFY(!touch->lower_reached.has_value());
+        // Its tick size and k (krx-quant #255: the bar window's answer).
+        QCOMPARE(touch->tick, std::optional<double>(100.0));
+        QCOMPARE(touch->k, std::optional<int>(2));
         QVERIFY(!read.value()[1].outcome->touch.has_value()); // an older engine's
     }
 
@@ -825,9 +830,11 @@ class TstKrxEngineData : public QObject {
             {"start": "2026-10-08T09:30:00+09:00", "open": 81000, "high": 81400, "low": 80900,
              "close": 81100, "volume": 19, "trades": 4},
             {"start": "2026-10-08T09:31:00+09:00", "open": 81100, "high": 81200, "low": 81000,
-             "close": 81200, "volume": 7, "trades": 2}]})"));
+             "close": 81200, "volume": 7, "trades": 2},
+            {"start": "2026-10-08T09:32:00+09:00", "open": 81200, "high": 81200, "low": 81100,
+             "close": 81100, "volume": 3, "trades": null}]})"));
         QVERIFY(bars.is_ok());
-        QCOMPARE(bars.value().size(), 2);
+        QCOMPARE(bars.value().size(), 3);
         const auto& first = bars.value()[0];
         QCOMPARE(first.start, QDateTime::fromString("2026-10-08T09:30:00+09:00", Qt::ISODate));
         QCOMPARE(first.open, 81000.0);
@@ -835,6 +842,9 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(first.low, 80900.0);
         QCOMPARE(first.close, 81100.0);
         QCOMPARE(first.volume, 19.0);
+        // The trades (krx-quant #255: the bar window); a past day's bar from the backfill has none.
+        QCOMPARE(first.trades, std::optional<int>(4));
+        QCOMPARE(bars.value()[2].trades, std::optional<int>());
         QVERIFY(parse_bars(json(R"({"error": "unknown symbol 999999"})")).is_err());
     }
 

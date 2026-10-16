@@ -1514,6 +1514,7 @@ set(SERVICE_SOURCES
     src/services/notifications/providers/OpsgenieProvider.cpp
     src/services/notifications/providers/SMSProvider.cpp
     # KRX prediction engine reader (fork addition, custom/README.md)
+    src/services/krx_quant/BarView.cpp
     src/services/krx_quant/Board.cpp
     src/services/krx_quant/ChartBricks.cpp
     src/services/krx_quant/ChartDrawings.cpp
@@ -2142,6 +2143,7 @@ set(SCREEN_SOURCES
     src/screens/crypto_center/panels/MarketsListPanel.cpp
     # KRX prediction screen (fork addition, custom/README.md)
     src/screens/krx_quant/KrxAlerts.cpp
+    src/screens/krx_quant/KrxBarWindow.cpp
     src/screens/krx_quant/KrxChart.cpp
     src/screens/krx_quant/KrxChartToolbar.cpp
     src/screens/krx_quant/KrxDrawingPopup.cpp
@@ -2724,6 +2726,7 @@ set_source_files_properties(
     # Fork addition: file-scope helpers with common names, kept out of unity batches.
     src/core/currency/fx/FxRates.cpp
     src/screens/krx_quant/KrxAlerts.cpp
+    src/screens/krx_quant/KrxBarWindow.cpp
     src/screens/krx_quant/KrxChart.cpp
     src/screens/krx_quant/KrxChartToolbar.cpp
     src/screens/krx_quant/KrxDrawingPopup.cpp
@@ -2732,6 +2735,7 @@ set_source_files_properties(
     src/screens/krx_quant/KrxStatsWindow.cpp
     src/screens/krx_quant/KrxStudyPanel.cpp
     src/screens/krx_quant/KrxSymbolCell.cpp
+    src/services/krx_quant/BarView.cpp
     src/services/krx_quant/Board.cpp
     src/services/krx_quant/ChartBricks.cpp
     src/services/krx_quant/ChartDrawings.cpp
