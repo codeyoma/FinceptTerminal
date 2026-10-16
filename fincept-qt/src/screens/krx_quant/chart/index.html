@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!--
   The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182, #185,
-  #221, #222, #223, #224, #225, #236, #253), drawn with TradingView Lightweight Charts (NOTICE). It only draws
+  #221, #222, #223, #224, #225, #236, #249, #253), drawn with TradingView Lightweight Charts (NOTICE). It only draws
   what the screen sends over the web channel: the bars in the style chosen (or the bricks of a style
   without a time axis, a slot each, named by when each ended), a minute view's empty bars (a slot
   without trades between two bars of a day: whitespace, no candle and no volume, #236) and the
@@ -15,13 +15,13 @@
   the anchored VWAP's marker; below the prices a pane per lower indicator, the volume's among
   them, with its guide lines) with each pane's legend, the theme, and when to fit. The wheel zooms
   on the bar nearest the pointer (#253), the screen saying when there is nothing before to read.
-  Many panes make the chart taller than the page, which then scrolls. It tells the screen where its view
-  is, the legend's buttons, the anchored VWAP's bar clicked or dragged to, and the lower panes'
-  heights once a border between panes is dragged. Over the prices it draws the symbol's drawings
-  (#224) and lets them be placed with the tool the screen chose, picked, dragged, removed (Delete,
-  Backspace) and double-clicked; it tells the screen each, in bar positions. At the bottom right,
-  where the time axis meets the price axis, 일반 and 로그 choose the price pane's scale (#245); it
-  tells the screen the one clicked.
+  Many panes make the chart taller than the page, which then scrolls. It tells the screen where its
+  view is, the icon or slot clicked (#107, #249), the legend's buttons, the anchored VWAP's bar
+  clicked or dragged to, and the lower panes' heights once a border between panes is dragged.
+  Over the prices it draws the symbol's drawings (#224) and lets them be placed with the tool the
+  screen chose, picked, dragged, removed (Delete, Backspace) and double-clicked; it tells the
+  screen each, in bar positions. At the bottom right, where the time axis meets the price axis,
+  일반 and 로그 choose the price pane's scale (#245); it tells the screen the one clicked.
 -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #080808; }
@@ -1834,8 +1834,10 @@
     if (range && bridge) bridge.range(range.from, range.to);
   });
 
-  // An icon clicked: the screen shows that bar close's judgements (krx-quant #107). While the
-  // anchored VWAP waits for its bar (krx-quant #222), a click anywhere chooses the bar under it.
+  // An icon clicked: the screen shows that bar close's judgements (krx-quant #107). Another slot
+  // clicked, not past the last: its time, the screen showing the bar close of a 1-minute view's
+  // (krx-quant #249). A drag is no click (the chart's own). While the anchored VWAP waits for its
+  // bar (krx-quant #222), a click anywhere chooses the bar under it.
   let bridge = null;
   chart.subscribeClick(function (param) {
     if (picking && param && param.point && bars.length && bridge) {
@@ -1847,8 +1849,11 @@
       }
       return;
     }
-    const icon = param && param.hoveredObjectId !== undefined ? iconAt.get(String(param.hoveredObjectId)) : undefined;
-    if (icon && bridge) bridge.clicked(icon.bar_close);
+    if (!bridge || !param || !param.point) return;
+    const icon = param.hoveredObjectId !== undefined ? iconAt.get(String(param.hoveredObjectId)) : undefined;
+    if (icon) return bridge.clicked(icon.bar_close);
+    const i = param.logical === undefined ? -1 : Math.round(param.logical);
+    if (i >= 0 && i < bars.length) bridge.bar(bars[i].time);
   });
 
   function theme(t) {

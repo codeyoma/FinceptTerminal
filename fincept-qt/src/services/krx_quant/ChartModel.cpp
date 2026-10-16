@@ -41,6 +41,10 @@ qint64 chart_time(const QDateTime& t) {
     return t.toSecsSinceEpoch() + kKstSeconds;
 }
 
+QDateTime bar_close_of(qint64 time) {
+    return QDateTime::fromSecsSinceEpoch(time + 60 - kKstSeconds, QTimeZone::fromSecondsAheadOfUtc(kKstSeconds));
+}
+
 QList<ChartBar> chart_bars(const QList<Bar>& bars) {
     QList<ChartBar> out;
     out.reserve(bars.size());

@@ -188,6 +188,10 @@ void KrxChartBridge::clicked(const QString& bar_close) {
     emit icon_clicked(bar_close);
 }
 
+void KrxChartBridge::bar(double time) {
+    emit bar_clicked(time);
+}
+
 void KrxChartBridge::moved(double from, double to) {
     emit view_moved(from, to);
 }
@@ -251,7 +255,14 @@ KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
     });
     connect(bridge_, &KrxChartBridge::icon_clicked, this, [this](const QString& bar_close) {
         if (const QDateTime at = QDateTime::fromString(bar_close, Qt::ISODate); at.isValid())
-            emit icon_clicked(at);
+            emit close_clicked(at);
+    });
+    // Any slot of the 1-minute view, as its icon would (krx-quant #249): an empty one's too, whose
+    // bar close the engine may have predicted at. A wider bar holds many bar closes, and a brick is
+    // no bar: not theirs.
+    connect(bridge_, &KrxChartBridge::bar_clicked, this, [this](double time) {
+        if (minutes_ == 1 && !timeless_)
+            emit close_clicked(krx_quant::bar_close_of(static_cast<qint64>(time)));
     });
     connect(bridge_, &KrxChartBridge::view_moved, this, &KrxChart::view_moved);
     connect(bridge_, &KrxChartBridge::range_moved, this, [this](double from, double to) {

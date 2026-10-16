@@ -40,6 +40,8 @@ class KrxChartBridge : public QObject {
     Q_INVOKABLE void ready();
     /// An icon was clicked: its bar close (ISO 8601).
     Q_INVOKABLE void clicked(const QString& bar_close);
+    /// A slot was clicked, not on an icon (krx-quant #249): its time (chart_time).
+    Q_INVOKABLE void bar(double time);
     /// The view moved: it shows the bars from ``from`` to ``to`` (logical indexes from the left end).
     Q_INVOKABLE void moved(double from, double to);
     /// The bars in view start from ``from`` to ``to`` (the chart's times, chart_time).
@@ -72,6 +74,7 @@ class KrxChartBridge : public QObject {
   signals:
     void page_ready();
     void icon_clicked(const QString& bar_close);
+    void bar_clicked(double time);
     void view_moved(double from, double to);
     void range_moved(double from, double to);
     void anchor_moved(double time);
@@ -178,9 +181,9 @@ class KrxChart : public QWidget {
     void restyle();
 
   signals:
-    /// A final consensus icon was clicked: the table shows that bar close's judgements
-    /// (krx-quant #107).
-    void icon_clicked(const QDateTime& bar_close);
+    /// A final consensus icon (krx-quant #107) or a bar of the 1-minute view with a time axis
+    /// (krx-quant #249) was clicked: the table shows that bar close's judgements.
+    void close_clicked(const QDateTime& bar_close);
     /// The view was scrolled or zoomed: it shows the bars from ``from`` to ``to`` (logical
     /// indexes from the left end, ``from`` negative past the first bar); with less than a screen
     /// of them before ``from``, the bars before are read (krx-quant #108, #239).
