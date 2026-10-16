@@ -34,7 +34,9 @@ namespace {
 using krx_tables::cell;
 using krx_tables::kNumber;
 
-enum SymbolColumn { kSymbol, kMid, kFinal, kScoring };
+// The time to scoring is not a column (krx-quant #243): the latest bar close is every symbol's, so
+// it showed the same countdown on every row, back to 4:00 each minute.
+enum SymbolColumn { kSymbol, kMid, kFinal };
 // The chart's view and style are kept for each symbol (krx-quant #221, krx_quant::prefs_group), and
 // so are its indicators and the anchored VWAP's anchor (krx-quant #222), and its lower panes'
 // heights (krx-quant #223), and its drawings (krx-quant #224, krx_quant::kPrefsDrawings); the magnet is
@@ -66,9 +68,12 @@ QString krx_percent(const std::optional<double>& p) {
     return p ? QString::number(std::lround(*p * 100.0)) + "%" : QString();
 }
 
-/// "3:12" to go, from seconds.
-QString krx_countdown(qint64 seconds) {
-    return QStringLiteral("%1:%2").arg(seconds / 60).arg(seconds % 60, 2, 10, QLatin1Char('0'));
+/// The four minutes a bar close's predictions look at, "10:30–10:34" (krx-quant #243), or the
+/// bar close alone, "10:30 봉 마감", when no prediction says when it is scored.
+QString krx_window(const QDateTime& bar_close, const QDateTime& scoring) {
+    if (!scoring.isValid())
+        return QObject::tr("%1 봉 마감").arg(krx_quant::kst_text(bar_close, "HH:mm"));
+    return QStringLiteral("%1–%2").arg(krx_quant::kst_text(bar_close, "HH:mm"), krx_quant::kst_text(scoring, "HH:mm"));
 }
 
 QColor direction_color(krx_quant::Direction d) {
@@ -158,7 +163,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     // Top: the symbols, the chosen one's chart, and its predictions.
     auto* upper = new QSplitter(Qt::Horizontal);
     symbols_header_ = krx_panel::header(tr("종목"));
-    symbols_table_ = krx_tables::table({tr("종목"), tr("기준가"), tr("최종 합의"), tr("채점까지")});
+    symbols_table_ = krx_tables::table({tr("종목"), tr("기준가"), tr("최종 합의")});
     upper->addWidget(krx_panel::panel(symbols_header_, symbols_table_));
 
     // Lightweight Charts' license asks for its attribution and a link where users see it.
@@ -453,7 +458,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(live_, &services::KrxLive::pinned_changed, this, [this]() {
         predictions_header_.title->setToolTip({}); // a failed read's reason, now stale
         fill_predictions();
-        update_countdowns();
+        update_panel_title();
     });
     connect(live_, &services::KrxLive::pinned_failed, this, [this](const QString& reason) {
         predictions_table_->setRowCount(0);
@@ -476,7 +481,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     clock_timer_ = new QTimer(this);
     clock_timer_->setInterval(1000);
     connect(clock_timer_, &QTimer::timeout, this, [this]() {
-        update_countdowns();
+        update_panel_title();
         show_dot();
         // A slot after the last bar is over while the session is open (krx-quant #238): the chart
         // fills it with an empty bar, so a halt or a quiet stock grows with the clock.
@@ -717,11 +722,10 @@ void KrxQuantScreen::fill_symbols() {
                 item->setForeground(QColor(ui::colors::TEXT_DIM()));
             symbols_table_->setItem(row, kFinal, item);
         }
-        symbols_table_->setItem(row, kScoring, cell(QString(), kNumber));
         if (quote.symbol == live_->selected())
             symbols_table_->selectRow(row);
     }
-    update_countdowns();
+    update_panel_title();
 }
 
 void KrxQuantScreen::fill_pinned() {
@@ -877,15 +881,11 @@ void KrxQuantScreen::kind_title() {
         parts << tr("%1 · %2 · %3 봉 마감 (지난 거래일)")
                      .arg(symbol, name, krx_quant::kst_text(latest.bar_close, "MM-dd HH:mm"));
     } else {
-        parts << tr("%1 · %2 · %3 봉 마감").arg(symbol, name, krx_quant::kst_text(latest.bar_close, "HH:mm"));
         QDateTime at;
         for (const auto& p : latest.predictions)
             if (p.target_at.isValid())
                 at = p.target_at;
-        const QDateTime now = live_->engine_now();
-        if (at.isValid())
-            parts << (now.secsTo(at) > 0 ? tr("채점까지 %1").arg(krx_countdown(now.secsTo(at)))
-                                         : tr("%1에 채점").arg(krx_quant::kst_text(at, "HH:mm")));
+        parts << tr("%1 · %2 · %3").arg(symbol, name, krx_window(latest.bar_close, at));
     }
     if (range)
         if (const QString widths = krx_quant::widths_text(krx_quant::bar_close_k(latest.predictions, k_now));
@@ -930,7 +930,7 @@ void KrxQuantScreen::fill_predictions() {
             }
         }
     }
-    update_countdowns();
+    update_panel_title();
 }
 
 void KrxQuantScreen::set_view(int minutes) {
@@ -1186,26 +1186,12 @@ void KrxQuantScreen::open_detail(const QString& algorithm) {
     live_->set_details(stats_windows_.keys());
 }
 
-void KrxQuantScreen::update_countdowns() {
-    const QDateTime now = live_->engine_now();
-    for (int row = 0; row < symbols_table_->rowCount(); ++row) {
-        auto* item = symbols_table_->item(row, kScoring);
-        if (!item)
-            continue;
-        const krx_quant::Latest latest = live_->board().latest(symbols_table_->item(row, kSymbol)->text());
-        const QDateTime at = krx_quant::scoring_at(latest);
-        if (!at.isValid())
-            item->setText(QString());
-        else if (!is_today(latest.bar_close))
-            item->setText(tr("지난 거래일"));
-        else
-            item->setText(now.secsTo(at) > 0 ? krx_countdown(now.secsTo(at)) : tr("채점됨"));
-    }
+void KrxQuantScreen::update_panel_title() {
     const QString& symbol = live_->selected();
     QLabel* panel_title = predictions_header_.title;
     if (live_->kind() != QLatin1String(krx_quant::kDirectionKind))
         return kind_title();                              // another kind's panel (krx-quant #182)
-    if (live_->pinned().isValid() && !symbol.isEmpty()) { // pinned: no countdown, its own time
+    if (live_->pinned().isValid() && !symbol.isEmpty()) { // pinned: its own time
         panel_title->setText(
             tr("%1 · %2 봉 마감의 판단").arg(symbol, krx_quant::kst_text(live_->pinned(), "MM-dd HH:mm")));
         return;
@@ -1224,11 +1210,7 @@ void KrxQuantScreen::update_countdowns() {
             tr("%1 · %2 봉 마감 (지난 거래일)").arg(symbol, krx_quant::kst_text(latest.bar_close, "MM-dd HH:mm")));
         return;
     }
-    QString title = tr("%1 · %2 봉 마감").arg(symbol, krx_quant::kst_text(latest.bar_close, "HH:mm"));
-    if (const QDateTime at = krx_quant::scoring_at(latest); at.isValid())
-        title += now.secsTo(at) > 0 ? tr(" · 채점까지 %1").arg(krx_countdown(now.secsTo(at)))
-                                    : tr(" · %1에 채점").arg(krx_quant::kst_text(at, "HH:mm"));
-    panel_title->setText(title);
+    panel_title->setText(tr("%1 · %2").arg(symbol, krx_window(latest.bar_close, krx_quant::scoring_at(latest))));
 }
 
 } // namespace fincept::screens
