@@ -587,7 +587,7 @@ void KrxChartToolbar::show_day_separator_state() {
     day_separator_->setEnabled(!candles && !bricks);
     day_separator_->setToolTip(bricks    ? tr("분봉에서만. 시간축 없는 차트에서는 쓰지 않는다.")
                                : candles ? tr("분봉에서만")
-                                         : tr("분봉에서 날짜가 바뀐 뒤 첫 봉에 회색 띠를 칠한다."));
+                                         : tr("분봉에서 날짜가 바뀐 뒤 첫 봉에 밝은 회색 띠를 칠한다."));
     // The special situations' bands likewise (krx-quant #236).
     special_->setEnabled(!candles && !bricks);
     special_->setToolTip(
