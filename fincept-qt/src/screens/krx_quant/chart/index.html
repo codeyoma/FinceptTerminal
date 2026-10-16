@@ -609,16 +609,16 @@
     e.preventDefault();
     zoomAt(e.clientX - area.getBoundingClientRect().left, wheelStep(e));
   }, { capture: true, passive: false });
-  // The chart's own step for a wheel (Lightweight Charts' ChartWidget): the bars a tenth wider or
-  // narrower for 100 pixels, at most; lines and pages counted as it counts them, and pixels by the
-  // screen's scale in Chromium on Windows.
-  const agent = navigator.userAgentData;
-  const windowsChromium = !!agent && agent.brands.some((b) => b.brand.includes('Chromium')) &&
-    (agent.platform ? agent.platform === 'Windows' : navigator.userAgent.toLowerCase().indexOf('win') >= 0);
+  // A wheel's step as the chart counts it (Lightweight Charts' ChartWidget): the bars a tenth wider
+  // or narrower for 100 pixels, at most; lines and pages counted as it counts them. Pixels stay as
+  // they are on Windows too: the chart divides them by the screen's scale in Chromium there, as
+  // Chrome's own wheel comes that much larger, but Qt WebEngine turns a wheel's notches into pixels
+  // itself (20 to a line, the screen's scale left out). Divided, the zoom was slower on a scaled
+  // screen.
   function wheelStep(e) {
     const unit = e.deltaMode === WheelEvent.DOM_DELTA_PAGE ? 120
       : e.deltaMode === WheelEvent.DOM_DELTA_LINE ? 32
-      : windowsChromium ? 1 / window.devicePixelRatio : 1;
+      : 1;
     const step = -unit * e.deltaY / 100;
     return Math.sign(step) * Math.min(1, Math.abs(step));
   }

@@ -14,7 +14,8 @@
 //
 // The wheel zooms on the bar nearest the pointer (krx-quant #253): that bar stays where it is. Out,
 // where the latest bars run out on the right the view slides, its gap after the latest bar no wider;
-// on the left it stops at the first bar read while more are to be read, and slides once none are.
+// on the left it stops at the first bar read while more are to be read, and slides once none are. A
+// wheel as Qt sends it zooms by its lines, whatever the screen's scale (a scaled Windows screen too).
 //
 // The page keeps no key the screen's shortcuts want: Cmd+D (Ctrl+D) with the keyboard on the chart
 // opens the toolbar's drawing menu (krx-quant #241).
@@ -42,10 +43,12 @@
 #include <QGuiApplication>
 #include <QMenu>
 #include <QSignalSpy>
+#include <QStyleHints>
 #include <QTest>
 #include <QTimer>
 #include <QToolButton>
 #include <QWebEngineView>
+#include <QWheelEvent>
 
 #include <cmath>
 
@@ -303,6 +306,31 @@ class TstKrxChartPage : public QObject {
         QVERIFY(std::abs(js("window.krxChart.gap()").toDouble() - kRightOffset) < 0.01);
         QVERIFY(x_of(all[260]) > at + 10);
         draw(day);
+    }
+
+    void a_wheel_from_qt_zooms_by_its_lines_whatever_the_screens_scale() {
+        // krx-quant #253: Qt WebEngine turns a wheel's notches into pixels itself, 20 to a line of the
+        // system's wheel setting, the screen's scale left out. A third of a notch, as a fine wheel
+        // turns, zooms by those pixels (a tenth wider for 100) on a scaled Windows screen too, where
+        // the chart's own step divided them by the scale.
+        empty();
+        const QList<Bar> day = minutes("2026-10-12T09:00:00+09:00", 300);
+        const QList<qint64> all = times(day);
+        draw(day);
+        expect_fitted(day);
+        QWidget* input = view_->focusProxy();
+        QVERIFY(input);
+        const auto spacing = [&]() { return x_of(all[261]) - x_of(all[260]); };
+        const double before = spacing();
+        const QPointF at(x_of(all[260]) + 2, js("innerHeight / 3").toDouble());
+        const int notch = QWheelEvent::DefaultDeltasPerStep;
+        QWheelEvent wheel(at, input->mapToGlobal(at), {}, {0, notch / 3}, Qt::NoButton, Qt::NoModifier,
+                          Qt::NoScrollPhase, false);
+        QApplication::sendEvent(input, &wheel);
+        const double pixels = QGuiApplication::styleHints()->wheelScrollLines() * 20 / 3.0;
+        const double wanted = 1 + std::min(1.0, pixels / 100) / 10;
+        QTRY_VERIFY2(std::abs(spacing() / before - wanted) < 0.001,
+                     QByteArray::number(spacing() / before) + " for " + QByteArray::number(wanted));
     }
 
     void a_zoom_out_waits_at_the_first_bar_read_and_slides_once_none_is_before() {
