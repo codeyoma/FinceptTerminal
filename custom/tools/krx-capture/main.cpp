@@ -273,13 +273,13 @@ int main(int argc, char* argv[]) {
         });
     }
 
-    // KRX_CAPTURE_PIN=<bar close, ISO 8601>: as a click on that bar close's chart icon, once
-    // the screen has read the engine (krx-quant #107).
+    // KRX_CAPTURE_PIN=<bar close, ISO 8601>: as a click on that bar close's chart icon or bar,
+    // once the screen has read the engine (krx-quant #107, #249).
     if (const QDateTime pin = QDateTime::fromString(qEnvironmentVariable("KRX_CAPTURE_PIN"), Qt::ISODate);
         pin.isValid()) {
         QTimer::singleShot(seconds * 500, &app, [&screen, pin]() {
             if (auto* chart = screen.findChild<fincept::screens::KrxChart*>())
-                emit chart->icon_clicked(pin);
+                emit chart->close_clicked(pin);
         });
     }
 

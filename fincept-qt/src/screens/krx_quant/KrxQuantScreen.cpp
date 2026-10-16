@@ -451,7 +451,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
             live_->select(symbols_table_->item(rows.first().row(), kSymbol)->text());
     });
     connect(fit, &QPushButton::clicked, chart_, &KrxChart::fit);
-    connect(chart_, &KrxChart::icon_clicked, this, [this](const QDateTime& bar_close) { live_->pin(bar_close); });
+    connect(chart_, &KrxChart::close_clicked, this, [this](const QDateTime& bar_close) { live_->pin(bar_close); });
     connect(chart_, &KrxChart::view_moved, this, [this](double from, double to) {
         // Bricks (krx-quant #225) start at a fixed bar: scrolling them back reads nothing before it.
         if (!krx_quant::timeless(look_.style))

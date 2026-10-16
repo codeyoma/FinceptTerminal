@@ -18,6 +18,10 @@
 // 일반 and 로그 at the bottom right (krx-quant #245) choose the price pane's scale: a click turns it
 // and tells the screen, and the screen's choice draws it so.
 //
+// A bar of the 1-minute view clicked (krx-quant #249), an icon on it or not, an empty one too, tells
+// the screen its bar close: the prediction panel shows that bar close's. A click past the last bar,
+// a drag, and a wider view's bar tell it nothing.
+//
 // The page runs in Qt WebEngine with TradingView Lightweight Charts, so this suite opens a
 // window. It is skipped where the WebEngine runtime is missing or the platform draws nothing
 // (offscreen).
@@ -150,6 +154,14 @@ class TstKrxChartPage : public QObject {
                           "for (let e = at; e; e = e.parentElement) e.dispatchEvent(event('mouseenter', false));"
                           "at.dispatchEvent(event('mousemove', true));})()")
                .arg(time));
+    }
+
+    /// Where the slot holding ``time`` (chart_time) is in the page's widget, a third of the way down
+    /// (a lower point past the last slot when ``past``): as the hand clicks it.
+    QPoint spot(qint64 time, int past = 0) {
+        const double x = js(QStringLiteral("window.krxChart.x(%1)").arg(time)).toDouble();
+        const double y = js("innerHeight / 3").toDouble();
+        return QPoint(qRound(x) + past, qRound(y));
     }
 
     /// Another symbol chosen: the screen empties the chart first (KrxLive::select).
@@ -401,6 +413,71 @@ class TstKrxChartPage : public QObject {
         hover_at(chart_time(kst("2026-10-15T13:27:00+09:00")));
         QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.tip()").toString(),
                                   QStringLiteral("서킷브레이커 1단계 13:10–13:30"), 10000);
+    }
+
+    void a_bar_clicked_in_the_1_minute_view_tells_its_bar_close() {
+        // krx-quant #249: the bar 09:30–09:31 has no icon here; it closed at 09:31. Then a drag, an
+        // empty slot (no trades 13:10–13:29), past the last bar, and the 3-minute view.
+        empty();
+        const QList<Bar> morning = minutes("2026-10-15T09:00:00+09:00", 80);
+        draw(morning);
+        expect_fitted(morning);
+        QWidget* input = view_->focusProxy();
+        QVERIFY(input);
+        QSignalSpy clicked(chart_, &screens::KrxChart::close_clicked);
+        QTest::mouseClick(input, Qt::LeftButton, {}, spot(chart_time(kst("2026-10-15T09:30:00+09:00"))));
+        QTRY_COMPARE_WITH_TIMEOUT(clicked.size(), 1, 5000);
+        const QDateTime close = clicked[0][0].toDateTime();
+        QCOMPARE(close, kst("2026-10-15T09:31:00+09:00"));
+        QCOMPARE(close.toString(Qt::ISODate), QStringLiteral("2026-10-15T09:31:00+09:00")); // as the engine is asked
+
+        // A drag scrolls the chart back to earlier bars: no bar close. The pointer comes over the
+        // chart first, as hover_at's, and the button held over 120 pixels to the right.
+        clicked.clear();
+        js(QStringLiteral("(function(){const x = window.krxChart.x(%1), y = innerHeight / 3;"
+                          "const at = document.elementFromPoint(x, y);"
+                          "const event = (type, dx, buttons, bubbles) => new MouseEvent(type, {clientX: x + dx, "
+                          "  clientY: y, pageX: x + dx, pageY: y, button: 0, buttons: buttons, bubbles: bubbles, "
+                          "  cancelable: true, view: window});"
+                          "for (let e = at; e; e = e.parentElement) e.dispatchEvent(event('mouseenter', 0, 0, false));"
+                          "at.dispatchEvent(event('mousemove', 0, 0, true));"
+                          "at.dispatchEvent(event('mousedown', 0, 1, true));"
+                          "for (let dx = 12; dx <= 120; dx += 12) at.dispatchEvent(event('mousemove', dx, 1, true));"
+                          "at.dispatchEvent(event('mouseup', 120, 0, true));})()")
+               .arg(chart_time(kst("2026-10-15T09:50:00+09:00"))));
+        QTRY_VERIFY_WITH_TIMEOUT(range_ && range_->second < times(morning).last(), 5000); // it moved
+        QTest::qWait(400);
+        QCOMPARE(clicked.size(), 0);
+
+        const QList<Bar> bars = minutes("2026-10-15T12:50:00+09:00", 20) + minutes("2026-10-15T13:30:00+09:00", 20);
+        empty();
+        draw(bars);
+        QTRY_COMPARE_WITH_TIMEOUT(slots_drawn(), (std::pair{60, 20}), 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(range_.has_value(), 10000);
+        QTest::qWait(400); // fitted
+        QTest::mouseClick(input, Qt::LeftButton, {}, spot(chart_time(kst("2026-10-15T13:20:00+09:00"))));
+        QTRY_COMPARE_WITH_TIMEOUT(clicked.size(), 1, 5000);
+        QCOMPARE(clicked[0][0].toDateTime(), kst("2026-10-15T13:21:00+09:00"));
+
+        // Past the last bar (13:49), in the room kept right of it: nothing.
+        clicked.clear();
+        const qint64 last = chart_time(kst("2026-10-15T13:49:00+09:00"));
+        const int width = qRound(js(QStringLiteral("window.krxChart.x(%1) - window.krxChart.x(%2)")
+                                        .arg(last)
+                                        .arg(chart_time(kst("2026-10-15T13:48:00+09:00"))))
+                                     .toDouble());
+        QVERIFY(width > 0);
+        QTest::mouseClick(input, Qt::LeftButton, {}, spot(last, 3 * width));
+        QTest::qWait(400);
+        QCOMPARE(clicked.size(), 0);
+
+        // The 3-minute view: a bar holds three bar closes, none of them told.
+        chart_->set_data(bars, {}, {}, {}, 3, {});
+        QTRY_COMPARE_WITH_TIMEOUT(slots_drawn().first, 21, 10000); // 12:48 to 13:48
+        QTest::qWait(400);
+        QTest::mouseClick(input, Qt::LeftButton, {}, spot(chart_time(kst("2026-10-15T13:00:00+09:00"))));
+        QTest::qWait(400);
+        QCOMPARE(clicked.size(), 0);
     }
 
     void cmd_d_on_the_chart_opens_the_drawing_menu() {
