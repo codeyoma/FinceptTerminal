@@ -361,8 +361,13 @@ function Update-Swap {
     } catch {
         Write-Log "putting the old install back: $($_.Exception.Message)"
         if (Test-Path -LiteralPath $Root) {
-            Move-WithRetry $Root "$staging.failed"
-            Remove-Quietly "$staging.failed"
+            # A rename cannot land on a folder that is there: a .failed an earlier rollback could
+            # not remove would stop this one before the old install went back.
+            $failed = "$staging.failed"
+            Remove-Quietly $failed
+            if (Test-Path -LiteralPath $failed) { $failed = "$failed-$([guid]::NewGuid().ToString('N'))" }
+            Move-WithRetry $Root $failed
+            Remove-Quietly $failed
         }
         Move-WithRetry $old $Root
         throw
