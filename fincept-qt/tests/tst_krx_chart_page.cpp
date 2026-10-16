@@ -12,6 +12,10 @@
 //
 // Shift and an upright wheel, as Windows sends them (krx-quant #242), move the view sideways.
 //
+// The wheel zooms on the bar nearest the pointer (krx-quant #253): that bar stays where it is. Out,
+// where the latest bars run out on the right the view slides, its gap after the latest bar no wider;
+// on the left it stops at the first bar read while more are to be read, and slides once none are.
+//
 // The page keeps no key the screen's shortcuts want: Cmd+D (Ctrl+D) with the keyboard on the chart
 // opens the toolbar's drawing menu (krx-quant #241).
 //
@@ -152,6 +156,22 @@ class TstKrxChartPage : public QObject {
                .arg(time));
     }
 
+    /// The wheel turned upright ``clicks`` times at ``x`` on the chart, a third of the way down (in
+    /// for a negative ``delta_y``), a little apart as a hand turns it.
+    void wheel_at(double x, int delta_y, int clicks) {
+        for (int i = 0; i < clicks; ++i) {
+            js(QStringLiteral("document.elementFromPoint(%1, innerHeight / 3).dispatchEvent(new WheelEvent('wheel', "
+                              "{deltaY: %2, bubbles: true, cancelable: true, clientX: %1, clientY: innerHeight / 3}))")
+                   .arg(x)
+                   .arg(delta_y));
+            QTest::qWait(50);
+        }
+        QTest::qWait(300); // the chart's next frames
+    }
+
+    /// Where the slot holding ``time`` is on the chart, across.
+    double x_of(qint64 time) { return js(QStringLiteral("window.krxChart.x(%1)").arg(time)).toDouble(); }
+
     /// Another symbol chosen: the screen empties the chart first (KrxLive::select).
     void empty() {
         draw({});
@@ -234,6 +254,62 @@ class TstKrxChartPage : public QObject {
         QTRY_VERIFY2_WITH_TIMEOUT(range_->second < all.last(), in_view(day).constData(), 10000);
         QTest::qWait(400); // the wheel's own move settled
         QCOMPARE(js(spacing).toDouble(), width);
+    }
+
+    void the_wheel_zooms_on_the_bar_nearest_the_pointer() {
+        // krx-quant #253: the pointer a little off a bar's middle, that bar stays where it is, in and
+        // out, give or take the few pixels the price axis's labels take or give back.
+        empty();
+        const QList<Bar> day = minutes("2026-10-12T09:00:00+09:00", 300);
+        const QList<qint64> all = times(day);
+        draw(day);
+        expect_fitted(day); // 240 to 299
+        const double at = x_of(all[260]);
+        const auto spacing = [&]() { return x_of(all[261]) - x_of(all[260]); };
+        const double before = spacing();
+        wheel_at(at + 2, -100, 5);
+        QVERIFY2(std::abs(x_of(all[260]) - at) <= 3, QByteArray::number(x_of(all[260]) - at));
+        QVERIFY(spacing() > before * 1.5);
+        wheel_at(at + 2, 100, 2); // out, the latest bars still past the right edge
+        QVERIFY2(std::abs(x_of(all[260]) - at) <= 3, QByteArray::number(x_of(all[260]) - at));
+        QVERIFY(js("window.krxChart.gap()").toDouble() < 0);
+        // Out from the latest bars at the right: the view slides, keeping its gap after the latest.
+        chart_->fit();
+        expect_fitted(day);
+        QCOMPARE(js("window.krxChart.gap()").toDouble(), kRightOffset);
+        wheel_at(at + 2, 100, 4);
+        QVERIFY(spacing() < before * 0.8);
+        QVERIFY(std::abs(js("window.krxChart.gap()").toDouble() - kRightOffset) < 0.01);
+        QVERIFY(x_of(all[260]) > at + 10);
+    }
+
+    void a_zoom_out_waits_at_the_first_bar_read_and_slides_once_none_is_before() {
+        // krx-quant #253: the first bar read reached the left end, the zoom out stops with the bar held
+        // where it was, as the bars before are read. Once the engine has none before, it slides on.
+        empty();
+        const QList<Bar> day = minutes("2026-10-12T09:00:00+09:00", 300);
+        const QList<qint64> all = times(day);
+        draw(day);
+        expect_fitted(day);
+        QVERIFY(js(QStringLiteral("window.krxChart.show(%1)").arg(all[40])).toBool()); // 7 to 73
+        QTRY_VERIFY2_WITH_TIMEOUT(range_ && range_->first > all[0] && range_->first < all[20], in_view(day).constData(),
+                                  10000);
+        const double at = x_of(all[20]);
+        const auto spacing = [&]() { return x_of(all[1]) - x_of(all[0]); };
+        const double before = spacing();
+        wheel_at(at, 100, 10);
+        QVERIFY2(std::abs(x_of(all[20]) - at) <= 3, QByteArray::number(x_of(all[20]) - at));
+        QVERIFY(spacing() < before * 0.9);                        // zoomed out until
+        QVERIFY(x_of(all[0]) >= -1 && x_of(all[0]) <= spacing()); // the first bar met the left end
+        const double stopped = spacing();
+        ChartLook look;
+        look.first_day_whole = true; // none before
+        draw(day, look);
+        QTest::qWait(300);
+        wheel_at(at, 100, 3);
+        QVERIFY(spacing() < stopped * 0.9);
+        QVERIFY(x_of(all[0]) >= -1 && x_of(all[0]) <= spacing());
+        QVERIFY(x_of(all[20]) < at - 10);
     }
 
     void the_price_scale_is_chosen_at_the_bottom_right() {

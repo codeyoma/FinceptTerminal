@@ -105,8 +105,8 @@ class KrxChartBridge : public QObject {
 };
 
 /// A symbol's 1-minute bars of the day, drawn by TradingView Lightweight Charts in a web
-/// view (src/screens/krx_quant/chart, bundled as Qt resources): wheel to zoom, drag to
-/// scroll, double-click (or fit()) for the last 60 bars, the lower indicators (the volume among
+/// view (src/screens/krx_quant/chart, bundled as Qt resources): wheel to zoom on the bar nearest
+/// the pointer (krx-quant #253), drag to scroll, double-click (or fit()) for the last 60 bars, the lower indicators (the volume among
 /// them) each in a pane below, their borders dragged to resize them (krx-quant #223), and the
 /// last price on the price axis, its scale 일반 or 로그 (krx-quant #245) by the choice at the bottom
 /// right. Over the bars, the final consensus's icons
