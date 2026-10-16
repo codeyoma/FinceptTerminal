@@ -3,8 +3,8 @@
 // The KRX chart's page only draws: what goes on it is worked out here. These tests pin the
 // chart's time (KST shown as the chart's UTC), the bars, the consensus icons (their arrow,
 // result, faintness, signal and the bar they sit on), each bar's hover box and target, the
-// selected consensus's score and the selection itself (krx-quant #159). The expected
-// values are worked out by hand.
+// selected consensus's score and the selection itself (krx-quant #159), and the bar close of a
+// bar clicked (krx-quant #249). The expected values are worked out by hand.
 
 #include "services/krx_quant/ChartModel.h"
 
@@ -119,6 +119,16 @@ class TstKrxChartModel : public QObject {
         QCOMPARE(icons.size(), 1);
         QCOMPARE(icons[0].time, qint64(1791797400));
         QCOMPARE(icons[0].bar_close, kst("2026-10-12T09:31:00+09:00"));
+    }
+
+    void a_clicked_bar_s_bar_close_is_a_minute_on_in_kst() {
+        // The bar 09:30–09:31 (krx-quant #249) closed at 09:31, as its icon's; the engine is asked
+        // for it with its offset.
+        const QDateTime close = bar_close_of(chart_time(kst("2026-10-12T09:30:00+09:00")));
+        QCOMPARE(close, kst("2026-10-12T09:31:00+09:00"));
+        QCOMPARE(close.toString(Qt::ISODate), QStringLiteral("2026-10-12T09:31:00+09:00"));
+        const auto icons = plain_icons({mark("2026-10-12T09:31:00+09:00", Direction::Up, Mark::Result::Hit)});
+        QCOMPARE(bar_close_of(icons[0].time), icons[0].bar_close); // the bar's icon's
     }
 
     void an_icon_shows_the_class_and_its_result() {

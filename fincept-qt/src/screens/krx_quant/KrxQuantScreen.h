@@ -54,7 +54,7 @@ class KrxQuantScreen : public QWidget {
     void show_dot();
     void fill_symbols();
     void fill_predictions();
-    /// The table while a bar close is pinned (a chart icon clicked).
+    /// The table while a bar close is pinned (a chart icon or 1-minute bar clicked).
     void fill_pinned();
     /// The panel of the kind shown besides the direction (krx-quant #182): its latest bar close's
     /// predictions, or the pinned one's with their results.

@@ -80,8 +80,8 @@ class KrxLive : public QObject {
     const QMap<QString, krx_quant::AlgorithmInfo>& algorithms() const { return algorithms_; }
     /// Why the last read of them failed (they are dropped then, not left stale); empty once one works.
     const QString& algorithms_failure() const { return algorithms_failure_; }
-    /// Show one bar close's judgements of the chosen symbol (a chart icon clicked, krx-quant
-    /// #107) instead of the latest's; an invalid time goes back to the latest.
+    /// Show one bar close's judgements of the chosen symbol (a chart icon or 1-minute bar clicked,
+    /// krx-quant #107, #249) instead of the latest's; an invalid time goes back to the latest.
     void pin(const QDateTime& bar_close);
     /// The chart's view of ``minutes`` (krx-quant #109) shows its bars from ``from`` to ``to``
     /// (logical indexes from its left end): with less than a screen of them before ``from``, the

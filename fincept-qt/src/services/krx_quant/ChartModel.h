@@ -28,6 +28,10 @@ inline constexpr int kFitBars = 60;
 /// its times in UTC and they should read in KST.
 qint64 chart_time(const QDateTime& t);
 
+/// The bar close of the 1-minute bar that starts at ``time`` (chart_time): a minute on, in KST, as
+/// the engine names it (krx-quant #249).
+QDateTime bar_close_of(qint64 time);
+
 /// A 1-minute bar as the chart draws it.
 struct ChartBar {
     qint64 time = 0; ///< its start, as chart_time
