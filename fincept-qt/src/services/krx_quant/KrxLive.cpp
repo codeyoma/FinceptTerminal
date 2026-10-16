@@ -153,9 +153,11 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
                 read_supply(false); // another symbol's, or more days held meanwhile
             });
     connect(service_, &KrxQuantService::supply_failed, this,
-            [this](const QString& symbol, const QDate&, const QDate&, const QString&) {
-                // The values are left as they were; asked again within 5 minutes. Another symbol's at once.
-                if (symbol != selected_)
+            [this](const QString& symbol, const QDate& from, const QDate& to, const QString&) {
+                // The values are left as they were. The days wanted now failed: asked again within 5
+                // minutes. Another symbol's, or days no longer wanted (the view or the bars held changed
+                // while they were read, and that read was skipped as one was under way): at once.
+                if (symbol != selected_ || supply_days() != std::optional(std::pair(from, to)))
                     read_supply(false);
             });
     connect(service_, &KrxQuantService::algorithms_ready, this,

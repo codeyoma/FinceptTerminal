@@ -33,6 +33,7 @@
 #include <QTest>
 
 #include <algorithm>
+#include <utility>
 
 namespace {
 
@@ -94,6 +95,9 @@ class StandIn : public QObject {
     QJsonArray last_day; ///< GET …/bars?limit=N: the latest bars before now (none before them)
     /// GET …/supply?from=&to= (krx-quant #226): these days; none: 404, as an engine before it.
     std::optional<QJsonArray> supply;
+    /// The supply reads fail (500); with ``hold_supply`` the first is answered only by release_supply.
+    bool supply_fails = false;
+    bool hold_supply = false;
     QStringList asked;
 
     StandIn() {
@@ -108,6 +112,18 @@ class StandIn : public QObject {
     }
     bool asked_for(const QString& prefix) const {
         return std::any_of(asked.begin(), asked.end(), [&](const QString& path) { return path.startsWith(prefix); });
+    }
+    qsizetype supply_reads() const {
+        return std::count_if(asked.begin(), asked.end(), [](const QString& path) {
+            return path.startsWith("/v1/symbols/" + kSymbol + "/supply?");
+        });
+    }
+    /// Whether a supply read is held (hold_supply).
+    bool supply_held() const { return held_ != nullptr; }
+    /// Answer the supply read held, as the others are answered now.
+    void release_supply() {
+        if (QTcpSocket* socket = std::exchange(held_, nullptr))
+            respond(socket, held_path_);
     }
 
   private:
@@ -125,9 +141,20 @@ class StandIn : public QObject {
             return; // the rest of the head is on its way
         const QString path = QString::fromLatin1(request.left(request.indexOf("\r\n")).split(' ').value(1));
         asked << path;
+        if (hold_supply && path.startsWith("/v1/symbols/" + kSymbol + "/supply?")) {
+            hold_supply = false; // the first alone
+            held_ = socket;
+            held_path_ = path;
+            return;
+        }
+        respond(socket, path);
+    }
+
+    void respond(QTcpSocket* socket, const QString& path) {
         int status = 200;
         const QByteArray body = QJsonDocument(answer(path, &status)).toJson(QJsonDocument::Compact);
-        socket->write("HTTP/1.1 " + QByteArray::number(status) + (status == 200 ? " OK" : " Not Found") +
+        const QByteArray reason = status == 200 ? " OK" : status == 404 ? " Not Found" : " Internal Server Error";
+        socket->write("HTTP/1.1 " + QByteArray::number(status) + reason +
                       "\r\nContent-Type: application/json\r\nContent-Length: " + QByteArray::number(body.size()) +
                       "\r\nConnection: close\r\n\r\n" + body);
         socket->disconnectFromHost();
@@ -145,6 +172,10 @@ class StandIn : public QObject {
             return {{"symbol", kSymbol}, {"bars", path.contains("before=") ? QJsonArray{} : last_day}};
         if (path.startsWith("/v1/symbols/" + kSymbol + "/predictions"))
             return {{"symbol", kSymbol}, {"predictions", QJsonArray{}}};
+        if (supply_fails && path.startsWith("/v1/symbols/" + kSymbol + "/supply?")) {
+            *status = 500;
+            return {{"error", "made-up failure"}};
+        }
         if (supply && path.startsWith("/v1/symbols/" + kSymbol + "/supply?"))
             return {{"symbol", kSymbol}, {"days", *supply}};
         if (path.startsWith("/v1/symbols/" + kSymbol + "/candles")) {
@@ -159,6 +190,8 @@ class StandIn : public QObject {
     }
 
     QTcpServer server_;
+    QTcpSocket* held_ = nullptr; ///< a supply read not answered yet (hold_supply)
+    QString held_path_;
 };
 
 } // namespace
@@ -233,6 +266,32 @@ class TstKrxLive : public QObject {
         // Another address: not known to be without it until that one answers.
         live.apply_base_url(engine.url());
         QVERIFY(live.supply_served());
+    }
+
+    void the_days_wanted_now_are_read_at_once_when_a_read_of_others_fails() {
+        // The view changes while a supply read is under way (krx-quant #226): the read the new days
+        // need is skipped, as one is under way. That one failing, the new days are read at once, not
+        // 5 minutes later; the days wanted now failing are not asked again at once.
+        StandIn engine;
+        engine.now = "2026-10-16T09:20:00+09:00";
+        engine.today = bars_json("2026-10-16T09:00:00+09:00", 20);
+        engine.supply_fails = true;
+        engine.hold_supply = true;
+        services::KrxLive live;
+        live.set_view(1);
+        live.apply_base_url(engine.url());
+        QTRY_VERIFY_WITH_TIMEOUT(engine.supply_held(), 10000); // the minute view's days, from the 16th
+        QVERIFY(engine.asked_for("/v1/symbols/" + kSymbol + "/supply?from=2026-10-16&to="));
+        live.set_view(kDayView); // its candles start on the 15th: other days
+        QTRY_VERIFY_WITH_TIMEOUT(engine.asked_for("/v1/symbols/" + kSymbol + "/candles"), 10000);
+        QTest::qWait(500); // the candles answered: the day view's days wanted, their read skipped
+        QCOMPARE(engine.supply_reads(), 1);
+        engine.release_supply(); // the minute view's days fail
+        QTRY_VERIFY_WITH_TIMEOUT(engine.asked_for("/v1/symbols/" + kSymbol + "/supply?from=2026-10-15&to="), 3000);
+        QTest::qWait(1000); // those fail too: not asked again at once
+        QCOMPARE(engine.supply_reads(), 2);
+        QVERIFY(live.supply().isEmpty());
+        QVERIFY(live.supply_served()); // a failure, not an engine without them
     }
 
     void a_symbol_chosen_in_a_minute_view_while_the_day_has_bars_reads_none_before_them() {
