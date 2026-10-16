@@ -64,9 +64,16 @@ std::optional<Touch> touch_of(const QJsonValue& v) {
     if (!v.isObject())
         return std::nullopt;
     const QJsonObject t = v.toObject();
-    return Touch{class_of(t.value("class")), t.value("unscorable").toString(), number(t.value("anchor")),
-                 number(t.value("upper")),   number(t.value("lower")),         reach_of(t, "upper"),
-                 reach_of(t, "lower")};
+    const auto k = number(t.value("k"));
+    return Touch{class_of(t.value("class")),
+                 t.value("unscorable").toString(),
+                 number(t.value("anchor")),
+                 number(t.value("upper")),
+                 number(t.value("lower")),
+                 reach_of(t, "upper"),
+                 reach_of(t, "lower"),
+                 number(t.value("tick")),
+                 k ? std::optional<int>(static_cast<int>(std::lround(*k))) : std::nullopt};
 }
 
 std::optional<Outcome> outcome_of(const QJsonValue& v) {
@@ -371,8 +378,10 @@ Result<QList<Bar>> parse_bars(const QJsonDocument& doc) {
     QList<Bar> out;
     for (const auto& v : obj.value().value("bars").toArray()) {
         const QJsonObject b = v.toObject();
+        const auto trades = number(b.value("trades")); // null for a past day's (krx-quant #255)
         out.push_back({time_of(b.value("start")), b.value("open").toDouble(), b.value("high").toDouble(),
-                       b.value("low").toDouble(), b.value("close").toDouble(), b.value("volume").toDouble()});
+                       b.value("low").toDouble(), b.value("close").toDouble(), b.value("volume").toDouble(),
+                       trades ? std::optional<int>(static_cast<int>(std::lround(*trades))) : std::nullopt});
     }
     return Result<QList<Bar>>::ok(out);
 }
@@ -1003,6 +1012,9 @@ QString status_label(const QString& status) {
         {"no_book", QStringLiteral("호가 없음")},
         {"no_members", QStringLiteral("합의 대상 없음")},
         {"none_finished", QStringLiteral("끝난 알고리즘 없음")},
+        // "기준: 직전 4분 방향" when the window before could not be scored (krx-quant #191; found
+        // with the bar window, krx-quant #255): as the kinds' baselines say it.
+        {"no_previous", QStringLiteral("직전 창 없음")},
     };
     return labels.value(status, status);
 }

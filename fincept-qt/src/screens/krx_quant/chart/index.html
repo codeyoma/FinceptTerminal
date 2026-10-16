@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!--
   The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182, #185,
-  #221, #222, #223, #224, #225, #236, #249, #253), drawn with TradingView Lightweight Charts (NOTICE). It only draws
+  #221, #222, #223, #224, #225, #236, #249, #253, #255), drawn with TradingView Lightweight Charts (NOTICE). It only draws
   what the screen sends over the web channel: the bars in the style chosen (or the bricks of a style
   without a time axis, a slot each, named by when each ended), a minute view's empty bars (a slot
   without trades between two bars of a day: whitespace, no candle and no volume, #236) and the
@@ -16,7 +16,8 @@
   them, with its guide lines) with each pane's legend, the theme, and when to fit. The wheel zooms
   on the bar nearest the pointer (#253), the screen saying when there is nothing before to read.
   Many panes make the chart taller than the page, which then scrolls. It tells the screen where its
-  view is, the icon or slot clicked (#107, #249), the legend's buttons, the anchored VWAP's bar
+  view is, the icon or slot clicked (#107, #249) and the slot double-clicked (#255: the screen opens
+  its bar's window; a double-click no longer fits the chart), the legend's buttons, the anchored VWAP's bar
   clicked or dragged to, and the lower panes' heights once a border between panes is dragged.
   Over the prices it draws the symbol's drawings (#224) and lets them be placed with the tool the
   screen chose, picked, dragged, removed (Delete, Backspace) and double-clicked; it tells the
@@ -1434,7 +1435,7 @@
     follow = null;
     repaint();
   });
-  // A drawing double-clicked: the screen opens its look's popup there (not the chart's fit).
+  // A drawing double-clicked: the screen opens its look's popup there (not the bar's window, #255).
   area.addEventListener('dblclick', function (e) {
     if (tool) {
       e.stopImmediatePropagation();
@@ -1843,7 +1844,9 @@
   // (krx-quant #249). A drag is no click (the chart's own). While the anchored VWAP waits for its
   // bar (krx-quant #222), a click anywhere chooses the bar under it.
   let bridge = null;
+  let clickedSlot = null; // the slot the last click told the screen (its time); null: none (#255)
   chart.subscribeClick(function (param) {
+    clickedSlot = null;
     if (picking && param && param.point && bars.length && bridge) {
       const time = barTimeAt(param.point.x);
       if (time !== null) {
@@ -1855,9 +1858,27 @@
     }
     if (!bridge || !param || !param.point) return;
     const icon = param.hoveredObjectId !== undefined ? iconAt.get(String(param.hoveredObjectId)) : undefined;
-    if (icon) return bridge.clicked(icon.bar_close);
+    if (icon) {
+      clickedSlot = icon.time;
+      return bridge.clicked(icon.bar_close);
+    }
     const i = param.logical === undefined ? -1 : Math.round(param.logical);
-    if (i >= 0 && i < bars.length) bridge.bar(bars[i].time);
+    if (i >= 0 && i < bars.length) {
+      clickedSlot = bars[i].time;
+      bridge.bar(bars[i].time);
+    }
+  });
+  // A slot double-clicked (#255): the screen opens its bar's window (a 1-minute view's). The chart's
+  // own double-click: two clicks within half a second and a few pixels, no drag; its second is no
+  // click, so the first alone pinned the panel. Only where that first click told the screen its slot:
+  // not past the last slot, nor the anchored VWAP's pick; a drawing's and a tool's clicks never reach
+  // the chart (their mousedown is taken above), and a drawing's double-click opens its popup.
+  chart.subscribeDblClick(function (param) {
+    const slot = clickedSlot;
+    clickedSlot = null;
+    if (!bridge || !param || !param.point || picking || slot === null) return;
+    const i = param.logical === undefined ? -1 : Math.round(param.logical);
+    if (i >= 0 && i < bars.length && bars[i].time === slot) bridge.opened(slot);
   });
 
   function theme(t) {
@@ -1960,6 +1981,8 @@
       const i = slotAt(time);
       return i === null ? null : chart.timeScale().logicalToCoordinate(i);
     },
+    // The y of a price on the price pane (#255: a drawing's line double-clicked in the page's tests).
+    y: function (price) { return main.priceToCoordinate(price); },
     show: function (time) {
       const i = slotAt(time);
       if (i === null) return false;
@@ -1983,7 +2006,7 @@
     },
   };
 
-  area.addEventListener('dblclick', fit);
+  // A double-click no longer fits the chart (#255): it opens the bar's window above; 맞춤 fits.
   area.addEventListener('mouseleave', () => hover(null));
   window.addEventListener('resize', function () { layoutPanes(); redraw(); });
 

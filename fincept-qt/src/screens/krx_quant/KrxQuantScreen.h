@@ -23,6 +23,7 @@ class LoadingOverlay;
 namespace fincept::screens {
 
 class KrxAlerts;
+class KrxBarWindow;
 class KrxChart;
 class KrxChartToolbar;
 class KrxDrawingPopup;
@@ -33,9 +34,10 @@ class KrxStudyPanel;
 
 /// KRX 4-minute predictions (fork addition, see custom/README.md): the prediction engine's
 /// status and macro row, each symbol's latest predictions, the chosen symbol's chart with
-/// the final consensus over it, the leaderboard with a predictor's detail window, and
-/// signal alerts. It renders what its KrxLive says and passes on the user's choices, in
-/// Fincept's panels, tables, fonts and theme. The text is Korean.
+/// the final consensus over it and a window for a bar double-clicked (krx-quant #255), the
+/// leaderboard with a predictor's detail window, and signal alerts. It renders what its
+/// KrxLive says and passes on the user's choices, in Fincept's panels, tables, fonts and
+/// theme. The text is Korean.
 class KrxQuantScreen : public QWidget {
     Q_OBJECT
   public:
@@ -100,6 +102,11 @@ class KrxQuantScreen : public QWidget {
     /// A drawing tool chosen (krx-quant #224); none: back at the cursor.
     void set_tool(std::optional<krx_quant::DrawingTool> tool);
     void open_detail(const QString& algorithm);
+    /// The window of the chosen symbol's 1-minute bar that closed at ``bar_close`` (krx-quant #255): a
+    /// bar of the 1-minute view double-clicked. One per bar; the one already open comes to the front.
+    void open_bar(const QDateTime& bar_close);
+    /// Tell KrxLive the bars whose windows are open, to read them.
+    void watch_bars();
     /// What the engine says about ``algorithm`` (krx-quant #163); none for a baseline or a
     /// consensus, or before it answered.
     /// Why the description of ``algorithm`` could not be read; empty for another kind's baseline,
@@ -143,6 +150,7 @@ class KrxQuantScreen : public QWidget {
     QPushButton* latest_ = nullptr; ///< back to the latest bar close, while one is pinned
     KrxLeaderboard* leaderboard_ = nullptr;
     QHash<QString, KrxStatsWindow*> stats_windows_; ///< open, by predictor
+    QHash<QString, KrxBarWindow*> bar_windows_;     ///< open, by bar (krx_quant::bar_key, krx-quant #255)
     KrxAlerts* alerts_ = nullptr;
     QWidget* body_ = nullptr;
     ui::LoadingOverlay* loading_ = nullptr; ///< over the body until the engine first answers

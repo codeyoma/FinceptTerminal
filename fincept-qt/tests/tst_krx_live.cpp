@@ -7,6 +7,9 @@
 // pin that a minute view reads them however the screen got there, and that a symbol chosen in
 // a minute view reads them once, and nothing before the day's bars while the day has some.
 //
+// A bar window (krx-quant #255) reads its bar close at once, then again each tick without the stream
+// until nothing more is to come: an earlier day's once, today's while not scored, none once closed.
+//
 // The stand-in answers the routes these reads need (status, symbols, a symbol's bars, candles
 // and predictions); every other route is 404, which the screen shows as not read. Built
 // without Qt WebSockets, the stream never connects and the screen reads the API instead. The
@@ -209,6 +212,46 @@ class TstKrxLive : public QObject {
         QTest::qWait(300);
         // No indicator wants bars before them, and the view has not been scrolled back.
         QCOMPARE(engine.older_reads(), 0);
+    }
+
+    void a_bar_window_reads_its_bar_until_nothing_more_comes() {
+        // krx-quant #255: a bar window opened reads its bar close's predictions, the algorithms'
+        // statuses, the bars before its scoring time and that day's special situations at once. An
+        // earlier day's bar is read once; today's, its four minutes not over, again each tick without
+        // the stream; a window closed, no more.
+        StandIn engine;
+        engine.now = "2026-10-16T10:28:00+09:00";
+        services::KrxLive live;
+        live.apply_base_url(engine.url());
+        live.start(); // the ticks
+        QTRY_VERIFY_WITH_TIMEOUT(live.status().has_value(), 10000);
+        QList<BarRead> reads;
+        connect(&live, &services::KrxLive::bar_changed, &live, [&reads](const BarRead& read) { reads << read; });
+        const QDateTime past = QDateTime::fromString("2026-10-15T10:27:00+09:00", Qt::ISODate);
+        const QDateTime today = QDateTime::fromString("2026-10-16T10:27:00+09:00", Qt::ISODate);
+        live.set_bars({{kSymbol, past}, {kSymbol, today}});
+        QTRY_COMPARE_WITH_TIMEOUT(reads.size(), 2, 10000);
+        const auto reads_of = [&engine](const QString& route, const char* day) {
+            return std::count_if(engine.asked.begin(), engine.asked.end(), [&](const QString& path) {
+                return path.startsWith("/v1/symbols/" + kSymbol + route) && path.contains(QLatin1String(day));
+            });
+        };
+        QCOMPARE(reads_of("/predictions?bar_close=", "2026-10-15T10"), 1);
+        QCOMPARE(reads_of("/bars?limit=10&before=", "2026-10-15T10"), 1); // before 10:31, its scoring time
+        QVERIFY(engine.asked_for("/v1/symbols/" + kSymbol + "/bars?limit=10&before=2026-10-15T10%3A31"));
+        QCOMPARE(reads_of("/special?from=2026-10-15&to=", "2026-10-15"), 1);
+        QVERIFY(engine.asked_for("/v1/algorithms"));
+        QCOMPARE(reads[0].symbol, kSymbol);
+
+        // A tick later: today's again (not scored yet), not the past day's.
+        QTRY_VERIFY_WITH_TIMEOUT(reads_of("/predictions?bar_close=", "2026-10-16T10") >= 2, 8000);
+        QCOMPARE(reads_of("/predictions?bar_close=", "2026-10-15T10"), 1);
+
+        // Both closed: neither is read again.
+        live.set_bars({});
+        const auto asked = reads_of("/predictions?bar_close=", "2026-10-16T10");
+        QTest::qWait(5500);
+        QCOMPARE(reads_of("/predictions?bar_close=", "2026-10-16T10"), asked);
     }
 };
 

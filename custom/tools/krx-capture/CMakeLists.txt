@@ -35,6 +35,7 @@ add_executable(krx_capture
     "${SRC}/core/logging/Logger.cpp"
     "${SRC}/network/http/HttpClient.cpp"
     "${SRC}/screens/krx_quant/KrxAlerts.cpp"
+    "${SRC}/screens/krx_quant/KrxBarWindow.cpp"
     "${SRC}/screens/krx_quant/KrxChart.cpp"
     "${SRC}/screens/krx_quant/KrxChartToolbar.cpp"
     "${SRC}/screens/krx_quant/KrxDrawingPopup.cpp"
@@ -43,6 +44,7 @@ add_executable(krx_capture
     "${SRC}/screens/krx_quant/KrxStatsWindow.cpp"
     "${SRC}/screens/krx_quant/KrxStudyPanel.cpp"
     "${SRC}/screens/krx_quant/KrxSymbolCell.cpp"
+    "${SRC}/services/krx_quant/BarView.cpp"
     "${SRC}/services/krx_quant/Board.cpp"
     "${SRC}/services/krx_quant/ChartBricks.cpp"
     "${SRC}/services/krx_quant/ChartDrawings.cpp"
@@ -64,6 +66,7 @@ add_executable(krx_capture
     "${SRC}/ui/widgets/LoadingOverlay.cpp"
     # Headers with Q_OBJECT, for moc.
     "${SRC}/screens/krx_quant/KrxAlerts.h"
+    "${SRC}/screens/krx_quant/KrxBarWindow.h"
     "${SRC}/screens/krx_quant/KrxChart.h"
     "${SRC}/screens/krx_quant/KrxChartToolbar.h"
     "${SRC}/screens/krx_quant/KrxDrawingPopup.h"

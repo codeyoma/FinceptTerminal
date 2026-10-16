@@ -1,7 +1,8 @@
 // Fork addition (custom/README.md, "화면 캡처"): shows the KRX screen against an engine,
 // waits for it to read the engine, and saves the screen as a PNG. Given predictors, it
 // also opens their detail windows, as a double-click on the leaderboard does, and saves
-// each next to the screen's: <out>-<predictor>.png.
+// each next to the screen's: <out>-<predictor>.png. KRX_CAPTURE_BAR opens bar windows, as a
+// double-click on a 1-minute bar does (krx-quant #255): <out>-bar<n>.png.
 //
 //   krx_capture <engine url> <out.png> [seconds=8] [width=1600] [height=1000] [predictor,...]
 //
@@ -9,6 +10,7 @@
 // With QT_QPA_PLATFORM=offscreen no window opens, and the chart's panel stays empty. The
 // theme and font are the app's defaults (Obsidian, Consolas 14px).
 #include "core/config/AppConfig.h"
+#include "screens/krx_quant/KrxBarWindow.h"
 #include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxChartToolbar.h"
 #include "screens/krx_quant/KrxDrawingPopup.h"
@@ -32,6 +34,7 @@
 #include <QKeySequence>
 #include <QMenu>
 #include <QScreen>
+#include <QScrollArea>
 #include <QTest>
 #include <QTextStream>
 #include <QTimer>
@@ -283,6 +286,16 @@ int main(int argc, char* argv[]) {
         });
     }
 
+    // KRX_CAPTURE_BAR=<bar close, ISO 8601>[,…]: as a double-click on that 1-minute bar (krx-quant #255),
+    // once the screen has read the engine: its window opens, saved as <out>-bar<n>.png in that order.
+    for (const QString& text : qEnvironmentVariable("KRX_CAPTURE_BAR").split(',', Qt::SkipEmptyParts)) {
+        if (const QDateTime close = QDateTime::fromString(text.trimmed(), Qt::ISODate); close.isValid())
+            QTimer::singleShot(seconds * 500, &app, [&screen, close]() {
+                if (auto* chart = screen.findChild<fincept::screens::KrxChart*>())
+                    emit chart->bar_window_requested(close);
+            });
+    }
+
 #ifdef HAS_QT_WEBENGINE
     // KRX_CAPTURE_BACK=<wheel turns>: as wheeling the chart back that many times, a turn every
     // half second from a quarter of the wait, so earlier days are read and shown (krx-quant #108).
@@ -482,6 +495,17 @@ int main(int argc, char* argv[]) {
         for (qsizetype i = 0; i < windows.size() && i < details.size(); ++i)
             save(windows[i], file.dir().filePath(
                                  QStringLiteral("%1-%2.%3").arg(file.completeBaseName(), details[i], file.suffix())));
+        // The bar windows (KRX_CAPTURE_BAR, krx-quant #255), each as tall as its sections, in the order opened.
+        const auto bars = screen.findChildren<fincept::screens::KrxBarWindow*>(Qt::FindDirectChildrenOnly);
+        for (qsizetype i = 0; i < bars.size(); ++i) {
+            if (auto* scroll = bars[i]->findChild<QScrollArea*>(); scroll && scroll->widget())
+                bars[i]->resize(bars[i]->width(),
+                                bars[i]->height() - scroll->height() + scroll->widget()->sizeHint().height() + 2);
+            QApplication::processEvents();
+            const QString name =
+                QStringLiteral("%1-bar%2.%3").arg(file.completeBaseName()).arg(i + 1).arg(file.suffix());
+            save(bars[i], file.dir().filePath(name));
+        }
         // A drawing's popup a double-click opened (KRX_CAPTURE_JS, krx-quant #224) is saved as a menu.
         if (auto* popup = screen.findChild<fincept::screens::KrxDrawingPopup*>(); !menu && popup && popup->isVisible())
             menu = popup;

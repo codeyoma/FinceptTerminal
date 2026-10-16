@@ -77,9 +77,8 @@ QString verdict_text(Mark::Result r) {
     return QStringLiteral("채점 전");
 }
 
-/// What happened after a bar close: "정답 상승 (09:32:30 닿음)", the touch target and when it
-/// was reached (krx-quant #170); "실제 상승 +500원" from an engine before it; or why it is not
-/// known yet.
+} // namespace
+
 QString truth_text(const Truth& truth) {
     if (!truth.scored)
         return QStringLiteral("채점 전");
@@ -107,6 +106,8 @@ QString truth_text(const Truth& truth) {
         text += QStringLiteral(" · 특수 상황");
     return text;
 }
+
+namespace {
 
 QString probabilities(const Prediction& p) {
     return QStringLiteral("상승 %1 · 보합 %2 · 하락 %3").arg(percent(p.p_up), percent(p.p_flat), percent(p.p_down));
@@ -427,6 +428,8 @@ QList<CloseRow> close_rows(const QList<Prediction>& predictions, const QMap<QStr
         row.p_up = p.p_up;
         row.p_flat = p.p_flat;
         row.p_down = p.p_down;
+        row.expected_ticks = p.expected_ticks;
+        row.model_version = p.model_version;
         const Direction leaned = p.status == "ok" ? most_likely(p) : Direction::None;
         row.direction = p.status == "ok" ? direction_label(leaned) : status_label(p.status);
         row.result = p.status == "ok" ? verdict_text(verdict(leaned, truth)) : QString();

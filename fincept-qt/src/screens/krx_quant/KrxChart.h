@@ -42,6 +42,9 @@ class KrxChartBridge : public QObject {
     Q_INVOKABLE void clicked(const QString& bar_close);
     /// A slot was clicked, not on an icon (krx-quant #249): its time (chart_time).
     Q_INVOKABLE void bar(double time);
+    /// A slot was double-clicked, its first click told with clicked or bar (krx-quant #255): its time
+    /// (chart_time).
+    Q_INVOKABLE void opened(double time);
     /// The view moved: it shows the bars from ``from`` to ``to`` (logical indexes from the left end).
     Q_INVOKABLE void moved(double from, double to);
     /// The bars in view start from ``from`` to ``to`` (the chart's times, chart_time).
@@ -75,6 +78,7 @@ class KrxChartBridge : public QObject {
     void page_ready();
     void icon_clicked(const QString& bar_close);
     void bar_clicked(double time);
+    void bar_opened(double time);
     void view_moved(double from, double to);
     void range_moved(double from, double to);
     void anchor_moved(double time);
@@ -109,7 +113,8 @@ class KrxChartBridge : public QObject {
 
 /// A symbol's 1-minute bars of the day, drawn by TradingView Lightweight Charts in a web
 /// view (src/screens/krx_quant/chart, bundled as Qt resources): wheel to zoom on the bar nearest
-/// the pointer (krx-quant #253), drag to scroll, double-click (or fit()) for the last 60 bars, the lower indicators (the volume among
+/// the pointer (krx-quant #253), drag to scroll, fit() for the last 60 bars, a bar clicked for its bar
+/// close's judgements and double-clicked for its window (krx-quant #249, #255), the lower indicators (the volume among
 /// them) each in a pane below, their borders dragged to resize them (krx-quant #223), and the
 /// last price on the price axis, its scale 일반 or 로그 (krx-quant #245) by the choice at the bottom
 /// right. Over the bars, the final consensus's icons
@@ -184,6 +189,11 @@ class KrxChart : public QWidget {
     /// A final consensus icon (krx-quant #107) or a bar of the 1-minute view with a time axis
     /// (krx-quant #249) was clicked: the table shows that bar close's judgements.
     void close_clicked(const QDateTime& bar_close);
+    /// A bar of the 1-minute view with a time axis was double-clicked (krx-quant #255), an icon on it
+    /// or not, an empty one too: the screen opens that bar's window. Its first click came as
+    /// close_clicked. Not past the last bar, nor a drawing's, a drawing tool's or the anchored VWAP's
+    /// clicks; nothing in a wider view, a candle view or a style without a time axis.
+    void bar_window_requested(const QDateTime& bar_close);
     /// The view was scrolled or zoomed: it shows the bars from ``from`` to ``to`` (logical
     /// indexes from the left end, ``from`` negative past the first bar); with less than a screen
     /// of them before ``from``, the bars before are read (krx-quant #108, #239).

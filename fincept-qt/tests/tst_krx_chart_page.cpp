@@ -26,6 +26,11 @@
 // the screen its bar close: the prediction panel shows that bar close's. A click past the last bar,
 // a drag, and a wider view's bar tell it nothing.
 //
+// A bar of the 1-minute view double-clicked (krx-quant #255) tells the screen its bar close for its
+// window, its first click the panel's as before, and no longer fits the chart. Past the last bar, on a
+// drawing (its popup opens), with a drawing tool chosen, while the anchored VWAP waits for its bar,
+// and in a wider view, it tells nothing.
+//
 // The page runs in Qt WebEngine with TradingView Lightweight Charts, so this suite opens a
 // window. It is skipped where the WebEngine runtime is missing or the platform draws nothing
 // (offscreen).
@@ -558,6 +563,114 @@ class TstKrxChartPage : public QObject {
         QTest::qWait(400);
         QTest::mouseClick(input, Qt::LeftButton, {}, spot(chart_time(kst("2026-10-15T13:00:00+09:00"))));
         QTest::qWait(400);
+        QCOMPARE(clicked.size(), 0);
+    }
+
+    void a_bar_double_clicked_in_the_1_minute_view_opens_its_window() {
+        // krx-quant #255: the bar 09:40–09:41 closed at 09:41. The view moved by hand first: a
+        // double-click that fitted the chart would show.
+        empty();
+        const QList<Bar> morning = minutes("2026-10-15T09:00:00+09:00", 120);
+        draw(morning);
+        expect_fitted(morning);
+        const qint64 bar = chart_time(kst("2026-10-15T09:40:00+09:00"));
+        QVERIFY(js(QStringLiteral("window.krxChart.show(%1)").arg(bar)).toBool());
+        QTRY_VERIFY_WITH_TIMEOUT(range_ && range_->second < times(morning).last(), 5000);
+        QTest::qWait(400);
+        const auto moved = *range_;
+        QWidget* input = view_->focusProxy();
+        QVERIFY(input);
+        QSignalSpy clicked(chart_, &screens::KrxChart::close_clicked);
+        QSignalSpy opened(chart_, &screens::KrxChart::bar_window_requested);
+        const QPoint at = spot(bar);
+        QTest::mouseClick(input, Qt::LeftButton, {}, at);
+        QTest::mouseClick(input, Qt::LeftButton, {}, at);
+        QTRY_COMPARE_WITH_TIMEOUT(opened.size(), 1, 5000);
+        QCOMPARE(opened[0][0].toDateTime(), kst("2026-10-15T09:41:00+09:00"));
+        QCOMPARE(opened[0][0].toDateTime().toString(Qt::ISODate), QStringLiteral("2026-10-15T09:41:00+09:00"));
+        QCOMPARE(clicked.size(), 1); // the first click pinned the panel at once; the second is no click
+        QCOMPARE(clicked[0][0].toDateTime(), kst("2026-10-15T09:41:00+09:00"));
+        QTest::qWait(600);
+        QCOMPARE(*range_, moved); // not fitted: the 맞춤 button alone fits
+
+        // Past the last bar, in the room kept right of it: nothing.
+        chart_->fit();
+        expect_fitted(morning);
+        opened.clear();
+        clicked.clear();
+        const qint64 last = times(morning).last();
+        const int width = qRound(x_of(last) - x_of(last - 60));
+        QVERIFY(width > 0);
+        QTest::mouseClick(input, Qt::LeftButton, {}, spot(last, 3 * width));
+        QTest::mouseClick(input, Qt::LeftButton, {}, spot(last, 3 * width));
+        QTest::qWait(700);
+        QCOMPARE(opened.size(), 0);
+        QCOMPARE(clicked.size(), 0);
+
+        // On a drawing (a horizontal line through the bar's close): its popup, not the window. As the
+        // hand does it, in the page (its double-click comes with Chromium's own click count).
+        const qint64 drawn = times(morning).at(100);
+        const double price = morning.at(100).close;
+        krx_quant::Drawing line = krx_quant::new_drawing(krx_quant::DrawingTool::Horizontal, {{drawn + 30, price}});
+        line.id = 1;
+        chart_->set_drawings({line}, false);
+        QTest::qWait(300);
+        QSignalSpy edited(chart_, &screens::KrxChart::drawing_edit_requested);
+        js(QStringLiteral("(function(){const x = window.krxChart.x(%1), y = window.krxChart.y(%2);"
+                          "const at = document.elementFromPoint(x, y);"
+                          "const event = (type, buttons, detail) => new MouseEvent(type, {clientX: x, clientY: y, "
+                          "  pageX: x, pageY: y, button: 0, buttons: buttons, detail: detail, bubbles: true, "
+                          "  cancelable: true, view: window});"
+                          "for (const n of [1, 2]) {"
+                          "  at.dispatchEvent(event('mousedown', 1, n)); at.dispatchEvent(event('mouseup', 0, n));"
+                          "  at.dispatchEvent(event('click', 0, n)); }"
+                          "at.dispatchEvent(event('dblclick', 0, 2));})()")
+               .arg(drawn)
+               .arg(price));
+        QTRY_COMPARE_WITH_TIMEOUT(edited.size(), 1, 5000);
+        QCOMPARE(edited[0][0].toInt(), 1);
+        QTest::qWait(700);
+        QCOMPARE(opened.size(), 0);
+        QCOMPARE(clicked.size(), 0);
+        chart_->set_drawings({}, false);
+
+        // A drawing tool chosen (a trend line): both clicks are its points.
+        QSignalSpy added(chart_, &screens::KrxChart::drawing_added);
+        chart_->set_tool(krx_quant::DrawingTool::TrendLine);
+        QTest::qWait(300);
+        QTest::mouseClick(input, Qt::LeftButton, {}, spot(times(morning).at(90)));
+        QTest::mouseClick(input, Qt::LeftButton, {}, spot(times(morning).at(90)));
+        QTRY_COMPARE_WITH_TIMEOUT(added.size(), 1, 5000);
+        QTest::qWait(700);
+        QCOMPARE(opened.size(), 0);
+        QCOMPARE(clicked.size(), 0);
+        chart_->set_tool(std::nullopt);
+
+        // The anchored VWAP waiting for its bar: the first click chooses it, the second pins (as a
+        // click after it always did), and no window opens.
+        ChartLook picking;
+        picking.studies.turn(Study::AnchoredVwap, true);
+        picking.picking = true;
+        draw(morning, picking);
+        QTest::qWait(500);
+        QSignalSpy anchored(chart_, &screens::KrxChart::anchor_chosen);
+        QTest::mouseClick(input, Qt::LeftButton, {}, spot(times(morning).at(95)));
+        QTest::mouseClick(input, Qt::LeftButton, {}, spot(times(morning).at(95)));
+        QTRY_COMPARE_WITH_TIMEOUT(anchored.size(), 1, 5000);
+        QTest::qWait(700);
+        QCOMPARE(opened.size(), 0);
+        draw(morning);
+        QTest::qWait(300);
+
+        // The 3-minute view: a bar holds three bar closes, none of them opened.
+        chart_->set_data(morning, {}, {}, {}, 3, {});
+        QTRY_COMPARE_WITH_TIMEOUT(slots_drawn().first, 40, 10000);
+        QTest::qWait(400);
+        clicked.clear();
+        QTest::mouseClick(input, Qt::LeftButton, {}, spot(chart_time(kst("2026-10-15T10:30:00+09:00"))));
+        QTest::mouseClick(input, Qt::LeftButton, {}, spot(chart_time(kst("2026-10-15T10:30:00+09:00"))));
+        QTest::qWait(700);
+        QCOMPARE(opened.size(), 0);
         QCOMPARE(clicked.size(), 0);
     }
 

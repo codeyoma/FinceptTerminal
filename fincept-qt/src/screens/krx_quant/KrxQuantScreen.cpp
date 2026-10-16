@@ -2,6 +2,7 @@
 
 #include "core/config/AppConfig.h"
 #include "screens/krx_quant/KrxAlerts.h"
+#include "screens/krx_quant/KrxBarWindow.h"
 #include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxChartToolbar.h"
 #include "screens/krx_quant/KrxDrawingPopup.h"
@@ -186,7 +187,8 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     chart_score_->hide();
     chart_header_.controls->addWidget(chart_score_);
     auto* fit = new QPushButton(tr("맞춤"));
-    fit->setToolTip(tr("최근 60봉 보기로 돌아간다. 차트를 두 번 눌러도 된다."));
+    // The button alone fits: a double-click on the chart opens the bar's window (krx-quant #255).
+    fit->setToolTip(tr("최근 60봉 보기로 돌아간다."));
     chart_header_.controls->addWidget(fit);
     chart_ = new KrxChart;
     // 일반 or 로그 at the chart's bottom right (krx-quant #245): every symbol's and view's.
@@ -457,6 +459,17 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(logos_, &KrxLogos::arrived, this, &KrxQuantScreen::fill_symbols);
     connect(fit, &QPushButton::clicked, chart_, &KrxChart::fit);
     connect(chart_, &KrxChart::close_clicked, this, [this](const QDateTime& bar_close) { live_->pin(bar_close); });
+    // A 1-minute bar double-clicked (krx-quant #255): its window, read as KrxLive reads it.
+    connect(chart_, &KrxChart::bar_window_requested, this, &KrxQuantScreen::open_bar);
+    connect(live_, &services::KrxLive::bar_changed, this, [this](const krx_quant::BarRead& read) {
+        if (auto* window = bar_windows_.value(krx_quant::bar_key(read.symbol, read.bar_close)))
+            window->show_read(read, live_->kinds(), live_->selection(), live_->engine_now());
+    });
+    connect(live_, &services::KrxLive::bar_failed, this,
+            [this](const QString& symbol, const QDateTime& bar_close, const QString& reason) {
+                if (auto* window = bar_windows_.value(krx_quant::bar_key(symbol, bar_close)))
+                    window->show_failure(reason);
+            });
     connect(chart_, &KrxChart::view_moved, this, [this](double from, double to) {
         // Bricks (krx-quant #225) start at a fixed bar: scrolling them back reads nothing before it.
         if (!krx_quant::timeless(look_.style))
@@ -484,6 +497,8 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         live_->set_selection(selection);
         fill_predictions(); // the pinned bar close's selected consensus
         fill_chart();
+        for (auto* window : std::as_const(bar_windows_)) // and each bar window's (krx-quant #255)
+            window->set_selection(selection);
     });
     connect(leaderboard_, &KrxLeaderboard::detail_requested, this, &KrxQuantScreen::open_detail);
     connect(alerts_, &KrxAlerts::changed, this, [this]() {
@@ -1206,6 +1221,36 @@ void KrxQuantScreen::open_detail(const QString& algorithm) {
     window->open(algorithm);
     window->show_about(about_of(algorithm), about_failure(algorithm)); // as last read; read again with its stats
     live_->set_details(stats_windows_.keys());
+}
+
+void KrxQuantScreen::open_bar(const QDateTime& bar_close) {
+    const QString symbol = live_->selected();
+    if (symbol.isEmpty() || !bar_close.isValid())
+        return;
+    const QString key = krx_quant::bar_key(symbol, bar_close);
+    KrxBarWindow* window = bar_windows_.value(key);
+    if (!window) { // a window of its own for each bar, gone with the screen
+        window = new KrxBarWindow(this);
+        bar_windows_.insert(key, window);
+        connect(window, &KrxBarWindow::closed, this, [this, key]() {
+            if (auto* closed = bar_windows_.take(key))
+                closed->deleteLater();
+            watch_bars();
+        });
+    }
+    QString name;
+    for (const auto& quote : live_->board().symbols())
+        if (quote.symbol == symbol)
+            name = quote.name;
+    window->open(symbol, bar_close, krx_quant::bar_title(name, symbol, bar_close));
+    watch_bars();
+}
+
+void KrxQuantScreen::watch_bars() {
+    QList<QPair<QString, QDateTime>> bars;
+    for (const auto* window : std::as_const(bar_windows_))
+        bars << qMakePair(window->symbol(), window->bar_close());
+    live_->set_bars(bars);
 }
 
 void KrxQuantScreen::update_panel_title() {

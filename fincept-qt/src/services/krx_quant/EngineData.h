@@ -121,6 +121,8 @@ struct Touch {
     std::optional<double> lower;
     std::optional<Reach> upper_reached;
     std::optional<Reach> lower_reached;
+    std::optional<double> tick{}; ///< the tick size at the anchor (krx-quant #255: the bar window's answer)
+    std::optional<int> k{};       ///< the flat width in ticks there: the targets are anchor ± k·tick
 };
 
 /// A prediction scored 4 minutes after its bar close, on both bases: A from the bar
@@ -187,6 +189,9 @@ struct Bar {
     double low = 0;
     double close = 0;
     double volume = 0;
+    /// The trades it was made of (krx-quant #255: the bar window); none for a past day's bar, read
+    /// from the backfill's files, which do not know them, and from the stream's bar being made.
+    std::optional<int> trades{};
 };
 
 /// A measured rate or mean with its 95% interval (no interval for a single value).
