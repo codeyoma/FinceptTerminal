@@ -33,6 +33,10 @@
 // drawing (its popup opens), with a drawing tool chosen, while the anchored VWAP waits for its bar,
 // and in a wider view, it tells nothing.
 //
+// The crosshair's line across and its price on the price axis follow the pointer, over a bar too
+// (krx-quant #275): the chart's own magnet put them on the bar's close or the volume bar's top. The drawings' magnet
+// and another style leave it so.
+//
 // The page runs in Qt WebEngine with TradingView Lightweight Charts, so this suite opens a
 // window. It is skipped where the WebEngine runtime is missing or the platform draws nothing
 // (offscreen).
@@ -436,6 +440,26 @@ class TstKrxChartPage : public QObject {
         chart_->set_log_scale(true);
         QTRY_COMPARE(mode(), 1);
         chart_->set_log_scale(false);
+        draw(kBefore + kToday);
+    }
+
+    void the_crosshair_follows_the_pointer_over_a_bar() {
+        empty();
+        draw(kBefore + kToday);
+        expect_fitted(kBefore + kToday);
+        const auto mode = [this]() { return js("window.krxChart.crosshair()").toInt(); };
+        hover_at(times(kToday).last());
+        QTRY_VERIFY(js("window.krxChart.hovered()").isValid() && !js("window.krxChart.hovered()").isNull());
+        QCOMPARE(mode(), 0);
+        chart_->set_drawings({}, true); // the drawings' magnet on
+        QTest::qWait(100);
+        QCOMPARE(mode(), 0);
+        ChartLook line;
+        line.style = ChartStyle::Line;
+        draw(kBefore + kToday, line);
+        QTest::qWait(100);
+        QCOMPARE(mode(), 0);
+        chart_->set_drawings({}, false);
         draw(kBefore + kToday);
     }
 

@@ -108,6 +108,9 @@
       // Bricks (krx-quant #225) are on slots: their marks are named by when each brick ended.
       tickMarkFormatter: function (time) { return bricks ? brickLabel(time) : null; },
     },
+    // The crosshair's line across and its price follow the pointer, over a bar too (krx-quant #275):
+    // the chart's own magnet put them on the bar's close or the volume bar's top.
+    crosshair: { mode: L.CrosshairMode.Normal },
   });
   let colors = {
     tip_background: '#111', tip_border: '#333', tip_text: '#e5e5e5', link: '#f59e0b', up: '#16a34a', down: '#dc2626',
@@ -2038,6 +2041,8 @@
     scale: function () {
       return [chart.priceScale('right', 0).options().mode, scaleBox.querySelector('.on').textContent];
     },
+    // The crosshair's mode (krx-quant #275; 0: it follows the pointer, 1: the chart's magnet).
+    crosshair: function () { return chart.options().crosshair.mode; },
   };
 
   // A double-click no longer fits the chart (#255): it opens the bar's window above; 맞춤 fits.
