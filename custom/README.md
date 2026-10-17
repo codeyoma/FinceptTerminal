@@ -678,7 +678,7 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 ## 개인 빌드
 
 - `custom` 브랜치의 커밋에 `custom-v*` 태그(예: `custom-v4.5.0-krx.1`)를 달아 push하면 `custom-release` workflow가 맥 DMG와 윈도우 `setup.exe`를 만들어 이 fork의 Release(prerelease)에 올린다.
-- Release에는 가장 새 개인 빌드 하나만 남는다. `custom-release`의 release job이 올린 뒤 다른 `custom-v*` Release를 모두 지운다. 태그는 남긴다(`custom-auto-tag`가 태그로 다음 번호를 정한다). "가장 새"는 실행 순서가 아니라 가장 높은 버전(`sort -V`)이다. 그래서 늦게 끝난 옛 태그의 실행이 새 빌드를 지우지 않고, 자기 Release를 지운다. 옛 태그를 다시 빌드해도(Run workflow에 태그) 곧 다시 지워진다. 앱 업데이트는 Release 목록에서 가장 새 빌드를 고르므로 이것만 있으면 된다.
+- Release에는 가장 새 개인 빌드 하나만 남는다. `custom-release`의 release job이 올린 뒤 다른 `custom-v*` Release를 모두 지운다. 초안(draft)은 세지도 지우지도 않는다(앱도 초안은 보지 않는다). 태그는 남긴다(`custom-auto-tag`가 태그로 다음 번호를 정한다). "가장 새"는 실행 순서가 아니라 가장 높은 버전(`sort -V`)이다. 그래서 늦게 끝난 옛 태그의 실행이 새 빌드를 지우지 않고, 자기 Release를 지운다. 옛 태그를 다시 빌드해도(Run workflow에 태그) 곧 다시 지워진다. 앱 업데이트는 Release 목록에서 가장 새 빌드를 고르므로 이것만 있으면 된다.
 
   > **바뀜** (2026-10-17, krx-quant 결정): 빌드마다 Release가 쌓였다(52개) → 가장 새 개인 빌드의 Release 하나만 남긴다. 이유: 옛 빌드는 쓰지 않고, 목록만 길어졌다. 2026-10-17에 `custom-v4.5.1-krx.21` 앞의 51개를 손으로 지웠다(태그는 남김).
 - 서명하지 않은 빌드다. 맥은 처음 열 때 우클릭 → 열기(또는 `xattr -dr com.apple.quarantine /Applications/FinceptTerminal.app`), 윈도우는 SmartScreen에서 추가 정보 → 실행.

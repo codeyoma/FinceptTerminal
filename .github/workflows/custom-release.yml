@@ -1639,13 +1639,14 @@ jobs:
       # custom-v* release goes, the tags stay (custom-auto-tag numbers builds from them). "Newest"
       # is the highest version, not the latest run, so a slower run of an older tag never removes
       # a newer build; it removes its own release instead. The app updates from the release list,
-      # so it only ever needs the newest one.
+      # so it only ever needs the newest one. Drafts are left alone and never count as newest: the
+      # app ignores them, and keeping a draft would leave it no release to update to.
       - name: Delete older personal releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          tags=$(gh release list --repo "${GITHUB_REPOSITORY}" --limit 1000 --json tagName --jq '.[].tagName' | grep '^custom-v' || true)
+          tags=$(gh release list --repo "${GITHUB_REPOSITORY}" --limit 1000 --exclude-drafts --json tagName --jq '.[].tagName' | grep '^custom-v' || true)
           [ -n "${tags}" ] || exit 0
           newest="custom-v$(printf '%s\n' ${tags} | sed 's/^custom-v//' | sort -V | tail -n 1)"
           echo "Keeping ${newest}."
