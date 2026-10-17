@@ -15,7 +15,9 @@ name: Custom Release — personal Windows + macOS builds
 #
 # The tagged commit must be on origin/custom, or the run stops at the first job.
 # To rebuild an existing tag: Actions -> this workflow -> Run workflow, and
-# enter the tag.
+# enter the tag. After publishing, the release job deletes every other custom-v*
+# release and keeps only the highest version (tags stay), so a rebuild of an
+# older tag is deleted again at once.
 #
 # Trial build of an upstream release merge: custom-upstream-watch runs this
 # workflow on the branch upstream-merge/<tag>. Both builds run, nothing is
@@ -1632,6 +1634,30 @@ jobs:
               --title "Fincept Terminal ${TAG} (personal build)" \
               --notes-file "${NOTES}"
           fi
+
+      # Only the newest personal build stays released (2026-10-17, the user's call): every other
+      # custom-v* release goes, the tags stay (custom-auto-tag numbers builds from them). "Newest"
+      # is the highest version, not the latest run, so a slower run of an older tag never removes
+      # a newer build; it removes its own release instead. The app updates from the release list,
+      # so it only ever needs the newest one. Drafts are left alone and never count as newest: the
+      # app ignores them, and keeping a draft would leave it no release to update to.
+      - name: Delete older personal releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tags=$(gh release list --repo "${GITHUB_REPOSITORY}" --limit 1000 --exclude-drafts --json tagName --jq '.[].tagName' | grep '^custom-v' || true)
+          [ -n "${tags}" ] || exit 0
+          newest="custom-v$(printf '%s\n' ${tags} | sed 's/^custom-v//' | sort -V | tail -n 1)"
+          echo "Keeping ${newest}."
+          for t in ${tags}; do
+            [ "${t}" = "${newest}" ] && continue
+            if gh release delete "${t}" --repo "${GITHUB_REPOSITORY}" --yes; then
+              echo "Deleted the release ${t} (its tag stays)."
+            else
+              echo "::warning::could not delete the release ${t}"
+            fi
+          done
 
 # ═════════════════════════════════════════════════════════════════════════════
 # JOB 5 — Trial build only: put the upstream merge on custom and tag it
