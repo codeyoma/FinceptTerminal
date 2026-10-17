@@ -440,6 +440,25 @@ QList<SkillCell> skill_cells(const Skill& skill) {
                                        "무작위는 기대값 0, 완벽은 1이다. 음수면 기대보다 못하다.");
     if (!skill.kappa)
         kappa_tip += QStringLiteral("\n모든 예측과 결과가 한 클래스라 낼 수 없다.");
+    // Kappa by trading day (krx-quant #278): what the statuses' unit would say of it.
+    QString day_kappa = QStringLiteral("—");
+    QString day_kappa_tip = QStringLiteral(
+        "거래일 단위 kappa. 날마다 그날 예측의 kappa를 내고, 날들의 평균에 t분포 95% 구간을 낸다(lift의 거래일 "
+        "구간과 같은 방식). 4분 정답은 날 안에서 겹쳐 독립성 검정의 p가 너무 작지만, 날끼리는 훨씬 독립에 가깝다. "
+        "구간 하한이 0을 넘으면 날이 바뀌어도 기준율보다 낫다고 말할 수 있다. 설명용이다.");
+    if (const auto& d = skill.kappa_by_day) {
+        day_kappa = score(d->value);
+        if (d->low && d->high)
+            day_kappa += QStringLiteral(" (%1 – %2)").arg(score(d->low), score(d->high));
+        day_kappa_tip += QStringLiteral("\n%1일").arg(d->n);
+        if (skill.kappa_by_day_p)
+            day_kappa_tip += QStringLiteral(" · 한쪽 p %1")
+                                 .arg(*skill.kappa_by_day_p < 0.001 ? QStringLiteral("<0.001")
+                                                                    : number_text(*skill.kappa_by_day_p, 3));
+    } else {
+        day_kappa_tip += QStringLiteral("\nkappa가 있는 거래일이 2일보다 적거나(오늘만, 한 클래스뿐인 날은 빠진다) "
+                                        "엔진이 주지 않는다.");
+    }
     QString gerrity_tip =
         QStringLiteral("Gerrity(1992) 점수. 하락 < 보합 < 상승의 순서를 보고, 두 칸 틀림(상승에 하락)을 한 칸 "
                        "틀림보다 더 깎는다(kappa는 그 차이를 보지 않는다). 어떤 상수 예측도 0, 무작위는 기대값 0, "
@@ -453,6 +472,7 @@ QList<SkillCell> skill_cells(const Skill& skill) {
         {QStringLiteral("기대 대비"), signed_text((skill.accuracy - skill.expected_accuracy) * 100, 1) + "%p",
          QStringLiteral("정답률 − 기대 정답률. 양수면 상승·보합·하락의 비율만으로 나오는 것보다 더 맞혔다.")},
         {QStringLiteral("kappa"), score(skill.kappa), kappa_tip},
+        {QStringLiteral("거래일 kappa"), day_kappa, day_kappa_tip},
         {QStringLiteral("Gerrity"), score(skill.gerrity), gerrity_tip},
         {QStringLiteral("균형 정답률"), percent(skill.balanced_accuracy),
          QStringLiteral("일어난 클래스마다 그것을 맞힌 비율의 평균. 세 클래스가 다 일어났으면 늘 보합은 33.3%다.")},

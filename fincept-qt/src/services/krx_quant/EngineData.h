@@ -355,6 +355,11 @@ struct Skill {
     std::optional<double> chi2;
     int df = 0;
     std::optional<double> p;
+    /// Kappa taken a trading day at a time (krx-quant #278): each day's kappa one value, the days'
+    /// mean with its Student t 95% interval; its n is the days. None from fewer than two days, or
+    /// an engine before it.
+    std::optional<Interval> kappa_by_day;
+    std::optional<double> kappa_by_day_p; ///< one-sided: no better than the class rates
 };
 
 /// GET /v1/algorithms/{name}/stats: one predictor's stats for a leaderboard query.
