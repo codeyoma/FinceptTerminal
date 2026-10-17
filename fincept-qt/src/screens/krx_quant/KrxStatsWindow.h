@@ -97,6 +97,7 @@ class KrxStatsWindow : public QWidget {
     QTableWidget* by_slot_ = nullptr;
     QTableWidget* by_model_version_ = nullptr;
     QTableWidget* by_symbol_ = nullptr;
+    QTableWidget* by_volatility_ = nullptr; ///< by volatility tercile (krx-quant #262): the direction's only
     QString kind_ = QStringLiteral("direction"); ///< the kind whose columns are shown
     QWidget* quantiles_ = nullptr;               ///< a range predictor's quantile stats (krx-quant #182)
     krx_panel::Header quantiles_header_;
@@ -106,6 +107,9 @@ class KrxStatsWindow : public QWidget {
     krx_panel::Header barrier_header_;
     QLabel* barrier_summary_ = nullptr;
     QTableWidget* barrier_table_ = nullptr;
+    QWidget* skill_ = nullptr; ///< the direction's skill against the class rates (krx-quant #262), one line
+    krx_panel::Header skill_header_;
+    QTableWidget* skill_table_ = nullptr;
 };
 
 } // namespace fincept::screens

@@ -4,6 +4,7 @@
 #include <QTime>
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 namespace fincept::krx_quant {
@@ -410,6 +411,88 @@ QString period_label(const QString& period) {
     static const QMap<QString, QString> labels = {
         {"today", QStringLiteral("오늘")}, {"5d", QStringLiteral("5일")}, {"20d", QStringLiteral("20일")}};
     return labels.value(period, period);
+}
+
+QList<SkillCell> skill_cells(const Skill& skill) {
+    const auto percent = [](double rate) { return number_text(rate * 100, 1) + "%"; };
+    const auto score = [](const std::optional<double>& v) {
+        if (!v)
+            return QStringLiteral("—");
+        const double shown = std::round(*v * 1000) / 1000;
+        return signed_text(shown == 0 ? 0.0 : shown, 3); // no "-0.000"
+    };
+    QString independence = QStringLiteral("—");
+    QString independence_tip = QStringLiteral(
+        "예측한 클래스와 일어난 클래스가 서로 독립이라는 가설의 Pearson χ² 검정이다(독립 관측일 때의 "
+        "Pesaran–Timmermann 2009 다범주 방향 검정과 같다). p가 작을수록 예측이 결과와 함께 움직인다. 4분 정답은 "
+        "겹치고 종목들은 같이 움직여 p가 실제보다 작다. 설명용이다.");
+    if (skill.p && skill.chi2)
+        independence = QStringLiteral("p %1 (χ² %2, 자유도 %3)")
+                           .arg(*skill.p < 0.001 ? QStringLiteral("<0.001") : number_text(*skill.p, 3),
+                                number_text(*skill.chi2, 2))
+                           .arg(skill.df);
+    else if (skill.df == 0)
+        independence_tip += QStringLiteral("\n예측이나 결과가 한 클래스뿐이라 검정할 수 없다.");
+    else
+        independence_tip += QStringLiteral("\n기대 빈도가 5보다 작은 칸이 있어 검정하지 않는다(Cochran의 규칙: 드문 "
+                                           "클래스를 두어 번 맞힌 것만으로 매우 유의하게 나오지 않게).");
+    QString kappa_tip = QStringLiteral("Cohen의 kappa = (정답률 − 기대 정답률) ÷ (1 − 기대 정답률). 늘 보합은 0, "
+                                       "무작위는 기대값 0, 완벽은 1이다. 음수면 기대보다 못하다.");
+    if (!skill.kappa)
+        kappa_tip += QStringLiteral("\n모든 예측과 결과가 한 클래스라 낼 수 없다.");
+    QString gerrity_tip =
+        QStringLiteral("Gerrity(1992) 점수. 하락 < 보합 < 상승의 순서를 보고, 두 칸 틀림(상승에 하락)을 한 칸 "
+                       "틀림보다 더 깎는다(kappa는 그 차이를 보지 않는다). 어떤 상수 예측도 0, 무작위는 기대값 0, "
+                       "완벽은 1이다.");
+    if (!skill.gerrity)
+        gerrity_tip += QStringLiteral("\n상승이나 하락이 한 번도 일어나지 않아 낼 수 없다.");
+    return {
+        {QStringLiteral("기대 정답률"), percent(skill.expected_accuracy),
+         QStringLiteral("같은 비율로 상승·보합·하락을 결과와 상관없이 냈을 때의 정답률: Σ P(그 클래스를 냄)·P(그 "
+                        "클래스가 일어남). 정답률이 이보다 높아야 결과를 보고 낸 것이다.")},
+        {QStringLiteral("기대 대비"), signed_text((skill.accuracy - skill.expected_accuracy) * 100, 1) + "%p",
+         QStringLiteral("정답률 − 기대 정답률. 양수면 상승·보합·하락의 비율만으로 나오는 것보다 더 맞혔다.")},
+        {QStringLiteral("kappa"), score(skill.kappa), kappa_tip},
+        {QStringLiteral("Gerrity"), score(skill.gerrity), gerrity_tip},
+        {QStringLiteral("균형 정답률"), percent(skill.balanced_accuracy),
+         QStringLiteral("일어난 클래스마다 그것을 맞힌 비율의 평균. 세 클래스가 다 일어났으면 늘 보합은 33.3%다.")},
+        {QStringLiteral("독립성 검정"), independence, independence_tip},
+    };
+}
+
+QString skill_tip() {
+    return QStringLiteral(
+        "기준율 대비 실력(krx-quant #262). 보합이 많은 날에는 늘 보합도 정답률이 높다. 여기서는 위 정답률이 상승·"
+        "보합·하락의 비율만으로 나오는 정답률보다 나은지 본다. 예측한 클래스 × 일어난 클래스 표(3 × 3)에서 낸다. "
+        "설명용이고 상태 판정과 순위는 기준 예측 대비 lift로 한다. 각 열의 뜻은 열 제목이나 값에 마우스를 올리면 "
+        "나온다.");
+}
+
+QString volatility_label(const QString& tercile) {
+    if (tercile == QLatin1String("low"))
+        return QStringLiteral("낮음");
+    if (tercile == QLatin1String("mid"))
+        return QStringLiteral("중간");
+    if (tercile == QLatin1String("high"))
+        return QStringLiteral("높음");
+    return tercile;
+}
+
+QString volatility_tip(const AlgorithmStats& stats) {
+    QString tip = QStringLiteral(
+        "봉 마감의 변동성 3분위별 성적(krx-quant #262). 변동성은 그 봉 마감에 장벽 종류가 저장한 폭 w(1분 변화의 "
+        "지수가중 표준편차 × √4, k보다 좁지 않다)를 중간가의 bp로 바꾼 값이다. 종목마다 그 기간 모든 봉 마감의 w로 "
+        "자르므로 예측자마다 같은 봉 마감이 같은 칸에 든다. 변동성이 크면 4분 안에 ±k에 닿기 쉬워, 변동성만 맞혀도 "
+        "보합과 움직임을 가를 수 있다. 적중이 어느 변동성에서 나오는지 본다. 이 줄들의 lift는 함께 검정하지 않는다.");
+    if (stats.volatility_cuts.isEmpty())
+        return tip + QStringLiteral("\n장벽 종류가 폭을 저장한 봉 마감이 없어 나누지 못했다.");
+    for (auto it = stats.volatility_cuts.begin(); it != stats.volatility_cuts.end(); ++it) {
+        if (it.value().size() < 2)
+            continue;
+        tip += QStringLiteral("\n%1: 낮음 ≤ %2bp < 중간 ≤ %3bp < 높음")
+                   .arg(it.key(), number_text(it.value()[0], 1), number_text(it.value()[1], 1));
+    }
+    return tip;
 }
 
 QString query_text(const AlgorithmStats& stats) {

@@ -42,14 +42,18 @@ QTableWidget* breakdown_table(const QString& split) {
     return table;
 }
 
+/// ``entries`` a row each, by key; in ``order``'s order when it is given (those it names).
 void fill_breakdown(QTableWidget* table, const QMap<QString, krx_quant::Entry>& entries,
-                    QString (*label)(const QString&), const std::optional<krx_quant::KindInfo>& kind) {
+                    QString (*label)(const QString&), const std::optional<krx_quant::KindInfo>& kind,
+                    const QStringList& order = {}) {
     table->setRowCount(0);
-    for (auto it = entries.begin(); it != entries.end(); ++it) {
+    for (const QString& key : order.isEmpty() ? entries.keys() : order) {
+        if (!entries.contains(key))
+            continue;
         const int row = table->rowCount();
         table->insertRow(row);
-        table->setItem(row, 0, cell(label ? label(it.key()) : it.key()));
-        krx_tables::set_stats(table, row, 1, it.value(), kind);
+        table->setItem(row, 0, cell(label ? label(key) : key));
+        krx_tables::set_stats(table, row, 1, entries.value(key), kind);
     }
 }
 
@@ -281,6 +285,24 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
     excluded_->setWordWrap(true);
     body->addWidget(excluded_);
 
+    // The direction's skill against the class rates (krx-quant #262), one line under the overall's:
+    // each column's meaning on its header and cell. Hidden for another kind's predictor and an
+    // engine without it.
+    skill_header_ = krx_panel::header(tr("기준율 대비 실력"), krx_quant::skill_tip());
+    QStringList skill_headers;
+    for (const auto& c : krx_quant::skill_cells({}))
+        skill_headers << c.header;
+    skill_table_ = krx_tables::table(skill_headers);
+    skill_table_->horizontalHeader()->setStretchLastSection(false);
+    skill_ = new QWidget;
+    auto* skill_column = new QVBoxLayout(skill_);
+    skill_column->setContentsMargins(0, 0, 0, 0);
+    skill_column->setSpacing(0);
+    skill_column->addWidget(skill_header_.bar);
+    skill_column->addWidget(skill_table_);
+    skill_->hide();
+    body->addWidget(skill_);
+
     // A range predictor's quantile stats (krx-quant #182), under the lifts: hidden for another kind's.
     quantiles_header_ = krx_panel::header(
         tr("분위수 통계"),
@@ -346,9 +368,11 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
     by_slot_ = breakdown_table(tr("시간대 (봉 마감)"));
     by_model_version_ = breakdown_table(tr("모델 버전"));
     by_symbol_ = breakdown_table(tr("종목"));
+    by_volatility_ = breakdown_table(tr("변동성 (봉 마감)"));
     breakdowns_->addTab(by_slot_, tr("30분 시간대별"));
     breakdowns_->addTab(by_model_version_, tr("모델 버전별"));
     breakdowns_->addTab(by_symbol_, tr("종목별"));
+    breakdowns_->addTab(by_volatility_, tr("변동성별")); // the direction's only (krx-quant #262)
 
     auto* split = new QSplitter(Qt::Vertical);
     split->addWidget(middle);
@@ -393,12 +417,14 @@ void KrxStatsWindow::clear() {
     query_->clear();
     excluded_->clear();
     failure_->hide();
-    for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_, quantile_table_, barrier_table_})
+    for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_, by_volatility_, quantile_table_,
+                        barrier_table_, skill_table_})
         table->setRowCount(0);
     quantile_summary_->clear();
     quantiles_->hide();
     barrier_summary_->clear();
     barrier_->hide();
+    skill_->hide();
     lift_header_.title->setToolTip(QString());
     calibration_header_.title->setToolTip(QString());
     calibration_->set_series({});
@@ -433,7 +459,7 @@ void KrxStatsWindow::set_kind(const std::optional<krx_quant::KindInfo>& kind) {
         QList<krx_quant::StatsColumn>{{tr("순위"), {}}} + columns +
             QList<krx_quant::StatsColumn>{{tr("운 보정"), direction ? krx_quant::column_tip(QStringLiteral("운 보정"))
                                                                     : krx_quant::luck_tip(*kind)}});
-    for (auto* table : {by_slot_, by_model_version_, by_symbol_}) {
+    for (auto* table : {by_slot_, by_model_version_, by_symbol_, by_volatility_}) {
         const QString split = table->horizontalHeaderItem(0) ? table->horizontalHeaderItem(0)->text() : QString();
         krx_tables::set_columns(table, QList<krx_quant::StatsColumn>{{split, {}}} + columns);
     }
@@ -515,6 +541,28 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats,
     fill_breakdown(by_slot_, stats.by_slot, krx_quant::slot_label, its);
     fill_breakdown(by_model_version_, stats.by_model_version, nullptr, its);
     fill_breakdown(by_symbol_, stats.by_symbol, nullptr, its);
+
+    // The direction's skill and volatility terciles (krx-quant #262).
+    const bool direction = stats.kind == QLatin1String("direction");
+    skill_->setVisible(direction && stats.skill.has_value());
+    skill_table_->setRowCount(0);
+    if (stats.skill) {
+        const auto cells = krx_quant::skill_cells(*stats.skill);
+        skill_table_->setRowCount(1);
+        for (int c = 0; c < cells.size(); ++c) {
+            if (auto* header = skill_table_->horizontalHeaderItem(c))
+                header->setToolTip(cells[c].tip);
+            auto* value = cell(cells[c].value, kNumber);
+            value->setToolTip(cells[c].tip);
+            skill_table_->setItem(0, c, value);
+        }
+        fit_rows(skill_table_);
+    }
+    const int volatility = breakdowns_->indexOf(by_volatility_);
+    breakdowns_->setTabVisible(volatility, direction);
+    breakdowns_->setTabToolTip(volatility, direction ? krx_quant::volatility_tip(stats) : QString());
+    fill_breakdown(by_volatility_, stats.by_volatility, krx_quant::volatility_label, its,
+                   krx_quant::kVolatilityTerciles);
 }
 
 void KrxStatsWindow::show_failure(const QString& reason) {
@@ -528,16 +576,19 @@ void KrxStatsWindow::restyle() {
     setStyleSheet(QString("#krxStatsWindow{background:%1;}#krxStatsWindow QLabel{background:transparent;}")
                       .arg(ui::colors::BG_BASE()));
     for (const auto* header : {&header_, &about_header_, &learning_header_, &lift_header_, &calibration_header_,
-                               &breakdown_header_, &quantiles_header_, &barrier_header_})
+                               &breakdown_header_, &quantiles_header_, &barrier_header_, &skill_header_})
         header->restyle();
     about_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
     learning_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
     failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
-    for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_, quantile_table_, barrier_table_})
+    for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_, by_volatility_, quantile_table_,
+                        barrier_table_, skill_table_})
         krx_tables::restyle(table);
     fit_rows(overall_);
     if (barrier_table_->rowCount() > 0)
         fit_rows(barrier_table_);
+    if (skill_table_->rowCount() > 0)
+        fit_rows(skill_table_);
     calibration_->update();
 }
 

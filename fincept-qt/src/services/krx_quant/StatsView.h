@@ -154,6 +154,25 @@ QList<BarrierPnlRow> barrier_pnl_rows(const BarrierStats& stats);
 /// "채점된 예측 없음" without any.
 QString barrier_summary(const BarrierStats& stats);
 
+/// A cell of a direction predictor's skill against the class rates (krx-quant #262), a column each.
+struct SkillCell {
+    QString header; ///< "기대 정답률", "기대 대비", "kappa", "Gerrity", "균형 정답률", "독립성 검정"
+    QString value;  ///< "—" when it cannot be told
+    QString tip;    ///< what it is, and why there is no value, if so
+};
+
+/// The skill's cells, in that order: the accuracy itself is the overall line's 정답률 above.
+QList<SkillCell> skill_cells(const Skill& skill);
+/// The skill panel title's tooltip: what it tells apart from the accuracy, and that it only describes.
+QString skill_tip();
+/// A volatility tercile in Korean: "low" 낮음, "mid" 중간, "high" 높음; anything else as it is.
+QString volatility_label(const QString& tercile);
+/// The volatility breakdown's terciles in order, the lowest first.
+inline const QStringList kVolatilityTerciles{QStringLiteral("low"), QStringLiteral("mid"), QStringLiteral("high")};
+/// The volatility tab's tooltip: what the volatility is, and each symbol's cuts ("005930 낮음 ≤
+/// 12.3bp < 중간 ≤ 18.0bp < 높음"); that nothing could be split, without a barrier width.
+QString volatility_tip(const AlgorithmStats& stats);
+
 /// The query the stats answer, in Korean: period · symbol · special situations.
 QString query_text(const AlgorithmStats& stats);
 

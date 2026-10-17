@@ -35,6 +35,7 @@
 #include <QMenu>
 #include <QScreen>
 #include <QScrollArea>
+#include <QTabWidget>
 #include <QTest>
 #include <QTextStream>
 #include <QTimer>
@@ -492,6 +493,16 @@ int main(int argc, char* argv[]) {
         const QFileInfo file(out);
         // The windows, in the order they were opened: the predictors'.
         const auto windows = screen.findChildren<fincept::screens::KrxStatsWindow*>(Qt::FindDirectChildrenOnly);
+        // KRX_CAPTURE_STATS_TAB=<tab>: each detail window's tab of that name chosen first, e.g. 변동성별
+        // (krx-quant #262).
+        if (const QString tab = qEnvironmentVariable("KRX_CAPTURE_STATS_TAB"); !tab.isEmpty()) {
+            for (auto* window : windows)
+                for (auto* tabs : window->findChildren<QTabWidget*>())
+                    for (int t = 0; t < tabs->count(); ++t)
+                        if (tabs->tabText(t) == tab)
+                            tabs->setCurrentIndex(t);
+            QApplication::processEvents();
+        }
         for (qsizetype i = 0; i < windows.size() && i < details.size(); ++i)
             save(windows[i], file.dir().filePath(
                                  QStringLiteral("%1-%2.%3").arg(file.completeBaseName(), details[i], file.suffix())));

@@ -637,6 +637,82 @@ class TstKrxStatsView : public QObject {
         QVERIFY(learning_rows(info).isEmpty());
         QVERIFY(learning_rows(std::nullopt).isEmpty());
     }
+
+    void the_skill_has_its_six_cells_each_with_what_it_is() {
+        // krx-quant #262: the skill against the class rates, beside the overall line's accuracy.
+        Skill s;
+        s.n = 1128;
+        s.accuracy = 0.52;
+        s.expected_accuracy = 0.491;
+        s.kappa = 0.057;
+        s.gerrity = -0.012;
+        s.balanced_accuracy = 0.384;
+        s.chi2 = 14.234;
+        s.df = 4;
+        s.p = 0.0066;
+        const auto cells = skill_cells(s);
+        QStringList headers, values;
+        for (const auto& c : cells) {
+            headers << c.header;
+            values << c.value;
+            QVERIFY2(!c.tip.isEmpty(), qPrintable(c.header));
+        }
+        QCOMPARE(headers,
+                 (QStringList{"기대 정답률", "기대 대비", "kappa", "Gerrity", "균형 정답률", "독립성 검정"}));
+        QCOMPARE(values,
+                 (QStringList{"49.1%", "+2.9%p", "+0.057", "-0.012", "38.4%", "p 0.007 (χ² 14.23, 자유도 4)"}));
+        QVERIFY(cells[5].tip.contains("p가 실제보다 작다"));
+
+        s.p = 0.0004;
+        s.accuracy = 0.45;
+        QCOMPARE(skill_cells(s)[5].value, QStringLiteral("p <0.001 (χ² 14.23, 자유도 4)"));
+        QCOMPARE(skill_cells(s)[1].value, QStringLiteral("-4.1%p"));
+        s.gerrity = -0.0001; // rounds to nothing: no "-0.000"
+        QCOMPARE(skill_cells(s)[3].value, QStringLiteral("0.000"));
+        QVERIFY(skill_tip().contains("lift"));
+        // The headers are the same whatever the skill: the window builds its columns from an empty one.
+        QCOMPARE(skill_cells({}).size(), 6);
+        QCOMPARE(skill_cells({})[0].header, QStringLiteral("기대 정답률"));
+    }
+
+    void a_skill_that_cannot_be_told_says_why() {
+        Skill s;
+        s.n = 50;
+        s.accuracy = s.expected_accuracy = 0.6;
+        s.balanced_accuracy = 1.0 / 3;
+        s.df = 0; // one class called: no test
+        auto cells = skill_cells(s);
+        QCOMPARE(cells[1].value, QStringLiteral("0.0%p"));
+        QCOMPARE(cells[2].value, QStringLiteral("—"));
+        QVERIFY(cells[2].tip.contains("한 클래스라 낼 수 없다"));
+        QCOMPARE(cells[3].value, QStringLiteral("—"));
+        QVERIFY(cells[3].tip.contains("한 번도 일어나지 않아"));
+        QCOMPARE(cells[4].value, QStringLiteral("33.3%"));
+        QCOMPARE(cells[5].value, QStringLiteral("—"));
+        QVERIFY(cells[5].tip.contains("한 클래스뿐이라 검정할 수 없다"));
+
+        s.df = 4; // a used cell expecting fewer than five
+        cells = skill_cells(s);
+        QCOMPARE(cells[5].value, QStringLiteral("—"));
+        QVERIFY(cells[5].tip.contains("Cochran"));
+    }
+
+    void the_volatility_terciles_read_in_korean_with_each_symbol_s_cuts() {
+        QCOMPARE(volatility_label("low"), QStringLiteral("낮음"));
+        QCOMPARE(volatility_label("mid"), QStringLiteral("중간"));
+        QCOMPARE(volatility_label("high"), QStringLiteral("높음"));
+        QCOMPARE(volatility_label("other"), QStringLiteral("other"));
+        QCOMPARE(kVolatilityTerciles, (QStringList{"low", "mid", "high"}));
+
+        AlgorithmStats stats;
+        stats.volatility_cuts.insert("005930", {12.34, 18.0});
+        stats.volatility_cuts.insert("000660", {20.5, 31.25});
+        const QString tip = volatility_tip(stats);
+        QVERIFY(tip.contains("bp"));
+        QVERIFY(tip.contains(QStringLiteral("\n000660: 낮음 ≤ 20.5bp < 중간 ≤ 31.3bp < 높음")));
+        QVERIFY(tip.contains(QStringLiteral("\n005930: 낮음 ≤ 12.3bp < 중간 ≤ 18.0bp < 높음")));
+        QVERIFY(volatility_tip(AlgorithmStats{}).endsWith(QStringLiteral("나누지 못했다.")));
+    }
 };
 
 QTEST_GUILESS_MAIN(TstKrxStatsView)
