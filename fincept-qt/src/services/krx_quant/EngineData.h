@@ -339,6 +339,24 @@ struct CalibrationBin {
     std::optional<Interval> observed; ///< how often it happened (Wilson interval); likewise
 };
 
+/// The skill against the class rates (krx-quant #262, a direction detail's ``overall.skill``): from
+/// the table of called × happened classes. It only describes: the statuses and ranks go by lift.
+struct Skill {
+    int n = 0; ///< scored predictions
+    double accuracy = 0;
+    /// The hits of calls made at the same rates, blind to what happens: Σ P(called c)·P(c happened).
+    double expected_accuracy = 0;
+    std::optional<double> kappa;   ///< Cohen's; none when the expected accuracy is 1 (one class only)
+    std::optional<double> gerrity; ///< Gerrity's (1992), down < flat < up; none when up or down never happened
+    double balanced_accuracy = 0;  ///< the mean of each happened class's hit rate
+    /// Pearson's χ² of independence, as Pesaran–Timmermann (2009) for independent observations; the
+    /// windows overlap, so its p is too small. None with one row or column used, or a used cell
+    /// expecting fewer than five (Cochran).
+    std::optional<double> chi2;
+    int df = 0;
+    std::optional<double> p;
+};
+
 /// GET /v1/algorithms/{name}/stats: one predictor's stats for a leaderboard query.
 struct AlgorithmStats {
     QString kind =
@@ -358,6 +376,14 @@ struct AlgorithmStats {
     QMap<QString, Entry> by_symbol;
     QMap<QString, Entry> by_slot; ///< the predicted bar's 30-minute slot: "09:00" for the closes 09:01–09:30
     QMap<QString, Entry> by_model_version;
+    /// The direction's skill (krx-quant #262); none for another kind, an older engine, or nothing scored.
+    std::optional<Skill> skill;
+    /// By volatility tercile at the bar close (krx-quant #262): "low", "mid", "high", each that has
+    /// predictions. The barrier width the barrier kind stored there, in basis points of the mid-point;
+    /// a bar close without one is left out.
+    QMap<QString, Entry> by_volatility;
+    /// Each symbol's two tercile cuts, basis points: low up to the first, mid up to the second.
+    QMap<QString, QList<double>> volatility_cuts;
 };
 
 Result<EngineStatus> parse_status(const QJsonDocument& doc);        ///< GET /v1/status

@@ -232,6 +232,25 @@ QMap<QString, Entry> entries_by_key(const QJsonValue& v) {
     return out;
 }
 
+/// A direction detail's skill (krx-quant #262); none when it is null or missing.
+std::optional<Skill> skill_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    const QJsonObject independence = o.value("independence").toObject();
+    Skill s;
+    s.n = o.value("n").toInt();
+    s.accuracy = o.value("accuracy").toDouble();
+    s.expected_accuracy = o.value("expected_accuracy").toDouble();
+    s.kappa = number(o.value("kappa"));
+    s.gerrity = number(o.value("gerrity"));
+    s.balanced_accuracy = o.value("balanced_accuracy").toDouble();
+    s.chi2 = number(independence.value("chi2"));
+    s.df = independence.value("df").toInt();
+    s.p = number(independence.value("p"));
+    return s;
+}
+
 /// A prediction as the API shows it. ``symbol`` and ``bar_close`` are the answer's, for
 /// items that do not carry their own.
 Prediction prediction_of(const QJsonObject& p, const QString& symbol, const QDateTime& bar_close) {
@@ -490,6 +509,15 @@ Result<AlgorithmStats> parse_stats(const QJsonDocument& doc) {
     stats.by_symbol = entries_by_key(o.value("by_symbol"));
     stats.by_slot = entries_by_key(o.value("by_slot"));
     stats.by_model_version = entries_by_key(o.value("by_model_version"));
+    stats.skill = skill_of(overall.value("skill"));
+    stats.by_volatility = entries_by_key(o.value("by_volatility"));
+    const QJsonObject cuts = o.value("volatility_cuts").toObject();
+    for (auto it = cuts.begin(); it != cuts.end(); ++it) {
+        QList<double> bounds;
+        for (const QJsonValue& c : it.value().toArray())
+            bounds << c.toDouble();
+        stats.volatility_cuts.insert(it.key(), bounds);
+    }
     return Result<AlgorithmStats>::ok(stats);
 }
 

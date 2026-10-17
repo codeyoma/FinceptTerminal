@@ -1058,6 +1058,60 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!s.overall.lifts[0].p.has_value());
         QVERIFY(s.by_symbol.isEmpty() && s.by_slot.isEmpty() && s.by_model_version.isEmpty());
         QVERIFY(s.days.isEmpty());
+        QVERIFY(!s.skill.has_value()); // an engine before krx-quant #262: no skill, no terciles
+        QVERIFY(s.by_volatility.isEmpty() && s.volatility_cuts.isEmpty());
+    }
+
+    void the_skill_and_the_volatility_terciles_are_read() {
+        // krx-quant #262: the skill against the class rates, and the terciles by barrier width.
+        const auto stats = parse_stats(json(R"({
+          "algorithm": "newton", "symbol": "all", "period": "5d", "days": ["2026-10-16"], "special": "exclude",
+          "min_sample": 200,
+          "overall": {"rank": null, "algorithm": "newton", "model_versions": [], "n": 300,
+            "accuracy": null, "precision": null, "coverage": null, "brier": null,
+            "pnl": {"trades": 0, "total_ticks": 0.0, "per_trade": null},
+            "skill": {"n": 300, "accuracy": 0.52, "expected_accuracy": 0.47, "kappa": 0.094, "gerrity": null,
+              "balanced_accuracy": 0.41, "independence": {"chi2": 11.5, "df": 4, "p": 0.021}}},
+          "by_symbol": {}, "by_slot": {}, "by_model_version": {},
+          "by_volatility": {
+            "high": {"rank": null, "algorithm": "newton", "model_versions": [], "n": 90},
+            "low": {"rank": null, "algorithm": "newton", "model_versions": [], "n": 110}},
+          "volatility_cuts": {"005930": [12.3, 18.0], "000660": [20.5, 31.25]}
+        })"));
+        QVERIFY(stats.is_ok());
+        const auto& s = stats.value();
+        QVERIFY(s.skill.has_value());
+        QCOMPARE(s.skill->n, 300);
+        QCOMPARE(s.skill->accuracy, 0.52);
+        QCOMPARE(s.skill->expected_accuracy, 0.47);
+        QCOMPARE(s.skill->kappa, std::optional<double>(0.094));
+        QVERIFY(!s.skill->gerrity.has_value()); // null: up or down never happened
+        QCOMPARE(s.skill->balanced_accuracy, 0.41);
+        QCOMPARE(s.skill->chi2, std::optional<double>(11.5));
+        QCOMPARE(s.skill->df, 4);
+        QCOMPARE(s.skill->p, std::optional<double>(0.021));
+        QCOMPARE(s.by_volatility.keys(), (QStringList{"high", "low"})); // a tercile without predictions is left out
+        QCOMPARE(s.by_volatility.value("low").n, 110);
+        QCOMPARE(s.volatility_cuts.value("005930"), (QList<double>{12.3, 18.0}));
+        QCOMPARE(s.volatility_cuts.value("000660"), (QList<double>{20.5, 31.25}));
+    }
+
+    void a_skill_without_a_test_reads_as_unknown() {
+        const auto stats = parse_stats(json(R"({
+          "algorithm": "baseline-flat", "symbol": "all", "period": "today", "days": [], "special": "exclude",
+          "min_sample": 200,
+          "overall": {"rank": null, "algorithm": "baseline-flat", "model_versions": [], "n": 50,
+            "skill": {"n": 50, "accuracy": 0.6, "expected_accuracy": 0.6, "kappa": 0.0, "gerrity": 0.0,
+              "balanced_accuracy": 0.3333, "independence": {"chi2": null, "df": 0, "p": null}}},
+          "by_symbol": {}, "by_slot": {}, "by_model_version": {}, "by_volatility": {}, "volatility_cuts": {}
+        })"));
+        QVERIFY(stats.is_ok());
+        const auto& skill = stats.value().skill;
+        QVERIFY(skill.has_value());
+        QCOMPARE(skill->kappa, std::optional<double>(0.0)); // always flat: 0, not unknown
+        QVERIFY(!skill->chi2.has_value());
+        QVERIFY(!skill->p.has_value());
+        QCOMPARE(skill->df, 0);
     }
 
     void stats_of_an_unknown_algorithm_are_an_error() {
