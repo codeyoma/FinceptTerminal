@@ -156,7 +156,7 @@ QString barrier_summary(const BarrierStats& stats);
 
 /// A cell of a direction predictor's skill against the class rates (krx-quant #262), a column each.
 struct SkillCell {
-    QString header; ///< "기대 정답률", "기대 대비", "kappa", "Gerrity", "균형 정답률", "독립성 검정"
+    QString header; ///< "기대 정답률", "기대 대비", "kappa", "거래일 kappa", "Gerrity", "균형 정답률", "독립성 검정"
     QString value;  ///< "—" when it cannot be told
     QString tip;    ///< what it is, and why there is no value, if so
 };

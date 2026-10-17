@@ -1071,7 +1071,8 @@ class TstKrxEngineData : public QObject {
             "accuracy": null, "precision": null, "coverage": null, "brier": null,
             "pnl": {"trades": 0, "total_ticks": 0.0, "per_trade": null},
             "skill": {"n": 300, "accuracy": 0.52, "expected_accuracy": 0.47, "kappa": 0.094, "gerrity": null,
-              "balanced_accuracy": 0.41, "independence": {"chi2": 11.5, "df": 4, "p": 0.021}}},
+              "balanced_accuracy": 0.41, "independence": {"chi2": 11.5, "df": 4, "p": 0.021},
+              "by_day": {"n": 5, "value": 0.06, "low": -0.01, "high": 0.13, "p": 0.04}}},
           "by_symbol": {}, "by_slot": {}, "by_model_version": {},
           "by_volatility": {
             "high": {"rank": null, "algorithm": "newton", "model_versions": [], "n": 90},
@@ -1090,6 +1091,11 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(s.skill->chi2, std::optional<double>(11.5));
         QCOMPARE(s.skill->df, 4);
         QCOMPARE(s.skill->p, std::optional<double>(0.021));
+        QVERIFY(s.skill->kappa_by_day.has_value()); // krx-quant #278
+        QCOMPARE(s.skill->kappa_by_day->n, 5);
+        QCOMPARE(s.skill->kappa_by_day->value, 0.06);
+        QCOMPARE(s.skill->kappa_by_day->low, std::optional<double>(-0.01));
+        QCOMPARE(s.skill->kappa_by_day_p, std::optional<double>(0.04));
         QCOMPARE(s.by_volatility.keys(), (QStringList{"high", "low"})); // a tercile without predictions is left out
         QCOMPARE(s.by_volatility.value("low").n, 110);
         QCOMPARE(s.volatility_cuts.value("005930"), (QList<double>{12.3, 18.0}));
@@ -1112,6 +1118,8 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!skill->chi2.has_value());
         QVERIFY(!skill->p.has_value());
         QCOMPARE(skill->df, 0);
+        QVERIFY(!skill->kappa_by_day.has_value()); // an engine before krx-quant #278, or one day
+        QVERIFY(!skill->kappa_by_day_p.has_value());
     }
 
     void stats_of_an_unknown_algorithm_are_an_error() {

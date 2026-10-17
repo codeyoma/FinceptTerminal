@@ -248,6 +248,9 @@ std::optional<Skill> skill_of(const QJsonValue& v) {
     s.chi2 = number(independence.value("chi2"));
     s.df = independence.value("df").toInt();
     s.p = number(independence.value("p"));
+    s.kappa_by_day = interval_of(o.value("by_day"));
+    if (s.kappa_by_day)
+        s.kappa_by_day_p = number(o.value("by_day").toObject().value("p"));
     return s;
 }
 

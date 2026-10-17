@@ -638,7 +638,7 @@ class TstKrxStatsView : public QObject {
         QVERIFY(learning_rows(std::nullopt).isEmpty());
     }
 
-    void the_skill_has_its_six_cells_each_with_what_it_is() {
+    void the_skill_has_its_seven_cells_each_with_what_it_is() {
         // krx-quant #262: the skill against the class rates, beside the overall line's accuracy.
         Skill s;
         s.n = 1128;
@@ -650,6 +650,8 @@ class TstKrxStatsView : public QObject {
         s.chi2 = 14.234;
         s.df = 4;
         s.p = 0.0066;
+        s.kappa_by_day = Interval{0.0412, -0.0105, 0.0929, 5};
+        s.kappa_by_day_p = 0.048;
         const auto cells = skill_cells(s);
         QStringList headers, values;
         for (const auto& c : cells) {
@@ -657,21 +659,22 @@ class TstKrxStatsView : public QObject {
             values << c.value;
             QVERIFY2(!c.tip.isEmpty(), qPrintable(c.header));
         }
-        QCOMPARE(headers,
-                 (QStringList{"기대 정답률", "기대 대비", "kappa", "Gerrity", "균형 정답률", "독립성 검정"}));
-        QCOMPARE(values,
-                 (QStringList{"49.1%", "+2.9%p", "+0.057", "-0.012", "38.4%", "p 0.007 (χ² 14.23, 자유도 4)"}));
-        QVERIFY(cells[5].tip.contains("p가 실제보다 작다"));
+        QCOMPARE(headers, (QStringList{"기대 정답률", "기대 대비", "kappa", "거래일 kappa", "Gerrity", "균형 정답률",
+                                       "독립성 검정"}));
+        QCOMPARE(values, (QStringList{"49.1%", "+2.9%p", "+0.057", "+0.041 (-0.011 – +0.093)", "-0.012", "38.4%",
+                                      "p 0.007 (χ² 14.23, 자유도 4)"}));
+        QVERIFY(cells[3].tip.endsWith(QStringLiteral("\n5일 · 한쪽 p 0.048")));
+        QVERIFY(cells[6].tip.contains("p가 실제보다 작다"));
 
         s.p = 0.0004;
         s.accuracy = 0.45;
-        QCOMPARE(skill_cells(s)[5].value, QStringLiteral("p <0.001 (χ² 14.23, 자유도 4)"));
+        QCOMPARE(skill_cells(s)[6].value, QStringLiteral("p <0.001 (χ² 14.23, 자유도 4)"));
         QCOMPARE(skill_cells(s)[1].value, QStringLiteral("-4.1%p"));
         s.gerrity = -0.0001; // rounds to nothing: no "-0.000"
-        QCOMPARE(skill_cells(s)[3].value, QStringLiteral("0.000"));
+        QCOMPARE(skill_cells(s)[4].value, QStringLiteral("0.000"));
         QVERIFY(skill_tip().contains("lift"));
         // The headers are the same whatever the skill: the window builds its columns from an empty one.
-        QCOMPARE(skill_cells({}).size(), 6);
+        QCOMPARE(skill_cells({}).size(), 7);
         QCOMPARE(skill_cells({})[0].header, QStringLiteral("기대 정답률"));
     }
 
@@ -685,16 +688,22 @@ class TstKrxStatsView : public QObject {
         QCOMPARE(cells[1].value, QStringLiteral("0.0%p"));
         QCOMPARE(cells[2].value, QStringLiteral("—"));
         QVERIFY(cells[2].tip.contains("한 클래스라 낼 수 없다"));
-        QCOMPARE(cells[3].value, QStringLiteral("—"));
-        QVERIFY(cells[3].tip.contains("한 번도 일어나지 않아"));
-        QCOMPARE(cells[4].value, QStringLiteral("33.3%"));
-        QCOMPARE(cells[5].value, QStringLiteral("—"));
-        QVERIFY(cells[5].tip.contains("한 클래스뿐이라 검정할 수 없다"));
+        QCOMPARE(cells[3].value, QStringLiteral("—")); // today alone, or an engine before krx-quant #278
+        QVERIFY(cells[3].tip.contains("2일보다 적거나"));
+        QCOMPARE(cells[4].value, QStringLiteral("—"));
+        QVERIFY(cells[4].tip.contains("한 번도 일어나지 않아"));
+        QCOMPARE(cells[5].value, QStringLiteral("33.3%"));
+        QCOMPARE(cells[6].value, QStringLiteral("—"));
+        QVERIFY(cells[6].tip.contains("한 클래스뿐이라 검정할 수 없다"));
 
         s.df = 4; // a used cell expecting fewer than five
         cells = skill_cells(s);
-        QCOMPARE(cells[5].value, QStringLiteral("—"));
-        QVERIFY(cells[5].tip.contains("Cochran"));
+        QCOMPARE(cells[6].value, QStringLiteral("—"));
+        QVERIFY(cells[6].tip.contains("Cochran"));
+
+        s.kappa_by_day = Interval{0.0, 0.0, 0.0, 3}; // always flat, day after day: no spread
+        s.kappa_by_day_p = 1.0;
+        QCOMPARE(skill_cells(s)[3].value, QStringLiteral("0.000 (0.000 – 0.000)"));
     }
 
     void the_volatility_terciles_read_in_korean_with_each_symbol_s_cuts() {
