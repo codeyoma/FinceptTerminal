@@ -788,6 +788,49 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!alpha.stage->waiting);
         QVERIFY(read.value().value("delta").stage->waiting);
         QVERIFY(!read.value().value("epsilon").stage->waiting); // left out: an older engine
+        QCOMPARE(alpha.stage->simulated, 0); // left out: an older engine
+        QVERIFY(!alpha.simulation.has_value());
+    }
+
+    void a_simulated_probation_is_read_with_its_days_its_review_and_the_marked_status_change() {
+        // Made-up values (krx-quant #298).
+        const auto read = parse_algorithms(json(R"({"algorithms": [
+          {"name": "cox", "model": {"version": "cox-1", "params": {}, "trained": null, "trained_until": null},
+           "status": {"status": "probation", "since": "2026-10-20T23:00:00+09:00", "history": [
+             {"at": "2026-10-20T23:00:00+09:00", "from": null, "to": "probation", "reason": "registered",
+              "simulated": false},
+             {"at": "2026-10-20T23:05:00+09:00", "from": "probation", "to": "active", "reason": "simulated probation x",
+              "simulated": true}]},
+           "stage": {"status": "probation", "began": "2026-10-20", "counted_from": null, "days": 20, "review_days": [20],
+                     "next_review": 40, "next_review_on": "2026-11-17", "lift_days": 20, "level": 0.98, "weakest": null,
+                     "enough": true, "simulated": 20},
+           "simulation": {"made_at": "2026-10-20T23:05:00+09:00", "probation_began": "2026-10-20T23:00:00+09:00",
+                          "cadence": "daily", "days": 20, "first_day": "2026-09-22", "last_day": "2026-10-20",
+                          "training": {"cadence": "daily", "models": {}},
+                          "review": {"days": 20, "review_day": 20, "scored": 60, "enough": true, "weakest": null,
+                                     "status": "active", "reason": "simulated probation x"},
+                          "why": null}},
+          {"name": "kalman", "model": {"version": "kalman-default", "params": {}, "trained": null, "trained_until": null},
+           "stage": null,
+           "simulation": {"made_at": "2026-10-23T23:05:00+09:00", "probation_began": "2026-10-23T09:01:00+09:00",
+                          "cadence": null, "days": 0, "first_day": null, "last_day": null, "training": null,
+                          "review": null, "why": "nothing to learn before 2026-10-12"}}]})"));
+        QVERIFY(read.is_ok());
+        const AlgorithmInfo cox = read.value().value("cox");
+        QCOMPARE(cox.stage->simulated, 20);
+        QVERIFY(cox.stage->waiting); // counted_from null: the screen shows the simulated days instead
+        QCOMPARE(cox.simulation->cadence, QStringLiteral("daily"));
+        QCOMPARE(cox.simulation->days, 20);
+        QCOMPARE(cox.simulation->first_day, QStringLiteral("2026-09-22"));
+        QCOMPARE(cox.simulation->review_day, std::optional<int>(20));
+        QCOMPARE(cox.simulation->status, QStringLiteral("active"));
+        QCOMPARE(cox.history.size(), 2);
+        QVERIFY(!cox.history[0].simulated);
+        QVERIFY(cox.history[1].simulated);
+        const AlgorithmInfo kalman = read.value().value("kalman");
+        QVERIFY(kalman.simulation->cadence.isEmpty());
+        QCOMPARE(kalman.simulation->why, QStringLiteral("nothing to learn before 2026-10-12"));
+        QVERIFY(!kalman.simulation->review_day.has_value());
     }
 
     void an_outcome_keeps_its_mid_points() {

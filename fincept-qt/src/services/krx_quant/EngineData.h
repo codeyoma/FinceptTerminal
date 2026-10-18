@@ -479,6 +479,7 @@ struct StatusRecord {
     QString from; ///< empty when it was first registered
     QString to;
     QString reason;
+    bool simulated = false; ///< its review counted simulated days (krx-quant #298); false from an older engine
 };
 
 /// What a model was trained on (krx-quant #165): its days, samples and loss on its own
@@ -534,6 +535,20 @@ struct Stage {
     std::optional<double> level;
     std::optional<WeakestLift> weakest;
     bool enough = false;
+    int simulated = 0; ///< of days, those simulated (krx-quant #298); 0 from an older engine
+};
+
+/// An algorithm's latest simulated probation (krx-quant #298): the latest trading days replayed
+/// as if it had been on probation, and the review it made at once. The engine keeps those
+/// predictions apart: the leaderboard and the statistics never count them.
+struct Simulation {
+    QString cadence;     ///< "daily" (refitted before each day) or "bar_close" (trained once); empty: not simulated
+    int days = 0;        ///< replayed
+    QString first_day;   ///< "YYYY-MM-DD", empty when not simulated
+    QString last_day;
+    std::optional<int> review_day; ///< the review its days reached; none below the first
+    QString status;      ///< after its review: "active", "probation", "clone"; empty before one
+    QString why;         ///< why it could not be simulated; empty when it was
 };
 
 /// One algorithm of GET /v1/algorithms (krx-quant #163): its card, inputs, the model it
@@ -556,6 +571,7 @@ struct AlgorithmInfo {
     std::optional<TrainingInfo> training;      ///< the same as values (krx-quant #165)
     std::optional<NightValidation> validation; ///< last night's report (krx-quant #165)
     std::optional<Stage> stage;                ///< on probation or the bench (krx-quant #165)
+    std::optional<Simulation> simulation;      ///< its latest simulated probation (krx-quant #298)
     QString trained_until;                     ///< "YYYY-MM-DD"
     QString status;
     QDateTime since;

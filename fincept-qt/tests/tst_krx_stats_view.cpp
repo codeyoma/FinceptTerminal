@@ -329,8 +329,10 @@ class TstKrxStatsView : public QObject {
         info.status = "probation";
         info.since = QDateTime::fromString("2026-10-10T15:09:52+09:00", Qt::ISODate);
         info.history = {
-            {QDateTime::fromString("2026-10-10T15:09:52+09:00", Qt::ISODate), {}, "probation", "registered"},
-            {QDateTime::fromString("2026-10-23T15:40:00+09:00", Qt::ISODate), "probation", "active", ""}};
+            {QDateTime::fromString("2026-10-10T15:09:52+09:00", Qt::ISODate), {}, "probation", "registered", false},
+            {QDateTime::fromString("2026-10-23T15:40:00+09:00", Qt::ISODate), "probation", "active", "", false},
+            // A simulated probation's review at once (krx-quant #298) is marked before its reason.
+            {QDateTime::fromString("2026-10-23T23:10:00+09:00", Qt::ISODate), "active", "bench", "이유", true}};
 
         const auto rows = about_rows(info);
 
@@ -345,7 +347,8 @@ class TstKrxStatsView : public QObject {
                  QStringLiteral("2026-09-01..2026-10-01, 100 samples, log loss 0.7 · 2026-10-01까지의 데이터"));
         QCOMPARE(rows[8].second, QStringLiteral("a = 3, b = 0.25"));
         QCOMPARE(rows[9].second, QStringLiteral("수습 · 2026-10-10 15:09부터"));
-        QCOMPARE(rows[10].second, QStringLiteral("10-10 15:09 수습 (registered)\n10-23 15:40 수습 → 정식"));
+        QCOMPARE(rows[10].second, QStringLiteral("10-10 15:09 수습 (registered)\n10-23 15:40 수습 → 정식\n"
+                                                 "10-23 23:10 정식 → 벤치 (시뮬레이션 판정 · 이유)"));
     }
 
     void a_model_not_trained_yet_says_so_and_a_predictor_without_a_card_says_the_engine_gives_none() {
@@ -457,6 +460,37 @@ class TstKrxStatsView : public QObject {
         info.stage->days = 0;
         QCOMPARE(learning_rows(info)[6].second,
                  QStringLiteral("2026-10-12부터 · 0거래일 셈 · 새 정답으로 학습한 모델을 기다림"));
+
+        // A simulated probation (krx-quant #298): its days are counted first, so nothing waits,
+        // and its replay and review at once get a row of their own.
+        info.stage->days = 20;
+        info.stage->simulated = 20;
+        info.stage->next_review = 40;
+        info.stage->next_review_on = "2026-11-17";
+        Simulation sim;
+        sim.cadence = "daily";
+        sim.days = 20;
+        sim.first_day = "2026-09-21";
+        sim.last_day = "2026-10-19";
+        sim.review_day = 20;
+        sim.status = "probation";
+        info.simulation = sim;
+        const auto simulated = learning_rows(info);
+        QCOMPARE(simulated[6].second, QStringLiteral("2026-10-12부터 · 20거래일 셈 (시뮬레이션 20일 포함) · 다음 판정 "
+                                                     "40일째 (2026-11-17 예정)"));
+        QCOMPARE(simulated.last().first, QStringLiteral("수습 시뮬레이션"));
+        QCOMPARE(simulated.last().second, QStringLiteral("2026-09-21 – 2026-10-19 · 20일 · 날마다 그 전날까지로 다시 학습 "
+                                                         "· 20일째 판정: 통과하지 못해 수습이 이어짐"));
+        sim.cadence = "bar_close";
+        sim.days = 10;
+        sim.review_day = 10;
+        sim.status = "active";
+        info.simulation = sim;
+        info.stage.reset(); // active: no stage
+        QCOMPARE(learning_rows(info).last().second,
+                 QStringLiteral("2026-09-21 – 2026-10-19 · 10일 · 첫날 전까지로 한 번 학습 · 10일째 판정: 정식이 됨"));
+        info.simulation = Simulation{QString(), 0, QString(), QString(), std::nullopt, QString(), "nothing to learn"};
+        QCOMPARE(learning_rows(info).last().second, QStringLiteral("하지 못함: nothing to learn"));
     }
 
     void a_range_leaderboard_has_its_action_classes_coverage_and_q50_error_and_no_touch_p_and_l() {
