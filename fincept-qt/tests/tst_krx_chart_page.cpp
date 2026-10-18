@@ -42,6 +42,9 @@
 // bar with trades before it, coloured by its sign. The first bar read has no changes, an empty slot
 // says 체결 없음, a Heikin-Ashi chart shows the bars as they are, and the bar being made moves it.
 //
+// The day view draws a daily kind's calls (krx-quant #264): an icon on each day's candle and its box
+// without a window; a week view's candle holds many days and has none.
+//
 // The page runs in Qt WebEngine with TradingView Lightweight Charts, so this suite opens a
 // window. It is skipped where the WebEngine runtime is missing or the platform draws nothing
 // (offscreen).
@@ -55,6 +58,7 @@
 #include <QSignalSpy>
 #include <QStyleHints>
 #include <QTest>
+#include <QTimeZone>
 #include <QTimer>
 #include <QToolButton>
 #include <QWebEngineView>
@@ -702,6 +706,42 @@ class TstKrxChartPage : public QObject {
         QTest::mouseClick(input, Qt::LeftButton, {}, spot(chart_time(kst("2026-10-15T13:00:00+09:00"))));
         QTest::qWait(400);
         QCOMPARE(clicked.size(), 0);
+    }
+
+    void a_daily_kind_s_calls_sit_on_the_day_view_s_candles_with_their_boxes() {
+        // krx-quant #264: the day view draws a daily kind's icons on their days' candles and their boxes
+        // without a window (a day is no bar close); a week view's candle holds many days: none there.
+        empty();
+        const QTimeZone seoul = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+        QList<Bar> days;
+        for (int i = 0; i < 30; ++i)
+            days << Bar{QDateTime(QDate(2026, 9, 1).addDays(i), QTime(0, 0), seoul), 1000, 1010, 990, 1005, 1e6};
+        ChartIcon up;
+        up.time = chart_time(days[28].start);
+        up.bar_close = QDateTime(days[28].start.date(), QTime(8, 50), seoul);
+        up.direction = Direction::Up;
+        up.arrow = QStringLiteral("▲");
+        up.result = QStringLiteral("✓");
+        ChartIcon flat = up;
+        flat.time = chart_time(days[29].start);
+        flat.direction = Direction::Flat;
+        flat.result = QStringLiteral("?");
+        BarHover box;
+        box.time = up.time;
+        box.lines = {QStringLiteral("09-29 시가→종가 (08:50 예측) · 정답 상승 +0.50% (1,000 → 1,005)"),
+                     QStringLiteral("cox · 상승 · 상승 40% · 보합 30% · 하락 30% · ✓")};
+        chart_->set_data(days, {}, {box}, {}, kDayView, {}, {}, std::nullopt, {up, flat});
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.icons().length").toInt(), 2, 10000);
+        const QVariantList first = js("window.krxChart.icons()[0]").toList();
+        QCOMPARE(first.value(0).toLongLong(), up.time);
+        QCOMPARE(first.value(1).toString(), QStringLiteral("arrowUp"));
+        QCOMPARE(first.value(2).toString(), QStringLiteral("✓"));
+        QTest::qWait(400); // fitted
+        hover_at(up.time);
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.tip()").toString(), box.lines.join('\n'), 10000);
+        // The week view: no icon, no box.
+        chart_->set_data(days, {}, {box}, {}, kWeekView, {}, {}, std::nullopt, {up, flat});
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.icons().length").toInt(), 0, 10000);
     }
 
     void a_bar_double_clicked_in_the_1_minute_view_opens_its_window() {

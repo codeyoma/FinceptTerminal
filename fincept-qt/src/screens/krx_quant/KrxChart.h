@@ -154,11 +154,15 @@ class KrxChart : public QWidget {
     /// With ``clock`` (the engine's session and clock, krx-quant #238), today's slots after the last
     /// bar that are over are empty bars too while the session is open, and a window still going on
     /// ends at the clock: the screen draws again each time krx_quant::clock_slot moves.
+    /// The day view with a time axis draws ``day_icons`` over its candles and ``hovers`` as their
+    /// boxes, without a window (krx-quant #264: a daily kind's calls, krx_quant::daily_icons and
+    /// daily_hovers); clicked, an icon tells its prediction time as a 1-minute icon tells its bar close.
     void set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
                   const QList<krx_quant::BarHover>& hovers = {}, const krx_quant::SignalRule& rule = {},
                   int minutes = 1, const krx_quant::ChartLook& look = {},
                   const QList<krx_quant::SpecialWindow>& special = {},
-                  const std::optional<krx_quant::SessionClock>& clock = std::nullopt);
+                  const std::optional<krx_quant::SessionClock>& clock = std::nullopt,
+                  const QList<krx_quant::ChartIcon>& day_icons = {});
     /// Only the last bar of ``bars`` moved (the bar being made, krx-quant #110): it alone is
     /// drawn again, in the view of ``minutes`` and the style last set. A candle view's ``bars``
     /// are its candles. The indicators' values on it move with it (krx-quant #222): the point

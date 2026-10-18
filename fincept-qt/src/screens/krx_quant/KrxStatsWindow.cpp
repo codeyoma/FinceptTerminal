@@ -503,12 +503,24 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats,
         }
     }
 
-    // The barrier's P&L (krx-quant #185): all its trades, then each side.
-    barrier_->setVisible(e.barrier.has_value());
+    // The barrier's P&L (krx-quant #185): all its trades, then each side. A daily kind's open-to-close
+    // P&L (krx-quant #264) in the same section, in basis points of the open.
+    const bool daily = its && krx_quant::is_daily(*its) && e.open_to_close.has_value();
+    barrier_->setVisible(e.barrier.has_value() || daily);
     barrier_table_->setRowCount(0);
-    if (e.barrier) {
-        barrier_summary_->setText(krx_quant::barrier_summary(*e.barrier));
-        for (const auto& r : krx_quant::barrier_pnl_rows(*e.barrier)) {
+    barrier_header_.title->setText(daily ? krx_quant::daily_pnl_header(*its) : tr("장벽 손익(틱, 연구용)"));
+    barrier_header_.title->setToolTip(daily ? krx_quant::daily_pnl_tip()
+                                            : krx_quant::column_tip(QString::fromUtf8(krx_quant::kBarrierPnlHeader)));
+    const QStringList unit_headers =
+        daily ? QStringList{tr("합계(bp)"), tr("거래당(bp)")} : QStringList{tr("합계(틱)"), tr("거래당(틱)")};
+    for (int c : {kTotal, kPerTrade})
+        if (auto* item = barrier_table_->horizontalHeaderItem(c))
+            item->setText(unit_headers[c == kTotal ? 0 : 1]);
+    if (e.barrier || daily) {
+        barrier_summary_->setText(daily ? krx_quant::daily_pnl_summary(*e.open_to_close)
+                                        : krx_quant::barrier_summary(*e.barrier));
+        for (const auto& r :
+             daily ? krx_quant::daily_pnl_rows(*e.open_to_close) : krx_quant::barrier_pnl_rows(*e.barrier)) {
             const int row = barrier_table_->rowCount();
             barrier_table_->insertRow(row);
             const QStringList cells{r.side, r.trades, r.total, r.per_trade, r.interval};
@@ -534,10 +546,17 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats,
         lifts_->setItem(row, kDays, cell(l.days, kNumber));
     }
     lift_header_.title->setToolTip(krx_quant::lift_tip(stats, its));
+    // What its intervals and pairs count: bar closes, or a daily kind's days (krx-quant #264).
+    for (int c : {kInterval, kPairs, kDayInterval, kQ, kVerdict})
+        if (auto* item = lifts_->horizontalHeaderItem(c))
+            item->setToolTip(krx_quant::lift_header_tip(item->text(), its));
     excluded_->setText(e.excluded ? krx_quant::excluded_text(*e.excluded, stats.special) : QString());
     calibration_->set_series(krx_quant::calibration_series(stats, its));
     calibration_header_.title->setToolTip(krx_quant::calibration_tip(stats, its));
 
+    // A daily kind's predictions are all of one time (krx-quant #264): no 30-minute slots.
+    const int slot_tab = breakdowns_->indexOf(by_slot_);
+    breakdowns_->setTabVisible(slot_tab, !(its && krx_quant::is_daily(*its)));
     fill_breakdown(by_slot_, stats.by_slot, krx_quant::slot_label, its);
     fill_breakdown(by_model_version_, stats.by_model_version, nullptr, its);
     fill_breakdown(by_symbol_, stats.by_symbol, nullptr, its);

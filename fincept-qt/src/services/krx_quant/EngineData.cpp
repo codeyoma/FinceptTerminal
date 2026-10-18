@@ -170,10 +170,12 @@ BarrierPnl barrier_pnl_of(const QJsonValue& v) {
     return BarrierPnl{o.value("trades").toInt(), o.value("total_ticks").toDouble(), interval_of(o.value("per_trade"))};
 }
 
-/// A barrier entry's extra (krx-quant #183): its barrier P&L; none for another kind's.
+/// A barrier entry's extra (krx-quant #183): its barrier P&L; none for another kind's (an
+/// open_to_close entry's has the same sides in basis points, krx-quant #264).
 std::optional<BarrierStats> barrier_stats_of(const QJsonValue& v) {
     const QJsonObject o = v.toObject();
-    if (!o.contains("pnl") || !o.contains("long") || !o.contains("short"))
+    if (!o.contains("pnl") || !o.contains("long") || !o.contains("short") ||
+        !o.value("pnl").toObject().contains("total_ticks"))
         return std::nullopt;
     BarrierStats stats{o.value("n").toInt(), barrier_pnl_of(o.value("pnl")), barrier_pnl_of(o.value("long")),
                        barrier_pnl_of(o.value("short"))};
@@ -182,6 +184,30 @@ std::optional<BarrierStats> barrier_stats_of(const QJsonValue& v) {
         stats.pnl_inverse = barrier_pnl_of(o.value("pnl_inverse"));
     if (o.value("short_inverse").isObject())
         stats.shorts_inverse = barrier_pnl_of(o.value("short_inverse"));
+    return stats;
+}
+
+DailyPnl daily_pnl_of(const QJsonValue& v) {
+    const QJsonObject o = v.toObject();
+    return DailyPnl{o.value("trades").toInt(), o.value("total_bp").toDouble(), interval_of(o.value("per_trade"))};
+}
+
+/// An open_to_close entry's extra (krx-quant #264): its open-to-close P&L, basis points; none for
+/// another kind's.
+std::optional<OpenToCloseStats> open_to_close_stats_of(const QJsonValue& v) {
+    const QJsonObject o = v.toObject();
+    if (!o.contains("pnl") || !o.contains("long") || !o.contains("short") ||
+        !o.value("pnl").toObject().contains("total_bp"))
+        return std::nullopt;
+    OpenToCloseStats stats;
+    stats.n = o.value("n").toInt();
+    stats.pnl = daily_pnl_of(o.value("pnl"));
+    stats.longs = daily_pnl_of(o.value("long"));
+    stats.shorts = daily_pnl_of(o.value("short"));
+    if (o.value("pnl_inverse").isObject())
+        stats.pnl_inverse = daily_pnl_of(o.value("pnl_inverse"));
+    if (o.value("short_inverse").isObject())
+        stats.shorts_inverse = daily_pnl_of(o.value("short_inverse"));
     return stats;
 }
 
@@ -206,6 +232,7 @@ Entry entry_of(const QJsonObject& e) {
     entry.excluded = excluded_of(e.value("excluded"));
     entry.range = range_stats_of(e.value("extra"));
     entry.barrier = barrier_stats_of(e.value("extra"));
+    entry.open_to_close = open_to_close_stats_of(e.value("extra"));
     if (e.value("lift").isObject()) {
         const QJsonObject lift = e.value("lift").toObject();
         entry.lift_low = number(lift.value("low"));
@@ -777,7 +804,25 @@ Result<QList<KindInfo>> parse_kinds(const QJsonDocument& doc) {
         kind.class_titles = strings_of(k.value("class_titles"));
         kind.action = strings_of(k.value("action"));
         kind.answer_version = k.value("answer_version").toInt();
-        kind.horizon_minutes = k.value("horizon_minutes").toInt(4);
+        // A kind predicted once a day (krx-quant #264): its day, and no bar close (horizon null).
+        if (const QJsonObject d = k.value("daily").toObject(); !d.isEmpty()) {
+            DailySchedule day;
+            day.predict_at = d.value("predict_at").toString();
+            day.from = d.value("from").toString();
+            day.to = d.value("to").toString();
+            day.from_title = d.value("from_title").toString();
+            day.to_title = d.value("to_title").toString();
+            day.answer_from = d.value("answer_from").toString();
+            for (const auto& n : d.value("probation_days").toArray())
+                day.probation_days << n.toInt();
+            for (const auto& n : d.value("bench_days").toArray())
+                day.bench_days << n.toInt();
+            day.recent_days = d.value("recent_days").toInt();
+            kind.daily = day;
+        }
+        kind.horizon_minutes = k.value("horizon_minutes").isDouble() ? k.value("horizon_minutes").toInt()
+                               : kind.daily                          ? 0
+                                                                     : 4;
         kind.fields = meanings_of(k.value("fields")).value_or(QMap<QString, Meaning>{});
         for (const auto& b : k.value("baselines").toArray()) {
             const QJsonObject baseline = b.toObject();
@@ -843,6 +888,23 @@ std::optional<BarrierPath> barrier_path_of(const QJsonValue& v) {
     return path;
 }
 
+/// An open_to_close answer's day (krx-quant #264); none for another kind's (no ``change``) or a
+/// day whose KRX day candle never came (an empty path).
+std::optional<OpenToClosePath> open_to_close_path_of(const QJsonValue& v) {
+    const QJsonObject o = v.toObject();
+    if (!o.contains("change") || !o.contains("open") || !o.contains("close"))
+        return std::nullopt;
+    OpenToClosePath path;
+    path.open = o.value("open").toDouble();
+    path.close = o.value("close").toDouble();
+    path.change = o.value("change").toDouble();
+    path.band = number(o.value("band"));
+    path.sigma = number(o.value("sigma"));
+    path.scale = number(o.value("scale"));
+    path.vi = o.value("vi").toInt();
+    return path;
+}
+
 std::optional<KindAnswer> kind_answer_of(const QJsonValue& v) {
     if (!v.isObject())
         return std::nullopt;
@@ -855,6 +917,7 @@ std::optional<KindAnswer> kind_answer_of(const QJsonValue& v) {
     answer.scored_at = time_of(o.value("scored_at"));
     answer.range = range_path_of(o.value("path"));
     answer.barrier = barrier_path_of(o.value("path"));
+    answer.open_to_close = open_to_close_path_of(o.value("path"));
     return answer;
 }
 
@@ -871,6 +934,7 @@ KindPrediction kind_prediction_of(const QJsonObject& p, const QString& symbol, c
     made.width_ticks = integer_of(p.value("width_ticks"));
     made.anchor = number(p.value("anchor"));
     made.tick = number(p.value("tick"));
+    made.band = number(p.value("band")); // a daily kind's (krx-quant #264)
     if (made.status == "ok") {
         const QJsonObject output = p.value("output").toObject();
         for (auto it = output.begin(); it != output.end(); ++it)
@@ -1044,6 +1108,10 @@ QString predictor_label(const QString& predictor) {
         // The barrier's (krx-quant #183, #185).
         {"barrier-climate", QStringLiteral("기준: 장벽 시간대 기후")},
         {"barrier-persist", QStringLiteral("기준: 직전 4분 장벽")},
+        // Open to close's (krx-quant #264), predicted once a day.
+        {"otc-flat", QStringLiteral("기준: 시가→종가 늘 보합")},
+        {"otc-climate", QStringLiteral("기준: 시가→종가 기후")},
+        {"otc-persist", QStringLiteral("기준: 어제 방향 잇기")},
     };
     return labels.value(predictor, predictor);
 }

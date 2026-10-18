@@ -173,11 +173,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     chart_failure_->hide();
     chart_header_.controls->addWidget(chart_failure_);
     chart_score_ = new QLabel;
-    chart_score_->setToolTip(tr("보이는 구간에서 4분이 다 지나 채점된 봉 중 선택 합의가 맞은 비율, 같은 봉들에서 "
-                                "'늘 보합'이 맞았을 비율, ▲·▼라고 한 봉 중 맞은 비율(괄호는 그 수), 봉 수와 거래일 "
-                                "수다. 4분 창은 서로 겹쳐 독립 표본이 아니다. 설명용 성적이고, 정식 판정은 순위표의 "
-                                "거래일 단위 구간으로 한다. 특수 상황 봉은 세지 않고 따로 센다."));
-    chart_score_->hide();
+    chart_score_->hide(); // its tooltip with its text (show_score)
     chart_header_.controls->addWidget(chart_score_);
     auto* fit = new QPushButton(tr("맞춤"));
     // The button alone fits: a double-click on the chart opens the bar's window (krx-quant #255).
@@ -486,6 +482,8 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
         update_panel_title();
     });
     connect(live_, &services::KrxLive::pinned_failed, this, [this](const QString& reason) {
+        if (const auto kind = live_->kind_info(); kind && krx_quant::is_daily(*kind))
+            return; // its day's predictions are its own, read with its history (krx-quant #264)
         predictions_table_->setRowCount(0);
         predictions_header_.title->setToolTip(tr("그 봉 마감의 예측을 읽지 못했습니다: %1").arg(reason));
     });
@@ -851,6 +849,8 @@ void KrxQuantScreen::on_kind_changed() {
     leaderboard_->set_kind(direction ? std::nullopt : live_->kind_info());
     // The panel's header items go with their columns: the kind's tooltips do not stay on the direction's.
     predictions_table_->setColumnCount(0);
+    predictions_header_.title->setToolTip({}); // a daily kind's window (krx-quant #264) is its own
+    show_score();
     fill_predictions();
     fill_chart();
 }
@@ -874,8 +874,15 @@ void KrxQuantScreen::fill_kind() {
     predictions_table_->setRowCount(0);
     if (!kind || symbol.isEmpty())
         return kind_title();
-    const QList<krx_quant::KindPrediction> at_close = pinned ? live_->kind_board().closes(symbol).value(live_->pinned())
-                                                             : live_->kind_board().latest(symbol).predictions;
+    // A daily kind (krx-quant #264): the day pinned (a day's icon, or any minute bar of the day), its
+    // result always (answered that night); the last trading day's dimmed before today's prediction.
+    const bool daily = krx_quant::is_daily(*kind);
+    const krx_quant::KindLatest latest = live_->kind_board().latest(symbol);
+    const QList<krx_quant::KindPrediction> at_close =
+        pinned ? live_->kind_board().closes(symbol).value(daily ? krx_quant::daily_close_on(live_->pinned(), *kind)
+                                                                : live_->pinned())
+               : latest.predictions;
+    const bool last_day = daily && !pinned && latest.bar_close.isValid() && !is_today(latest.bar_close);
     const auto quantile = [](const std::optional<double>& q) { return q ? krx_quant::ticks_text(*q) : QString(); };
     for (const auto& r : krx_quant::kind_rows(at_close, *kind)) {
         const int row = predictions_table_->rowCount();
@@ -890,12 +897,12 @@ void KrxQuantScreen::fill_kind() {
             cells << QPair<QString, Qt::Alignment>{quantile(r.q10), kNumber}
                   << QPair<QString, Qt::Alignment>{quantile(r.q50), kNumber}
                   << QPair<QString, Qt::Alignment>{quantile(r.q90), kNumber};
-        if (pinned)
+        if (pinned || daily)
             cells.append({r.result, Qt::AlignLeft | Qt::AlignVCenter});
         cells.append({r.model_version, Qt::AlignLeft | Qt::AlignVCenter});
         for (int c = 0; c < cells.size(); ++c) {
             auto* item = cell(cells[c].first, cells[c].second);
-            if (r.baseline)
+            if (r.baseline || last_day)
                 item->setForeground(QColor(ui::colors::TEXT_DIM()));
             predictions_table_->setItem(row, c, item);
         }
@@ -910,6 +917,19 @@ void KrxQuantScreen::kind_title() {
     const QString name = kind ? kind->title : live_->kind();
     if (symbol.isEmpty()) {
         panel_title->setText(tr("예측 · %1").arg(name));
+        return;
+    }
+    if (kind && krx_quant::is_daily(*kind)) { // once a trading day (krx-quant #264)
+        panel_title->setToolTip(krx_quant::daily_tip(*kind));
+        if (live_->pinned().isValid()) { // the day pinned
+            const QDateTime day = krx_quant::daily_close_on(live_->pinned(), *kind);
+            panel_title->setText(
+                krx_quant::daily_title(symbol, *kind, day, live_->kind_board().closes(symbol).value(day), false));
+            return;
+        }
+        const krx_quant::KindLatest latest = live_->kind_board().latest(symbol);
+        panel_title->setText(krx_quant::daily_title(symbol, *kind, latest.bar_close, latest.predictions,
+                                                    latest.bar_close.isValid() && !is_today(latest.bar_close)));
         return;
     }
     // k now, from the symbols' answer: shown only when the bar close's own is not known (an
@@ -1173,10 +1193,15 @@ void KrxQuantScreen::fill_chart() {
                                  : minutes_ == krx_quant::kYearView  ? tr("%1 · 년봉")
                                                                      : tr("%1 · 일봉");
     const bool bricks = krx_quant::timeless(look_.style); // no icons on them (krx-quant #225)
+    // The kind shown besides the direction; a daily one's calls go on the day view (krx-quant #264).
+    const auto kind = live_->kind() != QLatin1String(krx_quant::kDirectionKind) ? live_->kind_info() : std::nullopt;
+    const bool daily = kind && krx_quant::is_daily(*kind);
+    const bool daily_days = daily && minutes_ == krx_quant::kDayView && !bricks;
     chart_header_.title->setText(
         symbol.isEmpty() ? tr("차트")
         : bricks ? tr("%1 · %2").arg(candles ? candle_title.arg(symbol) : tr("%1 · %2분봉").arg(symbol).arg(minutes_),
                                      krx_quant::style_title(look_.style))
+        : daily_days    ? tr("%1 · 일봉과 %2 예측").arg(symbol, kind->title)
         : candles       ? candle_title.arg(symbol)
         : minutes_ == 1 ? (chosen ? tr("%1 · 1분봉") : tr("%1 · 1분봉과 최종 합의")).arg(symbol)
                         : tr("%1 · %2분봉").arg(symbol).arg(minutes_));
@@ -1190,15 +1215,20 @@ void KrxQuantScreen::fill_chart() {
     // Each 1-minute bar's box (krx-quant #159): the 1-minute view's only. While another kind is
     // shown, its own (krx-quant #182): its answer and predictions, and the range's highest and
     // lowest mid-points or the barrier's U and L (krx-quant #185); the icons stay the direction's.
+    // A daily kind has no bar close (krx-quant #264): the minute views stay the direction's, and the
+    // day view gets its calls, an icon and a box on each day's candle.
     // The chart adds the empty bars' boxes and the special situations' lines in every minute view
     // (krx-quant #236).
-    const auto kind = live_->kind() != QLatin1String(krx_quant::kDirectionKind) ? live_->kind_info() : std::nullopt;
+    const QList<krx_quant::Bar> shown_bars = candles ? live_->view_candles(minutes_) : live_->bars();
+    const auto closes = kind ? live_->kind_board().closes(symbol) : QMap<QDateTime, QList<krx_quant::KindPrediction>>{};
     const QList<krx_quant::BarHover> hovers =
-        minutes_ != 1 ? QList<krx_quant::BarHover>{}
-        : kind
-            ? krx_quant::kind_hovers(live_->bars(), live_->kind_board().closes(symbol), *kind, live_->kind_standings())
-            : krx_quant::bar_hovers(live_->bars(), live_->board().closes(symbol), live_->selection(),
-                                    live_->standings(), rule);
+        daily_days       ? krx_quant::daily_hovers(shown_bars, closes, *kind, live_->kind_standings())
+        : minutes_ != 1  ? QList<krx_quant::BarHover>{}
+        : kind && !daily ? krx_quant::kind_hovers(live_->bars(), closes, *kind, live_->kind_standings())
+                         : krx_quant::bar_hovers(live_->bars(), live_->board().closes(symbol), live_->selection(),
+                                                 live_->standings(), rule);
+    const QList<krx_quant::ChartIcon> day_icons =
+        daily_days ? krx_quant::daily_icons(shown_bars, closes, *kind) : QList<krx_quant::ChartIcon>{};
     // Nothing before the first bar held in this view: its first day's VWAP is drawn, and the AD
     // line's and the OBV's stretch from their 0 is whole (krx-quant #223).
     look_.first_day_whole = live_->reached_start(minutes_);
@@ -1208,13 +1238,31 @@ void KrxQuantScreen::fill_chart() {
     // Today's slots after the last bar fill up to the engine's clock while the session is open (krx-quant #238).
     const auto clock = krx_quant::session_clock(live_->status(), live_->engine_now());
     clock_slot_drawn_ = krx_quant::clock_slot(clock, minutes_);
-    chart_->set_data(candles ? live_->view_candles(minutes_) : live_->bars(), marks, hovers, rule, minutes_, look_,
-                     live_->special(), clock);
+    chart_->set_data(shown_bars, marks, hovers, rule, minutes_, look_, live_->special(), clock, day_icons);
     show_score();
 }
 
 void KrxQuantScreen::show_score() {
     const QString& symbol = live_->selected();
+    // A daily kind's calls in the day view (krx-quant #264): how they did over the days in view.
+    if (const auto kind = live_->kind_info(); kind && krx_quant::is_daily(*kind) && minutes_ == krx_quant::kDayView &&
+                                              !symbol.isEmpty() && view_range_.second > 0 &&
+                                              !krx_quant::timeless(look_.style)) {
+        const QString text = krx_quant::daily_score_text(
+            krx_quant::daily_score(live_->kind_board().closes(symbol), *kind, view_range_.first, view_range_.second));
+        chart_score_->setText(text);
+        chart_score_->setToolTip(
+            tr("보이는 날 중 정답이 나온 날에 아이콘의 예측(알고리즘이 여럿이면 세 확률의 평균)이 맞은 비율, 같은 "
+               "날들에서 '늘 보합'이 맞았을 비율, ▲·▼라고 한 날 중 맞은 비율(괄호는 그 수), 날 수다. 이 종목의 하루가 "
+               "하나다. 설명용 성적이고, 정식 판정은 순위표와 상태 판정(정답이 있는 날 60일 뒤)으로 한다. 서킷브레이커·"
+               "사이드카가 있던 날은 세지 않고 따로 센다."));
+        chart_score_->setVisible(!text.isEmpty());
+        return;
+    }
+    chart_score_->setToolTip(tr("보이는 구간에서 4분이 다 지나 채점된 봉 중 선택 합의가 맞은 비율, 같은 봉들에서 "
+                                "'늘 보합'이 맞았을 비율, ▲·▼라고 한 봉 중 맞은 비율(괄호는 그 수), 봉 수와 거래일 "
+                                "수다. 4분 창은 서로 겹쳐 독립 표본이 아니다. 설명용 성적이고, 정식 판정은 순위표의 "
+                                "거래일 단위 구간으로 한다. 특수 상황 봉은 세지 않고 따로 센다."));
     const QStringList& selection = live_->selection();
     const QString head = krx_quant::selection_head(selection); // empty: several baselines alone, nothing drawn
     if (symbol.isEmpty() || head.isEmpty() || minutes_ != 1 || view_range_.second <= 0 ||

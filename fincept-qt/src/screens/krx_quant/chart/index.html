@@ -2090,6 +2090,8 @@
     },
     bars: function () { return bars.map((b) => [b.time, b.close === undefined ? 0 : 1]); },
     tip: function () { return tip.style.display === 'none' ? '' : tip.textContent; },
+    // The icons drawn: each one's time, shape and text (krx-quant #264: a daily kind's on the day view).
+    icons: function () { return iconMarks.map((m) => [m.time, m.shape, m.text]); },
     // The slots from the latest bar to the right edge (krx-quant #253).
     gap: function () {
       const range = chart.timeScale().getVisibleLogicalRange();

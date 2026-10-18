@@ -69,6 +69,41 @@ RangeStats range_stats() {
                                  {"q90", RangeMean{std::nullopt, std::nullopt}}};
     return r;
 }
+/// open_to_close as GET /v1/kinds describes it (krx-quant #264): predicted once a trading day.
+KindInfo daily_kind() {
+    KindInfo k;
+    k.name = "open_to_close";
+    k.title = QStringLiteral("시가→종가");
+    k.classes = {"up", "flat", "down"};
+    k.class_titles = {QStringLiteral("상승"), QStringLiteral("보합"), QStringLiteral("하락")};
+    k.action = {"up", "down"};
+    k.answer_version = 1;
+    k.horizon_minutes = 0;
+    k.baselines = {{"otc-flat", std::nullopt}, {"otc-climate", std::nullopt}, {"otc-persist", std::nullopt}};
+    DailySchedule day;
+    day.predict_at = "08:50";
+    day.from_title = QStringLiteral("시가 단일가");
+    day.to_title = QStringLiteral("종가 단일가");
+    day.answer_from = "20:35";
+    day.probation_days = {60, 120, 180};
+    day.bench_days = {60, 120, 180};
+    day.recent_days = 60;
+    k.daily = day;
+    return k;
+}
+
+/// Made-up open-to-close P&L, basis points: 57 scored, 35 trades — 24 longs, 11 shorts —, as the
+/// demo engine's cox (its numbers rounded).
+OpenToCloseStats daily_stats() {
+    OpenToCloseStats o;
+    o.n = 57;
+    o.pnl = DailyPnl{35, -1690.2, Interval{-48.29, -85.5, -11.09, 35}};
+    o.longs = DailyPnl{24, -922.9, Interval{-38.45, -73.79, -3.12, 24}};
+    o.shorts = DailyPnl{11, -767.3, Interval{-69.76, -161.69, 22.18, 11}};
+    o.pnl_inverse = DailyPnl{32, -1161.3, Interval{-36.29, -75.19, 2.61, 32}};
+    o.shorts_inverse = DailyPnl{8, -238.4, Interval{-29.8, -150.1, 90.5, 8}};
+    return o;
+}
 } // namespace
 
 class TstKrxStatsView : public QObject {
@@ -761,6 +796,118 @@ class TstKrxStatsView : public QObject {
         QVERIFY(tip.contains(QStringLiteral("\n000660: 낮음 ≤ 20.5bp < 중간 ≤ 31.3bp < 높음")));
         QVERIFY(tip.contains(QStringLiteral("\n005930: 낮음 ≤ 12.3bp < 중간 ≤ 18.0bp < 높음")));
         QVERIFY(volatility_tip(AlgorithmStats{}).endsWith(QStringLiteral("나누지 못했다.")));
+    }
+
+    // ---- A kind predicted once a trading day (krx-quant #264) ----
+
+    void a_daily_leaderboard_counts_a_symbol_s_days_and_has_its_open_to_close_p_and_l() {
+        const auto columns = kind_stats_columns(daily_kind());
+        QStringList headers;
+        for (const auto& c : columns)
+            headers << c.header;
+        QCOMPARE(headers, (QStringList{"표본(종목·일)", "정답률", "상승·하락 정밀도", "커버리지", "Brier",
+                                       "시가→종가 손익(bp, 연구용)", "가장 약한 lift 하한"}));
+        QCOMPARE(columns[0].tip,
+                 QStringLiteral("채점된 예측 수다. 하루 한 번 예측이라 종목마다 하루에 하나다(종목 × 날)."));
+        QVERIFY(columns[5].tip.startsWith(QStringLiteral("거래당 평균, 시가 대비 bp, 연구용 값이다. 상승 예측은 시가 "
+                                                         "단일가에 사서 종가 단일가에 판다고 친다.")));
+        QCOMPARE(columns[5].tip, daily_pnl_tip());
+        QCOMPARE(daily_pnl_header(daily_kind()), columns[5].header);
+        // A bar-close kind's samples stay "표본".
+        QCOMPARE(kind_stats_columns(range_kind())[0].header, QStringLiteral("표본"));
+
+        Entry e;
+        e.n = 57;
+        e.accuracy = Interval{0.263, 0.166, 0.39, 57};
+        e.lift_low = -0.313;
+        e.open_to_close = daily_stats();
+        e.barrier = barrier_stats(); // a barrier's P&L is not the daily kind's column
+        const auto cells = kind_stats_cells(e, daily_kind());
+        QCOMPARE(cells.size(), columns.size());
+        QCOMPARE(cells[0].text, QStringLiteral("57"));
+        QCOMPARE(cells[5].text, QStringLiteral("-48.29"));
+        QCOMPARE(cells[5].tip,
+                 QStringLiteral("거래 35건, 합계 -1,690.2bp\n95% 구간 -85.50 – -11.09 (n 35)\n"
+                                "롱(상승) 24건 평균 -38.45bp · 숏(하락, 주식 공매도) 11건 평균 -69.76bp\n"
+                                "하락을 인버스 상품으로 친 값: 전체 32건 평균 -36.29bp (합계 -1,161.3bp) · "
+                                "숏 8건 평균 -29.80bp (합계 -238.4bp)"));
+        QCOMPARE(cells[6].text, QStringLiteral("-0.313"));
+        // "늘 보합" never trades; an engine without the stats: unknown.
+        e.open_to_close = OpenToCloseStats{57, {}, {}, {}};
+        QCOMPARE(kind_stats_cells(e, daily_kind())[5].text, QStringLiteral("—"));
+        QCOMPARE(kind_stats_cells(e, daily_kind())[5].tip,
+                 QStringLiteral("거래 0건, 합계 0.0bp\n롱(상승) 0건 · 숏(하락, 주식 공매도) 0건"));
+        e.open_to_close.reset();
+        QCOMPARE(kind_stats_cells(e, daily_kind())[5].text, QStringLiteral("—"));
+        QVERIFY(kind_stats_cells(e, daily_kind())[5].tip.isEmpty());
+    }
+
+    void the_daily_p_and_l_has_all_its_trades_each_side_and_the_inverse_product_s() {
+        const auto rows = daily_pnl_rows(daily_stats());
+        QCOMPARE(rows.size(), 4);
+        QCOMPARE(rows[0].side, QStringLiteral("전체"));
+        QCOMPARE(rows[0].trades, QStringLiteral("35"));
+        QCOMPARE(rows[0].total, QStringLiteral("-1,690.2"));
+        QCOMPARE(rows[0].per_trade, QStringLiteral("-48.29"));
+        QCOMPARE(rows[0].interval, QStringLiteral("-85.50 – -11.09"));
+        QCOMPARE(rows[1].side, QStringLiteral("롱(상승)"));
+        QCOMPARE(rows[2].side, QStringLiteral("숏(하락)"));
+        QCOMPARE(rows[3].side, QStringLiteral("숏(인버스 상품)"));
+        QCOMPARE(rows[3].trades, QStringLiteral("8"));
+        OpenToCloseStats older = daily_stats();
+        older.shorts_inverse.reset();
+        QCOMPARE(daily_pnl_rows(older).size(), 3);
+        QCOMPARE(daily_pnl_summary(daily_stats()),
+                 QStringLiteral("채점 57개 중 거래 35건 (롱 24 · 숏 11) · 거래당 -48.29bp (95% -85.50 – -11.09) · "
+                                "합계 -1,690.2bp"));
+        QCOMPARE(daily_pnl_summary(OpenToCloseStats{57, {}, {}, {}}),
+                 QStringLiteral("채점 57개 · 거래 없음 (모두 보합 예측)"));
+        QCOMPARE(daily_pnl_summary(OpenToCloseStats{}), QStringLiteral("채점된 예측 없음"));
+    }
+
+    void a_daily_leaderboard_s_rules_say_a_sample_is_a_symbol_s_day_and_when_it_is_answered() {
+        const QString rules = ranking_rules({"2026-10-12", "2026-10-08"}, 200, daily_kind());
+        const QStringList lines = rules.split('\n');
+        QCOMPARE(lines[0], QStringLiteral("2026-10-12 ~ 2026-10-08 (2일)"));
+        QCOMPARE(lines[1],
+                 QStringLiteral("시가→종가 예측을 시가→종가 정답으로 센다. 정밀도와 커버리지는 상승·하락(으)로 센다."));
+        QCOMPARE(lines[2],
+                 QStringLiteral("하루 한 번 예측이다. 채점 한 건은 종목 하나의 하루이고, 기간의 날은 예측이 있는 "
+                                "최근 거래일이다. 그날 정답은 KRX 일봉이 저장된 뒤(20:35부터)라 오늘은 밤까지 "
+                                "비어 있다."));
+        QCOMPARE(lines[3],
+                 QStringLiteral("상태(수습·벤치)는 순위와 따로, 정답이 있는 날 60·120·180일째에 판정한다(최근 60일)."));
+        QCOMPARE(lines[4], QStringLiteral("순위에는 채점 200건 이상, 기준 예측과의 짝도 그만큼 있어야 오른다."));
+        QVERIFY(rules.contains(
+            QStringLiteral("기준 예측(기준: 시가→종가 늘 보합, 기준: 시가→종가 기후, 기준: 어제 방향 잇기)")));
+        // A bar-close kind's rules have no daily lines.
+        QVERIFY(!ranking_rules({}, 200, range_kind()).contains(QStringLiteral("하루 한 번")));
+    }
+
+    void a_daily_kind_s_special_days_pairs_and_intervals_are_its_days() {
+        QCOMPARE(special_tip(), QStringLiteral("VI·서킷브레이커·사이드카가 4분 구간에 낀 예측도 센다(기본은 뺀다)."));
+        QCOMPARE(special_tip(range_kind()), special_tip());
+        QCOMPARE(special_tip(daily_kind()),
+                 QStringLiteral("그날 서킷브레이커·사이드카가 있던 날의 예측도 센다(기본은 뺀다). VI는 특수 상황이 "
+                                "아니다(그날 그 종목의 VI 수는 정답에 남는다)."));
+        QCOMPARE(lift_header_tip(QStringLiteral("95% 구간"), daily_kind()),
+                 QStringLiteral("예측(종목 × 날)마다 따로 센 설명용 구간이다. 같은 날의 종목들은 함께 움직여 실제보다 "
+                                "확실해 보일 수 있다. p도 그렇다."));
+        QCOMPARE(lift_header_tip(QStringLiteral("짝"), daily_kind()),
+                 QStringLiteral("같은 종목·날에 둘 다 채점된 예측의 수다."));
+        // The others as the direction's.
+        QCOMPARE(lift_header_tip(QStringLiteral("95% 구간"), range_kind()), column_tip(QStringLiteral("95% 구간")));
+        QCOMPARE(lift_header_tip(QStringLiteral("거래일 95% 구간"), daily_kind()),
+                 column_tip(QStringLiteral("거래일 95% 구간")));
+        AlgorithmStats stats;
+        stats.kind = "open_to_close";
+        stats.algorithm = "cox";
+        QVERIFY(lift_tip(stats, daily_kind()).contains(QStringLiteral("lift는 같은 종목·날의 기준 예측과")));
+        stats.algorithm = "otc-persist";
+        QVERIFY(lift_tip(stats, daily_kind()).startsWith(QStringLiteral("기준 예측 자신이라 lift가 없다.")));
+        stats.kind = "range";
+        stats.algorithm = "mandelbrot";
+        QVERIFY(lift_tip(stats, range_kind()).contains(QStringLiteral("같은 종목·봉 마감의")));
     }
 };
 

@@ -637,6 +637,46 @@ class TstKrxBoard : public QObject {
         QCOMPARE(board.latest("005930").predictions[0].answer->klass, QStringLiteral("up_first"));
     }
 
+    void a_daily_kind_s_08_50_predictions_and_night_answer_come_by_the_stream() {
+        // krx-quant #264: open_to_close's day, its prediction time 08:50 the key; the answer from 20:35.
+        const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+        const auto daily = [&kst](const QString& algorithm, int day) {
+            KindPrediction p;
+            p.symbol = "005930";
+            p.algorithm = algorithm;
+            p.status = "ok";
+            p.bar_close = QDateTime(QDate(2026, 10, day), QTime(8, 50), kst);
+            p.target_at = QDateTime(QDate(2026, 10, day), QTime(15, 30), kst);
+            p.band = 0.0047;
+            p.output = {{"p_up", 0.4}, {"p_flat", 0.3}, {"p_down", 0.3}};
+            return p;
+        };
+        KindBoard board;
+        board.set_kind("open_to_close");
+        board.focus("005930");
+        board.set_history("005930", {daily("cox", 8), daily("otc-flat", 8)}); // the last trading day's
+        Event morning = kind_event(Event::Type::KindPrediction, "open_to_close");
+        morning.kind_predictions = {daily("cox", 12), daily("otc-flat", 12)};
+        QVERIFY(board.apply(morning));
+        QCOMPARE(board.latest("005930").bar_close, QDateTime(QDate(2026, 10, 12), QTime(8, 50), kst));
+        QCOMPARE(board.closes("005930").size(), 2); // both days, by prediction time
+        KindAnswer up = range_answer("up");
+        OpenToClosePath day;
+        day.open = 80'000;
+        day.close = 80'800;
+        day.change = 0.01;
+        day.band = 0.0047;
+        up.open_to_close = day;
+        Event night = kind_event(Event::Type::KindAnswer, "open_to_close");
+        night.kind_answers = {{"005930", QDateTime(QDate(2026, 10, 12), QTime(8, 50), kst), up}};
+        QVERIFY(board.apply(night));
+        for (const auto& p : board.latest("005930").predictions) {
+            QCOMPARE(p.answer->open_to_close->close, 80'800.0);
+            QCOMPARE(p.band, std::optional<double>(0.0047)); // the band it came with stays
+        }
+        QVERIFY(!board.closes("005930").first().first().answer.has_value()); // the day before's: not this one
+    }
+
     void the_direction_s_board_passes_over_another_kind_s_events() {
         Board board;
         board.focus("005930");

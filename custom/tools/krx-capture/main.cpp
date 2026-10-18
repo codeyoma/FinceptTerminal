@@ -24,6 +24,7 @@
 #include "ui/theme/ThemeManager.h"
 
 #include <QApplication>
+#include <QComboBox>
 #include <QDir>
 #include <QFileInfo>
 #include <QGuiApplication>
@@ -277,6 +278,17 @@ int main(int argc, char* argv[]) {
         });
     }
 
+    // KRX_CAPTURE_PERIOD=<today|5d|20d>: the leaderboard's period, chosen once the screen has read the
+    // engine (krx-quant #264: a daily kind's today is empty until its answers come at night).
+    if (const QString period = qEnvironmentVariable("KRX_CAPTURE_PERIOD"); !period.isEmpty()) {
+        QTimer::singleShot(seconds * 300, &app, [&screen, period]() {
+            auto* board = screen.findChild<fincept::screens::KrxLeaderboard*>();
+            for (auto* combo : board ? board->findChildren<QComboBox*>() : QList<QComboBox*>{})
+                if (const int at = combo->findData(period); at >= 0)
+                    combo->setCurrentIndex(at);
+        });
+    }
+
     // KRX_CAPTURE_PIN=<bar close, ISO 8601>: as a click on that bar close's chart icon or bar,
     // once the screen has read the engine (krx-quant #107, #249).
     if (const QDateTime pin = QDateTime::fromString(qEnvironmentVariable("KRX_CAPTURE_PIN"), Qt::ISODate);
@@ -501,6 +513,13 @@ int main(int argc, char* argv[]) {
                     for (int t = 0; t < tabs->count(); ++t)
                         if (tabs->tabText(t) == tab)
                             tabs->setCurrentIndex(t);
+            QApplication::processEvents();
+        }
+        // KRX_CAPTURE_STATS_SIZE=<width>x<height>: each detail window resized first, e.g. 1100x1100 so the lifts
+        // show above a P&L section (krx-quant #264).
+        if (const QStringList size = qEnvironmentVariable("KRX_CAPTURE_STATS_SIZE").split('x'); size.size() == 2) {
+            for (auto* window : windows)
+                window->resize(size[0].toInt(), size[1].toInt());
             QApplication::processEvents();
         }
         for (qsizetype i = 0; i < windows.size() && i < details.size(); ++i)

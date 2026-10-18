@@ -159,16 +159,28 @@ QString ranking_rules(const QStringList& days, int min_sample, const std::option
         for (const auto& c : kind->action)
             if (const qsizetype at = kind->classes.indexOf(c); at >= 0 && at < kind->class_titles.size())
                 action << kind->class_titles[at];
-        return QStringList{
+        QStringList lines{
             days_text(days),
             QStringLiteral("%1 예측을 %1 정답으로 센다. 정밀도와 커버리지는 %2(으)로 센다.")
                 .arg(kind->title, action.join(QStringLiteral("·"))),
-            QStringLiteral("순위에는 채점 %1건 이상, 기준 예측과의 짝도 그만큼 있어야 오른다.").arg(min_sample),
-            QStringLiteral("순위는 가장 약한 lift의 하한 순이다."),
-            luck_tip(*kind),
-            QStringLiteral("줄을 두 번 누르면 그 예측의 상세 통계가 열린다."),
+        };
+        if (kind->daily) { // once a trading day (krx-quant #264)
+            QStringList judged;
+            for (const int d : kind->daily->probation_days)
+                judged << QString::number(d);
+            lines << QStringLiteral("하루 한 번 예측이다. 채점 한 건은 종목 하나의 하루이고, 기간의 날은 예측이 있는 "
+                                    "최근 거래일이다. 그날 정답은 KRX 일봉이 저장된 뒤(%1부터)라 오늘은 밤까지 비어 "
+                                    "있다.")
+                         .arg(kind->daily->answer_from.isEmpty() ? QStringLiteral("20:35") : kind->daily->answer_from);
+            if (!judged.isEmpty())
+                lines << QStringLiteral("상태(수습·벤치)는 순위와 따로, 정답이 있는 날 %1일째에 판정한다(최근 %2일).")
+                             .arg(judged.join(QStringLiteral("·")))
+                             .arg(kind->daily->recent_days);
         }
-            .join('\n');
+        lines << QStringLiteral("순위에는 채점 %1건 이상, 기준 예측과의 짝도 그만큼 있어야 오른다.").arg(min_sample)
+              << QStringLiteral("순위는 가장 약한 lift의 하한 순이다.") << luck_tip(*kind)
+              << QStringLiteral("줄을 두 번 누르면 그 예측의 상세 통계가 열린다.");
+        return lines.join('\n');
     }
     return QStringList{
         days_text(days),
@@ -188,6 +200,37 @@ QString luck_tip(const KindInfo& kind) {
         .arg(names.join(QStringLiteral(", ")));
 }
 
+QString special_tip(const std::optional<KindInfo>& kind) {
+    if (kind && kind->daily) // a day (krx-quant #264)
+        return QStringLiteral("그날 서킷브레이커·사이드카가 있던 날의 예측도 센다(기본은 뺀다). VI는 특수 상황이 "
+                              "아니다(그날 그 종목의 VI 수는 정답에 남는다).");
+    return QStringLiteral("VI·서킷브레이커·사이드카가 4분 구간에 낀 예측도 센다(기본은 뺀다).");
+}
+
+QString lift_header_tip(const QString& header, const std::optional<KindInfo>& kind) {
+    if (kind && kind->daily) { // a symbol's day each (krx-quant #264)
+        if (header == QStringLiteral("95% 구간"))
+            return QStringLiteral(
+                "예측(종목 × 날)마다 따로 센 설명용 구간이다. 같은 날의 종목들은 함께 움직여 실제보다 "
+                "확실해 보일 수 있다. p도 그렇다.");
+        if (header == QStringLiteral("짝"))
+            return QStringLiteral("같은 종목·날에 둘 다 채점된 예측의 수다.");
+    }
+    return column_tip(header);
+}
+
+QString daily_pnl_header(const KindInfo& kind) {
+    return QStringLiteral("%1 손익(bp, 연구용)").arg(kind.title);
+}
+
+QString daily_pnl_tip() {
+    return QStringLiteral(
+        "거래당 평균, 시가 대비 bp, 연구용 값이다. 상승 예측은 시가 단일가에 사서 종가 단일가에 판다고 친다. 하락은 "
+        "주식 공매도로 반대로, 보합은 거래하지 않는다. 비용(매도세와 수수료 두 번)을 뺀다. 두 끝이 단일가라 스프레드는 "
+        "없다. 칸의 툴팁과 상세 창에는 하락을 그 종목의 인버스 상품으로 친 값(매도세 없음)도 있다. 인버스가 없는 "
+        "종목(삼성전기)과 상장(2026-05-27) 전의 하락은 빠진다. 보합 폭에는 비용을 넣지 않았다.");
+}
+
 QList<StatsColumn> kind_stats_columns(const KindInfo& kind) {
     QStringList action;
     for (const auto& c : kind.action)
@@ -195,7 +238,10 @@ QList<StatsColumn> kind_stats_columns(const KindInfo& kind) {
             action << kind.class_titles[at];
     const QString called = action.join(QStringLiteral("·"));
     QList<StatsColumn> columns{
-        {QStringLiteral("표본"), {}},
+        kind.daily
+            ? StatsColumn{QStringLiteral("표본(종목·일)"),
+                          QStringLiteral("채점된 예측 수다. 하루 한 번 예측이라 종목마다 하루에 하나다(종목 × 날).")}
+            : StatsColumn{QStringLiteral("표본"), {}},
         {QStringLiteral("정답률"), {}},
         {called.isEmpty() ? QStringLiteral("정밀도") : QStringLiteral("%1 정밀도").arg(called),
          called.isEmpty() ? QString() : QStringLiteral("%1(이)라고 한 예측 중 맞은 비율이다.").arg(called)},
@@ -205,6 +251,8 @@ QList<StatsColumn> kind_stats_columns(const KindInfo& kind) {
     };
     if (is_barrier_kind(kind.name)) // its barrier P&L (krx-quant #185; the ladder's too, #263)
         columns << StatsColumn{QString::fromUtf8(kBarrierPnlHeader), column_tip(QString::fromUtf8(kBarrierPnlHeader))};
+    if (kind.daily) // its open-to-close P&L (krx-quant #264)
+        columns << StatsColumn{daily_pnl_header(kind), daily_pnl_tip()};
     if (kind.name == QLatin1String("range"))
         columns << StatsColumn{QStringLiteral("구간 적중률"),
                                QStringLiteral("실제 변동폭이 q10~q90 안에 든 비율이다. 분위수가 정직하면 80% 가까이 "
@@ -223,6 +271,8 @@ QList<Shown> kind_stats_cells(const Entry& e, const KindInfo& kind) {
                        mean_shown(e.brier, 3)};
     if (is_barrier_kind(kind.name))
         cells << barrier_pnl_shown(e.barrier);
+    if (kind.daily)
+        cells << daily_pnl_shown(e.open_to_close);
     if (kind.name == QLatin1String("range")) {
         cells << rate_shown(e.range ? e.range->interval_coverage : std::nullopt)
               << mean_shown(e.range ? e.range->q50_abs_error : std::nullopt, 2);
@@ -314,6 +364,79 @@ QString barrier_summary(const BarrierStats& stats) {
         parts << text;
     }
     parts << QStringLiteral("합계 %1틱").arg(number_text(stats.pnl.total_ticks, 1));
+    return parts.join(QStringLiteral(" · "));
+}
+
+namespace {
+
+/// "인버스 상품으로 하락 12건 평균 6.11bp (합계 116.2bp)": an open-to-close P&L through the inverse product.
+QString daily_inverse_text(const QString& what, const DailyPnl& pnl) {
+    QString text = QStringLiteral("%1 %2건").arg(what, number_text(pnl.trades, 0));
+    if (pnl.per_trade)
+        text += QStringLiteral(" 평균 %1bp (합계 %2bp)")
+                    .arg(number_text(pnl.per_trade->value, 2), number_text(pnl.total_bp, 1));
+    return text;
+}
+
+} // namespace
+
+Shown daily_pnl_shown(const std::optional<OpenToCloseStats>& stats) {
+    if (!stats)
+        return {QStringLiteral("—"), {}};
+    Shown shown = mean_shown(stats->pnl.per_trade, 2);
+    QStringList tip{QStringLiteral("거래 %1건, 합계 %2bp")
+                        .arg(number_text(stats->pnl.trades, 0), number_text(stats->pnl.total_bp, 1))};
+    if (!shown.tip.isEmpty())
+        tip << shown.tip;
+    const auto side = [](const QString& name, const DailyPnl& pnl) {
+        return pnl.per_trade ? QStringLiteral("%1 %2건 평균 %3bp")
+                                   .arg(name, number_text(pnl.trades, 0), number_text(pnl.per_trade->value, 2))
+                             : QStringLiteral("%1 %2건").arg(name, number_text(pnl.trades, 0));
+    };
+    tip << side(QStringLiteral("롱(상승)"), stats->longs) + " · " +
+               side(QStringLiteral("숏(하락, 주식 공매도)"), stats->shorts);
+    if (stats->pnl_inverse && stats->shorts_inverse) // krx-quant #267
+        tip << daily_inverse_text(QStringLiteral("하락을 인버스 상품으로 친 값: 전체"), *stats->pnl_inverse) + " · " +
+                   daily_inverse_text(QStringLiteral("숏"), *stats->shorts_inverse);
+    shown.tip = tip.join('\n');
+    return shown;
+}
+
+QList<BarrierPnlRow> daily_pnl_rows(const OpenToCloseStats& stats) {
+    QList<BarrierPnlRow> rows;
+    QList<std::pair<QString, DailyPnl>> sides{{QStringLiteral("전체"), stats.pnl},
+                                              {QStringLiteral("롱(상승)"), stats.longs},
+                                              {QStringLiteral("숏(하락)"), stats.shorts}};
+    if (stats.shorts_inverse) // the shorts through the inverse product (krx-quant #267)
+        sides.push_back({QStringLiteral("숏(인버스 상품)"), *stats.shorts_inverse});
+    for (const auto& [side, pnl] : sides) {
+        BarrierPnlRow row{side, number_text(pnl.trades, 0), number_text(pnl.total_bp, 1), QStringLiteral("—"),
+                          QStringLiteral("—")};
+        if (const auto& mean = pnl.per_trade) {
+            row.per_trade = number_text(mean->value, 2);
+            if (mean->low && mean->high)
+                row.interval = QStringLiteral("%1 – %2").arg(number_text(*mean->low, 2), number_text(*mean->high, 2));
+        }
+        rows << row;
+    }
+    return rows;
+}
+
+QString daily_pnl_summary(const OpenToCloseStats& stats) {
+    if (stats.n == 0)
+        return QStringLiteral("채점된 예측 없음");
+    if (stats.pnl.trades == 0)
+        return QStringLiteral("채점 %1개 · 거래 없음 (모두 보합 예측)").arg(number_text(stats.n, 0));
+    QStringList parts{QStringLiteral("채점 %1개 중 거래 %2건 (롱 %3 · 숏 %4)")
+                          .arg(number_text(stats.n, 0), number_text(stats.pnl.trades, 0),
+                               number_text(stats.longs.trades, 0), number_text(stats.shorts.trades, 0))};
+    if (const auto& mean = stats.pnl.per_trade) {
+        QString text = QStringLiteral("거래당 %1bp").arg(number_text(mean->value, 2));
+        if (mean->low && mean->high)
+            text += QStringLiteral(" (95% %1 – %2)").arg(number_text(*mean->low, 2), number_text(*mean->high, 2));
+        parts << text;
+    }
+    parts << QStringLiteral("합계 %1bp").arg(number_text(stats.pnl.total_bp, 1));
     return parts.join(QStringLiteral(" · "));
 }
 
@@ -409,8 +532,9 @@ QString lift_tip(const AlgorithmStats& stats, const std::optional<KindInfo>& kin
         lines << QStringLiteral("기준 예측 자신이라 lift가 없다.");
     else if (lift_rows(stats.overall).isEmpty())
         lines << QStringLiteral("기준 예측과 짝지을 채점된 예측이 없어 lift가 없다.");
-    lines << QStringLiteral("lift는 같은 종목·봉 마감의 기준 예측과 정답(1/0) 차이의 평균이다. 열 제목에 마우스를 "
-                            "올리면 각 구간의 뜻이 나온다.");
+    lines << QStringLiteral("lift는 같은 종목·%1의 기준 예측과 정답(1/0) 차이의 평균이다. 열 제목에 마우스를 "
+                            "올리면 각 구간의 뜻이 나온다.")
+                 .arg(kind && kind->daily ? QStringLiteral("날") : QStringLiteral("봉 마감")); // a day (krx-quant #264)
     return lines.join('\n');
 }
 
