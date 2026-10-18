@@ -687,7 +687,26 @@ std::optional<Stage> stage_of(const QJsonValue& v) {
                         number(weakest.value("value")), number(weakest.value("low")), number(weakest.value("high"))};
     }
     stage.enough = o.value("enough").toBool();
+    stage.simulated = o.value("simulated").toInt(); // 0 when left out (an older engine)
     return stage;
+}
+
+std::optional<Simulation> simulation_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    Simulation simulation;
+    simulation.cadence = o.value("cadence").toString();
+    simulation.days = o.value("days").toInt();
+    simulation.first_day = o.value("first_day").toString();
+    simulation.last_day = o.value("last_day").toString();
+    simulation.why = o.value("why").toString();
+    if (const QJsonValue r = o.value("review"); r.isObject()) {
+        const QJsonObject review = r.toObject();
+        simulation.review_day = integer_of(review.value("review_day"));
+        simulation.status = review.value("status").toString();
+    }
+    return simulation;
 }
 
 } // namespace
@@ -722,6 +741,7 @@ Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc) 
         info.training = training_of(model.value("training"));
         info.validation = validation_of(a.value("validation"));
         info.stage = stage_of(a.value("stage"));
+        info.simulation = simulation_of(a.value("simulation"));
         info.trained_until = model.value("trained_until").toString();
         const QJsonObject status = a.value("status").toObject();
         info.status = status.value("status").toString();
@@ -730,7 +750,7 @@ Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc) 
             const QJsonObject record = h.toObject();
             info.history << StatusRecord{QDateTime::fromString(record.value("at").toString(), Qt::ISODate),
                                          record.value("from").toString(), record.value("to").toString(),
-                                         record.value("reason").toString()};
+                                         record.value("reason").toString(), record.value("simulated").toBool()};
         }
         out.insert(info.name, info);
     }

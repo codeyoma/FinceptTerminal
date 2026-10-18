@@ -765,14 +765,40 @@ QList<QPair<QString, QString>> about_rows(const std::optional<AlgorithmInfo>& in
             const QString change = h.from.isEmpty()
                                        ? standing_label(h.to)
                                        : QStringLiteral("%1 → %2").arg(standing_label(h.from), standing_label(h.to));
-            lines << (h.reason.isEmpty()
+            // A review that counted simulated days (krx-quant #298) says so before the engine's reason.
+            const QString reason = h.simulated ? QStringLiteral("시뮬레이션 판정 · %1").arg(h.reason) : h.reason;
+            lines << (reason.isEmpty()
                           ? QStringLiteral("%1 %2").arg(kst_text(h.at, "MM-dd HH:mm"), change)
-                          : QStringLiteral("%1 %2 (%3)").arg(kst_text(h.at, "MM-dd HH:mm"), change, h.reason));
+                          : QStringLiteral("%1 %2 (%3)").arg(kst_text(h.at, "MM-dd HH:mm"), change, reason));
         }
         rows << Row(QStringLiteral("상태 이력"), lines.join("\n"));
     }
     return rows;
 }
+
+namespace {
+
+/// An algorithm's latest simulated probation (krx-quant #298) in a line: its days, how it was
+/// trained, and its review at once.
+QString simulation_text(const Simulation& sim) {
+    if (sim.cadence.isEmpty())
+        return sim.why.isEmpty() ? QStringLiteral("하지 못함") : QStringLiteral("하지 못함: %1").arg(sim.why);
+    QStringList parts{QStringLiteral("%1 – %2 · %3일").arg(sim.first_day, sim.last_day).arg(sim.days),
+                      sim.cadence == QLatin1String("daily") ? QStringLiteral("날마다 그 전날까지로 다시 학습")
+                                                            : QStringLiteral("첫날 전까지로 한 번 학습")};
+    if (!sim.review_day) {
+        parts << QStringLiteral("첫 판정일 전");
+    } else if (sim.status == QLatin1String("active")) {
+        parts << QStringLiteral("%1일째 판정: 정식이 됨").arg(*sim.review_day);
+    } else if (sim.status == QLatin1String("clone")) {
+        parts << QStringLiteral("%1일째 판정: 복제").arg(*sim.review_day);
+    } else if (!sim.status.isEmpty()) {
+        parts << QStringLiteral("%1일째 판정: 통과하지 못해 수습이 이어짐").arg(*sim.review_day);
+    }
+    return parts.join(QStringLiteral(" · "));
+}
+
+} // namespace
 
 QList<QPair<QString, QString>> learning_rows(const std::optional<AlgorithmInfo>& info) {
     using Row = QPair<QString, QString>;
@@ -820,7 +846,9 @@ QList<QPair<QString, QString>> learning_rows(const std::optional<AlgorithmInfo>&
     }
     if (const auto& st = info->stage) {
         QString text = QStringLiteral("%1부터 · %2거래일 셈").arg(st->began).arg(st->days);
-        if (st->waiting) {
+        if (st->simulated > 0)
+            text += QStringLiteral(" (시뮬레이션 %1일 포함)").arg(st->simulated); // krx-quant #298
+        if (st->waiting && st->simulated == 0) {
             // Nothing counted until a model trained on the touch target runs (krx-quant #170).
             text += QStringLiteral(" · 새 정답으로 학습한 모델을 기다림");
         } else if (st->next_review) {
@@ -843,6 +871,8 @@ QList<QPair<QString, QString>> learning_rows(const std::optional<AlgorithmInfo>&
                         QStringLiteral("아직 없음 (기준 예측마다 거래일 2일 이상 필요)"));
         }
     }
+    if (const auto& sim = info->simulation)
+        rows << Row(QStringLiteral("수습 시뮬레이션"), simulation_text(*sim));
     return rows;
 }
 
