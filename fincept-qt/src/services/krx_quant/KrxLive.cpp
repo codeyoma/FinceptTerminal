@@ -112,6 +112,7 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
                 if (before.isValid() || kept.read.isEmpty())
                     kept.oldest = read.candles.isEmpty();
                 emit chart_changed();
+                read_kind_history(); // a daily kind's over the days now held (krx-quant #264)
             }
             set_view(view_minutes_); // what else the view needs (one read at a time), or another symbol's
         });
@@ -225,7 +226,10 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
                 kind_paging_ = false;
                 if (symbol == selected_ && kind == kind_) {
                     kind_board_.set_history(symbol, predictions);
-                    kind_from_ = krx_quant::kind_from_after(kind_from_, predictions, oldest_close());
+                    const auto described = kind_info();
+                    kind_from_ = described && krx_quant::is_daily(*described) // by days (krx-quant #264)
+                                     ? krx_quant::daily_from_after(kind_from_, predictions)
+                                     : krx_quant::kind_from_after(kind_from_, predictions, oldest_close());
                     emit kind_predictions_changed();
                 }
                 read_kind_history(); // what is still to read, or another symbol's or kind's
@@ -466,9 +470,17 @@ void KrxLive::read_kind_history(bool latest) {
     kind_latest_page_ |= latest;
     if (kind_paging_)
         return; // asked again once it answers
-    std::optional<krx_quant::KindRead> read = krx_quant::kind_read(kind_from_, oldest_close());
-    if (kind_latest_page_ && oldest_close().isValid())
-        read = krx_quant::KindRead{}; // the latest bar closes again: their answers since
+    const auto described = kind_info();
+    const bool daily = described && krx_quant::is_daily(*described);
+    std::optional<krx_quant::KindRead> read;
+    if (daily) {
+        // Once a day (krx-quant #264): by days, back to the first day the chart holds in any view.
+        read = krx_quant::daily_read(kind_from_, first_day_held(), kind_latest_page_);
+    } else {
+        read = krx_quant::kind_read(kind_from_, oldest_close());
+        if (kind_latest_page_ && oldest_close().isValid())
+            read = krx_quant::KindRead{}; // the latest bar closes again: their answers since
+    }
     if (!read)
         return;
     if (!read->before.isValid())
@@ -552,6 +564,22 @@ void KrxLive::set_selection(const QStringList& selection) {
 
 bool KrxLive::all_predictors() const {
     return !selection_.isEmpty() && view_minutes_ == 1;
+}
+
+QDate KrxLive::first_day_held() const {
+    const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+    QDate first;
+    const auto earlier = [&first, &kst](const QList<krx_quant::Bar>& bars) {
+        if (bars.isEmpty())
+            return;
+        const QDate day = bars.first().start.toTimeZone(kst).date();
+        if (!first.isValid() || day < first)
+            first = day;
+    };
+    earlier(older_);
+    earlier(bars_);
+    earlier(candles_.value(krx_quant::kDayView).read);
+    return first;
 }
 
 QDateTime KrxLive::oldest_close() const {

@@ -3,6 +3,7 @@
 #include "services/krx_quant/ChartModel.h"
 #include "services/krx_quant/EngineData.h"
 
+#include <QDate>
 #include <QDateTime>
 #include <QList>
 #include <QMap>
@@ -21,6 +22,9 @@ namespace fincept::krx_quant {
 inline constexpr auto kDirectionKind = "direction";
 inline constexpr auto kRangeKind = "range";
 inline constexpr auto kBarrierKind = "barrier";
+/// The first kind predicted once a trading day (krx-quant #264): at 08:50, the day's direction from
+/// the KRX opening auction to the closing auction.
+inline constexpr auto kOpenToCloseKind = "open_to_close";
 
 /// A choice of the kind selector at the top of the screen.
 struct KindChoice {
@@ -30,12 +34,12 @@ struct KindChoice {
     QString tip; ///< what the kind predicts, or why it cannot be chosen
 };
 
-/// The selector's choices in the screen's order — 방향, 장벽, 변동폭 —, each enabled when the
-/// engine makes it (``kinds``: GET /v1/kinds; none from an engine before krx-quant #179, which
-/// makes the direction alone, and the barrier none from one before krx-quant #183) and this
-/// screen can show it (all three since krx-quant #185; a kind it does not know, never). The
-/// barrier's horizon ladder (krx-quant #263) follows the barrier, in the engine's order, only
-/// when the engine makes it.
+/// The selector's choices in the screen's order — 방향, 장벽, 변동폭, 시가→종가 —, each enabled
+/// when the engine makes it (``kinds``: GET /v1/kinds; none from an engine before krx-quant #179,
+/// which makes the direction alone, the barrier none from one before krx-quant #183, open to close
+/// none from one before krx-quant #293) and this screen can show it (all four since krx-quant #264;
+/// a kind it does not know, never). The barrier's horizon ladder (krx-quant #263) follows the
+/// barrier, in the engine's order, only when the engine makes it.
 QList<KindChoice> kind_choices(const std::optional<QList<KindInfo>>& kinds);
 
 /// The kind the screen shows: ``saved`` (the setting ``krx_quant/kind``) when it can be chosen,
@@ -94,8 +98,8 @@ QString barrier_text(const QList<KindPrediction>& at_close);
 
 /// What happened after a kind's bar close: "정답 4틱 · 큼" for the range (r and its class),
 /// "정답 위 먼저 (09:32:30 닿음)" for the barrier (the barrier reached first, and when; "정답
-/// 시간 만료" when neither was), "정답 <class>" for another kind, "채점 전", or "채점 불가
-/// (why)"; " · 특수 상황" when one touched its four minutes.
+/// 시간 만료" when neither was), a daily kind's day as daily_answer_text says it, "정답 <class>"
+/// for another kind, "채점 전", or "채점 불가 (why)"; " · 특수 상황" when one touched its four minutes.
 QString kind_answer_text(const std::optional<KindAnswer>& answer, const KindInfo& kind);
 
 /// A column of a kind's prediction panel: its header, and what it is (empty where the header says it).
@@ -106,8 +110,9 @@ struct PanelColumn {
 
 /// The columns of ``kind``'s prediction panel (krx-quant #182, #185): the predictor, the likeliest
 /// class, the kind's three classes' probabilities, the range's q10, q50 and q90, the result while
-/// a bar close is ``pinned``, the model version. Without the kind described, the predictor, the
-/// class, the result and the model.
+/// a bar close is ``pinned`` (a daily kind's always, krx-quant #264: its day is answered that
+/// night), the model version. Without the kind described, the predictor, the class, the result
+/// and the model.
 QList<PanelColumn> kind_panel_columns(const std::optional<KindInfo>& kind, bool pinned);
 
 /// A row of a kind's prediction panel (krx-quant #182).
@@ -167,5 +172,100 @@ std::optional<KindRead> kind_read(const QDateTime& from, const QDateTime& oldest
 /// ``from`` once a page of a kind's predictions (``page``) came in: its earliest bar close, if
 /// earlier; ``oldest_close`` when the page is empty (the engine has none before: as far back as shown).
 QDateTime kind_from_after(const QDateTime& from, const QList<KindPrediction>& page, const QDateTime& oldest_close);
+
+// ---- A kind predicted once a trading day (krx-quant #264): open_to_close ----------------------
+
+/// The day a daily kind's prediction is of: its prediction time's (``bar_close``) date in KST.
+QDate daily_day(const QDateTime& bar_close);
+
+/// The prediction time of ``kind`` (its ``daily.predict_at``, "08:50") on the day of ``t`` in KST:
+/// a minute bar's close or a day's 08:50 pinned on the chart shows that day's prediction. Invalid
+/// for a bar-close kind.
+QDateTime daily_close_on(const QDateTime& t, const KindInfo& kind);
+
+/// A day's flat band: its answer's once in, else the one its predictions came with (set from the
+/// days before, the same for each); none without days enough to set it.
+std::optional<double> daily_band(const QList<KindPrediction>& at_day);
+
+/// The band as the panel writes it: "보합 ±0.47%" (|close ÷ open − 1| up to it is flat).
+QString band_text(double band);
+
+/// What happened on a daily kind's day: "정답 하락 -0.85% (81,950 → 81,250)" (its class, the change
+/// from the opening to the closing auction and their prices, from the day's KRX day candle); "채점
+/// 전 (20:35부터)" before its answer (``kind``'s answer_from); "채점 불가 (보합 폭 없음)" or "(일봉
+/// 없음)" when it could not be scored; " · 특수 상황" on a day of a circuit breaker or sidecar, " · VI
+/// 2회" with the symbol's VIs that day (counted in, not special).
+QString daily_answer_text(const std::optional<KindAnswer>& answer, const KindInfo& kind);
+
+/// The daily kind's panel title: "005930 · 10-12 시가→종가 (08:50 예측) · 보합 ±0.47% · 채점 전
+/// (20:35부터)", the answer once in (daily_answer_text). ``last_day``: the latest is the last
+/// trading day's, before today's prediction time or on a day without one: "(08:50 예측, 지난
+/// 거래일)". Without a prediction (``bar_close`` invalid): "005930 · 시가→종가 · 예측 없음"; a day
+/// pinned without one (``at_day`` empty): "005930 · 10-09 시가→종가 · 예측 없음".
+QString daily_title(const QString& symbol, const KindInfo& kind, const QDateTime& bar_close,
+                    const QList<KindPrediction>& at_day, bool last_day);
+
+/// The daily panel title's tooltip: the window, when it is predicted and answered, what flat means,
+/// and how its statuses are judged.
+QString daily_tip(const KindInfo& kind);
+
+/// A day's call as the chart marks it (krx-quant #264): the three probabilities of the kind's
+/// algorithms that made a forecast that day (status "ok"; the baselines left out), each weighing
+/// the same, summed in name order, and the likeliest class (a tie goes to the middle, then the
+/// first). The engine makes no consensus of a daily kind. None when no algorithm made one.
+struct DailyCall {
+    int klass = -1;
+    QList<double> probabilities{}; ///< in the kind's class order
+    QStringList algorithms{};      ///< those averaged, by name
+};
+std::optional<DailyCall> daily_call(const QList<KindPrediction>& at_day, const KindInfo& kind);
+
+/// The day view's icons of a daily kind (krx-quant #264): on each of ``days``' candles (the day
+/// view's, starting at 00:00 KST) with a call (daily_call) among ``closes`` (KindBoard::closes, by
+/// prediction time), its class (▲ up, ● flat, ▼ down, as the direction's), its result on the day's
+/// answer (✓, ✗, ? before it or unscorable) and faint on a special day; clicked, its prediction time.
+QList<ChartIcon> daily_icons(const QList<Bar>& days, const QMap<QDateTime, QList<KindPrediction>>& closes,
+                             const KindInfo& kind);
+
+/// The day view's hover boxes of a daily kind: on each of ``days``' candles with predictions, the day
+/// and its answer ("10-08 시가→종가 (08:50 예측) · 정답 하락 -0.85% (81,950 → 81,250) · 보합 ±0.47%"),
+/// the algorithms' mean when more than one made a forecast, then a line per predictor, the
+/// algorithms by name then the baselines: its status now (``standings``, the kind's leaderboard),
+/// likeliest class, three probabilities and ✓/✗/?. No window: a day is no bar close.
+QList<BarHover> daily_hovers(const QList<Bar>& days, const QMap<QDateTime, QList<KindPrediction>>& closes,
+                             const KindInfo& kind, const QMap<QString, QString>& standings);
+
+/// How the day view's calls did over the days in view (krx-quant #264), the candles from ``from``
+/// to ``to`` (chart_time): the days answered with a class, special days left out and counted
+/// apart; how many calls were right, how many a constant middle class ("늘 보합") would have been,
+/// how the up and down calls did. ``algorithms``: the algorithms of those calls, by name.
+struct DailyScore {
+    SelectionScore score{};
+    QStringList algorithms{};
+};
+DailyScore daily_score(const QMap<QDateTime, QList<KindPrediction>>& closes, const KindInfo& kind, qint64 from,
+                       qint64 to);
+
+/// The chart header's score of a daily kind: "cox · 맞음 45% · 늘 보합 33% · ▲ 맞음 40% (10) · ▼ 맞음
+/// 50% (6) · 20일 · 특수 1일 제외"; several algorithms are "알고리즘 평균 (2)"; "채점된 날 없음" without
+/// any. Empty without a call in view.
+QString daily_score_text(const DailyScore& score);
+
+/// Days of a daily kind's predictions read at a time (krx-quant #264): a year's at first; on each
+/// chart read the latest few again, for answers the stream may have missed.
+inline constexpr int kDailyPage = 250;
+inline constexpr int kDailyRefresh = 5;
+
+/// What to read of a daily kind's predictions (krx-quant #264): ``from`` is the earliest prediction
+/// time from which on they were read (invalid: none yet; from_the_start: all), ``first_day`` the
+/// earliest day the chart holds (a candle's or a minute bar's), ``latest`` the latest days again.
+/// The latest kDailyPage days while none was read; with ``latest``, the latest kDailyRefresh; then
+/// the days before ``from`` back to ``first_day``, kPredictionPage at most; nothing once they
+/// reach it or without a day held.
+std::optional<KindRead> daily_read(const QDateTime& from, const QDate& first_day, bool latest);
+
+/// ``from`` once a page of a daily kind's predictions (``page``) came in: its earliest prediction
+/// time, if earlier; from_the_start when the page is empty (the engine has none before).
+QDateTime daily_from_after(const QDateTime& from, const QList<KindPrediction>& page);
 
 } // namespace fincept::krx_quant

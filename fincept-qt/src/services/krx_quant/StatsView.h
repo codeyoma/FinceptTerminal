@@ -107,12 +107,20 @@ struct StatsColumn {
 /// direction's (krx_tables' kStatsHeaders): the samples, accuracy, precision and coverage of its
 /// action classes (named by their titles, "작음·큼 정밀도"), Brier; for the range, the share of
 /// r within q10–q90 and q50's error; for the barrier (krx-quant #185), its barrier P&L a trade;
-/// then the weakest lift's lower bound. No touch P&L: the direction's own.
+/// for a daily kind (krx-quant #264), the samples a symbol's day each ("표본(종목·일)") and its
+/// open-to-close P&L a trade, basis points; then the weakest lift's lower bound. No touch P&L: the
+/// direction's own.
 QList<StatsColumn> kind_stats_columns(const KindInfo& kind);
 /// An entry's cells under kind_stats_columns, with their intervals.
 QList<Shown> kind_stats_cells(const Entry& entry, const KindInfo& kind);
 /// The leaderboard's "운 보정" header tooltip for ``kind``: which baselines it means.
 QString luck_tip(const KindInfo& kind);
+/// The leaderboard's "특수 상황 포함" box tooltip: what a special situation leaves out, for ``kind``'s
+/// windows (the four minutes, or a daily kind's day, krx-quant #264).
+QString special_tip(const std::optional<KindInfo>& kind = std::nullopt);
+/// A lift table header's tooltip in the detail window (column_tip), for ``kind``'s samples: a daily
+/// kind's (krx-quant #264) are a symbol's day, not overlapping windows.
+QString lift_header_tip(const QString& header, const std::optional<KindInfo>& kind = std::nullopt);
 
 /// A quantile's row of a range predictor's quantile stats (krx-quant #180, #182), in ticks.
 struct QuantileRow {
@@ -158,6 +166,22 @@ QList<BarrierPnlRow> barrier_pnl_rows(const BarrierStats& stats);
 /// -3.86 – -2.40) · 합계 -378.4틱"; "채점 252개 · 거래 없음 (모두 시간 만료 예측)" without a trade;
 /// "채점된 예측 없음" without any.
 QString barrier_summary(const BarrierStats& stats);
+
+/// The header of a daily kind's P&L column and detail section (krx-quant #264): "시가→종가 손익(bp, 연구용)".
+QString daily_pnl_header(const KindInfo& kind);
+/// What it is: how a call is followed from the opening auction to the closing auction, its costs.
+QString daily_pnl_tip();
+
+/// An open_to_close predictor's P&L cell (krx-quant #264): the mean a trade, basis points of the
+/// open; its tooltip the trades and their total, the 95% interval, each side's trades and mean, and
+/// the downs through the inverse product. "—" without a trade or without the stats.
+Shown daily_pnl_shown(const std::optional<OpenToCloseStats>& stats);
+/// All the trades, the longs (up calls), the shorts (down calls, of the stock) and the shorts
+/// through the inverse product (when the engine gives them), in basis points.
+QList<BarrierPnlRow> daily_pnl_rows(const OpenToCloseStats& stats);
+/// The P&L's summary: "채점 57개 중 거래 35건 (롱 24 · 숏 11) · 거래당 -48.29bp (95% -85.50 – -11.09) ·
+/// 합계 -1,690.2bp"; "채점 57개 · 거래 없음 (모두 보합 예측)" without a trade; "채점된 예측 없음" without any.
+QString daily_pnl_summary(const OpenToCloseStats& stats);
 
 /// A cell of a direction predictor's skill against the class rates (krx-quant #262), a column each.
 struct SkillCell {

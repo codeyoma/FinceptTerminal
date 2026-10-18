@@ -374,7 +374,8 @@ void KrxChart::ensure_view() {
 void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
                         const QList<krx_quant::BarHover>& hovers, const krx_quant::SignalRule& rule, int minutes,
                         const krx_quant::ChartLook& look, const QList<krx_quant::SpecialWindow>& special,
-                        const std::optional<krx_quant::SessionClock>& clock) {
+                        const std::optional<krx_quant::SessionClock>& clock,
+                        const QList<krx_quant::ChartIcon>& day_icons) {
     // A candle view's bars are its candles already (krx-quant #111, #112).
     const bool dated = krx_quant::candle_view(minutes); // the axis shows dates only
     const auto real = krx_quant::chart_bars(dated ? bars : krx_quant::group_bars(bars, minutes));
@@ -409,7 +410,9 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
     // Icons, the real bars' hover boxes and clicks are the 1-minute view's with a time axis: a wider
     // bar holds many bar closes, and a brick is no bar.
     const bool minute = minutes == 1 && !timeless;
-    auto drawn = minute ? krx_quant::chart_icons(marks, rule) : QList<krx_quant::ChartIcon>{};
+    // The day view's are a daily kind's calls, a candle a day (krx-quant #264).
+    const bool day = minutes == krx_quant::kDayView && !timeless;
+    auto drawn = minute ? krx_quant::chart_icons(marks, rule) : day ? day_icons : QList<krx_quant::ChartIcon>{};
     if (!drawn.isEmpty()) { // none on an empty bar (krx-quant #236): no bar to sit on
         QSet<qint64> empty;
         for (const auto& b : krx_quant::fill_slots(real, minutes, clock))
@@ -439,6 +442,9 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
     if (!dated && !timeless) {
         for (const auto& h :
              krx_quant::slot_hovers(shown_, minute ? hovers : QList<krx_quant::BarHover>{}, special_, minutes))
+            boxes.insert(h.time, box_json(h));
+    } else if (day) { // a daily kind's days (krx-quant #264): no window, a day is no bar close
+        for (const auto& h : hovers)
             boxes.insert(h.time, box_json(h));
     }
     QJsonArray set;

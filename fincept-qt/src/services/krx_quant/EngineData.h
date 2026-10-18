@@ -287,6 +287,28 @@ struct BarrierStats {
     std::optional<BarrierPnl> shorts_inverse{};
 };
 
+/// Open-to-close trades' P&L in basis points of the open less the round-trip cost (krx-quant #264,
+/// research only): how many, their total and the mean a trade with its normal 95% interval (none
+/// without a trade). The barrier's BarrierPnl in another unit.
+struct DailyPnl {
+    int trades = 0;
+    double total_bp = 0;
+    std::optional<Interval> per_trade{};
+};
+
+/// An open_to_close predictor's own statistics (krx-quant #264, an entry's ``extra``): of its
+/// scored predictions, the P&L of following its calls from the opening auction to the closing
+/// auction — a long on up, a short of the stock on down, none on flat — all of them and each side,
+/// and the downs through the symbol's single-stock inverse product (krx-quant #267).
+struct OpenToCloseStats {
+    int n = 0;
+    DailyPnl pnl{};
+    DailyPnl longs{};  ///< the up calls
+    DailyPnl shorts{}; ///< the down calls, as shorts of the stock (the sell tax paid)
+    std::optional<DailyPnl> pnl_inverse{};
+    std::optional<DailyPnl> shorts_inverse{};
+};
+
 /// What a query's stats leave out of a predictor's predictions (krx-quant #83).
 struct Excluded {
     int special = 0;             ///< scored, touched by a special situation: left out, or counted in on "include"
@@ -320,6 +342,8 @@ struct Entry {
     std::optional<RangeStats> range{};
     /// A barrier predictor's barrier P&L (its ``extra``, krx-quant #183); none for another kind.
     std::optional<BarrierStats> barrier{};
+    /// An open_to_close predictor's open-to-close P&L (its ``extra``, krx-quant #264); none for another kind.
+    std::optional<OpenToCloseStats> open_to_close{};
 };
 
 /// GET /v1/leaderboard: the query it answers and its three lists.
@@ -552,6 +576,24 @@ struct KindBaseline {
     bool operator==(const KindBaseline&) const = default;
 };
 
+/// The day of a kind predicted once a trading day (krx-quant #264, GET /v1/kinds' ``daily``): when
+/// it is predicted (KST, "08:50"), the auctions its window runs between ("open", "close") and their
+/// titles ("시가 단일가", "종가 단일가"), when its answers are first looked for ("20:35", once the
+/// day's KRX day candle is stored), and the days with an answer its statuses are judged on.
+struct DailySchedule {
+    QString predict_at{};
+    QString from{};
+    QString to{};
+    QString from_title{};
+    QString to_title{};
+    QString answer_from{};
+    QList<int> probation_days{};
+    QList<int> bench_days{};
+    int recent_days = 0;
+
+    bool operator==(const DailySchedule&) const = default;
+};
+
 /// A kind of prediction the engine makes (GET /v1/kinds, krx-quant #179): the direction, the
 /// range (krx-quant #180), …: its three classes in order (a forecast's class is the likeliest,
 /// a tie the middle one, then the first), the classes precision and coverage count, its answer
@@ -565,13 +607,21 @@ struct KindInfo {
     QStringList action;
     int answer_version = 0;
     /// How long its windows run from the bar close, minutes (krx-quant #263): 4, the barrier
-    /// ladder's 15, 30 and 60; 4 from an engine before #263, whose kinds all ran four.
+    /// ladder's 15, 30 and 60; 4 from an engine before #263, whose kinds all ran four. 0 for a
+    /// kind predicted once a day (krx-quant #264: the engine's null), which has no bar close.
     int horizon_minutes = 4;
     QMap<QString, Meaning> fields;
     QList<KindBaseline> baselines; ///< in the engine's order
+    /// When a kind predicted once a trading day is (krx-quant #264); none for a bar-close kind.
+    std::optional<DailySchedule> daily{};
 
     bool operator==(const KindInfo&) const = default;
 };
+
+/// Whether ``kind`` is predicted once a trading day (krx-quant #264, open_to_close), not at each bar close.
+inline bool is_daily(const KindInfo& kind) {
+    return kind.daily.has_value();
+}
 
 /// Whether the kind named ``name`` is a barrier (krx-quant #183): the four-minute "barrier" or
 /// one of its horizon ladder, "barrier_15m", "barrier_30m", "barrier_60m" (krx-quant #263).
@@ -628,6 +678,20 @@ struct BarrierPath {
     bool silent = false; ///< the quotes stopped for over 60 seconds
 };
 
+/// An open_to_close answer's day (krx-quant #264): the day's KRX opening and closing auction
+/// prices (won, adjusted as read) from its KRX day candle, the change close / open − 1, the flat
+/// band it was classed by (none without days enough to set it: "no band"), and the symbol's VIs
+/// that day (counted, not special).
+struct OpenToClosePath {
+    double open = 0;
+    double close = 0;
+    double change = 0;
+    std::optional<double> band{};
+    std::optional<double> sigma{};
+    std::optional<double> scale{};
+    int vi = 0;
+};
+
 /// A bar close's answer of a kind (krx-quant #179), every predictor's of that kind there.
 struct KindAnswer {
     int answer_version = 0;
@@ -637,6 +701,9 @@ struct KindAnswer {
     QDateTime scored_at;
     std::optional<RangePath> range;       ///< a range answer's path; none for another kind or a window not followed
     std::optional<BarrierPath> barrier{}; ///< a barrier answer's path (krx-quant #183); likewise
+    /// An open_to_close answer's day (krx-quant #264); none for another kind, or a day whose KRX
+    /// day candle never came ("no candle": an empty path).
+    std::optional<OpenToClosePath> open_to_close{};
 };
 
 /// A prediction of a kind besides the direction (krx-quant #179): its output by key — the
@@ -661,6 +728,10 @@ struct KindPrediction {
     /// stored before, or without a mid-point.
     std::optional<double> anchor{};
     std::optional<double> tick{};
+    /// A kind predicted once a day (krx-quant #264): the day's flat band, |close ÷ open − 1|, set
+    /// from the days before and known at its prediction time, the same for every predictor of the
+    /// day; none for a bar-close kind, or without days enough to set it.
+    std::optional<double> band{};
     QMap<QString, double> output;
     std::optional<KindAnswer> answer; ///< its bar close's, once its four minutes are over
 

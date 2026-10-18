@@ -176,6 +176,79 @@ KindPrediction with_anchor(KindPrediction p, double anchor, double tick) {
     return p;
 }
 
+// ---- open_to_close (krx-quant #264): made-up days ----
+
+const QTimeZone& kst_zone() {
+    static const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+    return kst;
+}
+
+/// 08:50 of 2026-10-<day> in KST: a daily prediction's time.
+QDateTime morning(int day) {
+    return QDateTime(QDate(2026, 10, day), QTime(8, 50), kst_zone());
+}
+
+KindInfo daily_kind() {
+    KindInfo k;
+    k.name = "open_to_close";
+    k.title = QStringLiteral("시가→종가");
+    k.classes = {"up", "flat", "down"};
+    k.class_titles = {QStringLiteral("상승"), QStringLiteral("보합"), QStringLiteral("하락")};
+    k.action = {"up", "down"};
+    k.answer_version = 1;
+    k.horizon_minutes = 0;
+    k.baselines = {{"otc-flat", std::nullopt}, {"otc-climate", std::nullopt}, {"otc-persist", std::nullopt}};
+    DailySchedule day;
+    day.predict_at = "08:50";
+    day.from = "open";
+    day.to = "close";
+    day.from_title = QStringLiteral("시가 단일가");
+    day.to_title = QStringLiteral("종가 단일가");
+    day.answer_from = "20:35";
+    day.probation_days = {60, 120, 180};
+    day.bench_days = {60, 120, 180};
+    day.recent_days = 60;
+    k.daily = day;
+    return k;
+}
+
+/// ``algorithm``'s open-to-close forecast on 2026-10-<day>: up, flat, down; the day's band 0.47%.
+KindPrediction daily_forecast(const QString& algorithm, int day, double up, double flat, double down) {
+    KindPrediction p;
+    p.algorithm = algorithm;
+    p.model_version = algorithm + "-1";
+    p.status = "ok";
+    p.symbol = "005930";
+    p.bar_close = morning(day);
+    p.target_at = QDateTime(QDate(2026, 10, day), QTime(15, 30), kst_zone());
+    p.band = 0.0047;
+    p.output = {{"p_up", up}, {"p_flat", flat}, {"p_down", down}};
+    return p;
+}
+
+/// The day's answer: its class from the KRX opening auction ``open`` to the closing auction ``close``.
+KindAnswer daily_answer(const QString& klass, double open, double close, int vi = 0, bool special = false) {
+    KindAnswer a;
+    a.answer_version = 1;
+    a.klass = klass;
+    a.special = special;
+    OpenToClosePath day;
+    day.open = open;
+    day.close = close;
+    day.change = close / open - 1;
+    day.band = 0.0047;
+    day.sigma = 0.0105;
+    day.scale = 0.4488;
+    day.vi = vi;
+    a.open_to_close = day;
+    return a;
+}
+
+/// A day candle of 2026-10-<day> as the day view holds it: from 00:00 KST.
+Bar day_candle(int day) {
+    return Bar{QDateTime(QDate(2026, 10, day), QTime(0, 0), kst_zone()), 80'000, 81'000, 79'000, 80'500, 1'000'000};
+}
+
 } // namespace
 
 class TstKrxKindView : public QObject {
@@ -185,16 +258,19 @@ class TstKrxKindView : public QObject {
     void an_older_engine_offers_the_direction_alone() {
         // No GET /v1/kinds (an engine before krx-quant #179): the others greyed, in the screen's order.
         const auto choices = kind_choices(std::nullopt);
-        QCOMPARE(choices.size(), 3);
+        QCOMPARE(choices.size(), 4);
         QCOMPARE(choices[0].name, QStringLiteral("direction"));
         QCOMPARE(choices[1].name, QStringLiteral("barrier"));
         QCOMPARE(choices[2].name, QStringLiteral("range"));
+        QCOMPARE(choices[3].name, QStringLiteral("open_to_close")); // krx-quant #264
         QCOMPARE(choices[0].title, QStringLiteral("방향"));
         QCOMPARE(choices[1].title, QStringLiteral("장벽"));
         QCOMPARE(choices[2].title, QStringLiteral("변동폭"));
+        QCOMPARE(choices[3].title, QStringLiteral("시가→종가"));
         QVERIFY(choices[0].enabled);
         QVERIFY(!choices[1].enabled);
         QVERIFY(!choices[2].enabled);
+        QVERIFY(!choices[3].enabled);
         QCOMPARE(choices[2].tip, QStringLiteral("엔진이 이 종류를 예측하지 않는다(옛 엔진이거나 아직 없는 종류)."));
     }
 
@@ -221,7 +297,7 @@ class TstKrxKindView : public QObject {
         // A kind this screen does not know stays out of the selector, whatever the engine makes.
         KindInfo weather;
         weather.name = "weather";
-        QCOMPARE(kind_choices(QList<KindInfo>{direction_kind(), weather}).size(), 3);
+        QCOMPARE(kind_choices(QList<KindInfo>{direction_kind(), weather}).size(), 4);
     }
 
     void the_barrier_s_horizon_ladder_follows_the_barrier_when_the_engine_makes_it() {
@@ -239,7 +315,8 @@ class TstKrxKindView : public QObject {
         QStringList names;
         for (const auto& c : choices)
             names << c.name;
-        QCOMPARE(names, (QStringList{"direction", "barrier", "barrier_15m", "barrier_30m", "barrier_60m", "range"}));
+        QCOMPARE(names, (QStringList{"direction", "barrier", "barrier_15m", "barrier_30m", "barrier_60m", "range",
+                                     "open_to_close"}));
         QCOMPARE(choices[2].title, QStringLiteral("장벽 15분"));
         QVERIFY(choices[2].enabled && choices[4].enabled);
         QCOMPARE(choices[3].tip,
@@ -249,7 +326,7 @@ class TstKrxKindView : public QObject {
         QCOMPARE(shown_kind("barrier_30m", choices), QStringLiteral("barrier_30m"));
         QCOMPARE(shown_kind("barrier_30m", kind_choices(QList<KindInfo>{direction_kind(), barrier_kind()})),
                  QStringLiteral("direction")); // an engine without the ladder
-        QCOMPARE(kind_choices(QList<KindInfo>{direction_kind(), barrier_kind()}).size(), 3);
+        QCOMPARE(kind_choices(QList<KindInfo>{direction_kind(), barrier_kind()}).size(), 4);
 
         // Its panel and hover say its minutes; without a target time it is scored H minutes on.
         const KindInfo& thirty = kinds[4];
@@ -690,6 +767,289 @@ class TstKrxKindView : public QObject {
         QCOMPARE(kind_from_after({}, page, at("09:01")), at("09:20"));
         QCOMPARE(kind_from_after(at("09:10"), page, at("09:01")), at("09:10"));
         QCOMPARE(kind_from_after(at("09:20"), {}, at("09:01")), at("09:01"));
+    }
+
+    // ---- A kind predicted once a trading day (krx-quant #264) ----
+
+    void open_to_close_is_chosen_when_the_engine_makes_it() {
+        KindInfo otc = daily_kind();
+        const auto choices = kind_choices(QList<KindInfo>{direction_kind(), range_kind(), barrier_kind(), otc});
+        QCOMPARE(choices.last().name, QStringLiteral("open_to_close"));
+        QCOMPARE(choices.last().title, QStringLiteral("시가→종가")); // the engine's title
+        QVERIFY(choices.last().enabled);
+        QCOMPARE(choices.last().tip,
+                 QStringLiteral("상승·보합·하락의 확률\n하루 한 번, 거래일 08:50에 그날 시가 단일가 → 종가 단일가의 "
+                                "방향을 예측한다. 정답은 그날 KRX 일봉이 저장된 뒤(20:35부터)다.\n예측 패널, 순위표, "
+                                "상세 통계 창이 이 종류로 바뀌고, 일 보기 차트에 날마다의 예측과 결과가 붙는다. 분 "
+                                "보기의 아이콘·호버·선택 합의와 신호 알림은 방향 그대로다."));
+        QCOMPARE(shown_kind("open_to_close", choices), QStringLiteral("open_to_close"));
+        // An engine without it (before krx-quant #293): greyed, the direction shown, the setting kept.
+        const auto older = kind_choices(QList<KindInfo>{direction_kind(), range_kind(), barrier_kind()});
+        QVERIFY(!older.last().enabled);
+        QCOMPARE(older.last().name, QStringLiteral("open_to_close"));
+        QCOMPARE(shown_kind("open_to_close", older), QStringLiteral("direction"));
+        QVERIFY(is_daily(otc) && !is_daily(range_kind()));
+    }
+
+    void a_daily_prediction_is_of_its_day_and_any_moment_of_the_day_finds_it() {
+        QCOMPARE(daily_day(morning(8)), QDate(2026, 10, 8));
+        // A minute bar's close, a late moment, the day's start, or the same moment in UTC: that day's 08:50.
+        const KindInfo otc = daily_kind();
+        QCOMPARE(daily_close_on(QDateTime(QDate(2026, 10, 8), QTime(10, 31), kst_zone()), otc), morning(8));
+        QCOMPARE(daily_close_on(QDateTime(QDate(2026, 10, 8), QTime(23, 59), kst_zone()), otc), morning(8));
+        QCOMPARE(daily_close_on(QDateTime(QDate(2026, 10, 8), QTime(0, 0), kst_zone()), otc), morning(8));
+        QCOMPARE(daily_close_on(QDateTime::fromString("2026-10-07T16:30:00Z", Qt::ISODate), otc), morning(8));
+        QVERIFY(!daily_close_on(morning(8), range_kind()).isValid()); // a bar-close kind has none
+        QVERIFY(!daily_close_on({}, otc).isValid());
+    }
+
+    void the_daily_panel_has_its_class_three_probabilities_its_result_and_the_model() {
+        const auto columns = kind_panel_columns(daily_kind(), false);
+        QStringList headers;
+        for (const auto& c : columns)
+            headers << c.header;
+        // The result always: the day is answered that night, not only once pinned.
+        QCOMPARE(headers, (QStringList{"예측", "예측 클래스", "상승", "보합", "하락", "결과", "모델"}));
+        QCOMPARE(kind_panel_columns(daily_kind(), true).size(), columns.size());
+        QCOMPARE(columns[1].tip,
+                 QStringLiteral("세 확률 중 가장 큰 것이다(같으면 보합, 그다음 상승). 채점은 이것으로 한다."));
+        QCOMPARE(columns[2].tip,
+                 QStringLiteral("그날 시가 단일가 → 종가 단일가의 변화(종가 단일가 ÷ 시가 단일가 − 1)가 "
+                                "+보합 폭보다 클 확률. 보합 폭은 제목에 있다."));
+        QCOMPARE(columns[3].tip, QStringLiteral("그 변화가 ±보합 폭 안일 확률"));
+        QCOMPARE(columns[5].tip,
+                 QStringLiteral("그날 KRX 일봉의 시가 단일가·종가 단일가로 채점한다. 일봉은 장이 끝난 뒤 "
+                                "저장되어 20:35부터 나온다."));
+    }
+
+    void the_daily_rows_score_on_the_day_s_answer_and_say_why_one_is_missing() {
+        const KindInfo otc = daily_kind();
+        const KindAnswer down = daily_answer("down", 81'950, 81'250);
+        KindPrediction persist;
+        persist.algorithm = "otc-persist";
+        persist.status = "no_previous";
+        persist.symbol = "005930";
+        persist.bar_close = morning(8);
+        const QList<KindPrediction> day{with(daily_forecast("otc-flat", 8, 0, 1, 0), down), persist,
+                                        with(daily_forecast("cox", 8, 0.30, 0.30, 0.40), down)};
+        const auto rows = kind_rows(day, otc);
+        QCOMPARE(rows.size(), 3);
+        QCOMPARE(rows[0].algorithm, QStringLiteral("cox")); // the algorithms, then the baselines by name
+        QCOMPARE(rows[0].top, QStringLiteral("하락"));
+        QCOMPARE(rows[0].result, QStringLiteral("✓ 맞음"));
+        QCOMPARE(rows[1].name, QStringLiteral("기준: 시가→종가 늘 보합"));
+        QVERIFY(rows[1].baseline);
+        QCOMPARE(rows[1].result, QStringLiteral("✗ 틀림"));
+        QCOMPARE(rows[2].top, QStringLiteral("전 거래일 정답 없음")); // a daily baseline's no_previous
+        QCOMPARE(kind_rows({daily_forecast("cox", 12, 0.4, 0.3, 0.3)}, otc)[0].result, QStringLiteral("채점 전"));
+    }
+
+    void the_daily_answer_reads_the_class_the_change_and_the_auction_prices() {
+        const KindInfo otc = daily_kind();
+        QCOMPARE(daily_answer_text(daily_answer("down", 81'950, 81'250), otc),
+                 QStringLiteral("정답 하락 -0.85% (81,950 → 81,250)"));
+        QCOMPARE(daily_answer_text(daily_answer("up", 80'000, 80'800), otc),
+                 QStringLiteral("정답 상승 +1.00% (80,000 → 80,800)"));
+        QCOMPARE(daily_answer_text(daily_answer("flat", 80'000, 80'000), otc),
+                 QStringLiteral("정답 보합 0.00% (80,000 → 80,000)"));
+        QCOMPARE(daily_answer_text(std::nullopt, otc), QStringLiteral("채점 전 (20:35부터)"));
+        // A circuit breaker or sidecar that day: special; VIs counted in, not special.
+        QCOMPARE(daily_answer_text(daily_answer("up", 80'000, 80'800, 2, true), otc),
+                 QStringLiteral("정답 상승 +1.00% (80,000 → 80,800) · 특수 상황 · VI 2회"));
+        KindAnswer no_band;
+        no_band.unscorable = "no band";
+        QCOMPARE(daily_answer_text(no_band, otc), QStringLiteral("채점 불가 (보합 폭 없음)"));
+        KindAnswer no_candle;
+        no_candle.unscorable = "no candle";
+        QCOMPARE(kind_answer_text(no_candle, otc), QStringLiteral("채점 불가 (일봉 없음)")); // through kind_answer_text
+        KindAnswer other;
+        other.unscorable = "something else";
+        QCOMPARE(daily_answer_text(other, otc), QStringLiteral("채점 불가 (something else)"));
+    }
+
+    void the_daily_title_says_the_day_the_band_and_the_answer() {
+        const KindInfo otc = daily_kind();
+        const QList<KindPrediction> today{daily_forecast("cox", 12, 0.35, 0.33, 0.32)};
+        QCOMPARE(daily_title("005930", otc, morning(12), today, false),
+                 QStringLiteral("005930 · 10-12 시가→종가 (08:50 예측) · 보합 ±0.47% · 채점 전 (20:35부터)"));
+        const QList<KindPrediction> answered{
+            with(daily_forecast("cox", 8, 0.3, 0.3, 0.4), daily_answer("down", 81'950, 81'250))};
+        QCOMPARE(daily_title("005930", otc, morning(8), answered, false),
+                 QStringLiteral("005930 · 10-08 시가→종가 (08:50 예측) · 보합 ±0.47% · 정답 하락 -0.85% "
+                                "(81,950 → 81,250)"));
+        // Before today's 08:50 (or a day without one): the last trading day's.
+        QCOMPARE(daily_title("005930", otc, morning(8), answered, true),
+                 QStringLiteral("005930 · 10-08 시가→종가 (08:50 예측, 지난 거래일) · 보합 ±0.47% · 정답 하락 -0.85% "
+                                "(81,950 → 81,250)"));
+        QCOMPARE(daily_title("005930", otc, {}, {}, false), QStringLiteral("005930 · 시가→종가 · 예측 없음"));
+        QCOMPARE(daily_title("005930", otc, morning(9), {}, false),
+                 QStringLiteral("005930 · 10-09 시가→종가 · 예측 없음"));
+        // Without days enough to set the band: no band on the title.
+        KindPrediction unbanded = daily_forecast("cox", 12, 0.35, 0.33, 0.32);
+        unbanded.band.reset();
+        QCOMPARE(daily_title("005930", otc, morning(12), {unbanded}, false),
+                 QStringLiteral("005930 · 10-12 시가→종가 (08:50 예측) · 채점 전 (20:35부터)"));
+        QVERIFY(
+            daily_tip(otc).startsWith(QStringLiteral("하루 한 번 예측이다. 거래일 08:50에, 그날 시가 단일가부터 종가 "
+                                                     "단일가까지의 방향을 상승·보합·하락 셋 중 하나로 예측한다.")));
+        QVERIFY(daily_tip(otc).contains(QStringLiteral("정답이 있는 날 60·120·180일째에 판정한다(최근 60일)")));
+        QVERIFY(daily_tip(range_kind()).isEmpty());
+    }
+
+    void the_band_is_the_answer_s_once_in_else_the_predictions() {
+        KindPrediction p = daily_forecast("cox", 8, 0.3, 0.3, 0.4);
+        QCOMPARE(daily_band({p}), std::optional<double>(0.0047));
+        KindAnswer a = daily_answer("down", 81'950, 81'250);
+        a.open_to_close->band = 0.0051;
+        QCOMPARE(daily_band({with(p, a)}), std::optional<double>(0.0051));
+        p.band.reset();
+        QVERIFY(!daily_band({p}).has_value());
+        QCOMPARE(band_text(0.004732), QStringLiteral("보합 ±0.47%"));
+    }
+
+    void the_day_s_call_is_the_mean_of_its_algorithms_without_the_baselines() {
+        const KindInfo otc = daily_kind();
+        // One algorithm: its own forecast.
+        auto call =
+            daily_call({daily_forecast("cox", 8, 0.30, 0.30, 0.40), daily_forecast("otc-flat", 8, 0, 1, 0)}, otc);
+        QVERIFY(call.has_value());
+        QCOMPARE(call->klass, 2);
+        QCOMPARE(call->algorithms, (QStringList{"cox"}));
+        // Two: each weighing the same; a tie goes to flat, then up.
+        call =
+            daily_call({daily_forecast("zeta", 8, 0.50, 0.00, 0.50), daily_forecast("cox", 8, 0.25, 0.50, 0.25)}, otc);
+        QCOMPARE(call->algorithms, (QStringList{"cox", "zeta"}));
+        QCOMPARE(call->probabilities[0], 0.375);
+        QCOMPARE(call->probabilities[1], 0.25);
+        QCOMPARE(call->probabilities[2], 0.375);
+        QCOMPARE(call->klass, 0); // up and down tie above flat: up
+        QCOMPARE(daily_call({daily_forecast("cox", 8, 0.4, 0.4, 0.2)}, otc)->klass, 1); // a tie with flat: flat
+        // Baselines alone, or an algorithm without a forecast: no call.
+        KindPrediction timed_out = daily_forecast("cox", 8, 0, 0, 0);
+        timed_out.status = "timed_out";
+        QVERIFY(!daily_call({daily_forecast("otc-climate", 8, 0.3, 0.3, 0.4), timed_out}, otc).has_value());
+    }
+
+    void the_day_view_marks_each_day_s_call_and_its_result_on_its_candle() {
+        const KindInfo otc = daily_kind();
+        QMap<QDateTime, QList<KindPrediction>> closes;
+        closes[morning(6)] = {with(daily_forecast("cox", 6, 0.5, 0.3, 0.2), daily_answer("up", 80'000, 80'800))};
+        closes[morning(7)] = {
+            with(daily_forecast("cox", 7, 0.5, 0.3, 0.2), daily_answer("down", 80'000, 79'000, 0, true))};
+        closes[morning(8)] = {with(daily_forecast("otc-flat", 8, 0, 1, 0), daily_answer("flat", 80'000, 80'100))};
+        closes[morning(12)] = {daily_forecast("cox", 12, 0.2, 0.5, 0.3)};
+        closes[morning(13)] = {daily_forecast("cox", 13, 0.2, 0.3, 0.5)}; // no candle for it yet
+        const QList<Bar> days{day_candle(5), day_candle(6), day_candle(7), day_candle(8), day_candle(12)};
+        const auto icons = daily_icons(days, closes, otc);
+        // 10-05 has no prediction, 10-08 no algorithm's, 10-13 no candle: three icons.
+        QCOMPARE(icons.size(), 3);
+        QCOMPARE(icons[0].time, chart_time(day_candle(6).start));
+        QCOMPARE(icons[0].bar_close, morning(6)); // clicked: the day's prediction time
+        QCOMPARE(icons[0].direction, Direction::Up);
+        QCOMPARE(icons[0].arrow, QStringLiteral("▲"));
+        QCOMPARE(icons[0].result, QStringLiteral("✓"));
+        QVERIFY(!icons[0].faint && !icons[0].signal);
+        QCOMPARE(icons[1].result, QStringLiteral("✗"));
+        QVERIFY(icons[1].faint); // a circuit breaker or sidecar that day
+        QCOMPARE(icons[2].direction, Direction::Flat);
+        QCOMPARE(icons[2].arrow, QStringLiteral("–"));
+        QCOMPARE(icons[2].result, QStringLiteral("?")); // today's, answered tonight
+    }
+
+    void the_day_view_s_box_has_the_day_its_answer_then_each_predictor() {
+        const KindInfo otc = daily_kind();
+        const KindAnswer down = daily_answer("down", 81'950, 81'250);
+        QMap<QDateTime, QList<KindPrediction>> closes;
+        closes[morning(8)] = {with(daily_forecast("otc-climate", 8, 0.28, 0.33, 0.39), down),
+                              with(daily_forecast("zeta", 8, 0.40, 0.20, 0.40), down),
+                              with(daily_forecast("cox", 8, 0.34, 0.32, 0.34), down)};
+        closes[morning(12)] = {daily_forecast("cox", 12, 0.35, 0.33, 0.32)};
+        const auto hovers =
+            daily_hovers({day_candle(7), day_candle(8), day_candle(12)}, closes, otc, {{"cox", "probation"}});
+        QCOMPARE(hovers.size(), 2); // none for a day without predictions
+        const BarHover& h = hovers[0];
+        QCOMPARE(h.time, chart_time(day_candle(8).start));
+        QCOMPARE(h.window_from, 0); // no window: a day is no bar close
+        QCOMPARE(h.window_to, 0);
+        QVERIFY(!h.upper.has_value() && !h.lower.has_value());
+        QCOMPARE(h.lines,
+                 (QStringList{
+                     QStringLiteral("10-08 시가→종가 (08:50 예측) · 정답 하락 -0.85% (81,950 → 81,250) · 보합 ±0.47%"),
+                     QStringLiteral("알고리즘 평균 (2) · 상승 · 상승 37% · 보합 26% · 하락 37% · ✗"),
+                     QStringLiteral("cox · 수습 · 상승 · 상승 34% · 보합 32% · 하락 34% · ✗"),
+                     QStringLiteral("zeta · 상승 · 상승 40% · 보합 20% · 하락 40% · ✗"),
+                     QStringLiteral("기준: 시가→종가 기후 · 하락 · 상승 28% · 보합 33% · 하락 39% · ✓"),
+                 }));
+        // Today's, one algorithm: no mean line, its own is the icon's.
+        QCOMPARE(hovers[1].lines,
+                 (QStringList{
+                     QStringLiteral("10-12 시가→종가 (08:50 예측) · 채점 전 (20:35부터) · 보합 ±0.47%"),
+                     QStringLiteral("cox · 수습 · 상승 · 상승 35% · 보합 33% · 하락 32% · ?"),
+                 }));
+    }
+
+    void the_day_view_scores_the_calls_of_the_days_in_view() {
+        const KindInfo otc = daily_kind();
+        QMap<QDateTime, QList<KindPrediction>> closes;
+        closes[morning(1)] = {with(daily_forecast("cox", 1, 0.5, 0.3, 0.2), daily_answer("up", 80'000, 80'800))};
+        closes[morning(2)] = {with(daily_forecast("cox", 2, 0.5, 0.3, 0.2), daily_answer("flat", 80'000, 80'100))};
+        closes[morning(5)] = {with(daily_forecast("cox", 5, 0.2, 0.3, 0.5), daily_answer("down", 80'000, 79'000))};
+        closes[morning(6)] = {
+            with(daily_forecast("cox", 6, 0.2, 0.3, 0.5), daily_answer("up", 80'000, 81'000, 0, true))};
+        closes[morning(7)] = {with(daily_forecast("cox", 7, 0.2, 0.5, 0.3), KindAnswer{})}; // unscorable
+        closes[morning(8)] = {daily_forecast("cox", 8, 0.2, 0.5, 0.3)};                     // not answered yet
+        closes[morning(12)] = {with(daily_forecast("cox", 12, 0.5, 0.3, 0.2), daily_answer("up", 80'000, 81'000))};
+        // 10-01 to 10-08 in view: 10-12 out of it.
+        const auto daily = daily_score(closes, otc, chart_time(day_candle(1).start), chart_time(day_candle(8).start));
+        QCOMPARE(daily.algorithms, (QStringList{"cox"}));
+        QCOMPARE(daily.score.n, 3);
+        QCOMPARE(daily.score.hits, 2);
+        QCOMPARE(daily.score.flat_hits, 1);
+        QCOMPARE(daily.score.up_n, 2);
+        QCOMPARE(daily.score.up_hits, 1);
+        QCOMPARE(daily.score.down_n, 1);
+        QCOMPARE(daily.score.down_hits, 1);
+        QCOMPARE(daily.score.days, 3);
+        QCOMPARE(daily.score.special, 1);
+        QCOMPARE(
+            daily_score_text(daily),
+            QStringLiteral("cox · 맞음 67% · 늘 보합 33% · ▲ 맞음 50% (2) · ▼ 맞음 100% (1) · 3일 · 특수 1일 제외"));
+        // Only today's in view, before its answer: none scored yet.
+        const auto pending = daily_score(closes, otc, chart_time(day_candle(8).start), chart_time(day_candle(8).start));
+        QCOMPARE(daily_score_text(pending), QStringLiteral("cox · 채점된 날 없음"));
+        // Several algorithms; and no call in view at all: nothing to say.
+        closes[morning(1)] << with(daily_forecast("zeta", 1, 0.5, 0.3, 0.2), daily_answer("up", 80'000, 80'800));
+        QVERIFY(daily_score_text(daily_score(closes, otc, 0, chart_time(day_candle(1).start)))
+                    .startsWith(QStringLiteral("알고리즘 평균 (2) · 맞음 100%")));
+        QVERIFY(daily_score_text(daily_score(closes, otc, 0, 1)).isEmpty());
+    }
+
+    void a_daily_kind_s_predictions_are_read_by_days_back_to_the_first_day_held() {
+        // None read yet: the latest year's, with or without days held.
+        auto read = daily_read({}, {}, false);
+        QVERIFY(read.has_value());
+        QVERIFY(!read->before.isValid());
+        QCOMPARE(read->limit, kDailyPage);
+        QCOMPARE(daily_read({}, QDate(2026, 1, 2), true)->limit, kDailyPage);
+        // Read back to 10-01; on a chart read, the latest few days again for their answers.
+        read = daily_read(morning(1), QDate(2026, 9, 1), true);
+        QVERIFY(!read->before.isValid());
+        QCOMPARE(read->limit, kDailyRefresh);
+        // Then the days before 10-01 back to 09-01 (30 days and 09-01 itself), the engine's most at once.
+        read = daily_read(morning(1), QDate(2026, 9, 1), false);
+        QCOMPARE(read->before, morning(1));
+        QCOMPARE(read->limit, 31);
+        QCOMPARE(daily_read(morning(1), QDate(2020, 1, 2), false)->limit, kPredictionPage);
+        QVERIFY(!daily_read(morning(1), QDate(2026, 10, 1), false).has_value());      // reached
+        QVERIFY(!daily_read(morning(1), {}, false).has_value());                      // nothing held
+        QVERIFY(!daily_read(from_the_start(), QDate(2020, 1, 2), false).has_value()); // the engine has none before
+        // A page moves it to its earliest day; an empty one: none before, all read.
+        const QList<KindPrediction> page{daily_forecast("cox", 8, 0.3, 0.3, 0.4),
+                                         daily_forecast("cox", 6, 0.3, 0.3, 0.4)};
+        QCOMPARE(daily_from_after({}, page), morning(6));
+        QCOMPARE(daily_from_after(morning(2), page), morning(2));
+        QCOMPARE(daily_from_after(morning(6), {}), from_the_start());
+        QCOMPARE(daily_from_after(from_the_start(), page), from_the_start()); // a refresh after all were read
     }
 };
 

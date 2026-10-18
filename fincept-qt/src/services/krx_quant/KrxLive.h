@@ -224,6 +224,9 @@ class KrxLive : public QObject {
     bool all_predictors() const;
     /// The close of the first bar shown (1-minute); invalid without bars.
     QDateTime oldest_close() const;
+    /// The earliest day the chart holds (krx-quant #264): of the 1-minute bars and the day view's
+    /// candles; invalid without either. A daily kind's predictions are read back to it.
+    QDate first_day_held() const;
     /// In the 1-minute view, read the predictions its icons need back to the first bar shown,
     /// a page at a time from the latest back (krx_quant::marks_before): while all_predictors(),
     /// every predictor's (those read with the final consensus alone again, krx-quant #159), else
@@ -249,7 +252,8 @@ class KrxLive : public QObject {
     void read_kind_latest();
     /// The kind's predictions of the chosen symbol over the bars shown, unless the direction is
     /// shown: the latest page first (again with ``latest``, on each chart read), then back to
-    /// the first bar shown, a page at a time.
+    /// the first bar shown, a page at a time. A daily kind's (krx-quant #264) by days, back to the
+    /// first day held (krx_quant::daily_read).
     void read_kind_history(bool latest = false);
     /// The kinds besides the direction a bar's window reads (krx-quant #255): those of
     /// krx_quant::bar_kinds the engine makes.

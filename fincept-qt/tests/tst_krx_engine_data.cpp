@@ -1712,6 +1712,153 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(predictor_label("barrier-climate"), QStringLiteral("기준: 장벽 시간대 기후"));
         QCOMPARE(predictor_label("barrier-persist"), QStringLiteral("기준: 직전 4분 장벽"));
     }
+
+    // ---- A kind predicted once a trading day (krx-quant #264), made-up values ----
+
+    void a_daily_kind_says_its_day_and_has_no_bar_close() {
+        const auto kinds = parse_kinds(json(R"({"kinds": [
+            {"name": "direction", "title": "방향", "classes": ["up", "flat", "down"], "horizon_minutes": 4,
+             "daily": null, "baselines": []},
+            {"name": "open_to_close", "title": "시가→종가", "classes": ["up", "flat", "down"],
+             "class_titles": ["상승", "보합", "하락"], "action": ["up", "down"], "answer_version": 1,
+             "horizon_minutes": null, "fields": {},
+             "baselines": [{"name": "otc-flat", "card": null}, {"name": "otc-climate", "card": null},
+                           {"name": "otc-persist", "card": null}],
+             "daily": {"predict_at": "08:50", "from": "open", "to": "close", "from_title": "시가 단일가",
+                       "to_title": "종가 단일가", "answer_from": "20:35", "probation_days": [60, 120, 180],
+                       "bench_days": [60, 120, 180], "recent_days": 60}}]})"));
+        QVERIFY(kinds.is_ok());
+        const KindInfo& direction = kinds.value()[0];
+        QVERIFY(!direction.daily.has_value()); // a bar-close kind's null
+        QVERIFY(!is_daily(direction));
+        QCOMPARE(direction.horizon_minutes, 4);
+        const KindInfo& otc = kinds.value()[1];
+        QVERIFY(is_daily(otc));
+        QCOMPARE(otc.horizon_minutes, 0); // null: no bar close
+        const DailySchedule& day = *otc.daily;
+        QCOMPARE(day.predict_at, QStringLiteral("08:50"));
+        QCOMPARE(day.from, QStringLiteral("open"));
+        QCOMPARE(day.to, QStringLiteral("close"));
+        QCOMPARE(day.from_title, QStringLiteral("시가 단일가"));
+        QCOMPARE(day.to_title, QStringLiteral("종가 단일가"));
+        QCOMPARE(day.answer_from, QStringLiteral("20:35"));
+        QCOMPARE(day.probation_days, (QList<int>{60, 120, 180}));
+        QCOMPARE(day.bench_days, (QList<int>{60, 120, 180}));
+        QCOMPARE(day.recent_days, 60);
+        QCOMPARE(otc.baselines.size(), 3);
+        // An engine before krx-quant #293 lists no daily kind: the bar-close kinds' horizon as before.
+        QVERIFY(!parse_kinds(json(kKinds)).value()[1].daily.has_value());
+    }
+
+    void a_daily_prediction_keeps_its_band_and_its_day_s_answer() {
+        const auto latest = parse_kind_latest(json(R"({"symbol": "005930", "kind": "open_to_close",
+            "bar_close": "2026-10-08T08:50:00+09:00", "predictions": [
+            {"algorithm": "cox", "model_version": "cox-20260910-9b5cf8", "bar_close": "2026-10-08T08:50:00+09:00",
+             "displayed_at": "2026-10-08T08:50:00.2+09:00", "target_at": "2026-10-08T15:30:00+09:00",
+             "status": "ok", "flat_ticks": null, "width_ticks": null, "anchor": null, "tick": null,
+             "band": 0.0047, "output": {"p_up": 0.34, "p_flat": 0.33, "p_down": 0.33},
+             "answer": {"answer_version": 1, "class": "down", "unscorable": null, "special": false,
+                        "scored_at": "2026-10-08T20:35:00+09:00",
+                        "path": {"open": 81950.0, "close": 81250.0, "change": -0.00854, "fee_rate": 0.00015,
+                                 "source": "krx_day_candle", "band": 0.0047, "sigma": 0.0105, "scale": 0.4488,
+                                 "vi": 2}}},
+            {"algorithm": "otc-persist", "model_version": "v1", "bar_close": "2026-10-08T08:50:00+09:00",
+             "displayed_at": "2026-10-08T08:50:00.2+09:00", "target_at": null, "status": "no_previous",
+             "flat_ticks": null, "width_ticks": null, "anchor": null, "tick": null, "band": null,
+             "output": null, "answer": null}]})"));
+        QVERIFY(latest.is_ok());
+        const KindPrediction& cox = latest.value().predictions[0];
+        QCOMPARE(cox.band, std::optional<double>(0.0047));
+        QCOMPARE(cox.target_at, QDateTime::fromString("2026-10-08T15:30:00+09:00", Qt::ISODate));
+        QVERIFY(!cox.flat_ticks && !cox.width_ticks && !cox.anchor && !cox.tick);
+        QCOMPARE(cox.value("p_down"), std::optional<double>(0.33));
+        const KindAnswer& a = *cox.answer;
+        QCOMPARE(a.klass, QStringLiteral("down"));
+        QVERIFY(!a.range && !a.barrier); // not a bar-close kind's path
+        const OpenToClosePath& day = *a.open_to_close;
+        QCOMPARE(day.open, 81950.0);
+        QCOMPARE(day.close, 81250.0);
+        QCOMPARE(day.change, -0.00854);
+        QCOMPARE(day.band, std::optional<double>(0.0047));
+        QCOMPARE(day.sigma, std::optional<double>(0.0105));
+        QCOMPARE(day.scale, std::optional<double>(0.4488));
+        QCOMPARE(day.vi, 2);
+        QVERIFY(!latest.value().predictions[1].band.has_value()); // null: no band
+        // A day whose KRX day candle never came: an empty path, no day; and no band to set the class.
+        const auto none = parse_kind_predictions(json(R"({"symbol": "005930", "kind": "open_to_close", "predictions": [
+            {"algorithm": "cox", "model_version": "m", "bar_close": "2026-10-07T08:50:00+09:00",
+             "status": "ok", "band": null, "output": {"p_up": 0.4, "p_flat": 0.3, "p_down": 0.3},
+             "answer": {"answer_version": 1, "class": null, "unscorable": "no candle", "special": false,
+                        "scored_at": "2026-10-14T20:35:00+09:00", "path": {}}}]})"));
+        QVERIFY(none.is_ok());
+        QVERIFY(!none.value()[0].answer->open_to_close.has_value());
+        QCOMPARE(none.value()[0].answer->unscorable, QStringLiteral("no candle"));
+        // The range's and the barrier's: no day.
+        QVERIFY(!parse_kind_latest(json(kRangeLatest)).value().predictions[0].answer->open_to_close.has_value());
+        QVERIFY(!parse_kind_latest(json(kRangeLatest)).value().predictions[0].band.has_value());
+    }
+
+    void a_daily_answer_comes_by_the_stream_with_its_day() {
+        const auto event = parse_event(QStringLiteral(R"({"type": "kind_answer", "at": "2026-10-08T20:35:01+09:00",
+            "prediction_kind": "open_to_close", "answers": [{"symbol": "005930",
+            "bar_close": "2026-10-08T08:50:00+09:00", "answer_version": 1, "class": "up", "unscorable": null,
+            "special": true, "scored_at": "2026-10-08T20:35:00+09:00",
+            "path": {"open": 80000, "close": 80800, "change": 0.01, "fee_rate": 0.00015, "source": "krx_day_candle",
+                     "band": 0.004, "sigma": 0.01, "scale": 0.4, "vi": 0}}]})"));
+        QVERIFY(event.is_ok());
+        QCOMPARE(event.value().type, Event::Type::KindAnswer);
+        QCOMPARE(event.value().prediction_kind, QStringLiteral("open_to_close"));
+        const KindAnswerAt& a = event.value().kind_answers[0];
+        QCOMPARE(a.bar_close, QDateTime::fromString("2026-10-08T08:50:00+09:00", Qt::ISODate));
+        QVERIFY(a.answer.special); // a circuit breaker or sidecar that day
+        QCOMPARE(a.answer.open_to_close->close, 80800.0);
+    }
+
+    void a_daily_leaderboard_keeps_its_open_to_close_p_and_l_in_basis_points() {
+        const auto board = parse_leaderboard(json(R"({"kind": "open_to_close", "symbol": "all", "period": "20d",
+            "special": "exclude", "days": ["2026-10-08", "2026-10-07"], "min_sample": 200, "ranked": [],
+            "unranked": [{"rank": null, "algorithm": "cox", "status": "probation", "model_versions": ["cox-1"],
+              "n": 57, "accuracy": {"value": 0.26, "low": 0.17, "high": 0.39, "n": 57},
+              "extra": {"n": 57,
+                "pnl": {"trades": 35, "total_bp": -1690.2, "per_trade": {"value": -48.29, "low": -85.5, "high": -11.09, "n": 35}},
+                "long": {"trades": 24, "total_bp": -922.9, "per_trade": {"value": -38.45, "low": -73.79, "high": -3.12, "n": 24}},
+                "short": {"trades": 11, "total_bp": -767.3, "per_trade": {"value": -69.76, "low": -161.69, "high": 22.18, "n": 11}},
+                "pnl_inverse": {"trades": 32, "total_bp": -1161.3, "per_trade": {"value": -36.29, "low": -75.19, "high": 2.61, "n": 32}},
+                "short_inverse": {"trades": 8, "total_bp": -238.4, "per_trade": {"value": -29.8, "low": -150.1, "high": 90.5, "n": 8}}}}],
+            "baselines": [{"rank": null, "algorithm": "otc-flat", "n": 57,
+              "extra": {"n": 57, "pnl": {"trades": 0, "total_bp": 0, "per_trade": null},
+                        "long": {"trades": 0, "total_bp": 0, "per_trade": null},
+                        "short": {"trades": 0, "total_bp": 0, "per_trade": null},
+                        "pnl_inverse": {"trades": 0, "total_bp": 0, "per_trade": null},
+                        "short_inverse": {"trades": 0, "total_bp": 0, "per_trade": null}}}]})"));
+        QVERIFY(board.is_ok());
+        QCOMPARE(board.value().kind, QStringLiteral("open_to_close"));
+        const Entry& cox = board.value().unranked[0];
+        QVERIFY(!cox.barrier.has_value() && !cox.range.has_value()); // the same sides, not the barrier's ticks
+        const OpenToCloseStats& o = *cox.open_to_close;
+        QCOMPARE(o.n, 57);
+        QCOMPARE(o.pnl.trades, 35);
+        QCOMPARE(o.pnl.total_bp, -1690.2);
+        QCOMPARE(o.pnl.per_trade->high, std::optional<double>(-11.09));
+        QCOMPARE(o.longs.trades, 24);
+        QCOMPARE(o.shorts.per_trade->value, -69.76);
+        QCOMPARE(o.pnl_inverse->trades, 32);
+        QCOMPARE(o.shorts_inverse->total_bp, -238.4);
+        const OpenToCloseStats& flat = *board.value().baselines[0].open_to_close;
+        QCOMPARE(flat.pnl.trades, 0);
+        QVERIFY(!flat.pnl.per_trade.has_value());
+        // The barrier's: its ticks, no open-to-close P&L; the direction's neither.
+        QVERIFY(!parse_leaderboard(json(kBarrierLeaderboard)).value().baselines[1].open_to_close.has_value());
+        QVERIFY(parse_leaderboard(json(kBarrierLeaderboard)).value().baselines[1].barrier.has_value());
+        QVERIFY(!parse_leaderboard(json(kLeaderboard)).value().ranked[0].open_to_close.has_value());
+    }
+
+    void open_to_close_s_baselines_read_in_korean() {
+        QCOMPARE(predictor_label("otc-flat"), QStringLiteral("기준: 시가→종가 늘 보합"));
+        QCOMPARE(predictor_label("otc-climate"), QStringLiteral("기준: 시가→종가 기후"));
+        QCOMPARE(predictor_label("otc-persist"), QStringLiteral("기준: 어제 방향 잇기"));
+        QCOMPARE(predictor_label("cox"), QStringLiteral("cox")); // an algorithm by its own name
+    }
 };
 
 QTEST_GUILESS_MAIN(TstKrxEngineData)

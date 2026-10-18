@@ -48,7 +48,7 @@ KrxLeaderboard::KrxLeaderboard(QWidget* parent) : QWidget(parent) {
     symbol_->addItem(tr("전체"), "all");
     controls->addWidget(symbol_);
     special_ = new QCheckBox(tr("특수 상황 포함"));
-    special_->setToolTip(tr("VI·서킷브레이커·사이드카가 4분 구간에 낀 예측도 센다(기본은 뺀다)."));
+    special_->setToolTip(krx_quant::special_tip());
     controls->addWidget(special_);
 
     table_ = krx_tables::table(QStringList{tr("차트"), tr("순위"), tr("예측"), tr("상태"), tr("모델")} +
@@ -172,6 +172,7 @@ void KrxLeaderboard::set_kind(const std::optional<krx_quant::KindInfo>& kind) {
     if ((kind_ ? kind_->name : QStringLiteral("direction")) == before)
         return;
     set_columns();
+    special_->setToolTip(krx_quant::special_tip(kind_)); // a daily kind's day (krx-quant #264)
     shown_.reset(); // the other kind's: its own comes next
     header_.title->setToolTip(QString());
     table_->setRowCount(0);
