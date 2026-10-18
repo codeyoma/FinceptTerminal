@@ -231,6 +231,32 @@ QList<Shown> kind_stats_cells(const Entry& e, const KindInfo& kind) {
     return cells;
 }
 
+namespace {
+
+/// "인버스 상품으로 하락 12건 · 전체 40건 평균 0.31틱 (합계 12.4틱)": a P&L through the inverse product.
+QString inverse_text(const QString& what, const BarrierPnl& pnl) {
+    QString text = QStringLiteral("%1 %2건").arg(what, number_text(pnl.trades, 0));
+    if (pnl.per_trade)
+        text += QStringLiteral(" 평균 %1틱 (합계 %2틱)")
+                    .arg(number_text(pnl.per_trade->value, 2), number_text(pnl.total_ticks, 1));
+    return text;
+}
+
+} // namespace
+
+Shown pnl_shown(const Entry& entry) {
+    Shown shown = mean_shown(entry.per_trade, 2);
+    QStringList tip{QStringLiteral("거래 %1건, 합계 %2틱 (하락은 주식 공매도로 친 값)")
+                        .arg(number_text(entry.trades, 0), number_text(entry.total_ticks, 1))};
+    if (!shown.tip.isEmpty())
+        tip << shown.tip;
+    if (entry.inverse)
+        tip << inverse_text(QStringLiteral("하락을 인버스 상품으로 친 값: 거래"), *entry.inverse) +
+                   QStringLiteral(". 매도세가 없다. 인버스가 없는 종목(삼성전기)과 상장(2026-05-27) 전의 하락은 빠진다.");
+    shown.tip = tip.join('\n');
+    return shown;
+}
+
 Shown barrier_pnl_shown(const std::optional<BarrierStats>& stats) {
     if (!stats)
         return {QStringLiteral("—"), {}};
@@ -245,16 +271,22 @@ Shown barrier_pnl_shown(const std::optional<BarrierStats>& stats) {
                              : QStringLiteral("%1 %2건").arg(name, number_text(pnl.trades, 0));
     };
     tip << side(QStringLiteral("롱(위 먼저)"), stats->longs) + " · " +
-               side(QStringLiteral("숏(아래 먼저)"), stats->shorts);
+               side(QStringLiteral("숏(아래 먼저, 주식 공매도)"), stats->shorts);
+    if (stats->pnl_inverse && stats->shorts_inverse) // krx-quant #267
+        tip << inverse_text(QStringLiteral("숏을 인버스 상품으로 친 값: 전체"), *stats->pnl_inverse) + " · " +
+                   inverse_text(QStringLiteral("숏"), *stats->shorts_inverse);
     shown.tip = tip.join('\n');
     return shown;
 }
 
 QList<BarrierPnlRow> barrier_pnl_rows(const BarrierStats& stats) {
     QList<BarrierPnlRow> rows;
-    for (const auto& [side, pnl] :
-         {std::pair{QStringLiteral("전체"), stats.pnl}, std::pair{QStringLiteral("롱(위 먼저)"), stats.longs},
-          std::pair{QStringLiteral("숏(아래 먼저)"), stats.shorts}}) {
+    QList<std::pair<QString, BarrierPnl>> sides{{QStringLiteral("전체"), stats.pnl},
+                                                {QStringLiteral("롱(위 먼저)"), stats.longs},
+                                                {QStringLiteral("숏(아래 먼저)"), stats.shorts}};
+    if (stats.shorts_inverse) // the shorts through the inverse product (krx-quant #267)
+        sides.push_back({QStringLiteral("숏(인버스 상품)"), *stats.shorts_inverse});
+    for (const auto& [side, pnl] : sides) {
         BarrierPnlRow row{side, number_text(pnl.trades, 0), number_text(pnl.total_ticks, 1), QStringLiteral("—"),
                           QStringLiteral("—")};
         if (const auto& mean = pnl.per_trade) {
@@ -344,14 +376,16 @@ QString column_tip(const QString& header) {
         {QStringLiteral("닿음 손익(틱, 연구용)"),
          QStringLiteral(
              "거래당 평균, 연구용 값이다. ▲는 봉 마감의 매도 1호가에 사서 위 목표에 닿으면 목표가, 아니면 "
-             "4분 끝의 매수 1호가에 판다고 친다. ▼는 인버스를 가정해 반대로, ●는 거래하지 않는다. 비용(매도세와 "
-             "수수료)을 뺀다. 체결과 잔량은 반영하지 않아 따라 했을 때의 손익이 아니다.")},
+             "4분 끝의 매수 1호가에 판다고 친다. ▼는 주식 공매도로 반대로, ●는 거래하지 않는다. 비용(매도세와 "
+             "수수료)을 뺀다. 칸의 툴팁에는 ▼를 그 종목의 인버스 상품으로 친 값(매도세 없음)도 있다. 체결과 잔량은 "
+             "반영하지 않아 따라 했을 때의 손익이 아니다.")},
         {QString::fromUtf8(kBarrierPnlHeader),
          QStringLiteral(
              "거래당 평균, 연구용 값이다. 위 먼저는 봉 마감의 매도 1호가에 사서 위 장벽 U에 먼저 닿으면 U에, 아래 "
              "장벽 L에 먼저 닿으면 그때의 매수 1호가에, 어느 쪽에도 닿지 않으면 4분 끝의 매수 1호가에 판다고 친다. "
-             "아래 먼저는 인버스를 가정해 반대로, 시간 만료는 거래하지 않는다. 비용(매도세와 수수료)을 뺀다. 체결과 "
-             "잔량은 반영하지 않아 따라 했을 때의 손익이 아니다.")},
+             "아래 먼저는 주식 공매도로 반대로, 시간 만료는 거래하지 않는다. 비용(매도세와 수수료)을 뺀다. 칸의 "
+             "툴팁과 상세 창에는 숏을 그 종목의 인버스 상품으로 친 값(매도세 없음)도 있다. 체결과 잔량은 반영하지 "
+             "않아 따라 했을 때의 손익이 아니다.")},
         {QStringLiteral("95% 구간"), QStringLiteral("봉 마감마다 따로 센 설명용 구간이다. 같은 날의 4분 정답은 서로 "
                                                     "겹쳐 실제보다 확실해 보인다. p도 그렇다.")},
         {QStringLiteral("거래일 95% 구간"), QStringLiteral("하루를 값 하나로 본 구간이다. 상태(수습·정식·벤치)는 "

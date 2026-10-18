@@ -175,8 +175,13 @@ std::optional<BarrierStats> barrier_stats_of(const QJsonValue& v) {
     const QJsonObject o = v.toObject();
     if (!o.contains("pnl") || !o.contains("long") || !o.contains("short"))
         return std::nullopt;
-    return BarrierStats{o.value("n").toInt(), barrier_pnl_of(o.value("pnl")), barrier_pnl_of(o.value("long")),
-                        barrier_pnl_of(o.value("short"))};
+    BarrierStats stats{o.value("n").toInt(), barrier_pnl_of(o.value("pnl")), barrier_pnl_of(o.value("long")),
+                       barrier_pnl_of(o.value("short"))};
+    if (o.contains("pnl_inverse")) // krx-quant #267
+        stats.pnl_inverse = barrier_pnl_of(o.value("pnl_inverse"));
+    if (o.contains("short_inverse"))
+        stats.shorts_inverse = barrier_pnl_of(o.value("short_inverse"));
+    return stats;
 }
 
 Entry entry_of(const QJsonObject& e) {
@@ -195,6 +200,8 @@ Entry entry_of(const QJsonObject& e) {
     entry.trades = pnl.value("trades").toInt();
     entry.total_ticks = pnl.value("total_ticks").toDouble();
     entry.per_trade = interval_of(pnl.value("per_trade"));
+    if (e.value("pnl_inverse").isObject()) // krx-quant #267
+        entry.inverse = barrier_pnl_of(e.value("pnl_inverse"));
     entry.excluded = excluded_of(e.value("excluded"));
     entry.range = range_stats_of(e.value("extra"));
     entry.barrier = barrier_stats_of(e.value("extra"));

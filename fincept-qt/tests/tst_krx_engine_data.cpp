@@ -112,6 +112,7 @@ const char* kLeaderboard = R"({
      "coverage": {"value": 0.085, "low": 0.07, "high": 0.10, "n": 1128},
      "brier": {"value": 0.58, "low": 0.56, "high": 0.60, "n": 1128},
      "pnl": {"trades": 96, "total_ticks": 12.4, "per_trade": {"value": 0.13, "low": -0.2, "high": 0.46, "n": 96}},
+     "pnl_inverse": {"trades": 80, "total_ticks": 49.6, "per_trade": {"value": 0.62, "low": 0.11, "high": 1.13, "n": 80}},
      "lift": {"low": 0.01, "day_low": -0.01, "vs": {
        "baseline-flat": {"n": 1128, "value": 0.04, "low": 0.01, "high": 0.07, "p": 0.001, "q": 0.003, "significant": true,
                          "by_day": {"n": 5, "value": 0.04, "low": -0.01, "high": 0.09, "p": 0.06}},
@@ -310,7 +311,9 @@ const char* kBarrierLeaderboard = R"({
      "extra": {"n": 240,
                "pnl": {"trades": 121, "total_ticks": -378.38, "per_trade": {"value": -3.127, "low": -3.855, "high": -2.399, "n": 121}},
                "long": {"trades": 60, "total_ticks": -214.87, "per_trade": {"value": -3.581, "low": -4.564, "high": -2.599, "n": 60}},
-               "short": {"trades": 61, "total_ticks": -163.51, "per_trade": {"value": -2.681, "low": -3.75, "high": -1.611, "n": 61}}},
+               "short": {"trades": 61, "total_ticks": -163.51, "per_trade": {"value": -2.681, "low": -3.75, "high": -1.611, "n": 61}},
+               "pnl_inverse": {"trades": 100, "total_ticks": -190.2, "per_trade": {"value": -1.902, "low": -2.6, "high": -1.2, "n": 100}},
+               "short_inverse": {"trades": 40, "total_ticks": 24.67, "per_trade": {"value": 0.617, "low": -0.4, "high": 1.6, "n": 40}}},
      "excluded": {"special": 0, "unscorable": 0, "status": {}}}
   ]
 })";
@@ -911,6 +914,11 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(b.ranked.size(), 2);
         QCOMPARE(b.unranked.size(), 1);
         QCOMPARE(b.baselines.size(), 1);
+        // The touch P&L with down calls through the inverse product (krx-quant #267).
+        QVERIFY(b.ranked[0].inverse.has_value());
+        QCOMPARE(b.ranked[0].inverse->trades, 80);
+        QCOMPARE(b.ranked[0].inverse->per_trade->value, 0.62);
+        QVERIFY(!b.ranked[1].inverse.has_value()); // an engine before it
     }
 
     void a_ranked_entry_has_its_rank_status_models_and_stats() {
@@ -1673,11 +1681,16 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(b.pnl.per_trade->low, std::optional<double>(-3.855));
         QCOMPARE(b.longs.trades, 60);
         QCOMPARE(b.shorts.per_trade->value, -2.681);
+        // The shorts through the inverse product (krx-quant #267).
+        QVERIFY(b.pnl_inverse.has_value() && b.shorts_inverse.has_value());
+        QCOMPARE(b.pnl_inverse->trades, 100);
+        QCOMPARE(b.shorts_inverse->per_trade->value, 0.617);
         // No trade: no mean.
         const BarrierStats& climate = *board.value().baselines[0].barrier;
         QCOMPARE(climate.n, 252);
         QCOMPARE(climate.pnl.trades, 0);
         QVERIFY(!climate.pnl.per_trade.has_value());
+        QVERIFY(!climate.shorts_inverse.has_value()); // an engine before krx-quant #267
         // The range's and the direction's: no barrier P&L.
         QVERIFY(!parse_leaderboard(json(kRangeLeaderboard)).value().unranked[0].barrier.has_value());
         QVERIFY(!parse_leaderboard(json(kLeaderboard)).value().ranked[0].barrier.has_value());

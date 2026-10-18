@@ -558,13 +558,13 @@ class TstKrxStatsView : public QObject {
         QCOMPARE(cells[2].text, QStringLiteral("28.1%"));
         QCOMPARE(cells[5].text, QStringLiteral("-3.13"));
         QCOMPARE(cells[5].tip, QStringLiteral("거래 121건, 합계 -378.4틱\n95% 구간 -3.86 – -2.40 (n 121)\n"
-                                              "롱(위 먼저) 60건 평균 -3.58틱 · 숏(아래 먼저) 61건 평균 -2.68틱"));
+                                              "롱(위 먼저) 60건 평균 -3.58틱 · 숏(아래 먼저, 주식 공매도) 61건 평균 -2.68틱"));
         QCOMPARE(cells[6].text, QStringLiteral("-0.050"));
         // barrier-climate's default (1/3 each) calls every bar close "timeout": no trade.
         e.barrier = BarrierStats{252, {}, {}, {}};
         QCOMPARE(kind_stats_cells(e, barrier_kind())[5].text, QStringLiteral("—"));
         QCOMPARE(kind_stats_cells(e, barrier_kind())[5].tip,
-                 QStringLiteral("거래 0건, 합계 0.0틱\n롱(위 먼저) 0건 · 숏(아래 먼저) 0건"));
+                 QStringLiteral("거래 0건, 합계 0.0틱\n롱(위 먼저) 0건 · 숏(아래 먼저, 주식 공매도) 0건"));
         // An engine that gives no barrier P&L: unknown.
         e.barrier.reset();
         QCOMPARE(kind_stats_cells(e, barrier_kind())[5].text, QStringLiteral("—"));
@@ -589,6 +589,43 @@ class TstKrxStatsView : public QObject {
         QCOMPARE(barrier_pnl_rows(longs_only)[2].trades, QStringLiteral("0"));
         QCOMPARE(barrier_pnl_rows(longs_only)[2].per_trade, QStringLiteral("—"));
         QCOMPARE(barrier_pnl_rows(longs_only)[2].interval, QStringLiteral("—"));
+    }
+
+    void the_touch_p_and_l_tip_has_the_inverse_product_s_beside_the_stock_short() {
+        // krx-quant #267: the cell is the stock short's; its tooltip adds the inverse product's.
+        Entry e;
+        e.trades = 96;
+        e.total_ticks = 12.4;
+        e.per_trade = Interval{0.13, -0.2, 0.46, 96};
+        Shown shown = pnl_shown(e);
+        QCOMPARE(shown.text, QStringLiteral("0.13"));
+        QVERIFY(shown.tip.startsWith(QStringLiteral("거래 96건, 합계 12.4틱 (하락은 주식 공매도로 친 값)")));
+        QVERIFY(!shown.tip.contains(QStringLiteral("인버스 상품")));
+        e.inverse = BarrierPnl{80, 49.6, Interval{0.62, 0.11, 1.13, 80}};
+        shown = pnl_shown(e);
+        QVERIFY(shown.tip.contains(QStringLiteral("하락을 인버스 상품으로 친 값: 거래 80건 평균 0.62틱 (합계 49.6틱)")));
+        QVERIFY(shown.tip.contains(QStringLiteral("삼성전기")));
+        QCOMPARE(pnl_shown(Entry{}).text, QStringLiteral("—"));
+        // The column tips no longer say an inverse product is assumed for the stock short.
+        for (const QString header : {QStringLiteral("닿음 손익(틱, 연구용)"), QString::fromUtf8(kBarrierPnlHeader)}) {
+            QVERIFY2(!column_tip(header).contains(QStringLiteral("인버스를 가정")), qPrintable(header));
+            QVERIFY(column_tip(header).contains(QStringLiteral("주식 공매도")));
+        }
+    }
+
+    void the_barrier_p_and_l_adds_the_shorts_through_the_inverse_product() {
+        BarrierStats b = barrier_stats();
+        QCOMPARE(barrier_pnl_rows(b).size(), 3); // an engine before krx-quant #267
+        b.pnl_inverse = BarrierPnl{100, -190.2, Interval{-1.902, -2.6, -1.2, 100}};
+        b.shorts_inverse = BarrierPnl{40, 24.67, Interval{0.617, -0.4, 1.6, 40}};
+        const auto rows = barrier_pnl_rows(b);
+        QCOMPARE(rows.size(), 4);
+        QCOMPARE(rows[3].side, QStringLiteral("숏(인버스 상품)"));
+        QCOMPARE(rows[3].trades, QStringLiteral("40"));
+        QCOMPARE(rows[3].per_trade, QStringLiteral("0.62"));
+        const QString tip = barrier_pnl_shown(b).tip;
+        QVERIFY(tip.contains(QStringLiteral("숏(아래 먼저, 주식 공매도)")));
+        QVERIFY(tip.contains(QStringLiteral("숏을 인버스 상품으로 친 값: 전체 100건 평균 -1.90틱 (합계 -190.2틱) · 숏 40건")));
     }
 
     void the_barrier_summary_says_the_trades_their_mean_and_total() {

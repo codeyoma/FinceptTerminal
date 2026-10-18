@@ -133,6 +133,11 @@ QString range_summary(const RangeStats& stats);
 /// The header of the barrier P&L column (krx-quant #185); column_tip says what it is.
 inline constexpr auto kBarrierPnlHeader = "장벽 손익(틱, 연구용)";
 
+/// A direction entry's touch P&L cell: the mean a trade, ticks, a down call as a short of the
+/// stock; its tooltip the trades and their total, the 95% interval and, from an engine since
+/// krx-quant #267, the same with down calls through the inverse product. "—" without a trade.
+Shown pnl_shown(const Entry& entry);
+
 /// A barrier predictor's P&L cell (krx-quant #185): the mean a trade, ticks; its tooltip the
 /// trades and their total, the 95% interval, and each side's trades and mean. "—" without a
 /// trade or without the stats.

@@ -53,11 +53,7 @@ inline void set_stats(QTableWidget* table, int row, int column, const krx_quant:
     table->setItem(row, column + 2, shown_cell(krx_quant::rate_shown(e.precision)));
     table->setItem(row, column + 3, shown_cell(krx_quant::rate_shown(e.coverage)));
     table->setItem(row, column + 4, shown_cell(krx_quant::mean_shown(e.brier, 3)));
-    auto* pnl = shown_cell(krx_quant::mean_shown(e.per_trade, 2));
-    const QString trades =
-        QObject::tr("거래 %1건, 합계 %2틱").arg(e.trades).arg(krx_quant::number_text(e.total_ticks, 1));
-    pnl->setToolTip(pnl->toolTip().isEmpty() ? trades : trades + "\n" + pnl->toolTip());
-    table->setItem(row, column + 5, pnl);
+    table->setItem(row, column + 5, shown_cell(krx_quant::pnl_shown(e)));
     table->setItem(row, column + 6, cell(krx_quant::weakest_lift_text(e), kNumber));
 }
 
