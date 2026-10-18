@@ -1691,6 +1691,14 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(climate.pnl.trades, 0);
         QVERIFY(!climate.pnl.per_trade.has_value());
         QVERIFY(!climate.shorts_inverse.has_value()); // an engine before krx-quant #267
+        // Null is absent too, not a measured zero.
+        QByteArray nulls(kBarrierLeaderboard);
+        nulls.replace(R"("pnl_inverse": {"trades": 100)", R"("pnl_inverse": null, "unused": {"trades": 100)");
+        nulls.replace(R"("short_inverse": {"trades": 40)", R"("short_inverse": null, "unused2": {"trades": 40)");
+        const auto with_nulls = parse_leaderboard(QJsonDocument::fromJson(nulls));
+        QVERIFY(with_nulls.is_ok());
+        QVERIFY(!with_nulls.value().baselines[1].barrier->pnl_inverse.has_value());
+        QVERIFY(!with_nulls.value().baselines[1].barrier->shorts_inverse.has_value());
         // The range's and the direction's: no barrier P&L.
         QVERIFY(!parse_leaderboard(json(kRangeLeaderboard)).value().unranked[0].barrier.has_value());
         QVERIFY(!parse_leaderboard(json(kLeaderboard)).value().ranked[0].barrier.has_value());

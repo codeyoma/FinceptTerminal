@@ -177,9 +177,10 @@ std::optional<BarrierStats> barrier_stats_of(const QJsonValue& v) {
         return std::nullopt;
     BarrierStats stats{o.value("n").toInt(), barrier_pnl_of(o.value("pnl")), barrier_pnl_of(o.value("long")),
                        barrier_pnl_of(o.value("short"))};
-    if (o.contains("pnl_inverse")) // krx-quant #267
+    // krx-quant #267; a null one is absent, not a measured zero.
+    if (o.value("pnl_inverse").isObject())
         stats.pnl_inverse = barrier_pnl_of(o.value("pnl_inverse"));
-    if (o.contains("short_inverse"))
+    if (o.value("short_inverse").isObject())
         stats.shorts_inverse = barrier_pnl_of(o.value("short_inverse"));
     return stats;
 }
