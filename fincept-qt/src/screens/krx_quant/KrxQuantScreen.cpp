@@ -123,15 +123,8 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     kinds->setSpacing(2);
     kinds->addWidget(new QLabel(tr("예측 종류")));
     for (const auto& choice : krx_quant::kind_choices(std::nullopt)) {
-        auto* button = new QPushButton(choice.title);
-        button->setCheckable(true);
-        button->setFocusPolicy(Qt::NoFocus);
-        button->setProperty("kind", choice.name);
-        connect(button, &QPushButton::clicked, this, [this, name = choice.name]() {
-            AppConfig::instance().set(kKindKey, name);
-            live_->set_kind(name);
-            show_kinds(); // checked as chosen, even while it shows another
-        });
+        auto* button = kind_button(choice.name);
+        button->setText(choice.title);
         kind_buttons_ << button;
         kinds->addWidget(button);
     }
@@ -799,9 +792,43 @@ void KrxQuantScreen::fill_pinned() {
     }
 }
 
+QPushButton* KrxQuantScreen::kind_button(const QString& name) {
+    auto* button = new QPushButton(name);
+    button->setCheckable(true);
+    button->setFocusPolicy(Qt::NoFocus);
+    button->setProperty("kind", name);
+    connect(button, &QPushButton::clicked, this, [this, name]() {
+        AppConfig::instance().set(kKindKey, name);
+        live_->set_kind(name);
+        show_kinds(); // checked as chosen, even while it shows another
+    });
+    return button;
+}
+
 void KrxQuantScreen::show_kinds() {
     const QString saved = AppConfig::instance().get(kKindKey, QString(krx_quant::kDirectionKind)).toString();
     const auto choices = krx_quant::kind_choices(live_->kinds());
+    QStringList wanted, made;
+    for (const auto& c : choices)
+        wanted << c.name;
+    for (const auto* button : kind_buttons_)
+        made << button->property("kind").toString();
+    if (wanted != made) {
+        // The engine's kinds changed the choices (the barrier's horizon ladder, krx-quant #263):
+        // the buttons are made again, in the choices' order, after the row's label.
+        auto* row = static_cast<QHBoxLayout*>(kind_bar_->layout());
+        for (auto* button : kind_buttons_) {
+            row->removeWidget(button);
+            button->hide();
+            button->deleteLater(); // it may be the one being clicked
+        }
+        kind_buttons_.clear();
+        for (const auto& c : choices) {
+            auto* button = kind_button(c.name);
+            kind_buttons_ << button;
+            row->addWidget(button);
+        }
+    }
     for (auto* button : kind_buttons_) {
         const QString name = button->property("kind").toString();
         for (const auto& c : choices) {
