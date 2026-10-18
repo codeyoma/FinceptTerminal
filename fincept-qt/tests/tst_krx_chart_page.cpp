@@ -37,6 +37,11 @@
 // (krx-quant #275): the chart's own magnet put them on the bar's close or the volume bar's top. The drawings' magnet
 // and another style leave it so.
 //
+// The price pane legend's first row (krx-quant #285) shows the bar under the crosshair, or the last
+// bar, as Toss Securities' chart does: 시가, 고가, 저가 and 종가 in won, each against the close of the
+// bar with trades before it, coloured by its sign. The first bar read has no changes, an empty slot
+// says 체결 없음, a Heikin-Ashi chart shows the bars as they are, and the bar being made moves it.
+//
 // The page runs in Qt WebEngine with TradingView Lightweight Charts, so this suite opens a
 // window. It is skipped where the WebEngine runtime is missing or the platform draws nothing
 // (offscreen).
@@ -461,6 +466,53 @@ class TstKrxChartPage : public QObject {
         QCOMPARE(mode(), 0);
         chart_->set_drawings({}, false);
         draw(kBefore + kToday);
+    }
+
+    void the_legend_shows_the_bar_hovered_against_the_bar_before() {
+        // 09:00 and 09:01 traded, 09:02 did not, 09:03 did (krx-quant #285).
+        empty();
+        const QList<Bar> bars = {Bar{kst("2026-10-15T09:00:00+09:00"), 216000, 216500, 215500, 216000, 100},
+                                 Bar{kst("2026-10-15T09:01:00+09:00"), 216000, 216500, 216000, 216500, 100},
+                                 Bar{kst("2026-10-15T09:03:00+09:00"), 216500, 216500, 215000, 215500, 100}};
+        const auto prices = [this]() {
+            QStringList out;
+            for (const QVariant& field : js("window.krxChart.prices()").toList())
+                out << field.toList().value(0).toString() + QLatin1Char('|') + field.toList().value(1).toString();
+            return out;
+        };
+        const QStringList at_0903 = {"시가 216,500원 (0.00%)|flat", "고가 216,500원 (0.00%)|flat",
+                                     "저가 215,000원 (-0.69%)|down", "종가 215,500원 (-0.46%)|down"};
+        const QStringList at_0901 = {"시가 216,000원 (0.00%)|flat", "고가 216,500원 (+0.23%)|up",
+                                     "저가 216,000원 (0.00%)|flat", "종가 216,500원 (+0.23%)|up"};
+        // No crosshair: the last bar, against 09:01's close (the empty 09:02 skipped).
+        draw(bars);
+        QTRY_COMPARE_WITH_TIMEOUT(prices(), at_0903, 10000);
+        // The bar being made moves it.
+        QList<Bar> live = bars;
+        live.last().close = 217000;
+        live.last().high = 217000;
+        chart_->update_live(live, 1);
+        QTRY_COMPARE_WITH_TIMEOUT(prices().value(3), QStringLiteral("종가 217,000원 (+0.23%)|up"), 10000);
+        draw(bars);
+        hover_at(chart_time(kst("2026-10-15T09:01:00+09:00")));
+        QTRY_COMPARE_WITH_TIMEOUT(prices(), at_0901, 10000);
+        hover_at(chart_time(kst("2026-10-15T09:00:00+09:00"))); // the first bar read: nothing before it
+        QTRY_COMPARE_WITH_TIMEOUT(prices(), (QStringList{"시가 216,000원|", "고가 216,500원|", "저가 215,500원|",
+                                                         "종가 216,000원|"}),
+                                  10000);
+        hover_at(chart_time(kst("2026-10-15T09:02:00+09:00")));
+        QTRY_COMPARE_WITH_TIMEOUT(prices(), QStringList{"체결 없음|"}, 10000);
+        // A Heikin-Ashi chart: the bars as they are, not the averaged ones.
+        ChartLook heikin;
+        heikin.style = ChartStyle::HeikinAshi;
+        draw(bars, heikin);
+        hover_at(chart_time(kst("2026-10-15T09:01:00+09:00")));
+        QTRY_COMPARE_WITH_TIMEOUT(prices(), at_0901, 10000);
+        // Pointer gone: the last bar again. Emptied: no row.
+        js("document.getElementById('chart').dispatchEvent(new MouseEvent('mouseleave'))");
+        QTRY_COMPARE_WITH_TIMEOUT(prices(), at_0903, 10000);
+        empty();
+        QTRY_COMPARE_WITH_TIMEOUT(prices(), QStringList{}, 10000);
     }
 
     void bricks_fit_the_latest_bricks_once_they_start_and_bars_come_back() {
