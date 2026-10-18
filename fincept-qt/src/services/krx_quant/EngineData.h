@@ -564,11 +564,19 @@ struct KindInfo {
     QStringList class_titles;
     QStringList action;
     int answer_version = 0;
+    /// How long its windows run from the bar close, minutes (krx-quant #263): 4, the barrier
+    /// ladder's 15, 30 and 60; 4 from an engine before #263, whose kinds all ran four.
+    int horizon_minutes = 4;
     QMap<QString, Meaning> fields;
     QList<KindBaseline> baselines; ///< in the engine's order
 
     bool operator==(const KindInfo&) const = default;
 };
+
+/// Whether the kind named ``name`` is a barrier (krx-quant #183): the four-minute "barrier" or
+/// one of its horizon ladder, "barrier_15m", "barrier_30m", "barrier_60m" (krx-quant #263).
+/// Each shows as the barrier does: its panel, its hover, its barrier P&L.
+bool is_barrier_kind(const QString& name);
 
 /// GET /v1/kinds: every kind the engine makes, the direction first. An engine before
 /// krx-quant #179 has no such answer: the screen then knows the direction only.

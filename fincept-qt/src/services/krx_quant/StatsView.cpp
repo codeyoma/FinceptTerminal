@@ -203,7 +203,7 @@ QList<StatsColumn> kind_stats_columns(const KindInfo& kind) {
          called.isEmpty() ? QString() : QStringLiteral("%1(이)라고 한 예측의 비율이다.").arg(called)},
         {QStringLiteral("Brier"), {}},
     };
-    if (kind.name == QLatin1String("barrier")) // its barrier P&L (krx-quant #185)
+    if (is_barrier_kind(kind.name)) // its barrier P&L (krx-quant #185; the ladder's too, #263)
         columns << StatsColumn{QString::fromUtf8(kBarrierPnlHeader), column_tip(QString::fromUtf8(kBarrierPnlHeader))};
     if (kind.name == QLatin1String("range"))
         columns << StatsColumn{QStringLiteral("구간 적중률"),
@@ -221,7 +221,7 @@ QList<Shown> kind_stats_cells(const Entry& e, const KindInfo& kind) {
                        rate_shown(e.precision),
                        rate_shown(e.coverage),
                        mean_shown(e.brier, 3)};
-    if (kind.name == QLatin1String("barrier"))
+    if (is_barrier_kind(kind.name))
         cells << barrier_pnl_shown(e.barrier);
     if (kind.name == QLatin1String("range")) {
         cells << rate_shown(e.range ? e.range->interval_coverage : std::nullopt)
@@ -382,7 +382,8 @@ QString column_tip(const QString& header) {
         {QString::fromUtf8(kBarrierPnlHeader),
          QStringLiteral(
              "거래당 평균, 연구용 값이다. 위 먼저는 봉 마감의 매도 1호가에 사서 위 장벽 U에 먼저 닿으면 U에, 아래 "
-             "장벽 L에 먼저 닿으면 그때의 매수 1호가에, 어느 쪽에도 닿지 않으면 4분 끝의 매수 1호가에 판다고 친다. "
+             "장벽 L에 먼저 닿으면 그때의 매수 1호가에, 어느 쪽에도 닿지 않으면 창 끝(4분, 15·30·60분 장벽은 "
+             "그 분)의 매수 1호가에 판다고 친다. "
              "아래 먼저는 주식 공매도로 반대로, 시간 만료는 거래하지 않는다. 비용(매도세와 수수료)을 뺀다. 칸의 "
              "툴팁과 상세 창에는 숏을 그 종목의 인버스 상품으로 친 값(매도세 없음)도 있다. 체결과 잔량은 반영하지 "
              "않아 따라 했을 때의 손익이 아니다.")},

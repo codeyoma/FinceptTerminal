@@ -892,7 +892,7 @@ void KrxQuantScreen::kind_title() {
         if (q.symbol == symbol)
             k_now = q.flat_ticks;
     const bool range = live_->kind() == QLatin1String(krx_quant::kRangeKind);
-    const bool barrier = live_->kind() == QLatin1String(krx_quant::kBarrierKind);
+    const bool barrier = krx_quant::is_barrier_kind(live_->kind()); // the ladder's too (krx-quant #263)
     if (live_->pinned().isValid()) {
         const auto at_close = live_->kind_board().closes(symbol).value(live_->pinned());
         QStringList parts{
