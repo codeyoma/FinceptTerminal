@@ -607,7 +607,7 @@ class TstKrxStatsView : public QObject {
         QVERIFY(shown.tip.contains(QStringLiteral("삼성전기")));
         QCOMPARE(pnl_shown(Entry{}).text, QStringLiteral("—"));
         // The column tips no longer say an inverse product is assumed for the stock short.
-        for (const QString header : {QStringLiteral("닿음 손익(틱, 연구용)"), QString::fromUtf8(kBarrierPnlHeader)}) {
+        for (const QString &header : {QStringLiteral("닿음 손익(틱, 연구용)"), QString::fromUtf8(kBarrierPnlHeader)}) {
             QVERIFY2(!column_tip(header).contains(QStringLiteral("인버스를 가정")), qPrintable(header));
             QVERIFY(column_tip(header).contains(QStringLiteral("주식 공매도")));
         }
