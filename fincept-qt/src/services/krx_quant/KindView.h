@@ -33,7 +33,9 @@ struct KindChoice {
 /// The selector's choices in the screen's order — 방향, 장벽, 변동폭 —, each enabled when the
 /// engine makes it (``kinds``: GET /v1/kinds; none from an engine before krx-quant #179, which
 /// makes the direction alone, and the barrier none from one before krx-quant #183) and this
-/// screen can show it (all three since krx-quant #185; a kind it does not know, never).
+/// screen can show it (all three since krx-quant #185; a kind it does not know, never). The
+/// barrier's horizon ladder (krx-quant #263) follows the barrier, in the engine's order, only
+/// when the engine makes it.
 QList<KindChoice> kind_choices(const std::optional<QList<KindInfo>>& kinds);
 
 /// The kind the screen shows: ``saved`` (the setting ``krx_quant/kind``) when it can be chosen,

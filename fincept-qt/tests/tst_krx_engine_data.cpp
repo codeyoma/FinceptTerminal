@@ -198,7 +198,7 @@ Prediction forecast(double up, double flat, double down) {
 // GET /v1/kinds (krx-quant #179, #182): the direction and the range, made-up meanings and cards.
 const char* kKinds = R"({"kinds": [
   {"name": "direction", "title": "방향", "classes": ["up", "flat", "down"], "class_titles": ["상승", "보합", "하락"],
-   "action": ["up", "down"], "answer_version": 2,
+   "action": ["up", "down"], "answer_version": 2, "horizon_minutes": 4,
    "fields": {"expected_ticks": {"meaning": "기대값", "unit": "틱", "known": "봉 마감"}},
    "baselines": [{"name": "baseline-flat", "card": {"scientist": null, "character": "늘 보합", "logic": "x",
                   "unique_features": [], "training": "없음"}}]},
@@ -1363,6 +1363,10 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(range.class_titles, (QStringList{"작음", "보통", "큼"}));
         QCOMPARE(range.action, (QStringList{"small", "large"}));
         QCOMPARE(range.answer_version, 1);
+        QCOMPARE(range.horizon_minutes, 4); // an engine before krx-quant #263 does not say: four
+        QCOMPARE(kinds.value()[0].horizon_minutes, 4);
+        const auto rung = parse_kinds(json(R"({"kinds": [{"name": "barrier_15m", "horizon_minutes": 15}]})"));
+        QCOMPARE(rung.value()[0].horizon_minutes, 15); // the barrier's horizon ladder
         QCOMPARE(range.fields.keys(), (QList<QString>{"q10", "q50", "q90"}));
         QCOMPARE(range.fields.value("q90").meaning, QStringLiteral("90% 분위수"));
         QCOMPARE(range.baselines.size(), 2);

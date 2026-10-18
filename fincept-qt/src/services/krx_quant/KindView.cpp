@@ -16,14 +16,14 @@ const QList<QPair<QString, QString>>& selector_kinds() {
     return kinds;
 }
 
-/// The kinds this screen can show: the range's since krx-quant #182, the barrier's since #185.
+/// The kinds this screen can show: the range's since krx-quant #182, the barrier's since #185,
+/// the barrier's horizon ladder since #263.
 bool shown_here(const QString& kind) {
-    return kind == QLatin1String(kDirectionKind) || kind == QLatin1String(kRangeKind) ||
-           kind == QLatin1String(kBarrierKind);
+    return kind == QLatin1String(kDirectionKind) || kind == QLatin1String(kRangeKind) || is_barrier_kind(kind);
 }
 
 bool is_barrier(const KindInfo& kind) {
-    return kind.name == QLatin1String(kBarrierKind);
+    return is_barrier_kind(kind.name);
 }
 
 QString percent(double p) {
@@ -117,12 +117,25 @@ QString barrier_answer_text(const KindAnswer& answer, const KindInfo& kind) {
     return text;
 }
 
-/// When a bar close is scored: any forecast's target time, else four minutes on.
-QDateTime target_of(const QList<KindPrediction>& at_close, const QDateTime& bar_close) {
+/// When a bar close is scored: any forecast's target time, else its kind's horizon on.
+QDateTime target_of(const QList<KindPrediction>& at_close, const QDateTime& bar_close, const KindInfo& kind) {
     for (const auto& p : at_close)
         if (p.target_at.isValid())
             return p.target_at;
-    return bar_close.addSecs(240);
+    return bar_close.addSecs(60 * kind.horizon_minutes);
+}
+
+/// The tip of a kind the engine makes and this screen shows.
+QString choice_tip(const QString& name, const std::optional<KindInfo>& made) {
+    QStringList lines;
+    if (made && !made->class_titles.isEmpty())
+        lines << QStringLiteral("%1의 확률").arg(made->class_titles.join(QStringLiteral("·")));
+    if (made && made->horizon_minutes != 4) // the barrier's horizon ladder (krx-quant #263)
+        lines << QStringLiteral("봉 마감부터 %1분 동안의 장벽이다.").arg(made->horizon_minutes);
+    if (name != QLatin1String(kDirectionKind))
+        lines << QStringLiteral("예측 패널, 순위표, 상세 통계 창이 이 종류로 바뀐다. 차트의 아이콘·선택 "
+                                "합의·신호 알림은 방향 그대로다.");
+    return lines.join('\n');
 }
 
 } // namespace
@@ -140,15 +153,15 @@ QList<KindChoice> kind_choices(const std::optional<QList<KindInfo>>& kinds) {
         } else if (!shown_here(name)) {
             choice.tip = QStringLiteral("이 화면은 아직 이 종류를 보이지 못한다.");
         } else {
-            QStringList lines;
-            if (made && !made->class_titles.isEmpty())
-                lines << QStringLiteral("%1의 확률").arg(made->class_titles.join(QStringLiteral("·")));
-            if (name != QLatin1String(kDirectionKind))
-                lines << QStringLiteral("예측 패널, 순위표, 상세 통계 창이 이 종류로 바뀐다. 차트의 아이콘·선택 "
-                                        "합의·신호 알림은 방향 그대로다.");
-            choice.tip = lines.join('\n');
+            choice.tip = choice_tip(name, made);
         }
         out << choice;
+        // The barrier's horizon ladder (krx-quant #263) after it, as the engine lists it: only
+        // the rungs it makes, none greyed.
+        if (name == QLatin1String(kBarrierKind) && kinds)
+            for (const auto& k : *kinds)
+                if (k.name != QLatin1String(kBarrierKind) && is_barrier_kind(k.name))
+                    out << KindChoice{k.name, k.title.isEmpty() ? k.name : k.title, true, choice_tip(k.name, k)};
     }
     return out;
 }
@@ -289,16 +302,20 @@ QList<PanelColumn> kind_panel_columns(const std::optional<KindInfo>& kind, bool 
                         : PanelColumn{QStringLiteral("구간"), {}});
     if (kind) {
         QStringList tips;
+        const int minutes = kind->horizon_minutes; // 4, or a barrier of the ladder's (krx-quant #263)
         if (kind->name == QLatin1String(kRangeKind))
             // What the columns are: the widths in ticks are on the panel's title.
-            tips = {QStringLiteral("4분 동안 중간가 변동폭(최고 − 최저)이 k틱보다 작을 확률"),
+            tips = {QStringLiteral("%1분 동안 중간가 변동폭(최고 − 최저)이 k틱보다 작을 확률").arg(minutes),
                     QStringLiteral("k틱 이상 2k틱 미만일 확률"), QStringLiteral("2k틱 이상일 확률")};
         else if (barrier)
             // w, U and L are on the panel's title.
-            tips = {
-                QStringLiteral("4분 안에 매수 1호가가 위 장벽 U(봉 마감 중간가 + w틱)에 아래 장벽보다 먼저 닿을 확률"),
-                QStringLiteral("4분 동안 어느 장벽에도 닿지 않을 확률"),
-                QStringLiteral("4분 안에 매도 1호가가 아래 장벽 L(봉 마감 중간가 − w틱)에 위 장벽보다 먼저 닿을 확률")};
+            tips = {QStringLiteral("%1분 안에 매수 1호가가 위 장벽 U(봉 마감 중간가 + w틱)에 아래 장벽보다 "
+                                   "먼저 닿을 확률")
+                        .arg(minutes),
+                    QStringLiteral("%1분 동안 어느 장벽에도 닿지 않을 확률").arg(minutes),
+                    QStringLiteral("%1분 안에 매도 1호가가 아래 장벽 L(봉 마감 중간가 − w틱)에 위 장벽보다 "
+                                   "먼저 닿을 확률")
+                        .arg(minutes)};
         for (qsizetype i = 0; i < kind->class_titles.size(); ++i)
             columns << PanelColumn{kind->class_titles[i], i < tips.size() ? tips[i] : QString()};
         if (kind->name == QLatin1String(kRangeKind))
@@ -343,8 +360,8 @@ QList<KindRow> kind_rows(const QList<KindPrediction>& at_close, const KindInfo& 
 
 QStringList kind_hover_box(const QList<KindPrediction>& at_close, const QDateTime& bar_close, const KindInfo& kind,
                            const QMap<QString, QString>& standings) {
-    const QString times = QStringLiteral("%1 봉 → %2 목표")
-                              .arg(kst_text(bar_close, "HH:mm"), kst_text(target_of(at_close, bar_close), "HH:mm"));
+    const QString target = kst_text(target_of(at_close, bar_close, kind), "HH:mm");
+    const QString times = QStringLiteral("%1 봉 → %2 목표").arg(kst_text(bar_close, "HH:mm"), target);
     if (at_close.isEmpty())
         return {times, QStringLiteral("예측 없음")};
     const auto answer = answer_of(at_close);
@@ -389,7 +406,7 @@ QList<BarHover> kind_hovers(const QList<Bar>& bars, const QMap<QDateTime, QList<
         hover.time = chart_time(b.start);
         hover.lines = kind_hover_box(at_close, bar_close, kind, standings);
         hover.window_from = chart_time(bar_close);
-        hover.window_to = chart_time(target_of(at_close, bar_close));
+        hover.window_to = chart_time(target_of(at_close, bar_close, kind));
         // The range's highest and lowest mid-points over its window, once its answer is in.
         if (const auto answer = answer_of(at_close); answer && answer->range) {
             const RangePath& path = *answer->range;

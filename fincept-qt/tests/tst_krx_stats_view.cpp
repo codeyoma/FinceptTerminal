@@ -546,6 +546,9 @@ class TstKrxStatsView : public QObject {
         QVERIFY(columns[5].tip.startsWith(QStringLiteral("거래당 평균, 연구용 값이다. 위 먼저는 봉 마감의 매도 "
                                                          "1호가에 사서 위 장벽 U에 먼저 닿으면 U에")));
         QCOMPARE(column_tip(QStringLiteral("장벽 손익(틱, 연구용)")), columns[5].tip);
+        KindInfo rung = barrier_kind(); // the barrier's horizon ladder (krx-quant #263) has it too
+        rung.name = QStringLiteral("barrier_15m");
+        QCOMPARE(kind_stats_columns(rung)[5].header, QStringLiteral("장벽 손익(틱, 연구용)"));
 
         Entry e;
         e.n = 240;

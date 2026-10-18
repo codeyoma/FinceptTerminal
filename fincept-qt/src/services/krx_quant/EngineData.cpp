@@ -753,6 +753,11 @@ Result<QStringList> parse_members(const QJsonDocument& doc) {
     return Result<QStringList>::ok(strings_of(obj.value().value("members")));
 }
 
+bool is_barrier_kind(const QString& name) {
+    return name == QLatin1String("barrier") ||
+           (name.startsWith(QLatin1String("barrier_")) && name.endsWith(QLatin1Char('m')));
+}
+
 Result<QList<KindInfo>> parse_kinds(const QJsonDocument& doc) {
     const auto obj = object_of(doc);
     if (obj.is_err())
@@ -772,6 +777,7 @@ Result<QList<KindInfo>> parse_kinds(const QJsonDocument& doc) {
         kind.class_titles = strings_of(k.value("class_titles"));
         kind.action = strings_of(k.value("action"));
         kind.answer_version = k.value("answer_version").toInt();
+        kind.horizon_minutes = k.value("horizon_minutes").toInt(4);
         kind.fields = meanings_of(k.value("fields")).value_or(QMap<QString, Meaning>{});
         for (const auto& b : k.value("baselines").toArray()) {
             const QJsonObject baseline = b.toObject();

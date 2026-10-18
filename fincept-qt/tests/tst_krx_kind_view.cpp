@@ -224,6 +224,43 @@ class TstKrxKindView : public QObject {
         QCOMPARE(kind_choices(QList<KindInfo>{direction_kind(), weather}).size(), 3);
     }
 
+    void the_barrier_s_horizon_ladder_follows_the_barrier_when_the_engine_makes_it() {
+        // krx-quant #263: barrier_15m, barrier_30m, barrier_60m after the barrier, in the engine's
+        // order; none when the engine does not list them (no greyed rung).
+        QList<KindInfo> kinds{direction_kind(), range_kind(), barrier_kind()};
+        for (const int minutes : {15, 30, 60}) {
+            KindInfo rung = barrier_kind();
+            rung.name = QStringLiteral("barrier_%1m").arg(minutes);
+            rung.title = QStringLiteral("장벽 %1분").arg(minutes);
+            rung.horizon_minutes = minutes;
+            kinds << rung;
+        }
+        const auto choices = kind_choices(kinds);
+        QStringList names;
+        for (const auto& c : choices)
+            names << c.name;
+        QCOMPARE(names, (QStringList{"direction", "barrier", "barrier_15m", "barrier_30m", "barrier_60m", "range"}));
+        QCOMPARE(choices[2].title, QStringLiteral("장벽 15분"));
+        QVERIFY(choices[2].enabled && choices[4].enabled);
+        QCOMPARE(choices[3].tip,
+                 QStringLiteral("위 먼저·시간 만료·아래 먼저의 확률\n봉 마감부터 30분 동안의 장벽이다.\n"
+                                "예측 패널, 순위표, 상세 통계 창이 이 종류로 바뀐다. 차트의 아이콘·선택 "
+                                "합의·신호 알림은 방향 그대로다."));
+        QCOMPARE(shown_kind("barrier_30m", choices), QStringLiteral("barrier_30m"));
+        QCOMPARE(shown_kind("barrier_30m", kind_choices(QList<KindInfo>{direction_kind(), barrier_kind()})),
+                 QStringLiteral("direction")); // an engine without the ladder
+        QCOMPARE(kind_choices(QList<KindInfo>{direction_kind(), barrier_kind()}).size(), 3);
+
+        // Its panel and hover say its minutes; without a target time it is scored H minutes on.
+        const KindInfo& thirty = kinds[4];
+        QVERIFY(is_barrier_kind(thirty.name) && is_barrier_kind("barrier") && !is_barrier_kind("barrier_x"));
+        const auto columns = kind_panel_columns(thirty, false);
+        QVERIFY(columns[2].tip.startsWith(QStringLiteral("30분 안에 매수 1호가가 위 장벽 U")));
+        KindPrediction p = barrier_forecast("breiman-30m", "09:31", 0.5, 0.3, 0.2);
+        p.target_at = QDateTime();
+        QVERIFY(kind_hover_box({p}, at("09:31"), thirty, {})[0].startsWith(QStringLiteral("09:31 봉 → 10:01 목표")));
+    }
+
     void the_kind_kept_shows_while_it_can_and_stays_kept_while_it_cannot() {
         const auto now = kind_choices(QList<KindInfo>{direction_kind(), range_kind()});
         const auto older = kind_choices(std::nullopt);

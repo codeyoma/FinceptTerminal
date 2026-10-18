@@ -62,8 +62,11 @@ class KrxQuantScreen : public QWidget {
     /// The panel of the kind shown besides the direction (krx-quant #182): its latest bar close's
     /// predictions, or the pinned one's with their results.
     void fill_kind();
-    /// The kind selector's buttons as the engine's kinds and the kind shown say (krx-quant #182).
+    /// The kind selector's buttons as the engine's kinds and the kind shown say (krx-quant #182):
+    /// one per choice, made again when the choices change (the barrier's horizon ladder, #263).
     void show_kinds();
+    /// A kind selector's button for the kind ``name``: choosing it shows that kind.
+    QPushButton* kind_button(const QString& name);
     /// Another kind is shown: the panel, the leaderboard and the chart's hover boxes follow.
     void on_kind_changed();
     /// The kind panel's title: the symbol, the bar close's four minutes or the answer, k and 2k.
@@ -123,7 +126,7 @@ class KrxQuantScreen : public QWidget {
     krx_panel::Header header_; ///< the screen's: its title, the engine dot and address
     QLabel* dot_ = nullptr;
     QWidget* kind_bar_ = nullptr;      ///< the kind selector, after the title (krx-quant #182)
-    QList<QPushButton*> kind_buttons_; ///< 방향, 장벽, 변동폭 (property "kind")
+    QList<QPushButton*> kind_buttons_; ///< 방향, 장벽(, 장벽 15·30·60분), 변동폭 (property "kind")
     QLineEdit* url_edit_ = nullptr;
     QLabel* status_label_ = nullptr;
     QLabel* macro_label_ = nullptr;
