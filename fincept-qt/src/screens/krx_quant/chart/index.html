@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!--
   The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182, #185,
-  #221, #222, #223, #224, #225, #236, #249, #253, #255), drawn with TradingView Lightweight Charts (NOTICE). It only draws
+  #221, #222, #223, #224, #225, #236, #249, #253, #255, #285), drawn with TradingView Lightweight Charts (NOTICE). It only draws
   what the screen sends over the web channel: the bars in the style chosen (or the bricks of a style
   without a time axis, a slot each, named by when each ended), a minute view's empty bars (a slot
   without trades between two bars of a day: whitespace, no candle and no volume, #236) and the
@@ -13,7 +13,8 @@
   (the touch targets, the range's highest and lowest mid-points, or the barrier's U and L), the
   indicators (their lines, the fills between two, the fractals' marks, the volume profile's bars,
   the anchored VWAP's marker; below the prices a pane per lower indicator, the volume's among
-  them, with its guide lines) with each pane's legend, the theme, and when to fit. The wheel zooms
+  them, with its guide lines) with each pane's legend (the price pane's first row the bar's own prices
+  against the bar before, #285), the theme, and when to fit. The wheel zooms
   on the bar nearest the pointer (#253), the screen saying when there is nothing before to read.
   Many panes make the chart taller than the page, which then scrolls. It tells the screen where its
   view is, the icon or slot clicked (#107, #249) and the slot double-clicked (#255: the screen opens
@@ -55,6 +56,13 @@
   .legend .tools span { display: inline-flex; padding: 1px 2px; cursor: pointer; border-radius: 2px; opacity: 0.8; }
   .legend .tools span:hover { opacity: 1; background: var(--hover); }
   .legend svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.4; }
+  /* The bar's own prices (krx-quant #285): the price pane's first row, its changes in the rising or
+     falling colour, flat in the axis's. No buttons: the chart under it takes the pointer. */
+  .legend .row.prices { pointer-events: none; column-gap: 8px; }
+  .legend .prices .label { opacity: 0.7; }
+  .legend .prices .up { color: var(--up); }
+  .legend .prices .down { color: var(--down); }
+  .legend .prices .flat { color: var(--flat); }
   /* The price pane's scale (krx-quant #245): bottom right, in the time axis's row up to the right
      edge, below its border line. The one chosen in the accent. */
   #scale {
@@ -1577,10 +1585,14 @@
   };
   let valueSpans = []; // [{span, id, latest}] of the rows built
   let missingSpans = []; // [{span, ids, latest}]: a row's reason, shown where none of its lines has a value
+  let priceRow = null; // the bar's own prices (krx-quant #285, below), the price pane's first row
   function buildLegend() {
     valueSpans = [];
     missingSpans = [];
     for (const box of legendBoxes) box.textContent = '';
+    priceRow = document.createElement('div');
+    priceRow.className = 'row prices';
+    legendBox(0).appendChild(priceRow);
     for (const row of legendRows) {
       const box = legendBox(row.pane || 0);
       const el = document.createElement('div');
@@ -1670,6 +1682,50 @@
     }
     for (const { span, ids, latest } of missingSpans)
       span.style.display = empty || ids.some((id) => valueAt(id, latest) !== undefined) ? 'none' : '';
+    showPrices(index);
+  }
+  // The bar's own prices at the crosshair (or the last bar), as Toss Securities' chart shows them
+  // (krx-quant #285): 시가, 고가, 저가 and 종가 in won, each with its change against the close of the
+  // bar with trades before it (an empty slot, krx-quant #236, skipped; none before the first bar
+  // read). A Heikin-Ashi chart's are the bars as they are; bricks' (krx-quant #225), each brick's.
+  function ownBar(i) {
+    if (realBars) {
+      const r = realBars[i]; // none on an empty slot, nor on one a live gap added
+      return r ? { open: r[0], high: r[1], low: r[2], close: r[3] } : null;
+    }
+    const b = bars[i];
+    return b && b.close !== undefined ? b : null;
+  }
+  function showPrices(index) {
+    if (!priceRow) return;
+    priceRow.textContent = '';
+    priceRow.style.display = index === undefined ? 'none' : '';
+    if (index === undefined) return;
+    const bar = ownBar(index);
+    const add = function (parent, text, className) {
+      const span = document.createElement('span');
+      span.textContent = text;
+      if (className) span.className = className;
+      parent.appendChild(span);
+      return span;
+    };
+    if (!bar) {
+      add(priceRow, '체결 없음', 'label');
+      return;
+    }
+    let before = null;
+    for (let i = index - 1; i >= 0 && !before; --i) before = ownBar(i);
+    for (const [label, value] of [['시가', bar.open], ['고가', bar.high], ['저가', bar.low], ['종가', bar.close]]) {
+      const field = add(priceRow, '');
+      add(field, label, 'label');
+      field.appendChild(document.createTextNode(
+        ' ' + value.toLocaleString('en-US', { maximumFractionDigits: 2 }) + '원'));
+      if (!before || !before.close) continue;
+      const change = (value - before.close) / before.close * 100;
+      const sign = Math.abs(change) < 0.005 ? 0 : Math.sign(change); // flat when it rounds to 0.00%
+      add(field, ' (' + (sign > 0 ? '+' : sign < 0 ? '-' : '') + (sign ? Math.abs(change) : 0).toFixed(2) + '%)',
+        sign > 0 ? 'up' : sign < 0 ? 'down' : 'flat');
+    }
   }
   // Each at the top left of its pane, the panes top down with a pixel's border between them.
   function placeLegend() {
@@ -1961,6 +2017,9 @@
     if (colors.size) box.style.fontSize = (colors.size + 1) + 'px';
     box.style.setProperty('--hover', fade(colors.tip_background, 0.85));
     box.style.setProperty('--note', colors.link);
+    box.style.setProperty('--up', colors.up);
+    box.style.setProperty('--down', colors.down);
+    box.style.setProperty('--flat', colors.text);
   }
 
   // The baseline's base moved with the view (krx-quant #221).
@@ -2037,6 +2096,15 @@
       return range ? range.to - (bars.length - 1) : null;
     },
     hovered: function () { return hovered ? [hovered.time, hoverAt.has(hovered.time)] : null; },
+    // The price pane legend's prices (krx-quant #285): each field's text and its change's colour
+    // (up, down, flat; '' without one); none while there are no bars.
+    prices: function () {
+      if (!priceRow || priceRow.style.display === 'none') return [];
+      return Array.from(priceRow.children).map(function (field) {
+        const change = field.querySelector('.up, .down, .flat');
+        return [field.textContent, change ? change.className : ''];
+      });
+    },
     // The price pane's scale mode (0 일반, 1 로그) and the choice shown on (krx-quant #245).
     scale: function () {
       return [chart.priceScale('right', 0).options().mode, scaleBox.querySelector('.on').textContent];
