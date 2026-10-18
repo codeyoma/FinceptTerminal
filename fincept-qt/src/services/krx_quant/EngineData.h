@@ -280,7 +280,11 @@ struct BarrierStats {
     int n = 0;
     BarrierPnl pnl;
     BarrierPnl longs;  ///< the "up first" calls
-    BarrierPnl shorts; ///< the "down first" calls
+    BarrierPnl shorts; ///< the "down first" calls, as shorts of the stock (the sell tax paid)
+    /// The same with the shorts through the symbol's single-stock inverse product (krx-quant
+    /// #267): all trades, and the shorts alone. None from an engine before it.
+    std::optional<BarrierPnl> pnl_inverse{};
+    std::optional<BarrierPnl> shorts_inverse{};
 };
 
 /// What a query's stats leave out of a predictor's predictions (krx-quant #83).
@@ -304,7 +308,10 @@ struct Entry {
     std::optional<Interval> brier;
     int trades = 0;
     double total_ticks = 0;
-    std::optional<Interval> per_trade;
+    std::optional<Interval> per_trade; ///< a down call as a short of the stock (the sell tax paid)
+    /// The touch P&L with down calls through the symbol's single-stock inverse product
+    /// (krx-quant #267, ``pnl_inverse``); none from an older engine, or of another kind.
+    std::optional<BarrierPnl> inverse{};
     std::optional<double> lift_low;   ///< the weakest lift's lower bound; none without a baseline to compare with
     bool significant = false;         ///< beats every baseline after the luck correction (q ≤ 0.05)
     QList<Lift> lifts;                ///< over each baseline, by name; none without a baseline to compare with

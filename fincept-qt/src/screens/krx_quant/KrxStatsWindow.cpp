@@ -516,7 +516,7 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats,
                 barrier_table_->setItem(row, c,
                                         cell(cells[c], c == kSide ? Qt::AlignLeft | Qt::AlignVCenter : kNumber));
         }
-        fit_rows(barrier_table_); // its three rows always show: the splitter leaves it that much
+        fit_rows(barrier_table_); // its rows (three, four with the inverse product's) always show
     }
 
     lifts_->setRowCount(0);
