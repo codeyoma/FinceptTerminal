@@ -778,6 +778,152 @@ Result<KindLatest> parse_kind_latest(const QJsonDocument& doc);
 /// GET /v1/symbols/{symbol}/kinds/{kind}/predictions: the latest bar closes first.
 Result<QList<KindPrediction>> parse_kind_predictions(const QJsonDocument& doc);
 
+/// The pre-open briefing of a day (GET /v1/briefing, codeyoma/krx-quant#304): what the day's open is
+/// weighed with, each part read by the engine from its files by the rules of the 08:50 open_to_close
+/// inputs. A part without data is empty here (an invalid time, nullopt, an empty list).
+struct BriefingClose {
+    QDate day;
+    double close = 0;
+    std::optional<double> change_pct; ///< against the close before; none for the first shown
+};
+
+/// A US indicator's last closes before the day ("sox", "nvda", "mu", "vix"), oldest first.
+struct BriefingUs {
+    QString indicator;
+    QList<BriefingClose> closes;
+};
+
+/// A minute of the KOSPI200 night session: its last trade's price.
+struct NightMinute {
+    QDateTime at;
+    double price = 0;
+};
+
+/// The KOSPI200 night session begun on the previous trading day's evening (18:00–06:00).
+struct NightSession {
+    QDate evening;
+    QDateTime from;
+    QDateTime to;
+    bool recorded = false;             ///< false: nothing recorded that night, every value empty
+    QString contract;                  ///< the contract code recorded
+    std::optional<double> last;        ///< the last trade's price
+    std::optional<double> change_pct;  ///< KIS's change of the last trade, %
+    std::optional<double> high;
+    std::optional<double> low;
+    std::optional<double> volume;      ///< the last trade's cumulative volume
+    QDateTime last_trade_at;
+    QList<NightMinute> minutes;
+};
+
+/// A price the briefing shows of a symbol: the evening's last integrated bar, or NXT's pre-market
+/// last trade (``window``: "08:40-08:50" or "08:00-08:30", empty for the evening).
+struct BriefingPrice {
+    double price = 0;
+    QDateTime at;
+    std::optional<double> change_pct; ///< against the previous KRX close; none without it
+    QString window = {};
+};
+
+/// The opening auction's last expected fill before the open (the book's ANTC_*, krx-quant #304).
+struct ExpectedOpen {
+    double price = 0;
+    std::optional<double> qty;
+    QString venue_code; ///< the expected fill's venue code, as KIS gives it
+    QDateTime at;
+    std::optional<double> change_pct;
+    bool final = false; ///< the open has passed: the auction is over
+};
+
+/// The previous trading day's foreign and institution net buys (shares) and their sums over the
+/// last ``days`` days stored up to it; none where KIS gave no figure.
+struct BriefingSupply {
+    QDate day;
+    std::optional<double> foreign_net;
+    std::optional<double> institution_net;
+    int days = 0;
+    std::optional<double> foreign_net_sum;
+    std::optional<double> institution_net_sum;
+};
+
+struct BriefingSymbol {
+    QString symbol;
+    std::optional<double> previous_close; ///< the previous trading day's KRX close
+    std::optional<BriefingPrice> after_hours;
+    std::optional<BriefingPrice> premarket;
+    std::optional<ExpectedOpen> expected_open;
+    BriefingSupply supply;
+};
+
+/// An input of a daily algorithm's prediction: its value then, and when the algorithm explains
+/// itself, its value as the model read it (standardized) and what it added to each class's score
+/// against flat ("up", "down").
+struct InputPart {
+    QString name;
+    std::optional<double> value; ///< none: missing that day
+    std::optional<double> z;     ///< none: missing, not read by the model, or the weekday
+    QMap<QString, double> scores; ///< empty: not explained
+};
+
+/// A daily algorithm's inputs of one prediction (kind_predictions.inputs, krx-quant #304).
+struct AlgorithmInputs {
+    QString algorithm;
+    QString model_version;
+    QMap<QString, double> bias; ///< each class's intercept; empty: not explained
+    QList<InputPart> inputs;    ///< in the order the algorithm declares its features
+};
+
+/// A symbol's open_to_close predictions of the day shown, and the daily algorithms' inputs.
+struct BriefingDayKind {
+    QString symbol;
+    QList<KindPrediction> predictions;
+    QList<AlgorithmInputs> inputs;
+};
+
+/// The day's 08:50 open_to_close predictions; before they are made, the latest day's (``previous``).
+struct BriefingOpenToClose {
+    QDate day;              ///< invalid: none yet
+    QDateTime predicted_at; ///< invalid: none yet
+    bool previous = false;
+    QList<BriefingDayKind> symbols;
+};
+
+/// An economic calendar event of the day (as GET /v1/calendar gives it).
+struct BriefingEvent {
+    QDateTime at;
+    QString country;
+    QString title;
+    QString importance; ///< "low", "medium" or "high"
+    std::optional<double> actual;
+    std::optional<double> forecast;
+    std::optional<double> previous;
+    QString unit;  ///< "%", a currency, or empty
+    QString scale; ///< "K", "M", "B", "T" or empty
+};
+
+struct Briefing {
+    QDate day;
+    QDateTime as_of;  ///< the engine clock when it answered
+    QString phase;    ///< the market's phase now: "pre_open", "opening_auction", "continuous", …
+    bool trading_day = false;
+    QDateTime open;   ///< the session's; invalid on a closed day
+    QDateTime close;
+    QString special;  ///< "exam_day", "first_day" or empty: a session that opens late
+    QDate previous_day;
+    Macro macro;
+    QList<BriefingUs> us;
+    NightSession night;
+    QList<BriefingSymbol> symbols;
+    std::optional<BriefingOpenToClose> open_to_close; ///< none: the engine does not predict it
+    QList<BriefingEvent> events;
+    bool option_expiry = false;
+    bool futures_expiry = false;
+    bool month_end = false;
+    bool month_start = false;
+};
+
+/// GET /v1/briefing (codeyoma/krx-quant#304).
+Result<Briefing> parse_briefing(const QJsonDocument& doc);
+
 /// A kind's answer to a symbol's bar close, as the stream brings it (krx-quant #179).
 struct KindAnswerAt {
     QString symbol;

@@ -173,6 +173,13 @@ void CommandBar::build_commands() {
          {"krx", "krx_quant", "predict"},
          "",
          {"krx", "korea", "prediction", "예측"}},
+        // Fork addition (codeyoma/krx-quant#304)
+        {"krx_briefing",
+         tr("KRX 장전 브리핑"),
+         "KRX pre-open briefing",
+         {"krx", "krx_briefing", "briefing", "pre-open"},
+         "",
+         {"krx", "korea", "briefing", "브리핑", "장전"}},
         {"crypto_trading",
          tr("Crypto Trading"),
          "Cryptocurrency trading",

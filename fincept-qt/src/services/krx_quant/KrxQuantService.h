@@ -156,6 +156,13 @@ class KrxQuantService : public QObject {
     /// still shows (a kind's failure in BarRead::kind_failures). Each bar's on its own, several at
     /// once; asked again while that bar's is read, it is read again once that one answers.
     void read_bar(const QString& symbol, const QDateTime& bar_close, const QStringList& kinds);
+    /// The pre-open briefing of ``day`` (invalid: the engine's default, today or the next trading
+    /// day; GET /v1/briefing, codeyoma/krx-quant#304): briefing_ready, or briefing_failed (also from an
+    /// engine before #304, which has no such answer). Asked again while one is read, it is not read.
+    void read_briefing(const QDate& day);
+    /// The symbols the engine predicts, with their names and logos (GET /v1/symbols, krx-quant #250),
+    /// read alone: symbols_ready or symbols_failed. Asked again while one is read, it is not read.
+    void read_symbol_list();
 
   signals:
     void snapshot_ready(const fincept::services::KrxQuantService::Snapshot& snapshot);
@@ -198,6 +205,10 @@ class KrxQuantService : public QObject {
     void supply_failed(const QString& symbol, const QDate& from, const QDate& to, const QString& reason);
     void bar_ready(const fincept::krx_quant::BarRead& read);
     void bar_failed(const QString& symbol, const QDateTime& bar_close, const QString& reason);
+    void briefing_ready(const QDate& day, const fincept::krx_quant::Briefing& briefing);
+    void briefing_failed(const QDate& day, const QString& reason);
+    void symbols_ready(const QList<fincept::krx_quant::SymbolQuote>& symbols);
+    void symbols_failed(const QString& reason);
     /// The address this service reads changed (also when another panel set it).
     void base_url_changed(const QString& url);
 
@@ -220,6 +231,8 @@ class KrxQuantService : public QObject {
         kKindHistory, ///< a kind's predictions over bar closes
         kSpecial,     ///< a symbol's special situations over days (krx-quant #236)
         kSupply,      ///< a symbol's daily supply data over days (krx-quant #226)
+        kBriefing,    ///< a day's pre-open briefing (codeyoma/krx-quant#304)
+        kSymbolList,  ///< the symbols alone
         kKinds        ///< how many kinds of read there are
     };
 

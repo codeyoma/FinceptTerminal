@@ -776,11 +776,10 @@ Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc) 
     return Result<QMap<QString, AlgorithmInfo>>::ok(out);
 }
 
-Result<Macro> parse_macro(const QJsonDocument& doc) {
-    const auto obj = object_of(doc);
-    if (obj.is_err())
-        return Result<Macro>::err(obj.error());
-    const QJsonObject& o = obj.value();
+namespace {
+
+/// GET /v1/macro's answer, also the briefing's ``overnight.macro`` (krx-quant #304).
+Macro macro_of(const QJsonObject& o) {
     Macro macro;
     macro.day = o.value("day").toString();
     macro.decided_at = time_of(o.value("decided_at"));
@@ -796,7 +795,16 @@ Result<Macro> parse_macro(const QJsonDocument& doc) {
     for (auto it = failed.begin(); it != failed.end(); ++it)
         macro.failed.insert(it.key(), it.value().toString());
     macro.skipped = strings_of(o.value("skipped"));
-    return Result<Macro>::ok(macro);
+    return macro;
+}
+
+} // namespace
+
+Result<Macro> parse_macro(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<Macro>::err(obj.error());
+    return Result<Macro>::ok(macro_of(obj.value()));
 }
 
 Result<QStringList> parse_members(const QJsonDocument& doc) {
@@ -1308,6 +1316,150 @@ QString failure_text(int http_status, const QString& message) {
     if (message.isEmpty())
         return QStringLiteral("엔진 오류 (HTTP %1)").arg(http_status);
     return QStringLiteral("엔진 오류 (HTTP %1): %2").arg(http_status).arg(message);
+}
+
+namespace {
+
+std::optional<BriefingPrice> briefing_price_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return BriefingPrice{o.value("price").toDouble(), time_of(o.value("at")), number(o.value("change_pct")),
+                         o.value("window").toString()};
+}
+
+std::optional<ExpectedOpen> expected_open_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return ExpectedOpen{o.value("price").toDouble(),          number(o.value("qty")),
+                        o.value("venue_code").toString(),     time_of(o.value("at")),
+                        number(o.value("change_pct")),        o.value("final").toBool()};
+}
+
+QMap<QString, double> numbers_of(const QJsonValue& v) {
+    QMap<QString, double> out;
+    const QJsonObject o = v.toObject();
+    for (auto it = o.begin(); it != o.end(); ++it)
+        if (it.value().isDouble())
+            out.insert(it.key(), it.value().toDouble());
+    return out;
+}
+
+AlgorithmInputs inputs_of(const QJsonObject& o) {
+    AlgorithmInputs made{o.value("algorithm").toString(), o.value("model_version").toString(),
+                         numbers_of(o.value("bias")), {}};
+    for (const auto& v : o.value("inputs").toArray()) {
+        const QJsonObject i = v.toObject();
+        made.inputs.push_back({i.value("name").toString(), number(i.value("value")), number(i.value("z")),
+                               numbers_of(i.value("scores"))});
+    }
+    return made;
+}
+
+NightSession night_of(const QJsonObject& o) {
+    NightSession night;
+    night.evening = QDate::fromString(o.value("evening").toString(), Qt::ISODate);
+    night.from = time_of(o.value("from"));
+    night.to = time_of(o.value("to"));
+    night.recorded = o.value("recorded").toBool();
+    night.contract = o.value("contract").toString();
+    night.last = number(o.value("last"));
+    night.change_pct = number(o.value("change_pct"));
+    night.high = number(o.value("high"));
+    night.low = number(o.value("low"));
+    night.volume = number(o.value("volume"));
+    night.last_trade_at = time_of(o.value("last_trade_at"));
+    for (const auto& v : o.value("minutes").toArray()) {
+        const QJsonObject m = v.toObject();
+        night.minutes.push_back({time_of(m.value("at")), m.value("price").toDouble()});
+    }
+    return night;
+}
+
+BriefingSymbol briefing_symbol_of(const QJsonObject& o) {
+    BriefingSymbol made;
+    made.symbol = o.value("symbol").toString();
+    made.previous_close = number(o.value("previous_close"));
+    made.after_hours = briefing_price_of(o.value("after_hours"));
+    made.premarket = briefing_price_of(o.value("premarket"));
+    made.expected_open = expected_open_of(o.value("expected_open"));
+    const QJsonObject s = o.value("supply").toObject();
+    made.supply = {QDate::fromString(s.value("day").toString(), Qt::ISODate),
+                   number(s.value("foreign_net")),
+                   number(s.value("institution_net")),
+                   s.value("days").toInt(),
+                   number(s.value("foreign_net_sum")),
+                   number(s.value("institution_net_sum"))};
+    return made;
+}
+
+std::optional<BriefingOpenToClose> open_to_close_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    BriefingOpenToClose made;
+    made.day = QDate::fromString(o.value("day").toString(), Qt::ISODate);
+    made.predicted_at = time_of(o.value("predicted_at"));
+    made.previous = o.value("previous").toBool();
+    for (const auto& sv : o.value("symbols").toArray()) {
+        const QJsonObject s = sv.toObject();
+        BriefingDayKind day{s.value("symbol").toString(), {}, {}};
+        for (const auto& p : s.value("predictions").toArray())
+            day.predictions.push_back(kind_prediction_of(p.toObject(), day.symbol, made.predicted_at));
+        for (const auto& i : s.value("inputs").toArray())
+            day.inputs.push_back(inputs_of(i.toObject()));
+        made.symbols.push_back(day);
+    }
+    return made;
+}
+
+} // namespace
+
+Result<Briefing> parse_briefing(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<Briefing>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    Briefing b;
+    b.day = QDate::fromString(o.value("day").toString(), Qt::ISODate);
+    b.as_of = time_of(o.value("as_of"));
+    b.phase = o.value("phase").toString();
+    b.trading_day = o.value("trading_day").toBool();
+    const QJsonObject session = o.value("session").toObject();
+    b.open = time_of(session.value("open"));
+    b.close = time_of(session.value("close"));
+    b.special = session.value("special").toString();
+    b.previous_day = QDate::fromString(o.value("previous_day").toString(), Qt::ISODate);
+    const QJsonObject overnight = o.value("overnight").toObject();
+    b.macro = macro_of(overnight.value("macro").toObject());
+    for (const auto& v : overnight.value("us").toArray()) {
+        const QJsonObject u = v.toObject();
+        BriefingUs us{u.value("indicator").toString(), {}};
+        for (const auto& cv : u.value("closes").toArray()) {
+            const QJsonObject c = cv.toObject();
+            us.closes.push_back({QDate::fromString(c.value("day").toString(), Qt::ISODate),
+                                 c.value("close").toDouble(), number(c.value("change_pct"))});
+        }
+        b.us.push_back(us);
+    }
+    b.night = night_of(o.value("night_futures").toObject());
+    for (const auto& v : o.value("symbols").toArray())
+        b.symbols.push_back(briefing_symbol_of(v.toObject()));
+    b.open_to_close = open_to_close_of(o.value("open_to_close"));
+    const QJsonObject schedule = o.value("schedule").toObject();
+    for (const auto& v : schedule.value("events").toArray()) {
+        const QJsonObject e = v.toObject();
+        b.events.push_back({time_of(e.value("at")), e.value("country").toString(), e.value("title").toString(),
+                            e.value("importance").toString(), number(e.value("actual")),
+                            number(e.value("forecast")), number(e.value("previous")), e.value("unit").toString(),
+                            e.value("scale").toString()});
+    }
+    b.option_expiry = schedule.value("option_expiry").toBool();
+    b.futures_expiry = schedule.value("futures_expiry").toBool();
+    b.month_end = schedule.value("month_end").toBool();
+    b.month_start = schedule.value("month_start").toBool();
+    return Result<Briefing>::ok(b);
 }
 
 } // namespace fincept::krx_quant

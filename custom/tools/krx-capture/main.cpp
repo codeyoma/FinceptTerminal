@@ -2,7 +2,8 @@
 // waits for it to read the engine, and saves the screen as a PNG. Given predictors, it
 // also opens their detail windows, as a double-click on the leaderboard does, and saves
 // each next to the screen's: <out>-<predictor>.png. KRX_CAPTURE_BAR opens bar windows, as a
-// double-click on a 1-minute bar does (krx-quant #255): <out>-bar<n>.png.
+// double-click on a 1-minute bar does (krx-quant #255): <out>-bar<n>.png. KRX_CAPTURE_BRIEFING=1 saves
+// the pre-open briefing screen instead (codeyoma/krx-quant#304); KRX_CAPTURE_DAY=<YYYY-MM-DD> its day.
 //
 //   krx_capture <engine url> <out.png> [seconds=8] [width=1600] [height=1000] [predictor,...]
 //
@@ -10,6 +11,7 @@
 // With QT_QPA_PLATFORM=offscreen no window opens, and the chart's panel stays empty. The
 // theme and font are the app's defaults (Obsidian, Consolas 14px).
 #include "core/config/AppConfig.h"
+#include "screens/krx_quant/KrxBriefingScreen.h"
 #include "screens/krx_quant/KrxBarWindow.h"
 #include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxChartToolbar.h"
@@ -19,6 +21,7 @@
 #include "screens/krx_quant/KrxStatsWindow.h"
 #include "screens/krx_quant/KrxStudyPanel.h"
 #include "services/krx_quant/ChartDrawings.h"
+#include "services/krx_quant/KrxBriefingLive.h"
 #include "services/krx_quant/KrxLive.h"
 #include "services/krx_quant/KrxQuantService.h"
 #include "ui/theme/ThemeManager.h"
@@ -121,6 +124,27 @@ int main(int argc, char* argv[]) {
     if (qEnvironmentVariableIsSet("KRX_CAPTURE_LOG"))
         fincept::AppConfig::instance().set(fincept::krx_quant::kLogScaleKey,
                                            qEnvironmentVariableIntValue("KRX_CAPTURE_LOG") != 0);
+
+    // KRX_CAPTURE_BRIEFING=1: the pre-open briefing screen (codeyoma/krx-quant#304), saved after the wait.
+    if (qEnvironmentVariableIntValue("KRX_CAPTURE_BRIEFING") != 0) {
+        fincept::screens::KrxBriefingScreen briefing;
+        briefing.resize(width, height);
+        briefing.show();
+        if (const QString day = qEnvironmentVariable("KRX_CAPTURE_DAY"); !day.isEmpty())
+            if (auto* live = briefing.findChild<fincept::services::KrxBriefingLive*>())
+                live->set_day(QDate::fromString(day, Qt::ISODate));
+        const QString out = QString::fromLocal8Bit(argv[2]);
+        int status = 0;
+        QTimer::singleShot(seconds * 1000, &app, [&]() {
+            if (!briefing.grab().save(out)) {
+                QTextStream(stderr) << "could not save " << out << "\n";
+                status = 1;
+            }
+            app.quit();
+        });
+        app.exec();
+        return status;
+    }
 
     fincept::screens::KrxQuantScreen screen;
     screen.resize(width, height);
