@@ -72,11 +72,12 @@ class KrxNightLine : public QWidget {
                                                      [](const auto& a, const auto& b) { return a.price < b.price; });
         const double span = std::max(high->price - low->price, 1e-9);
         const qint64 start = minutes_.first().at.toSecsSinceEpoch();
-        const double length = std::max<qint64>(minutes_.last().at.toSecsSinceEpoch() - start, 1);
+        const auto length = static_cast<double>(std::max<qint64>(minutes_.last().at.toSecsSinceEpoch() - start, 1));
         const QRectF area = QRectF(rect()).adjusted(4, 6, -4, -6);
         QPainterPath path;
         for (int i = 0; i < minutes_.size(); ++i) {
-            const double x = area.left() + area.width() * (minutes_[i].at.toSecsSinceEpoch() - start) / length;
+            const auto since = static_cast<double>(minutes_[i].at.toSecsSinceEpoch() - start);
+            const double x = area.left() + area.width() * since / length;
             const double y = area.bottom() - area.height() * (minutes_[i].price - low->price) / span;
             i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
         }
