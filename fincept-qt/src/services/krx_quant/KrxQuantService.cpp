@@ -108,6 +108,7 @@ void KrxQuantService::rebind() {
     for (bool& busy : busy_)
         busy = false;
     next_leaderboard_.reset();
+    next_cost_map_.reset();
     next_close_.reset();
     stats_reads_.clear();
     bar_reads_.clear();
@@ -586,6 +587,28 @@ void KrxQuantService::read_flow(const QString& symbol, const QDate& day) {
         if (flow.is_err())
             return emit flow_failed(symbol, day, why(flow.error()));
         emit flow_ready(symbol, day, flow.value());
+    });
+}
+
+void KrxQuantService::read_cost_map(const LeaderboardQuery& query) {
+    if (busy_[kCostMap] && !url_.isEmpty()) { // read once the one under way ends, as the leaderboard
+        next_cost_map_ = query == cost_map_asked_ ? std::nullopt : std::optional(query);
+        return;
+    }
+    if (!begin(kCostMap))
+        return;
+    cost_map_asked_ = query;
+    get("/v1/cost-map?" + query_string(query), [this](Result<QJsonDocument> answer) {
+        end(kCostMap);
+        if (next_cost_map_) { // asked again meanwhile: this answer, or its failure, is stale
+            const LeaderboardQuery next = *next_cost_map_;
+            next_cost_map_.reset();
+            return read_cost_map(next);
+        }
+        auto map = parsed(answer, krx_quant::parse_cost_map);
+        if (map.is_err())
+            return emit cost_map_failed(cost_map_asked_, why(map.error()));
+        emit cost_map_ready(cost_map_asked_, map.value());
     });
 }
 

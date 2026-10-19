@@ -187,6 +187,13 @@ void CommandBar::build_commands() {
          {"krx", "krx_flow", "flow", "supply"},
          "",
          {"krx", "korea", "flow", "수급", "프로그램", "외국인"}},
+        // Fork addition (codeyoma/krx-quant#307)
+        {"krx_cost",
+         tr("KRX 지평·비용"),
+         "KRX horizons and costs",
+         {"krx", "krx_cost", "cost", "breakeven"},
+         "",
+         {"krx", "korea", "cost", "비용", "손익분기", "지평"}},
         {"crypto_trading",
          tr("Crypto Trading"),
          "Cryptocurrency trading",

@@ -993,6 +993,142 @@ struct Flow {
 /// GET /v1/symbols/{symbol}/flow (codeyoma/krx-quant#306).
 Result<Flow> parse_flow(const QJsonDocument& doc);
 
+/// The cost map (GET /v1/cost-map, codeyoma/krx-quant#307): each symbol's round-trip costs, a row
+/// each kind with a direction with its breakeven hit rate p* beside its predictors' hit rates, and
+/// the period base rates.
+struct CostRoundTrip {
+    double bp = 0;
+    double ticks = 0;
+};
+
+/// A tick-band edge near the price: the edge, the first price past it, and the tick and k there.
+struct TickEdge {
+    double edge = 0;
+    double price = 0;
+    int tick = 0;
+    int k = 0;
+};
+
+/// A short through the symbol's single-stock inverse product, in the stock's terms: its
+/// commissions only, a floor (``omits`` what is left out: "spread", "premium", "basis").
+struct CostInverse {
+    int leverage = 0;
+    QDate listed;
+    double bp = 0;
+    double ticks = 0;
+    QStringList omits;
+};
+
+struct CostCard {
+    int tick = 0;
+    double tick_bp = 0;
+    int k = 0;
+    double sell_tax_bp = 0;
+    double fees_bp = 0; ///< both sides
+    double spread_bp = 0;
+    CostRoundTrip limit;
+    CostRoundTrip market;
+    std::optional<CostInverse> inverse; ///< none: no product to trade a fall through
+    std::optional<TickEdge> below;
+    std::optional<TickEdge> above;
+};
+
+struct CostSymbol {
+    QString symbol;
+    QString name;
+    std::optional<double> price; ///< the mid-point now (live), else the latest bar close's
+    QDateTime price_at;
+    bool live = false;
+    std::optional<CostCard> costs; ///< none without a price
+};
+
+struct Breakeven {
+    double c_over_w = 0;
+    double p_star = 0;
+};
+
+/// A predictor's research P&L per trade, in its row's unit.
+struct CostPnl {
+    int trades = 0;
+    std::optional<Interval> per_trade;
+};
+
+/// A predictor on a row: its hit rate of rise and fall calls (the leaderboard's precision), the
+/// share right less the share wrong the other way, its calls, P&L, and verdict at each cost:
+/// "pass", "fail" or "few" (empty: no p*).
+struct CostPredictor {
+    QString algorithm;
+    std::optional<int> rank;
+    int calls = 0;
+    std::optional<Interval> precision;
+    std::optional<double> edge;
+    std::optional<CostPnl> pnl;
+    std::optional<CostPnl> pnl_inverse;
+    QString verdict_limit;
+    QString verdict_market;
+};
+
+struct CostRow {
+    QString kind;
+    QString title;
+    std::optional<int> horizon_minutes; ///< none: a daily kind
+    QString rule;
+    QList<QDate> days;
+    QString unit; ///< "ticks", "bp", or empty
+    int bar_closes = 0;
+    std::optional<double> width;
+    std::optional<double> reference_price;
+    std::optional<int> tick;
+    std::optional<double> cost_limit;  ///< C of a limit order's round trip, in ``unit``
+    std::optional<double> cost_market; ///< and a market order's
+    std::optional<Breakeven> breakeven_limit; ///< none: not a symmetric answer (breakeven_missing says why)
+    std::optional<Breakeven> breakeven_market;
+    QString breakeven_missing;
+    std::optional<CostPredictor> consensus;
+    std::optional<CostPredictor> top;
+    std::optional<CostPredictor> baseline;
+};
+
+/// A symbol and period's four-minute touch labels by the one-minute bar rule.
+struct BaseRate {
+    QString symbol;
+    QString period;
+    QDate from; ///< invalid: from the first day
+    QDate to;   ///< invalid: to now
+    int days = 0;
+    int windows = 0;
+    double up = 0;
+    double flat = 0; ///< always-flat's hit rate too
+    double down = 0;
+    int k = 0;
+    std::optional<double> persist; ///< how often the previous window's label was right
+    int persist_windows = 0;
+};
+
+struct BaseRates {
+    QDateTime computed_at;
+    QDate first_day;
+    QDate last_day;
+    QList<BaseRate> rows;
+};
+
+struct CostMap {
+    QString symbol;
+    QString period;
+    QString special;
+    QDateTime as_of;
+    int min_sample = 0;
+    double fee_rate = 0;
+    int spread_ticks = 0;
+    QList<CostSymbol> symbols;
+    QList<CostRow> rows;
+    std::optional<BaseRates> regimes; ///< none before they are computed (regimes_missing says why)
+    QString regimes_missing;
+};
+
+/// GET /v1/cost-map (codeyoma/krx-quant#307).
+Result<CostMap> parse_cost_map(const QJsonDocument& doc);
+
 /// A kind's answer to a symbol's bar close, as the stream brings it (krx-quant #179).
 struct KindAnswerAt {
     QString symbol;
