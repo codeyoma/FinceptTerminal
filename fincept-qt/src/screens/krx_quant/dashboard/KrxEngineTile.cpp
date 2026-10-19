@@ -70,8 +70,9 @@ void KrxEngineTile::tick() {
         return;
     }
     if (address != service_->url()) {
-        // A new address (set on the KRX screen): every read under way is dropped with the old one.
-        service_->restart();
+        // A new address (set on the KRX screen): every read under way is dropped with the old one,
+        // and nothing else is read (restart() would read a snapshot the tile may not want).
+        service_->rebind();
         reading_ = false;
     }
     if (reading_)
@@ -81,6 +82,11 @@ void KrxEngineTile::tick() {
     if (!shown_data_ && !is_showing_error())
         set_loading(true);
     read();
+}
+
+void KrxEngineTile::read_again() {
+    reading_ = false;
+    tick();
 }
 
 void KrxEngineTile::read_done(const QString& problem) {

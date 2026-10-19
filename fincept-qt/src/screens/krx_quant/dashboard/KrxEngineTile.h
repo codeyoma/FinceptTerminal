@@ -31,7 +31,8 @@ class KrxEngineTile : public widgets::BaseWidget {
     /// Where the subclass puts its content, below the failure line.
     QVBoxLayout* body() const { return body_; }
 
-    /// Ask the engine; the subclass ends it with read_done() or read_failed().
+    /// Ask the engine; the subclass ends it with read_done(), read_failed() or read_again(). A new
+    /// address drops what is under way (the service's base_url_changed: forget the old engine's).
     virtual void read() = 0;
     /// Draw again from what was last read (a theme change).
     virtual void render() = 0;
@@ -39,6 +40,9 @@ class KrxEngineTile : public widgets::BaseWidget {
     /// The read ended with something to show; ``problem``: what part of it could not be read.
     void read_done(const QString& problem = {});
     void read_failed(const QString& reason);
+    /// The answer that came is not the one wanted now (the query changed while it was read): end
+    /// this read without showing it and read again at once.
+    void read_again();
     /// Change the title's head (the part before the time of the last answer).
     void set_head(const QString& head);
 

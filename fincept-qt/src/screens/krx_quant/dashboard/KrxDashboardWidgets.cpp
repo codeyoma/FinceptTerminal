@@ -93,6 +93,13 @@ KrxSignalsWidget::KrxSignalsWidget(QWidget* parent) : KrxEngineTile(tr("KRX ì§€ê
             });
     connect(service(), &services::KrxQuantService::refresh_failed, this,
             [this](const QString& reason) { read_failed(reason); });
+    connect(service(), &services::KrxQuantService::base_url_changed, this, [this]() {
+        snapshot_.reset();
+        recent_.clear();
+        recent_for_.clear();
+        queued_for_.clear();
+        recent_reading_.clear();
+    });
     connect(service(), &services::KrxQuantService::predictions_ready, this,
             [this](const QString& symbol, const QDateTime&, const QList<krx_quant::Prediction>& predictions, bool) {
                 if (symbol != recent_reading_)
@@ -192,7 +199,7 @@ KrxLeaderboardWidget::KrxLeaderboardWidget(const QJsonObject& config, QWidget* p
     connect(service(), &services::KrxQuantService::leaderboard_ready, this,
             [this](const krx_quant::Leaderboard& board) {
                 if (!query_.matches(board))
-                    return; // a query changed since
+                    return read_again(); // the query changed while it was read
                 board_ = board;
                 render();
                 read_done();
@@ -206,6 +213,10 @@ KrxLeaderboardWidget::KrxLeaderboardWidget(const QJsonObject& config, QWidget* p
                 for (const auto& quote : snapshot.symbols)
                     symbols_ << quote.symbol;
             });
+    connect(service(), &services::KrxQuantService::base_url_changed, this, [this]() {
+        symbols_.clear();
+        kinds_.reset();
+    });
     connect(service(), &services::KrxQuantService::kinds_ready, this,
             [this](const QList<krx_quant::KindInfo>& kinds) {
                 kinds_ = kinds;
@@ -245,8 +256,11 @@ QString KrxLeaderboardWidget::query_title() const {
 }
 
 void KrxLeaderboardWidget::read() {
+    // Once an engine, for the title and the config's choices.
     if (!kinds_)
-        service()->read_kinds(); // once, for the title and the config's choices
+        service()->read_kinds();
+    if (symbols_.isEmpty())
+        service()->refresh();
     service()->read_leaderboard(query_);
 }
 
@@ -404,6 +418,14 @@ KrxOpenToCloseWidget::KrxOpenToCloseWidget(QWidget* parent)
             });
     connect(service(), &services::KrxQuantService::refresh_failed, this,
             [this](const QString& reason) { read_failed(reason); });
+    connect(service(), &services::KrxQuantService::base_url_changed, this, [this]() {
+        // Another engine may make the kind with other classes and schedule, or not at all.
+        kind_.reset();
+        missing_ = false;
+        latest_.clear();
+        queue_.clear();
+        problems_.clear();
+    });
     connect(service(), &services::KrxQuantService::kinds_ready, this,
             [this](const QList<krx_quant::KindInfo>& kinds) {
                 kind_ = krx_quant::kind_named(kinds, QStringLiteral("open_to_close"));

@@ -79,6 +79,10 @@ class KrxQuantService : public QObject {
     void refresh();
     /// Drop every read under way and refresh from the setting's address.
     void restart();
+    /// Drop every read under way and take the setting's address, reading nothing (restart() without
+    /// its refresh): for a reader of one answer alone, e.g. a dashboard tile of the status
+    /// (codeyoma/krx-quant#302). base_url_changed follows when the address is a new one.
+    void rebind();
     /// The status alone (its feeds' silences change by the second): status_ready or refresh_failed.
     void read_status();
     /// A symbol's 1-minute bars and predictions over the day, read at once (krx-quant #239):
