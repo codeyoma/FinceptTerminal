@@ -6,6 +6,13 @@
 
 namespace fincept::screens::krx_dashboard {
 
+namespace {
+
+/// The widget catalogue's category of the KRX widgets (AddWidgetDialog colours it).
+constexpr const char* kCategory = "KRX";
+
+} // namespace
+
 // The names and descriptions are Korean, like the KRX screen's text: the Korean pack does not
 // hold them, and translate() gives them back as they are (custom/README.md, 한국어 언어 팩).
 void register_widgets(WidgetRegistry& registry) {
@@ -27,20 +34,21 @@ void register_widgets(WidgetRegistry& registry) {
 }
 
 DashboardTemplate dashboard_template() {
-    const auto item = [](const char* id, int x, int y, int w, int h) {
+    // The smallest sizes as register_widgets gives them.
+    const auto item = [](const char* id, int x, int y, int w, int h, int min_w) {
         GridItem i;
         i.id = id;
-        i.cell = {x, y, w, h, 3, 3};
+        i.cell = {x, y, w, h, min_w, 3};
         return i;
     };
     return {"krx",
             QStringLiteral("KRX"),
             QStringLiteral("KRX 엔진의 지금 신호, 순위표, 엔진 상태, 오늘 시가→종가"),
             {
-                item("krx_signals", 0, 0, 7, 4),
-                item("krx_engine_status", 7, 0, 5, 4),
-                item("krx_leaderboard", 0, 4, 7, 5),
-                item("krx_open_to_close", 7, 4, 5, 5),
+                item("krx_signals", 0, 0, 7, 4, 4),
+                item("krx_engine_status", 7, 0, 5, 4, 3),
+                item("krx_leaderboard", 0, 4, 7, 5, 4),
+                item("krx_open_to_close", 7, 4, 5, 5, 3),
             }};
 }
 

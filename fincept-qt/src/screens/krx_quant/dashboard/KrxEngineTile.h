@@ -65,7 +65,4 @@ class KrxEngineTile : public widgets::BaseWidget {
     QList<QTableWidget*> tables_;
 };
 
-/// Open the KRX 4-minute prediction screen.
-void open_krx_screen();
-
 } // namespace fincept::screens::krx_dashboard

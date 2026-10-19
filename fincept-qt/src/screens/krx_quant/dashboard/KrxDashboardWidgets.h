@@ -14,6 +14,10 @@
 class QLabel;
 class QTableWidget;
 
+namespace fincept::screens {
+class KrxLogos;
+}
+
 /// The dashboard's KRX widgets (codeyoma/krx-quant#302): what the KRX 4-minute prediction screen
 /// shows at length, as tiles beside the other markets. Each reads the engine on its own while it is
 /// shown; what they show is worked out in krx_quant::dashboard (DashboardView.h).
@@ -42,6 +46,7 @@ class KrxSignalsWidget : public KrxEngineTile {
     void read_next_recent();
 
     QTableWidget* table_ = nullptr;
+    KrxLogos* logos_ = nullptr;
     std::optional<services::KrxQuantService::Snapshot> snapshot_;
     QMap<QString, QList<krx_quant::Prediction>> recent_; ///< by symbol: its final consensus over the latest bar closes
     QMap<QString, QDateTime> recent_for_;                ///< the latest bar close each was read after
@@ -65,7 +70,8 @@ class KrxLeaderboardWidget : public KrxEngineTile {
     void render() override;
 
   private:
-    QString kind_title() const;
+    /// The query as the title says it: "방향 · 오늘 · 전체".
+    QString query_title() const;
 
     services::KrxQuantService::LeaderboardQuery query_;
     std::optional<krx_quant::Leaderboard> board_;
@@ -116,6 +122,7 @@ class KrxOpenToCloseWidget : public KrxEngineTile {
     QStringList problems_; ///< what this round could not read
     QLabel* missing_label_ = nullptr;
     QTableWidget* table_ = nullptr;
+    KrxLogos* logos_ = nullptr;
 };
 
 } // namespace fincept::screens::krx_dashboard

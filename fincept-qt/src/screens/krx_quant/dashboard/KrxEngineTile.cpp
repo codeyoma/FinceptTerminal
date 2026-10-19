@@ -4,6 +4,9 @@
 #include "screens/krx_quant/KrxTables.h"
 #include "services/krx_quant/KrxQuantService.h"
 #include "ui/theme/Theme.h"
+#include "ui/theme/ThemeManager.h"
+
+#include <algorithm>
 
 #include <QDateTime>
 #include <QHeaderView>
@@ -12,6 +15,15 @@
 #include <QTimer>
 
 namespace fincept::screens::krx_dashboard {
+
+namespace {
+
+/// Open the KRX 4-minute prediction screen.
+void open_krx_screen() {
+    EventBus::instance().publish("nav.switch_screen", QVariantMap{{"screen_id", QStringLiteral("krx_quant")}});
+}
+
+} // namespace
 
 KrxEngineTile::KrxEngineTile(const QString& title, int every_ms, QWidget* parent)
     : BaseWidget(title, parent), head_(title) {
@@ -112,16 +124,15 @@ QTableWidget* KrxEngineTile::make_table(const QStringList& headers) {
 }
 
 void KrxEngineTile::on_theme_changed() {
-    failure_->setStyleSheet(QStringLiteral("color:%1;font-size:10px;background:transparent;")
-                                .arg(ui::colors::WARNING()));
+    // A size below the user's font, as the KRX screen's panel headers (KrxPanel.h).
+    const int size = std::max(9, ui::ThemeManager::instance().current_font().pixelSize() - 3);
+    failure_->setStyleSheet(QStringLiteral("color:%1;font-size:%2px;background:transparent;")
+                                .arg(ui::colors::WARNING())
+                                .arg(size));
     for (auto* table : tables_)
         krx_tables::restyle(table);
     if (shown_data_)
         render();
-}
-
-void open_krx_screen() {
-    EventBus::instance().publish("nav.switch_screen", QVariantMap{{"screen_id", QStringLiteral("krx_quant")}});
 }
 
 } // namespace fincept::screens::krx_dashboard

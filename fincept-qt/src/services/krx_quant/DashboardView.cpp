@@ -3,6 +3,10 @@
 #include "services/krx_quant/Board.h"
 #include "services/krx_quant/KindView.h"
 
+#include <algorithm>
+#include <tuple>
+#include <utility>
+
 namespace fincept::krx_quant::dashboard {
 
 namespace {
@@ -34,6 +38,9 @@ LeaderRow row_of(const Entry& e, const QString& kind, bool baseline) {
     row.name = predictor_label(e.algorithm);
     row.status = e.status.isEmpty() ? QString() : standing_label(e.status);
     row.accuracy = rate_shown(e.accuracy);
+    if (e.accuracy && e.accuracy->low && e.accuracy->high)
+        row.accuracy.text += QStringLiteral(" (%1–%2)").arg(number_text(*e.accuracy->low * 100, 1),
+                                                            number_text(*e.accuracy->high * 100, 1));
     row.day_low = e.day_low ? signed_text(*e.day_low, 3) : kDash;
     row.n = number_text(e.n, 0);
     std::tie(row.pnl, row.pnl_inverse) = pnl_texts(e, kind);
@@ -118,15 +125,16 @@ QList<SignalRow> signal_rows(const QList<SymbolQuote>& symbols, const QMap<QStri
         row.name = quote.name;
         row.logo_url = quote.logo_url;
         row.price = quote.mid ? price_text(*quote.mid) : kDash;
-        row.bar_close = row.until = row.up = row.flat = row.down = row.members = row.last = kDash;
+        row.bar_close = row.until = row.window = row.up = row.flat = row.down = row.members = row.last = kDash;
 
         if (const auto final_consensus = final_consensus_of(latest.value(quote.symbol).predictions)) {
             const Prediction& c = *final_consensus;
-            row.bar_close = kst_text(c.bar_close, "HH:mm");
+            row.bar_close = row.window = kst_text(c.bar_close, "HH:mm");
             if (c.status != QLatin1String("ok")) {
                 row.signal = status_label(c.status);
             } else {
                 row.until = kst_text(c.target_at, "HH:mm");
+                row.window = QStringLiteral("%1 → %2").arg(row.bar_close, row.until);
                 row.up = percent_text(c.p_up);
                 row.flat = percent_text(c.p_flat);
                 row.down = percent_text(c.p_down);
@@ -240,15 +248,15 @@ QList<DailyRow> open_to_close_rows(const QList<SymbolQuote>& symbols, const QMap
         row.symbol = quote.symbol;
         row.name = quote.name;
         row.logo_url = quote.logo_url;
-        row.day = QStringLiteral("예측 없음");
-        row.up = row.flat = row.down = row.basis = row.band = row.answer = kDash;
+        row.predicted_at = QStringLiteral("예측 없음");
+        row.up = row.flat = row.down = row.basis = row.band = row.answer = row.result = kDash;
 
         const QList<KindPrediction> at_day = latest.value(quote.symbol).predictions;
         if (const auto call = daily_call(at_day, kind)) {
             const QDateTime predicted_at = at_day.first().bar_close;
-            row.day = kst_text(predicted_at, "MM-dd HH:mm");
+            row.predicted_at = kst_text(predicted_at, "MM-dd HH:mm");
             if (daily_day(predicted_at) != today)
-                row.day += QStringLiteral(" (지난 거래일)");
+                row.predicted_at += QStringLiteral(" (지난 거래일)");
             const auto probability = [&](const char* klass) {
                 const qsizetype i = kind.classes.indexOf(QLatin1String(klass));
                 return i >= 0 && i < call->probabilities.size() ? std::optional<double>(call->probabilities[i])
@@ -263,9 +271,11 @@ QList<DailyRow> open_to_close_rows(const QList<SymbolQuote>& symbols, const QMap
             if (const auto band = daily_band(at_day))
                 row.band = band_text(*band);
             const std::optional<KindAnswer> answer = answer_of(at_day);
-            row.answer = daily_answer_text(answer, kind);
-            if (answer && !answer->klass.isEmpty())
+            row.answer = row.result = daily_answer_text(answer, kind);
+            if (answer && !answer->klass.isEmpty()) {
                 row.hit = answer->klass == called;
+                row.result += *row.hit ? QStringLiteral(" ✓") : QStringLiteral(" ✗");
+            }
         }
         rows << row;
     }

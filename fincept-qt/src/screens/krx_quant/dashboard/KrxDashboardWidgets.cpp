@@ -1,6 +1,7 @@
 #include "screens/krx_quant/dashboard/KrxDashboardWidgets.h"
 
-#include "core/config/AppConfig.h"
+#include "screens/krx_quant/KrxAlerts.h"
+#include "screens/krx_quant/KrxSymbolCell.h"
 #include "screens/krx_quant/KrxTables.h"
 #include "services/krx_quant/DashboardView.h"
 #include "services/krx_quant/KindView.h"
@@ -15,6 +16,8 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QTableWidget>
+
+#include <functional>
 
 namespace fincept::screens::krx_dashboard {
 
@@ -45,16 +48,25 @@ void paint(QTableWidgetItem* item, const QString& color, bool bold = false) {
     }
 }
 
-/// The symbol as a row heads it: "삼성전자 005930", or the code alone without a name.
-QString symbol_text(const QString& symbol, const QString& name) {
-    return name.isEmpty() ? symbol : QStringLiteral("%1 %2").arg(name, symbol);
+/// The symbol as the KRX screen's symbols panel shows it (krx-quant #250): the round logo, the name
+/// and the code after it, dimmed (``table`` draws its first column with KrxSymbolDelegate).
+QTableWidgetItem* symbol_cell(QTableWidget* table, KrxLogos* logos, const QString& symbol, const QString& name,
+                              const QString& logo_url) {
+    auto* item = cell(name.isEmpty() ? symbol : name);
+    if (!name.isEmpty())
+        item->setData(KrxSymbolDelegate::kCodeRole, symbol);
+    if (!logo_url.isEmpty() || !name.isEmpty()) { // an older engine: the code alone
+        const int size = table->fontMetrics().height(); // as high as the name
+        table->setIconSize(QSize(size, size));
+        item->setIcon(logos->logo(logo_url, name, size, table->devicePixelRatioF()));
+    }
+    return item;
 }
 
-/// The KRX screen's signal rule, as its alert panel saved it (KrxAlerts).
-krx_quant::SignalRule screen_rule() {
-    auto& config = AppConfig::instance();
-    return {config.get("krx_quant/signal_probability", 60).toInt() / 100.0,
-            config.get("krx_quant/signal_agree", 2).toInt()};
+/// Draw the first column as the KRX screen's symbols panel, the logos read by ``logos``.
+void show_symbols(QTableWidget* table, KrxLogos* logos, KrxEngineTile* tile, std::function<void()> render) {
+    table->setItemDelegateForColumn(0, new KrxSymbolDelegate(table));
+    QObject::connect(logos, &KrxLogos::arrived, tile, std::move(render));
 }
 
 } // namespace
@@ -65,6 +77,8 @@ KrxSignalsWidget::KrxSignalsWidget(QWidget* parent) : KrxEngineTile(tr("KRX 지�
     table_ = make_table({tr("종목"), tr("기준가"), tr("봉 마감"), tr("상승"), tr("보합"), tr("하락"), tr("정식"),
                          tr("신호"), tr("직전 채점")});
     body()->addWidget(table_);
+    logos_ = new KrxLogos(this);
+    show_symbols(table_, logos_, this, [this]() { render(); });
 
     connect(service(), &services::KrxQuantService::snapshot_ready, this,
             [this](const services::KrxQuantService::Snapshot& snapshot) {
@@ -103,6 +117,10 @@ void KrxSignalsWidget::read() {
 }
 
 void KrxSignalsWidget::read_next_recent() {
+    if (!isVisible()) {
+        queued_for_.clear(); // read after a later bar close, once shown again
+        return;
+    }
     while (recent_reading_.isEmpty() && !queued_for_.isEmpty()) {
         const QString symbol = queued_for_.firstKey();
         const QDateTime after = queued_for_.take(symbol);
@@ -117,15 +135,15 @@ void KrxSignalsWidget::read_next_recent() {
 void KrxSignalsWidget::render() {
     if (!snapshot_)
         return;
-    const auto rows = krx_quant::dashboard::signal_rows(snapshot_->symbols, snapshot_->latest, recent_, screen_rule(),
-                                                        snapshot_->status.now);
+    const auto rule = KrxAlerts::saved_rule();
+    const auto rows =
+        krx_quant::dashboard::signal_rows(snapshot_->symbols, snapshot_->latest, recent_, rule, snapshot_->status.now);
     table_->setRowCount(static_cast<int>(rows.size()));
     for (int r = 0; r < rows.size(); ++r) {
         const auto& row = rows[r];
-        table_->setItem(r, 0, cell(symbol_text(row.symbol, row.name)));
+        table_->setItem(r, 0, symbol_cell(table_, logos_, row.symbol, row.name, row.logo_url));
         table_->setItem(r, 1, cell(row.price, kNumber));
-        table_->setItem(r, 2, cell(row.until == QStringLiteral("—") ? row.bar_close
-                                                                   : QStringLiteral("%1 → %2").arg(row.bar_close, row.until)));
+        table_->setItem(r, 2, cell(row.window));
         const QList<std::pair<QString, Direction>> classes = {
             {row.up, Direction::Up}, {row.flat, Direction::Flat}, {row.down, Direction::Down}};
         for (int c = 0; c < classes.size(); ++c) {
@@ -151,7 +169,6 @@ void KrxSignalsWidget::render() {
             paint(last, *row.last_hit ? ui::colors::POSITIVE() : ui::colors::NEGATIVE());
         table_->setItem(r, 8, last);
     }
-    const auto rule = screen_rule();
     if (auto* header = table_->horizontalHeaderItem(7))
         header->setToolTip(tr("KRX 화면의 신호 규칙: 최종 합의의 확률 %1% 이상, 정식 알고리즘 %2개 이상 같은 방향. "
                               "이 위젯은 알림을 내지 않습니다.")
@@ -163,9 +180,10 @@ void KrxSignalsWidget::render() {
 
 KrxLeaderboardWidget::KrxLeaderboardWidget(const QJsonObject& config, QWidget* parent)
     : KrxEngineTile(tr("KRX 순위표"), kLeaderboardEveryMs, parent) {
-    table_ = make_table({tr("순위"), tr("예측"), tr("상태"), tr("정답률"), tr("거래일 lift 하한"), tr("표본"),
+    // The hit rate first: what the user reads a predictor by (codeyoma/krx-quant#302).
+    table_ = make_table({tr("순위"), tr("예측"), tr("정답률 (95% 구간)"), tr("거래일 lift 하한"), tr("상태"), tr("표본"),
                          tr("손익"), tr("인버스 손익")});
-    if (auto* header = table_->horizontalHeaderItem(4))
+    if (auto* header = table_->horizontalHeaderItem(3))
         header->setToolTip(tr("모든 기준 예측과의 lift 중 가장 약한 것의 거래일 단위 95% 하한. 상태 판정이 이것으로 "
                               "한다"));
     body()->addWidget(table_);
@@ -191,7 +209,7 @@ KrxLeaderboardWidget::KrxLeaderboardWidget(const QJsonObject& config, QWidget* p
     connect(service(), &services::KrxQuantService::kinds_ready, this,
             [this](const QList<krx_quant::KindInfo>& kinds) {
                 kinds_ = kinds;
-                set_head(QStringLiteral("%1 · %2").arg(tr("KRX 순위표"), kind_title()));
+                set_head(QStringLiteral("%1 · %2").arg(tr("KRX 순위표"), query_title()));
             });
 
     apply_config(config);
@@ -212,12 +230,12 @@ void KrxLeaderboardWidget::apply_config(const QJsonObject& config) {
         return;
     query_ = query;
     board_.reset();
-    set_head(QStringLiteral("%1 · %2").arg(tr("KRX 순위표"), kind_title()));
+    set_head(QStringLiteral("%1 · %2").arg(tr("KRX 순위표"), query_title()));
     if (isVisible())
         request_refresh();
 }
 
-QString KrxLeaderboardWidget::kind_title() const {
+QString KrxLeaderboardWidget::query_title() const {
     const QString period = krx_quant::period_label(query_.period);
     const QString symbol = query_.symbol == "all" ? tr("전체") : query_.symbol;
     QString kind = query_.kind == "direction" ? tr("방향") : query_.kind;
@@ -246,9 +264,13 @@ void KrxLeaderboardWidget::render() {
     table_->setRowCount(static_cast<int>(rows.size()));
     for (int r = 0; r < rows.size(); ++r) {
         const auto& row = rows[r];
-        const QList<QTableWidgetItem*> items = {cell(row.rank, kNumber), cell(row.name), cell(row.status),
-                                                krx_tables::shown_cell(row.accuracy), cell(row.day_low, kNumber),
-                                                cell(row.n, kNumber), cell(row.pnl, kNumber),
+        const QList<QTableWidgetItem*> items = {cell(row.rank, kNumber),
+                                                cell(row.name),
+                                                cell(row.accuracy.text, kNumber),
+                                                cell(row.day_low, kNumber),
+                                                cell(row.status),
+                                                cell(row.n, kNumber),
+                                                cell(row.pnl, kNumber),
                                                 cell(row.pnl_inverse, kNumber)};
         for (int c = 0; c < items.size(); ++c) {
             if (row.baseline)
@@ -363,6 +385,8 @@ KrxOpenToCloseWidget::KrxOpenToCloseWidget(QWidget* parent)
     body()->addWidget(missing_label_);
     table_ = make_table({tr("종목"), tr("예측 시각"), tr("상승"), tr("보합"), tr("하락"), tr("보합 폭"), tr("결과")});
     body()->addWidget(table_);
+    logos_ = new KrxLogos(this);
+    show_symbols(table_, logos_, this, [this]() { render(); });
 
     connect(service(), &services::KrxQuantService::snapshot_ready, this,
             [this](const services::KrxQuantService::Snapshot& snapshot) {
@@ -393,7 +417,7 @@ KrxOpenToCloseWidget::KrxOpenToCloseWidget(QWidget* parent)
                 read_next_latest();
             });
     connect(service(), &services::KrxQuantService::kinds_failed, this, [this](const QString& reason) {
-        if (reason.contains(QStringLiteral("HTTP 404"))) // an engine before krx-quant #179
+        if (krx_quant::is_not_found(reason)) // an engine before krx-quant #179
             return show_missing();
         read_failed(reason);
     });
@@ -418,6 +442,8 @@ void KrxOpenToCloseWidget::read() {
 }
 
 void KrxOpenToCloseWidget::read_next_latest() {
+    if (!isVisible())
+        queue_.clear(); // the round ends with what was read; the next starts once shown again
     if (queue_.isEmpty()) {
         render();
         read_done(problems_.join(QStringLiteral(" · ")));
@@ -441,8 +467,8 @@ void KrxOpenToCloseWidget::render() {
     table_->setRowCount(static_cast<int>(rows.size()));
     for (int r = 0; r < rows.size(); ++r) {
         const auto& row = rows[r];
-        table_->setItem(r, 0, cell(symbol_text(row.symbol, row.name)));
-        auto* day = cell(row.day);
+        table_->setItem(r, 0, symbol_cell(table_, logos_, row.symbol, row.name, row.logo_url));
+        auto* day = cell(row.predicted_at);
         day->setToolTip(row.basis);
         table_->setItem(r, 1, day);
         const QList<std::pair<QString, Direction>> classes = {
@@ -454,7 +480,7 @@ void KrxOpenToCloseWidget::render() {
             table_->setItem(r, 2 + c, item);
         }
         table_->setItem(r, 5, cell(row.band));
-        auto* answer = cell(row.hit ? QStringLiteral("%1 %2").arg(row.answer, *row.hit ? "✓" : "✗") : row.answer);
+        auto* answer = cell(row.result);
         answer->setToolTip(row.answer);
         if (row.hit)
             paint(answer, *row.hit ? ui::colors::POSITIVE() : ui::colors::NEGATIVE());

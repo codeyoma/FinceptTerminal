@@ -488,6 +488,23 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(failure_text(502, QString()), QStringLiteral("엔진 오류 (HTTP 502)"));
     }
 
+    void a_transport_failure_says_the_engine_could_not_be_reached() {
+        // HttpClient since upstream v4.5.1: "Network error: <Qt's reason>"; its 20 s transfer
+        // limit aborts the request, which Qt calls "Operation canceled" (codeyoma/krx-quant#302).
+        QCOMPARE(failure_text(0, QStringLiteral("Network error: Operation canceled")),
+                 QStringLiteral("엔진이 답하지 않았습니다(시간 초과). 엔진 주소와 네트워크를 확인하세요."));
+        QCOMPARE(failure_text(0, QStringLiteral("Network error: Connection refused")),
+                 QStringLiteral("엔진에 연결할 수 없습니다(Connection refused). 엔진 주소와 네트워크를 확인하세요."));
+    }
+
+    void a_failure_tells_an_answer_the_engine_does_not_have() {
+        // 404: an older engine without the endpoint (or an unknown symbol).
+        QVERIFY(is_not_found(failure_text(404, QStringLiteral("not found"))));
+        QVERIFY(is_not_found(failure_text(404, QString())));
+        QVERIFY(!is_not_found(failure_text(502, QString())));
+        QVERIFY(!is_not_found(failure_text(0, QString())));
+    }
+
     void symbols_keep_an_unknown_mid_point_unknown() {
         const auto symbols = parse_symbols(json(R"({"symbols": [
             {"symbol": "005930", "mid": 81250.0}, {"symbol": "000660", "mid": null}]})"));

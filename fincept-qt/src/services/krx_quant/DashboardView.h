@@ -27,7 +27,7 @@ struct LeaderRow {
     QString rank;      ///< "1", …; "—" unranked or a baseline
     QString name;      ///< predictor_label
     QString status;    ///< standing_label; empty for the consensus and the baselines
-    Shown accuracy;    ///< the three-class hit rate, its 95% interval in the tooltip
+    Shown accuracy;    ///< the three-class hit rate and its 95% interval: "52.0% (49.0–55.0)"; "—"
     QString day_low;   ///< the weakest lift's lower bound by trading day ("+0.010"); "—" without one
     QString n;         ///< scored predictions, thousands grouped
     QString pnl;       ///< the mean P&L a trade in pnl_unit ("+0.13"); "—" without a trade or for a kind without P&L
@@ -52,6 +52,7 @@ struct SignalRow {
     QString price;    ///< the reference price now ("81,250"); "—" without one
     QString bar_close; ///< "09:31"; "—" without a final consensus
     QString until;     ///< when it is scored, "09:35"; "—" likewise
+    QString window;    ///< its four minutes, "09:31 → 09:35"; the bar close alone when not scored; "—"
     QString up;        ///< "64%"; "—" without a forecast
     QString flat;
     QString down;
@@ -89,7 +90,7 @@ struct DailyRow {
     QString symbol;
     QString name;
     QString logo_url;
-    QString day;  ///< when it was predicted, "10-19 08:50"; " (지난 거래일)" when it is not ``today``'s; "예측 없음"
+    QString predicted_at; ///< "10-19 08:50"; " (지난 거래일)" when it is not ``today``'s; "예측 없음"
     QString up;   ///< "40%"; "—" without a call
     QString flat;
     QString down;
@@ -97,6 +98,7 @@ struct DailyRow {
     QString basis;                    ///< "알고리즘 2개 평균"; "—"
     QString band;                     ///< "보합 ±0.47%": how far from the open is still flat; "—"
     QString answer;                   ///< what happened (daily_answer_text); "—" without a call
+    QString result;                   ///< the answer with " ✓" or " ✗" once the call is scored
     std::optional<bool> hit;          ///< whether the call was right; none before the answer or when unscorable
 };
 

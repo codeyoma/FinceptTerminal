@@ -21,6 +21,9 @@ class KrxAlerts : public QWidget {
 
     bool is_on() const;
     krx_quant::SignalRule rule() const;
+    /// The rule as last saved on the KRX screen (its threshold and N): the dashboard's signals widget
+    /// judges by it too (codeyoma/krx-quant#302).
+    static krx_quant::SignalRule saved_rule();
     /// Show the signal here and send it out.
     void raise(const krx_quant::Signal& signal);
     /// Paint in the theme's colors and font now.

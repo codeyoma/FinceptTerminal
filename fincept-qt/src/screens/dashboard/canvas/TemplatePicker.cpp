@@ -61,7 +61,10 @@ class TemplatePreview : public QWidget {
 
 TemplatePicker::TemplatePicker(QWidget* parent) : QDialog(parent) {
     setWindowTitle(tr("Choose Dashboard Template"));
-    setFixedSize(640, 400);
+    // Fork addition (codeyoma/krx-quant#302): as high as its rows of three need (the KRX template
+    // makes a third row), at least the 400 it was fixed to.
+    setFixedWidth(640);
+    setMinimumHeight(400);
     setStyleSheet(QString("QDialog { background: %1; }"
                           "QPushButton { background: %2; border: 1px solid %3; color: %4; "
                           "  padding: 4px 12px; font-size: 10px; }"

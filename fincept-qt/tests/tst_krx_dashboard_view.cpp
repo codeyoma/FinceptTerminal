@@ -206,7 +206,7 @@ class TstKrxDashboardView : public QObject {
         QCOMPARE(first.rank, QStringLiteral("1"));
         QCOMPARE(first.name, QStringLiteral("newton"));
         QCOMPARE(first.status, QStringLiteral("정식"));
-        QCOMPARE(first.accuracy.text, QStringLiteral("52.0%"));
+        QCOMPARE(first.accuracy.text, QStringLiteral("52.0% (49.0–55.0)")); // with its 95% interval
         QCOMPARE(first.accuracy.tip, QStringLiteral("95% 구간 49.0–55.0% (n 1128)"));
         QCOMPARE(first.day_low, QStringLiteral("-0.010"));
         QCOMPARE(first.n, QStringLiteral("1,128"));
@@ -218,7 +218,7 @@ class TstKrxDashboardView : public QObject {
         const auto& second = rows[1];
         QCOMPARE(second.rank, QStringLiteral("2"));
         QCOMPARE(second.status, QStringLiteral("수습"));
-        QCOMPARE(second.accuracy.text, QStringLiteral("50.0%"));
+        QCOMPARE(second.accuracy.text, QStringLiteral("50.0% (47.0–53.0)"));
         QCOMPARE(second.day_low, QStringLiteral("—"));
         QCOMPARE(second.pnl, QStringLiteral("—"));
         QCOMPARE(second.pnl_inverse, QStringLiteral("—"));
@@ -235,7 +235,7 @@ class TstKrxDashboardView : public QObject {
         QCOMPARE(baseline.algorithm, QStringLiteral("baseline-flat"));
         QCOMPARE(baseline.rank, QStringLiteral("—"));
         QCOMPARE(baseline.name, QStringLiteral("기준: 늘 보합"));
-        QCOMPARE(baseline.accuracy.text, QStringLiteral("51.0%"));
+        QCOMPARE(baseline.accuracy.text, QStringLiteral("51.0% (48.0–54.0)"));
         QCOMPARE(baseline.day_low, QStringLiteral("—"));
         QVERIFY(baseline.baseline);
     }
@@ -290,6 +290,7 @@ class TstKrxDashboardView : public QObject {
         QCOMPARE(row.price, QStringLiteral("81,250"));
         QCOMPARE(row.bar_close, QStringLiteral("09:31"));
         QCOMPARE(row.until, QStringLiteral("09:35"));
+        QCOMPARE(row.window, QStringLiteral("09:31 → 09:35"));
         QCOMPARE(row.up, QStringLiteral("64%"));
         QCOMPARE(row.flat, QStringLiteral("26%"));
         QCOMPARE(row.down, QStringLiteral("10%"));
@@ -334,6 +335,7 @@ class TstKrxDashboardView : public QObject {
             signal_rows({samsung()}, {{"005930", latest_of(empty)}}, {}, SignalRule{}, at("09:31").addSecs(5));
 
         QCOMPARE(rows[0].bar_close, QStringLiteral("09:31"));
+        QCOMPARE(rows[0].window, QStringLiteral("09:31")); // not scored: no target time
         QCOMPARE(rows[0].signal, QStringLiteral("합의 대상 없음"));
         QCOMPARE(rows[0].up, QStringLiteral("—"));
         QCOMPARE(rows[0].call, Direction::None);
@@ -347,6 +349,7 @@ class TstKrxDashboardView : public QObject {
         QCOMPARE(rows.size(), 1);
         QCOMPARE(rows[0].price, QStringLiteral("—"));
         QCOMPARE(rows[0].bar_close, QStringLiteral("—"));
+        QCOMPARE(rows[0].window, QStringLiteral("—"));
         QCOMPARE(rows[0].members, QStringLiteral("—"));
         QCOMPARE(rows[0].signal, QString());
     }
@@ -422,7 +425,7 @@ class TstKrxDashboardView : public QObject {
         QCOMPARE(rows.size(), 3);
         const auto& today = rows[0];
         QCOMPARE(today.name, QStringLiteral("삼성전자"));
-        QCOMPARE(today.day, QStringLiteral("10-19 08:50"));
+        QCOMPARE(today.predicted_at, QStringLiteral("10-19 08:50"));
         QCOMPARE(today.up, QStringLiteral("40%"));
         QCOMPARE(today.flat, QStringLiteral("30%"));
         QCOMPARE(today.down, QStringLiteral("30%"));
@@ -430,18 +433,21 @@ class TstKrxDashboardView : public QObject {
         QCOMPARE(today.basis, QStringLiteral("알고리즘 2개 평균"));
         QCOMPARE(today.band, QStringLiteral("보합 ±0.47%"));
         QCOMPARE(today.answer, QStringLiteral("채점 전 (20:35부터)"));
+        QCOMPARE(today.result, QStringLiteral("채점 전 (20:35부터)"));
         QVERIFY(!today.hit.has_value());
 
         const auto& scored_day = rows[1];
         QCOMPARE(scored_day.call, Direction::Down);
         QCOMPARE(scored_day.answer, QStringLiteral("정답 하락 -0.85% (81,950 → 81,250)"));
+        QCOMPARE(scored_day.result, QStringLiteral("정답 하락 -0.85% (81,950 → 81,250) ✓"));
         QCOMPARE(scored_day.hit, std::optional<bool>(true));
 
         const auto& none = rows[2];
-        QCOMPARE(none.day, QStringLiteral("예측 없음"));
+        QCOMPARE(none.predicted_at, QStringLiteral("예측 없음"));
         QCOMPARE(none.up, QStringLiteral("—"));
         QCOMPARE(none.call, Direction::None);
         QCOMPARE(none.answer, QStringLiteral("—"));
+        QCOMPARE(none.result, QStringLiteral("—"));
     }
 
     void before_today_s_prediction_the_latest_is_the_last_trading_day_s() {
@@ -451,8 +457,9 @@ class TstKrxDashboardView : public QObject {
         const auto rows = open_to_close_rows({quote("005930", QStringLiteral("삼성전자"))}, latest, open_to_close(),
                                              QDate(2026, 10, 19));
 
-        QCOMPARE(rows[0].day, QStringLiteral("10-16 08:50 (지난 거래일)"));
+        QCOMPARE(rows[0].predicted_at, QStringLiteral("10-16 08:50 (지난 거래일)"));
         QCOMPARE(rows[0].hit, std::optional<bool>(false));
+        QVERIFY(rows[0].result.endsWith(QStringLiteral(" ✗")));
     }
 };
 

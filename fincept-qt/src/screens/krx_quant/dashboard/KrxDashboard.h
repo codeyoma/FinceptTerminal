@@ -10,9 +10,6 @@ struct DashboardTemplate;
 
 namespace fincept::screens::krx_dashboard {
 
-/// The widget catalogue's category of the KRX widgets.
-inline constexpr const char* kCategory = "KRX";
-
 /// Register the KRX widgets: krx_signals, krx_leaderboard, krx_engine_status, krx_open_to_close.
 void register_widgets(WidgetRegistry& registry);
 

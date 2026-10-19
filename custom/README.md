@@ -75,7 +75,7 @@ secret이 없거나 만료되면 `custom-krx-pointer`가 실패한다. 그래도
 - 새 코드는 새 디렉터리에 둔다 (`fincept-qt/src/screens/krx_quant/`, `fincept-qt/src/services/krx_quant/`).
 - 화면 등록과 로컬 CLI LLM(아래) 때문에 고치는 upstream 파일은 아래 목록으로 제한하고, 고칠 때마다 이 표를 갱신한다. 고친 곳에는 `fork addition (codeyoma/krx-quant#N)` 주석을 단다.
 
-> **바뀜** (2026-10-19, codeyoma/krx-quant#302): 위의 것에 더해, 대시보드의 KRX 위젯 때문에 `WidgetRegistry.cpp`, `AddWidgetDialog.cpp`, `DashboardTemplates.cpp`도 고친다(아래 표, 아래 "대시보드 KRX 위젯"). 이유: 위젯 목록, 카테고리 색, 템플릿 목록이 upstream 파일 안의 고정된 목록이라, 거기에 한 줄씩 갈래를 넣어야 했다. 위젯 코드는 `screens/krx_quant/dashboard/`에 둔다.
+> **바뀜** (2026-10-19, codeyoma/krx-quant#302): 위의 것에 더해, 대시보드의 KRX 위젯 때문에 `WidgetRegistry.cpp`, `AddWidgetDialog.cpp`, `DashboardTemplates.cpp`, `TemplatePicker.cpp`도 고친다(아래 표, 아래 "대시보드 KRX 위젯"). 이유: 위젯 목록, 카테고리 색, 템플릿 목록이 upstream 파일 안의 고정된 목록이라, 거기에 한 줄씩 갈래를 넣어야 했다. 템플릿 선택 창은 640×400 고정이라 일곱째 템플릿(셋째 줄)이 들어가면 카드가 모두 겹쳤다. 위젯 코드는 `screens/krx_quant/dashboard/`에 둔다.
 
 > **바뀜** (2026-10-16, codeyoma/krx-quant#247): 위의 것에 더해, 업데이트마다 실패하던 Python 라이브러리 설치 때문에 `fincept-qt/src/python/PythonSetupManager.cpp`도 고친다(아래 표). 이유: upstream v4.5.1의 분석 핵심 설치 단계가 uv `-c`에 lock의 절대 경로를 넘기는데, uv는 이 값을 공백에서 나눈다. 맥의 `Application Support` 경로에서 늘 실패해, 요구 목록이 바뀌는 업데이트마다 "Python 라이브러리 설치에 실패했습니다" 알림이 떴다. upstream이 고치면 이 갈래는 뺀다.
 
@@ -113,6 +113,7 @@ secret이 없거나 만료되면 `custom-krx-pointer`가 실패한다. 그래도
 | `fincept-qt/src/screens/dashboard/canvas/WidgetRegistry.cpp` | `KrxDashboard.h` include와 생성자 끝의 `krx_dashboard::register_widgets(*this)` 한 줄: KRX 위젯 4개를 등록한다(codeyoma/krx-quant#302) |
 | `fincept-qt/src/screens/dashboard/canvas/AddWidgetDialog.cpp` | `accent_for_category`에 `KRX` 카테고리의 색(`ui::colors::INFO`) 한 갈래(codeyoma/krx-quant#302) |
 | `fincept-qt/src/screens/dashboard/canvas/DashboardTemplates.cpp` | `KrxDashboard.h` include와 템플릿 목록 끝의 `krx_dashboard::dashboard_template()` 한 줄: `KRX` 템플릿(codeyoma/krx-quant#302) |
+| `fincept-qt/src/screens/dashboard/canvas/TemplatePicker.cpp` | 고정 크기 `setFixedSize(640, 400)` → 가로만 640 고정, 세로는 최소 400에서 줄 수만큼 커진다(`setFixedWidth`, `setMinimumHeight`). `KRX` 템플릿이 셋째 줄을 만든다(codeyoma/krx-quant#302) |
 | `fincept-qt/src/screens/settings/SettingsScreen.cpp` | 동적으로 번역하는 설정 메뉴·범위 제목 18개를 `QT_TRANSLATE_NOOP`으로 표시한다. `update_translations`를 돌려도 기존 번역이 지워지지 않게 한다(codeyoma/krx-quant#132) |
 | `fincept-qt/src/services/updater/UpdateService.cpp` | `FINCEPT_DISABLE_AUTO_UPDATE`이면 공식 업데이트 대신 개인 빌드 업데이트(`krx_quant::AppUpdater`)로 넘긴다(`check_for_updates` 본문을 `#ifdef … #else … #endif`로 감쌌다) |
 | `fincept-qt/src/services/llm/ProviderCatalog.cpp` | provider 목록에 로컬 CLI provider(`claude_cli`, `codex_cli`)를 붙이고, 이름·기본 모델·키 불필요·OpenAI 호환 아님을 `krx_quant::cli_llm`에 묻는다 |
@@ -732,25 +733,28 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 
 - **추가.** 위젯 추가 창(ADD WIDGET)의 `KRX` 카테고리(파란색, `ui::colors::INFO`)에서 고른다. 템플릿 선택 창의 `KRX` 템플릿을 고르면 네 위젯이 놓인 대시보드가 된다(지금 대시보드는 바뀐다).
 - **KRX 지금 신호**(`krx_signals`, 기본 7×4칸): 종목마다 한 줄이다.
-  - 회사 이름과 코드, 기준가, 최종 합의의 봉 마감 → 채점 시각, 상승·보합·하락 확률(가장 큰 쪽이 굵은 방향색), 정식 알고리즘이 어느 쪽인지(`정식 9개 중 4개 상승`, 엔진의 `votes`)를 보인다.
-  - **신호:** KRX 화면이 저장한 신호 규칙(`krx_quant/signal_probability` 기본 60%, `krx_quant/signal_agree` 기본 2개)으로 판정한다. `상승 신호`·`하락 신호`는 방향색이고, 채점 시각이 지나면 흐리게 남는다(툴팁 "목표 시각이 지났습니다"). 엔진이 막은 합의는 `막힘: 특수 상황`·`막힘: 기준가 없음`·`막힘: 시간 지남`, 예측하지 않은 합의는 그 이유(`합의 대상 없음` 등)를 경고색으로 보인다. "신호" 열 제목의 툴팁이 지금 규칙이다.
+  - 로고와 회사 이름, 흐린 코드(KRX 화면의 종목 칸과 같은 `KrxLogos`·`KrxSymbolDelegate`, 로고는 실행 중에만 메모리에 둔다), 기준가, 최종 합의의 봉 마감 → 채점 시각, 상승·보합·하락 확률(가장 큰 쪽이 굵은 방향색), 정식 알고리즘이 어느 쪽인지(`정식 9개 중 4개 상승`, 엔진의 `votes`)를 보인다.
+  - **신호:** KRX 화면이 저장한 신호 규칙(`krx_quant/signal_probability` 기본 60%, `krx_quant/signal_agree` 기본 2개, `KrxAlerts::saved_rule`)으로 판정한다. `상승 신호`·`하락 신호`는 방향색이고, 채점 시각이 지나면 흐리게 남는다(툴팁 "목표 시각이 지났습니다"). 엔진이 막은 합의는 `막힘: 특수 상황`·`막힘: 기준가 없음`·`막힘: 시간 지남`, 예측하지 않은 합의는 그 이유(`합의 대상 없음` 등)를 경고색으로 보인다. "신호" 열 제목의 툴팁이 지금 규칙이다.
   - **직전 채점:** 가장 최근에 채점된 최종 합의가 맞았는지다(`10:26 상승 ✓`, `✗`, `채점 불가`). 봉 마감이 바뀔 때마다 종목마다 최근 봉 마감 6개의 최종 합의(`GET /v1/symbols/{symbol}/predictions?limit=6`, `all` 없이)를 한 종목씩 읽는다.
   - 이 위젯은 알림(데스크톱 알림, 소리)을 내지 않는다. 같은 신호가 두 번 울리지 않게 알림은 KRX 화면에서만 낸다.
 - **KRX 순위표**(`krx_leaderboard`, 기본 7×5칸): 순위에 오른 예측, 그다음 아직 표본이 모자란 예측을 합쳐 8개까지, 그 아래 이겨야 하는 기준 예측(방향은 `기준: 늘 보합`, 다른 종류는 그 종류의 기준 예측 모두)을 흐리게 보인다.
-  - 열은 순위, 예측, 상태(수습·정식·벤치 등), 정답률(툴팁에 95% 구간), 거래일 lift 하한(엔진의 `lift.day_low`, 상태 판정이 보는 값), 표본, 손익과 인버스 손익(거래당, 연구용)이다. 사용자가 맞힘률을 먼저 보므로 손익은 뒤에 둔다. 손익의 단위는 방향과 장벽이 틱, 시가→종가가 bp이고, 변동폭은 손익 열이 없다.
+  - 열은 순위, 예측, 정답률과 95% 구간(`48.0% (44.1–52.0)`), 거래일 lift 하한(엔진의 `lift.day_low`, 상태 판정이 보는 값), 상태(수습·정식·벤치 등), 표본, 손익과 인버스 손익(거래당, 연구용)이다. 사용자가 맞힘률을 먼저 보므로 정답률이 예측 이름 바로 뒤이고 손익은 맨 뒤다. 손익의 단위는 방향과 장벽이 틱, 시가→종가가 bp이고, 변동폭은 손익 열이 없다.
   - 톱니 설정: 종류(엔진이 예측하는 것, `GET /v1/kinds`), 기간(오늘·5일·20일), 종목(전체 또는 종목). 대시보드 배치에 타일의 config(`{"kind", "period", "symbol"}`)로 저장된다. 특수 상황은 늘 뺀다(`special=exclude`). 제목에 지금 질의(`방향 · 오늘 · 전체`)가 나온다.
 - **KRX 엔진 상태**(`krx_engine_status`, 기본 5×4칸): `GET /v1/status`의 모드(데모면), 장 단계, 마지막 봉 마감, 채점 대기, KIS(연결, 결측 피드), 오늘 특수 상황, 지난밤 학습(날짜, 적용 여부, 승격 수), CPU 예산(사용률, 오늘 건너뛴 횟수), 엔진 커밋과 시작 시각이다.
   - 문제가 있으면 맨 위에 첫 문제 한 줄을 경고색으로 보인다. 순서는 `KIS 연결 끊김`, `KIS 피드 결측 N개`, `지난밤 학습 미적용`(08:00 교체 대기는 문제가 아니다), `CPU 예산 초과 (N%)`다. 그 줄의 값도 경고색이다.
-- **KRX 오늘 시가→종가**(`krx_open_to_close`, 기본 5×4칸): 하루 한 번 예측 `open_to_close`(codeyoma/krx-quant#264)의 종목별 가장 최근 예측이다.
+- **KRX 오늘 시가→종가**(`krx_open_to_close`, 기본 5×4칸): 하루 한 번 예측 `open_to_close`(codeyoma/krx-quant#264)의 종목별 가장 최근 예측이다. 종목 칸은 신호 위젯과 같다(로고, 이름, 코드).
   - 예측 시각(`10-19 08:50`, 오늘 것이 아니면 `(지난 거래일)`), 알고리즘들의 세 확률 평균(기준 예측은 빼고, 차트의 표시와 같은 `daily_call`), 보합 폭, 결과(`채점 전 (20:35부터)`, 장 마감 뒤 `정답 하락 -0.85% (81,950 → 81,250) ✓`)를 보인다. 예측 시각의 툴팁은 평균한 알고리즘 수, 표의 툴팁은 이 예측의 규칙이다.
   - 엔진이 이 종류를 예측하지 않으면(`/v1/kinds`에 없거나, `/v1/kinds`가 없는 옛 엔진) "이 엔진에는 시가→종가 예측이 없습니다."를 보인다.
-- **읽기.** 위젯마다 `KrxQuantService`를 하나씩 갖고, 보일 때 바로 한 번 읽은 뒤 주기마다 읽는다: 신호 5초, 순위표 60초, 상태 30초, 시가→종가 5분. 숨으면(다른 탭, 접힌 대시보드) 읽지 않는다. 앞의 읽기가 끝나지 않았으면 다음 주기는 건너뛴다. WebSocket 스트림은 쓰지 않는다(타일마다 연결을 따로 열지 않게). 제목 줄 끝이 마지막으로 엔진이 답한 시각이고, 새로고침 버튼은 바로 다시 읽는다.
+- **읽기.** 위젯마다 `KrxQuantService`를 하나씩 갖고, 보일 때 바로 한 번 읽은 뒤 주기마다 읽는다: 신호 5초, 순위표 60초, 상태 30초, 시가→종가 5분. 숨으면(다른 탭, 접힌 대시보드) 읽지 않는다. 종목마다 하나씩 잇는 읽기(직전 채점, 시가→종가)도 숨으면 다음 종목을 묻지 않는다. 앞의 읽기가 끝나지 않았으면 다음 주기는 건너뛴다. WebSocket 스트림은 쓰지 않는다(타일마다 연결을 따로 열지 않게). 제목 줄 끝이 마지막으로 엔진이 답한 시각이고, 새로고침 버튼은 바로 다시 읽는다.
 - **엔진 주소.** KRX 화면에서 넣는 `krx_quant/base_url`을 읽는다. 비어 있으면 "KRX 엔진 주소가 없습니다. KRX 4분 예측 화면에서 엔진 주소를 넣으세요."를 보이고 읽지 않는다. 주소가 바뀌면 다음 읽기에 새 주소로 다시 시작한다.
-- **실패.** 아직 보인 값이 없으면 타일 가운데에 오류를 보인다(다음 읽기 동안에도 남고, 읽히면 사라진다). 보인 값이 있으면 그대로 두고 맨 위 한 줄에 `읽지 못함: <이유>`를 보인다. 일부만 못 읽었으면(종목 하나의 예측 등) `일부 읽지 못함: <이유>`다. 엔진이 꺼져 있으면 `HttpClient`의 전송 시간 제한(20초)이 지나서야 오류가 나온다.
-- **더블클릭.** 표의 줄을 더블클릭하면 KRX 4분 예측 화면으로 간다(`nav.switch_screen`). 그 종목을 고른 채 열지는 않는다. KRX 화면은 Fincept의 종목 연결(`IGroupLinked`)을 따르지 않기 때문이다. 연결하면 다른 화면의 종목(예: `AAPL`)도 KRX 화면으로 넘어온다.
+- **실패.** 아직 보인 값이 없으면 타일 가운데에 오류를 보인다(다음 읽기 동안에도 남고, 읽히면 사라진다). 보인 값이 있으면 그대로 두고 맨 위 한 줄(글자는 사용자 글꼴보다 3px 작게)에 `읽지 못함: <이유>`를 보인다. 일부만 못 읽었으면(종목 하나의 예측 등) `일부 읽지 못함: <이유>`다. 엔진이 답하지 않으면 `HttpClient`의 전송 시간 제한(20초)이 지나서야 오류가 나온다.
+  - 연결 실패의 이유는 KRX 화면과 같은 `krx_quant::failure_text`다. `HttpClient`(upstream v4.5.1부터)는 연결 실패를 `Network error: <Qt의 이유>`로 준다. 시간 제한에 걸린 것(`Operation canceled`)은 "엔진이 답하지 않았습니다(시간 초과). 엔진 주소와 네트워크를 확인하세요.", 다른 연결 실패는 "엔진에 연결할 수 없습니다(<이유>). …"다.
+
+    > **바뀜** (2026-10-19, codeyoma/krx-quant#302): 연결 실패는 "엔진 응답을 읽을 수 없습니다: Network error: Operation canceled"처럼 응답 해석 실패와 같은 문구였다 → 연결 실패와 시간 초과를 따로 말한다(KRX 화면도). 이유: `HttpClient`가 연결 실패에도 글자를 붙이게 바뀌어(upstream v4.5.1), 엔진이 꺼진 것을 응답을 잘못 읽은 것처럼 보였다.
+- **더블클릭.** 네 위젯 모두 표의 줄을 더블클릭하면 KRX 4분 예측 화면으로 간다(`nav.switch_screen`). 대시보드의 다른 위젯처럼 한 번 클릭은 줄을 고르기만 한다. 그 종목이나 알고리즘을 고른 채 열지는 않는다. KRX 화면은 Fincept의 종목 연결(`IGroupLinked`)을 따르지 않기 때문이다. 연결하면 다른 화면의 종목(예: `AAPL`)도 KRX 화면으로 넘어온다. 알고리즘을 넘길 길도 없다.
 - **문구.** KRX 화면처럼 원문이 한국어다. 위젯 이름과 설명도 한국어로 등록해 한국어 팩에 따로 넣지 않는다(영어 UI에서도 한국어로 보인다).
-- **코드.** 엔진 답에서 위젯의 줄을 만드는 것은 `fincept-qt/src/services/krx_quant/DashboardView.{h,cpp}`(Qt Core만)이다. 위젯은 `fincept-qt/src/screens/krx_quant/dashboard/`: 공통 타일(`KrxEngineTile`: 주기, 엔진 주소, 실패 표시), 위젯 4개(`KrxDashboardWidgets`), 등록과 템플릿(`KrxDashboard`). `EngineData`는 순위표 항목의 `lift.day_low`(`Entry::day_low`)와 상태의 `cpu.usage`·`cpu.skipped_today`(`EngineStatus::cpu_usage`, `cpu_skipped_today`)를 새로 읽는다. upstream 파일의 갈래는 위 "upstream 파일 수정 원칙" 표에 있다.
-- **테스트.** `tst_krx_dashboard_view`(Qt Core만): 순위표 줄(순위·미순위·기준 예측, 다른 종류의 기준 예측, 표시 개수, 손익 단위), 신호 줄(살아 있는 신호, 막힌 합의, 채점 시각이 지난 신호, 구성원 없는 합의, 예측 없는 종목, 직전 채점의 ✓와 채점 불가), 상태 줄과 첫 문제의 순서, 시가→종가 줄(알고리즘 평균, 채점 전·후, 예측 없음, 지난 거래일). `tst_krx_engine_data`가 `day_low`와 `cpu`를 읽는 것을 본다.
+- **코드.** 엔진 답에서 위젯의 줄을 만드는 것은 `fincept-qt/src/services/krx_quant/DashboardView.{h,cpp}`(Qt Core만)이다. 위젯은 `fincept-qt/src/screens/krx_quant/dashboard/`: 공통 타일(`KrxEngineTile`: 주기, 엔진 주소, 실패 표시), 위젯 4개(`KrxDashboardWidgets`), 등록과 템플릿(`KrxDashboard`). `EngineData`는 순위표 항목의 `lift.day_low`(`Entry::day_low`)와 상태의 `cpu.usage`·`cpu.skipped_today`(`EngineStatus::cpu_usage`, `cpu_skipped_today`)를 새로 읽고, 404 답(옛 엔진에 없는 엔드포인트)을 `is_not_found`로 가린다. upstream 파일의 갈래는 위 "upstream 파일 수정 원칙" 표에 있다.
+- **테스트.** `tst_krx_dashboard_view`(Qt Core만): 순위표 줄(순위·미순위·기준 예측, 다른 종류의 기준 예측, 표시 개수, 손익 단위), 신호 줄(살아 있는 신호, 막힌 합의, 채점 시각이 지난 신호, 구성원 없는 합의, 예측 없는 종목, 직전 채점의 ✓와 채점 불가), 상태 줄과 첫 문제의 순서, 시가→종가 줄(알고리즘 평균, 채점 전·후, 예측 없음, 지난 거래일). `tst_krx_engine_data`가 `day_low`와 `cpu`를 읽는 것, 연결 실패와 시간 초과의 문구, 404 가리기를 본다.
 
 ## 개인 빌드
 

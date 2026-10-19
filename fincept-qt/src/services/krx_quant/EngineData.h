@@ -884,8 +884,11 @@ QString kst_text(const QDateTime& t, const QString& format);
 QString price_text(double price);
 
 /// Why a request to the engine failed, in Korean, from HttpClient's error: its HTTP status
-/// (0 without a response) and message (empty for a transport failure; a JSON parse
-/// error's text when the body was not JSON).
+/// (0 without a response) and message ("Network error: <reason>" for a transport failure, or
+/// empty from an older HttpClient; a JSON parse error's text when the body was not JSON).
 QString failure_text(int http_status, const QString& message);
+/// Whether ``failure`` (failure_text's) is the engine answering 404: an older engine without the
+/// endpoint, or an unknown symbol (codeyoma/krx-quant#302).
+bool is_not_found(const QString& failure);
 
 } // namespace fincept::krx_quant
