@@ -562,6 +562,32 @@ void KrxQuantService::read_bar(const QString& symbol, const QDateTime& bar_close
     }
 }
 
+void KrxQuantService::read_briefing(const QDate& day) {
+    if (!begin(kBriefing))
+        return;
+    const QString path =
+        day.isValid() ? "/v1/briefing?day=" + day.toString(Qt::ISODate) : QStringLiteral("/v1/briefing");
+    get(path, [this, day](Result<QJsonDocument> answer) {
+        end(kBriefing);
+        auto briefing = parsed(answer, krx_quant::parse_briefing);
+        if (briefing.is_err())
+            return emit briefing_failed(day, why(briefing.error()));
+        emit briefing_ready(day, briefing.value());
+    });
+}
+
+void KrxQuantService::read_symbol_list() {
+    if (!begin(kSymbolList))
+        return;
+    get("/v1/symbols", [this](Result<QJsonDocument> answer) {
+        end(kSymbolList);
+        auto symbols = parsed(answer, krx_quant::parse_symbols);
+        if (symbols.is_err())
+            return emit symbols_failed(why(symbols.error()));
+        emit symbols_ready(symbols.value());
+    });
+}
+
 void KrxQuantService::read_macro() {
     if (!begin(kMacro))
         return;

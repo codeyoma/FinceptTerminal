@@ -75,6 +75,7 @@
 #include "screens/surface_analytics/SurfaceAnalyticsScreen.h"
 #include "screens/trade_viz/TradeVizScreen.h"
 #include "screens/watchlist/WatchlistScreen.h"
+#include "screens/krx_quant/KrxBriefingScreen.h" // fork addition (custom/README.md)
 #include "screens/krx_quant/KrxQuantScreen.h" // fork addition (custom/README.md)
 #include "ui/navigation/DockStatusBar.h"
 #include "ui/navigation/DockToolBar.h"
@@ -302,6 +303,8 @@ void WindowFrame::setup_dock_screens() {
     dock_router_->register_factory("help", []() { return new screens::HelpScreen; });
     // Fork addition (custom/README.md): the KRX 4-minute prediction engine's screen.
     dock_router_->register_factory("krx_quant", []() { return new screens::KrxQuantScreen; });
+    // Fork addition (custom/README.md): the pre-open briefing (codeyoma/krx-quant#304).
+    dock_router_->register_factory("krx_briefing", []() { return new screens::KrxBriefingScreen; });
 }
 
 } // namespace fincept
