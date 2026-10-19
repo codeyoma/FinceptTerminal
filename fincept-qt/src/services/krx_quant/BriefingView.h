@@ -84,8 +84,8 @@ struct ForecastRow {
     QString down;
     QString band;   ///< the day's flat band: "±0.47%"; "—"
     QString result; ///< the day's answer once in: "상승", "보합", "하락", "채점 불가 (…)"; empty before
-    QString status; ///< empty when made; else why not ("timed_out", …)
-    Direction lean = Direction::None; ///< the most likely class
+    QString status; ///< empty when made; else why not, as status_label says it ("시간 초과", …)
+    Direction lean = Direction::None; ///< the likeliest class, a tie going to flat, then up (most_likely)
 };
 QList<ForecastRow> forecast_rows(const Briefing& b);
 

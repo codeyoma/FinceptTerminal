@@ -203,14 +203,16 @@ QList<ForecastRow> forecast_rows(const Briefing& b) {
             if (p.band)
                 row.band = QStringLiteral("±%1%").arg(number_text(*p.band * 100, 2));
             if (p.status != "ok") {
-                row.status = p.status;
+                row.status = status_label(p.status);
             } else {
                 const double up = p.output.value("p_up"), flat = p.output.value("p_flat"),
                              down = p.output.value("p_down");
                 row.up = number_text(up * 100, 1) + "%";
                 row.flat = number_text(flat * 100, 1) + "%";
                 row.down = number_text(down * 100, 1) + "%";
-                row.lean = up >= flat && up >= down ? Direction::Up : (down > flat ? Direction::Down : Direction::Flat);
+                // The engine's rule (most_likely, likeliest_class): a tie goes to flat, then up.
+                const double best = std::max({up, flat, down});
+                row.lean = flat == best ? Direction::Flat : up == best ? Direction::Up : Direction::Down;
             }
             if (p.answer) {
                 if (p.answer->klass.isEmpty())

@@ -246,6 +246,19 @@ class TstKrxBriefing : public QObject {
         QCOMPARE(forecasts[0].lean, Direction::Up);
         QVERIFY(forecasts[0].result.isEmpty());
 
+        // A tie goes to flat, then up, as the engine scores it (most_likely); a forecast not made says why
+        // in Korean.
+        Briefing tied = b;
+        auto& cox = tied.open_to_close->symbols[0].predictions[0];
+        cox.output = {{"p_up", 0.4}, {"p_flat", 0.4}, {"p_down", 0.2}};
+        QCOMPARE(view::forecast_rows(tied)[0].lean, Direction::Flat);
+        cox.output = {{"p_up", 0.4}, {"p_flat", 0.2}, {"p_down", 0.4}};
+        QCOMPARE(view::forecast_rows(tied)[0].lean, Direction::Up);
+        cox.status = "timed_out";
+        cox.output.clear();
+        QCOMPARE(view::forecast_rows(tied)[0].status, status_label("timed_out"));
+        QVERIFY(view::forecast_rows(tied)[0].status != QStringLiteral("timed_out"));
+
         const auto inputs = view::input_rows(*view::inputs_of(b, "005930"));
         QCOMPARE(inputs[0].key, QStringLiteral("gap_1")); // the largest part first
         QCOMPARE(inputs[0].lean, QStringLiteral("상승 쪽"));
