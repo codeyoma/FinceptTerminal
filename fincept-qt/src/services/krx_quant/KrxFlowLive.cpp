@@ -39,6 +39,12 @@ KrxFlowLive::KrxFlowLive(QObject* parent, std::function<QDateTime()> now)
             });
     connect(service_, &KrxQuantService::symbols_ready, this, [this](const QList<krx_quant::SymbolQuote>& symbols) {
         symbols_ = symbols;
+        if (symbols_.isEmpty()) { // nothing to read: say so and ask again on schedule, not at once
+            failure_ = QStringLiteral("엔진이 예측하는 종목이 없습니다.");
+            emit changed();
+            schedule();
+            return;
+        }
         const bool known = std::any_of(symbols_.begin(), symbols_.end(),
                                        [this](const krx_quant::SymbolQuote& s) { return s.symbol == symbol_; });
         if (!known && !symbols_.isEmpty()) { // none chosen yet, or one this engine does not predict

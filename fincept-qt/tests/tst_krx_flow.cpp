@@ -132,6 +132,7 @@ Flow parsed(const QJsonObject& body = flow_json()) {
 class StandIn : public QObject {
   public:
     bool fail = false;
+    bool no_symbols = false; ///< GET /v1/symbols answers an empty list
     QStringList asked;
 
     StandIn() {
@@ -155,7 +156,10 @@ class StandIn : public QObject {
         asked << path;
         int status = 404;
         QJsonObject body{{"error", "not found"}};
-        if (path == "/v1/symbols") {
+        if (path == "/v1/symbols" && no_symbols) {
+            status = 200;
+            body = {{"symbols", QJsonArray{}}};
+        } else if (path == "/v1/symbols") {
             status = 200;
             body = {{"symbols", QJsonArray{QJsonObject{{"symbol", "005930"}, {"name", "삼성전자"}},
                                            QJsonObject{{"symbol", "000660"}, {"name", "SK하이닉스"}}}}};
@@ -309,6 +313,21 @@ class TstKrxFlow : public QObject {
         // The symbol kept is read first next time.
         services::KrxFlowLive again(nullptr, [] { return kst("2026-10-16T09:03:30+09:00"); });
         QCOMPARE(again.symbol(), QStringLiteral("000660"));
+    }
+
+    void an_engine_without_symbols_is_asked_again_on_schedule_not_at_once() {
+        // An empty list answered at once must not be asked for again at once, in a loop.
+        StandIn engine;
+        engine.no_symbols = true;
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxFlowLive live(nullptr, [] { return kst("2026-10-16T09:03:30+09:00"); });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(!live.failure().isEmpty(), 10000);
+        QVERIFY(live.failure().contains(QStringLiteral("종목이 없습니다")));
+        QTest::qWait(500);
+        QCOMPARE(engine.asked, QStringList{"/v1/symbols"});
+        QVERIFY(!live.flow().has_value());
+        live.stop();
     }
 
     void without_an_address_it_says_where_to_set_it() {
