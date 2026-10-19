@@ -427,12 +427,15 @@ void KrxCostScreen::open_detail(int row, int column) {
     if (algorithm.isEmpty())
         return;
     KrxStatsWindow* window = stats_windows_.value(algorithm);
-    if (!window) { // a window of its own for each predictor, as the 4-minute screen's
+    if (window) { // open already: emptied by open() below, so read again
+        live_->read_stats(algorithm);
+    } else { // a window of its own for each predictor, as the 4-minute screen's
         window = new KrxStatsWindow(this);
         stats_windows_.insert(algorithm, window);
         connect(window, &KrxStatsWindow::closed, this, [this, algorithm] {
             if (auto* closed = stats_windows_.take(algorithm))
                 closed->deleteLater();
+            live_->set_details(stats_windows_.keys());
         });
     }
     window->open(algorithm);
@@ -440,7 +443,7 @@ void KrxCostScreen::open_detail(int row, int column) {
     // Another kind's baseline is described by GET /v1/kinds, as on the 4-minute screen.
     window->show_about(about.contains(algorithm) ? std::optional(about.value(algorithm))
                                                  : krx_quant::kind_baseline_info(live_->kinds(), algorithm));
-    live_->read_stats(algorithm);
+    live_->set_details(stats_windows_.keys()); // its stats read now, and again with the query and the map
 }
 
 } // namespace fincept::screens

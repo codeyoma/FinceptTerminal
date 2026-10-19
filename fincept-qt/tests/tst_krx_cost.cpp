@@ -125,6 +125,8 @@ CostMap parsed(const QByteArray& body = kCostMap) {
 class StandIn : public QObject {
   public:
     bool fail = false;
+    int kinds_failures = 0;   ///< GET /v1/kinds fails this many times first
+    bool stale_stats = false; ///< a predictor's stats answer another query's (every symbol)
     QStringList asked;
 
     StandIn() {
@@ -152,6 +154,27 @@ class StandIn : public QObject {
             status = 200;
             bytes =
                 R"({"symbols": [{"symbol": "000660", "name": "SK하이닉스"}, {"symbol": "009150", "name": "삼성전기"}]})";
+        } else if (path == "/v1/kinds" && kinds_failures > 0) {
+            --kinds_failures;
+            status = 500;
+            bytes = R"({"error": "made-up failure"})";
+        } else if (path == "/v1/kinds") {
+            status = 200;
+            bytes = R"({"kinds": [{"name": "direction", "title": "방향", "classes": ["up", "flat", "down"],
+                        "class_titles": ["상승", "보합", "하락"], "action": ["up", "down"], "answer_version": 3,
+                        "horizon_minutes": 4, "fields": {}, "baselines": [], "daily": null}]})";
+        } else if (path == "/v1/algorithms") {
+            status = 200;
+            bytes = R"({"algorithms": [], "baselines": [], "consensus": []})";
+        } else if (path.startsWith("/v1/algorithms/")) { // a predictor's stats, of the query asked
+            status = 200;
+            QJsonObject body{{"algorithm", path.section('/', 3, 3)}, {"overall", QJsonObject{}}};
+            for (const auto& item : path.section('?', 1).split('&'))
+                if (const QString key = item.section('=', 0, 0); key == "symbol" || key == "period" || key == "special")
+                    body[key] = item.section('=', 1);
+            if (stale_stats)
+                body["symbol"] = "all";
+            bytes = QJsonDocument(body).toJson(QJsonDocument::Compact);
         } else if (path.startsWith("/v1/cost-map") && fail) {
             status = 500;
             bytes = R"({"error": "made-up failure"})";
@@ -343,6 +366,58 @@ class TstKrxCost : public QObject {
         QTRY_VERIFY_WITH_TIMEOUT(live.map().has_value(), 10000);
         QCOMPARE(live.query().symbol, QStringLiteral("all"));
         QVERIFY(!engine.asked.join(' ').contains("123456"));
+        live.stop();
+    }
+
+    void the_kinds_are_asked_again_until_they_are_in() {
+        StandIn engine;
+        engine.kinds_failures = 1;
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxCostLive live;
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.map().has_value(), 10000);
+        QTRY_COMPARE_WITH_TIMEOUT(engine.asked.count("/v1/kinds"), 1, 10000);
+        QVERIFY(live.kinds().isEmpty());
+        live.read_now(); // the next read asks again
+        QTRY_VERIFY_WITH_TIMEOUT(!live.kinds().isEmpty(), 10000);
+        QVERIFY(live.kind_info("direction").has_value());
+        const qsizetype asked = engine.asked.count("/v1/kinds");
+        live.read_now(); // in: not asked again
+        QTRY_VERIFY_WITH_TIMEOUT(engine.asked.count() > 0 && engine.asked.last().startsWith("/v1/cost-map"), 10000);
+        QTest::qWait(200);
+        QCOMPARE(engine.asked.count("/v1/kinds"), asked);
+        live.stop();
+    }
+
+    void an_open_detail_window_follows_the_query_and_drops_an_older_one_s_stats() {
+        StandIn engine;
+        services::KrxQuantService::set_base_url(engine.url());
+        AppConfig::instance().remove(services::KrxCostLive::kSymbolKey);
+        services::KrxCostLive live;
+        QList<AlgorithmStats> shown;
+        connect(&live, &services::KrxCostLive::stats_ready, &live,
+                [&shown](const AlgorithmStats& stats) { shown << stats; });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.map().has_value(), 10000);
+        live.set_details({"alpha"});
+        QTRY_COMPARE_WITH_TIMEOUT(shown.size(), 1, 10000);
+        QCOMPARE(shown[0].algorithm, QStringLiteral("alpha"));
+
+        engine.stale_stats = true; // answers for every symbol while 000660 is asked
+        auto query = live.query();
+        query.symbol = "000660";
+        live.set_query(query);
+        QTRY_VERIFY_WITH_TIMEOUT(engine.asked.contains("/v1/algorithms/alpha/stats?symbol=000660&period=" +
+                                                       query.period + "&special=" + query.special_value()),
+                                 10000);
+        QTest::qWait(300);
+        QCOMPARE(shown.size(), 1); // the older query's answer is dropped
+
+        engine.stale_stats = false;
+        live.read_stats("alpha");
+        QTRY_COMPARE_WITH_TIMEOUT(shown.size(), 2, 10000);
+        QCOMPARE(shown[1].symbol, QStringLiteral("000660"));
+        live.set_details({});
         live.stop();
     }
 

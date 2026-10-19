@@ -61,8 +61,12 @@ class KrxCostLive : public QObject {
     bool reading() const { return reading_; }
     int next_ms() const; ///< 0 when stopped
 
-    /// ``algorithm``'s stats on the query shown (a detail window): stats_ready or stats_failed.
-    void read_stats(const QString& algorithm);
+    /// The predictors whose detail windows are open: each one's stats on the query shown are read when
+    /// it opens, when the query changes and with each new map (stats_ready or stats_failed); an answer
+    /// to an older query is dropped.
+    void set_details(const QStringList& algorithms);
+    /// ``algorithm``'s stats on the query shown, read now (a detail window opened again).
+    void read_stats(const QString& algorithm) { read_details({algorithm}); }
 
     static constexpr const char* kSymbolKey = "krx_quant/cost_symbol";
     static constexpr const char* kPeriodKey = "krx_quant/cost_period";
@@ -78,6 +82,7 @@ class KrxCostLive : public QObject {
   private:
     void read();
     void schedule();
+    void read_details(const QStringList& algorithms);
 
     std::function<QDateTime()> now_;
     KrxQuantService* service_ = nullptr;
@@ -89,6 +94,7 @@ class KrxCostLive : public QObject {
     bool symbols_read_ = false;
     QList<krx_quant::KindInfo> kinds_;
     QMap<QString, krx_quant::AlgorithmInfo> algorithms_;
+    QStringList details_; ///< the predictors whose detail windows are open
     QString failure_;
     QDateTime answered_at_;
     bool running_ = false;

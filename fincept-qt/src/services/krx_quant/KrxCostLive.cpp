@@ -5,6 +5,7 @@
 #include <QTimer>
 
 #include <algorithm>
+#include <utility>
 
 namespace fincept::services {
 
@@ -42,6 +43,7 @@ KrxCostLive::KrxCostLive(QObject* parent, std::function<QDateTime()> now)
                 answered_at_ = now_();
                 emit changed();
                 schedule();
+                read_details(details_); // the windows' stats, as fresh as the map
             });
     connect(service_, &KrxQuantService::cost_map_failed, this, [this](const Query& query, const QString& reason) {
         reading_ = false;
@@ -76,7 +78,10 @@ KrxCostLive::KrxCostLive(QObject* parent, std::function<QDateTime()> now)
                 algorithms_ = algorithms;
                 emit changed();
             });
-    connect(service_, &KrxQuantService::stats_ready, this, &KrxCostLive::stats_ready);
+    connect(service_, &KrxQuantService::stats_ready, this, [this](const krx_quant::AlgorithmStats& stats) {
+        if (query_.matches(stats)) // an older query's: the one asked since answers instead
+            emit stats_ready(stats);
+    });
     connect(service_, &KrxQuantService::stats_failed, this, &KrxCostLive::stats_failed);
     connect(service_, &KrxQuantService::base_url_changed, this, [this] {
         map_.reset();
@@ -113,6 +118,7 @@ void KrxCostLive::set_query(const Query& query) {
     map_.reset();
     emit changed();
     read_now(); // a read under way is of the old query: its answer is dropped, this one read then
+    read_details(details_);
 }
 
 void KrxCostLive::set_cost(Cost cost) {
@@ -139,8 +145,20 @@ int KrxCostLive::next_ms() const {
     return running_ ? krx_quant::cost::poll_ms(map_) : 0;
 }
 
-void KrxCostLive::read_stats(const QString& algorithm) {
-    service_->read_stats(algorithm, query_);
+void KrxCostLive::set_details(const QStringList& algorithms) {
+    const QStringList before = std::exchange(details_, algorithms);
+    QStringList opened;
+    for (const auto& algorithm : details_)
+        if (!before.contains(algorithm))
+            opened << algorithm;
+    read_details(opened);
+}
+
+void KrxCostLive::read_details(const QStringList& algorithms) {
+    if (service_->url().isEmpty())
+        return;
+    for (const auto& algorithm : algorithms)
+        service_->read_stats(algorithm, query_);
 }
 
 void KrxCostLive::read() {
@@ -157,10 +175,14 @@ void KrxCostLive::read() {
     }
     if (!symbols_read_) { // the symbols first: whether the one chosen is still the engine's, and their names
         service_->read_symbol_list();
-        service_->read_kinds();
-        service_->read_algorithms();
         return;
     }
+    // A detail window's columns and descriptions: asked again with each read until they are in (a read
+    // under way is not asked twice).
+    if (kinds_.isEmpty())
+        service_->read_kinds();
+    if (algorithms_.isEmpty())
+        service_->read_algorithms();
     reading_ = true;
     emit changed();
     service_->read_cost_map(query_);
