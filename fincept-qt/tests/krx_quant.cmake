@@ -285,6 +285,33 @@ fincept_add_test(tst_krx_briefing
     "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
 target_link_libraries(tst_krx_briefing PRIVATE Qt6::Network)
 
+# src/services/krx_quant/FlowView.{h,cpp} and KrxFlowLive.{h,cpp} — what the KRX flow screen
+# (codeyoma/krx-quant#306) reads of GET /v1/symbols/{symbol}/flow, what it draws and shows of it and
+# when it reads it, the last against a stand-in engine on this computer (Qt Network; the settings are
+# a temporary file's: the test defines AppConfig).
+fincept_add_test(tst_krx_flow
+    tst_krx_flow.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/FlowView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxFlowLive.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxFlowLive.h"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.h"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/StatsView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp"
+    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.cpp"
+    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.h"
+    "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
+target_link_libraries(tst_krx_flow PRIVATE Qt6::Network)
+
 # Upstream v4.5.1 made src/trading/OrderValidator.cpp read the risk limits through
 # SettingsRepository (Qt Sql and the app database), but tst_order_validator below in
 # tests/CMakeLists.txt still links Qt Core and that one source, so it does not compile.

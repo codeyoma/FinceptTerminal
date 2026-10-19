@@ -924,6 +924,75 @@ struct Briefing {
 /// GET /v1/briefing (codeyoma/krx-quant#304).
 Result<Briefing> parse_briefing(const QJsonDocument& doc);
 
+/// A symbol's intraday flows of a day (GET /v1/symbols/{symbol}/flow, codeyoma/krx-quant#306): the
+/// recorded program trading, member firms and investor estimates, a minute at a time. Values are as
+/// KIS gives them, cumulative over the day; a minute without a record is empty, not the one before.
+struct FlowMinute {
+    QDateTime at;
+    std::optional<double> price;             ///< the 1-minute bar's close
+    std::optional<double> program_net_value; ///< program trading's net buys (value)
+    std::optional<double> program_buy_value;
+    std::optional<double> program_sell_value;
+    std::optional<double> program_net_qty;
+    QString program_source;                  ///< "ws", "rest" (the REST stand-in), or empty
+    std::optional<double> member_foreign_net_qty; ///< the foreign member firms' net buys (shares)
+    QString member_source;
+};
+
+/// An estimate slot: when it first had a value, and each investor's latest (shares).
+struct FlowEstimate {
+    QString slot; ///< KIS's slot code, as given
+    QDateTime received_at;
+    std::optional<double> foreign_net_qty;
+    std::optional<double> institution_net_qty;
+};
+
+struct FlowMember {
+    QString no;
+    QString name;
+    std::optional<double> qty;
+    bool foreign = false;
+};
+
+/// The day's last top-five members, sellers and buyers.
+struct FlowMembers {
+    QDateTime received_at;
+    QString source; ///< "ws" or "rest"
+    QList<FlowMember> sell;
+    QList<FlowMember> buy;
+};
+
+/// Each flow's day total as last recorded by a time.
+struct FlowTotals {
+    QDate day = {};    ///< the previous trading day's; invalid for the day's own
+    QDateTime at = {}; ///< likewise
+    std::optional<double> program_net_value;
+    std::optional<double> member_foreign_net_qty;
+    std::optional<double> estimate_foreign_net_qty;
+    std::optional<double> estimate_institution_net_qty;
+};
+
+struct Flow {
+    QString symbol;
+    QDate day;
+    QDateTime as_of;
+    bool recorded = false; ///< false: nothing recorded that day on the server
+    QDateTime open;
+    QDateTime close;
+    QList<FlowMinute> minutes;
+    QList<FlowEstimate> estimates;
+    std::optional<FlowMembers> members;
+    FlowTotals totals;
+    std::optional<FlowTotals> previous_day_same_time;
+    std::optional<double> final_foreign_net;     ///< the day's final KIS supply; none before 20:30
+    std::optional<double> final_institution_net;
+    bool final_known = false;                    ///< the final supply is in (its values may still be none)
+    QList<SpecialWindow> special;
+};
+
+/// GET /v1/symbols/{symbol}/flow (codeyoma/krx-quant#306).
+Result<Flow> parse_flow(const QJsonDocument& doc);
+
 /// A kind's answer to a symbol's bar close, as the stream brings it (krx-quant #179).
 struct KindAnswerAt {
     QString symbol;

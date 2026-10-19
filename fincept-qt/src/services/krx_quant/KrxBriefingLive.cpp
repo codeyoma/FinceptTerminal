@@ -85,8 +85,10 @@ int KrxBriefingLive::next_ms() const {
 
 void KrxBriefingLive::read() {
     timer_->stop();
-    if (KrxQuantService::base_url() != service_->url())
-        service_->rebind();
+    if (KrxQuantService::base_url() != service_->url()) {
+        service_->rebind(); // what was under way is dropped
+        reading_ = false;
+    }
     if (service_->url().isEmpty()) {
         failure_ = QStringLiteral("엔진 주소가 없습니다. KRX 4분 예측 화면에서 엔진 주소를 넣으세요.");
         emit changed();

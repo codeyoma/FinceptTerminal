@@ -576,6 +576,19 @@ void KrxQuantService::read_briefing(const QDate& day) {
     });
 }
 
+void KrxQuantService::read_flow(const QString& symbol, const QDate& day) {
+    if (!begin(kFlow))
+        return;
+    const QString query = day.isValid() ? "/flow?day=" + day.toString(Qt::ISODate) : QStringLiteral("/flow");
+    get(symbol_path(symbol, query), [this, symbol, day](Result<QJsonDocument> answer) {
+        end(kFlow);
+        auto flow = parsed(answer, krx_quant::parse_flow);
+        if (flow.is_err())
+            return emit flow_failed(symbol, day, why(flow.error()));
+        emit flow_ready(symbol, day, flow.value());
+    });
+}
+
 void KrxQuantService::read_symbol_list() {
     if (!begin(kSymbolList))
         return;
