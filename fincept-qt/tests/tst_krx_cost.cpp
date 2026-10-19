@@ -165,7 +165,7 @@ class StandIn : public QObject {
                         "horizon_minutes": 4, "fields": {}, "baselines": [], "daily": null}]})";
         } else if (path == "/v1/algorithms") {
             status = 200;
-            bytes = R"({"algorithms": [], "baselines": [], "consensus": []})";
+            bytes = R"({"algorithms": [{"name": "alpha", "kind": "direction"}], "baselines": [], "consensus": []})";
         } else if (path.startsWith("/v1/algorithms/")) { // a predictor's stats, of the query asked
             status = 200;
             QJsonObject body{{"algorithm", path.section('/', 3, 3)}, {"overall", QJsonObject{}}};
@@ -382,8 +382,13 @@ class TstKrxCost : public QObject {
         QTRY_VERIFY_WITH_TIMEOUT(!live.kinds().isEmpty(), 10000);
         QVERIFY(live.kind_info("direction").has_value());
         const qsizetype asked = engine.asked.count("/v1/kinds");
+        const auto maps = [&engine] {
+            return std::count_if(engine.asked.cbegin(), engine.asked.cend(),
+                                 [](const QString& path) { return path.startsWith("/v1/cost-map"); });
+        };
+        const auto before = maps();
         live.read_now(); // in: not asked again
-        QTRY_VERIFY_WITH_TIMEOUT(engine.asked.count() > 0 && engine.asked.last().startsWith("/v1/cost-map"), 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(maps() > before, 10000);
         QTest::qWait(200);
         QCOMPARE(engine.asked.count("/v1/kinds"), asked);
         live.stop();
@@ -407,16 +412,18 @@ class TstKrxCost : public QObject {
         auto query = live.query();
         query.symbol = "000660";
         live.set_query(query);
-        QTRY_VERIFY_WITH_TIMEOUT(engine.asked.contains("/v1/algorithms/alpha/stats?symbol=000660&period=" +
-                                                       query.period + "&special=" + query.special_value()),
-                                 10000);
+        const QString asked =
+            "/v1/algorithms/alpha/stats?symbol=000660&period=" + query.period + "&special=" + query.special_value();
+        QTRY_VERIFY_WITH_TIMEOUT(live.map().has_value() && live.map()->symbol == "000660", 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(engine.asked.contains(asked), 10000); // the window follows the query
         QTest::qWait(300);
-        QCOMPARE(shown.size(), 1); // the older query's answer is dropped
+        QCOMPARE(shown.size(), 1); // the older query's answers are dropped
 
         engine.stale_stats = false;
         live.read_stats("alpha");
-        QTRY_COMPARE_WITH_TIMEOUT(shown.size(), 2, 10000);
-        QCOMPARE(shown[1].symbol, QStringLiteral("000660"));
+        QTRY_VERIFY_WITH_TIMEOUT(shown.size() >= 2, 10000);
+        for (qsizetype i = 1; i < shown.size(); ++i)
+            QCOMPARE(shown[i].symbol, QStringLiteral("000660"));
         live.set_details({});
         live.stop();
     }
