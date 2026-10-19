@@ -1534,6 +1534,7 @@ set(SERVICE_SOURCES
     src/services/krx_quant/LocalCliLlm.cpp
     src/services/krx_quant/EngineCalendar.cpp
     src/services/krx_quant/LocalCliRunner.cpp
+    src/services/krx_quant/DashboardView.cpp
 )
 
 # UI framework
@@ -2152,6 +2153,9 @@ set(SCREEN_SOURCES
     src/screens/krx_quant/KrxStatsWindow.cpp
     src/screens/krx_quant/KrxStudyPanel.cpp
     src/screens/krx_quant/KrxSymbolCell.cpp
+    src/screens/krx_quant/dashboard/KrxDashboard.cpp
+    src/screens/krx_quant/dashboard/KrxDashboardWidgets.cpp
+    src/screens/krx_quant/dashboard/KrxEngineTile.cpp
 )
 
 # App
@@ -2735,6 +2739,9 @@ set_source_files_properties(
     src/screens/krx_quant/KrxStatsWindow.cpp
     src/screens/krx_quant/KrxStudyPanel.cpp
     src/screens/krx_quant/KrxSymbolCell.cpp
+    src/screens/krx_quant/dashboard/KrxDashboard.cpp
+    src/screens/krx_quant/dashboard/KrxDashboardWidgets.cpp
+    src/screens/krx_quant/dashboard/KrxEngineTile.cpp
     src/services/krx_quant/BarView.cpp
     src/services/krx_quant/Board.cpp
     src/services/krx_quant/ChartBricks.cpp
@@ -2755,6 +2762,7 @@ set_source_files_properties(
     src/services/krx_quant/LocalCliLlm.cpp
     src/services/krx_quant/EngineCalendar.cpp
     src/services/krx_quant/LocalCliRunner.cpp
+    src/services/krx_quant/DashboardView.cpp
     PROPERTIES SKIP_UNITY_BUILD_INCLUSION TRUE
 )
 

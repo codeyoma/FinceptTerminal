@@ -236,6 +236,7 @@ Entry entry_of(const QJsonObject& e) {
     if (e.value("lift").isObject()) {
         const QJsonObject lift = e.value("lift").toObject();
         entry.lift_low = number(lift.value("low"));
+        entry.day_low = number(lift.value("day_low")); // codeyoma/krx-quant#302
         const QJsonObject vs = lift.value("vs").toObject();
         entry.significant = !vs.isEmpty() && std::all_of(vs.begin(), vs.end(), [](const auto& v) {
             return v.toObject().value("significant").toBool();
@@ -370,6 +371,11 @@ Result<EngineStatus> parse_status(const QJsonDocument& doc) {
     if (o.value("usd_futures").isObject()) {
         const QJsonObject u = o.value("usd_futures").toObject();
         s.usd_futures = UsdFutures{u.value("price").toDouble(), time_of(u.value("at")), number(u.value("change_pct"))};
+    }
+    if (o.value("cpu").isObject()) { // codeyoma/krx-quant#302
+        const QJsonObject cpu = o.value("cpu").toObject();
+        s.cpu_usage = number(cpu.value("usage"));
+        s.cpu_skipped_today = cpu.value("skipped_today").toInt();
     }
     return Result<EngineStatus>::ok(s);
 }
