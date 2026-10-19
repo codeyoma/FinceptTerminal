@@ -1528,4 +1528,158 @@ Result<Flow> parse_flow(const QJsonDocument& doc) {
     return Result<Flow>::ok(f);
 }
 
+
+namespace {
+
+CostRoundTrip round_trip_of(const QJsonValue& v) {
+    const QJsonObject o = v.toObject();
+    return {o.value("bp").toDouble(), o.value("ticks").toDouble()};
+}
+
+std::optional<TickEdge> tick_edge_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return TickEdge{o.value("edge").toDouble(), o.value("price").toDouble(), o.value("tick").toInt(),
+                    o.value("k").toInt()};
+}
+
+std::optional<CostPnl> cost_pnl_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return CostPnl{o.value("trades").toInt(), interval_of(o.value("per_trade"))};
+}
+
+std::optional<CostPredictor> cost_predictor_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    CostPredictor p;
+    p.algorithm = o.value("algorithm").toString();
+    p.rank = integer_of(o.value("rank"));
+    p.calls = o.value("calls").toInt();
+    p.precision = interval_of(o.value("precision"));
+    p.edge = number(o.value("edge"));
+    p.pnl = cost_pnl_of(o.value("pnl"));
+    p.pnl_inverse = cost_pnl_of(o.value("pnl_inverse"));
+    if (o.value("verdict").isObject()) {
+        const QJsonObject verdict = o.value("verdict").toObject();
+        p.verdict_limit = verdict.value("limit").toString();
+        p.verdict_market = verdict.value("market").toString();
+    }
+    return p;
+}
+
+std::optional<Breakeven> breakeven_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return Breakeven{o.value("c_over_w").toDouble(), o.value("p_star").toDouble()};
+}
+
+CostSymbol cost_symbol_of(const QJsonObject& o) {
+    CostSymbol s;
+    s.symbol = o.value("symbol").toString();
+    s.name = o.value("name").toString();
+    s.price = number(o.value("price"));
+    s.price_at = time_of(o.value("price_at"));
+    s.live = o.value("live").toBool();
+    if (o.value("costs").isObject()) {
+        const QJsonObject c = o.value("costs").toObject();
+        CostCard card;
+        card.tick = c.value("tick").toInt();
+        card.tick_bp = c.value("tick_bp").toDouble();
+        card.k = c.value("k").toInt();
+        card.sell_tax_bp = c.value("sell_tax_bp").toDouble();
+        card.fees_bp = c.value("fees_bp").toDouble();
+        card.spread_bp = c.value("spread_bp").toDouble();
+        card.limit = round_trip_of(c.value("limit"));
+        card.market = round_trip_of(c.value("market"));
+        if (c.value("inverse").isObject()) {
+            const QJsonObject i = c.value("inverse").toObject();
+            card.inverse = CostInverse{i.value("leverage").toInt(),
+                                       QDate::fromString(i.value("listed").toString(), Qt::ISODate),
+                                       i.value("bp").toDouble(), i.value("ticks").toDouble(),
+                                       strings_of(i.value("omits"))};
+        }
+        card.below = tick_edge_of(c.value("below"));
+        card.above = tick_edge_of(c.value("above"));
+        s.costs = card;
+    }
+    return s;
+}
+
+CostRow cost_row_of(const QJsonObject& o) {
+    CostRow r;
+    r.kind = o.value("kind").toString();
+    r.title = o.value("title").toString();
+    r.horizon_minutes = integer_of(o.value("horizon_minutes"));
+    r.rule = o.value("rule").toString();
+    for (const auto& d : o.value("days").toArray())
+        r.days.push_back(QDate::fromString(d.toString(), Qt::ISODate));
+    r.unit = o.value("unit").toString();
+    r.bar_closes = o.value("bar_closes").toInt();
+    r.width = number(o.value("width"));
+    r.reference_price = number(o.value("reference_price"));
+    r.tick = integer_of(o.value("tick"));
+    if (o.value("cost").isObject()) {
+        const QJsonObject c = o.value("cost").toObject();
+        r.cost_limit = number(c.value("limit"));
+        r.cost_market = number(c.value("market"));
+    }
+    if (o.value("breakeven").isObject()) {
+        const QJsonObject b = o.value("breakeven").toObject();
+        r.breakeven_limit = breakeven_of(b.value("limit"));
+        r.breakeven_market = breakeven_of(b.value("market"));
+    }
+    r.breakeven_missing = o.value("breakeven_missing").toString();
+    r.consensus = cost_predictor_of(o.value("consensus"));
+    r.top = cost_predictor_of(o.value("top"));
+    r.baseline = cost_predictor_of(o.value("baseline"));
+    return r;
+}
+
+BaseRates base_rates_of(const QJsonObject& o) {
+    BaseRates b;
+    b.computed_at = time_of(o.value("computed_at"));
+    b.first_day = QDate::fromString(o.value("first_day").toString(), Qt::ISODate);
+    b.last_day = QDate::fromString(o.value("last_day").toString(), Qt::ISODate);
+    for (const auto& v : o.value("rows").toArray()) {
+        const QJsonObject r = v.toObject();
+        b.rows.push_back({r.value("symbol").toString(), r.value("period").toString(),
+                          QDate::fromString(r.value("from").toString(), Qt::ISODate),
+                          QDate::fromString(r.value("to").toString(), Qt::ISODate), r.value("days").toInt(),
+                          r.value("windows").toInt(), r.value("up").toDouble(), r.value("flat").toDouble(),
+                          r.value("down").toDouble(), r.value("k").toInt(), number(r.value("persist")),
+                          r.value("persist_windows").toInt()});
+    }
+    return b;
+}
+
+} // namespace
+
+Result<CostMap> parse_cost_map(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<CostMap>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    CostMap m;
+    m.symbol = o.value("symbol").toString();
+    m.period = o.value("period").toString();
+    m.special = o.value("special").toString();
+    m.as_of = time_of(o.value("as_of"));
+    m.min_sample = o.value("min_sample").toInt();
+    m.fee_rate = o.value("fee_rate").toDouble();
+    m.spread_ticks = o.value("spread_ticks").toInt();
+    for (const auto& v : o.value("symbols").toArray())
+        m.symbols.push_back(cost_symbol_of(v.toObject()));
+    for (const auto& v : o.value("rows").toArray())
+        m.rows.push_back(cost_row_of(v.toObject()));
+    if (o.value("regimes").isObject())
+        m.regimes = base_rates_of(o.value("regimes").toObject());
+    m.regimes_missing = o.value("regimes_missing").toString();
+    return Result<CostMap>::ok(m);
+}
+
 } // namespace fincept::krx_quant

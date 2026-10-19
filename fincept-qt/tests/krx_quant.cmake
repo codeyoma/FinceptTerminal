@@ -312,6 +312,33 @@ fincept_add_test(tst_krx_flow
     "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
 target_link_libraries(tst_krx_flow PRIVATE Qt6::Network)
 
+# src/services/krx_quant/CostView.{h,cpp} and KrxCostLive.{h,cpp} — what the KRX horizon and cost
+# screen (codeyoma/krx-quant#307) reads of GET /v1/cost-map, what it shows of it and when it reads it,
+# the last against a stand-in engine on this computer (Qt Network; the settings are a temporary file's:
+# the test defines AppConfig).
+fincept_add_test(tst_krx_cost
+    tst_krx_cost.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/CostView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxCostLive.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxCostLive.h"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.h"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/StatsView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp"
+    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.cpp"
+    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.h"
+    "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
+target_link_libraries(tst_krx_cost PRIVATE Qt6::Network)
+
 # Upstream v4.5.1 made src/trading/OrderValidator.cpp read the risk limits through
 # SettingsRepository (Qt Sql and the app database), but tst_order_validator below in
 # tests/CMakeLists.txt still links Qt Core and that one source, so it does not compile.

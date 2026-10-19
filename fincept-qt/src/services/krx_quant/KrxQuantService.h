@@ -167,6 +167,11 @@ class KrxQuantService : public QObject {
     /// day; GET /v1/symbols/{symbol}/flow, codeyoma/krx-quant#306): flow_ready or flow_failed (also from an
     /// engine before #306). Asked again while one is read, it is not read.
     void read_flow(const QString& symbol, const QDate& day);
+    /// The cost map for ``query``'s symbol, period and special situations (its kind is not asked;
+    /// GET /v1/cost-map, codeyoma/krx-quant#307): cost_map_ready or cost_map_failed (also from an
+    /// engine before #307). Asked again while one is read, the latest query is read once it ends and
+    /// the answer under way is dropped, as read_leaderboard's.
+    void read_cost_map(const LeaderboardQuery& query);
 
   signals:
     void snapshot_ready(const fincept::services::KrxQuantService::Snapshot& snapshot);
@@ -215,6 +220,9 @@ class KrxQuantService : public QObject {
     void symbols_failed(const QString& reason);
     void flow_ready(const QString& symbol, const QDate& day, const fincept::krx_quant::Flow& flow);
     void flow_failed(const QString& symbol, const QDate& day, const QString& reason);
+    void cost_map_ready(const fincept::services::KrxQuantService::LeaderboardQuery& query,
+                        const fincept::krx_quant::CostMap& map);
+    void cost_map_failed(const fincept::services::KrxQuantService::LeaderboardQuery& query, const QString& reason);
     /// The address this service reads changed (also when another panel set it).
     void base_url_changed(const QString& url);
 
@@ -240,6 +248,7 @@ class KrxQuantService : public QObject {
         kBriefing,    ///< a day's pre-open briefing (codeyoma/krx-quant#304)
         kSymbolList,  ///< the symbols alone
         kFlow,        ///< a symbol's intraday flows (codeyoma/krx-quant#306)
+        kCostMap,     ///< the cost map (codeyoma/krx-quant#307)
         kKinds        ///< how many kinds of read there are
     };
 
@@ -263,6 +272,8 @@ class KrxQuantService : public QObject {
     bool busy_[kKinds] = {};
     LeaderboardQuery leaderboard_asked_;                      ///< the leaderboard under way, or the last
     std::optional<LeaderboardQuery> next_leaderboard_;        ///< asked for while another was under way
+    LeaderboardQuery cost_map_asked_;                         ///< the cost map under way, or the last
+    std::optional<LeaderboardQuery> next_cost_map_;           ///< asked for while another was under way
     std::optional<std::pair<QString, QDateTime>> next_close_; ///< a bar close asked for while another was read
     /// A bar close's read ended: the one asked for meanwhile is read next.
     void close_done();

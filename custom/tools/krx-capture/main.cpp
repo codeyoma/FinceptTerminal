@@ -6,6 +6,8 @@
 // the pre-open briefing screen instead (codeyoma/krx-quant#304); KRX_CAPTURE_DAY=<YYYY-MM-DD> its day.
 // KRX_CAPTURE_FLOW=1 saves the flow screen (codeyoma/krx-quant#306): KRX_CAPTURE_SYMBOL its symbol,
 // KRX_CAPTURE_DAY its day, KRX_CAPTURE_HOVER=<0..1> the mouse over its chart at that share of the width.
+// KRX_CAPTURE_COST=1 saves the horizon and cost screen (codeyoma/krx-quant#307): KRX_CAPTURE_PERIOD its
+// period (default 20d), KRX_CAPTURE_SYMBOL its symbol (default all).
 //
 //   krx_capture <engine url> <out.png> [seconds=8] [width=1600] [height=1000] [predictor,...]
 //
@@ -15,6 +17,7 @@
 #include "core/config/AppConfig.h"
 #include "screens/krx_quant/KrxBriefingScreen.h"
 #include "screens/krx_quant/KrxFlowScreen.h"
+#include "screens/krx_quant/KrxCostScreen.h"
 #include "screens/krx_quant/KrxBarWindow.h"
 #include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxChartToolbar.h"
@@ -26,6 +29,7 @@
 #include "services/krx_quant/ChartDrawings.h"
 #include "services/krx_quant/KrxBriefingLive.h"
 #include "services/krx_quant/KrxFlowLive.h"
+#include "services/krx_quant/KrxCostLive.h"
 #include "services/krx_quant/KrxLive.h"
 #include "services/krx_quant/KrxQuantService.h"
 #include "ui/theme/ThemeManager.h"
@@ -175,6 +179,30 @@ int main(int argc, char* argv[]) {
         int status = 0;
         QTimer::singleShot(seconds * 1000, &app, [&]() {
             if (!flow.grab().save(out)) {
+                QTextStream(stderr) << "could not save " << out << "\n";
+                status = 1;
+            }
+            app.quit();
+        });
+        app.exec();
+        return status;
+    }
+
+    // KRX_CAPTURE_COST=1: the horizon and cost screen (codeyoma/krx-quant#307), saved after the wait;
+    // KRX_CAPTURE_PERIOD (today, 5d, 20d) and KRX_CAPTURE_SYMBOL (or all) choose its query.
+    if (qEnvironmentVariableIntValue("KRX_CAPTURE_COST") != 0) {
+        auto& config = fincept::AppConfig::instance();
+        config.set(fincept::services::KrxCostLive::kSymbolKey,
+                   qEnvironmentVariable("KRX_CAPTURE_SYMBOL", QStringLiteral("all")));
+        config.set(fincept::services::KrxCostLive::kPeriodKey,
+                   qEnvironmentVariable("KRX_CAPTURE_PERIOD", QStringLiteral("20d")));
+        fincept::screens::KrxCostScreen cost;
+        cost.resize(width, height);
+        cost.show();
+        const QString out = QString::fromLocal8Bit(argv[2]);
+        int status = 0;
+        QTimer::singleShot(seconds * 1000, &app, [&]() {
+            if (!cost.grab().save(out)) {
                 QTextStream(stderr) << "could not save " << out << "\n";
                 status = 1;
             }

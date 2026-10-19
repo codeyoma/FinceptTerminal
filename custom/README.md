@@ -93,12 +93,12 @@ secret이 없거나 만료되면 `custom-krx-pointer`가 실패한다. 그래도
 
 | upstream 파일 | 수정 내용 |
 |---|---|
-| `fincept-qt/src/app/WindowFrame_Setup.cpp` | `KrxQuantScreen`·`KrxBriefingScreen`·`KrxFlowScreen` include와 `krx_quant`·`krx_briefing`(codeyoma/krx-quant#304)·`krx_flow`(codeyoma/krx-quant#306) 화면 factory 등록 |
-| `fincept-qt/src/app/DockScreenRouter.cpp` | `krx_quant` 탭 제목 "KRX 4분 예측", `krx_briefing` 탭 제목 "KRX 장전 브리핑"(codeyoma/krx-quant#304), `krx_flow` 탭 제목 "KRX 수급 흐름"(codeyoma/krx-quant#306) |
-| `fincept-qt/src/ui/navigation/ToolBar.cpp` | Navigate → Trading & Portfolio 메뉴에 "KRX 4분 예측", "KRX 장전 브리핑"(codeyoma/krx-quant#304), "KRX 수급 흐름"(codeyoma/krx-quant#306) |
-| `fincept-qt/src/ui/navigation/CommandBar.cpp` | 명령 팔레트에 `krx_quant`, `krx_briefing`(codeyoma/krx-quant#304), `krx_flow`(codeyoma/krx-quant#306) (모두 "krx"로 찾는다) |
+| `fincept-qt/src/app/WindowFrame_Setup.cpp` | `KrxQuantScreen`·`KrxBriefingScreen`·`KrxFlowScreen`·`KrxCostScreen` include와 `krx_quant`·`krx_briefing`(codeyoma/krx-quant#304)·`krx_flow`(codeyoma/krx-quant#306)·`krx_cost`(codeyoma/krx-quant#307) 화면 factory 등록 |
+| `fincept-qt/src/app/DockScreenRouter.cpp` | `krx_quant` 탭 제목 "KRX 4분 예측", `krx_briefing` 탭 제목 "KRX 장전 브리핑"(codeyoma/krx-quant#304), `krx_flow` 탭 제목 "KRX 수급 흐름"(codeyoma/krx-quant#306), `krx_cost` 탭 제목 "KRX 지평·비용"(codeyoma/krx-quant#307) |
+| `fincept-qt/src/ui/navigation/ToolBar.cpp` | Navigate → Trading & Portfolio 메뉴에 "KRX 4분 예측", "KRX 장전 브리핑"(codeyoma/krx-quant#304), "KRX 수급 흐름"(codeyoma/krx-quant#306), "KRX 지평·비용"(codeyoma/krx-quant#307) |
+| `fincept-qt/src/ui/navigation/CommandBar.cpp` | 명령 팔레트에 `krx_quant`, `krx_briefing`(codeyoma/krx-quant#304), `krx_flow`(codeyoma/krx-quant#306), `krx_cost`(codeyoma/krx-quant#307) (모두 "krx"로 찾는다) |
 | `fincept-qt/CMakeLists.txt` | `SERVICE_SOURCES`·`SCREEN_SOURCES`에 새 파일, unity 빌드 제외 목록, `FINCEPT_DISABLE_AUTO_UPDATE` 옵션(기본 ON), 빌드 태그 `FINCEPT_CUSTOM_TAG`, 업데이트 도우미 스크립트 리소스(`:/krx/`)와 윈도우 설치 트리의 그 사본 `krx-update/update-windows.ps1`(codeyoma/krx-quant#234), 윈도우 설치 프로그램의 기본 폴더 `CPACK_IFW_TARGET_DIRECTORY`(사용자 폴더, codeyoma/krx-quant#130), 윈도우 설치 프로그램에 담는 WebEngine 파일에 V8 시작 스냅샷 `resources/v8_context_snapshot.bin`(codeyoma/krx-quant#207), 한국어 언어 팩 `translations/fincept_ko_KR.ts`의 컴파일·리소스 포함, clang-cl(Windows ARM64)에서 GCC/Clang 경고 묶음을 빼고 `-Wno-clang-cl-pch`(codeyoma/krx-quant#136) |
-| `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`, `tst_krx_korean`, `tst_krx_engine_calendar`, `tst_krx_kind_view`, `tst_krx_chart_look`, `tst_krx_chart_studies`, `tst_krx_chart_drawings`, `tst_krx_chart_bricks`, `tst_krx_chart_slots`, `tst_krx_live`, `tst_krx_chart_page`, `tst_krx_chart_toolbar`, `tst_krx_bar_view`, `tst_krx_dashboard_view`, `tst_krx_briefing`, `tst_krx_flow`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
+| `fincept-qt/tests/CMakeLists.txt` | `fincept_add_test()` 정의 바로 뒤에 `include("${CMAKE_CURRENT_SOURCE_DIR}/krx_quant.cmake")` 한 줄. KRX 테스트(`tst_krx_engine_data`, `tst_krx_board`, `tst_krx_signals`, `tst_krx_stats_view`, `tst_krx_app_release`, `tst_krx_local_cli_llm`, `tst_krx_korean`, `tst_krx_engine_calendar`, `tst_krx_kind_view`, `tst_krx_chart_look`, `tst_krx_chart_studies`, `tst_krx_chart_drawings`, `tst_krx_chart_bricks`, `tst_krx_chart_slots`, `tst_krx_live`, `tst_krx_chart_page`, `tst_krx_chart_toolbar`, `tst_krx_bar_view`, `tst_krx_dashboard_view`, `tst_krx_briefing`, `tst_krx_flow`, `tst_krx_cost`)는 새 파일 `fincept-qt/tests/krx_quant.cmake`에 등록한다 |
 | `fincept-qt/src/core/i18n/LanguageManager.cpp` | 공용 언어 목록에 `ko_KR`, 언어 이름에 `한국어`를 추가한다(codeyoma/krx-quant#132). 설정 화면과 로그인 언어 선택이 이 목록을 그대로 쓴다 |
 | `fincept-qt/src/core/currency/CurrencyManager.{h,cpp}`, `Currency.h`, 새 `core/currency/fx/` | KRW 목록, 출처 통화를 요구하는 환산 API, ECB 비인증 조회·캐시·갱신 신호(codeyoma/krx-quant#138, #142). 공용 인프라라 KRX 엔진 service 대신 독립 디렉터리에 둔다 |
 | `fincept-qt/src/screens/settings/GeneralSection.{h,cpp}` | 통화 설명, 환율 출처·기준일·갱신 상태·버튼(#142) |
@@ -638,7 +638,7 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
   - `uv run krx-quant demo-engine`: 10:30에 멈춘 아침이다. 스트림에는 연결할 때의 KIS 상태 하나만 온다.
   - `uv run krx-quant demo-engine --pace 2`: 10:00에 열고 10:30까지 1분을 2초마다 이어 재생하며 스트림을 보낸다. 차트, 패널, 채점이 움직이는 것을 볼 수 있다. 데모 아침의 최종 합의는 50%를 거의 넘지 않아 신호는 나오지 않는다. 알림은 **시험 알림**으로 본다.
   - 데모 아침에는 09:06–09:36 서킷브레이커 1단계(세 종목 모두 그 사이 체결 없음)와 000660의 동적 VI(09:40:10–09:42:20)가 있다(krx-quant #236). 빈 봉과 특수 상황 띠를 볼 때 쓴다. 다른 데모 엔진이 8090을 쓰고 있으면 `--port`로 다른 포트에 띄운다.
-- 테스트(Qt Core만): `cmake -B build -DFINCEPT_BUILD_TESTS=ON … && cmake --build build --target tst_krx_engine_data tst_krx_board tst_krx_signals tst_krx_stats_view tst_krx_chart_model tst_krx_kind_view tst_krx_app_release tst_krx_chart_slots tst_krx_bar_view tst_krx_dashboard_view tst_krx_briefing tst_krx_flow && ctest --test-dir build -R krx`.
+- 테스트(Qt Core만): `cmake -B build -DFINCEPT_BUILD_TESTS=ON … && cmake --build build --target tst_krx_engine_data tst_krx_board tst_krx_signals tst_krx_stats_view tst_krx_chart_model tst_krx_kind_view tst_krx_app_release tst_krx_chart_slots tst_krx_bar_view tst_krx_dashboard_view tst_krx_briefing tst_krx_flow tst_krx_cost && ctest --test-dir build -R krx`.
   - CI는 경고를 오류로 빌드한다(`-Werror`, 환경 변수 `CI`가 있을 때). 로컬에서 같은 조건으로 보려면 `CI=1 cmake -B build …`로 설정한다. 그러지 않으면 구조체에 필드를 더하고 테스트의 초기화 목록을 그대로 두는 것 같은 경고를 놓친다(`custom-v4.5.0-krx.4` 맥 빌드가 이것으로 실패했다). 이 경고는 clang(맥)에서만 나고, 이 fork의 PR에는 빌드 검사가 돌지 않는다(upstream이 v4.5.1에서 `build-pr.yml`을 지웠다). 그래서 KRX 구조체에 필드를 더하는 PR은 머지 전에 맥에서 `CI=1`로 KRX 테스트를 빌드한다. `custom-v4.5.0-krx.30`부터 `krx.37`까지 맥 빌드가 모두 이것으로 실패해 Release가 없다(`Mark`, `Outcome`, `AlgorithmCard`의 새 필드).
   - 윈도우는 머지 전에 브랜치를 GitHub에서 빌드해 볼 수 있다: Actions → custom-release → Run workflow, 그 브랜치를 고르고 tag는 비운다. 윈도우 빌드와 그 설치·업데이트 검사만 돌고, Release·태그·issue는 만들지 않는다. 빌드 번호는 어떤 Release도 쓰지 않는 `krx.0`이다.
     > **바뀜** (2026-10-15, upstream v4.5.1 merge, codeyoma/FinceptTerminal#36): `build-pr.yml`은 꺼져 있었다 → upstream v4.5.1이 파일을 지웠다. 이유 기록 없음(upstream). 대신: 위처럼 머지 전에 맥에서 `CI=1`로 빌드한다.
@@ -795,6 +795,24 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 - **엔진 주소와 실패.** 장전 브리핑과 같다. `krx_quant/base_url`을 쓰고, 읽지 못하면 머리줄 아래에 이유를 보이고 값은 남긴다. #306 전의 엔진은 읽지 못함이다.
 - **코드.** 엔진 답의 해석은 `EngineData`의 `parse_flow`(구조체 `Flow` 등), 차트 선과 표의 줄은 `services/krx_quant/FlowView.{h,cpp}`(Qt Core만), 읽기 일정과 상태는 `KrxFlowLive`, 그리기는 `screens/krx_quant/KrxFlowScreen.{h,cpp}`(차트는 같은 파일의 `KrxFlowChart`, QPainter)다. `KrxQuantService`에 `read_flow`를 더했다.
 - **테스트.** `tst_krx_flow`: 답의 해석, 차트 선(값 없는 분에서 끊김, 추정의 계단과 끝), 값 상자, 합과 전일 열, 확정 수급 줄, 회원사 줄(이름 없음은 번호), 그날 줄(REST 구간, 녹화 없음), 읽기 간격, 가짜 엔진 위의 `KrxFlowLive`(종목 먼저, 첫 종목, 종목 바꾸기와 설정, 날 바꾸기, 실패에도 값 남기기, 주소 없음). 그림은 `krx-capture`의 `KRX_CAPTURE_FLOW=1`로 데모 엔진 위에서 확인한다.
+
+## KRX 지평·비용 (codeyoma/krx-quant#307)
+
+화면 **KRX 지평·비용**은 어느 지평에서 맞힘률이 왕복 비용을 넘는지 보인다. 대칭 목표 ±W, 왕복 비용 C면 상승·하락 신호의 맞힘률이 p* = (W + C) ÷ 2W를 넘어야 본전이다. Navigate → Trading & Portfolio에서 연다. 명령 팔레트에서 "krx", "비용", "손익분기"로 찾아도 된다. 엔진의 `GET /v1/cost-map`(krx-quant `docs/engine-api.md`)을 읽어 보이기만 한다. 주문 기능은 없다.
+
+![지평·비용(데모 엔진, 20일)](https://raw.githubusercontent.com/codeyoma/FinceptTerminal/krx-screenshots/307-cost.png)
+
+- **머리줄.** 제목, 엔진 점(다른 KRX 화면과 같다), 종목(전체 또는 한 종목, 로고와 이름·코드), 기간(오늘/5일/20일), 특수 상황 포함, 표가 따르는 왕복 비용(시장가 왕복이 기본, 지정가 왕복), 새로 읽기다. 고른 값은 설정 `krx_quant/cost_symbol`, `cost_period`, `cost_special`, `cost_order`에 남는다. 엔진이 예측하지 않는 종목이 남아 있으면 전체로 돌아간다. 그 아래 줄은 엔진 시계, 기간, 최소 표본, 스프레드 가정이다.
+- **종목별 비용.** 종목마다 카드 하나다. 기준가(연속매매 중이면 지금의 통합 중간가와 "실시간", 장 밖이면 마지막 봉 마감의 중간가), 틱과 그 bp, 매도세, 수수료(양쪽), 스프레드 1틱(가정), 지정가·시장가 왕복(bp와 틱), 정답 문턱 k, 하락을 인버스 2X로 칠 때의 왕복(기초 주식 기준, "하한": 상품의 스프레드·괴리·선물 basis가 빠졌다는 것이 툴팁에 있다. 상품이 없는 종목은 "거래 수단 없음"), 아래·위 가장 가까운 틱 구간 경계와 그 너머의 틱·k다. k가 시장가 왕복보다 작으면 k 줄이 빨강이다(4분 방향을 시장가로 드나들면 다 맞혀도 손해).
+- **지평 표.** 예측 종류·지평마다 한 줄이다(방향 4분, 장벽 4·15·30·60분, 시가→종가. 엔진이 방향이 있는 종류를 더하면 줄이 저절로 생긴다). 열은 지평(툴팁에 정답 규칙과 날), 폭 W, 비용 C(지정가·시장가, 시가→종가는 bp이고 단일가라 하나), 고른 비용의 손익분기(p*와 C/W, 100%를 넘으면 "(불가능)", 시가→종가는 "해당 없음"과 이유. 툴팁에 공식과, W와 C를 읽은 봉 마감이 근사라는 것), 그리고 최종 합의, 순위 1위(합의 빼고), 가장 센 기준 예측이다.
+  - 예측자 칸은 이름, 상승·하락 신호 맞힘률과 그 95% 하한, edge(맞은 몫 − 반대로 틀린 몫, C/W와 견준다)와 신호 수, 연구용 평균 손익이다. 툴팁에 판정의 근거(하한과 p*), 순위, 하락을 인버스로 친 손익이 있다. 없는 예측자는 흐리게 이유를 적는다(합의는 방향에만 있다).
+  - 칸 색은 고른 비용에서의 판정이다: 초록 넘음(맞힘률의 신뢰구간 하한 > p*), 빨강 못 넘음, 회색 표본 부족(신호 수 < 순위표의 최소 표본), 색 없음은 판정 없음(p* 없음). 색은 delegate가 칠한다(전역 스타일시트가 표 항목을 칠해 항목의 배경색은 그려지지 않는다).
+  - 줄을 두 번 누르면 그 예측자의 상세 통계 창(4분 예측 화면의 `KrxStatsWindow`, 같은 질의)이 열린다. 예측자 칸이면 그 예측자, 다른 칸이면 순위 1위, 없으면 합의, 그다음 기준 예측이다.
+- **기간 기준율.** 4분 도달 정답(1분봉 규칙)의 종목·기간별 일수, 창 수, 상승·보합(늘 보합의 맞힘률)·하락 비율, k, 직전 창의 맞힘률이다. 제목 줄 오른쪽에 계산한 때와 읽은 1분봉의 기간이 있다. 엔진이 아직 계산하지 않았으면 그 이유를 보인다.
+- **읽기.** 화면이 가진 `KrxCostLive`(`services/krx_quant/KrxCostLive.{h,cpp}`)가 보일 때 바로 읽는다. 처음에는 `/v1/symbols`를 읽고(종목 이름, 고른 종목이 엔진의 것인지), 그다음 비용 지도를 읽는다. `/v1/kinds`와 `/v1/algorithms`(상세 통계 창의 열과 설명)는 비용 지도와 함께 읽고, 실패하면 다음 읽기에 다시 묻는다. 기준가가 실시간인 종목이 있으면(연속매매) 60초마다, 아니면 10분마다 다시 읽고, 숨으면 읽지 않는다. 고르기를 바꾸면 바로 읽고, 앞 질의의 답이 늦게 오면 버린다. 열린 상세 통계 창의 통계는 창을 열 때, 고르기를 바꿀 때, 새 비용 지도마다 다시 읽고, 앞 질의의 통계는 버린다.
+- **엔진 주소와 실패.** 다른 KRX 화면과 같다. `krx_quant/base_url`을 쓰고, 읽지 못하면 머리줄 아래에 이유를 보이고 값은 남긴다. #307 전의 엔진은 읽지 못함이다.
+- **코드.** 엔진 답의 해석은 `EngineData`의 `parse_cost_map`(구조체 `CostMap` 등), 카드·표의 글과 색은 `services/krx_quant/CostView.{h,cpp}`(Qt Core만), 읽기 일정과 상태는 `KrxCostLive`, 그리기는 `screens/krx_quant/KrxCostScreen.{h,cpp}`다. `KrxQuantService`에 `read_cost_map`(순위표처럼 읽는 중에 다시 물으면 마지막 질의를 이어 읽는다)을 더했다.
+- **테스트.** `tst_krx_cost`: 답의 해석, 카드 줄(값, k 경고, 인버스 하한과 거래 수단 없음, 틱 경계), 지평 표의 칸(지평, 폭, 비용, p*와 불가능, 해당 없음과 이유, 예측자 칸과 판정 넷), 기준율 줄과 머리 줄, 읽기 간격, 가짜 엔진 위의 `KrxCostLive`(종목 먼저, 질의 바꾸기와 설정, 실패에도 값 남기기, 모르는 종목은 전체, 실패한 `/v1/kinds` 다시 묻기, 열린 상세 창이 질의를 따르고 앞 질의의 통계를 버림, 주소 없음). 그림은 `krx-capture`의 `KRX_CAPTURE_COST=1`(`KRX_CAPTURE_PERIOD`, `KRX_CAPTURE_SYMBOL`)로 데모 엔진 위에서 확인한다.
 
 ## 개인 빌드
 
