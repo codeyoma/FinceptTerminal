@@ -246,6 +246,18 @@ fincept_add_test(tst_krx_chart_toolbar
     "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
 target_link_libraries(tst_krx_chart_toolbar PRIVATE Qt6::Widgets)
 
+# src/services/krx_quant/DashboardView.{h,cpp} — what the dashboard's KRX widgets show, from the
+# engine's answers (codeyoma/krx-quant#302). Qt Core only.
+fincept_add_test(tst_krx_dashboard_view
+    tst_krx_dashboard_view.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/DashboardView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/StatsView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
+
 # Upstream v4.5.1 made src/trading/OrderValidator.cpp read the risk limits through
 # SettingsRepository (Qt Sql and the app database), but tst_order_validator below in
 # tests/CMakeLists.txt still links Qt Core and that one source, so it does not compile.

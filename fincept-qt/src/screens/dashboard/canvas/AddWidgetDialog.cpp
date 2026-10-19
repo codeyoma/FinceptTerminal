@@ -27,6 +27,8 @@ QString AddWidgetDialog::accent_for_category(const QString& category) {
         return ui::colors::AMBER();
     if (category == "Geopolitics")
         return ui::colors::NEGATIVE();
+    if (category == "KRX") // fork addition (codeyoma/krx-quant#302)
+        return ui::colors::INFO();
     return ui::colors::TEXT_SECONDARY();
 }
 

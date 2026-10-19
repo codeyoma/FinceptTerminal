@@ -99,6 +99,11 @@ void KrxQuantService::refresh() {
 }
 
 void KrxQuantService::restart() {
+    rebind();
+    refresh();
+}
+
+void KrxQuantService::rebind() {
     ++generation_; // every answer still under way is dropped
     for (bool& busy : busy_)
         busy = false;
@@ -110,7 +115,6 @@ void KrxQuantService::restart() {
         url_ = url;
         emit base_url_changed(url_);
     }
-    refresh();
 }
 
 bool KrxQuantService::begin(Kind kind) {

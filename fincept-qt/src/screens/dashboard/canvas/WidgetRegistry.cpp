@@ -35,6 +35,7 @@
 #include "screens/dashboard/widgets/VideoPlayerWidget.h"
 #include "screens/dashboard/widgets/WatchlistWidget.h"
 #include "screens/dashboard/widgets/WebScraperWidget.h"
+#include "screens/krx_quant/dashboard/KrxDashboard.h" // fork addition (codeyoma/krx-quant#302)
 
 namespace fincept::screens {
 
@@ -279,6 +280,8 @@ WidgetRegistry::WidgetRegistry() {
                      QT_TRANSLATE_NOOP("fincept::screens::WidgetRegistry",
                                        "Recent / favorite financial notes — click to open Notes screen"),
                      4, 5, 2, 3, [](const QJsonObject& cfg) { return new widgets::NotesWidget(cfg); }});
+
+    krx_dashboard::register_widgets(*this); // fork addition (codeyoma/krx-quant#302): the KRX widgets
 }
 
 QString WidgetRegistry::display_name_tr(const WidgetMeta& m) {

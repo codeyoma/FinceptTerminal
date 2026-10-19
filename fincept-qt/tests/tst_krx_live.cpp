@@ -27,6 +27,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSettings>
+#include <QSignalSpy>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTemporaryDir>
@@ -205,6 +206,26 @@ class TstKrxLive : public QObject {
     void initTestCase() {
         QVERIFY(settings_.isValid());
         settings_file = settings_.filePath("settings.ini");
+    }
+
+    void rebinding_to_the_setting_s_address_reads_nothing_until_asked() {
+        // codeyoma/krx-quant#302: a dashboard tile that reads the status alone takes a new address
+        // without the snapshot restart() starts, whose failure would read as the status's.
+        StandIn engine;
+        engine.now = "2026-10-16T00:14:00+09:00";
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxQuantService service;
+        QSignalSpy urls(&service, &services::KrxQuantService::base_url_changed);
+        service.rebind();
+        QCOMPARE(service.url(), engine.url());
+        QCOMPARE(urls.count(), 1);
+        QTest::qWait(300);
+        QVERIFY(engine.asked.isEmpty());
+
+        QSignalSpy status(&service, &services::KrxQuantService::status_ready);
+        service.read_status();
+        QTRY_COMPARE_WITH_TIMEOUT(status.count(), 1, 10000);
+        QCOMPARE(engine.asked, QStringList{"/v1/status"});
     }
 
     void before_the_open_a_minute_view_after_a_day_view_reads_the_last_days_bars() {

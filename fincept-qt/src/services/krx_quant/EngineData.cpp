@@ -236,6 +236,7 @@ Entry entry_of(const QJsonObject& e) {
     if (e.value("lift").isObject()) {
         const QJsonObject lift = e.value("lift").toObject();
         entry.lift_low = number(lift.value("low"));
+        entry.day_low = number(lift.value("day_low")); // codeyoma/krx-quant#302
         const QJsonObject vs = lift.value("vs").toObject();
         entry.significant = !vs.isEmpty() && std::all_of(vs.begin(), vs.end(), [](const auto& v) {
             return v.toObject().value("significant").toBool();
@@ -370,6 +371,11 @@ Result<EngineStatus> parse_status(const QJsonDocument& doc) {
     if (o.value("usd_futures").isObject()) {
         const QJsonObject u = o.value("usd_futures").toObject();
         s.usd_futures = UsdFutures{u.value("price").toDouble(), time_of(u.value("at")), number(u.value("change_pct"))};
+    }
+    if (o.value("cpu").isObject()) { // codeyoma/krx-quant#302
+        const QJsonObject cpu = o.value("cpu").toObject();
+        s.cpu_usage = number(cpu.value("usage"));
+        s.cpu_skipped_today = cpu.value("skipped_today").toInt();
     }
     return Result<EngineStatus>::ok(s);
 }
@@ -1281,9 +1287,22 @@ QString special_label(const QString& kind) {
     return labels.value(kind, kind);
 }
 
+bool is_not_found(const QString& failure) {
+    return failure.startsWith(QStringLiteral("엔진 오류 (HTTP 404)"));
+}
+
 QString failure_text(int http_status, const QString& message) {
     if (http_status == 0 && message.isEmpty())
         return QStringLiteral("엔진에 연결할 수 없습니다. 엔진 주소와 네트워크를 확인하세요.");
+    // A transport failure (codeyoma/krx-quant#302): HttpClient's "Network error: <Qt's reason>". Its
+    // transfer limit aborts a request the engine does not answer, which Qt calls "Operation canceled".
+    static const QString kNetwork = QStringLiteral("Network error: ");
+    if (http_status == 0 && message.startsWith(kNetwork)) {
+        const QString reason = message.mid(kNetwork.size());
+        if (reason == QLatin1String("Operation canceled"))
+            return QStringLiteral("엔진이 답하지 않았습니다(시간 초과). 엔진 주소와 네트워크를 확인하세요.");
+        return QStringLiteral("엔진에 연결할 수 없습니다(%1). 엔진 주소와 네트워크를 확인하세요.").arg(reason);
+    }
     if (http_status == 0)
         return QStringLiteral("엔진 응답을 읽을 수 없습니다: %1").arg(message);
     if (message.isEmpty())

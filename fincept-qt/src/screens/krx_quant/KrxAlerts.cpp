@@ -43,7 +43,7 @@ KrxAlerts::KrxAlerts(QWidget* parent) : QWidget(parent) {
     probability_ = new QSpinBox;
     probability_->setRange(50, 99);
     probability_->setSuffix("%");
-    probability_->setValue(AppConfig::instance().get(kProbabilityKey, 60).toInt());
+    probability_->setValue(qRound(saved_rule().min_probability * 100));
     probability->addWidget(probability_);
     probability->addWidget(new QLabel(tr("이상")));
     probability->addStretch();
@@ -54,7 +54,7 @@ KrxAlerts::KrxAlerts(QWidget* parent) : QWidget(parent) {
     agree_ = new QSpinBox;
     agree_->setRange(1, 20);
     agree_->setSuffix(tr("개"));
-    agree_->setValue(AppConfig::instance().get(kAgreeKey, 2).toInt());
+    agree_->setValue(saved_rule().min_agree);
     agree->addWidget(agree_);
     agree->addWidget(new QLabel(tr("이상")));
     agree->addStretch();
@@ -88,6 +88,11 @@ bool KrxAlerts::is_on() const {
 
 krx_quant::SignalRule KrxAlerts::rule() const {
     return {probability_->value() / 100.0, agree_->value()};
+}
+
+krx_quant::SignalRule KrxAlerts::saved_rule() {
+    return {AppConfig::instance().get(kProbabilityKey, 60).toInt() / 100.0,
+            AppConfig::instance().get(kAgreeKey, 2).toInt()};
 }
 
 void KrxAlerts::raise(const krx_quant::Signal& signal) {

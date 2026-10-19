@@ -39,7 +39,9 @@ const char* kStatus = R"({
     {"feed": "H0UNMBC0", "key": "000660", "last_received_at": "2026-10-08T10:14:05+09:00", "seconds_since": 960.0, "gap": "stale"},
     {"feed": "H0IFCNT0", "key": "A01612", "last_received_at": null, "seconds_since": null, "gap": "disconnected: closed"}
   ]},
-  "usd_futures": {"price": 1395.2, "at": "2026-10-08T10:29:58+09:00", "previous_close": 1388.3, "change_pct": 0.497}
+  "usd_futures": {"price": 1395.2, "at": "2026-10-08T10:29:58+09:00", "previous_close": 1388.3, "change_pct": 0.497},
+  "cpu": {"budget_seconds": 40.0, "algorithm_seconds": 8.0, "algorithms": {"alg-a": 6.0, "alg-b": 12.0},
+          "expected_seconds": 18.0, "usage": 0.45, "skipped_today": 2}
 })";
 
 const char* kMacro = R"json({
@@ -340,6 +342,21 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(s.kis_connected, std::optional<bool>(true));
     }
 
+    void status_has_the_cpu_budget_s_usage() {
+        // ``cpu`` (krx-quant #19; codeyoma/krx-quant#302: the dashboard's status widget shows it).
+        const auto status = parse_status(json(kStatus));
+        QVERIFY(status.is_ok());
+        QCOMPARE(status.value().cpu_usage, std::optional<double>(0.45));
+        QCOMPARE(status.value().cpu_skipped_today, 2);
+
+        const auto older = parse_status(json(R"({"mode": "live", "phase": "closed", "now": "2026-10-08T10:30:05+09:00",
+                                                 "last_bar_close": null, "pending_outcomes": 0, "special": [],
+                                                 "training": null})"));
+        QVERIFY(older.is_ok());
+        QVERIFY(!older.value().cpu_usage.has_value());
+        QCOMPARE(older.value().cpu_skipped_today, 0);
+    }
+
     void a_symbols_special_situations_over_days_are_read() {
         // GET /v1/symbols/{symbol}/special (krx-quant #236): its VIs and the market's circuit breakers
         // and sidecars, a detail where the engine gives one; kept in start order.
@@ -469,6 +486,23 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(failure_text(404, QStringLiteral("unknown symbol 999999")),
                  QStringLiteral("엔진 오류 (HTTP 404): unknown symbol 999999"));
         QCOMPARE(failure_text(502, QString()), QStringLiteral("엔진 오류 (HTTP 502)"));
+    }
+
+    void a_transport_failure_says_the_engine_could_not_be_reached() {
+        // HttpClient since upstream v4.5.1: "Network error: <Qt's reason>"; its 20 s transfer
+        // limit aborts the request, which Qt calls "Operation canceled" (codeyoma/krx-quant#302).
+        QCOMPARE(failure_text(0, QStringLiteral("Network error: Operation canceled")),
+                 QStringLiteral("엔진이 답하지 않았습니다(시간 초과). 엔진 주소와 네트워크를 확인하세요."));
+        QCOMPARE(failure_text(0, QStringLiteral("Network error: Connection refused")),
+                 QStringLiteral("엔진에 연결할 수 없습니다(Connection refused). 엔진 주소와 네트워크를 확인하세요."));
+    }
+
+    void a_failure_tells_an_answer_the_engine_does_not_have() {
+        // 404: an older engine without the endpoint (or an unknown symbol).
+        QVERIFY(is_not_found(failure_text(404, QStringLiteral("not found"))));
+        QVERIFY(is_not_found(failure_text(404, QString())));
+        QVERIFY(!is_not_found(failure_text(502, QString())));
+        QVERIFY(!is_not_found(failure_text(0, QString())));
     }
 
     void symbols_keep_an_unknown_mid_point_unknown() {
@@ -962,6 +996,15 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(b.ranked[0].inverse->trades, 80);
         QCOMPARE(b.ranked[0].inverse->per_trade->value, 0.62);
         QVERIFY(!b.ranked[1].inverse.has_value()); // an engine before it
+    }
+
+    void an_entry_keeps_the_weakest_lift_by_trading_day_the_statuses_go_by() {
+        // ``lift.day_low`` (codeyoma/krx-quant#302: the dashboard's leaderboard shows it).
+        const auto board = parse_leaderboard(json(kLeaderboard));
+        QVERIFY(board.is_ok());
+        QCOMPARE(board.value().ranked[0].day_low, std::optional<double>(-0.01));
+        QVERIFY(!board.value().ranked[1].day_low.has_value()); // an engine before it
+        QVERIFY(!board.value().unranked[0].day_low.has_value()); // nothing to compare with
     }
 
     void a_ranked_entry_has_its_rank_status_models_and_stats() {

@@ -100,6 +100,11 @@ struct EngineStatus {
     std::optional<bool> kis_connected;     ///< only a live engine reports its KIS connection
     QList<Feed> feeds;                     ///< likewise
     std::optional<UsdFutures> usd_futures; ///< none before today's first trade
+    /// The CPU budget's use (``cpu.usage``, codeyoma/krx-quant#302): the algorithms' expected seconds a
+    /// bar close over the budget; above 1 the latest registered are skipped. None with a budget of 0,
+    /// and from an engine that does not send it.
+    std::optional<double> cpu_usage{};
+    int cpu_skipped_today = 0; ///< bar closes the budget skipped an algorithm at today
 };
 
 /// A macro indicator as read the morning the regime was decided. Unknown values stay empty.
@@ -335,6 +340,9 @@ struct Entry {
     /// (krx-quant #267, ``pnl_inverse``); none from an older engine, or of another kind.
     std::optional<BarrierPnl> inverse{};
     std::optional<double> lift_low;   ///< the weakest lift's lower bound; none without a baseline to compare with
+    /// The weakest lift's lower bound by trading day (``lift.day_low``, codeyoma/krx-quant#302): what the
+    /// statuses go by. None unless every baseline has one, and from an engine that does not send it.
+    std::optional<double> day_low{};
     bool significant = false;         ///< beats every baseline after the luck correction (q ≤ 0.05)
     QList<Lift> lifts;                ///< over each baseline, by name; none without a baseline to compare with
     std::optional<Excluded> excluded; ///< on a leaderboard line and a detail's overall; none in a breakdown
@@ -876,8 +884,11 @@ QString kst_text(const QDateTime& t, const QString& format);
 QString price_text(double price);
 
 /// Why a request to the engine failed, in Korean, from HttpClient's error: its HTTP status
-/// (0 without a response) and message (empty for a transport failure; a JSON parse
-/// error's text when the body was not JSON).
+/// (0 without a response) and message ("Network error: <reason>" for a transport failure, or
+/// empty from an older HttpClient; a JSON parse error's text when the body was not JSON).
 QString failure_text(int http_status, const QString& message);
+/// Whether ``failure`` (failure_text's) is the engine answering 404: an older engine without the
+/// endpoint, or an unknown symbol (codeyoma/krx-quant#302).
+bool is_not_found(const QString& failure);
 
 } // namespace fincept::krx_quant
