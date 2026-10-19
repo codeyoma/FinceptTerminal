@@ -180,6 +180,13 @@ void CommandBar::build_commands() {
          {"krx", "krx_briefing", "briefing", "pre-open"},
          "",
          {"krx", "korea", "briefing", "브리핑", "장전"}},
+        // Fork addition (codeyoma/krx-quant#306)
+        {"krx_flow",
+         tr("KRX 수급 흐름"),
+         "KRX intraday flows",
+         {"krx", "krx_flow", "flow", "supply"},
+         "",
+         {"krx", "korea", "flow", "수급", "프로그램", "외국인"}},
         {"crypto_trading",
          tr("Crypto Trading"),
          "Cryptocurrency trading",

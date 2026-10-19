@@ -4,6 +4,8 @@
 // each next to the screen's: <out>-<predictor>.png. KRX_CAPTURE_BAR opens bar windows, as a
 // double-click on a 1-minute bar does (krx-quant #255): <out>-bar<n>.png. KRX_CAPTURE_BRIEFING=1 saves
 // the pre-open briefing screen instead (codeyoma/krx-quant#304); KRX_CAPTURE_DAY=<YYYY-MM-DD> its day.
+// KRX_CAPTURE_FLOW=1 saves the flow screen (codeyoma/krx-quant#306): KRX_CAPTURE_SYMBOL its symbol,
+// KRX_CAPTURE_DAY its day, KRX_CAPTURE_HOVER=<0..1> the mouse over its chart at that share of the width.
 //
 //   krx_capture <engine url> <out.png> [seconds=8] [width=1600] [height=1000] [predictor,...]
 //
@@ -12,6 +14,7 @@
 // theme and font are the app's defaults (Obsidian, Consolas 14px).
 #include "core/config/AppConfig.h"
 #include "screens/krx_quant/KrxBriefingScreen.h"
+#include "screens/krx_quant/KrxFlowScreen.h"
 #include "screens/krx_quant/KrxBarWindow.h"
 #include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxChartToolbar.h"
@@ -22,6 +25,7 @@
 #include "screens/krx_quant/KrxStudyPanel.h"
 #include "services/krx_quant/ChartDrawings.h"
 #include "services/krx_quant/KrxBriefingLive.h"
+#include "services/krx_quant/KrxFlowLive.h"
 #include "services/krx_quant/KrxLive.h"
 #include "services/krx_quant/KrxQuantService.h"
 #include "ui/theme/ThemeManager.h"
@@ -37,6 +41,7 @@
 #include <QKeyEvent>
 #include <QKeySequence>
 #include <QMenu>
+#include <QMouseEvent>
 #include <QScreen>
 #include <QScrollArea>
 #include <QTabWidget>
@@ -137,6 +142,39 @@ int main(int argc, char* argv[]) {
         int status = 0;
         QTimer::singleShot(seconds * 1000, &app, [&]() {
             if (!briefing.grab().save(out)) {
+                QTextStream(stderr) << "could not save " << out << "\n";
+                status = 1;
+            }
+            app.quit();
+        });
+        app.exec();
+        return status;
+    }
+
+    // KRX_CAPTURE_FLOW=1: the flow screen (codeyoma/krx-quant#306), saved after the wait.
+    if (qEnvironmentVariableIntValue("KRX_CAPTURE_FLOW") != 0) {
+        if (const QString symbol = qEnvironmentVariable("KRX_CAPTURE_SYMBOL"); !symbol.isEmpty())
+            fincept::AppConfig::instance().set(fincept::services::KrxFlowLive::kSymbolKey, symbol);
+        fincept::screens::KrxFlowScreen flow;
+        flow.resize(width, height);
+        flow.show();
+        if (const QString day = qEnvironmentVariable("KRX_CAPTURE_DAY"); !day.isEmpty())
+            if (auto* live = flow.findChild<fincept::services::KrxFlowLive*>())
+                live->set_day(QDate::fromString(day, Qt::ISODate));
+        if (const QString hover = qEnvironmentVariable("KRX_CAPTURE_HOVER"); !hover.isEmpty()) {
+            QTimer::singleShot(seconds * 800, &app, [&flow, hover]() {
+                if (auto* chart = flow.findChild<fincept::screens::KrxFlowChart*>()) {
+                    const QPoint at(static_cast<int>(chart->width() * hover.toDouble()), chart->height() / 2);
+                    QMouseEvent move(QEvent::MouseMove, at, chart->mapToGlobal(at), Qt::NoButton, Qt::NoButton,
+                                     Qt::NoModifier);
+                    QApplication::sendEvent(chart, &move);
+                }
+            });
+        }
+        const QString out = QString::fromLocal8Bit(argv[2]);
+        int status = 0;
+        QTimer::singleShot(seconds * 1000, &app, [&]() {
+            if (!flow.grab().save(out)) {
                 QTextStream(stderr) << "could not save " << out << "\n";
                 status = 1;
             }

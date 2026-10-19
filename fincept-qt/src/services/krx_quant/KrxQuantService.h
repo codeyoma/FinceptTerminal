@@ -163,6 +163,10 @@ class KrxQuantService : public QObject {
     /// The symbols the engine predicts, with their names and logos (GET /v1/symbols, krx-quant #250),
     /// read alone: symbols_ready or symbols_failed. Asked again while one is read, it is not read.
     void read_symbol_list();
+    /// A symbol's intraday flows of ``day`` (invalid: the engine's default, today or the last trading
+    /// day; GET /v1/symbols/{symbol}/flow, codeyoma/krx-quant#306): flow_ready or flow_failed (also from an
+    /// engine before #306). Asked again while one is read, it is not read.
+    void read_flow(const QString& symbol, const QDate& day);
 
   signals:
     void snapshot_ready(const fincept::services::KrxQuantService::Snapshot& snapshot);
@@ -209,6 +213,8 @@ class KrxQuantService : public QObject {
     void briefing_failed(const QDate& day, const QString& reason);
     void symbols_ready(const QList<fincept::krx_quant::SymbolQuote>& symbols);
     void symbols_failed(const QString& reason);
+    void flow_ready(const QString& symbol, const QDate& day, const fincept::krx_quant::Flow& flow);
+    void flow_failed(const QString& symbol, const QDate& day, const QString& reason);
     /// The address this service reads changed (also when another panel set it).
     void base_url_changed(const QString& url);
 
@@ -233,6 +239,7 @@ class KrxQuantService : public QObject {
         kSupply,      ///< a symbol's daily supply data over days (krx-quant #226)
         kBriefing,    ///< a day's pre-open briefing (codeyoma/krx-quant#304)
         kSymbolList,  ///< the symbols alone
+        kFlow,        ///< a symbol's intraday flows (codeyoma/krx-quant#306)
         kKinds        ///< how many kinds of read there are
     };
 

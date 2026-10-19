@@ -1462,4 +1462,70 @@ Result<Briefing> parse_briefing(const QJsonDocument& doc) {
     return Result<Briefing>::ok(b);
 }
 
+namespace {
+
+FlowTotals flow_totals_of(const QJsonObject& o) {
+    return {QDate::fromString(o.value("day").toString(), Qt::ISODate),
+            time_of(o.value("at")),
+            number(o.value("program_net_value")),
+            number(o.value("member_foreign_net_qty")),
+            number(o.value("estimate_foreign_net_qty")),
+            number(o.value("estimate_institution_net_qty"))};
+}
+
+QList<FlowMember> flow_members_of(const QJsonValue& v) {
+    QList<FlowMember> out;
+    for (const auto& m : v.toArray()) {
+        const QJsonObject o = m.toObject();
+        out.push_back({o.value("no").toString(), o.value("name").toString(), number(o.value("qty")),
+                       o.value("foreign").toBool()});
+    }
+    return out;
+}
+
+} // namespace
+
+Result<Flow> parse_flow(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<Flow>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    Flow f;
+    f.symbol = o.value("symbol").toString();
+    f.day = QDate::fromString(o.value("day").toString(), Qt::ISODate);
+    f.as_of = time_of(o.value("as_of"));
+    f.recorded = o.value("recorded").toBool();
+    f.open = time_of(o.value("open"));
+    f.close = time_of(o.value("close"));
+    for (const auto& v : o.value("minutes").toArray()) {
+        const QJsonObject m = v.toObject();
+        f.minutes.push_back({time_of(m.value("at")), number(m.value("price")), number(m.value("program_net_value")),
+                             number(m.value("program_buy_value")), number(m.value("program_sell_value")),
+                             number(m.value("program_net_qty")), m.value("program_source").toString(),
+                             number(m.value("member_foreign_net_qty")), m.value("member_source").toString()});
+    }
+    for (const auto& v : o.value("estimates").toArray()) {
+        const QJsonObject e = v.toObject();
+        f.estimates.push_back({e.value("slot").toString(), time_of(e.value("received_at")),
+                               number(e.value("foreign_net_qty")), number(e.value("institution_net_qty"))});
+    }
+    if (o.value("members").isObject()) {
+        const QJsonObject m = o.value("members").toObject();
+        f.members = FlowMembers{time_of(m.value("received_at")), m.value("source").toString(),
+                                flow_members_of(m.value("sell")), flow_members_of(m.value("buy"))};
+    }
+    f.totals = flow_totals_of(o.value("totals").toObject());
+    if (o.value("previous_day_same_time").isObject())
+        f.previous_day_same_time = flow_totals_of(o.value("previous_day_same_time").toObject());
+    if (o.value("final").isObject()) {
+        const QJsonObject final = o.value("final").toObject();
+        f.final_known = true;
+        f.final_foreign_net = number(final.value("foreign_net"));
+        f.final_institution_net = number(final.value("institution_net"));
+    }
+    for (const auto& v : o.value("special").toArray())
+        f.special.push_back(special_of(v.toObject()));
+    return Result<Flow>::ok(f);
+}
+
 } // namespace fincept::krx_quant
