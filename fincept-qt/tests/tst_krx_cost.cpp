@@ -381,6 +381,8 @@ class TstKrxCost : public QObject {
         live.read_now(); // the next read asks again
         QTRY_VERIFY_WITH_TIMEOUT(!live.kinds().isEmpty(), 10000);
         QVERIFY(live.kind_info("direction").has_value());
+        // The map asked with them answered first: a read asked while it is under way joins it.
+        QTRY_VERIFY_WITH_TIMEOUT(!live.reading(), 10000);
         const qsizetype asked = engine.asked.count("/v1/kinds");
         const auto maps = [&engine] {
             return std::count_if(engine.asked.cbegin(), engine.asked.cend(),
