@@ -248,6 +248,11 @@ class TstKrxBriefing : public QObject {
         QVERIFY(note.contains(QStringLiteral("7일 중 2일")));
         QVERIFY(rows[0].expected_tip.startsWith(QStringLiteral("지금 예상가 08:59:50")));
         QVERIFY(rows[0].expected_tip.endsWith(note));
+        // A cell without a value says why, and carries the same note.
+        QCOMPARE(rows[1].expected, QStringLiteral("—"));
+        QVERIFY(rows[1].expected_tip.startsWith(QStringLiteral("KRX 예상가 없음")));
+        QVERIFY(rows[1].expected_tip.contains(QStringLiteral("08:50부터")));
+        QVERIFY(rows[1].expected_tip.endsWith(note));
 
         const auto forecasts = view::forecast_rows(b);
         QCOMPARE(forecasts.size(), 1); // the baselines are left out

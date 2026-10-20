@@ -155,6 +155,8 @@ QList<SymbolRow> symbol_rows(const Briefing& b) {
         row.symbol = s.symbol;
         row.previous_close = price_text(s.previous_close);
         row.after_hours = row.premarket = row.expected = dash();
+        row.expected_tip = QStringLiteral("KRX 예상가 없음. 시가 단일가의 KRX 예상가는 08:50부터 옵니다.\n%1")
+                               .arg(expected_open_note());
         if (s.after_hours) {
             row.after_hours = price_and_change(s.after_hours->price, s.after_hours->change_pct);
             row.after_hours_pct = s.after_hours->change_pct;

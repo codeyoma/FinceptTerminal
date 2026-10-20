@@ -63,7 +63,7 @@ struct SymbolRow {
     QString premarket;     ///< "81,500 (+0.37%)"; "—"
     QString premarket_tip; ///< the window and the trade's time
     QString expected;      ///< "81,600 (+0.49%)"; "—"
-    QString expected_tip;  ///< the time, the quantity, the venue code, whether the auction is over, the note
+    QString expected_tip;  ///< the time, quantity, venue code and whether it is final (or why none), then the note
     QString foreign;
     QString institution;
     QString foreign_sum;
