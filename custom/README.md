@@ -639,8 +639,10 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
   - `uv run krx-quant demo-engine --pace 2`: 10:00에 열고 10:30까지 1분을 2초마다 이어 재생하며 스트림을 보낸다. 차트, 패널, 채점이 움직이는 것을 볼 수 있다. 데모 아침의 최종 합의는 50%를 거의 넘지 않아 신호는 나오지 않는다. 알림은 **시험 알림**으로 본다.
   - 데모 아침에는 09:06–09:36 서킷브레이커 1단계(세 종목 모두 그 사이 체결 없음)와 000660의 동적 VI(09:40:10–09:42:20)가 있다(krx-quant #236). 빈 봉과 특수 상황 띠를 볼 때 쓴다. 다른 데모 엔진이 8090을 쓰고 있으면 `--port`로 다른 포트에 띄운다.
 - 테스트(Qt Core만): `cmake -B build -DFINCEPT_BUILD_TESTS=ON … && cmake --build build --target tst_krx_engine_data tst_krx_board tst_krx_signals tst_krx_stats_view tst_krx_chart_model tst_krx_kind_view tst_krx_app_release tst_krx_chart_slots tst_krx_bar_view tst_krx_dashboard_view tst_krx_briefing tst_krx_flow tst_krx_cost && ctest --test-dir build -R krx`.
-  - CI는 경고를 오류로 빌드한다(`-Werror`, 환경 변수 `CI`가 있을 때). 로컬에서 같은 조건으로 보려면 `CI=1 cmake -B build …`로 설정한다. 그러지 않으면 구조체에 필드를 더하고 테스트의 초기화 목록을 그대로 두는 것 같은 경고를 놓친다(`custom-v4.5.0-krx.4` 맥 빌드가 이것으로 실패했다). 이 경고는 clang(맥)에서만 나고, 이 fork의 PR에는 빌드 검사가 돌지 않는다(upstream이 v4.5.1에서 `build-pr.yml`을 지웠다). 그래서 KRX 구조체에 필드를 더하는 PR은 머지 전에 맥에서 `CI=1`로 KRX 테스트를 빌드한다. `custom-v4.5.0-krx.30`부터 `krx.37`까지 맥 빌드가 모두 이것으로 실패해 Release가 없다(`Mark`, `Outcome`, `AlgorithmCard`의 새 필드).
-  - 윈도우는 머지 전에 브랜치를 GitHub에서 빌드해 볼 수 있다: Actions → custom-release → Run workflow, 그 브랜치를 고르고 tag는 비운다. 윈도우 빌드와 그 설치·업데이트 검사만 돌고, Release·태그·issue는 만들지 않는다. 빌드 번호는 어떤 Release도 쓰지 않는 `krx.0`이다.
+  - CI는 경고를 오류로 빌드한다(`-Werror`, 환경 변수 `CI`가 있을 때). 로컬에서 같은 조건으로 보려면 `CI=1 cmake -B build …`로 설정한다. 그러지 않으면 구조체에 필드를 더하고 테스트의 초기화 목록을 그대로 두는 것 같은 경고를 놓친다(`custom-v4.5.0-krx.4` 맥 빌드가 이것으로 실패했다). 이 경고는 clang에서 난다. `custom` 대상 PR에서는 `custom-pr-check`가 리눅스의 clang으로 KRX 테스트를 `CI` 조건(`-Werror`)으로 빌드하고 돌린다(아래 "개인 빌드"의 PR 검사). `custom-v4.5.0-krx.30`부터 `krx.37`까지 맥 빌드가 모두 이것으로 실패해 Release가 없다(`Mark`, `Outcome`, `AlgorithmCard`의 새 필드). 리눅스 clang과 맥의 Apple clang은 버전이 달라, 드물게 맥에서만 나는 경고는 머지 뒤 맥 개인 빌드에서 드러난다.
+    > **바뀜** (2026-10-20, codeyoma/FinceptTerminal#100, codeyoma/krx-quant#324): "이 fork의 PR에는 빌드 검사가 돌지 않는다. 그래서 KRX 구조체에 필드를 더하는 PR은 머지 전에 맥에서 `CI=1`로 KRX 테스트를 빌드한다" → `custom` 대상 PR마다 KRX 테스트가 리눅스 clang과 `-Werror`로 저절로 빌드되고 돈다. 이유: 이런 경고(krx.4, krx.25)와 요청 순서에 기댄 테스트(krx.34, codeyoma/FinceptTerminal#99)가 머지 뒤 개인 빌드에서야 드러났다.
+  - 윈도우는 `custom` 대상 PR마다 GitHub에서 저절로 빌드된다(아래 "개인 빌드"의 PR 검사). PR이 없는 브랜치는 손으로 빌드해 볼 수 있다: Actions → custom-release → Run workflow, 그 브랜치를 고르고 tag는 비운다. 윈도우 빌드와 그 설치·업데이트 검사만 돌고, Release·태그·issue는 만들지 않는다. 빌드 번호는 어떤 Release도 쓰지 않는 `krx.0`이다.
+    > **바뀜** (2026-10-20, codeyoma/FinceptTerminal#100, codeyoma/krx-quant#324): 머지 전에 에이전트가 브랜치의 윈도우 점검을 손으로 돌렸다 → PR이면 같은 점검이 저절로 돌고 PR의 체크로 보인다. 손으로 돌리기는 PR이 없는 브랜치에 남는다. 이유: MSVC 경고(`setAlphaF(0.08)`, krx.16, codeyoma/FinceptTerminal#80)가 머지 뒤 개인 빌드에서야 드러났다.
     > **바뀜** (2026-10-15, upstream v4.5.1 merge, codeyoma/FinceptTerminal#36): `build-pr.yml`은 꺼져 있었다 → upstream v4.5.1이 파일을 지웠다. 이유 기록 없음(upstream). 대신: 위처럼 머지 전에 맥에서 `CI=1`로 빌드한다.
   - `tst_krx_engine_data`: 엔진 API와 스트림 메시지 해석(일봉과 그 시장, `bar` 이벤트, 합의의 `pooled`, `/v1/algorithms`의 수명 상태, 상세 통계의 기준별 lift와 그 거래일 단위 값, 보정 곡선, 나눠 본 통계, 기준율 대비 실력과 변동성 3분위 포함), 한국어 이름(방향의 기준 예측 넷, `baseline-climate` 포함), 시각·가격 표기, 머리줄 엔진 점의 상태와 툴팁, 종목의 특수 상황 구간(`/v1/symbols/{s}/special`, 단계 `detail`, 시작 순서, 엔진의 오류)과 상태의 `detail`(codeyoma/krx-quant#236), 상태의 오늘 장 `session`(휴장일은 없음, codeyoma/krx-quant#238). codeyoma/krx-quant#255에서 1분봉의 체결 수(`trades`, 지난 날의 봉은 `null`이라 없음), 도달 정답의 호가단위와 k(`touch.tick`, `touch.k`), "기준: 직전 4분 방향"의 `no_previous`가 "직전 창 없음"인 것을 더 본다. 일별 수급(`/v1/symbols/{s}/supply`, codeyoma/krx-quant#226)의 필드와 `null`, 날짜 순서, 날짜 없는 날 버림, 엔진의 오류도 본다(지어낸 값).
   - `tst_krx_board`: 답과 스트림을 합친 화면 상태(최신 봉 마감, 차트 표시, 합의 구성원, 신호가 볼 예측, 실패와 되감기).
@@ -838,6 +840,25 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 
 > **바뀜** (2026-10-12, codeyoma/krx-quant#95): 앱 내 업데이트 꺼짐 → 이 fork의 개인 빌드 Release에서 버튼 한 번으로 업데이트. 이유: 새 화면 빌드마다 DMG·setup.exe를 받아 직접 다시 설치해야 했다(codeyoma/krx-quant#92). 공식 버전 업데이트는 여전히 꺼져 있다.
 
+- 맥 DMG를 만드는 `hdiutil create`는 runner에서 가끔 `Resource busy`로 실패하고 다시 돌리면 통과한다(krx.21). 그래서 15초 간격으로 네 번까지 시도한다(codeyoma/krx-quant#324).
+
+### PR 검사 (codeyoma/krx-quant#324)
+
+`custom` 대상 PR에서는 검사가 저절로 돌고, 결과가 PR의 체크로 보인다. 머지 뒤 개인 빌드에서야 드러나던 실패(MSVC 경고 krx.16, clang 경고 krx.4·krx.25, 요청 순서에 기댄 테스트 krx.34)를 머지 전에 잡으려고서다.
+
+| 체크 | workflow | 하는 일 | 걸리는 시간 |
+|---|---|---|---|
+| `Windows x64 Installer` | `custom-release` | 위 "개발"의 브랜치 윈도우 점검과 같다. PR을 `custom`에 merge 한 결과를 빌드 번호 `krx.0`으로 빌드하고, 스모크 테스트, 자가 검사, 설치 파일·업데이트 도우미 검사까지 한다. | 약 40분(빌드 25분, vcpkg의 OpenSSL·zlib 설치 8분) |
+| `KRX tests (Linux, clang, -Werror)` | `custom-pr-check` | 리눅스에서 KRX 테스트(`ctest -R krx`)의 대상만 빌드해 돌린다. 앱은 빌드하지 않는다. `CI` 조건이라 `-Werror`다. 맥 빌드를 막은 경고가 clang의 것이라 GCC 대신 clang으로 빌드한다. 실제 창이 필요한 `tst_krx_chart_page`, `tst_krx_chart_toolbar`는 offscreen이라 건너뛴다(개인 빌드의 맥 ctest는 돌린다). | 약 9분(테스트 대상 빌드 7분, 테스트 20초). 같은 PR의 다음 push는 그 PR의 ccache를 받아 빌드가 짧아진다 |
+| `README placeholders` | `custom-pr-check` | `custom/README.md`에 PR 번호 자리표시(`#` 뒤의 `PRNUM`, `NNN`, `__PR3__` 같은 것. 실제 번호는 통과한다)가 남았으면 실패한다. 정규식은 krx-quant의 `src/krx_quant/forbidden.py` `REPOSITORY_RULES`(codeyoma/krx-quant#321)를 복사한 것이라, 바꾸면 둘을 함께 바꾼다. 바뀜·삭제됨 노트의 번호는 PR을 연 뒤에 넣는다. | 몇 초 |
+
+- 도는 PR: `fincept-qt/**`, `custom/**`, 그 workflow 파일을 바꾼 PR. 윈도우 점검은 Markdown(`*.md`)만 바꾼 PR에서는 돌지 않고, 대신 `.github/scripts/ci_app_checks.sh`를 바꿔도 돈다. PR의 검사가 도는 동안 새 커밋을 push 하면 돌던 검사는 취소되고 새로 돈다.
+- `custom-release`의 다른 job(맥 DMG, Release, land, report)은 PR에서 "skipped"로 보인다. PR 검사는 Release, 태그, issue를 만들지 않는다. 읽기 권한 토큰만 쓰고 secret은 쓰지 않아서, 다른 fork에서 온 PR도 같게 돈다(처음 기여하는 사람의 PR은 저장소 주인이 승인해야 돈다).
+- 필수 검사(branch protection)로 걸어 두지는 않았다. 머지하기 전에 체크가 모두 초록인지 본다.
+- 머지 뒤 개인 빌드(태그 push)는 전처럼 맥과 윈도우를 모두 빌드하고, 맥에서 모든 테스트를 돌린다.
+
+> **바뀜** (2026-10-20, codeyoma/FinceptTerminal#100, codeyoma/krx-quant#324): `custom` 대상 PR에는 검사가 하나도 돌지 않아, 에이전트가 머지 전에 브랜치 윈도우 점검을 손으로 돌렸다 → PR마다 윈도우 점검, KRX 테스트, README 자리표시 검사가 저절로 돌고 PR의 체크로 보인다. 이유: MSVC 경고(`setAlphaF(0.08)`, krx.16, codeyoma/FinceptTerminal#80)와 요청 순서에 기댄 `tst_krx_cost`(krx.34, codeyoma/FinceptTerminal#99)가 머지 뒤 개인 빌드에서야 드러났다.
+
 ## 앱 업데이트 (codeyoma/krx-quant#92, #130)
 
 - **빌드 태그.** `custom-release` workflow가 태그를 `-DFINCEPT_CUSTOM_TAG`로 빌드에 넘긴다. 앱은 자기가 어느 개인 빌드인지 안다. 로컬 빌드는 태그가 없어 업데이트를 확인하지 않는다.
@@ -875,7 +896,9 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 
 ## upstream workflow
 
-이 fork에서는 upstream의 예약·릴리스 workflow를 끈다(GitHub Actions 설정에서 disable). 개인 빌드용 workflow는 `custom-` 접두사로 둔다: `custom-upstream-watch`(`main` 동기화와 upstream 릴리스 자동 반영), `custom-release`(개인 빌드, upstream merge의 시험 빌드, 브랜치의 윈도우 빌드 확인, 위 "개인 빌드"), `custom-auto-tag`(`custom`에 push 된 변경을 다음 개인 빌드로 태그, 위 "개인 빌드"), `custom-krx-pointer`(`custom`에 push 될 때마다 krx-quant에 포인터를 옮기라고 알림, 위 "krx-quant 포인터").
+이 fork에서는 upstream의 예약·릴리스 workflow를 끈다(GitHub Actions 설정에서 disable). upstream의 PR 검사도 꺼져 있다: `lint`, `arch-ratchet`은 `pull_request`로 돌게 되어 있지만 disable 되어 있고, `pr-gate`는 upstream의 기여 규칙(연결된 issue, 라벨)을 보는 `pull_request_target` workflow라 이 fork에 맞지 않고, 역시 disable 되어 있다. 이 fork의 PR 검사는 아래 `custom-pr-check`와 `custom-release`의 윈도우 점검이다(위 "PR 검사"). 개인 빌드용 workflow는 `custom-` 접두사로 둔다: `custom-upstream-watch`(`main` 동기화와 upstream 릴리스 자동 반영), `custom-release`(개인 빌드, upstream merge의 시험 빌드, 브랜치와 PR의 윈도우 빌드 확인, 위 "개인 빌드"), `custom-auto-tag`(`custom`에 push 된 변경을 다음 개인 빌드로 태그, 위 "개인 빌드"), `custom-krx-pointer`(`custom`에 push 될 때마다 krx-quant에 포인터를 옮기라고 알림, 위 "krx-quant 포인터"), `custom-pr-check`(`custom` 대상 PR의 KRX 테스트와 README 자리표시 검사, 위 "PR 검사").
+
+> **바뀜** (2026-10-20, codeyoma/FinceptTerminal#100, codeyoma/krx-quant#324): 개인 빌드용 workflow 넷 → 다섯(`custom-pr-check`). `custom-release`는 `custom` 대상 PR에서도 윈도우 점검을 한다. 이유: 위 "PR 검사"의 바뀜과 같다.
 
 > **바뀜** (2026-10-14, codeyoma/krx-quant#188): 개인 빌드용 workflow 셋 → 넷(`custom-krx-pointer`). 이유: krx-quant의 `fincept` 포인터가 손으로 올리지 않아도 `custom`의 최신 커밋을 따라가게 하려고(codeyoma/krx-quant#186).
 

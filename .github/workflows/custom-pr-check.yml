@@ -1,0 +1,172 @@
+name: custom-pr-check
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Checks on a pull request against the custom branch (codeyoma/krx-quant#324),
+# shown as the PR's checks:
+#
+#   - KRX tests: the fork's Qt Test suites (ctest -R krx), built with -Werror
+#     (CMakeLists.txt adds it when the CI variable is set, as it always is on
+#     GitHub). Linux, the cheaper runner, with clang rather than GCC: the
+#     warnings that failed the macOS personal build after a merge (a struct
+#     field left out of a designated initializer, krx.4 and others) are clang's.
+#     Only the test targets are built, not the app. Suites that need a real
+#     window (tst_krx_chart_page, tst_krx_chart_toolbar) skip themselves on the
+#     offscreen platform; the macOS personal build still runs them.
+#   - README placeholders: a PR number placeholder (#PRNUM, #NNN, ...) left in
+#     custom/README.md.
+#
+# The Windows check of the PR is custom-release.yml's branch check, which also
+# runs on these pull requests. Nothing here releases, tags, lands or reports:
+# the token is read-only and no secret is used, so a PR from another fork runs
+# it the same way.
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  pull_request:
+    branches: [custom]
+    paths:
+      - 'fincept-qt/**'
+      - 'custom/**'
+      - '.github/workflows/custom-pr-check.yml'
+
+concurrency:
+  group: custom-pr-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # The same Qt as custom-release.yml.
+  QT_VERSION: "6.8.3"
+  QT_MODULES: "qtcharts qtwebsockets qtmultimedia qtwebengine qtwebchannel qtpositioning qtserialport"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  krx-tests:
+    name: KRX tests (Linux, clang, -Werror)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # Qt's CMake packages need the GL and xkbcommon headers; the WebEngine
+      # suite links Qt WebEngine, whose libraries need NSS and the X libraries
+      # below; the offscreen platform needs fontconfig.
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang ninja-build \
+            libssl-dev zlib1g-dev \
+            libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev \
+            libxkbcommon-dev libxkbcommon-x11-dev \
+            libfontconfig1-dev libfreetype-dev libdbus-1-dev \
+            libnss3 libxkbfile1 libxshmfence1 libxcomposite1 libxdamage1 \
+            libxrandr2 libxtst6 libgbm1 libasound2t64
+          clang --version
+
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1
+        with:
+          key: krx-tests-linux-clang-${{ env.QT_VERSION }}
+          max-size: 500M
+
+      - name: Install Qt ${{ env.QT_VERSION }}
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: linux_gcc_64
+          modules: ${{ env.QT_MODULES }}
+          cache: true
+          cache-key-prefix: qt-linux-x64-krx-tests
+
+      # The same aqt workaround as custom-release.yml: Qt6Sql ships CMake
+      # configs for driver plugins aqt does not install.
+      - name: Remove dangling Qt SQL driver plugin CMake configs
+        run: |
+          set -euo pipefail
+          SQL_CMAKE="${QT_ROOT_DIR}/lib/cmake/Qt6Sql"
+          if [ -d "${SQL_CMAKE}" ]; then
+            for drv in QMYSQLDriverPlugin QPSQLDriverPlugin QODBCDriverPlugin QMimerSQLDriverPlugin; do
+              rm -fv "${SQL_CMAKE}/Qt6${drv}"*.cmake || true
+            done
+          fi
+
+      # CI is set on every runner, so CMakeLists.txt builds with -Werror, as
+      # `CI=1 cmake ...` does locally (custom/README.md). ccache is picked up
+      # by CMakeLists.txt itself.
+      - name: Configure CMake
+        working-directory: fincept-qt
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${QT_ROOT_DIR}" \
+            -DFINCEPT_BUILD_TESTS=ON \
+            -DFINCEPT_DOWNLOAD_YTDLP=OFF
+
+      # Only the suites ctest -R krx runs, not the app. The listing check
+      # makes sure the fork's suites are registered, so a dropped test target
+      # cannot pass silently (as the release build checks).
+      - name: Build the KRX tests
+        working-directory: fincept-qt
+        run: |
+          set -euo pipefail
+          mapfile -t TESTS < <(ctest --test-dir build -R krx --show-only=json-v1 | jq -r '.tests[].name')
+          printf '%s\n' "${TESTS[@]}"
+          printf '%s\n' "${TESTS[@]}" | grep -qx tst_krx_engine_data || {
+            echo "::error::tst_krx_engine_data is not registered with ctest"
+            exit 1
+          }
+          cmake --build build --target "${TESTS[@]}"
+          ccache --show-stats || true
+
+      - name: Run the KRX tests
+        working-directory: fincept-qt
+        timeout-minutes: 15
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ctest --test-dir build -R krx --output-on-failure --no-tests=error
+
+  readme-placeholders:
+    name: README placeholders
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # A change note's PR number is known only once the PR is open, so a note
+      # is written with a stand-in first; this fails while one is left.
+      - name: Check custom/README.md for PR number placeholders
+        run: |
+          python3 - custom/README.md <<'PY'
+          import re
+          import sys
+
+          # The same pattern as REPOSITORY_RULES in codeyoma/krx-quant's
+          # src/krx_quant/forbidden.py (codeyoma/krx-quant#321). Change the two together.
+          # A real number (#123) passes; #PRNUM, #NNN, #PRB, #PRDOCS, #__PR3__ do not.
+          PLACEHOLDER = re.compile(r"#(?:PR[A-Z0-9_]+|N{3,}|X{3,}|TBD|_+PR[A-Za-z0-9_]*_+)(?![A-Za-z0-9_])")
+
+          hits = 0
+          for path in sys.argv[1:]:
+              with open(path, encoding="utf-8") as f:
+                  for lineno, line in enumerate(f, 1):
+                      for m in PLACEHOLDER.finditer(line):
+                          print(f"::error file={path},line={lineno}::PR number placeholder {m.group(0)}: write the PR's number")
+                          hits += 1
+          if hits:
+              print(f"{hits} PR number placeholder(s) found", file=sys.stderr)
+              sys.exit(1)
+          print("No PR number placeholder.")
+          PY
