@@ -28,8 +28,10 @@ name: Custom Release — personal Windows + macOS builds
 #
 # Windows check of a branch: Actions -> this workflow -> Run workflow on any
 # other branch, tag empty. Only the Windows build runs, with its install and
-# update checks; nothing is released, landed or reported. This fork's PRs get
-# no build check, so a change can be built before its merge.
+# update checks; nothing is released, landed or reported. A pull request
+# against custom runs the same check by itself (codeyoma/krx-quant#324) on the
+# merge of the PR, unless it changes only Markdown, and shows it as a PR
+# check; custom-pr-check.yml runs the PR's KRX tests beside it.
 #
 # The build, deploy and package steps are copied from release.yml's
 # build-windows and build-macos jobs. When an upstream merge changes those
@@ -45,12 +47,22 @@ on:
         description: "Existing custom-v* tag to build and release (empty = the ref this run was started from)"
         required: false
         type: string
+  # The Windows check of a pull request against custom (codeyoma/krx-quant#324).
+  # A change to Markdown alone builds nothing.
+  pull_request:
+    branches: [custom]
+    paths:
+      - 'fincept-qt/**'
+      - 'custom/**'
+      - '!**/*.md'
+      - '.github/workflows/custom-release.yml'
+      - '.github/scripts/ci_app_checks.sh'
 
 # One run per tag. A second run for the same tag waits instead of cancelling a
-# release halfway.
+# release halfway. A pull request's check is cancelled by the PR's next push.
 concurrency:
   group: custom-release-${{ inputs.tag || github.ref_name }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -125,16 +137,19 @@ jobs:
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if [[ -z "${INPUT_TAG}" && "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${GITHUB_REF_TYPE}" == "branch" && "${REF_NAME}" != "custom" ]]; then
-            # Windows check of a branch: built under build number 0, which no
-            # release uses, and never released.
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]] ||
+             [[ -z "${INPUT_TAG}" && "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${GITHUB_REF_TYPE}" == "branch" && "${REF_NAME}" != "custom" ]]; then
+            # Windows check of a branch, or of a pull request's merge into
+            # custom (GITHUB_SHA): built under build number 0, which no release
+            # uses, and never released.
+            BRANCH="${GITHUB_HEAD_REF:-${REF_NAME}}"
             TAG="custom-$(tr -d '[:space:]' < custom/UPSTREAM_BASE)-krx.0"
-            echo "Windows check of ${REF_NAME} (${GITHUB_SHA}), built as ${TAG}; nothing is released"
+            echo "Windows check of ${BRANCH} (${GITHUB_SHA}), built as ${TAG}; nothing is released"
             {
               echo "tag=${TAG}"
               echo "sha=${GITHUB_SHA}"
               echo "check=true"
-              echo "branch=${REF_NAME}"
+              echo "branch=${BRANCH}"
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -1499,6 +1514,9 @@ jobs:
 
       # ── Generate Installer (DMG via hdiutil, unsigned) ────────────────────
       # A plain hdiutil DMG over dist/, as release.yml does, named after the tag.
+      # hdiutil create sometimes fails on the runner with "Resource busy" and
+      # passes when run again (krx.21), so it is tried up to four times
+      # (codeyoma/krx-quant#324).
       - name: Generate Installer (DMG)
         working-directory: fincept-qt
         run: |
@@ -1512,11 +1530,22 @@ jobs:
           # Symlink /Applications so users can drag the app across in the DMG.
           ln -s /Applications "${STAGING}/Applications"
 
-          hdiutil create \
-            -volname "${{ env.APP_NAME }}" \
-            -srcfolder "${STAGING}" \
-            -ov -format UDZO \
-            "build/${DMG_NAME}"
+          ATTEMPTS=4
+          for attempt in $(seq 1 "${ATTEMPTS}"); do
+            if hdiutil create \
+                 -volname "${{ env.APP_NAME }}" \
+                 -srcfolder "${STAGING}" \
+                 -ov -format UDZO \
+                 "build/${DMG_NAME}"; then
+              break
+            fi
+            if [ "${attempt}" -eq "${ATTEMPTS}" ]; then
+              echo "::error::hdiutil create failed ${ATTEMPTS} times"
+              exit 1
+            fi
+            echo "::warning::hdiutil create failed (attempt ${attempt} of ${ATTEMPTS}); trying again in 15 s"
+            sleep 15
+          done
 
           ls -lh "build/${DMG_NAME}"
 
