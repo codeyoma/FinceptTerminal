@@ -63,7 +63,7 @@ struct SymbolRow {
     QString premarket;     ///< "81,500 (+0.37%)"; "—"
     QString premarket_tip; ///< the window and the trade's time
     QString expected;      ///< "81,600 (+0.49%)"; "—"
-    QString expected_tip;  ///< the time, the quantity, the venue code, and whether the auction is over
+    QString expected_tip;  ///< the time, the quantity, the venue code, whether the auction is over, the note
     QString foreign;
     QString institution;
     QString foreign_sum;
@@ -74,6 +74,13 @@ struct SymbolRow {
     std::optional<double> after_hours_pct;
 };
 QList<SymbolRow> symbol_rows(const Briefing& b);
+
+/// The symbol table's KRX expected-open column (codeyoma/krx-quant#314): its title, "KRX 예상 시가(참고)",
+/// and the note its tooltip and each cell's tooltip end with. The expected price is a reference: the
+/// opening auction's last before the open, which was the open on 2 of 7 days measured
+/// (2026-10-12 – 10-20) and usually 1–5 ticks off on the others.
+QString expected_open_title();
+QString expected_open_note();
 
 /// A daily algorithm's forecast of a symbol (the baselines are left out: their inputs are none).
 struct ForecastRow {

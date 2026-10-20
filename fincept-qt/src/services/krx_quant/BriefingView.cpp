@@ -173,9 +173,10 @@ QList<SymbolRow> symbol_rows(const Briefing& b) {
             row.expected = price_and_change(e.price, e.change_pct);
             row.expected_pct = e.change_pct;
             row.expected_tip =
-                QStringLiteral("%1 %2 · 예상 체결량 %3 · 거래소 구분 %4")
+                QStringLiteral("%1 %2 · 예상 체결량 %3 · 거래소 구분 %4\n%5")
                     .arg(e.final ? QStringLiteral("시가 단일가의 마지막 예상가") : QStringLiteral("지금 예상가"),
-                         kst_text(e.at, "HH:mm:ss"), price_text(e.qty), e.venue_code.isEmpty() ? dash() : e.venue_code);
+                         kst_text(e.at, "HH:mm:ss"), price_text(e.qty), e.venue_code.isEmpty() ? dash() : e.venue_code,
+                         expected_open_note());
         }
         row.foreign = shares_text(s.supply.foreign_net);
         row.institution = shares_text(s.supply.institution_net);
@@ -188,6 +189,15 @@ QList<SymbolRow> symbol_rows(const Briefing& b) {
         rows.push_back(row);
     }
     return rows;
+}
+
+QString expected_open_title() {
+    return QStringLiteral("KRX 예상 시가(참고)");
+}
+
+QString expected_open_note() {
+    return QStringLiteral("참고 값: 개장(09:00) 전 시가 단일가의 마지막 예상가입니다. 실제 시가와 다를 수 있고, 보통 "
+                          "1–5틱 차이가 납니다(2026-10-12–10-20 실측, 7일 중 2일 같음).");
 }
 
 QList<ForecastRow> forecast_rows(const Briefing& b) {

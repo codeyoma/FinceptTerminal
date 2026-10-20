@@ -238,6 +238,16 @@ class TstKrxBriefing : public QObject {
         QCOMPARE(rows[0].institution_sum, QStringLiteral("—"));
         QVERIFY(rows[0].premarket_tip.contains(QStringLiteral("08:40-08:50")));
         QCOMPARE(rows[1].premarket, QStringLiteral("—"));
+        // KRX's expected open is a reference (codeyoma/krx-quant#314): the column says so, and its
+        // tooltip and each cell's tell how far it was from the open when measured.
+        QCOMPARE(view::expected_open_title(), QStringLiteral("KRX 예상 시가(참고)"));
+        const QString note = view::expected_open_note();
+        QVERIFY(note.contains(QStringLiteral("마지막 예상가")));
+        QVERIFY(note.contains(QStringLiteral("1–5틱")));
+        QVERIFY(note.contains(QStringLiteral("2026-10-12–10-20")));
+        QVERIFY(note.contains(QStringLiteral("7일 중 2일")));
+        QVERIFY(rows[0].expected_tip.startsWith(QStringLiteral("지금 예상가 08:59:50")));
+        QVERIFY(rows[0].expected_tip.endsWith(note));
 
         const auto forecasts = view::forecast_rows(b);
         QCOMPARE(forecasts.size(), 1); // the baselines are left out

@@ -161,11 +161,14 @@ KrxBriefingScreen::KrxBriefingScreen(QWidget* parent) : QWidget(parent) {
 
     // Each symbol.
     symbols_header_ = krx_panel::header(
-        tr("종목"), tr("전일 KRX 종가 대비. 장 마감 뒤는 전일 20:00 전 마지막 통합 1분봉, 프리마켓은 cox와 같은 규칙"
-                       "(08:40–08:50, 없으면 08:00–08:30), 예상 시가는 시가 단일가(개장 30분 전부터)의 마지막 예상가"));
+        tr("종목"),
+        tr("전일 KRX 종가 대비. 장 마감 뒤는 전일 20:00 전 마지막 통합 1분봉, 프리마켓은 cox와 같은 규칙"
+           "(08:40–08:50, 없으면 08:00–08:30), 예상 시가는 KRX 시가 단일가의 마지막 예상가(08:50부터, 참고)"));
     symbols_table_ =
-        krx_tables::table({tr("종목"), tr("전일 종가"), tr("장 마감 뒤"), tr("NXT 프리마켓"), tr("KRX 예상 시가"),
-                           tr("외국인"), tr("기관"), tr("외국인 5일"), tr("기관 5일")});
+        krx_tables::table({tr("종목"), tr("전일 종가"), tr("장 마감 뒤"), tr("NXT 프리마켓"),
+                           view::expected_open_title(), tr("외국인"), tr("기관"), tr("외국인 5일"), tr("기관 5일")});
+    if (auto* item = symbols_table_->horizontalHeaderItem(4)) // the expected open: a reference
+        item->setToolTip(view::expected_open_note());
     symbols_table_->setItemDelegateForColumn(0, new KrxSymbolDelegate(symbols_table_));
     grid->addWidget(krx_panel::panel(symbols_header_, symbols_table_), 1, 0, 1, 2);
 
