@@ -909,3 +909,5 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 > **바뀜** (2026-10-12, codeyoma/krx-quant#99): 개인 빌드용 workflow 둘 → 셋(`custom-auto-tag`). 이유: 위 "개인 빌드"의 바뀜과 같다(codeyoma/krx-quant#98).
 
 > **바뀜** (2026-10-12, krx-quant #94): `custom-upstream-watch`는 upstream 릴리스 알림 → 자동 반영. `custom-release`에 `upstream-merge/<tag>` 브랜치의 시험 빌드가 더해졌다. 이유: upstream 릴리스 자동 반영(krx-quant #93).
+
+`custom-*` workflow는 Node.js 24에서 도는 action 판을 쓴다(codeyoma/FinceptTerminal#102): `actions/checkout@v7`, `actions/upload-artifact@v7`, `actions/download-artifact@v8`, `hendrikmuhs/ccache-action@v1.2.24`. ccache-action만 정확한 태그로 둔다. 그 action의 `v1`·`v1.2` 태그는 아직 Node.js 20에서 도는 v1.2.20을 가리킨다. `jurplel/install-qt-action@v4`는 composite이고 안의 action이 이미 Node.js 24라 그대로다. release.yml의 바뀐 내용을 `custom-release.yml`로 옮길 때 이 판을 upstream의 옛 판으로 되돌리지 않는다. upstream workflow는 merge가 충돌하지 않게 upstream의 판을 그대로 둔다. 그래서 손으로 돌리는 `build-cpp.yml`은 아직 Node.js 20 경고를 낸다.
