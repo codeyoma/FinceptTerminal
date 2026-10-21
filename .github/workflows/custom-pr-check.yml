@@ -49,7 +49,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -69,8 +69,10 @@ jobs:
             libxrandr2 libxtst6 libgbm1 libasound2t64
           clang --version
 
+      # An exact tag: the action's moving v1 and v1.2 tags still point at
+      # v1.2.20, which runs on Node.js 20. v1.2.21 and later run on Node.js 24.
       - name: Set up ccache
-        uses: hendrikmuhs/ccache-action@v1
+        uses: hendrikmuhs/ccache-action@v1.2.24
         with:
           key: krx-tests-linux-clang-${{ env.QT_VERSION }}
           max-size: 500M
@@ -141,7 +143,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 

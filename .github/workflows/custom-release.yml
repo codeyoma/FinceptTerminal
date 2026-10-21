@@ -96,7 +96,7 @@ jobs:
 
     steps:
       - name: Checkout (full history)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -187,7 +187,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.verify-tag.outputs.sha }}
           submodules: recursive
@@ -870,7 +870,7 @@ jobs:
 
       # ── Upload ────────────────────────────────────────────────────────────
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: FinceptTerminal-Windows-x64-installer
           path: |
@@ -894,14 +894,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.verify-tag.outputs.sha }}
           submodules: recursive
           fetch-depth: 1
 
+      # An exact tag: the action's moving v1 and v1.2 tags still point at
+      # v1.2.20, which runs on Node.js 20. v1.2.21 and later run on Node.js 24.
       - name: Set up ccache
-        uses: hendrikmuhs/ccache-action@v1
+        uses: hendrikmuhs/ccache-action@v1.2.24
         with:
           key: macos-arm64-release-${{ env.QT_VERSION }}
           max-size: 500M
@@ -1577,7 +1579,7 @@ jobs:
 
       # ── Upload ────────────────────────────────────────────────────────────
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: FinceptTerminal-macOS-arm64-installer
           path: fincept-qt/build/FinceptTerminal-*-macos-arm64.dmg
@@ -1602,13 +1604,13 @@ jobs:
 
     steps:
       - name: Download Windows installer
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: FinceptTerminal-Windows-x64-installer
           path: dist/windows
 
       - name: Download macOS installer
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: FinceptTerminal-macOS-arm64-installer
           path: dist/macos
@@ -1713,7 +1715,7 @@ jobs:
           exit 1
 
       - name: Checkout the merge
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.verify-tag.outputs.sha }}
           fetch-depth: 0

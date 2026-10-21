@@ -121,7 +121,7 @@ jobs:
       # that brings upstream workflow changes needs SYNC_TOKEN.
       - name: Check out custom
         if: steps.plan.outputs.go == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: custom
           fetch-depth: 0
