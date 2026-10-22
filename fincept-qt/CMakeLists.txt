@@ -1541,6 +1541,8 @@ set(SERVICE_SOURCES
     src/services/krx_quant/KrxFlowLive.cpp
     src/services/krx_quant/CostView.cpp
     src/services/krx_quant/KrxCostLive.cpp
+    src/services/krx_quant/ClosingView.cpp
+    src/services/krx_quant/KrxClosingLive.cpp
 )
 
 # UI framework
@@ -2154,6 +2156,7 @@ set(SCREEN_SOURCES
     src/screens/krx_quant/KrxBriefingScreen.cpp
     src/screens/krx_quant/KrxFlowScreen.cpp
     src/screens/krx_quant/KrxCostScreen.cpp
+    src/screens/krx_quant/KrxClosingScreen.cpp
     src/screens/krx_quant/KrxChart.cpp
     src/screens/krx_quant/KrxChartToolbar.cpp
     src/screens/krx_quant/KrxDrawingPopup.cpp
@@ -2743,6 +2746,7 @@ set_source_files_properties(
     src/screens/krx_quant/KrxBriefingScreen.cpp
     src/screens/krx_quant/KrxFlowScreen.cpp
     src/screens/krx_quant/KrxCostScreen.cpp
+    src/screens/krx_quant/KrxClosingScreen.cpp
     src/screens/krx_quant/KrxChart.cpp
     src/screens/krx_quant/KrxChartToolbar.cpp
     src/screens/krx_quant/KrxDrawingPopup.cpp
@@ -2781,6 +2785,8 @@ set_source_files_properties(
     src/services/krx_quant/KrxFlowLive.cpp
     src/services/krx_quant/CostView.cpp
     src/services/krx_quant/KrxCostLive.cpp
+    src/services/krx_quant/ClosingView.cpp
+    src/services/krx_quant/KrxClosingLive.cpp
     PROPERTIES SKIP_UNITY_BUILD_INCLUSION TRUE
 )
 

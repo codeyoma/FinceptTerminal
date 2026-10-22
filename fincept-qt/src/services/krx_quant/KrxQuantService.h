@@ -172,6 +172,14 @@ class KrxQuantService : public QObject {
     /// engine before #307). Asked again while one is read, the latest query is read once it ends and
     /// the answer under way is dropped, as read_leaderboard's.
     void read_cost_map(const LeaderboardQuery& query);
+    /// A symbol's closing rebalancing demand today (GET /v1/symbols/{symbol}/closing-flow,
+    /// codeyoma/krx-quant#305): closing_flow_ready or closing_flow_failed (also from an engine before
+    /// #305). Asked again while one is read, it is not read.
+    void read_closing_flow(const QString& symbol);
+    /// A symbol's closing-flow days from ``from`` to ``to`` and their summary (invalid: the engine's
+    /// default, the year to today; GET /v1/symbols/{symbol}/closing-flow/days, codeyoma/krx-quant#305):
+    /// closing_days_ready or closing_days_failed. Asked again while one is read, it is not read.
+    void read_closing_days(const QString& symbol, const QDate& from = {}, const QDate& to = {});
 
   signals:
     void snapshot_ready(const fincept::services::KrxQuantService::Snapshot& snapshot);
@@ -223,6 +231,10 @@ class KrxQuantService : public QObject {
     void cost_map_ready(const fincept::services::KrxQuantService::LeaderboardQuery& query,
                         const fincept::krx_quant::CostMap& map);
     void cost_map_failed(const fincept::services::KrxQuantService::LeaderboardQuery& query, const QString& reason);
+    void closing_flow_ready(const QString& symbol, const fincept::krx_quant::ClosingFlow& flow);
+    void closing_flow_failed(const QString& symbol, const QString& reason);
+    void closing_days_ready(const QString& symbol, const fincept::krx_quant::ClosingDays& days);
+    void closing_days_failed(const QString& symbol, const QString& reason);
     /// The address this service reads changed (also when another panel set it).
     void base_url_changed(const QString& url);
 
@@ -249,6 +261,8 @@ class KrxQuantService : public QObject {
         kSymbolList,  ///< the symbols alone
         kFlow,        ///< a symbol's intraday flows (codeyoma/krx-quant#306)
         kCostMap,     ///< the cost map (codeyoma/krx-quant#307)
+        kClosingFlow, ///< a symbol's closing demand today (codeyoma/krx-quant#305)
+        kClosingDays, ///< a symbol's closing-flow days (codeyoma/krx-quant#305)
         kKinds        ///< how many kinds of read there are
     };
 
