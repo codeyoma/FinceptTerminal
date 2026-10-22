@@ -213,6 +213,7 @@ ClosingDays days(const QJsonObject& body = days_json()) {
 class StandIn : public QObject {
   public:
     bool fail = false;
+    bool fail_days = false; ///< …/closing-flow/days alone fails
     QStringList asked;
 
     StandIn() {
@@ -245,7 +246,7 @@ class StandIn : public QObject {
             body = {{"symbols", QJsonArray{QJsonObject{{"symbol", "005930"}, {"name", "삼성전자"}},
                                            QJsonObject{{"symbol", "000660"}, {"name", "SK하이닉스"}},
                                            QJsonObject{{"symbol", "009150"}, {"name", "삼성전기"}}}}};
-        } else if (path.contains("/closing-flow") && fail) {
+        } else if (path.contains("/closing-flow") && (fail || (fail_days && path.endsWith("/days")))) {
             status = 500;
             body = {{"error", "made-up failure"}};
         } else if (path.endsWith("/closing-flow/days")) {
@@ -621,6 +622,27 @@ class TstKrxClosing : public QObject {
         QVERIFY(switched);
         QVERIFY(engine.asked.contains("/v1/symbols/005930/closing-flow")); // asked first, its answer dropped
         QVERIFY(engine.asked.contains("/v1/symbols/000660/closing-flow/days"));
+        live.stop();
+    }
+
+    void failed_days_are_asked_again_with_the_next_read() {
+        StandIn engine;
+        services::KrxQuantService::set_base_url(engine.url());
+        AppConfig::instance().set(services::KrxClosingLive::kSymbolKey, QStringLiteral("005930"));
+        const QDateTime clock = kst("2026-10-12T10:30:20+09:00");
+        services::KrxClosingLive live(nullptr, [&clock] { return clock; });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.days().has_value() && !live.reading(), 10000);
+        engine.fail_days = true;
+        live.read_now(); // the days asked again, and they fail
+        QTRY_VERIFY_WITH_TIMEOUT(live.failure().contains(QStringLiteral("지난날")), 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(!live.reading(), 10000);
+        QVERIFY(live.days().has_value()); // the last answer stays
+        const qsizetype asked = engine.count("/005930/closing-flow/days");
+        engine.fail_days = false;
+        fire_schedule(live); // the same day's next read: the days only because they failed
+        QTRY_COMPARE_WITH_TIMEOUT(engine.count("/005930/closing-flow/days"), asked + 1, 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(live.failure().isEmpty(), 10000);
         live.stop();
     }
 

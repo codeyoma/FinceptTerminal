@@ -178,8 +178,10 @@ void KrxClosingLive::read() {
         reading_flow_ = true;
         service_->read_closing_flow(symbol_);
     }
-    if (!reading_days_ &&
-        (days_wanted_ || krx_quant::closing::days_due(days_, symbol_, days_read_at_, flow_, now_()))) {
+    // The days are asked when they can have changed, when asked for, and again after they failed.
+    const bool days = days_wanted_ || !days_failure_.isEmpty() ||
+                      krx_quant::closing::days_due(days_, symbol_, days_read_at_, flow_, now_());
+    if (!reading_days_ && days) {
         days_wanted_ = false;
         reading_days_ = true;
         service_->read_closing_days(symbol_);

@@ -24,9 +24,9 @@ class KrxQuantService;
 /// While started it reads at once and then again by closing::poll_ms: every 60 s while the demand is
 /// the minute's (continuous trading), else at the open, in the evening until the day's row is
 /// computed, and when the day changes. The days are read with the first read, for a new symbol, on a
-/// new day and in that evening (closing::days_due), not every minute. The symbol chosen is kept in the
-/// settings (`krx_quant/closing_symbol`); without one, the engine's first. The engine's address is the
-/// KRX screen's setting; a new one drops what was read and reads again.
+/// new day and in that evening (closing::days_due), and again after they failed; not every minute. The symbol chosen is
+/// kept in the settings (`krx_quant/closing_symbol`); without one, the engine's first. The engine's address is the KRX
+/// screen's setting; a new one drops what was read and reads again.
 class KrxClosingLive : public QObject {
     Q_OBJECT
   public:
