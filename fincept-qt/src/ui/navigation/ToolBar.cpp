@@ -448,6 +448,7 @@ QMenu* ToolBar::build_navigate_menu() {
     nav(trd, tr("KRX 장전 브리핑"), "krx_briefing"); // fork addition (codeyoma/krx-quant#304)
     nav(trd, tr("KRX 수급 흐름"), "krx_flow"); // fork addition (codeyoma/krx-quant#306)
     nav(trd, tr("KRX 지평·비용"), "krx_cost"); // fork addition (codeyoma/krx-quant#307)
+    nav(trd, tr("KRX 마감 흐름"), "krx_closing"); // fork addition (codeyoma/krx-quant#305)
 
     auto* crypto = add_sub(tr("Crypto"));
     nav(crypto, tr("Crypto Center"), "crypto_center");

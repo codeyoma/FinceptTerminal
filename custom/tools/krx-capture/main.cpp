@@ -8,6 +8,8 @@
 // KRX_CAPTURE_DAY its day, KRX_CAPTURE_HOVER=<0..1> the mouse over its chart at that share of the width.
 // KRX_CAPTURE_COST=1 saves the horizon and cost screen (codeyoma/krx-quant#307): KRX_CAPTURE_PERIOD its
 // period (default 20d), KRX_CAPTURE_SYMBOL its symbol (default all).
+// KRX_CAPTURE_CLOSING=1 saves the closing flow screen (codeyoma/krx-quant#305): KRX_CAPTURE_SYMBOL its
+// symbol (default the one kept, else the engine's first).
 //
 //   krx_capture <engine url> <out.png> [seconds=8] [width=1600] [height=1000] [predictor,...]
 //
@@ -18,6 +20,7 @@
 #include "screens/krx_quant/KrxBriefingScreen.h"
 #include "screens/krx_quant/KrxFlowScreen.h"
 #include "screens/krx_quant/KrxCostScreen.h"
+#include "screens/krx_quant/KrxClosingScreen.h"
 #include "screens/krx_quant/KrxBarWindow.h"
 #include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxChartToolbar.h"
@@ -30,6 +33,7 @@
 #include "services/krx_quant/KrxBriefingLive.h"
 #include "services/krx_quant/KrxFlowLive.h"
 #include "services/krx_quant/KrxCostLive.h"
+#include "services/krx_quant/KrxClosingLive.h"
 #include "services/krx_quant/KrxLive.h"
 #include "services/krx_quant/KrxQuantService.h"
 #include "ui/theme/ThemeManager.h"
@@ -203,6 +207,27 @@ int main(int argc, char* argv[]) {
         int status = 0;
         QTimer::singleShot(seconds * 1000, &app, [&]() {
             if (!cost.grab().save(out)) {
+                QTextStream(stderr) << "could not save " << out << "\n";
+                status = 1;
+            }
+            app.quit();
+        });
+        app.exec();
+        return status;
+    }
+
+    // KRX_CAPTURE_CLOSING=1: the closing flow screen (codeyoma/krx-quant#305), saved after the wait;
+    // KRX_CAPTURE_SYMBOL its symbol.
+    if (qEnvironmentVariableIntValue("KRX_CAPTURE_CLOSING") != 0) {
+        if (const QString symbol = qEnvironmentVariable("KRX_CAPTURE_SYMBOL"); !symbol.isEmpty())
+            fincept::AppConfig::instance().set(fincept::services::KrxClosingLive::kSymbolKey, symbol);
+        fincept::screens::KrxClosingScreen closing;
+        closing.resize(width, height);
+        closing.show();
+        const QString out = QString::fromLocal8Bit(argv[2]);
+        int status = 0;
+        QTimer::singleShot(seconds * 1000, &app, [&]() {
+            if (!closing.grab().save(out)) {
                 QTextStream(stderr) << "could not save " << out << "\n";
                 status = 1;
             }

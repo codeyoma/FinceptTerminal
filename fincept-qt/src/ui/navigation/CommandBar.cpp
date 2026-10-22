@@ -194,6 +194,13 @@ void CommandBar::build_commands() {
          {"krx", "krx_cost", "cost", "breakeven"},
          "",
          {"krx", "korea", "cost", "비용", "손익분기", "지평"}},
+        // Fork addition (codeyoma/krx-quant#305)
+        {"krx_closing",
+         tr("KRX 마감 흐름"),
+         "KRX closing flow",
+         {"krx", "krx_closing", "closing", "rebalancing"},
+         "",
+         {"krx", "korea", "closing", "마감", "리밸런싱", "레버리지"}},
         {"crypto_trading",
          tr("Crypto Trading"),
          "Cryptocurrency trading",

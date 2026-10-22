@@ -1682,4 +1682,122 @@ Result<CostMap> parse_cost_map(const QJsonDocument& doc) {
     return Result<CostMap>::ok(m);
 }
 
+namespace {
+
+QDate day_of(const QJsonValue& v) {
+    return QDate::fromString(v.toString(), Qt::ISODate);
+}
+
+ClosingProduct closing_product_of(const QJsonObject& o) {
+    ClosingProduct p;
+    p.code = o.value("code").toString();
+    p.name = o.value("name").toString();
+    p.leverage = o.value("leverage").toInt();
+    p.structure = o.value("structure").toString();
+    p.coefficient = o.value("coefficient").toInt();
+    p.net_assets = number(o.value("net_assets"));
+    p.net_assets_date = day_of(o.value("net_assets_date"));
+    p.net_assets_source = o.value("net_assets_source").toString();
+    p.demand = number(o.value("demand"));
+    return p;
+}
+
+ClosingStats closing_stats_of(const QJsonValue& v) {
+    const QJsonObject o = v.toObject();
+    return {o.value("days").toInt(),
+            number(o.value("auction_bp_median")),
+            number(o.value("agree")),
+            o.value("agree_n").toInt(),
+            number(o.value("next_gap_opposite")),
+            o.value("next_gap_n").toInt(),
+            number(o.value("next_close_opposite")),
+            o.value("next_close_n").toInt()};
+}
+
+ClosingDay closing_day_of(const QJsonObject& o) {
+    ClosingDay d;
+    d.date = day_of(o.value("date"));
+    d.period = o.value("period").toString();
+    d.demand = number(o.value("demand"));
+    d.spot_futures = number(o.value("spot_futures"));
+    d.futures = number(o.value("futures"));
+    d.demand_source = o.value("demand_source").toString();
+    d.ratio = number(o.value("ratio"));
+    d.ratio_total = number(o.value("ratio_total"));
+    d.denominator = number(o.value("denominator"));
+    d.denominator_days = o.value("denominator_days").toInt();
+    d.denominator_reason = o.value("denominator_reason").toString();
+    d.auction_value = number(o.value("auction_value"));
+    d.auction_value_source = o.value("auction_value_source").toString();
+    d.auction_bp = o.value("auction_bp").toDouble();
+    d.auction_ticks = o.value("auction_ticks").toDouble();
+    d.flow_bp = o.value("flow_bp").toDouble();
+    d.compared_with = o.value("compared_with").toString();
+    if (o.value("agree").isBool())
+        d.agree = o.value("agree").toBool();
+    d.next_gap_bp = number(o.value("next_gap_bp"));
+    d.next_close_bp = number(o.value("next_close_bp"));
+    d.special = strings_of(o.value("special"));
+    d.net_assets_source = o.value("net_assets_source").toString();
+    return d;
+}
+
+} // namespace
+
+Result<ClosingFlow> parse_closing_flow(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<ClosingFlow>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    ClosingFlow f;
+    f.symbol = o.value("symbol").toString();
+    f.day = day_of(o.value("day"));
+    f.as_of = time_of(o.value("as_of"));
+    f.at = time_of(o.value("at"));
+    f.source = o.value("source").toString();
+    f.price = number(o.value("price"));
+    f.previous_close = number(o.value("previous_close"));
+    f.r = number(o.value("r"));
+    f.demand = number(o.value("demand"));
+    f.spot_futures = number(o.value("spot_futures"));
+    f.futures = number(o.value("futures"));
+    f.ratio = number(o.value("ratio"));
+    f.ratio_total = number(o.value("ratio_total"));
+    f.denominator = number(o.value("denominator"));
+    f.denominator_days = o.value("denominator_days").toInt();
+    f.denominator_reason = o.value("denominator_reason").toString();
+    for (const auto& v : o.value("products").toArray())
+        f.products.push_back(closing_product_of(v.toObject()));
+    f.missing = strings_of(o.value("missing"));
+    f.reason = o.value("reason").toString();
+    return Result<ClosingFlow>::ok(f);
+}
+
+Result<ClosingDays> parse_closing_days(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<ClosingDays>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    ClosingDays d;
+    d.symbol = o.value("symbol").toString();
+    d.from = day_of(o.value("from"));
+    d.to = day_of(o.value("to"));
+    d.computed_at = time_of(o.value("computed_at"));
+    for (const auto& v : o.value("days").toArray())
+        d.days.push_back(closing_day_of(v.toObject()));
+    const QJsonObject summary = o.value("summary").toObject();
+    for (const auto& v : summary.value("periods").toArray()) {
+        const QJsonObject p = v.toObject();
+        d.periods.push_back({p.value("period").toString(), day_of(p.value("from")), day_of(p.value("to")),
+                             closing_stats_of(p.value("all")), closing_stats_of(p.value("without_special"))});
+    }
+    for (const auto& v : summary.value("tertiles").toArray()) {
+        const QJsonObject t = v.toObject();
+        d.tertiles.push_back({t.value("tertile").toInt(), t.value("ratio_from").toDouble(),
+                              t.value("ratio_to").toDouble(), closing_stats_of(t.value("all")),
+                              closing_stats_of(t.value("without_special"))});
+    }
+    return Result<ClosingDays>::ok(d);
+}
+
 } // namespace fincept::krx_quant

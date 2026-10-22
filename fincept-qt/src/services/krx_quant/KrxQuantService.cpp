@@ -612,6 +612,36 @@ void KrxQuantService::read_cost_map(const LeaderboardQuery& query) {
     });
 }
 
+void KrxQuantService::read_closing_flow(const QString& symbol) {
+    if (!begin(kClosingFlow))
+        return;
+    get(symbol_path(symbol, "/closing-flow"), [this, symbol](Result<QJsonDocument> answer) {
+        end(kClosingFlow);
+        auto flow = parsed(answer, krx_quant::parse_closing_flow);
+        if (flow.is_err())
+            return emit closing_flow_failed(symbol, why(flow.error()));
+        emit closing_flow_ready(symbol, flow.value());
+    });
+}
+
+void KrxQuantService::read_closing_days(const QString& symbol, const QDate& from, const QDate& to) {
+    if (!begin(kClosingDays))
+        return;
+    QUrlQuery q;
+    if (from.isValid())
+        q.addQueryItem("from", from.toString(Qt::ISODate));
+    if (to.isValid())
+        q.addQueryItem("to", to.toString(Qt::ISODate));
+    const QString query = q.isEmpty() ? QString() : "?" + q.toString(QUrl::FullyEncoded);
+    get(symbol_path(symbol, "/closing-flow/days" + query), [this, symbol](Result<QJsonDocument> answer) {
+        end(kClosingDays);
+        auto days = parsed(answer, krx_quant::parse_closing_days);
+        if (days.is_err())
+            return emit closing_days_failed(symbol, why(days.error()));
+        emit closing_days_ready(symbol, days.value());
+    });
+}
+
 void KrxQuantService::read_symbol_list() {
     if (!begin(kSymbolList))
         return;

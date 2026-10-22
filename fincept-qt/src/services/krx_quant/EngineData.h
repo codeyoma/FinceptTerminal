@@ -1129,6 +1129,120 @@ struct CostMap {
 /// GET /v1/cost-map (codeyoma/krx-quant#307).
 Result<CostMap> parse_cost_map(const QJsonDocument& doc);
 
+/// The closing flow (codeyoma/krx-quant#305): the closing rebalancing demand of a symbol's single-stock
+/// ±2x ETFs, A × (L² − L) × r in won (+ buy, − sell), as the engine computes it from the formula (not an
+/// execution). A product's row: its leverage L, structure, L² − L, the previous trading day's net assets
+/// with their day and source, and its demand.
+struct ClosingProduct {
+    QString code;
+    QString name; ///< empty: not known
+    int leverage = 0;
+    QString structure;                ///< "spot_futures" (현물+선물형) or "futures" (선물형)
+    int coefficient = 0;              ///< L² − L: 2 at 2x, 6 at −2x
+    std::optional<double> net_assets; ///< won; none: not kept (the product is out of the sums)
+    QDate net_assets_date;
+    QString net_assets_source; ///< "kis", or the KRX Open API's once it is read; empty without net assets
+    std::optional<double> demand;
+};
+
+/// GET /v1/symbols/{symbol}/closing-flow: the day's demand at the minute (continuous trading) or the
+/// stored 15:20 one (from the closing auction on), by structure and in all, and its ratio to the median
+/// recorded closing auction value of the 20 trading days before.
+struct ClosingFlow {
+    QString symbol;
+    QDate day; ///< today if it trades, else the last trading day
+    QDateTime as_of;
+    QDateTime at;   ///< the minute the demand is of; invalid before the open
+    QString source; ///< "live", "stored", or empty (not computed)
+    std::optional<double> price;
+    std::optional<double> previous_close;
+    std::optional<double> r;
+    std::optional<double> demand;
+    std::optional<double> spot_futures;
+    std::optional<double> futures;
+    std::optional<double> ratio; ///< spot_futures ÷ denominator: an upper bound
+    std::optional<double> ratio_total;
+    std::optional<double> denominator; ///< won
+    int denominator_days = 0;
+    QString denominator_reason; ///< "no_recorded_auction", "not_computed", or empty
+    QList<ClosingProduct> products;
+    QStringList missing; ///< the products without net assets, out of the sums
+    QString reason;      ///< why demand is none: "no_products", "before_open", "no_price", …; empty
+};
+
+/// GET /v1/symbols/{symbol}/closing-flow (codeyoma/krx-quant#305).
+Result<ClosingFlow> parse_closing_flow(const QJsonDocument& doc);
+
+/// A summary cell of the closing flow's days, as #270's structure-check counts them: how often the
+/// closing auction went the demand's (else the day's flow's) way, and how often the next day's gap and
+/// close went against it, each over the days where both moved.
+struct ClosingStats {
+    int days = 0;
+    std::optional<double> auction_bp_median; ///< |closing auction move|, bp
+    std::optional<double> agree;
+    int agree_n = 0;
+    std::optional<double> next_gap_opposite;
+    int next_gap_n = 0;
+    std::optional<double> next_close_opposite;
+    int next_close_n = 0;
+};
+
+/// A day of the closing flow: its 15:20 demand and ratio, the closing auction's move and the next day.
+struct ClosingDay {
+    QDate date;
+    QString period; ///< structure-check's, as the engine names it
+    std::optional<double> demand;
+    std::optional<double> spot_futures;
+    std::optional<double> futures;
+    QString demand_source; ///< "live" (stored at 15:20), "bars" (from the net assets and the bars), or empty
+    std::optional<double> ratio;
+    std::optional<double> ratio_total;
+    std::optional<double> denominator;
+    int denominator_days = 0;
+    QString denominator_reason; ///< "no_recorded_auction", or empty
+    std::optional<double> auction_value;
+    QString auction_value_source;
+    double auction_bp = 0;
+    double auction_ticks = 0;
+    double flow_bp = 0;
+    QString compared_with;     ///< "demand", or "flow" on a day without a demand
+    std::optional<bool> agree; ///< none: the auction or what it is compared with did not move
+    std::optional<double> next_gap_bp;
+    std::optional<double> next_close_bp;
+    QStringList special; ///< "vi", "circuit_breaker", "sidecar"
+    /// Where the day's net assets came from, if the engine says (not in the v1 contract of #305 yet).
+    QString net_assets_source;
+};
+
+struct ClosingPeriod {
+    QString period;
+    QDate from; ///< invalid: from the first day
+    QDate to;   ///< invalid: to now
+    ClosingStats all;
+    ClosingStats without_special;
+};
+
+struct ClosingTertile {
+    int tertile = 0;
+    double ratio_from = 0; ///< the group's |ratio| range
+    double ratio_to = 0;
+    ClosingStats all;
+    ClosingStats without_special;
+};
+
+struct ClosingDays {
+    QString symbol;
+    QDate from;
+    QDate to;
+    QDateTime computed_at;  ///< invalid: not computed yet
+    QList<ClosingDay> days; ///< oldest first
+    QList<ClosingPeriod> periods;
+    QList<ClosingTertile> tertiles;
+};
+
+/// GET /v1/symbols/{symbol}/closing-flow/days (codeyoma/krx-quant#305).
+Result<ClosingDays> parse_closing_days(const QJsonDocument& doc);
+
 /// A kind's answer to a symbol's bar close, as the stream brings it (krx-quant #179).
 struct KindAnswerAt {
     QString symbol;
