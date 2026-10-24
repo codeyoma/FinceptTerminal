@@ -2054,7 +2054,8 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(climate.open_to_close->pnl.total_bp, -456.6); // open_to_close_stats' fields
         QVERIFY(!climate.open_to_close->pnl_inverse.has_value());
         // An entry of an engine before krx-quant #310: no overlap.
-        const Entry& old = parse_leaderboard(json(kLeaderboard)).value().ranked[0];
+        const auto older = parse_leaderboard(json(kLeaderboard)); // kept: its entry is read below
+        const Entry& old = older.value().ranked[0];
         QCOMPARE(old.overlap_sessions, 1);
         QVERIFY(!old.independent_days.has_value());
     }
