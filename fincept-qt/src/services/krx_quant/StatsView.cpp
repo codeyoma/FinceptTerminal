@@ -164,14 +164,30 @@ QString ranking_rules(const QStringList& days, int min_sample, const std::option
             QStringLiteral("%1 예측을 %1 정답으로 센다. 정밀도와 커버리지는 %2(으)로 센다.")
                 .arg(kind->title, action.join(QStringLiteral("·"))),
         };
-        if (kind->daily) { // once a trading day (krx-quant #264)
-            QStringList judged;
-            for (const int d : kind->daily->probation_days)
-                judged << QString::number(d);
+        const int sessions = window_sessions(*kind);
+        if (kind->daily && sessions > 1) { // several sessions (krx-quant #310)
+            lines << QStringLiteral("하루 한 번 예측이다. 채점 한 건은 종목 하나의 %1세션 창이고, 기간의 날은 예측이 "
+                                    "있는 최근 거래일(창이 시작한 날)이다. 정답은 창의 마지막 세션 밤(%2부터)이라 최근 "
+                                    "%3거래일의 창은 아직 비어 있다.")
+                         .arg(sessions)
+                         .arg(kind->daily->answer_from.isEmpty() ? QStringLiteral("20:35") : kind->daily->answer_from)
+                         .arg(sessions - 1)
+                  << QStringLiteral("이웃한 날의 창이 %1세션씩 겹친다. 정답률·정밀도·커버리지·Brier·손익의 구간과 짝 "
+                                    "lift는 Driscoll–Kraay, 거래일 단위 lift(순위와 상태가 보는 하한)는 Newey–West로 "
+                                    "겹침을 보정했고, 자유도는 독립인 창의 수(대략 날 수 ÷ %2) 수준이다. 보정 곡선은 "
+                                    "보정하지 않았다. 표본 칸의 괄호가 독립인 창의 수다.")
+                         .arg(sessions - 1)
+                         .arg(sessions);
+        } else if (kind->daily) { // once a trading day (krx-quant #264)
             lines << QStringLiteral("하루 한 번 예측이다. 채점 한 건은 종목 하나의 하루이고, 기간의 날은 예측이 있는 "
                                     "최근 거래일이다. 그날 정답은 KRX 일봉이 저장된 뒤(%1부터)라 오늘은 밤까지 비어 "
                                     "있다.")
                          .arg(kind->daily->answer_from.isEmpty() ? QStringLiteral("20:35") : kind->daily->answer_from);
+        }
+        if (kind->daily) {
+            QStringList judged;
+            for (const int d : kind->daily->probation_days)
+                judged << QString::number(d);
             if (!judged.isEmpty())
                 lines << QStringLiteral("상태(수습·벤치)는 순위와 따로, 정답이 있는 날 %1일째에 판정한다(최근 %2일).")
                              .arg(judged.join(QStringLiteral("·")))
@@ -201,6 +217,9 @@ QString luck_tip(const KindInfo& kind) {
 }
 
 QString special_tip(const std::optional<KindInfo>& kind) {
+    if (kind && window_sessions(*kind) > 1) // a window of several sessions (krx-quant #310)
+        return QStringLiteral("세션 중 하루라도 서킷브레이커·사이드카가 있던 창의 예측도 센다(기본은 뺀다). VI는 특수 "
+                              "상황이 아니다(창의 그 종목 VI 수는 정답에 남는다).");
     if (kind && kind->daily) // a day (krx-quant #264)
         return QStringLiteral("그날 서킷브레이커·사이드카가 있던 날의 예측도 센다(기본은 뺀다). VI는 특수 상황이 "
                               "아니다(그날 그 종목의 VI 수는 정답에 남는다).");
@@ -208,6 +227,19 @@ QString special_tip(const std::optional<KindInfo>& kind) {
 }
 
 QString lift_header_tip(const QString& header, const std::optional<KindInfo>& kind) {
+    if (kind && window_sessions(*kind) > 1) { // overlapping windows (krx-quant #310)
+        if (header == QStringLiteral("95% 구간"))
+            return QStringLiteral("겹침을 보정한 Driscoll–Kraay 구간이다: 날마다 (이득 − 평균)을 더한 계열에 "
+                                  "Newey–West를 써, 이웃한 날의 창이 세션을 같이 쓰는 것과 같은 날의 종목들이 함께 "
+                                  "움직이는 것을 함께 센다. p도 그렇다.");
+        if (header == QStringLiteral("거래일 95% 구간"))
+            return QStringLiteral("하루를 값 하나로 보고 Newey–West로 겹침을 보정한 구간이다. 자유도는 독립인 창의 "
+                                  "수(대략 날 수 ÷ %1) 수준이다. 상태(수습·정식·벤치)는 이것으로 정한다.")
+                .arg(window_sessions(*kind));
+        if (header == QStringLiteral("짝"))
+            return QStringLiteral("같은 종목·날(창이 시작한 날)에 둘 다 채점된 예측의 수다. 이웃한 날의 창이 겹쳐 "
+                                  "서로 독립이 아니다.");
+    }
     if (kind && kind->daily) { // a symbol's day each (krx-quant #264)
         if (header == QStringLiteral("95% 구간"))
             return QStringLiteral(
@@ -223,12 +255,28 @@ QString daily_pnl_header(const KindInfo& kind) {
     return QStringLiteral("%1 손익(bp, 연구용)").arg(kind.title);
 }
 
-QString daily_pnl_tip() {
+QString daily_pnl_tip(const KindInfo& kind) {
+    if (window_sessions(kind) > 1) // several sessions (krx-quant #310)
+        return QStringLiteral(
+            "거래당 평균, 시가 대비 bp, 연구용 값이다. 상승 예측은 그날 시가 단일가에 사서 마지막 세션 종가 단일가에 "
+            "판다고 친다. 하락은 주식 공매도로 반대로, 보합은 거래하지 않는다. 비용(매도세와 수수료 두 번)을 뺀다. "
+            "날마다 새 창을 거래한다고 쳐서 한 종목에 포지션이 여럿 겹친다. 구간은 겹침을 보정한 Driscoll–Kraay다. "
+            "칸의 툴팁과 상세 창에는 하락을 그 종목의 −2배 인버스 상품(날마다 재조정)으로 친 값도 있다. 인버스가 "
+            "없는 종목(삼성전기)과 상장(2026-05-27) 전에 시작한 창은 빠진다.");
     return QStringLiteral(
         "거래당 평균, 시가 대비 bp, 연구용 값이다. 상승 예측은 시가 단일가에 사서 종가 단일가에 판다고 친다. 하락은 "
         "주식 공매도로 반대로, 보합은 거래하지 않는다. 비용(매도세와 수수료 두 번)을 뺀다. 두 끝이 단일가라 스프레드는 "
         "없다. 칸의 툴팁과 상세 창에는 하락을 그 종목의 인버스 상품으로 친 값(매도세 없음)도 있다. 인버스가 없는 "
         "종목(삼성전기)과 상장(2026-05-27) 전의 하락은 빠진다. 보합 폭에는 비용을 넣지 않았다.");
+}
+
+QString overlap_text(const Entry& entry) {
+    if (entry.overlap_sessions <= 1)
+        return {};
+    QString text = QStringLiteral("겹침 보정 · %1세션 창").arg(entry.overlap_sessions);
+    if (entry.independent_days)
+        text += QStringLiteral(" · 독립 창 약 %1개").arg(number_text(*entry.independent_days, 0));
+    return text;
 }
 
 QList<StatsColumn> kind_stats_columns(const KindInfo& kind) {
@@ -238,10 +286,18 @@ QList<StatsColumn> kind_stats_columns(const KindInfo& kind) {
             action << kind.class_titles[at];
     const QString called = action.join(QStringLiteral("·"));
     QList<StatsColumn> columns{
-        kind.daily
+        window_sessions(kind) > 1 // overlapping windows (krx-quant #310)
             ? StatsColumn{QStringLiteral("표본(종목·일)"),
-                          QStringLiteral("채점된 예측 수다. 하루 한 번 예측이라 종목마다 하루에 하나다(종목 × 날).")}
-            : StatsColumn{QStringLiteral("표본"), {}},
+                          QStringLiteral(
+                              "채점된 예측 수다. 하루 한 번 예측이라 종목마다 하루에 하나다(종목 × 날). "
+                              "이웃한 날의 창이 %1세션씩 겹쳐, 괄호에 서로 독립인 창이 대략 몇 개인지(예측이 "
+                              "있는 거래일 ÷ %2)를 적는다.")
+                              .arg(window_sessions(kind) - 1)
+                              .arg(window_sessions(kind))}
+            : kind.daily ? StatsColumn{QStringLiteral("표본(종목·일)"),
+                                       QStringLiteral(
+                                           "채점된 예측 수다. 하루 한 번 예측이라 종목마다 하루에 하나다(종목 × 날).")}
+                         : StatsColumn{QStringLiteral("표본"), {}},
         {QStringLiteral("정답률"), {}},
         {called.isEmpty() ? QStringLiteral("정밀도") : QStringLiteral("%1 정밀도").arg(called),
          called.isEmpty() ? QString() : QStringLiteral("%1(이)라고 한 예측 중 맞은 비율이다.").arg(called)},
@@ -252,7 +308,7 @@ QList<StatsColumn> kind_stats_columns(const KindInfo& kind) {
     if (is_barrier_kind(kind.name)) // its barrier P&L (krx-quant #185; the ladder's too, #263)
         columns << StatsColumn{QString::fromUtf8(kBarrierPnlHeader), column_tip(QString::fromUtf8(kBarrierPnlHeader))};
     if (kind.daily) // its open-to-close P&L (krx-quant #264)
-        columns << StatsColumn{daily_pnl_header(kind), daily_pnl_tip()};
+        columns << StatsColumn{daily_pnl_header(kind), daily_pnl_tip(kind)};
     if (kind.name == QLatin1String("range"))
         columns << StatsColumn{QStringLiteral("구간 적중률"),
                                QStringLiteral("실제 변동폭이 q10~q90 안에 든 비율이다. 분위수가 정직하면 80% 가까이 "
@@ -273,6 +329,15 @@ QList<Shown> kind_stats_cells(const Entry& e, const KindInfo& kind) {
         cells << barrier_pnl_shown(e.barrier);
     if (kind.daily)
         cells << daily_pnl_shown(e.open_to_close);
+    if (e.overlap_sessions > 1) { // overlapping windows (krx-quant #310): corrected intervals
+        cells[0] = {e.independent_days
+                        ? QStringLiteral("%1 (독립 %2)").arg(number_text(e.n, 0), number_text(*e.independent_days, 0))
+                        : number_text(e.n, 0),
+                    overlap_text(e)};
+        for (qsizetype c = 1; c < cells.size(); ++c)
+            if (!cells[c].tip.isEmpty())
+                cells[c].tip += QStringLiteral("\n겹침 보정(Driscoll–Kraay)");
+    }
     if (kind.name == QLatin1String("range")) {
         cells << rate_shown(e.range ? e.range->interval_coverage : std::nullopt)
               << mean_shown(e.range ? e.range->q50_abs_error : std::nullopt, 2);
@@ -563,6 +628,10 @@ QString calibration_tip(const AlgorithmStats& stats, const std::optional<KindInf
             "전체는 세 클래스를 합친 것이라 방향별 오차를 숨길 수 있어, 상승·보합·하락을 따로 그린다.");
     }
     lines << QStringLiteral("점이 점선에 가까울수록 확률을 믿을 수 있다.");
+    if (kind && window_sessions(*kind) > 1) // overlapping windows (krx-quant #310)
+        lines << QStringLiteral(
+            "겹침 보정 없음: 이웃한 날의 창이 겹쳐 서로 독립이 아닌데, 구간마다의 95% 구간(Wilson)은 "
+            "독립으로 센 것이라 실제보다 좁다.");
     return lines.join('\n');
 }
 

@@ -13,6 +13,11 @@ namespace {
 
 const QString kDash = QStringLiteral("—");
 
+/// Open to close (krx-quant #264) and its five sessions' (krx-quant #310): P&L in basis points.
+bool is_open_to_close(const QString& kind) {
+    return kind == QLatin1String("open_to_close") || kind == QLatin1String("open_to_close_5d");
+}
+
 QString per_trade_text(const std::optional<Interval>& per_trade, int decimals) {
     return per_trade ? signed_text(per_trade->value, decimals) : kDash;
 }
@@ -24,7 +29,7 @@ std::pair<QString, QString> pnl_texts(const Entry& e, const QString& kind) {
     if (is_barrier_kind(kind) && e.barrier)
         return {per_trade_text(e.barrier->pnl.per_trade, 2),
                 per_trade_text(e.barrier->pnl_inverse ? e.barrier->pnl_inverse->per_trade : std::nullopt, 2)};
-    if (kind == QLatin1String("open_to_close") && e.open_to_close)
+    if (is_open_to_close(kind) && e.open_to_close)
         return {per_trade_text(e.open_to_close->pnl.per_trade, 1),
                 per_trade_text(e.open_to_close->pnl_inverse ? e.open_to_close->pnl_inverse->per_trade : std::nullopt,
                                1)};
@@ -285,7 +290,7 @@ QList<DailyRow> open_to_close_rows(const QList<SymbolQuote>& symbols, const QMap
 QString pnl_unit(const QString& kind) {
     if (kind == QLatin1String("direction") || is_barrier_kind(kind))
         return QStringLiteral("틱");
-    if (kind == QLatin1String("open_to_close"))
+    if (is_open_to_close(kind))
         return QStringLiteral("bp");
     return {};
 }

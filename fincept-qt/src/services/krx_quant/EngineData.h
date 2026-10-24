@@ -350,8 +350,17 @@ struct Entry {
     std::optional<RangeStats> range{};
     /// A barrier predictor's barrier P&L (its ``extra``, krx-quant #183); none for another kind.
     std::optional<BarrierStats> barrier{};
-    /// An open_to_close predictor's open-to-close P&L (its ``extra``, krx-quant #264); none for another kind.
+    /// An open_to_close predictor's open-to-close P&L (its ``extra``, krx-quant #264; open_to_close_5d's
+    /// too, krx-quant #310); none for another kind.
     std::optional<OpenToCloseStats> open_to_close{};
+    /// How many trading sessions its kind's windows run (krx-quant #310, ``overlap_sessions``): 1, or a
+    /// daily kind's of several sessions, whose neighbouring days' windows share sessions; then its
+    /// intervals are overlap-corrected (Driscoll–Kraay; its lifts by trading day Newey–West). 1 from an
+    /// engine before it.
+    int overlap_sessions = 1;
+    /// About how many independent windows its days hold (``independent_days``: the days with a scored
+    /// prediction ÷ overlap_sessions, rounded down); none from an engine before krx-quant #310.
+    std::optional<int> independent_days{};
 };
 
 /// GET /v1/leaderboard: the query it answers and its three lists.
@@ -602,18 +611,27 @@ struct KindBaseline {
 
 /// The day of a kind predicted once a trading day (krx-quant #264, GET /v1/kinds' ``daily``): when
 /// it is predicted (KST, "08:50"), the auctions its window runs between ("open", "close") and their
-/// titles ("시가 단일가", "종가 단일가"), when its answers are first looked for ("20:35", once the
-/// day's KRX day candle is stored), and the days with an answer its statuses are judged on.
+/// titles ("시가 단일가", "종가 단일가"), over how many trading sessions (krx-quant #310: 1, the day;
+/// 5, the day to the close of its fifth session), when its answers are first looked for on the
+/// window's last session ("15:45", "20:35"), and the days with an answer its statuses are judged on.
 struct DailySchedule {
     QString predict_at{};
     QString from{};
     QString to{};
     QString from_title{};
     QString to_title{};
+    /// The trading sessions its window runs (krx-quant #310); 1 from an engine before it, whose
+    /// only daily kind ran the day.
+    int sessions = 1;
     QString answer_from{};
     QList<int> probation_days{};
     QList<int> bench_days{};
     int recent_days = 0;
+    /// Why the kind is listed but not run yet (krx-quant #310, the engine's ``awaiting``); empty for a
+    /// kind that runs, and from an engine before it.
+    QString awaiting{};
+    /// Why its algorithms are held out of probation (krx-quant #310, ``review_hold``); empty when not.
+    QString review_hold{};
 
     bool operator==(const DailySchedule&) const = default;
 };
@@ -645,6 +663,12 @@ struct KindInfo {
 /// Whether ``kind`` is predicted once a trading day (krx-quant #264, open_to_close), not at each bar close.
 inline bool is_daily(const KindInfo& kind) {
     return kind.daily.has_value();
+}
+
+/// The trading sessions a window of ``kind`` runs (krx-quant #310): a daily kind's ``sessions``
+/// (open_to_close_5d's 5), 1 for any other.
+inline int window_sessions(const KindInfo& kind) {
+    return kind.daily && kind.daily->sessions > 1 ? kind.daily->sessions : 1;
 }
 
 /// Whether the kind named ``name`` is a barrier (krx-quant #183): the four-minute "barrier" or
@@ -705,7 +729,8 @@ struct BarrierPath {
 /// An open_to_close answer's day (krx-quant #264): the day's KRX opening and closing auction
 /// prices (won, adjusted as read) from its KRX day candle, the change close / open − 1, the flat
 /// band it was classed by (none without days enough to set it: "no band"), and the symbol's VIs
-/// that day (counted, not special).
+/// that day (counted, not special). A window of several sessions (krx-quant #310,
+/// open_to_close_5d) runs from the first session's open to the last one's close and says more.
 struct OpenToClosePath {
     double open = 0;
     double close = 0;
@@ -713,7 +738,18 @@ struct OpenToClosePath {
     std::optional<double> band{};
     std::optional<double> sigma{};
     std::optional<double> scale{};
-    int vi = 0;
+    int vi = 0; ///< over the window's sessions
+    /// The window's last session as KRX held it (krx-quant #310, ``end_day``): later than planned
+    /// after a closure nobody expected. Invalid for a one-day window (the engine sends none).
+    QDate end_day{};
+    int sessions = 1; ///< the sessions it ran (``sessions``); 1 for a one-day window
+    /// Each session's close in order, the last the window's (krx-quant #310, ``closes``); none for a
+    /// session the symbol has none of. Empty for a one-day window.
+    QList<std::optional<double>> closes{};
+    /// Whether a cash dividend's ex-date falls after the first session (krx-quant #310,
+    /// ``ex_dividend``: KIS's adjusted prices keep dividends in, so the change leans down by it);
+    /// none when the engine could not tell, or for a one-day window.
+    std::optional<bool> ex_dividend{};
 };
 
 /// A bar close's answer of a kind (krx-quant #179), every predictor's of that kind there.

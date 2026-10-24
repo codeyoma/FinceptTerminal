@@ -16,15 +16,22 @@ const QList<QPair<QString, QString>>& selector_kinds() {
     static const QList<QPair<QString, QString>> kinds = {{kDirectionKind, QStringLiteral("방향")},
                                                          {kBarrierKind, QStringLiteral("장벽")},
                                                          {kRangeKind, QStringLiteral("변동폭")},
-                                                         {kOpenToCloseKind, QStringLiteral("시가→종가")}};
+                                                         {kOpenToCloseKind, QStringLiteral("시가→종가")},
+                                                         {kOpenToClose5dKind, QStringLiteral("5거래일 시가→종가")}};
     return kinds;
 }
 
 /// The kinds this screen can show: the range's since krx-quant #182, the barrier's since #185,
-/// the barrier's horizon ladder since #263, open to close since #264.
+/// the barrier's horizon ladder since #263, open to close since #264, five sessions' since #310.
 bool shown_here(const QString& kind) {
     return kind == QLatin1String(kDirectionKind) || kind == QLatin1String(kRangeKind) || is_barrier_kind(kind) ||
-           kind == QLatin1String(kOpenToCloseKind);
+           kind == QLatin1String(kOpenToCloseKind) || kind == QLatin1String(kOpenToClose5dKind);
+}
+
+/// The most trading days a window's answer waits after its prediction day (krx-quant #310): its
+/// sessions but the first.
+int waiting_days(const KindInfo& kind) {
+    return window_sessions(kind) - 1;
 }
 
 const QTimeZone& kst_zone() {
@@ -157,6 +164,18 @@ QString choice_tip(const QString& name, const std::optional<KindInfo>& made) {
     QStringList lines;
     if (made && !made->class_titles.isEmpty())
         lines << QStringLiteral("%1의 확률").arg(made->class_titles.join(QStringLiteral("·")));
+    if (made && is_daily(*made) && window_sessions(*made) > 1) { // several sessions (krx-quant #310)
+        const DailySchedule& day = *made->daily;
+        lines << QStringLiteral("하루 한 번, 거래일 %1에 그날 %2 → %3(%4세션)의 방향을 예측한다. 정답은 창의 마지막 "
+                                "세션 밤(%5부터)이라 최대 %6거래일 채점을 기다린다. 이웃한 날의 창이 겹친다.")
+                     .arg(predict_at_of(*made), day.from_title, day.to_title)
+                     .arg(window_sessions(*made))
+                     .arg(answer_from_of(*made))
+                     .arg(waiting_days(*made));
+        lines << QStringLiteral("예측 패널, 순위표, 상세 통계 창이 이 종류로 바뀌고, 일 보기 차트에 날마다의 예측과 "
+                                "결과가 붙는다. 분 보기의 아이콘·호버·선택 합의와 신호 알림은 방향 그대로다.");
+        return lines.join('\n');
+    }
     if (made && is_daily(*made)) { // once a trading day (krx-quant #264)
         const DailySchedule& day = *made->daily;
         lines << QStringLiteral("하루 한 번, 거래일 %1에 그날 %2 → %3의 방향을 예측한다. 정답은 그날 KRX 일봉이 "
@@ -347,9 +366,14 @@ QList<PanelColumn> kind_panel_columns(const std::optional<KindInfo>& kind, bool 
         for (qsizetype i = 0; i < kind->class_titles.size(); ++i)
             columns << PanelColumn{kind->class_titles[i], i < tips.size() ? tips[i] : QString()};
         columns << PanelColumn{QStringLiteral("결과"),
-                               QStringLiteral(
-                                   "그날 KRX 일봉의 %1·%2로 채점한다. 일봉은 장이 끝난 뒤 저장되어 %3부터 나온다.")
-                                   .arg(day.from_title, day.to_title, answer_from_of(*kind))}
+                               window_sessions(*kind) > 1 // several sessions (krx-quant #310)
+                                   ? QStringLiteral("그날 %1부터 %2까지의 변화로 채점한다. 정답은 창의 마지막 세션 밤 "
+                                                    "%3부터 나와, 그때까지(최대 %4거래일) 채점 대기다.")
+                                         .arg(day.from_title, day.to_title, answer_from_of(*kind))
+                                         .arg(waiting_days(*kind))
+                                   : QStringLiteral("그날 KRX 일봉의 %1·%2로 채점한다. 일봉은 장이 끝난 뒤 저장되어 "
+                                                    "%3부터 나온다.")
+                                         .arg(day.from_title, day.to_title, answer_from_of(*kind))}
                 << PanelColumn{QStringLiteral("모델"), {}};
         return columns;
     }
@@ -410,6 +434,8 @@ QList<KindRow> kind_rows(const QList<KindPrediction>& at_close, const KindInfo& 
         row.q50 = p.value("q50");
         row.q90 = p.value("q90");
         row.result = verdict_text(kind_verdict(top, answer, kind));
+        if (!answer && window_sessions(kind) > 1) // its window's last session is to come (krx-quant #310)
+            row.result = QStringLiteral("채점 대기");
         out << row;
     }
     return out;
@@ -572,6 +598,72 @@ QDate daily_day(const QDateTime& bar_close) {
     return bar_close.toTimeZone(kst_zone()).date();
 }
 
+QDate daily_end_day(const QList<KindPrediction>& at_day) {
+    if (const auto answer = answer_of(at_day);
+        answer && answer->open_to_close && answer->open_to_close->end_day.isValid())
+        return answer->open_to_close->end_day; // the session KRX held
+    for (const auto& p : at_day)
+        if (p.target_at.isValid())
+            return daily_day(p.target_at); // the session planned
+    return {};
+}
+
+QString daily_window_text(const QList<KindPrediction>& at_day, const KindInfo& kind) {
+    if (window_sessions(kind) <= 1)
+        return {};
+    const QDate end = daily_end_day(at_day);
+    if (!end.isValid())
+        return {};
+    const QString text = QStringLiteral("창 끝 %1").arg(end.toString("MM-dd"));
+    return answer_of(at_day) ? text : text + QStringLiteral(" (예정)");
+}
+
+QString daily_closes_text(const std::optional<KindAnswer>& answer) {
+    if (!answer || !answer->open_to_close || answer->open_to_close->closes.isEmpty())
+        return {};
+    QStringList closes;
+    for (const auto& c : answer->open_to_close->closes)
+        closes << (c ? price_text(*c) : QStringLiteral("—"));
+    return QStringLiteral("세션 종가 %1").arg(closes.join(QStringLiteral(" · ")));
+}
+
+QStringList kind_algorithms(const QMap<QString, AlgorithmInfo>& algorithms, const QString& kind) {
+    QStringList out;
+    for (auto it = algorithms.cbegin(); it != algorithms.cend(); ++it)
+        if (it->kind == QLatin1String("algorithm") && it->prediction_kind == kind)
+            out << it.key();
+    return out; // by name, as the map keeps them
+}
+
+QStringList daily_runs_lines(const KindInfo& kind, const std::optional<QStringList>& algorithms) {
+    QStringList lines;
+    if (!kind.daily)
+        return lines;
+    if (!kind.daily->awaiting.isEmpty()) {
+        lines << QStringLiteral("아직 돌지 않는다: %1").arg(kind.daily->awaiting);
+    } else if (algorithms && algorithms->isEmpty()) {
+        QStringList names;
+        for (const auto& b : kind.baselines)
+            names << predictor_label(b.name);
+        lines << QStringLiteral("기준 예측만 예측하고 채점한다(%1). 엔진의 알고리즘 목록에 이 종류의 알고리즘이 "
+                                "없다. 사전 검증에서 거부되었거나 아직 없는 알고리즘은 목록에 나오지 않는다.")
+                     .arg(names.join(QStringLiteral(", ")));
+    }
+    if (!kind.daily->review_hold.isEmpty())
+        lines << QStringLiteral("알고리즘은 수습에 오르지 않는다: %1").arg(kind.daily->review_hold);
+    return lines;
+}
+
+QString daily_runs_text(const KindInfo& kind, const std::optional<QStringList>& algorithms) {
+    if (!kind.daily)
+        return {};
+    if (!kind.daily->awaiting.isEmpty())
+        return QStringLiteral("돌지 않음");
+    if (algorithms && algorithms->isEmpty())
+        return QStringLiteral("기준 예측만");
+    return {};
+}
+
 QDateTime daily_close_on(const QDateTime& t, const KindInfo& kind) {
     if (!is_daily(kind) || !t.isValid())
         return {};
@@ -591,7 +683,14 @@ QString band_text(double band) {
     return QStringLiteral("보합 ±%1%").arg(QString::number(band * 100, 'f', 2));
 }
 
-QString daily_answer_text(const std::optional<KindAnswer>& answer, const KindInfo& kind) {
+QString daily_answer_text(const std::optional<KindAnswer>& answer, const KindInfo& kind, const QDate& end) {
+    if (!answer && window_sessions(kind) > 1) // its window's last session is to come (krx-quant #310)
+        return end.isValid() ? QStringLiteral("채점 대기 (%1 %2부터, 최대 %3거래일)")
+                                   .arg(end.toString("MM-dd"), answer_from_of(kind))
+                                   .arg(waiting_days(kind))
+                             : QStringLiteral("채점 대기 (창의 마지막 세션 %1부터, 최대 %2거래일)")
+                                   .arg(answer_from_of(kind))
+                                   .arg(waiting_days(kind));
     if (!answer)
         return QStringLiteral("채점 전 (%1부터)").arg(answer_from_of(kind));
     QString text;
@@ -609,6 +708,9 @@ QString daily_answer_text(const std::optional<KindAnswer>& answer, const KindInf
         text += QStringLiteral(" · 특수 상황");
     if (answer->open_to_close && answer->open_to_close->vi > 0)
         text += QStringLiteral(" · VI %1회").arg(answer->open_to_close->vi);
+    // An ex-dividend date after the first session (krx-quant #310): the change leans down by it.
+    if (answer->open_to_close && answer->open_to_close->ex_dividend.value_or(false))
+        text += QStringLiteral(" · 배당락 낀 창");
     return text;
 }
 
@@ -622,9 +724,11 @@ QString daily_title(const QString& symbol, const KindInfo& kind, const QDateTime
                        .arg(symbol, kst_text(bar_close, "MM-dd"), kind.title, predict_at_of(kind));
     head += last_day ? QStringLiteral(", 지난 거래일)") : QStringLiteral(")");
     QStringList parts{head};
+    if (const QString window = daily_window_text(at_day, kind); !window.isEmpty()) // krx-quant #310
+        parts << window;
     if (const auto band = daily_band(at_day))
         parts << band_text(*band);
-    parts << daily_answer_text(answer_of(at_day), kind);
+    parts << daily_answer_text(answer_of(at_day), kind, daily_end_day(at_day));
     return parts.join(QStringLiteral(" · "));
 }
 
@@ -632,24 +736,58 @@ QString daily_tip(const KindInfo& kind) {
     if (!kind.daily)
         return {};
     const DailySchedule& day = *kind.daily;
-    QStringList lines{
-        QStringLiteral("하루 한 번 예측이다. 거래일 %1에, 그날 %2부터 %3까지의 방향을 %4 셋 중 하나로 예측한다.")
-            .arg(predict_at_of(kind), day.from_title, day.to_title, kind.class_titles.join(QStringLiteral("·"))),
-        QStringLiteral("정답은 그날 KRX 일봉의 시가와 종가(두 단일가)로, 일봉이 저장된 뒤(%1부터) 나온다.")
-            .arg(answer_from_of(kind)),
-        QStringLiteral("종가 ÷ 시가 − 1이 ±보합 폭 안이면 보합이다. 보합 폭은 그날 전의 날만으로 종목의 일 변동성에서 "
-                       "정해, 세 클래스가 대략 1/3씩 나온다."),
-    };
+    const int sessions = window_sessions(kind);
+    QStringList lines;
+    if (sessions > 1) { // several sessions (krx-quant #310)
+        lines << QStringLiteral("하루 한 번 예측이다. 거래일 %1에, 그날 %2부터 %3까지(%4세션)의 방향을 %5 셋 중 하나로 "
+                                "예측한다.")
+                     .arg(predict_at_of(kind), day.from_title, day.to_title)
+                     .arg(sessions)
+                     .arg(kind.class_titles.join(QStringLiteral("·")))
+              << QStringLiteral("정답은 창의 마지막 세션 밤, 그날 KRX 일봉이 저장된 뒤(%1부터) 나온다. 그래서 예측은 "
+                                "최대 %2거래일 채점을 기다리고, 종목마다 채점 대기인 창이 늘 %2개 있다. 예정에 없던 "
+                                "휴장이 생기면 창 끝이 그만큼 밀린다.")
+                     .arg(answer_from_of(kind))
+                     .arg(waiting_days(kind))
+              << QStringLiteral("종가 ÷ 시가 − 1이 ±보합 폭 안이면 보합이다. 보합 폭은 그날 전에 끝난 창만으로 종목의 "
+                                "변동성에서 정해, 세 클래스가 대략 1/3씩 나온다.")
+              << QStringLiteral("이웃한 날의 창이 %1세션씩 겹쳐 날마다의 정답이 서로 독립이 아니다. 통계는 겹침을 "
+                                "보정한다: 정답률·정밀도·커버리지·Brier·짝 lift·손익의 구간은 Driscoll–Kraay, 거래일 "
+                                "단위 lift(상태와 순위가 보는 하한)는 Newey–West이고, 독립인 창은 대략 날 수 ÷ %2개다. "
+                                "보정 곡선은 보정하지 않았다.")
+                     .arg(sessions - 1)
+                     .arg(sessions)
+              << QStringLiteral(
+                     "배당락 낀 창: 둘째부터 마지막 세션 사이에 배당락일이 있는 창이다. 수정주가가 현금배당을 "
+                     "빼지 않아 그 창의 정답은 배당만큼 하락 쪽으로 기운다. 정답·학습·판정은 이 표시를 "
+                     "읽지 않는다.");
+    } else {
+        lines << QStringLiteral(
+                     "하루 한 번 예측이다. 거래일 %1에, 그날 %2부터 %3까지의 방향을 %4 셋 중 하나로 예측한다.")
+                     .arg(predict_at_of(kind), day.from_title, day.to_title,
+                          kind.class_titles.join(QStringLiteral("·")))
+              << QStringLiteral("정답은 그날 KRX 일봉의 시가와 종가(두 단일가)로, 일봉이 저장된 뒤(%1부터) 나온다.")
+                     .arg(answer_from_of(kind))
+              << QStringLiteral("종가 ÷ 시가 − 1이 ±보합 폭 안이면 보합이다. 보합 폭은 그날 전의 날만으로 종목의 일 "
+                                "변동성에서 정해, 세 클래스가 대략 1/3씩 나온다.");
+    }
     if (!day.probation_days.isEmpty()) {
         QStringList days;
         for (const int d : day.probation_days)
             days << QString::number(d);
-        lines << QStringLiteral("상태(수습·정식·벤치)는 정답이 있는 날 %1일째에 판정한다(최근 %2일). 하루에 종목마다 "
-                                "값이 하나라 10일 수습은 짧다.")
-                     .arg(days.join(QStringLiteral("·")))
-                     .arg(day.recent_days);
+        lines << (sessions > 1
+                      ? QStringLiteral("상태(수습·정식·벤치)는 정답이 있는 날 %1일째에 판정한다(최근 %2일).")
+                            .arg(days.join(QStringLiteral("·")))
+                            .arg(day.recent_days)
+                      : QStringLiteral("상태(수습·정식·벤치)는 정답이 있는 날 %1일째에 판정한다(최근 %2일). 하루에 "
+                                       "종목마다 값이 하나라 10일 수습은 짧다.")
+                            .arg(days.join(QStringLiteral("·")))
+                            .arg(day.recent_days));
     }
-    lines << QStringLiteral("차트의 일 보기에 날마다의 예측과 결과가 붙는다.");
+    lines << (sessions > 1
+                  ? QStringLiteral("차트의 일 보기에 날마다의 예측과 결과가 붙는다. 그날 봉의 것은 그날 시작한 "
+                                   "창이다.")
+                  : QStringLiteral("차트의 일 보기에 날마다의 예측과 결과가 붙는다."));
     return lines.join('\n');
 }
 
@@ -711,10 +849,15 @@ QList<BarHover> daily_hovers(const QList<Bar>& days, const QMap<QDateTime, QList
             continue;
         const QList<KindPrediction>& at_day = *it;
         const auto answer = answer_of(at_day);
-        QStringList first{day_head(close_of(at_day), kind), daily_answer_text(answer, kind)};
+        QStringList first{day_head(close_of(at_day), kind)};
+        if (const QString window = daily_window_text(at_day, kind); !window.isEmpty()) // krx-quant #310
+            first << window;
+        first << daily_answer_text(answer, kind, daily_end_day(at_day));
         if (const auto band = daily_band(at_day))
             first << band_text(*band);
         QStringList lines{first.join(QStringLiteral(" · "))};
+        if (const QString closes = daily_closes_text(answer); !closes.isEmpty()) // its sessions' (krx-quant #310)
+            lines << closes;
         // The icon's call when it is the mean of several algorithms; one algorithm's is its own line.
         if (const auto call = daily_call(at_day, kind); call && call->algorithms.size() > 1 && call->klass >= 0) {
             QStringList parts{QStringLiteral("알고리즘 평균 (%1)").arg(call->algorithms.size()),

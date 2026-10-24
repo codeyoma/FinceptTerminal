@@ -92,6 +92,17 @@ KindInfo daily_kind() {
     return k;
 }
 
+/// open_to_close_5d as GET /v1/kinds describes it (krx-quant #310): five sessions, overlapping.
+KindInfo five_kind() {
+    KindInfo k = daily_kind();
+    k.name = "open_to_close_5d";
+    k.title = QStringLiteral("5거래일 시가→종가");
+    k.baselines = {{"otc5-flat", std::nullopt}, {"otc5-climate", std::nullopt}, {"otc5-persist", std::nullopt}};
+    k.daily->to_title = QStringLiteral("다섯째 거래일 종가 단일가");
+    k.daily->sessions = 5;
+    return k;
+}
+
 /// Made-up open-to-close P&L, basis points: 57 scored, 35 trades — 24 longs, 11 shorts —, as the
 /// demo engine's cox (its numbers rounded).
 OpenToCloseStats daily_stats() {
@@ -845,7 +856,7 @@ class TstKrxStatsView : public QObject {
                  QStringLiteral("채점된 예측 수다. 하루 한 번 예측이라 종목마다 하루에 하나다(종목 × 날)."));
         QVERIFY(columns[5].tip.startsWith(QStringLiteral("거래당 평균, 시가 대비 bp, 연구용 값이다. 상승 예측은 시가 "
                                                          "단일가에 사서 종가 단일가에 판다고 친다.")));
-        QCOMPARE(columns[5].tip, daily_pnl_tip());
+        QCOMPARE(columns[5].tip, daily_pnl_tip(daily_kind()));
         QCOMPARE(daily_pnl_header(daily_kind()), columns[5].header);
         // A bar-close kind's samples stay "표본".
         QCOMPARE(kind_stats_columns(range_kind())[0].header, QStringLiteral("표본"));
@@ -916,6 +927,91 @@ class TstKrxStatsView : public QObject {
             QStringLiteral("기준 예측(기준: 시가→종가 늘 보합, 기준: 시가→종가 기후, 기준: 어제 방향 잇기)")));
         // A bar-close kind's rules have no daily lines.
         QVERIFY(!ranking_rules({}, 200, range_kind()).contains(QStringLiteral("하루 한 번")));
+    }
+
+    void a_five_session_leaderboard_says_its_samples_are_overlapping_and_its_intervals_corrected() {
+        const KindInfo five = five_kind();
+        const auto columns = kind_stats_columns(five);
+        QCOMPARE(columns[0].header, QStringLiteral("표본(종목·일)"));
+        QCOMPARE(columns[0].tip,
+                 QStringLiteral("채점된 예측 수다. 하루 한 번 예측이라 종목마다 하루에 하나다(종목 × 날). 이웃한 날의 "
+                                "창이 4세션씩 겹쳐, 괄호에 서로 독립인 창이 대략 몇 개인지(예측이 있는 거래일 ÷ 5)를 "
+                                "적는다."));
+        QCOMPARE(columns[5].header, QStringLiteral("5거래일 시가→종가 손익(bp, 연구용)"));
+        QCOMPARE(columns[5].tip, daily_pnl_tip(five));
+        QVERIFY(daily_pnl_tip(five).contains(QStringLiteral("마지막 세션 종가 단일가에 판다고 친다")));
+        QVERIFY(daily_pnl_tip(five).contains(QStringLiteral("Driscoll–Kraay")));
+        QVERIFY(daily_pnl_tip(five).contains(QStringLiteral("날마다 재조정")));
+
+        Entry e;
+        e.n = 45;
+        e.overlap_sessions = 5;
+        e.independent_days = 3;
+        e.accuracy = Interval{0.333, 0.0, 0.741, 45};
+        e.brier = Interval{0.674, 0.628, 0.720, 45};
+        e.open_to_close = daily_stats();
+        const auto cells = kind_stats_cells(e, five);
+        QCOMPARE(cells[0].text, QStringLiteral("45 (독립 3)"));
+        QCOMPARE(cells[0].tip, QStringLiteral("겹침 보정 · 5세션 창 · 독립 창 약 3개"));
+        QCOMPARE(cells[1].tip, QStringLiteral("95% 구간 0.0–74.1% (n 45)\n겹침 보정(Driscoll–Kraay)"));
+        QCOMPARE(cells[2].tip, QString()); // no precision measured: nothing to say
+        QVERIFY(cells[4].tip.endsWith(QStringLiteral("\n겹침 보정(Driscoll–Kraay)")));
+        QVERIFY(cells[5].tip.endsWith(QStringLiteral("\n겹침 보정(Driscoll–Kraay)")));
+        QCOMPARE(overlap_text(e), QStringLiteral("겹침 보정 · 5세션 창 · 독립 창 약 3개"));
+        // Without independent days (not sent), the samples alone; one session: no overlap at all.
+        e.independent_days.reset();
+        QCOMPARE(kind_stats_cells(e, five)[0].text, QStringLiteral("45"));
+        QCOMPARE(overlap_text(e), QStringLiteral("겹침 보정 · 5세션 창"));
+        e.overlap_sessions = 1;
+        QVERIFY(overlap_text(e).isEmpty());
+        QCOMPARE(kind_stats_cells(e, daily_kind())[1].tip, QStringLiteral("95% 구간 0.0–74.1% (n 45)"));
+    }
+
+    void a_five_session_leaderboard_s_rules_say_the_window_the_wait_and_the_correction() {
+        const QStringList lines = ranking_rules({"2026-10-12", "2026-10-08"}, 200, five_kind()).split('\n');
+        QCOMPARE(lines[1],
+                 QStringLiteral("5거래일 시가→종가 예측을 5거래일 시가→종가 정답으로 센다. 정밀도와 커버리지는 "
+                                "상승·하락(으)로 센다."));
+        QCOMPARE(
+            lines[2],
+            QStringLiteral("하루 한 번 예측이다. 채점 한 건은 종목 하나의 5세션 창이고, 기간의 날은 예측이 있는 "
+                           "최근 거래일(창이 시작한 날)이다. 정답은 창의 마지막 세션 밤(20:35부터)이라 최근 4거래일의 "
+                           "창은 아직 비어 있다."));
+        QCOMPARE(lines[3],
+                 QStringLiteral("이웃한 날의 창이 4세션씩 겹친다. 정답률·정밀도·커버리지·Brier·손익의 구간과 짝 lift는 "
+                                "Driscoll–Kraay, 거래일 단위 lift(순위와 상태가 보는 하한)는 Newey–West로 겹침을 "
+                                "보정했고, 자유도는 독립인 창의 수(대략 날 수 ÷ 5) 수준이다. 보정 곡선은 보정하지 "
+                                "않았다. 표본 칸의 괄호가 독립인 창의 수다."));
+        QCOMPARE(lines[4],
+                 QStringLiteral("상태(수습·벤치)는 순위와 따로, 정답이 있는 날 60·120·180일째에 판정한다(최근 60일)."));
+        QVERIFY(lines.join('\n').contains(
+            QStringLiteral("기준 예측(기준: 5거래일 늘 보합, 기준: 5거래일 기후, 기준: 지난 5거래일 방향 잇기)")));
+        // open_to_close's rules have no overlap line.
+        QVERIFY(!ranking_rules({}, 200, daily_kind()).contains(QStringLiteral("겹친다")));
+    }
+
+    void a_five_session_kind_s_lift_intervals_special_windows_and_calibration_say_the_overlap() {
+        const KindInfo five = five_kind();
+        QCOMPARE(
+            special_tip(five),
+            QStringLiteral("세션 중 하루라도 서킷브레이커·사이드카가 있던 창의 예측도 센다(기본은 뺀다). VI는 특수 "
+                           "상황이 아니다(창의 그 종목 VI 수는 정답에 남는다)."));
+        QVERIFY(lift_header_tip(QStringLiteral("95% 구간"), five)
+                    .startsWith(QStringLiteral("겹침을 보정한 Driscoll–Kraay "
+                                               "구간이다")));
+        QCOMPARE(lift_header_tip(QStringLiteral("거래일 95% 구간"), five),
+                 QStringLiteral("하루를 값 하나로 보고 Newey–West로 겹침을 보정한 구간이다. 자유도는 독립인 창의 "
+                                "수(대략 날 수 ÷ 5) 수준이다. 상태(수습·정식·벤치)는 이것으로 정한다."));
+        QVERIFY(lift_header_tip(QStringLiteral("짝"), five).contains(QStringLiteral("이웃한 날의 창이 겹쳐")));
+        QCOMPARE(lift_header_tip(QStringLiteral("q"), five), column_tip(QStringLiteral("q")));
+        AlgorithmStats stats;
+        stats.kind = "open_to_close_5d";
+        stats.algorithm = "otc5-climate";
+        QVERIFY(calibration_tip(stats, five)
+                    .endsWith(QStringLiteral("겹침 보정 없음: 이웃한 날의 창이 겹쳐 서로 독립이 아닌데, 구간마다의 95% "
+                                             "구간(Wilson)은 독립으로 센 "
+                                             "것이라 실제보다 좁다.")));
+        QVERIFY(!calibration_tip(stats, daily_kind()).contains(QStringLiteral("겹침")));
     }
 
     void a_daily_kind_s_special_days_pairs_and_intervals_are_its_days() {
