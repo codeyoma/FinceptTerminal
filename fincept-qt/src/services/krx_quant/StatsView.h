@@ -111,7 +111,9 @@ struct StatsColumn {
 /// open-to-close P&L a trade, basis points; then the weakest lift's lower bound. No touch P&L: the
 /// direction's own.
 QList<StatsColumn> kind_stats_columns(const KindInfo& kind);
-/// An entry's cells under kind_stats_columns, with their intervals.
+/// An entry's cells under kind_stats_columns, with their intervals. Of overlapping windows
+/// (krx-quant #310), the samples "45 (독립 3)" with overlap_text on their tooltip, and each interval's
+/// tooltip saying it is overlap-corrected.
 QList<Shown> kind_stats_cells(const Entry& entry, const KindInfo& kind);
 /// The leaderboard's "운 보정" header tooltip for ``kind``: which baselines it means.
 QString luck_tip(const KindInfo& kind);
@@ -169,8 +171,13 @@ QString barrier_summary(const BarrierStats& stats);
 
 /// The header of a daily kind's P&L column and detail section (krx-quant #264): "시가→종가 손익(bp, 연구용)".
 QString daily_pnl_header(const KindInfo& kind);
-/// What it is: how a call is followed from the opening auction to the closing auction, its costs.
-QString daily_pnl_tip();
+/// What it is: how a call is followed from the opening auction to the closing auction, its costs;
+/// for a window of several sessions (krx-quant #310), to its last session's, overlapping, with the
+/// inverse product reset each day.
+QString daily_pnl_tip(const KindInfo& kind);
+/// An entry's overlap (krx-quant #310): "겹침 보정 · 5세션 창 · 독립 창 약 3개"; empty for windows
+/// that do not overlap (``overlap_sessions`` 1).
+QString overlap_text(const Entry& entry);
 
 /// An open_to_close predictor's P&L cell (krx-quant #264): the mean a trade, basis points of the
 /// open; its tooltip the trades and their total, the 95% interval, each side's trades and mean, and

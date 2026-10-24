@@ -268,7 +268,18 @@ class TstKrxDashboardView : public QObject {
         QCOMPARE(pnl_unit("direction"), QStringLiteral("틱"));
         QCOMPARE(pnl_unit("barrier_30m"), QStringLiteral("틱"));
         QCOMPARE(pnl_unit("open_to_close"), QStringLiteral("bp"));
+        QCOMPARE(pnl_unit("open_to_close_5d"), QStringLiteral("bp")); // krx-quant #310
         QCOMPARE(pnl_unit("range"), QString());
+        // Five sessions' P&L a trade: its open-to-close stats, in basis points as open_to_close's.
+        Leaderboard board;
+        board.kind = "open_to_close_5d";
+        Entry flat;
+        flat.algorithm = "otc5-climate";
+        flat.open_to_close = OpenToCloseStats{45, DailyPnl{45, -456.6, Interval{-10.15, -265.7, 245.4, 45}}, {}, {}};
+        board.baselines = {flat};
+        const auto rows = leaderboard_rows(board, 2);
+        QCOMPARE(rows[0].name, QStringLiteral("기준: 5거래일 기후"));
+        QCOMPARE(rows[0].pnl, QStringLiteral("-10.2"));
     }
 
     void a_sure_final_consensus_with_enough_members_agreeing_is_a_live_signal() {

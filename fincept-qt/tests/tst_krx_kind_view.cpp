@@ -244,6 +244,39 @@ KindAnswer daily_answer(const QString& klass, double open, double close, int vi 
     return a;
 }
 
+/// The five sessions' kind as GET /v1/kinds gives it (krx-quant #310).
+KindInfo five_kind() {
+    KindInfo k = daily_kind();
+    k.name = "open_to_close_5d";
+    k.title = QStringLiteral("5거래일 시가→종가");
+    k.baselines = {{"otc5-flat", std::nullopt}, {"otc5-climate", std::nullopt}, {"otc5-persist", std::nullopt}};
+    k.daily->to_title = QStringLiteral("다섯째 거래일 종가 단일가");
+    k.daily->sessions = 5;
+    return k;
+}
+
+/// ``algorithm``'s five-session forecast of the window opened on 2026-10-<day>, planned to end on
+/// 2026-10-<end> at the close.
+KindPrediction five_forecast(const QString& algorithm, int day, int end, double up, double flat, double down) {
+    KindPrediction p = daily_forecast(algorithm, day, up, flat, down);
+    p.target_at = QDateTime(QDate(2026, 10, end), QTime(15, 30), kst_zone());
+    p.band = 0.0131;
+    return p;
+}
+
+/// A five-session window's answer, from the first session's open to the closes of its sessions
+/// (the last the window's), ending on 2026-10-<end>.
+KindAnswer five_answer(const QString& klass, double open, const QList<std::optional<double>>& closes, int end,
+                       std::optional<bool> ex_dividend = false) {
+    KindAnswer a = daily_answer(klass, open, *closes.last());
+    a.open_to_close->band = 0.0131;
+    a.open_to_close->end_day = QDate(2026, 10, end);
+    a.open_to_close->sessions = 5;
+    a.open_to_close->closes = closes;
+    a.open_to_close->ex_dividend = ex_dividend;
+    return a;
+}
+
 /// A day candle of 2026-10-<day> as the day view holds it: from 00:00 KST.
 Bar day_candle(int day) {
     return Bar{QDateTime(QDate(2026, 10, day), QTime(0, 0), kst_zone()), 80'000, 81'000, 79'000, 80'500, 1'000'000};
@@ -258,19 +291,22 @@ class TstKrxKindView : public QObject {
     void an_older_engine_offers_the_direction_alone() {
         // No GET /v1/kinds (an engine before krx-quant #179): the others greyed, in the screen's order.
         const auto choices = kind_choices(std::nullopt);
-        QCOMPARE(choices.size(), 4);
+        QCOMPARE(choices.size(), 5);
         QCOMPARE(choices[0].name, QStringLiteral("direction"));
         QCOMPARE(choices[1].name, QStringLiteral("barrier"));
         QCOMPARE(choices[2].name, QStringLiteral("range"));
-        QCOMPARE(choices[3].name, QStringLiteral("open_to_close")); // krx-quant #264
+        QCOMPARE(choices[3].name, QStringLiteral("open_to_close"));    // krx-quant #264
+        QCOMPARE(choices[4].name, QStringLiteral("open_to_close_5d")); // krx-quant #310
         QCOMPARE(choices[0].title, QStringLiteral("방향"));
         QCOMPARE(choices[1].title, QStringLiteral("장벽"));
         QCOMPARE(choices[2].title, QStringLiteral("변동폭"));
         QCOMPARE(choices[3].title, QStringLiteral("시가→종가"));
+        QCOMPARE(choices[4].title, QStringLiteral("5거래일 시가→종가"));
         QVERIFY(choices[0].enabled);
         QVERIFY(!choices[1].enabled);
         QVERIFY(!choices[2].enabled);
         QVERIFY(!choices[3].enabled);
+        QVERIFY(!choices[4].enabled);
         QCOMPARE(choices[2].tip, QStringLiteral("엔진이 이 종류를 예측하지 않는다(옛 엔진이거나 아직 없는 종류)."));
     }
 
@@ -297,7 +333,7 @@ class TstKrxKindView : public QObject {
         // A kind this screen does not know stays out of the selector, whatever the engine makes.
         KindInfo weather;
         weather.name = "weather";
-        QCOMPARE(kind_choices(QList<KindInfo>{direction_kind(), weather}).size(), 4);
+        QCOMPARE(kind_choices(QList<KindInfo>{direction_kind(), weather}).size(), 5);
     }
 
     void the_barrier_s_horizon_ladder_follows_the_barrier_when_the_engine_makes_it() {
@@ -316,7 +352,7 @@ class TstKrxKindView : public QObject {
         for (const auto& c : choices)
             names << c.name;
         QCOMPARE(names, (QStringList{"direction", "barrier", "barrier_15m", "barrier_30m", "barrier_60m", "range",
-                                     "open_to_close"}));
+                                     "open_to_close", "open_to_close_5d"}));
         QCOMPARE(choices[2].title, QStringLiteral("장벽 15분"));
         QVERIFY(choices[2].enabled && choices[4].enabled);
         QCOMPARE(choices[3].tip,
@@ -326,7 +362,7 @@ class TstKrxKindView : public QObject {
         QCOMPARE(shown_kind("barrier_30m", choices), QStringLiteral("barrier_30m"));
         QCOMPARE(shown_kind("barrier_30m", kind_choices(QList<KindInfo>{direction_kind(), barrier_kind()})),
                  QStringLiteral("direction")); // an engine without the ladder
-        QCOMPARE(kind_choices(QList<KindInfo>{direction_kind(), barrier_kind()}).size(), 4);
+        QCOMPARE(kind_choices(QList<KindInfo>{direction_kind(), barrier_kind()}).size(), 5);
 
         // Its panel and hover say its minutes; without a target time it is scored H minutes on.
         const KindInfo& thirty = kinds[4];
@@ -774,10 +810,10 @@ class TstKrxKindView : public QObject {
     void open_to_close_is_chosen_when_the_engine_makes_it() {
         KindInfo otc = daily_kind();
         const auto choices = kind_choices(QList<KindInfo>{direction_kind(), range_kind(), barrier_kind(), otc});
-        QCOMPARE(choices.last().name, QStringLiteral("open_to_close"));
-        QCOMPARE(choices.last().title, QStringLiteral("시가→종가")); // the engine's title
-        QVERIFY(choices.last().enabled);
-        QCOMPARE(choices.last().tip,
+        QCOMPARE(choices[3].name, QStringLiteral("open_to_close"));
+        QCOMPARE(choices[3].title, QStringLiteral("시가→종가")); // the engine's title
+        QVERIFY(choices[3].enabled);
+        QCOMPARE(choices[3].tip,
                  QStringLiteral("상승·보합·하락의 확률\n하루 한 번, 거래일 08:50에 그날 시가 단일가 → 종가 단일가의 "
                                 "방향을 예측한다. 정답은 그날 KRX 일봉이 저장된 뒤(20:35부터)다.\n예측 패널, 순위표, "
                                 "상세 통계 창이 이 종류로 바뀌고, 일 보기 차트에 날마다의 예측과 결과가 붙는다. 분 "
@@ -785,8 +821,8 @@ class TstKrxKindView : public QObject {
         QCOMPARE(shown_kind("open_to_close", choices), QStringLiteral("open_to_close"));
         // An engine without it (before krx-quant #293): greyed, the direction shown, the setting kept.
         const auto older = kind_choices(QList<KindInfo>{direction_kind(), range_kind(), barrier_kind()});
-        QVERIFY(!older.last().enabled);
-        QCOMPARE(older.last().name, QStringLiteral("open_to_close"));
+        QVERIFY(!older[3].enabled);
+        QCOMPARE(older[3].name, QStringLiteral("open_to_close"));
         QCOMPARE(shown_kind("open_to_close", older), QStringLiteral("direction"));
         QVERIFY(is_daily(otc) && !is_daily(range_kind()));
     }
@@ -1022,6 +1058,169 @@ class TstKrxKindView : public QObject {
         QVERIFY(daily_score_text(daily_score(closes, otc, 0, chart_time(day_candle(1).start)))
                     .startsWith(QStringLiteral("알고리즘 평균 (2) · 맞음 100%")));
         QVERIFY(daily_score_text(daily_score(closes, otc, 0, 1)).isEmpty());
+    }
+
+    // ---- Five sessions' window (krx-quant #310) ----
+
+    void five_sessions_are_chosen_when_the_engine_makes_them() {
+        const auto choices = kind_choices(QList<KindInfo>{direction_kind(), daily_kind(), five_kind()});
+        QCOMPARE(choices[4].name, QStringLiteral("open_to_close_5d"));
+        QCOMPARE(choices[4].title, QStringLiteral("5거래일 시가→종가"));
+        QVERIFY(choices[4].enabled);
+        QCOMPARE(
+            choices[4].tip,
+            QStringLiteral("상승·보합·하락의 확률\n하루 한 번, 거래일 08:50에 그날 시가 단일가 → 다섯째 거래일 종가 "
+                           "단일가(5세션)의 방향을 예측한다. 정답은 창의 마지막 세션 밤(20:35부터)이라 최대 4거래일 "
+                           "채점을 기다린다. 이웃한 날의 창이 겹친다.\n예측 패널, 순위표, 상세 통계 창이 이 종류로 "
+                           "바뀌고, 일 보기 차트에 날마다의 예측과 결과가 붙는다. 분 보기의 아이콘·호버·선택 합의와 "
+                           "신호 알림은 방향 그대로다."));
+        QCOMPARE(shown_kind("open_to_close_5d", choices), QStringLiteral("open_to_close_5d"));
+        // An engine before krx-quant #310: greyed, the direction shown, the setting kept.
+        const auto older = kind_choices(QList<KindInfo>{direction_kind(), daily_kind()});
+        QVERIFY(!older[4].enabled);
+        QCOMPARE(shown_kind("open_to_close_5d", older), QStringLiteral("direction"));
+        QCOMPARE(window_sessions(five_kind()), 5);
+        QCOMPARE(window_sessions(daily_kind()), 1);
+        QCOMPARE(window_sessions(range_kind()), 1);
+    }
+
+    void a_five_session_window_says_its_end_and_waits_for_its_last_session() {
+        const KindInfo five = five_kind();
+        // Monday's window, planned to end on Friday: the end and the wait before the answer.
+        const QList<KindPrediction> monday{five_forecast("otc5-climate", 12, 16, 0.29, 0.31, 0.40),
+                                           five_forecast("otc5-flat", 12, 16, 0, 1, 0)};
+        QCOMPARE(daily_end_day(monday), QDate(2026, 10, 16));
+        QCOMPARE(daily_window_text(monday, five), QStringLiteral("창 끝 10-16 (예정)"));
+        QCOMPARE(daily_answer_text(std::nullopt, five, QDate(2026, 10, 16)),
+                 QStringLiteral("채점 대기 (10-16 20:35부터, 최대 4거래일)"));
+        QCOMPARE(daily_answer_text(std::nullopt, five),
+                 QStringLiteral("채점 대기 (창의 마지막 세션 20:35부터, 최대 4거래일)"));
+        QCOMPARE(daily_title("005930", five, morning(12), monday, false),
+                 QStringLiteral("005930 · 10-12 5거래일 시가→종가 (08:50 예측) · 창 끝 10-16 (예정) · 보합 ±1.31% · "
+                                "채점 대기 (10-16 20:35부터, 최대 4거래일)"));
+        const auto rows = kind_rows(monday, five);
+        QCOMPARE(rows[0].result, QStringLiteral("채점 대기"));
+        QCOMPARE(rows[1].result, QStringLiteral("채점 대기"));
+        // The answer's end day is the session KRX held: a closure nobody planned moves it on.
+        const QList<KindPrediction> held{
+            with(five_forecast("otc5-flat", 5, 9, 0, 1, 0),
+                 five_answer("flat", 80'750, {80'350, 80'450, 80'850, 82'250, 81'250}, 12))};
+        QCOMPARE(daily_end_day(held), QDate(2026, 10, 12));
+        QCOMPARE(daily_window_text(held, five), QStringLiteral("창 끝 10-12"));
+        // A one-day kind says no end; without a target nor an answer, none either.
+        QVERIFY(daily_window_text({daily_forecast("cox", 12, 0.3, 0.3, 0.4)}, daily_kind()).isEmpty());
+        KindPrediction untimed = five_forecast("otc5-persist", 12, 16, 0, 1, 0);
+        untimed.target_at = {};
+        QVERIFY(!daily_end_day({untimed}).isValid());
+        QVERIFY(daily_window_text({untimed}, five).isEmpty());
+        // A one-day kind waits as before.
+        QCOMPARE(daily_answer_text(std::nullopt, daily_kind(), QDate(2026, 10, 12)),
+                 QStringLiteral("채점 전 (20:35부터)"));
+    }
+
+    void a_five_session_answer_shows_its_closes_and_the_ex_dividend_mark() {
+        const KindInfo five = five_kind();
+        const KindAnswer down = five_answer("down", 84'050, {83'250, 83'050, 82'050, 80'950, 80'350}, 12, true);
+        QCOMPARE(daily_answer_text(down, five), QStringLiteral("정답 하락 -4.40% (84,050 → 80,350) · 배당락 낀 창"));
+        QCOMPARE(daily_closes_text(down), QStringLiteral("세션 종가 83,250 · 83,050 · 82,050 · 80,950 · 80,350"));
+        // Not known (null) and not marked (false): no mark; a session the symbol has none of: "—".
+        const KindAnswer unknown =
+            five_answer("up", 80'000, {80'100, std::nullopt, 80'900, 81'000, 81'200}, 16, std::nullopt);
+        QCOMPARE(daily_answer_text(unknown, five), QStringLiteral("정답 상승 +1.50% (80,000 → 81,200)"));
+        QCOMPARE(daily_closes_text(unknown), QStringLiteral("세션 종가 80,100 · — · 80,900 · 81,000 · 81,200"));
+        // A one-day answer, none yet, or no candle: no closes.
+        QVERIFY(daily_closes_text(daily_answer("down", 81'950, 81'250)).isEmpty());
+        QVERIFY(daily_closes_text(std::nullopt).isEmpty());
+        KindAnswer no_candle;
+        no_candle.unscorable = "no candle";
+        QVERIFY(daily_closes_text(no_candle).isEmpty());
+        QCOMPARE(daily_answer_text(no_candle, five), QStringLiteral("채점 불가 (일봉 없음)"));
+        // The pinned day's title: its end once held, the answer and the mark.
+        const QList<KindPrediction> day{with(five_forecast("otc5-climate", 5, 9, 0.3, 0.3, 0.4), down)};
+        QCOMPARE(daily_title("005930", five, morning(5), day, false),
+                 QStringLiteral("005930 · 10-05 5거래일 시가→종가 (08:50 예측) · 창 끝 10-12 · 보합 ±1.31% · 정답 하락 "
+                                "-4.40% (84,050 → 80,350) · 배당락 낀 창"));
+    }
+
+    void the_five_session_box_has_the_window_and_its_closes() {
+        const KindInfo five = five_kind();
+        QMap<QDateTime, QList<KindPrediction>> closes;
+        closes[morning(5)] = {with(five_forecast("otc5-flat", 5, 9, 0, 1, 0),
+                                   five_answer("flat", 80'750, {80'350, 80'450, 80'850, 82'250, 81'250}, 12))};
+        closes[morning(12)] = {five_forecast("otc5-flat", 12, 16, 0, 1, 0)};
+        const auto hovers = daily_hovers({day_candle(5), day_candle(12)}, closes, five, {});
+        QCOMPARE(hovers.size(), 2);
+        QCOMPARE(hovers[0].lines,
+                 (QStringList{
+                     QStringLiteral("10-05 5거래일 시가→종가 (08:50 예측) · 창 끝 10-12 · 정답 보합 "
+                                    "+0.62% (80,750 → 81,250) · 보합 ±1.31%"),
+                     QStringLiteral("세션 종가 80,350 · 80,450 · 80,850 · 82,250 · 81,250"),
+                     QStringLiteral("기준: 5거래일 늘 보합 · 보합 · 상승 0% · 보합 100% · 하락 0% · ✓"),
+                 }));
+        QCOMPARE(hovers[1].lines,
+                 (QStringList{
+                     QStringLiteral("10-12 5거래일 시가→종가 (08:50 예측) · 창 끝 10-16 (예정) · 채점 대기 (10-16 "
+                                    "20:35부터, 최대 4거래일) · 보합 ±1.31%"),
+                     QStringLiteral("기준: 5거래일 늘 보합 · 보합 · 상승 0% · 보합 100% · 하락 0% · ?"),
+                 }));
+        // Baselines alone: no icon, as for open_to_close.
+        QVERIFY(daily_icons({day_candle(5), day_candle(12)}, closes, five).isEmpty());
+    }
+
+    void the_five_session_tip_says_the_wait_the_overlap_and_the_mark() {
+        const QString tip = daily_tip(five_kind());
+        QVERIFY(
+            tip.startsWith(QStringLiteral("하루 한 번 예측이다. 거래일 08:50에, 그날 시가 단일가부터 다섯째 거래일 "
+                                          "종가 단일가까지(5세션)의 방향을 상승·보합·하락 셋 중 하나로 예측한다.")));
+        QVERIFY(tip.contains(QStringLiteral("최대 4거래일 채점을 기다리고, 종목마다 채점 대기인 창이 늘 4개 있다")));
+        QVERIFY(tip.contains(QStringLiteral("이웃한 날의 창이 4세션씩 겹쳐")));
+        QVERIFY(tip.contains(QStringLiteral("Driscoll–Kraay")));
+        QVERIFY(tip.contains(QStringLiteral("독립인 창은 대략 날 수 ÷ 5개다")));
+        QVERIFY(tip.contains(QStringLiteral("배당락 낀 창")));
+        QVERIFY(tip.contains(QStringLiteral("정답이 있는 날 60·120·180일째에 판정한다(최근 60일).")));
+        QVERIFY(!tip.contains(QStringLiteral("10일 수습")));
+        QVERIFY(daily_tip(daily_kind()).contains(QStringLiteral("10일 수습은 짧다"))); // the one-day kind's as before
+        // The panel's result column says the wait.
+        QCOMPARE(
+            kind_panel_columns(five_kind(), false)[5].tip,
+            QStringLiteral("그날 시가 단일가부터 다섯째 거래일 종가 단일가까지의 변화로 채점한다. 정답은 창의 마지막 "
+                           "세션 밤 20:35부터 나와, 그때까지(최대 4거래일) 채점 대기다."));
+    }
+
+    void only_the_baselines_run_when_the_engine_lists_no_algorithm_of_the_kind() {
+        QMap<QString, AlgorithmInfo> algorithms;
+        AlgorithmInfo cox;
+        cox.name = "cox";
+        cox.prediction_kind = "open_to_close";
+        algorithms.insert("cox", cox);
+        AlgorithmInfo gauss;
+        gauss.name = "gauss";
+        algorithms.insert("gauss", gauss);
+        QCOMPARE(kind_algorithms(algorithms, "open_to_close"), (QStringList{"cox"}));
+        QVERIFY(kind_algorithms(algorithms, "open_to_close_5d").isEmpty()); // cox-5d refused: not listed
+        const KindInfo five = five_kind();
+        QCOMPARE(daily_runs_text(five, QStringList{}), QStringLiteral("기준 예측만"));
+        QCOMPARE(daily_runs_lines(five, QStringList{}),
+                 (QStringList{QStringLiteral(
+                     "기준 예측만 예측하고 채점한다(기준: 5거래일 늘 보합, 기준: 5거래일 기후, 기준: 지난 5거래일 방향 "
+                     "잇기). 엔진의 알고리즘 목록에 이 종류의 알고리즘이 없다. 사전 검증에서 거부되었거나 아직 없는 "
+                     "알고리즘은 목록에 나오지 않는다.")}));
+        // With an algorithm, or the algorithms not read: nothing said.
+        QVERIFY(daily_runs_text(daily_kind(), QStringList{"cox"}).isEmpty());
+        QVERIFY(daily_runs_lines(daily_kind(), QStringList{"cox"}).isEmpty());
+        QVERIFY(daily_runs_text(five, std::nullopt).isEmpty());
+        QVERIFY(daily_runs_lines(five, std::nullopt).isEmpty());
+        // The engine's reasons, when it gives them: not run yet, or held out of probation.
+        KindInfo waiting = five;
+        waiting.daily->awaiting = QStringLiteral("배당 확인 전");
+        QCOMPARE(daily_runs_text(waiting, QStringList{}), QStringLiteral("돌지 않음"));
+        QCOMPARE(daily_runs_lines(waiting, QStringList{}),
+                 (QStringList{QStringLiteral("아직 돌지 않는다: 배당 확인 전")}));
+        KindInfo held = five;
+        held.daily->review_hold = QStringLiteral("판정일을 정하기 전");
+        QCOMPARE(daily_runs_lines(held, QStringList{"cox-5d"}),
+                 (QStringList{QStringLiteral("알고리즘은 수습에 오르지 않는다: 판정일을 정하기 전")}));
+        QVERIFY(daily_runs_text(range_kind(), QStringList{}).isEmpty()); // a bar-close kind
     }
 
     void a_daily_kind_s_predictions_are_read_by_days_back_to_the_first_day_held() {

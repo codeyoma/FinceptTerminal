@@ -232,7 +232,11 @@ Entry entry_of(const QJsonObject& e) {
     entry.excluded = excluded_of(e.value("excluded"));
     entry.range = range_stats_of(e.value("extra"));
     entry.barrier = barrier_stats_of(e.value("extra"));
-    entry.open_to_close = open_to_close_stats_of(e.value("extra"));
+    entry.open_to_close = open_to_close_stats_of(e.value("extra")); // open_to_close_5d's too (krx-quant #310)
+    // Its windows' overlap (krx-quant #310): 1 for every kind but one of several sessions.
+    entry.overlap_sessions = std::max(1, e.value("overlap_sessions").toInt(1));
+    if (e.value("independent_days").isDouble())
+        entry.independent_days = e.value("independent_days").toInt();
     if (e.value("lift").isObject()) {
         const QJsonObject lift = e.value("lift").toObject();
         entry.lift_low = number(lift.value("low"));
@@ -846,12 +850,16 @@ Result<QList<KindInfo>> parse_kinds(const QJsonDocument& doc) {
             day.to = d.value("to").toString();
             day.from_title = d.value("from_title").toString();
             day.to_title = d.value("to_title").toString();
+            // Over how many sessions (krx-quant #310); the day from an engine before it.
+            day.sessions = std::max(1, d.value("sessions").toInt(1));
             day.answer_from = d.value("answer_from").toString();
             for (const auto& n : d.value("probation_days").toArray())
                 day.probation_days << n.toInt();
             for (const auto& n : d.value("bench_days").toArray())
                 day.bench_days << n.toInt();
             day.recent_days = d.value("recent_days").toInt();
+            day.awaiting = d.value("awaiting").toString(); // null: it runs (krx-quant #310)
+            day.review_hold = d.value("review_hold").toString();
             kind.daily = day;
         }
         kind.horizon_minutes = k.value("horizon_minutes").isDouble() ? k.value("horizon_minutes").toInt()
@@ -936,6 +944,15 @@ std::optional<OpenToClosePath> open_to_close_path_of(const QJsonValue& v) {
     path.sigma = number(o.value("sigma"));
     path.scale = number(o.value("scale"));
     path.vi = o.value("vi").toInt();
+    // A window of several sessions (krx-quant #310, open_to_close_5d): its last session, each
+    // session's close (null: a session the symbol has none of), whether an ex-dividend date fell
+    // after the first session (null: not known).
+    path.end_day = QDate::fromString(o.value("end_day").toString(), Qt::ISODate);
+    path.sessions = std::max(1, o.value("sessions").toInt(1));
+    for (const auto& c : o.value("closes").toArray())
+        path.closes << number(c);
+    if (o.value("ex_dividend").isBool())
+        path.ex_dividend = o.value("ex_dividend").toBool();
     return path;
 }
 
@@ -1146,6 +1163,10 @@ QString predictor_label(const QString& predictor) {
         {"otc-flat", QStringLiteral("기준: 시가→종가 늘 보합")},
         {"otc-climate", QStringLiteral("기준: 시가→종가 기후")},
         {"otc-persist", QStringLiteral("기준: 어제 방향 잇기")},
+        // Five sessions' (krx-quant #310), predicted once a day.
+        {"otc5-flat", QStringLiteral("기준: 5거래일 늘 보합")},
+        {"otc5-climate", QStringLiteral("기준: 5거래일 기후")},
+        {"otc5-persist", QStringLiteral("기준: 지난 5거래일 방향 잇기")},
     };
     return labels.value(predictor, predictor);
 }

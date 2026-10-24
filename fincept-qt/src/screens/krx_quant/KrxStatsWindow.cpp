@@ -478,9 +478,13 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats,
         its->title = stats.kind;
     }
     set_kind(stats.kind == QLatin1String("direction") ? std::nullopt : its);
-    query_->setText(tr("%1 · %2").arg(krx_quant::query_text(stats), krx_quant::days_text(stats.days)));
-
     const auto& e = stats.overall;
+    // Overlapping windows (krx-quant #310): said with the query, its intervals being corrected for it.
+    const QString overlap = krx_quant::overlap_text(e);
+    query_->setText(
+        overlap.isEmpty()
+            ? tr("%1 · %2").arg(krx_quant::query_text(stats), krx_quant::days_text(stats.days))
+            : tr("%1 · %2 · %3").arg(krx_quant::query_text(stats), krx_quant::days_text(stats.days), overlap));
     overall_->setRowCount(1);
     overall_->setItem(0, kRank, cell(e.rank ? QString::number(*e.rank) : tr("순위 밖"), kNumber));
     krx_tables::set_stats(overall_, 0, kStats, e, its);
@@ -509,7 +513,7 @@ void KrxStatsWindow::show_stats(const krx_quant::AlgorithmStats& stats,
     barrier_->setVisible(e.barrier.has_value() || daily);
     barrier_table_->setRowCount(0);
     barrier_header_.title->setText(daily ? krx_quant::daily_pnl_header(*its) : tr("장벽 손익(틱, 연구용)"));
-    barrier_header_.title->setToolTip(daily ? krx_quant::daily_pnl_tip()
+    barrier_header_.title->setToolTip(daily ? krx_quant::daily_pnl_tip(*its)
                                             : krx_quant::column_tip(QString::fromUtf8(krx_quant::kBarrierPnlHeader)));
     const QStringList unit_headers =
         daily ? QStringList{tr("합계(bp)"), tr("거래당(bp)")} : QStringList{tr("합계(틱)"), tr("거래당(틱)")};

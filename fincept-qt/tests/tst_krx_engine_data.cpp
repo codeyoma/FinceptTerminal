@@ -1939,6 +1939,133 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!parse_leaderboard(json(kLeaderboard)).value().ranked[0].open_to_close.has_value());
     }
 
+    // ---- Five sessions' window (krx-quant #310), made-up values ----
+
+    void a_five_session_kind_says_its_sessions_and_why_it_does_not_run() {
+        const auto kinds = parse_kinds(json(R"({"kinds": [
+            {"name": "open_to_close_5d", "title": "5거래일 시가→종가", "classes": ["up", "flat", "down"],
+             "class_titles": ["상승", "보합", "하락"], "action": ["up", "down"], "answer_version": 1,
+             "horizon_minutes": null, "fields": {},
+             "baselines": [{"name": "otc5-flat", "card": null}, {"name": "otc5-climate", "card": null},
+                           {"name": "otc5-persist", "card": null}],
+             "daily": {"predict_at": "08:50", "from": "open", "to": "close", "from_title": "시가 단일가",
+                       "to_title": "다섯째 거래일 종가 단일가", "sessions": 5, "answer_from": "20:35",
+                       "probation_days": [60, 120, 180], "bench_days": [60, 120, 180], "recent_days": 60,
+                       "awaiting": null, "review_hold": null}},
+            {"name": "waiting", "title": "w", "classes": ["up", "flat", "down"], "horizon_minutes": null,
+             "baselines": [],
+             "daily": {"predict_at": "08:50", "from": "open", "to": "close", "sessions": 5, "answer_from": "20:35",
+                       "probation_days": [], "bench_days": [], "recent_days": 1,
+                       "awaiting": "배당 확인 전", "review_hold": "판정일을 정하기 전"}}]})"));
+        QVERIFY(kinds.is_ok());
+        const KindInfo& five = kinds.value()[0];
+        QVERIFY(is_daily(five));
+        QCOMPARE(five.daily->sessions, 5);
+        QCOMPARE(window_sessions(five), 5);
+        QCOMPARE(five.daily->to_title, QStringLiteral("다섯째 거래일 종가 단일가"));
+        QCOMPARE(five.daily->probation_days, (QList<int>{60, 120, 180}));
+        QVERIFY(five.daily->awaiting.isEmpty()); // null: it runs
+        QVERIFY(five.daily->review_hold.isEmpty());
+        const KindInfo& waiting = kinds.value()[1];
+        QCOMPARE(waiting.daily->awaiting, QStringLiteral("배당 확인 전"));
+        QCOMPARE(waiting.daily->review_hold, QStringLiteral("판정일을 정하기 전"));
+        // An engine before krx-quant #310 sends no sessions: its daily kind runs the day.
+        const auto older = parse_kinds(json(R"({"kinds": [{"name": "open_to_close", "classes": ["up", "flat", "down"],
+            "horizon_minutes": null, "baselines": [],
+            "daily": {"predict_at": "08:50", "from": "open", "to": "close", "answer_from": "15:45",
+                      "probation_days": [20], "bench_days": [20], "recent_days": 20}}]})"));
+        QCOMPARE(older.value()[0].daily->sessions, 1);
+        QCOMPARE(window_sessions(older.value()[0]), 1);
+        QVERIFY(older.value()[0].daily->awaiting.isEmpty());
+    }
+
+    void a_five_session_answer_keeps_its_end_its_closes_and_the_ex_dividend_mark() {
+        const auto page = parse_kind_predictions(json(R"({"symbol": "005930", "kind": "open_to_close_5d",
+            "predictions": [
+            {"algorithm": "otc5-flat", "model_version": "v1", "bar_close": "2026-09-25T08:50:00+09:00",
+             "target_at": "2026-10-01T15:30:00+09:00", "status": "ok", "band": 0.0131,
+             "output": {"p_up": 0.0, "p_flat": 1.0, "p_down": 0.0},
+             "answer": {"answer_version": 1, "class": "down", "unscorable": null, "special": false,
+                        "scored_at": "2026-10-01T20:35:00+09:00",
+                        "path": {"open": 84150.0, "close": 80950.0, "change": -0.038, "band": 0.0131,
+                                 "sigma": 0.0276, "scale": 0.475, "fee_rate": 0.00015, "source": "krx_minute_bar",
+                                 "end_day": "2026-10-01", "sessions": 5,
+                                 "closes": [84450.0, 83250.0, null, 82050.0, 80950.0],
+                                 "previous_close": 83650.0, "ex_dividend": true, "vi": 1}}},
+            {"algorithm": "otc5-flat", "model_version": "v1", "bar_close": "2026-09-24T08:50:00+09:00",
+             "target_at": "2026-09-30T15:30:00+09:00", "status": "ok", "band": 0.0131,
+             "output": {"p_up": 0.0, "p_flat": 1.0, "p_down": 0.0},
+             "answer": {"answer_version": 1, "class": "flat", "unscorable": null, "special": false,
+                        "scored_at": "2026-09-30T20:35:00+09:00",
+                        "path": {"open": 81450.0, "close": 82050.0, "change": 0.0074, "band": 0.0131,
+                                 "sigma": null, "scale": null, "fee_rate": 0.00015, "source": "krx_minute_bar",
+                                 "end_day": "2026-09-30", "sessions": 5,
+                                 "closes": [83650.0, 84450.0, 83250.0, 83050.0, 82050.0],
+                                 "previous_close": null, "ex_dividend": null, "vi": 0}}},
+            {"algorithm": "otc5-flat", "model_version": "v1", "bar_close": "2026-10-12T08:50:00+09:00",
+             "target_at": "2026-10-16T15:30:00+09:00", "status": "ok", "band": 0.0134,
+             "output": {"p_up": 0.0, "p_flat": 1.0, "p_down": 0.0}, "answer": null}]})"));
+        QVERIFY(page.is_ok());
+        const OpenToClosePath& down = *page.value()[0].answer->open_to_close;
+        QCOMPARE(down.end_day, QDate(2026, 10, 1));
+        QCOMPARE(down.sessions, 5);
+        QCOMPARE(down.closes.size(), 5);
+        QCOMPARE(down.closes[0], std::optional<double>(84450.0));
+        QVERIFY(!down.closes[2].has_value()); // a session the symbol has none of
+        QCOMPARE(down.closes[4], std::optional<double>(80950.0));
+        QCOMPARE(down.close, 80950.0);
+        QCOMPARE(down.ex_dividend, std::optional<bool>(true));
+        QCOMPARE(down.vi, 1);
+        const OpenToClosePath& flat = *page.value()[1].answer->open_to_close;
+        QVERIFY(!flat.ex_dividend.has_value()); // null: not known
+        QVERIFY(!flat.sigma.has_value());
+        // Pending: no answer, its planned end as its target.
+        const KindPrediction& monday = page.value()[2];
+        QVERIFY(!monday.answer.has_value());
+        QCOMPARE(monday.target_at, QDateTime::fromString("2026-10-16T15:30:00+09:00", Qt::ISODate));
+        // A one-day answer has none of it.
+        const auto one = parse_kind_latest(json(R"({"symbol": "005930", "kind": "open_to_close",
+            "bar_close": "2026-10-08T08:50:00+09:00", "predictions": [
+            {"algorithm": "cox", "model_version": "m", "bar_close": "2026-10-08T08:50:00+09:00", "status": "ok",
+             "output": {"p_up": 0.4, "p_flat": 0.3, "p_down": 0.3},
+             "answer": {"answer_version": 2, "class": "up", "special": false, "scored_at": "2026-10-08T15:45:00+09:00",
+                        "path": {"open": 80000, "close": 80800, "change": 0.01, "band": 0.004, "vi": 0}}}]})"));
+        const OpenToClosePath& day = *one.value().predictions[0].answer->open_to_close;
+        QVERIFY(!day.end_day.isValid());
+        QCOMPARE(day.sessions, 1);
+        QVERIFY(day.closes.isEmpty());
+        QVERIFY(!day.ex_dividend.has_value());
+    }
+
+    void a_five_session_leaderboard_says_its_overlap() {
+        const auto board = parse_leaderboard(json(R"({"kind": "open_to_close_5d", "symbol": "all", "period": "20d",
+            "special": "exclude", "days": ["2026-10-12", "2026-10-08"], "min_sample": 200, "ranked": [],
+            "unranked": [],
+            "baselines": [{"rank": null, "algorithm": "otc5-climate", "n": 45, "overlap_sessions": 5,
+              "independent_days": 3, "accuracy": {"value": 0.33, "low": 0.0, "high": 0.74, "n": 45},
+              "extra": {"n": 45, "pnl": {"trades": 45, "total_bp": -456.6, "per_trade": {"value": -10.15, "low": -265.7, "high": 245.4, "n": 45}},
+                        "long": {"trades": 30, "total_bp": -1462.7, "per_trade": null},
+                        "short": {"trades": 15, "total_bp": 1006.1, "per_trade": null},
+                        "pnl_inverse": null, "short_inverse": null}}]})"));
+        QVERIFY(board.is_ok());
+        const Entry& climate = board.value().baselines[0];
+        QCOMPARE(climate.overlap_sessions, 5);
+        QCOMPARE(climate.independent_days, std::optional<int>(3));
+        QCOMPARE(climate.open_to_close->pnl.total_bp, -456.6); // open_to_close_stats' fields
+        QVERIFY(!climate.open_to_close->pnl_inverse.has_value());
+        // An entry of an engine before krx-quant #310: no overlap.
+        const auto older = parse_leaderboard(json(kLeaderboard)); // kept: its entry is read below
+        const Entry& old = older.value().ranked[0];
+        QCOMPARE(old.overlap_sessions, 1);
+        QVERIFY(!old.independent_days.has_value());
+    }
+
+    void five_sessions_baselines_read_in_korean() {
+        QCOMPARE(predictor_label("otc5-flat"), QStringLiteral("기준: 5거래일 늘 보합"));
+        QCOMPARE(predictor_label("otc5-climate"), QStringLiteral("기준: 5거래일 기후"));
+        QCOMPARE(predictor_label("otc5-persist"), QStringLiteral("기준: 지난 5거래일 방향 잇기"));
+    }
+
     void open_to_close_s_baselines_read_in_korean() {
         QCOMPARE(predictor_label("otc-flat"), QStringLiteral("기준: 시가→종가 늘 보합"));
         QCOMPARE(predictor_label("otc-climate"), QStringLiteral("기준: 시가→종가 기후"));

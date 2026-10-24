@@ -425,6 +425,8 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(live_, &services::KrxLive::algorithms_changed, this, [this]() {
         for (auto it = stats_windows_.cbegin(); it != stats_windows_.cend(); ++it)
             it.value()->show_about(about_of(it.key()), about_failure(it.key()));
+        if (const auto kind = live_->kind_info(); kind && krx_quant::is_daily(*kind))
+            kind_title(); // whether only its baselines run (krx-quant #310)
     });
     connect(live_, &services::KrxLive::kinds_changed, this, [this]() {
         show_kinds();
@@ -920,16 +922,34 @@ void KrxQuantScreen::kind_title() {
         return;
     }
     if (kind && krx_quant::is_daily(*kind)) { // once a trading day (krx-quant #264)
-        panel_title->setToolTip(krx_quant::daily_tip(*kind));
+        // What of it runs (krx-quant #310): only its baselines when the engine lists no algorithm of
+        // it; not known while the algorithms are not read.
+        std::optional<QStringList> algorithms;
+        if (live_->algorithms_failure().isEmpty() && !live_->algorithms().isEmpty())
+            algorithms = krx_quant::kind_algorithms(live_->algorithms(), kind->name);
+        const QString runs = krx_quant::daily_runs_text(*kind, algorithms);
+        const auto show = [&](const QString& title, const QList<krx_quant::KindPrediction>& at_day) {
+            panel_title->setText(runs.isEmpty() ? title : title + QStringLiteral(" · ") + runs);
+            QStringList tip;
+            std::optional<krx_quant::KindAnswer> answer;
+            for (const auto& p : at_day)
+                if (p.answer)
+                    answer = p.answer;
+            if (const QString closes = krx_quant::daily_closes_text(answer); !closes.isEmpty())
+                tip << closes; // the window's sessions (krx-quant #310)
+            tip << krx_quant::daily_tip(*kind) << krx_quant::daily_runs_lines(*kind, algorithms);
+            panel_title->setToolTip(tip.join('\n'));
+        };
         if (live_->pinned().isValid()) { // the day pinned
             const QDateTime day = krx_quant::daily_close_on(live_->pinned(), *kind);
-            panel_title->setText(
-                krx_quant::daily_title(symbol, *kind, day, live_->kind_board().closes(symbol).value(day), false));
+            const auto at_day = live_->kind_board().closes(symbol).value(day);
+            show(krx_quant::daily_title(symbol, *kind, day, at_day, false), at_day);
             return;
         }
         const krx_quant::KindLatest latest = live_->kind_board().latest(symbol);
-        panel_title->setText(krx_quant::daily_title(symbol, *kind, latest.bar_close, latest.predictions,
-                                                    latest.bar_close.isValid() && !is_today(latest.bar_close)));
+        show(krx_quant::daily_title(symbol, *kind, latest.bar_close, latest.predictions,
+                                    latest.bar_close.isValid() && !is_today(latest.bar_close)),
+             latest.predictions);
         return;
     }
     // k now, from the symbols' answer: shown only when the bar close's own is not known (an
