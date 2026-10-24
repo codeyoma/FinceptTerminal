@@ -597,7 +597,7 @@ class TstKrxClosing : public QObject {
                  QStringLiteral("그날 전 20거래일에 종가 단일가 체결대금이 있는 날이 없어 분모가 없습니다."));
         QCOMPARE(first.source_tip, QStringLiteral("순자산 출처: KIS"));
         // Without a value: "—", and the tooltip says neither the recording nor a bar had one.
-        const auto& older = view::day_rows(days(), true)[2];
+        const auto older = view::day_rows(days(), true)[2]; // a copy: the rows are a temporary
         QCOMPARE(older.auction_source, QStringLiteral("—"));
         QVERIFY(older.auction_source_tip.startsWith(QStringLiteral("그날 종가 단일가 체결대금이 없습니다")));
         QCOMPARE(view::auction_source_label("something_new"), QStringLiteral("something_new"));
