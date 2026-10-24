@@ -30,6 +30,7 @@ enum DayColumn {
     kDemand,
     kRatio,
     kAuction,
+    kAuctionSource, ///< where the day's closing auction value came from (codeyoma/krx-quant#368)
     kAgree,
     kNextGap,
     kNextClose,
@@ -195,11 +196,20 @@ KrxClosingScreen::KrxClosingScreen(QWidget* parent) : QWidget(parent) {
     days_line_ = new QLabel;
     days_header_.controls->addWidget(days_line_);
     days_ = krx_tables::table({tr("날짜"), tr("기간"), tr("15:20 수요"), tr("단일가 비율"), tr("단일가 움직임"),
-                               tr("방향"), tr("다음날 갭"), tr("다음날 종가"), tr("특수 상황"), tr("수요 출처")});
+                               tr("체결대금"), tr("방향"), tr("다음날 갭"), tr("다음날 종가"), tr("특수 상황"),
+                               tr("수요 출처")});
     days_->horizontalHeader()->setStretchLastSection(false);
     if (auto* item = days_->horizontalHeaderItem(kRatio))
-        item->setToolTip(tr("현물+선물형 수요 ÷ 그날 전 20거래일의 녹화한 종가 단일가 체결대금 중앙값: 상한. 녹화는 "
-                            "2026-10-12에 시작해 그 전의 날은 분모가 없습니다(녹화 없음)."));
+        item->setToolTip(tr("현물+선물형 수요 ÷ 그날 전 20거래일의 종가 단일가 체결대금 중앙값: 상한. 날마다의 "
+                            "체결대금은 녹화한 KRX 체결, 녹화가 없으면 KRX 1분봉의 단일가 봉, 그것도 없으면 통합 "
+                            "1분봉의 단일가 봉입니다. 체결대금이 있는 날이 없으면 분모가 없습니다(체결대금 없음)."));
+    if (auto* item = days_->horizontalHeaderItem(kAuctionSource))
+        item->setToolTip(tr("그날 종가 단일가 체결대금의 출처: 녹화(녹화한 KRX 체결, 가격 × 수량, 2026-10-12부터), "
+                            "KRX 봉(KRX 1분봉의 단일가 봉, 거래량 × 종가), 통합 봉(통합 1분봉의 단일가 봉). 녹화가 "
+                            "있던 9일에는 두 봉의 값이 녹화와 1% 안에서 같았습니다(엔진의 실측, 2026-10-23)."));
+    if (auto* item = days_->horizontalHeaderItem(kSource))
+        item->setToolTip(tr("15:20 수요를 어떻게 얻었는지(저장한 15:20 값, 1분봉으로 계산한 값). 칸의 툴팁에 그날 "
+                            "순자산의 출처가 있습니다."));
     if (auto* item = days_->horizontalHeaderItem(kAgree))
         item->setToolTip(tr("sign(15:20 수요) = sign(단일가 움직임). 수요가 없는 날은 그날 흐름과 견줍니다(흐름)"));
     if (auto* item = days_->horizontalHeaderItem(kSpecial))
@@ -409,6 +419,11 @@ void KrxClosingScreen::fill_days() {
             ratio->setForeground(QColor(ui::colors::TEXT_DIM()));
         days_->setItem(r, kRatio, ratio);
         days_->setItem(r, kAuction, side_cell(row.auction, row.auction_side, row.auction_tip));
+        auto* auction_source = cell(row.auction_source);
+        auction_source->setToolTip(row.auction_source_tip);
+        if (row.auction_source != QLatin1String("녹화"))
+            auction_source->setForeground(QColor(ui::colors::TEXT_SECONDARY()));
+        days_->setItem(r, kAuctionSource, auction_source);
         auto* agree = cell(row.agree);
         agree->setToolTip(row.agree_tip);
         agree->setForeground(QColor(!row.agreed   ? ui::colors::TEXT_DIM()
@@ -421,7 +436,9 @@ void KrxClosingScreen::fill_days() {
         if (!row.special.isEmpty())
             special->setForeground(QColor(ui::colors::AMBER()));
         days_->setItem(r, kSpecial, special);
-        days_->setItem(r, kSource, cell(row.source));
+        auto* source = cell(row.source);
+        source->setToolTip(row.source_tip); // whose net assets (codeyoma/krx-quant#368)
+        days_->setItem(r, kSource, source);
     }
     fit_height(days_, kDaysShown);
 }

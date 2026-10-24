@@ -40,14 +40,27 @@ int poll_ms(const std::optional<ClosingFlow>& flow, const std::optional<ClosingD
 bool days_due(const std::optional<ClosingDays>& days, const QString& symbol, const QDateTime& read_at,
               const std::optional<ClosingFlow>& flow, const QDateTime& now);
 
-/// Whether a net assets' source is KRX's: any but KIS's ("kis"). KRX's Open API is the only other
-/// source the engine reads them from (krx-quant docs/design.md 4.1), and its name there is not fixed.
+/// Whether a net assets' source is KRX's: any but KIS's ("kis"): "krx", and a day's "krx+kis" when its
+/// products read both (codeyoma/krx-quant#368). KRX's Open API is the only other source the engine
+/// reads them from (krx-quant docs/design.md 4.1).
 bool krx_source(const QString& source);
 /// Whether anything shown came from KRX's Open API (a product's net assets, a day's): the screen then
 /// says kKrxLabel, as KRX's terms ask.
 bool shows_krx(const std::optional<ClosingFlow>& flow, const std::optional<ClosingDays>& days);
-/// A net assets' source as the screen names it: "KIS", kKrxLabel; empty for none.
+/// A net assets' source as the screen names it: "KIS", kKrxLabel, "한국거래소 통계정보 · KIS" for a day
+/// whose products read both ("krx+kis"); empty for none.
 QString source_label(const QString& source);
+
+/// Where a day's closing auction value came from (codeyoma/krx-quant#368, ``auction_value_source``), as
+/// the days table's column says it: "녹화" (the recorded KRX trades), "KRX 봉" (KRX's closing auction
+/// minute bar, volume × close), "통합 봉" (the integrated one); "—" without a value; an unknown one as it is.
+QString auction_source_label(const QString& source);
+/// The same at length, for a tooltip: "녹화한 KRX 체결(가격 × 수량)", "KRX 1분봉의 단일가 봉(거래량 ×
+/// 종가)", "통합 1분봉의 단일가 봉(거래량 × 종가)"; empty without a value.
+QString auction_source_text(const QString& source);
+/// A denominator's days by source (codeyoma/krx-quant#368): "녹화 15일 · KRX 봉 5일", sources without a
+/// day left out; empty without the counts (an older engine) or with none.
+QString denominator_sources_text(const std::optional<ClosingSources>& sources);
 
 /// Buy (+), sell (−), or neither (0 or none): the amount's color.
 enum class Side { Buy, Sell, None };
@@ -65,7 +78,9 @@ QString bp_text(const std::optional<double>& bp);
 QString structure_label(const QString& structure);
 /// Why today's demand is none, in Korean (the answer's ``reason``); empty for none.
 QString reason_text(const QString& reason);
-/// Why the denominator is none, in Korean (``denominator_reason``); empty for none.
+/// Why the denominator is none, in Korean (``denominator_reason``): "체결대금 없음" (``no_auction_value``,
+/// codeyoma/krx-quant#368), "녹화 없음" (an older engine's ``no_recorded_auction``), "지난날 표 계산 전";
+/// empty for none.
 QString denominator_reason_text(const QString& reason);
 
 /// The line under the title: "2026-10-12(월) · 10:30 지금 가격으로 계산", "… · 15:20 저장값", "… · 장 전".
@@ -127,6 +142,11 @@ struct DayRow {
     QString next_close;
     QString special; ///< "VI · 서킷브레이커"; empty
     QString source;  ///< how the demand was had: "15:20 저장", "1분봉 계산"; empty
+    /// Whose net assets it read (codeyoma/krx-quant#368), on the source column's tooltip: "순자산 출처:
+    /// 한국거래소 통계정보" (source_label's); empty when the engine does not say.
+    QString source_tip;
+    QString auction_source; ///< auction_source_label's: "녹화", "KRX 봉", "통합 봉", "—"
+    QString auction_source_tip;
 };
 /// ``has_products``: whether the symbol has products (a day without a demand is then one without net
 /// assets, else a symbol without products such as 009150).

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace fincept::krx_quant::closing {
 
@@ -137,7 +138,45 @@ bool shows_krx(const std::optional<ClosingFlow>& flow, const std::optional<Closi
 QString source_label(const QString& source) {
     if (source.isEmpty())
         return {};
+    if (source == QLatin1String("krx+kis")) // a day whose products read both (codeyoma/krx-quant#368)
+        return QString::fromUtf8(kKrxLabel) + QStringLiteral(" · KIS");
     return krx_source(source) ? QString::fromUtf8(kKrxLabel) : QStringLiteral("KIS");
+}
+
+QString auction_source_label(const QString& source) {
+    if (source.isEmpty())
+        return dash();
+    if (source == QLatin1String("recorded"))
+        return QStringLiteral("녹화");
+    if (source == QLatin1String("krx_bar"))
+        return QStringLiteral("KRX 봉");
+    if (source == QLatin1String("integrated_bar"))
+        return QStringLiteral("통합 봉");
+    return source;
+}
+
+QString auction_source_text(const QString& source) {
+    if (source.isEmpty())
+        return {};
+    if (source == QLatin1String("recorded"))
+        return QStringLiteral("녹화한 KRX 체결(가격 × 수량)");
+    if (source == QLatin1String("krx_bar"))
+        return QStringLiteral("KRX 1분봉의 단일가 봉(거래량 × 종가)");
+    if (source == QLatin1String("integrated_bar"))
+        return QStringLiteral("통합 1분봉의 단일가 봉(거래량 × 종가)");
+    return source;
+}
+
+QString denominator_sources_text(const std::optional<ClosingSources>& sources) {
+    if (!sources)
+        return {};
+    QStringList parts;
+    for (const auto& [label, days] :
+         {std::pair{QStringLiteral("녹화"), sources->recorded}, std::pair{QStringLiteral("KRX 봉"), sources->krx_bar},
+          std::pair{QStringLiteral("통합 봉"), sources->integrated_bar}})
+        if (days > 0)
+            parts << QStringLiteral("%1 %2일").arg(label).arg(days);
+    return parts.join(QStringLiteral(" · "));
 }
 
 Side side_of(const std::optional<double>& value) {
@@ -213,7 +252,9 @@ QString reason_text(const QString& reason) {
 QString denominator_reason_text(const QString& reason) {
     if (reason.isEmpty())
         return {};
-    if (reason == QLatin1String("no_recorded_auction"))
+    if (reason == QLatin1String("no_auction_value")) // codeyoma/krx-quant#368
+        return QStringLiteral("체결대금 없음");
+    if (reason == QLatin1String("no_recorded_auction")) // an engine before it
         return QStringLiteral("녹화 없음");
     if (reason == QLatin1String("not_computed"))
         return QStringLiteral("지난날 표 계산 전");
@@ -263,15 +304,21 @@ QList<CardLine> card_lines(const ClosingFlow& f) {
                          !f.ratio_total});
     }
     CardLine denominator{QStringLiteral("분모"), {}, {}, Side::None, false};
-    denominator.tip = QStringLiteral("그날 전 20거래일의 녹화한 종가 단일가 체결대금(종가 단일가 시작부터 장 마감 1분 "
-                                     "뒤까지 가격 × 수량)의 중앙값. 녹화는 2026-10-12에 시작했습니다.");
+    denominator.tip = QStringLiteral("그날 전 20거래일의 종가 단일가 체결대금 중앙값. 날마다 녹화한 KRX 체결(종가 "
+                                     "단일가 시작부터 장 마감 1분 뒤까지 가격 × 수량), 녹화가 없는 날은 KRX 1분봉의 "
+                                     "단일가 봉, 그것도 없으면 통합 1분봉의 단일가 봉(거래량 × 종가)입니다. 녹화는 "
+                                     "2026-10-12에 시작했습니다.");
+    if (const QString sources = denominator_sources_text(f.denominator_sources); !sources.isEmpty())
+        denominator.tip += QStringLiteral("\n그 날들: %1").arg(sources);
     if (f.denominator) {
         denominator.value =
             QStringLiteral("%1 (20거래일 중 %2일)").arg(won_text(f.denominator, false)).arg(f.denominator_days);
     } else {
         denominator.value = f.denominator_reason.isEmpty() ? dash() : denominator_reason_text(f.denominator_reason);
         denominator.dim = true;
-        if (f.denominator_reason == QLatin1String("no_recorded_auction"))
+        if (f.denominator_reason == QLatin1String("no_auction_value"))
+            denominator.tip += QStringLiteral("\n그 20거래일에 종가 단일가 체결대금이 있는 날이 없습니다.");
+        else if (f.denominator_reason == QLatin1String("no_recorded_auction"))
             denominator.tip += QStringLiteral("\n그 20거래일에 녹화한 종가 단일가가 없습니다.");
         else if (f.denominator_reason == QLatin1String("not_computed"))
             denominator.tip += QStringLiteral("\n엔진이 지난날 표를 아직 계산하지 않았습니다.");
@@ -373,8 +420,9 @@ QList<DayRow> day_rows(const ClosingDays& d, bool has_products) {
                 row.demand_tip += QStringLiteral("\n순자산 출처 %1").arg(source_label(day.net_assets_source));
         } else if (has_products) {
             row.demand = QStringLiteral("순자산 없음");
-            row.demand_tip = QStringLiteral("그날 쓸 순자산이 없습니다: 엔진이 순자산을 받기 전의 날입니다(KRX Open "
-                                            "API로 지난날을 채우기 전). 방향 일치는 그날 흐름과 견줍니다.");
+            row.demand_tip =
+                QStringLiteral("그날 쓸 순자산이 없습니다: 상품이 상장(2026-05-27)하기 전이거나 엔진이 그날의 "
+                               "순자산을 받지 못한 날입니다. 방향 일치는 그날 흐름과 견줍니다.");
         } else {
             row.demand = QStringLiteral("상품 없음");
             row.demand_tip = QStringLiteral("이 종목에는 단일종목 레버리지·인버스 ETF가 없습니다.");
@@ -383,18 +431,27 @@ QList<DayRow> day_rows(const ClosingDays& d, bool has_products) {
             row.source = QStringLiteral("15:20 저장");
         else if (day.demand_source == QLatin1String("bars"))
             row.source = QStringLiteral("1분봉 계산");
+        // Whose net assets the demand read (codeyoma/krx-quant#368): KRX's are labelled as its terms ask.
+        if (!day.net_assets_source.isEmpty())
+            row.source_tip = QStringLiteral("순자산 출처: %1").arg(source_label(day.net_assets_source));
         if (day.ratio) {
             row.ratio = ratio_text(day.ratio, true);
-            row.ratio_tip = QStringLiteral("현물+선물형 수요 ÷ 분모 %1 (그날 전 20거래일 중 %2일의 녹화한 종가 단일가 "
-                                           "체결대금 중앙값). 상한입니다. 전체 비율 %3")
-                                .arg(won_text(day.denominator, false))
-                                .arg(day.denominator_days)
-                                .arg(ratio_text(day.ratio_total));
+            row.ratio_tip =
+                QStringLiteral("현물+선물형 수요 ÷ 분모 %1 (그날 전 20거래일 중 %2일의 종가 단일가 체결대금 "
+                               "중앙값). 상한입니다. 전체 비율 %3")
+                    .arg(won_text(day.denominator, false))
+                    .arg(day.denominator_days)
+                    .arg(ratio_text(day.ratio_total));
+            if (const QString sources = denominator_sources_text(day.denominator_sources); !sources.isEmpty())
+                row.ratio_tip += QStringLiteral("\n분모의 날들: %1").arg(sources);
         } else {
             row.ratio_missing = true;
             if (!day.denominator_reason.isEmpty()) {
                 row.ratio = denominator_reason_text(day.denominator_reason);
-                row.ratio_tip = day.denominator_reason == QLatin1String("no_recorded_auction")
+                row.ratio_tip = day.denominator_reason == QLatin1String("no_auction_value")
+                                    ? QStringLiteral("그날 전 20거래일에 종가 단일가 체결대금이 있는 날이 없어 분모가 "
+                                                     "없습니다.")
+                                : day.denominator_reason == QLatin1String("no_recorded_auction")
                                     ? QStringLiteral("그날 전 20거래일에 녹화한 종가 단일가 체결대금이 없어 분모가 "
                                                      "없습니다(녹화는 2026-10-12에 시작했습니다).")
                                     : day.denominator_reason;
@@ -406,10 +463,20 @@ QList<DayRow> day_rows(const ClosingDays& d, bool has_products) {
         row.auction = QStringLiteral("%1 (%2틱)").arg(bp_text(day.auction_bp), signed_number(day.auction_ticks, 0));
         row.auction_side = side_of(day.auction_bp * 100);
         row.auction_tip = QStringLiteral("종가 ÷ 15:20 직전가 − 1. 그날 15:20까지의 흐름 %1").arg(bp_text(day.flow_bp));
-        row.auction_tip +=
-            day.auction_value
-                ? QStringLiteral("\n그날 종가 단일가 체결대금 %1(녹화)").arg(won_text(day.auction_value, false))
-                : QStringLiteral("\n그날 종가 단일가 체결대금: 녹화 없음");
+        // The value and where it came from (codeyoma/krx-quant#368): recorded, else KRX's bar, else the integrated one.
+        row.auction_source = auction_source_label(day.auction_value_source);
+        if (day.auction_value) {
+            const QString from = day.auction_value_source.isEmpty() ? QStringLiteral("녹화한 KRX 체결")
+                                                                    : auction_source_text(day.auction_value_source);
+            row.auction_tip +=
+                QStringLiteral("\n그날 종가 단일가 체결대금 %1 (%2)").arg(won_text(day.auction_value, false), from);
+            row.auction_source_tip =
+                QStringLiteral("그날 종가 단일가 체결대금 %1: %2").arg(won_text(day.auction_value, false), from);
+        } else {
+            row.auction_tip += QStringLiteral("\n그날 종가 단일가 체결대금: 없음");
+            row.auction_source_tip = QStringLiteral("그날 종가 단일가 체결대금이 없습니다(녹화도, 1분봉의 단일가 봉도 "
+                                                    "없음).");
+        }
         const bool by_flow = day.compared_with == QLatin1String("flow");
         row.agreed = day.agree;
         if (day.agree)

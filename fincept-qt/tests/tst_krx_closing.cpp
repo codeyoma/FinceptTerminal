@@ -194,6 +194,30 @@ QJsonObject days_json(const QString& symbol = "005930", QJsonValue computed_at =
             {"summary", summary}};
 }
 
+/// The days as an engine since codeyoma/krx-quant#368 sends them: the day before any value says
+/// no_auction_value, each value says where it came from (recorded, else KRX's bar, else the integrated
+/// one), each denominator its days by source, and each demand whose net assets it read.
+QJsonObject sourced_days_json() {
+    QJsonObject o = days_json();
+    QJsonArray days = o["days"].toArray();
+    QJsonObject first = days[0].toObject();
+    first["denominator_reason"] = "no_auction_value";
+    first["denominator_sources"] = QJsonObject{{"recorded", 0}, {"krx_bar", 0}, {"integrated_bar", 0}};
+    first["auction_value"] = 31200000000.0;
+    first["auction_value_source"] = "integrated_bar";
+    first["net_assets_source"] = "kis";
+    QJsonObject second = days[1].toObject();
+    second["denominator_sources"] = QJsonObject{{"recorded", 0}, {"krx_bar", 0}, {"integrated_bar", 1}};
+    second["auction_value"] = 44557992000.0;
+    second["auction_value_source"] = "krx_bar";
+    second["net_assets_source"] = QJsonValue();
+    QJsonObject third = days[2].toObject();
+    third["denominator_sources"] = QJsonObject{{"recorded", 7}, {"krx_bar", 7}, {"integrated_bar", 0}};
+    third["net_assets_source"] = "krx+kis";
+    o["days"] = QJsonArray{first, second, third};
+    return o;
+}
+
 ClosingFlow today(const QJsonObject& body = today_json()) {
     auto f = parse_closing_flow(QJsonDocument(body));
     if (f.is_err())
@@ -350,7 +374,7 @@ class TstKrxClosing : public QObject {
         QVERIFY(!stored.next_gap_bp);
         QCOMPARE(stored.special, QStringList{"vi"});
         QCOMPARE(*stored.auction_value, 56356782000.0);
-        QVERIFY(stored.net_assets_source.isEmpty()); // not in the v1 contract
+        QVERIFY(stored.net_assets_source.isEmpty()); // an engine before krx-quant#368 sends none
         QCOMPARE(d.periods.size(), 1);
         QVERIFY(!d.periods[0].to.isValid());
         QCOMPARE(d.periods[0].all.agree_n, 15);
@@ -378,7 +402,9 @@ class TstKrxClosing : public QObject {
         QCOMPARE(lines[3].value, QStringLiteral("−3.11배"));
         QCOMPARE(lines[4].label, QStringLiteral("분모"));
         QCOMPARE(lines[4].value, QStringLiteral("764.9억원 (20거래일 중 15일)"));
-        QVERIFY(lines[4].tip.contains(QStringLiteral("녹화한 종가 단일가 체결대금")));
+        QVERIFY(lines[4].tip.startsWith(
+            QStringLiteral("그날 전 20거래일의 종가 단일가 체결대금 중앙값. 날마다 녹화한 KRX 체결")));
+        QVERIFY(!lines[4].tip.contains(QStringLiteral("그 날들"))); // an engine before krx-quant#368: no counts
         QCOMPARE(lines[5].value, QStringLiteral("−2.46% (79,250 ÷ 81,250)"));
         QCOMPARE(lines[6].value, QStringLiteral("10:30 (그 직전 기준가)"));
         const QStringList notes = view::notes(f);
@@ -458,7 +484,7 @@ class TstKrxClosing : public QObject {
         QCOMPARE(stored.agree, QStringLiteral("반대"));
         QCOMPARE(stored.next_gap, QStringLiteral("—"));
         QCOMPARE(stored.special, QStringLiteral("VI"));
-        QVERIFY(stored.auction_tip.contains(QStringLiteral("563.6억원(녹화)")));
+        QVERIFY(stored.auction_tip.contains(QStringLiteral("563.6억원 (녹화한 KRX 체결(가격 × 수량))")));
         const auto& without = rows[1];
         QCOMPARE(without.demand, QStringLiteral("순자산 없음"));
         QCOMPARE(without.ratio, QStringLiteral("—"));
@@ -501,6 +527,82 @@ class TstKrxClosing : public QObject {
         QVERIFY(view::days_line(days(days_json("005930", QJsonValue()))).startsWith(QStringLiteral("엔진이 아직")));
     }
 
+    void the_days_and_today_say_where_their_values_came_from() {
+        // codeyoma/krx-quant#368: each denominator's days by source, each value's source, each day's net assets.
+        const ClosingDays d = days(sourced_days_json());
+        QCOMPARE(d.days[0].denominator_reason, QStringLiteral("no_auction_value"));
+        QVERIFY(d.days[0].denominator_sources.has_value());
+        QCOMPARE(d.days[0].denominator_sources->recorded, 0);
+        QCOMPARE(d.days[0].auction_value_source, QStringLiteral("integrated_bar"));
+        QCOMPARE(d.days[0].net_assets_source, QStringLiteral("kis"));
+        QCOMPARE(d.days[1].denominator_sources->integrated_bar, 1);
+        QCOMPARE(d.days[1].auction_value_source, QStringLiteral("krx_bar"));
+        QVERIFY(d.days[1].net_assets_source.isEmpty()); // null: no demand that day
+        QCOMPARE(d.days[2].denominator_sources->recorded, 7);
+        QCOMPARE(d.days[2].denominator_sources->krx_bar, 7);
+        QCOMPARE(d.days[2].auction_value_source, QStringLiteral("recorded"));
+        QCOMPARE(d.days[2].net_assets_source, QStringLiteral("krx+kis"));
+        // An engine before it: no counts.
+        QVERIFY(!days().days[2].denominator_sources.has_value());
+        QJsonObject body = today_json();
+        body["denominator_sources"] = QJsonObject{{"recorded", 15}, {"krx_bar", 5}, {"integrated_bar", 0}};
+        const ClosingFlow f = today(body);
+        QCOMPARE(f.denominator_sources->recorded, 15);
+        QCOMPARE(f.denominator_sources->krx_bar, 5);
+        QVERIFY(!today().denominator_sources.has_value());
+        QCOMPARE(view::denominator_sources_text(f.denominator_sources), QStringLiteral("녹화 15일 · KRX 봉 5일"));
+        QVERIFY(view::denominator_sources_text(std::nullopt).isEmpty());
+        QVERIFY(view::denominator_sources_text(ClosingSources{}).isEmpty());
+        // The card's denominator says its days' sources; no value at all reads "체결대금 없음".
+        const auto lines = view::card_lines(f);
+        QCOMPARE(lines[4].value, QStringLiteral("764.9억원 (20거래일 중 15일)"));
+        QVERIFY(lines[4].tip.endsWith(QStringLiteral("\n그 날들: 녹화 15일 · KRX 봉 5일")));
+        ClosingFlow none = f;
+        none.ratio.reset();
+        none.ratio_total.reset();
+        none.denominator.reset();
+        none.denominator_days = 0;
+        none.denominator_sources = ClosingSources{};
+        none.denominator_reason = "no_auction_value";
+        const auto without = view::card_lines(none);
+        QCOMPARE(without[2].value, QStringLiteral("체결대금 없음"));
+        QCOMPARE(without[4].value, QStringLiteral("체결대금 없음"));
+        QVERIFY(without[4].tip.endsWith(QStringLiteral("그 20거래일에 종가 단일가 체결대금이 있는 날이 없습니다.")));
+        QCOMPARE(view::denominator_reason_text("no_auction_value"), QStringLiteral("체결대금 없음"));
+        QCOMPARE(view::denominator_reason_text("no_recorded_auction"), QStringLiteral("녹화 없음")); // older engines
+        QCOMPARE(view::denominator_reason_text("not_computed"), QStringLiteral("지난날 표 계산 전"));
+    }
+
+    void the_days_table_shows_each_value_s_source_and_whose_net_assets() {
+        const auto rows = view::day_rows(days(sourced_days_json()), true);
+        const auto& stored = rows[0]; // 10-08: recorded, both net assets
+        QCOMPARE(stored.auction_source, QStringLiteral("녹화"));
+        QCOMPARE(stored.auction_source_tip,
+                 QStringLiteral("그날 종가 단일가 체결대금 563.6억원: 녹화한 KRX 체결(가격 × 수량)"));
+        QVERIFY(
+            stored.auction_tip.endsWith(QStringLiteral("\n그날 종가 단일가 체결대금 563.6억원 (녹화한 KRX 체결(가격 × "
+                                                       "수량))")));
+        QCOMPARE(stored.source_tip, QStringLiteral("순자산 출처: 한국거래소 통계정보 · KIS"));
+        QVERIFY(stored.ratio_tip.endsWith(QStringLiteral("\n분모의 날들: 녹화 7일 · KRX 봉 7일")));
+        const auto& without = rows[1]; // 09-14: KRX's bar, no demand
+        QCOMPARE(without.auction_source, QStringLiteral("KRX 봉"));
+        QCOMPARE(without.auction_source_tip,
+                 QStringLiteral("그날 종가 단일가 체결대금 445.6억원: KRX 1분봉의 단일가 봉(거래량 × 종가)"));
+        QVERIFY(without.source_tip.isEmpty());
+        const auto& first = rows[2]; // 09-11: the integrated bar, no value before it
+        QCOMPARE(first.auction_source, QStringLiteral("통합 봉"));
+        QCOMPARE(first.ratio, QStringLiteral("체결대금 없음"));
+        QVERIFY(first.ratio_missing);
+        QCOMPARE(first.ratio_tip,
+                 QStringLiteral("그날 전 20거래일에 종가 단일가 체결대금이 있는 날이 없어 분모가 없습니다."));
+        QCOMPARE(first.source_tip, QStringLiteral("순자산 출처: KIS"));
+        // Without a value: "—", and the tooltip says neither the recording nor a bar had one.
+        const auto older = view::day_rows(days(), true)[2]; // a copy: the rows are a temporary
+        QCOMPARE(older.auction_source, QStringLiteral("—"));
+        QVERIFY(older.auction_source_tip.startsWith(QStringLiteral("그날 종가 단일가 체결대금이 없습니다")));
+        QCOMPARE(view::auction_source_label("something_new"), QStringLiteral("something_new"));
+    }
+
     void the_krx_label_shows_whenever_a_value_shown_is_krx_s() {
         QVERIFY(!view::shows_krx(today(), days())); // KIS's only
         QVERIFY(!view::shows_krx(std::nullopt, std::nullopt));
@@ -513,6 +615,15 @@ class TstKrxClosing : public QObject {
         QCOMPARE(view::source_label("krx"), QString::fromUtf8(view::kKrxLabel));
         QCOMPARE(view::product_rows(today(today_json("005930", "krx")))[0].source, QString::fromUtf8(view::kKrxLabel));
         QVERIFY(view::source_label({}).isEmpty());
+        // A day whose products read both (codeyoma/krx-quant#368) is KRX's too; the engine's days now say it.
+        QCOMPARE(view::source_label("krx+kis"), QStringLiteral("한국거래소 통계정보 · KIS"));
+        ClosingDays both = days();
+        both.days[2].net_assets_source = "krx+kis";
+        QVERIFY(view::shows_krx(today(), both));
+        QVERIFY(view::shows_krx(today(), days(sourced_days_json())));
+        ClosingDays kis = days(sourced_days_json());
+        kis.days[2].net_assets_source = "kis";
+        QVERIFY(!view::shows_krx(today(), kis)); // KIS's and none only
     }
 
     void it_reads_every_minute_in_continuous_trading_and_otherwise_at_the_open_the_evening_and_midnight() {
