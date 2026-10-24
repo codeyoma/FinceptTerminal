@@ -1714,6 +1714,14 @@ ClosingStats closing_stats_of(const QJsonValue& v) {
             o.value("next_close_n").toInt()};
 }
 
+/// A denominator's sources (codeyoma/krx-quant#368); none from an engine before it.
+std::optional<ClosingSources> closing_sources_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return ClosingSources{o.value("recorded").toInt(), o.value("krx_bar").toInt(), o.value("integrated_bar").toInt()};
+}
+
 ClosingDay closing_day_of(const QJsonObject& o) {
     ClosingDay d;
     d.date = day_of(o.value("date"));
@@ -1726,6 +1734,7 @@ ClosingDay closing_day_of(const QJsonObject& o) {
     d.ratio_total = number(o.value("ratio_total"));
     d.denominator = number(o.value("denominator"));
     d.denominator_days = o.value("denominator_days").toInt();
+    d.denominator_sources = closing_sources_of(o.value("denominator_sources"));
     d.denominator_reason = o.value("denominator_reason").toString();
     d.auction_value = number(o.value("auction_value"));
     d.auction_value_source = o.value("auction_value_source").toString();
@@ -1765,6 +1774,7 @@ Result<ClosingFlow> parse_closing_flow(const QJsonDocument& doc) {
     f.ratio_total = number(o.value("ratio_total"));
     f.denominator = number(o.value("denominator"));
     f.denominator_days = o.value("denominator_days").toInt();
+    f.denominator_sources = closing_sources_of(o.value("denominator_sources"));
     f.denominator_reason = o.value("denominator_reason").toString();
     for (const auto& v : o.value("products").toArray())
         f.products.push_back(closing_product_of(v.toObject()));

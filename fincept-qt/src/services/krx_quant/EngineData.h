@@ -1141,13 +1141,22 @@ struct ClosingProduct {
     int coefficient = 0;              ///< L² − L: 2 at 2x, 6 at −2x
     std::optional<double> net_assets; ///< won; none: not kept (the product is out of the sums)
     QDate net_assets_date;
-    QString net_assets_source; ///< "kis", or the KRX Open API's once it is read; empty without net assets
+    QString net_assets_source; ///< "krx" (the KRX Open API's, read first) or "kis"; empty without net assets
     std::optional<double> demand;
+};
+
+/// How many of the days a closing flow denominator is the median of had their closing auction value
+/// from each source (codeyoma/krx-quant#305, ``denominator_sources``): the recorded KRX trades, KRX's
+/// closing auction bar, the integrated one.
+struct ClosingSources {
+    int recorded = 0;
+    int krx_bar = 0;
+    int integrated_bar = 0;
 };
 
 /// GET /v1/symbols/{symbol}/closing-flow: the day's demand at the minute (continuous trading) or the
 /// stored 15:20 one (from the closing auction on), by structure and in all, and its ratio to the median
-/// recorded closing auction value of the 20 trading days before.
+/// closing auction value of the 20 trading days before (each day's recorded, else from a bar).
 struct ClosingFlow {
     QString symbol;
     QDate day; ///< today if it trades, else the last trading day
@@ -1164,7 +1173,11 @@ struct ClosingFlow {
     std::optional<double> ratio_total;
     std::optional<double> denominator; ///< won
     int denominator_days = 0;
-    QString denominator_reason; ///< "no_recorded_auction", "not_computed", or empty
+    /// Where those days' values came from; none from an engine before codeyoma/krx-quant#368.
+    std::optional<ClosingSources> denominator_sources;
+    /// "no_auction_value" (no day with a value; an engine before codeyoma/krx-quant#368 said
+    /// "no_recorded_auction"), "not_computed", or empty.
+    QString denominator_reason;
     QList<ClosingProduct> products;
     QStringList missing; ///< the products without net assets, out of the sums
     QString reason;      ///< why demand is none: "no_products", "before_open", "no_price", …; empty
@@ -1199,8 +1212,12 @@ struct ClosingDay {
     std::optional<double> ratio_total;
     std::optional<double> denominator;
     int denominator_days = 0;
-    QString denominator_reason; ///< "no_recorded_auction", or empty
+    std::optional<ClosingSources> denominator_sources; ///< as ClosingFlow's
+    QString denominator_reason; ///< "no_auction_value" ("no_recorded_auction" from an older engine), or empty
     std::optional<double> auction_value;
+    /// Where the value came from (codeyoma/krx-quant#368): "recorded" (the recorded KRX trades),
+    /// "krx_bar" (KRX's closing auction bar, volume × close), "integrated_bar" (the integrated one);
+    /// empty without a value. An engine before it had the recorded ones alone.
     QString auction_value_source;
     double auction_bp = 0;
     double auction_ticks = 0;
@@ -1210,7 +1227,8 @@ struct ClosingDay {
     std::optional<double> next_gap_bp;
     std::optional<double> next_close_bp;
     QStringList special; ///< "vi", "circuit_breaker", "sidecar"
-    /// Where the day's net assets came from, if the engine says (not in the v1 contract of #305 yet).
+    /// Whose net assets the day's demand read (codeyoma/krx-quant#368): "krx", "kis", "krx+kis" when its
+    /// products read both; empty without a demand, and from an engine before it.
     QString net_assets_source;
 };
 
