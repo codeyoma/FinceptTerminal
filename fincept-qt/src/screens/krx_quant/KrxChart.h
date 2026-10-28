@@ -109,12 +109,15 @@ class KrxChartBridge : public QObject {
     void fit_requested();
     /// The price pane's scale (krx-quant #245): logarithmic or not.
     void scale_changed(bool log);
+    /// A trackpad's pinch (krx-quant #391) at (``x``, ``y``) in the page, the bars ``scale`` times as
+    /// wide (above 1: the fingers spread).
+    void pinched(double x, double y, double scale);
 };
 
 /// A symbol's 1-minute bars of the day, drawn by TradingView Lightweight Charts in a web
-/// view (src/screens/krx_quant/chart, bundled as Qt resources): wheel to zoom on the bar nearest
-/// the pointer (krx-quant #253), drag to scroll, fit() for the last 60 bars, a bar clicked for its bar
-/// close's judgements and double-clicked for its window (krx-quant #249, #255), the lower indicators (the volume among
+/// view (src/screens/krx_quant/chart, bundled as Qt resources): wheel or a trackpad's pinch to zoom on
+/// the bar nearest the pointer (krx-quant #253, #391), drag to scroll, fit() for the last 60 bars, a
+/// bar clicked for its bar close's judgements and double-clicked for its window (krx-quant #249, #255), the lower indicators (the volume among
 /// them) each in a pane below, their borders dragged to resize them (krx-quant #223), and the
 /// last price on the price axis, its scale 일반 or 로그 (krx-quant #245) by the choice at the bottom
 /// right. Over the bars, the final consensus's icons
@@ -232,6 +235,12 @@ class KrxChart : public QWidget {
 
   protected:
     void showEvent(QShowEvent* event) override;
+    /// A trackpad's pinch on the web view (krx-quant #391) goes to the page as ``pinched``, at the
+    /// pointer's place on the page, and not on to Chromium. Qt hands a pinch on from the window
+    /// without moving its place onto the widget, so the zoom Chromium made of it held a bar the
+    /// chart's offset in the window away, and by much less than the pinch (1.04 times for 1.5). Nor
+    /// does a smart zoom (two fingers double-tapped) go on: Chromium magnified the page itself.
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
   private:
     /// The web view, made when first shown: only then is the WebEngine runtime started.

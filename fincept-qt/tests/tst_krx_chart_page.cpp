@@ -16,7 +16,9 @@
 // where the latest bars run out on the right the view slides, its gap after the latest bar no wider;
 // on the left it stops at the first bar read while more are to be read, and slides once none are. A
 // wheel as Qt sends it zooms by its lines, and a sideways one or Shift and the wheel scrolls by them,
-// whatever the screen's scale (a scaled Windows screen too).
+// whatever the screen's scale (a scaled Windows screen too). A trackpad's pinch (krx-quant #391), sent to
+// a window holding the chart away from its corner, zooms on the bar nearest the pointer too, as much as
+// the fingers spread or close, and a smart zoom does not magnify the page itself.
 //
 // The page keeps no key the screen's shortcuts want: Cmd+D (Ctrl+D) with the keyboard on the chart
 // opens the toolbar's drawing menu (krx-quant #241).
@@ -55,14 +57,19 @@
 #include <QApplication>
 #include <QGuiApplication>
 #include <QMenu>
+#include <QNativeGestureEvent>
+#include <QPointingDevice>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QStyleHints>
 #include <QTest>
 #include <QTimeZone>
 #include <QTimer>
 #include <QToolButton>
+#include <QVBoxLayout>
 #include <QWebEngineView>
 #include <QWheelEvent>
+#include <QWindow>
 
 #include <cmath>
 
@@ -407,6 +414,73 @@ class TstKrxChartPage : public QObject {
         QVERIFY(spacing() < stopped * 0.9);
         QVERIFY(x_of(all[0]) >= -1 && x_of(all[0]) <= spacing());
         QVERIFY(x_of(all[20]) < at - 10);
+    }
+
+    void a_trackpad_pinch_zooms_on_the_bar_nearest_the_pointer_by_the_fingers() {
+        // krx-quant #391: the chart away from the window's corner, as on the screen (the symbols at its
+        // left, the toolbar above), a pinch sent to the window as macOS sends it. Qt hands it on with
+        // the window's place: the bar under the pointer stays where it is all the same (it slid 12
+        // pixels), and the bars grow and shrink as the fingers spread and close (a pinch to 1.48 times
+        // zoomed 1.04). A smart zoom does not magnify the page itself.
+        auto* outer = new QWidget;
+        auto* box = new QVBoxLayout(outer);
+        box->setContentsMargins(300, 120, 0, 0);
+        box->addWidget(chart_);
+        outer->resize(1200, 620);
+        outer->show();
+        const auto restore = qScopeGuard([&]() {
+            chart_->setParent(nullptr);
+            chart_->resize(900, 500);
+            chart_->show();
+            delete outer;
+        });
+        QVERIFY(QTest::qWaitForWindowExposed(outer));
+        empty();
+        const QList<Bar> day = minutes("2026-10-12T09:00:00+09:00", 300);
+        const QList<qint64> all = times(day);
+        draw(day);
+        expect_fitted(day); // 240 to 299
+        QWidget* input = view_->focusProxy();
+        QVERIFY(input);
+        static const QPointingDevice pad(QStringLiteral("trackpad"), 391, QInputDevice::DeviceType::TouchPad,
+                                         QPointingDevice::PointerType::Finger, QInputDevice::Capability::Position, 2,
+                                         0);
+        const auto pinch = [&](const QPointF& local, const QList<double>& steps) {
+            const QPointF in_window = input->mapTo(outer, local);
+            const auto send = [&](Qt::NativeGestureType type, double value) {
+                QNativeGestureEvent gesture(type, &pad, 2, in_window, in_window, outer->mapToGlobal(in_window), value,
+                                            {});
+                QGuiApplication::sendEvent(outer->windowHandle(), &gesture);
+            };
+            send(Qt::BeginNativeGesture, 0);
+            for (const double step : steps) {
+                send(Qt::ZoomNativeGesture, step);
+                QTest::qWait(16);
+            }
+            send(Qt::EndNativeGesture, 0);
+        };
+        const double y = js("innerHeight / 3").toDouble();
+        const double at = x_of(all[260]);
+        const auto spacing = [&]() { return x_of(all[261]) - x_of(all[260]); };
+        const double before = spacing();
+        const auto held = [&]() { return QByteArray::number(x_of(all[260]) - at); };
+        pinch({at + 2, y}, QList<double>(10, 0.04)); // spread to 1.04^10, about 1.48 times
+        QTRY_VERIFY2(std::abs(spacing() / before - std::pow(1.04, 10)) < 0.01, QByteArray::number(spacing() / before));
+        QVERIFY2(std::abs(x_of(all[260]) - at) <= 3, held());
+        pinch({at + 2, y}, QList<double>(4, -0.05)); // closed to 0.95^4 of that, the latest still past the right
+        QTRY_VERIFY2(std::abs(spacing() / before - std::pow(1.04, 10) * std::pow(0.95, 4)) < 0.01,
+                     QByteArray::number(spacing() / before));
+        QVERIFY2(std::abs(x_of(all[260]) - at) <= 3, held());
+        QCOMPARE(js("visualViewport.scale").toDouble(), 1.0);
+        // A smart zoom (two fingers double-tapped) magnified the page around the pointer, 1.2 times.
+        const double now = spacing();
+        const QPointF in_window = input->mapTo(outer, QPointF(at + 2, y));
+        QNativeGestureEvent tap(Qt::SmartZoomNativeGesture, &pad, 2, in_window, in_window,
+                                outer->mapToGlobal(in_window), 0, {});
+        QGuiApplication::sendEvent(outer->windowHandle(), &tap);
+        QTest::qWait(600);
+        QCOMPARE(js("visualViewport.scale").toDouble(), 1.0);
+        QCOMPARE(spacing(), now);
     }
 
     void the_price_scale_is_chosen_at_the_bottom_right() {

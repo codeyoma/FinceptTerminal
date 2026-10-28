@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!--
   The KRX screen's chart (fork addition, codeyoma/krx-quant#105–#110, #159, #167, #182, #185,
-  #221, #222, #223, #224, #225, #236, #249, #253, #255, #285), drawn with TradingView Lightweight Charts (NOTICE). It only draws
+  #221, #222, #223, #224, #225, #236, #249, #253, #255, #285, #391), drawn with TradingView Lightweight Charts (NOTICE). It only draws
   what the screen sends over the web channel: the bars in the style chosen (or the bricks of a style
   without a time axis, a slot each, named by when each ended), a minute view's empty bars (a slot
   without trades between two bars of a day: whitespace, no candle and no volume, #236) and the
@@ -15,7 +15,8 @@
   the anchored VWAP's marker; below the prices a pane per lower indicator, the volume's among
   them, with its guide lines) with each pane's legend (the price pane's first row the bar's own prices
   against the bar before, #285), the theme, and when to fit. The wheel zooms
-  on the bar nearest the pointer (#253), the screen saying when there is nothing before to read.
+  on the bar nearest the pointer (#253), the screen saying when there is nothing before to read, and
+  so does a trackpad's pinch, which the screen hands on (#391).
   Many panes make the chart taller than the page, which then scrolls. It tells the screen where its
   view is, the icon or slot clicked (#107, #249) and the slot double-clicked (#255: the screen opens
   its bar's window; a double-click no longer fits the chart), the legend's buttons, the anchored VWAP's bar
@@ -646,6 +647,19 @@
     e.preventDefault();
     zoomAt(e.clientX - area.getBoundingClientRect().left, wheelStep(e));
   }, { capture: true, passive: false });
+  // A trackpad's pinch (krx-quant #391) zooms on the bar nearest the pointer as the wheel does, the
+  // bars as many times as wide as the fingers spread or close. The screen hands it on (bridge
+  // pinched) in Chromium's place: Qt WebEngine handed it to the page as a Ctrl+wheel at the pointer's
+  // place in the window, not on the page, so the zoom held a bar the chart's offset in the window away,
+  // and 100 · ln(scale) pixels long (a pinch to 1.5 times zoomed 4%). Moved by hand, the view no
+  // longer follows.
+  function pinch(x, y, scale) {
+    const at = document.elementFromPoint(x, y);
+    if (!(scale > 0) || !at || !area.contains(at)) return;
+    following = false;
+    if (!bars.length || !chart.options().handleScale.mouseWheel) return; // as the wheel
+    zoomAt(x - area.getBoundingClientRect().left, 10 * (scale - 1));
+  }
   // A wheel's step as the chart counts it (Lightweight Charts' ChartWidget): the bars a tenth wider
   // or narrower for 100 pixels, at most; lines and pages counted as it counts them. Pixels stay as
   // they are on Windows too (chartDivides): Qt WebEngine turns a wheel's notches into pixels itself
@@ -2131,6 +2145,7 @@
     bridge.tool_changed.connect(function (json) { setTool(JSON.parse(json)); });
     bridge.fit_requested.connect(fit);
     bridge.scale_changed.connect(setScale);
+    bridge.pinched.connect(pinch);
     bridge.ready();
   });
 })();
