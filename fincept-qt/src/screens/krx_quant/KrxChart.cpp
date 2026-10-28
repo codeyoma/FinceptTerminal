@@ -21,6 +21,8 @@
 #include <utility>
 
 #ifdef HAS_QT_WEBENGINE
+#    include <QChildEvent>
+#    include <QNativeGestureEvent>
 #    include <QWebChannel>
 #    include <QWebEngineView>
 #endif
@@ -356,12 +358,45 @@ void KrxChart::showEvent(QShowEvent* event) {
     ensure_view();
 }
 
+bool KrxChart::eventFilter(QObject* watched, QEvent* event) {
+#ifdef HAS_QT_WEBENGINE
+    // The pinch comes to the widget under the pointer: the web view's input widget, made with its
+    // page (and again with a new render process).
+    if (view_ && watched == view_ && event->type() == QEvent::ChildAdded) {
+        static_cast<QChildEvent*>(event)->child()->installEventFilter(this);
+    } else if (view_ && event->type() == QEvent::NativeGesture && (watched == view_ || watched->parent() == view_)) {
+        // Taken, and accepted too: Qt hands a gesture not accepted on to the parent (the web view).
+        auto* gesture = static_cast<QNativeGestureEvent*>(event);
+        switch (gesture->gestureType()) {
+        case Qt::ZoomNativeGesture: {
+            // Its place as the global one says: its own is the window's.
+            const QPointF at = view_->mapFromGlobal(gesture->globalPosition());
+            emit bridge_->pinched(at.x(), at.y(), 1 + gesture->value());
+            gesture->accept();
+            return true;
+        }
+        case Qt::BeginNativeGesture:
+        case Qt::EndNativeGesture:
+        case Qt::SmartZoomNativeGesture:
+            gesture->accept();
+            return true;
+        default:
+            break;
+        }
+    }
+#endif
+    return QWidget::eventFilter(watched, event);
+}
+
 void KrxChart::ensure_view() {
 #ifdef HAS_QT_WEBENGINE
     if (view_ || !webengine_runtime())
         return;
     view_ = new QWebEngineView(this);
     view_->setContextMenuPolicy(Qt::NoContextMenu);
+    view_->installEventFilter(this); // its input widget too, as it comes (eventFilter)
+    for (QObject* child : view_->children())
+        child->installEventFilter(this);
     auto* channel = new QWebChannel(view_->page());
     channel->registerObject(QStringLiteral("bridge"), bridge_);
     view_->page()->setWebChannel(channel);
