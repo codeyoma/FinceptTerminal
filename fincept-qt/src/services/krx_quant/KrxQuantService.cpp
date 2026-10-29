@@ -492,6 +492,24 @@ void KrxQuantService::read_supply(const QString& symbol, const QDate& from, cons
     });
 }
 
+void KrxQuantService::read_trader_marks(const QString& symbol, const QDateTime& before, int limit) {
+    if (!begin(kTrader))
+        return;
+    QString path = QStringLiteral("/trader-marks?limit=%1").arg(limit);
+    if (before.isValid())
+        path += "&before=" + QString::fromUtf8(QUrl::toPercentEncoding(before.toString(Qt::ISODateWithMs)));
+    get(symbol_path(symbol, path), [this, symbol, before](Result<QJsonDocument> answer) {
+        end(kTrader);
+        // An engine before krx-quant #398 has no such answer: no marks, not a failure to show.
+        if (answer.is_err() && HttpClient::status_from_error(answer.error()) == 404)
+            return emit trader_ready(symbol, before, {});
+        auto marks = parsed(answer, krx_quant::parse_trader_marks);
+        if (marks.is_err())
+            return emit trader_failed(symbol, why(marks.error()));
+        emit trader_ready(symbol, before, marks.value());
+    });
+}
+
 void KrxQuantService::read_bar(const QString& symbol, const QDateTime& bar_close, const QStringList& kinds) {
     if (url_.isEmpty())
         return;

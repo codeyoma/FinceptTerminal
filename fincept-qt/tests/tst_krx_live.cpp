@@ -13,6 +13,10 @@
 // The daily supply data (krx-quant #226) is read over the days of the bars held; an engine without it
 // (404) is known as such, so the panel greys its indicators.
 //
+// The trader's buys and sells (krx-quant #398) are read for the trader's symbol alone: the latest page
+// with the chart, then back to the first bar held, a page at a time; none from an engine without them
+// (404), and none for another symbol, which never asks.
+//
 // The stand-in answers the routes these reads need (status, symbols, a symbol's bars, candles
 // and predictions, and the daily supply data when a test gives it); every other route is 404, which
 // the screen shows as not read. Built
@@ -32,6 +36,7 @@
 #include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QUrlQuery>
 
 #include <algorithm>
 #include <utility>
@@ -99,6 +104,11 @@ class StandIn : public QObject {
     /// The supply reads fail (500); with ``hold_supply`` the first is answered only by release_supply.
     bool supply_fails = false;
     bool hold_supply = false;
+    /// Another symbol the engine predicts (krx-quant #398), its bars ``today``'s; empty: none.
+    QString other;
+    /// GET /v1/symbols/005930/trader-marks (krx-quant #398): these, newest first, answered by ``before``
+    /// and ``limit`` as the engine answers; none: 404, as an engine before it.
+    std::optional<QList<QJsonObject>> trader;
     QStringList asked;
 
     StandIn() {
@@ -165,8 +175,29 @@ class StandIn : public QObject {
         if (path == "/v1/status")
             return {{"mode", "live"}, {"phase", "pre_open"}, {"now", now}, {"pending_outcomes", 0},
                     {"special", QJsonArray{}}};
-        if (path == "/v1/symbols")
-            return {{"symbols", QJsonArray{QJsonObject{{"symbol", kSymbol}}}}};
+        if (path == "/v1/symbols") {
+            QJsonArray symbols{QJsonObject{{"symbol", kSymbol}}};
+            if (!other.isEmpty())
+                symbols.append(QJsonObject{{"symbol", other}});
+            return {{"symbols", symbols}};
+        }
+        if (!other.isEmpty() && path == "/v1/symbols/" + other + "/bars")
+            return {{"symbol", other}, {"bars", today}};
+        if (!other.isEmpty() && path.startsWith("/v1/symbols/" + other + "/predictions"))
+            return {{"symbol", other}, {"predictions", QJsonArray{}}};
+        if (trader && path.startsWith("/v1/symbols/" + kSymbol + "/trader-marks?")) {
+            const QUrlQuery query(path.mid(path.indexOf('?') + 1));
+            const QDateTime before =
+                QDateTime::fromString(query.queryItemValue("before", QUrl::FullyDecoded), Qt::ISODateWithMs);
+            const int limit = query.queryItemValue("limit").toInt();
+            QJsonArray page;
+            for (const auto& m : *trader)
+                if (page.size() < limit &&
+                    (!before.isValid() ||
+                     QDateTime::fromString(m.value("at").toString(), Qt::ISODateWithMs) < before))
+                    page.append(m);
+            return {{"symbol", kSymbol}, {"marks", page}};
+        }
         if (path == kBarsPath)
             return {{"symbol", kSymbol}, {"bars", today}};
         if (path.startsWith(kBarsPath + "?")) // with before=, before the first of them: none
@@ -346,6 +377,74 @@ class TstKrxLive : public QObject {
         QTest::qWait(300);
         // No indicator wants bars before them, and the view has not been scrolled back.
         QCOMPARE(engine.older_reads(), 0);
+    }
+
+    void the_trader_s_marks_are_read_with_the_chart_and_back_to_the_first_bar() {
+        // 1,100 made-up marks a second apart from 09:00: the latest page holds 1,000, back to 09:01:40,
+        // after the first bar (09:00); the page before it holds the 100 left, fewer than a page, so no
+        // more is read.
+        StandIn engine;
+        engine.now = "2026-10-16T09:20:00+09:00";
+        engine.today = bars_json("2026-10-16T09:00:00+09:00", 20);
+        const QDateTime nine = QDateTime::fromString("2026-10-16T09:00:00+09:00", Qt::ISODate);
+        QList<QJsonObject> marks;
+        for (int i = 1099; i >= 0; --i)
+            marks << QJsonObject{{"trade_id", 1 + i / 2},       {"side", i % 2 ? "sell" : "buy"},
+                                 {"at", nine.addSecs(i).toString(Qt::ISODate)}, {"price", 209000},
+                                 {"quantity", 4},               {"mode", "paper"},
+                                 {"policy", QJsonValue::Null},  {"kind", "barrier"},
+                                 {"predictor", "breiman"},      {"exit_reason", i % 2 ? "time" : QJsonValue()},
+                                 {"net", i % 2 ? QJsonValue(-120.5) : QJsonValue()}};
+        engine.trader = marks;
+        services::KrxLive live;
+        live.set_view(1);
+        live.apply_base_url(engine.url());
+        QTRY_COMPARE_WITH_TIMEOUT(live.trader_marks().size(), qsizetype(1100), 10000);
+        QVERIFY(engine.asked_for("/v1/symbols/" + kSymbol + "/trader-marks?limit=1000"));
+        QVERIFY2(engine.asked_for("/v1/symbols/" + kSymbol + "/trader-marks?limit=1000&before=2026-10-16T09%3A01%3A40"),
+                 qPrintable(engine.asked.join(' ')));
+        QCOMPARE(live.trader_marks().first().at, nine.addSecs(1099)); // newest first
+        QCOMPARE(live.trader_marks().last().at, nine);
+        QCOMPARE(live.trader_marks().first().net, std::optional<double>(-120.5));
+        QTest::qWait(300); // any other read under way answered: none before 09:01:40 asked
+        const QString latest = "/v1/symbols/" + kSymbol + "/trader-marks?limit=1000";
+        for (const QString& path : engine.asked)
+            if (path.startsWith("/v1/symbols/" + kSymbol + "/trader-marks?"))
+                QVERIFY2(path == latest || path.startsWith(latest + "&before=2026-10-16T09%3A01%3A40"), qPrintable(path));
+    }
+
+    void another_symbol_and_an_engine_without_them_have_no_trader_marks() {
+        // An engine before krx-quant #398 answers 404: none, and no failure shown.
+        StandIn old;
+        old.now = "2026-10-16T09:20:00+09:00";
+        old.today = bars_json("2026-10-16T09:00:00+09:00", 20);
+        services::KrxLive before;
+        before.set_view(1);
+        before.apply_base_url(old.url());
+        QTRY_VERIFY_WITH_TIMEOUT(old.asked_for("/v1/symbols/" + kSymbol + "/trader-marks?"), 10000);
+        QTest::qWait(300);
+        QVERIFY(before.trader_marks().isEmpty());
+        QVERIFY(before.failure().isEmpty());
+
+        // The trader's symbol has its marks; another chosen has none and never asks for them.
+        StandIn engine;
+        engine.now = old.now;
+        engine.today = old.today;
+        engine.other = QStringLiteral("000660");
+        engine.trader = QList<QJsonObject>{QJsonObject{{"trade_id", 1}, {"side", "buy"},
+                                                       {"at", "2026-10-16T09:05:02.500+09:00"},
+                                                       {"price", 209000}, {"quantity", 4}, {"mode", "live"}}};
+        services::KrxLive live;
+        live.set_view(1);
+        live.apply_base_url(engine.url());
+        QTRY_COMPARE_WITH_TIMEOUT(live.trader_marks().size(), qsizetype(1), 10000);
+        live.select(engine.other);
+        QVERIFY(live.trader_marks().isEmpty()); // at once, before its bars come
+        QTRY_VERIFY_WITH_TIMEOUT(engine.asked_for("/v1/symbols/" + engine.other + "/bars"), 10000);
+        QTRY_COMPARE_WITH_TIMEOUT(live.bars().size(), qsizetype(20), 10000);
+        QTest::qWait(300);
+        QVERIFY(!engine.asked_for("/v1/symbols/" + engine.other + "/trader-marks"));
+        QVERIFY(live.trader_marks().isEmpty());
     }
 
     void a_bar_window_reads_its_bar_until_nothing_more_comes() {

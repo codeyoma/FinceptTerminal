@@ -1,5 +1,6 @@
 #include "services/krx_quant/ChartModel.h"
 
+#include <QHash>
 #include <QLocale>
 #include <QSet>
 #include <QTimeZone>
@@ -360,6 +361,128 @@ QDateTime full_from_after(const QDateTime& full_from, const QList<Prediction>& p
         if (!earliest.isValid() || p.bar_close < earliest)
             earliest = p.bar_close;
     return earliest;
+}
+
+QList<TraderMark> join_trader_marks(const QList<TraderMark>& kept, const QList<TraderMark>& page) {
+    QMap<std::pair<qint64, bool>, TraderMark> by_key; // the trade and its side
+    for (const auto* marks : {&kept, &page})
+        for (const auto& m : *marks)
+            by_key.insert({m.trade_id, m.buy}, m);
+    QList<TraderMark> out = by_key.values();
+    // Newest first, as the engine sends them: a trade's sell before its buy at the same moment.
+    std::stable_sort(out.begin(), out.end(), [](const TraderMark& a, const TraderMark& b) {
+        if (a.at != b.at)
+            return a.at > b.at;
+        if (a.trade_id != b.trade_id)
+            return a.trade_id > b.trade_id;
+        return !a.buy && b.buy;
+    });
+    return out;
+}
+
+std::optional<QDateTime> trader_before(const QDateTime& from, const QDateTime& first) {
+    if (!first.isValid())
+        return std::nullopt; // no bar to mark
+    if (!from.isValid())
+        return QDateTime(); // the latest first
+    if (from <= first)
+        return std::nullopt; // back to the first bar, or the engine has none before
+    return from;
+}
+
+QDateTime trader_from_after(const QDateTime& from, const QList<TraderMark>& page, int limit) {
+    if (page.size() < limit)
+        return from_the_start(); // the engine had no more before
+    QDateTime earliest = from;
+    for (const auto& m : page)
+        if (!earliest.isValid() || m.at < earliest)
+            earliest = m.at;
+    return earliest;
+}
+
+namespace {
+
+/// The 1-minute bar a fill at ``at`` came in: its minute's start, as chart_time.
+qint64 bar_of(const QDateTime& at) {
+    const qint64 time = chart_time(at);
+    return time - ((time % 60) + 60) % 60;
+}
+
+} // namespace
+
+QList<TraderIcon> trader_icons(const QList<TraderMark>& marks) {
+    QList<TraderIcon> out;
+    out.reserve(marks.size());
+    for (const auto& m : marks)
+        out << TraderIcon{bar_of(m.at), m.buy, m.mode == QLatin1String("live"),
+                          QStringLiteral("t%1%2").arg(m.trade_id).arg(m.buy ? 'b' : 's')};
+    std::stable_sort(out.begin(), out.end(), [](const TraderIcon& a, const TraderIcon& b) { return a.time < b.time; });
+    return out;
+}
+
+namespace {
+
+QString mode_label(const QString& mode) {
+    if (mode == QLatin1String("live"))
+        return QStringLiteral("실전");
+    if (mode == QLatin1String("mock"))
+        return QStringLiteral("KIS 모의");
+    if (mode == QLatin1String("paper"))
+        return QStringLiteral("모의");
+    return mode;
+}
+
+QString exit_label(const QString& reason) {
+    if (reason == QLatin1String("take_profit"))
+        return QStringLiteral("익절");
+    if (reason == QLatin1String("stop_loss"))
+        return QStringLiteral("손절");
+    if (reason == QLatin1String("time"))
+        return QStringLiteral("시간 청산");
+    return reason;
+}
+
+/// Won with its sign, to the won: "+1,922원", "-162원", "0원".
+QString signed_won(double won) {
+    const double rounded = std::round(won);
+    const QString sign = rounded > 0 ? QStringLiteral("+") : rounded < 0 ? QStringLiteral("-") : QString();
+    return sign + QLocale(QLocale::Korean).toString(std::abs(rounded), 'f', 0) + QStringLiteral("원");
+}
+
+} // namespace
+
+QString trader_line(const TraderMark& mark) {
+    QStringList parts{QStringLiteral("자동 매매 %1 %2원 × %3주")
+                          .arg(mark.buy ? QStringLiteral("매수") : QStringLiteral("매도"), price_text(mark.price))
+                          .arg(mark.quantity)};
+    if (!mark.buy) {
+        if (!mark.exit_reason.isEmpty())
+            parts << exit_label(mark.exit_reason);
+        if (mark.net)
+            parts << QStringLiteral("순손익 %1").arg(signed_won(*mark.net));
+    }
+    parts << mode_label(mark.mode);
+    return parts.join(QStringLiteral(" · "));
+}
+
+QList<BarHover> with_trader_lines(QList<BarHover> hovers, const QList<TraderMark>& marks) {
+    QList<TraderMark> in_order = marks;
+    std::stable_sort(in_order.begin(), in_order.end(),
+                     [](const TraderMark& a, const TraderMark& b) { return a.at < b.at; });
+    QHash<qint64, qsizetype> at; // a box's place, by its bar's start
+    for (qsizetype i = 0; i < hovers.size(); ++i)
+        at.insert(hovers[i].time, i);
+    for (const auto& m : in_order) {
+        const qint64 time = bar_of(m.at);
+        if (!at.contains(time)) {
+            BarHover box;
+            box.time = time;
+            at.insert(time, hovers.size());
+            hovers << box;
+        }
+        hovers[at.value(time)].lines << trader_line(m);
+    }
+    return hovers;
 }
 
 QDateTime finals_from_after(const QDateTime& finals_from, const QList<Prediction>& page) {

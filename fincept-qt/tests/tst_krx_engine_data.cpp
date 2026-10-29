@@ -397,6 +397,48 @@ class TstKrxEngineData : public QObject {
         QVERIFY(!holiday.value().session_open.isValid());
     }
 
+    void the_trader_s_buys_and_sells_are_read() {
+        // GET /v1/symbols/{symbol}/trader-marks (krx-quant #398), made-up values: newest first as sent, a
+        // buy without an exit reason or net, a sell with both, the fill's time to the microsecond the
+        // trader keeps (read to the millisecond); a mark without its trade, side or time is dropped.
+        const auto read = parse_trader_marks(json(R"json({"symbol": "005930", "marks": [
+            {"trade_id": 2, "side": "sell", "at": "2026-10-14T10:06:00+09:00", "price": 69800.0, "quantity": 14,
+             "mode": "live", "policy": null, "kind": "barrier", "predictor": "breiman", "exit_reason": "stop_loss",
+             "net": -6222.5},
+            {"trade_id": 2, "side": "buy", "at": "2026-10-14T10:05:02.500000+09:00", "price": 70100.0, "quantity": 14,
+             "mode": "live", "policy": null, "kind": "barrier", "predictor": "breiman", "exit_reason": null,
+             "net": null},
+            {"side": "buy", "at": "2026-10-14T10:04:00+09:00", "price": 70100.0, "quantity": 14, "mode": "paper"},
+            {"trade_id": 1, "side": "hold", "at": "2026-10-14T10:03:00+09:00", "price": 70100.0, "quantity": 14},
+            {"trade_id": 1, "side": "sell", "at": null, "price": 70250.0, "quantity": 14},
+            {"trade_id": 1, "side": "buy", "at": "2026-10-14T10:00:02.500000+09:00", "price": 70100.0, "quantity": 14,
+             "mode": "paper", "policy": null, "kind": "direction", "predictor": "consensus-final",
+             "exit_reason": null, "net": null}
+          ]})json"));
+        QVERIFY(read.is_ok());
+        const auto& marks = read.value();
+        QCOMPARE(marks.size(), 3);
+        QCOMPARE(marks[0].trade_id, 2);
+        QVERIFY(!marks[0].buy);
+        QCOMPARE(marks[0].at, QDateTime::fromString("2026-10-14T10:06:00+09:00", Qt::ISODate));
+        QCOMPARE(marks[0].price, 69800.0);
+        QCOMPARE(marks[0].quantity, 14);
+        QCOMPARE(marks[0].mode, QStringLiteral("live"));
+        QCOMPARE(marks[0].exit_reason, QStringLiteral("stop_loss"));
+        QCOMPARE(marks[0].net, std::optional<double>(-6222.5));
+        QVERIFY(marks[1].buy);
+        QCOMPARE(marks[1].at, QDateTime::fromString("2026-10-14T10:05:02.500+09:00", Qt::ISODateWithMs));
+        QVERIFY(marks[1].exit_reason.isEmpty());
+        QVERIFY(!marks[1].net.has_value());
+        QCOMPARE(marks[2].trade_id, 1);
+        QCOMPARE(marks[2].kind, QStringLiteral("direction"));
+        QCOMPARE(marks[2].predictor, QStringLiteral("consensus-final"));
+        QCOMPARE(marks[2].mode, QStringLiteral("paper"));
+        // None, and the engine's error.
+        QVERIFY(parse_trader_marks(json(R"({"symbol": "000660", "marks": []})")).value().isEmpty());
+        QVERIFY(parse_trader_marks(json(R"({"error": "unknown symbol"})")).is_err());
+    }
+
     void a_symbols_daily_supply_data_is_read() {
         // GET /v1/symbols/{symbol}/supply (krx-quant #226): eight fields a day, a null one none, kept
         // oldest first; a day without a date dropped. Made-up values.

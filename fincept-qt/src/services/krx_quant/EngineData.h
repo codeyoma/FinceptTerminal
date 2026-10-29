@@ -439,6 +439,22 @@ struct AlgorithmStats {
     QMap<QString, QList<double>> volatility_cuts;
 };
 
+/// A buy or a sell of the trader (krx-quant #393, #398): a trade's entry or its exit, at its fill, as
+/// the chart marks it (GET /v1/symbols/{symbol}/trader-marks).
+struct TraderMark {
+    qint64 trade_id = 0;
+    bool buy = true; ///< its entry's; false: its exit's
+    QDateTime at;    ///< the fill's
+    double price = 0;
+    int quantity = 0;
+    QString mode; ///< "paper" (the trader's own paper fills), "mock" (KIS's mock trading) or "live"
+    QString kind; ///< its cell: the kind and the predictor
+    QString predictor;
+    QString exit_reason;       ///< a sell's: "take_profit", "stop_loss" or "time"; empty for a buy
+    std::optional<double> net; ///< a sell's net P&L after costs, in won; none for a buy
+    bool operator==(const TraderMark&) const = default;
+};
+
 Result<EngineStatus> parse_status(const QJsonDocument& doc);        ///< GET /v1/status
 Result<QList<SymbolQuote>> parse_symbols(const QJsonDocument& doc); ///< GET /v1/symbols
 /// GET /v1/symbols/{symbol}/special?from=&to= (krx-quant #236): the symbol's VIs and the market's
@@ -451,6 +467,9 @@ Result<Latest> parse_latest(const QJsonDocument& doc); ///< GET /v1/symbols/{sym
 /// GET /v1/symbols/{symbol}/predictions: the latest bar closes first.
 Result<QList<Prediction>> parse_predictions(const QJsonDocument& doc);
 Result<QList<Bar>> parse_bars(const QJsonDocument& doc); ///< GET /v1/symbols/{symbol}/bars, oldest first
+/// GET /v1/symbols/{symbol}/trader-marks (krx-quant #398): newest first, as the engine sends them; a
+/// mark without its trade, side or time is dropped.
+Result<QList<TraderMark>> parse_trader_marks(const QJsonDocument& doc);
 
 /// Day candles the engine stored (krx-quant #111): oldest first, each starting at 00:00 KST of
 /// its day, and the market they come from ("UN" integrated, "KRX"; empty with none stored).

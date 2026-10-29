@@ -397,6 +397,32 @@ Result<QList<SpecialWindow>> parse_special(const QJsonDocument& doc) {
     return Result<QList<SpecialWindow>>::ok(windows);
 }
 
+Result<QList<TraderMark>> parse_trader_marks(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<QList<TraderMark>>::err(obj.error());
+    QList<TraderMark> marks;
+    for (const auto& v : obj.value().value("marks").toArray()) {
+        const QJsonObject m = v.toObject();
+        const QString side = m.value("side").toString();
+        TraderMark mark;
+        mark.trade_id = m.value("trade_id").toInteger(-1);
+        mark.buy = side == QLatin1String("buy");
+        mark.at = time_of(m.value("at"));
+        mark.price = m.value("price").toDouble();
+        mark.quantity = m.value("quantity").toInt();
+        mark.mode = m.value("mode").toString();
+        mark.kind = m.value("kind").toString();
+        mark.predictor = m.value("predictor").toString();
+        mark.exit_reason = m.value("exit_reason").toString();
+        mark.net = number(m.value("net"));
+        if (mark.trade_id < 0 || !mark.at.isValid() || (side != QLatin1String("buy") && side != QLatin1String("sell")))
+            continue;
+        marks.push_back(mark);
+    }
+    return Result<QList<TraderMark>>::ok(marks);
+}
+
 QString supply_field_key(SupplyField field) {
     switch (field) {
         case SupplyField::ShortVolume:

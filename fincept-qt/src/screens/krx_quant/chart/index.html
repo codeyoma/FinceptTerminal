@@ -371,9 +371,10 @@
   }
 
   let main = null;  // the price series
-  let icons = null; // its markers: the consensus icons and the fractals
+  let icons = null; // its markers: the consensus icons, the fractals and the trader's buys and sells
   let iconMarks = []; // the consensus icons as markers
   let studyMarks = []; // the fractals as markers (krx-quant #222)
+  let tradeMarks = []; // the trader's buys and sells as markers (krx-quant #398)
   // The indicators (krx-quant #222, #223): a series each, in the price pane or a lower one, kept by
   // id while the screen sends them again; the fills, the fractals, the volume profile and the
   // anchor are layers. id -> {series, pane (a lower pane; null: the prices'), histogram, decimals,
@@ -725,7 +726,8 @@
   let hoverAt = new Map(); // time -> hover box (krx-quant #159)
   let hovered = null;      // the bar hovered: {time, x}, kept while the data is sent again
   function showMarks() {
-    const all = iconMarks.concat(studyMarks);
+    // On one bar the consensus's icon sits nearest it, the trader's sell over it (krx-quant #398).
+    const all = iconMarks.concat(studyMarks, tradeMarks);
     all.sort((a, b) => a.time - b.time);
     icons.setMarkers(all);
   }
@@ -765,6 +767,10 @@
     iconMarks = data.icons.map((i) => ({
       id: String(i.time), time: i.time, position: i.position, shape: i.shape, color: i.color, size: i.size,
       text: i.text,
+    }));
+    // A click on one is its bar's (its id is no icon's): the screen pins that bar close.
+    tradeMarks = (data.trades || []).map((t) => ({
+      id: t.id, time: t.time, position: t.position, shape: t.shape, color: t.color, size: 1, text: t.text,
     }));
     showStudies(data.studies || {}, data.profile || {});
     fitRange = data.fit;
@@ -2106,6 +2112,11 @@
     tip: function () { return tip.style.display === 'none' ? '' : tip.textContent; },
     // The icons drawn: each one's time, shape and text (krx-quant #264: a daily kind's on the day view).
     icons: function () { return iconMarks.map((m) => [m.time, m.shape, m.text]); },
+    // Every marker on the price series as drawn, in order: time, position, shape, text, colour
+    // (krx-quant #398: the consensus's icons, the fractals and the trader's buys and sells together).
+    markers: function () {
+      return icons.markers().map((m) => [m.time, m.position, m.shape, m.text || '', m.color]);
+    },
     // The slots from the latest bar to the right edge (krx-quant #253).
     gap: function () {
       const range = chart.timeScale().getVisibleLogicalRange();

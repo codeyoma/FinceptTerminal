@@ -146,6 +146,12 @@ class KrxQuantService : public QObject {
     /// or supply_failed. Asked again while one is read, it is not read: KrxLive asks again once that
     /// one answers.
     void read_supply(const QString& symbol, const QDate& from, const QDate& to);
+    /// A symbol's trader marks (krx-quant #398, GET /v1/symbols/{symbol}/trader-marks): the trader's
+    /// last ``limit`` buys and sells before ``before`` (invalid: before now), for the chart. trader_ready,
+    /// also with none from an engine without the answer (404, before krx-quant #398), or
+    /// trader_failed. Asked again while one is read, it is not read: KrxLive asks again once that one
+    /// answers.
+    void read_trader_marks(const QString& symbol, const QDateTime& before, int limit);
     /// What a bar's window shows (krx-quant #255, krx_quant::BarRead), read at once: every prediction
     /// of ``bar_close`` (GET …/predictions?bar_close=), the algorithms' statuses now (GET
     /// /v1/algorithms), the last kBarReadBars 1-minute bars before its scoring time (GET
@@ -220,6 +226,9 @@ class KrxQuantService : public QObject {
     void supply_ready(const QString& symbol, const QDate& from, const QDate& to,
                       const QList<fincept::krx_quant::SupplyDay>& days, bool served);
     void supply_failed(const QString& symbol, const QDate& from, const QDate& to, const QString& reason);
+    void trader_ready(const QString& symbol, const QDateTime& before,
+                      const QList<fincept::krx_quant::TraderMark>& marks);
+    void trader_failed(const QString& symbol, const QString& reason);
     void bar_ready(const fincept::krx_quant::BarRead& read);
     void bar_failed(const QString& symbol, const QDateTime& bar_close, const QString& reason);
     void briefing_ready(const QDate& day, const fincept::krx_quant::Briefing& briefing);
@@ -257,6 +266,7 @@ class KrxQuantService : public QObject {
         kKindHistory, ///< a kind's predictions over bar closes
         kSpecial,     ///< a symbol's special situations over days (krx-quant #236)
         kSupply,      ///< a symbol's daily supply data over days (krx-quant #226)
+        kTrader,      ///< a symbol's trader marks (codeyoma/krx-quant#398)
         kBriefing,    ///< a day's pre-open briefing (codeyoma/krx-quant#304)
         kSymbolList,  ///< the symbols alone
         kFlow,        ///< a symbol's intraday flows (codeyoma/krx-quant#306)

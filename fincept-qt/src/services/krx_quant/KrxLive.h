@@ -156,6 +156,11 @@ class KrxLive : public QObject {
     /// Whether the engine gives the daily supply data: false once it answered 404 (an engine before
     /// krx-quant #226), until another address is applied. True before it answered.
     bool supply_served() const { return supply_served_; }
+    /// The trader's buys and sells (krx-quant #398) over the 1-minute bars held, newest first: read for
+    /// the trader's symbol alone (krx_quant::kTraderSymbol), the latest page with each chart read, then
+    /// back to the first bar held, a page at a time. None for another symbol, from an engine without
+    /// them, or while the engine cannot be read.
+    const QList<krx_quant::TraderMark>& trader_marks() const { return trader_marks_; }
     /// Why the engine could not be read; empty once it can.
     const QString& failure() const { return failure_; }
     /// The stream's state in Korean ("스트림 연결됨", why it is down and when it is tried again).
@@ -255,6 +260,12 @@ class KrxLive : public QObject {
     /// the first bar shown, a page at a time. A daily kind's (krx-quant #264) by days, back to the
     /// first day held (krx_quant::daily_read).
     void read_kind_history(bool latest = false);
+    /// The trader's marks of the chosen symbol (krx-quant #398), if it is the trader's: the latest page
+    /// (again with ``latest``, on each chart read), then back to the first 1-minute bar held, a page at
+    /// a time (krx_quant::trader_before).
+    void read_trader(bool latest = false);
+    /// Back to no trader marks: another symbol or engine, or the engine is lost.
+    void forget_trader();
     /// The kinds besides the direction a bar's window reads (krx-quant #255): those of
     /// krx_quant::bar_kinds the engine makes.
     QStringList window_kinds() const;
@@ -350,6 +361,10 @@ class KrxLive : public QObject {
     QDateTime kind_from_;                   ///< the earliest bar close from which on its predictions were read
     bool kind_paging_ = false;              ///< a page of them is read
     bool kind_latest_page_ = false;         ///< the latest page is to be read again
+    QList<krx_quant::TraderMark> trader_marks_; ///< the trader's buys and sells (krx-quant #398)
+    QDateTime trader_from_;                     ///< the earliest moment from which on they were read; invalid: none
+    bool trader_paging_ = false;                ///< a page of them is read
+    bool trader_latest_ = false;                ///< the latest page is to be read again
     QString failure_;
     QString stream_state_;
     QStringList read_errors_;
