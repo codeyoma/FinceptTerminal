@@ -190,12 +190,24 @@ QList<TraderMark> join_trader_marks(const QList<TraderMark>& kept, const QList<T
 /// starting at ``first`` (the first held), as the icons' predictions are (marks_before). ``from`` is
 /// the earliest moment from which on they were read (invalid: none; from_the_start: all). The next
 /// page to read: its ``before`` (invalid: before now); none without a bar or once they reach the
-/// first bar.
+/// first bar. A page before ``from`` asks a millisecond past it: the engine's times are to the
+/// microsecond and this screen's to the millisecond, so the page holds again the marks of ``from``'s
+/// millisecond (joined, not doubled) and misses none of it. The engine never splits a moment's marks
+/// between two pages (krx-quant #398), so none at ``from`` itself is missed either.
 std::optional<QDateTime> trader_before(const QDateTime& from, const QDateTime& first);
 
 /// ``from`` once a page read with ``limit`` (``page``) came in: its earliest mark's time, if earlier;
-/// from_the_start once the page is short of ``limit`` (the engine has none before it).
-QDateTime trader_from_after(const QDateTime& from, const QList<TraderMark>& page, int limit = kTraderPage);
+/// from_the_start once the page is short of ``limit`` (the engine has none before it). A page read
+/// ``back`` (before ``from``) that comes no earlier than ``from`` (a millisecond holding more than a
+/// page) goes no further back: from_the_start, so the same page is not asked for again and again.
+QDateTime trader_from_after(const QDateTime& from, const QList<TraderMark>& page, bool back = false,
+                            int limit = kTraderPage);
+
+/// Whether the latest page (``page``, read with ``limit``) leaves out marks between it and those held
+/// (``held``, newest first): it is full and its earliest is no earlier than the newest held, so more
+/// came in since the last read than a page holds (the screen hidden for days, the engine out of
+/// reach). Those held are dropped then and read again from this page back to the first bar.
+bool trader_gap(const QList<TraderMark>& held, const QList<TraderMark>& page, int limit = kTraderPage);
 
 /// A buy or sell as the chart draws it, on the 1-minute bar its fill came in: a buy ▲ under the bar,
 /// a sell ▼ over it (over the consensus's icon too), coloured by whether it was the live account's.

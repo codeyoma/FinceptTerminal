@@ -78,6 +78,17 @@ namespace {
 const QString kSymbol = QStringLiteral("005930");
 const QString kBarsPath = "/v1/symbols/" + kSymbol + "/bars";
 
+/// A KST time (ISO 8601, ``+09:00``) with its fraction to the microsecond, so that two compare as the
+/// moments they are, as the engine compares them.
+QString moment(const QString& at) {
+    const qsizetype offset = at.indexOf('+');
+    const QString clock = at.left(offset);
+    const qsizetype dot = clock.indexOf('.');
+    const QString whole = dot < 0 ? clock : clock.left(dot);
+    const QString fraction = dot < 0 ? QString() : clock.mid(dot + 1);
+    return whole + "." + fraction.leftJustified(6, '0') + at.mid(offset);
+}
+
 /// ``count`` 1-minute bars from ``first`` on, as the engine sends them.
 QJsonArray bars_json(const char* first, int count) {
     const QDateTime start = QDateTime::fromString(QString::fromLatin1(first), Qt::ISODate);
@@ -186,16 +197,22 @@ class StandIn : public QObject {
         if (!other.isEmpty() && path.startsWith("/v1/symbols/" + other + "/predictions"))
             return {{"symbol", other}, {"predictions", QJsonArray{}}};
         if (trader && path.startsWith("/v1/symbols/" + kSymbol + "/trader-marks?")) {
+            // As the engine answers (krx-quant #398): to the microsecond, strictly before, and a page never
+            // splits the marks of one moment.
             const QUrlQuery query(path.mid(path.indexOf('?') + 1));
-            const QDateTime before =
-                QDateTime::fromString(query.queryItemValue("before", QUrl::FullyDecoded), Qt::ISODateWithMs);
+            const QString before = query.queryItemValue("before", QUrl::FullyDecoded);
             const int limit = query.queryItemValue("limit").toInt();
             QJsonArray page;
-            for (const auto& m : *trader)
-                if (page.size() < limit &&
-                    (!before.isValid() ||
-                     QDateTime::fromString(m.value("at").toString(), Qt::ISODateWithMs) < before))
-                    page.append(m);
+            QString last; // the moment the page ends on
+            for (const auto& m : *trader) {
+                const QString at = moment(m.value("at").toString());
+                if (!before.isEmpty() && at >= moment(before))
+                    continue;
+                if (page.size() >= limit && at != last)
+                    break;
+                page.append(m);
+                last = at;
+            }
             return {{"symbol", kSymbol}, {"marks", page}};
         }
         if (path == kBarsPath)
@@ -379,6 +396,25 @@ class TstKrxLive : public QObject {
         QCOMPARE(engine.older_reads(), 0);
     }
 
+    /// ``count`` made-up trader marks a second apart, newest first, the newest ``count - 1`` seconds after
+    /// ``from``; trade ``first_trade`` on, a buy and its sell each.
+    static QList<QJsonObject> marks_from(const QDateTime& from, int count, int first_trade = 1) {
+        QList<QJsonObject> marks;
+        for (int i = count - 1; i >= 0; --i)
+            marks << QJsonObject{{"trade_id", first_trade + i / 2},
+                                 {"side", i % 2 ? "sell" : "buy"},
+                                 {"at", from.addSecs(i).toString(Qt::ISODate)},
+                                 {"price", 209000},
+                                 {"quantity", 4},
+                                 {"mode", "paper"},
+                                 {"policy", QJsonValue::Null},
+                                 {"kind", "barrier"},
+                                 {"predictor", "breiman"},
+                                 {"exit_reason", i % 2 ? "time" : QJsonValue()},
+                                 {"net", i % 2 ? QJsonValue(-120.5) : QJsonValue()}};
+        return marks;
+    }
+
     void the_trader_s_marks_are_read_with_the_chart_and_back_to_the_first_bar() {
         // 1,100 made-up marks a second apart from 09:00: the latest page holds 1,000, back to 09:01:40,
         // after the first bar (09:00); the page before it holds the 100 left, fewer than a page, so no
@@ -387,21 +423,15 @@ class TstKrxLive : public QObject {
         engine.now = "2026-10-16T09:20:00+09:00";
         engine.today = bars_json("2026-10-16T09:00:00+09:00", 20);
         const QDateTime nine = QDateTime::fromString("2026-10-16T09:00:00+09:00", Qt::ISODate);
-        QList<QJsonObject> marks;
-        for (int i = 1099; i >= 0; --i)
-            marks << QJsonObject{{"trade_id", 1 + i / 2},       {"side", i % 2 ? "sell" : "buy"},
-                                 {"at", nine.addSecs(i).toString(Qt::ISODate)}, {"price", 209000},
-                                 {"quantity", 4},               {"mode", "paper"},
-                                 {"policy", QJsonValue::Null},  {"kind", "barrier"},
-                                 {"predictor", "breiman"},      {"exit_reason", i % 2 ? "time" : QJsonValue()},
-                                 {"net", i % 2 ? QJsonValue(-120.5) : QJsonValue()}};
-        engine.trader = marks;
+        engine.trader = marks_from(nine, 1100);
         services::KrxLive live;
         live.set_view(1);
         live.apply_base_url(engine.url());
         QTRY_COMPARE_WITH_TIMEOUT(live.trader_marks().size(), qsizetype(1100), 10000);
         QVERIFY(engine.asked_for("/v1/symbols/" + kSymbol + "/trader-marks?limit=1000"));
-        QVERIFY2(engine.asked_for("/v1/symbols/" + kSymbol + "/trader-marks?limit=1000&before=2026-10-16T09%3A01%3A40"),
+        // A millisecond past the earliest read: that millisecond's marks again (codeyoma/FinceptTerminal#107).
+        QVERIFY2(engine.asked_for("/v1/symbols/" + kSymbol +
+                                  "/trader-marks?limit=1000&before=2026-10-16T09%3A01%3A40.001"),
                  qPrintable(engine.asked.join(' ')));
         QCOMPARE(live.trader_marks().first().at, nine.addSecs(1099)); // newest first
         QCOMPARE(live.trader_marks().last().at, nine);
@@ -411,6 +441,53 @@ class TstKrxLive : public QObject {
         for (const QString& path : engine.asked)
             if (path.startsWith("/v1/symbols/" + kSymbol + "/trader-marks?"))
                 QVERIFY2(path == latest || path.startsWith(latest + "&before=2026-10-16T09%3A01%3A40"), qPrintable(path));
+    }
+
+    void the_marks_of_one_millisecond_at_a_page_s_end_are_all_read() {
+        // codeyoma/FinceptTerminal#107 review: the engine's times are to the microsecond, this screen's to the
+        // millisecond. The latest page ends on two marks of 09:01:40.000400 (the engine keeps a moment whole);
+        // one of 09:01:40.000200 is just before them, in the same millisecond. Asked before 09:01:40.000, it
+        // would be missed; asked a millisecond past, it comes with the page before.
+        StandIn engine;
+        engine.now = "2026-10-16T09:20:00+09:00";
+        engine.today = bars_json("2026-10-16T09:00:00+09:00", 20);
+        const QDateTime nine = QDateTime::fromString("2026-10-16T09:00:00+09:00", Qt::ISODate);
+        QList<QJsonObject> marks = marks_from(nine.addSecs(101), 999, 100); // 09:01:41 on
+        for (const auto& [trade, at] : {std::pair{98, "2026-10-16T09:01:40.000400+09:00"},
+                                        std::pair{97, "2026-10-16T09:01:40.000400+09:00"},
+                                        std::pair{96, "2026-10-16T09:01:40.000200+09:00"}})
+            marks << QJsonObject{{"trade_id", trade}, {"side", "buy"}, {"at", at}, {"price", 209000},
+                                 {"quantity", 4}, {"mode", "live"}};
+        marks += marks_from(nine, 100, 1); // up to 09:01:39
+        engine.trader = marks;
+        services::KrxLive live;
+        live.set_view(1);
+        live.apply_base_url(engine.url());
+        QTRY_COMPARE_WITH_TIMEOUT(live.trader_marks().size(), qsizetype(1102), 10000);
+        const auto traded = [&live](qint64 trade) {
+            return std::any_of(live.trader_marks().begin(), live.trader_marks().end(),
+                               [trade](const TraderMark& m) { return m.trade_id == trade; });
+        };
+        QVERIFY(traded(98) && traded(97) && traded(96));
+    }
+
+    void a_latest_page_that_does_not_reach_those_held_reads_them_again_back_to_the_first_bar() {
+        // codeyoma/FinceptTerminal#107 review: more came in since the last read than a page holds (the screen
+        // hidden for days). The latest page does not reach the marks held: they are read again from it back.
+        StandIn engine;
+        engine.now = "2026-10-16T09:20:00+09:00";
+        engine.today = bars_json("2026-10-16T09:00:00+09:00", 20);
+        const QDateTime nine = QDateTime::fromString("2026-10-16T09:00:00+09:00", Qt::ISODate);
+        engine.trader = marks_from(nine, 100);
+        services::KrxLive live;
+        live.set_view(1);
+        live.apply_base_url(engine.url());
+        QTRY_COMPARE_WITH_TIMEOUT(live.trader_marks().size(), qsizetype(100), 10000);
+        engine.trader = marks_from(nine.addSecs(100), 1500, 51) + *engine.trader; // 1,500 more since
+        live.set_shown(true); // shown again: everything read again
+        QTRY_COMPARE_WITH_TIMEOUT(live.trader_marks().size(), qsizetype(1600), 10000);
+        QCOMPARE(live.trader_marks().first().at, nine.addSecs(1599));
+        QCOMPARE(live.trader_marks().last().at, nine);
     }
 
     void another_symbol_and_an_engine_without_them_have_no_trader_marks() {

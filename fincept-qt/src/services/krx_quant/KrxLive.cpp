@@ -246,9 +246,15 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
             [this](const QString& symbol, const QDateTime& before, const QList<krx_quant::TraderMark>& marks) {
                 trader_paging_ = false;
                 if (symbol == selected_) {
-                    // Read before where they were read from: unless reading again from scratch moved that since.
-                    if (!before.isValid() || before == trader_from_)
-                        trader_from_ = krx_quant::trader_from_after(trader_from_, marks);
+                    const bool back = before.isValid();
+                    // More since the last read than a page holds: those held and the latest page do not
+                    // meet, so all are read again from this page back to the first bar.
+                    if (!back && krx_quant::trader_gap(trader_marks_, marks))
+                        forget_trader();
+                    // A page back was asked a millisecond past where they were read from (trader_before):
+                    // unless reading again from scratch moved that since.
+                    if (!back || (trader_from_.isValid() && before == trader_from_.addMSecs(1)))
+                        trader_from_ = krx_quant::trader_from_after(trader_from_, marks, back);
                     if (const auto joined = krx_quant::join_trader_marks(trader_marks_, marks);
                         joined != trader_marks_) {
                         trader_marks_ = joined;

@@ -785,13 +785,15 @@ class TstKrxChartModel : public QObject {
 
     void the_trader_s_marks_are_read_from_the_latest_back_to_the_first_bar() {
         const QDateTime first = kst("2026-10-14T09:00:00+09:00"); // the first 1-minute bar held
-        QVERIFY(!trader_before({}, {}).has_value()); // no bar to mark yet
+        QVERIFY(!trader_before({}, {}).has_value());               // no bar to mark yet
         const auto latest = trader_before({}, first);
         QVERIFY(latest.has_value() && !latest->isValid()); // the latest first
-        const QDateTime from = kst("2026-10-14T09:30:00+09:00");
-        QCOMPARE(trader_before(from, first), from);                       // the page before
-        QVERIFY(!trader_before(first, first).has_value());                // back to the first bar
-        QVERIFY(!trader_before(from_the_start(), first).has_value());     // none before
+        // The page before: a millisecond past, so the marks of from's millisecond come again (the engine's
+        // times are to the microsecond, this screen's to the millisecond).
+        const QDateTime from = QDateTime::fromString("2026-10-14T09:30:00.250+09:00", Qt::ISODateWithMs);
+        QCOMPARE(trader_before(from, first), QDateTime::fromString("2026-10-14T09:30:00.251+09:00", Qt::ISODateWithMs));
+        QVERIFY(!trader_before(first, first).has_value());                             // back to the first bar
+        QVERIFY(!trader_before(from_the_start(), first).has_value());                  // none before
         QCOMPARE(trader_before(from, kst("2026-10-14T09:40:00+09:00")), std::nullopt); // read past it
     }
 
@@ -799,13 +801,35 @@ class TstKrxChartModel : public QObject {
         QList<TraderMark> page{trader_mark(3, true, "2026-10-14T10:10:00+09:00"),
                                trader_mark(2, false, "2026-10-14T10:06:00+09:00"),
                                trader_mark(2, true, "2026-10-14T10:05:00+09:00")};
-        QCOMPARE(trader_from_after({}, page, 3), kst("2026-10-14T10:05:00+09:00")); // a full page: before its earliest
-        QCOMPARE(trader_from_after({}, page, 4), from_the_start());                 // short: nothing before
-        QCOMPARE(trader_from_after({}, {}, 3), from_the_start());
+        QCOMPARE(trader_from_after({}, page, false, 3), kst("2026-10-14T10:05:00+09:00")); // full: before its earliest
+        QCOMPARE(trader_from_after({}, page, false, 4), from_the_start());                 // short: nothing before
+        QCOMPARE(trader_from_after({}, {}, false, 3), from_the_start());
         // The latest page read again over those read back before: from stays the earliest.
         const QDateTime back = kst("2026-10-14T09:10:00+09:00");
-        QCOMPARE(trader_from_after(back, page, 3), back);
-        QCOMPARE(trader_from_after(from_the_start(), page, 3), from_the_start());
+        QCOMPARE(trader_from_after(back, page, false, 3), back);
+        QCOMPARE(trader_from_after(from_the_start(), page, false, 3), from_the_start());
+        // A page back that came earlier: its earliest. One that came no earlier (a millisecond of more marks
+        // than a page): no further back, rather than the same page again and again.
+        QCOMPARE(trader_from_after(kst("2026-10-14T10:06:00+09:00"), page, true, 3), kst("2026-10-14T10:05:00+09:00"));
+        QCOMPARE(trader_from_after(kst("2026-10-14T10:05:00+09:00"), page, true, 3), from_the_start());
+    }
+
+    void a_latest_page_that_does_not_reach_those_held_has_a_gap() {
+        // More came in since the last read than a page holds (codeyoma/FinceptTerminal#107 review): the full
+        // latest page starts after the newest held.
+        const QList<TraderMark> held{trader_mark(2, false, "2026-10-14T10:06:00+09:00"),
+                                     trader_mark(2, true, "2026-10-14T10:05:00+09:00")};
+        const QList<TraderMark> later{trader_mark(4, true, "2026-10-14T10:20:00+09:00"),
+                                      trader_mark(3, false, "2026-10-14T10:12:00+09:00"),
+                                      trader_mark(3, true, "2026-10-14T10:10:00+09:00")};
+        QVERIFY(trader_gap(held, later, 3));
+        QVERIFY(!trader_gap(held, later, 4)); // short: the engine has nothing more since
+        QVERIFY(!trader_gap({}, later, 3));   // none held
+        // The latest page reaching back to the newest held, or past it: no gap.
+        QVERIFY(!trader_gap(held, {later[0], later[1], held[1]}, 3));
+        // Reaching just the newest held's millisecond: read again all the same (this screen's times are to the
+        // millisecond, the engine's finer).
+        QVERIFY(trader_gap(held, {later[0], later[1], held[0]}, 3));
     }
 
     void a_buy_sits_under_its_bar_and_a_sell_over_it() {

@@ -387,17 +387,33 @@ std::optional<QDateTime> trader_before(const QDateTime& from, const QDateTime& f
         return QDateTime(); // the latest first
     if (from <= first)
         return std::nullopt; // back to the first bar, or the engine has none before
-    return from;
+    return from.addMSecs(1); // from's millisecond again: the engine's times are finer
 }
 
-QDateTime trader_from_after(const QDateTime& from, const QList<TraderMark>& page, int limit) {
-    if (page.size() < limit)
-        return from_the_start(); // the engine had no more before
-    QDateTime earliest = from;
-    for (const auto& m : page)
+namespace {
+
+/// The earliest time among ``marks``; invalid without any.
+QDateTime earliest_of(const QList<TraderMark>& marks) {
+    QDateTime earliest;
+    for (const auto& m : marks)
         if (!earliest.isValid() || m.at < earliest)
             earliest = m.at;
     return earliest;
+}
+
+} // namespace
+
+QDateTime trader_from_after(const QDateTime& from, const QList<TraderMark>& page, bool back, int limit) {
+    if (page.size() < limit)
+        return from_the_start(); // the engine had no more before
+    const QDateTime earliest = earliest_of(page);
+    if (back && from.isValid() && earliest >= from)
+        return from_the_start(); // no further back: asking again would bring the same page
+    return !from.isValid() || earliest < from ? earliest : from;
+}
+
+bool trader_gap(const QList<TraderMark>& held, const QList<TraderMark>& page, int limit) {
+    return !held.isEmpty() && page.size() >= limit && earliest_of(page) >= held.first().at;
 }
 
 namespace {
