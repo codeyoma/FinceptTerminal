@@ -3,8 +3,9 @@
 // The KRX chart's page only draws: what goes on it is worked out here. These tests pin the
 // chart's time (KST shown as the chart's UTC), the bars, the consensus icons (their arrow,
 // result, faintness, signal and the bar they sit on), each bar's hover box and target, the
-// selected consensus's score and the selection itself (krx-quant #159), and the bar close of a
-// bar clicked (krx-quant #249). The expected values are worked out by hand.
+// selected consensus's score and the selection itself (krx-quant #159), the bar close of a
+// bar clicked (krx-quant #249), and the trader's buys and sells (krx-quant #398): which are read next,
+// the bar each sits on and its line in that bar's box. The expected values are worked out by hand.
 
 #include "services/krx_quant/ChartModel.h"
 
@@ -36,6 +37,20 @@ Mark mark(const char* bar_close, Direction predicted, Mark::Result result, bool 
     m.result = result;
     m.special = special;
     m.prediction = p;
+    return m;
+}
+
+/// The trader's mark of trade ``trade`` (a buy or a sell) at ``at``: 14 shares at 70,100, paper.
+TraderMark trader_mark(qint64 trade, bool buy, const char* at) {
+    TraderMark m;
+    m.trade_id = trade;
+    m.buy = buy;
+    m.at = QDateTime::fromString(QString::fromLatin1(at), Qt::ISODateWithMs);
+    m.price = 70100;
+    m.quantity = 14;
+    m.mode = QStringLiteral("paper");
+    m.kind = QStringLiteral("barrier");
+    m.predictor = QStringLiteral("breiman");
     return m;
 }
 
@@ -747,6 +762,126 @@ class TstKrxChartModel : public QObject {
         QVERIFY(!older_candles(first, 100, 100).has_value());
         const auto latest = older_candles({}, 100); // none shown yet: the latest
         QVERIFY(latest.has_value() && !latest->isValid());
+    }
+
+    // ---- The trader's buys and sells (krx-quant #398) ------------------------------------------
+
+    void the_trader_s_marks_read_again_replace_those_kept_newest_first() {
+        // The latest page is read again with each chart read: a trade's sell since joins its buy, and a
+        // mark read again replaces its old self.
+        const TraderMark bought = trader_mark(1, true, "2026-10-14T10:00:02.500+09:00");
+        TraderMark sold = trader_mark(1, false, "2026-10-14T10:02:00+09:00");
+        const TraderMark later = trader_mark(2, true, "2026-10-14T10:05:02.500+09:00");
+        const QList<TraderMark> kept = join_trader_marks({}, {bought});
+        QCOMPARE(kept, QList<TraderMark>{bought});
+        QCOMPARE(join_trader_marks(kept, {later, sold}), (QList<TraderMark>{later, sold, bought}));
+        TraderMark again = later;
+        again.price = 70200;
+        QCOMPARE(join_trader_marks({later, sold, bought}, {again}), (QList<TraderMark>{again, sold, bought}));
+        // Two trades filled at one moment: the later trade first, as the engine sends them.
+        const TraderMark same = trader_mark(3, true, "2026-10-14T10:05:02.500+09:00");
+        QCOMPARE(join_trader_marks({later}, {same}), (QList<TraderMark>{same, later}));
+    }
+
+    void the_trader_s_marks_are_read_from_the_latest_back_to_the_first_bar() {
+        const QDateTime first = kst("2026-10-14T09:00:00+09:00"); // the first 1-minute bar held
+        QVERIFY(!trader_before({}, {}).has_value());               // no bar to mark yet
+        const auto latest = trader_before({}, first);
+        QVERIFY(latest.has_value() && !latest->isValid()); // the latest first
+        // The page before: a millisecond past, so the marks of from's millisecond come again (the engine's
+        // times are to the microsecond, this screen's to the millisecond).
+        const QDateTime from = QDateTime::fromString("2026-10-14T09:30:00.250+09:00", Qt::ISODateWithMs);
+        QCOMPARE(trader_before(from, first), QDateTime::fromString("2026-10-14T09:30:00.251+09:00", Qt::ISODateWithMs));
+        QVERIFY(!trader_before(first, first).has_value());                             // back to the first bar
+        QVERIFY(!trader_before(from_the_start(), first).has_value());                  // none before
+        QCOMPARE(trader_before(from, kst("2026-10-14T09:40:00+09:00")), std::nullopt); // read past it
+    }
+
+    void a_page_short_of_its_limit_has_none_before_it() {
+        QList<TraderMark> page{trader_mark(3, true, "2026-10-14T10:10:00+09:00"),
+                               trader_mark(2, false, "2026-10-14T10:06:00+09:00"),
+                               trader_mark(2, true, "2026-10-14T10:05:00+09:00")};
+        QCOMPARE(trader_from_after({}, page, false, 3), kst("2026-10-14T10:05:00+09:00")); // full: before its earliest
+        QCOMPARE(trader_from_after({}, page, false, 4), from_the_start());                 // short: nothing before
+        QCOMPARE(trader_from_after({}, {}, false, 3), from_the_start());
+        // The latest page read again over those read back before: from stays the earliest.
+        const QDateTime back = kst("2026-10-14T09:10:00+09:00");
+        QCOMPARE(trader_from_after(back, page, false, 3), back);
+        QCOMPARE(trader_from_after(from_the_start(), page, false, 3), from_the_start());
+        // A page back that came earlier: its earliest. One that came no earlier (a millisecond of more marks
+        // than a page): no further back, rather than the same page again and again.
+        QCOMPARE(trader_from_after(kst("2026-10-14T10:06:00+09:00"), page, true, 3), kst("2026-10-14T10:05:00+09:00"));
+        QCOMPARE(trader_from_after(kst("2026-10-14T10:05:00+09:00"), page, true, 3), from_the_start());
+    }
+
+    void a_latest_page_that_does_not_reach_those_held_has_a_gap() {
+        // More came in since the last read than a page holds (codeyoma/FinceptTerminal#107 review): the full
+        // latest page starts after the newest held.
+        const QList<TraderMark> held{trader_mark(2, false, "2026-10-14T10:06:00+09:00"),
+                                     trader_mark(2, true, "2026-10-14T10:05:00+09:00")};
+        const QList<TraderMark> later{trader_mark(4, true, "2026-10-14T10:20:00+09:00"),
+                                      trader_mark(3, false, "2026-10-14T10:12:00+09:00"),
+                                      trader_mark(3, true, "2026-10-14T10:10:00+09:00")};
+        QVERIFY(trader_gap(held, later, 3));
+        QVERIFY(!trader_gap(held, later, 4)); // short: the engine has nothing more since
+        QVERIFY(!trader_gap({}, later, 3));   // none held
+        // The latest page reaching back to the newest held, or past it: no gap.
+        QVERIFY(!trader_gap(held, {later[0], later[1], held[1]}, 3));
+        // Reaching just the newest held's millisecond: read again all the same (this screen's times are to the
+        // millisecond, the engine's finer).
+        QVERIFY(trader_gap(held, {later[0], later[1], held[0]}, 3));
+    }
+
+    void a_buy_sits_under_its_bar_and_a_sell_over_it() {
+        // The bar a fill came in: 10:00:02.5 is the 10:00 bar's (its start, as the chart's KST seconds).
+        TraderMark live = trader_mark(7, false, "2026-10-14T10:02:59.900+09:00");
+        live.mode = QStringLiteral("live");
+        const QList<TraderIcon> icons =
+            trader_icons({live, trader_mark(7, true, "2026-10-14T10:00:02.500+09:00")});
+        QCOMPARE(icons.size(), 2);
+        QCOMPARE(icons[0], (TraderIcon{chart_time(kst("2026-10-14T10:00:00+09:00")), true, false, "t7b"}));
+        QCOMPARE(icons[1], (TraderIcon{chart_time(kst("2026-10-14T10:02:00+09:00")), false, true, "t7s"}));
+    }
+
+    void a_mark_s_line_says_its_price_quantity_exit_and_net() {
+        TraderMark buy = trader_mark(1, true, "2026-10-14T10:00:02.500+09:00");
+        QCOMPARE(trader_line(buy), QStringLiteral("자동 매매 매수 70,100원 × 14주 · 모의"));
+        TraderMark sell = trader_mark(1, false, "2026-10-14T10:02:00+09:00");
+        sell.price = 70250;
+        sell.exit_reason = QStringLiteral("take_profit");
+        sell.net = -161.735;
+        QCOMPARE(trader_line(sell), QStringLiteral("자동 매매 매도 70,250원 × 14주 · 익절 · 순손익 -162원 · 모의"));
+        sell.mode = QStringLiteral("live");
+        sell.exit_reason = QStringLiteral("time");
+        sell.net = 1922.25;
+        QCOMPARE(trader_line(sell), QStringLiteral("자동 매매 매도 70,250원 × 14주 · 시간 청산 · 순손익 +1,922원 · 실전"));
+        sell.mode = QStringLiteral("mock");
+        sell.exit_reason = QStringLiteral("stop_loss");
+        sell.net = 0.4;
+        QCOMPARE(trader_line(sell), QStringLiteral("자동 매매 매도 70,250원 × 14주 · 손절 · 순손익 0원 · KIS 모의"));
+        buy.price = 70050.5; // a price between ticks, as price_text writes it
+        QVERIFY(trader_line(buy).contains(QStringLiteral("70,050.5원")));
+    }
+
+    void each_mark_s_line_goes_last_in_its_bar_s_box_in_time_order() {
+        BarHover ten;
+        ten.time = chart_time(kst("2026-10-14T10:00:00+09:00"));
+        ten.lines = {QStringLiteral("10:01 봉 → 10:05 목표 · 채점 전"), QStringLiteral("합의 (최종) · 상승")};
+        BarHover eleven;
+        eleven.time = ten.time + 60;
+        eleven.lines = {QStringLiteral("10:02 봉 → 10:06 목표 · 채점 전")};
+        TraderMark sold = trader_mark(1, false, "2026-10-14T10:00:40+09:00");
+        sold.exit_reason = QStringLiteral("stop_loss");
+        sold.net = -100;
+        const TraderMark bought = trader_mark(1, true, "2026-10-14T10:00:02.500+09:00");
+        const TraderMark later = trader_mark(2, true, "2026-10-14T10:05:03+09:00"); // a bar without a box
+        const QList<BarHover> out = with_trader_lines({ten, eleven}, {later, sold, bought});
+        QCOMPARE(out.size(), 3);
+        QCOMPARE(out[0].lines, (QStringList{ten.lines[0], ten.lines[1], trader_line(bought), trader_line(sold)}));
+        QCOMPARE(out[1].lines, eleven.lines); // untouched
+        QCOMPARE(out[2].time, chart_time(kst("2026-10-14T10:05:00+09:00")));
+        QCOMPARE(out[2].lines, QStringList{trader_line(later)});
+        QCOMPARE(with_trader_lines({ten}, {}).first().lines, ten.lines);
     }
 
     void the_view_to_fit_is_the_last_sixty_bars() {

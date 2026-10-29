@@ -1241,12 +1241,17 @@ void KrxQuantScreen::fill_chart() {
     // (krx-quant #236).
     const QList<krx_quant::Bar> shown_bars = candles ? live_->view_candles(minutes_) : live_->bars();
     const auto closes = kind ? live_->kind_board().closes(symbol) : QMap<QDateTime, QList<krx_quant::KindPrediction>>{};
-    const QList<krx_quant::BarHover> hovers =
+    // The trader's buys and sells (krx-quant #398): on the 1-minute view with a time axis, of the trader's
+    // symbol (KrxLive reads them for it alone), each with its line last in its bar's box.
+    const QList<krx_quant::TraderMark> traded =
+        minutes_ == 1 && !bricks ? live_->trader_marks() : QList<krx_quant::TraderMark>{};
+    const QList<krx_quant::BarHover> hovers = krx_quant::with_trader_lines(
         daily_days       ? krx_quant::daily_hovers(shown_bars, closes, *kind, live_->kind_standings())
         : minutes_ != 1  ? QList<krx_quant::BarHover>{}
         : kind && !daily ? krx_quant::kind_hovers(live_->bars(), closes, *kind, live_->kind_standings())
                          : krx_quant::bar_hovers(live_->bars(), live_->board().closes(symbol), live_->selection(),
-                                                 live_->standings(), rule);
+                                                 live_->standings(), rule),
+        traded);
     const QList<krx_quant::ChartIcon> day_icons =
         daily_days ? krx_quant::daily_icons(shown_bars, closes, *kind) : QList<krx_quant::ChartIcon>{};
     // Nothing before the first bar held in this view: its first day's VWAP is drawn, and the AD
@@ -1258,7 +1263,8 @@ void KrxQuantScreen::fill_chart() {
     // Today's slots after the last bar fill up to the engine's clock while the session is open (krx-quant #238).
     const auto clock = krx_quant::session_clock(live_->status(), live_->engine_now());
     clock_slot_drawn_ = krx_quant::clock_slot(clock, minutes_);
-    chart_->set_data(shown_bars, marks, hovers, rule, minutes_, look_, live_->special(), clock, day_icons);
+    chart_->set_data(shown_bars, marks, hovers, rule, minutes_, look_, live_->special(), clock, day_icons,
+                     krx_quant::trader_icons(traded));
     show_score();
 }
 

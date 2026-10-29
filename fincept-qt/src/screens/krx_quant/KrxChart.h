@@ -160,12 +160,16 @@ class KrxChart : public QWidget {
     /// The day view with a time axis draws ``day_icons`` over its candles and ``hovers`` as their
     /// boxes, without a window (krx-quant #264: a daily kind's calls, krx_quant::daily_icons and
     /// daily_hovers); clicked, an icon tells its prediction time as a 1-minute icon tells its bar close.
+    /// The 1-minute view with a time axis draws ``trades`` too (krx-quant #398, the trader's buys ▲ under
+    /// their bars and sells ▼ over them, over the consensus's icon on the same bar: krx_quant::trader_icons),
+    /// in amber for the live account's and cyan for paper and KIS's mock trading, on the bars drawn alone;
+    /// clicked, one is the click of its bar.
     void set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
                   const QList<krx_quant::BarHover>& hovers = {}, const krx_quant::SignalRule& rule = {},
                   int minutes = 1, const krx_quant::ChartLook& look = {},
                   const QList<krx_quant::SpecialWindow>& special = {},
                   const std::optional<krx_quant::SessionClock>& clock = std::nullopt,
-                  const QList<krx_quant::ChartIcon>& day_icons = {});
+                  const QList<krx_quant::ChartIcon>& day_icons = {}, const QList<krx_quant::TraderIcon>& trades = {});
     /// Only the last bar of ``bars`` moved (the bar being made, krx-quant #110): it alone is
     /// drawn again, in the view of ``minutes`` and the style last set. A candle view's ``bars``
     /// are its candles. The indicators' values on it move with it (krx-quant #222): the point
@@ -280,6 +284,7 @@ class KrxChart : public QWidget {
     QList<krx_quant::SpecialWindow> special_;
     std::optional<krx_quant::SessionClock> clock_; ///< as last set (krx-quant #238)
     QJsonArray icons_;                             ///< as last sent: sent again when all is (krx-quant #238)
+    QJsonArray trades_;                            ///< the trader's marks as last sent (krx-quant #398)
     int minutes_ = 1;
     krx_quant::ChartLook look_;
     std::optional<double> base_;          ///< the baseline's base last sent

@@ -410,7 +410,7 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
                         const QList<krx_quant::BarHover>& hovers, const krx_quant::SignalRule& rule, int minutes,
                         const krx_quant::ChartLook& look, const QList<krx_quant::SpecialWindow>& special,
                         const std::optional<krx_quant::SessionClock>& clock,
-                        const QList<krx_quant::ChartIcon>& day_icons) {
+                        const QList<krx_quant::ChartIcon>& day_icons, const QList<krx_quant::TraderIcon>& trades) {
     // A candle view's bars are its candles already (krx-quant #111, #112).
     const bool dated = krx_quant::candle_view(minutes); // the axis shows dates only
     const auto real = krx_quant::chart_bars(dated ? bars : krx_quant::group_bars(bars, minutes));
@@ -467,6 +467,24 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
                                  {"bar_close", icon.bar_close.toString(Qt::ISODate)}});
     }
     icons_ = icons;
+    // The trader's buys and sells (krx-quant #398): the 1-minute view's, on its bars with trades alone (an
+    // empty bar has no price to sit on). A sell sits over the bar, over the consensus's icon there.
+    trades_ = {};
+    if (minute) {
+        QSet<qint64> drawn_bars;
+        for (const auto& b : real)
+            drawn_bars.insert(b.time);
+        const QColor live(ui::colors::AMBER());
+        const QColor simulated(ui::colors::CYAN());
+        for (const auto& t : trades)
+            if (drawn_bars.contains(t.time))
+                trades_.append(QJsonObject{{"id", t.id},
+                                           {"time", t.time},
+                                           {"position", t.buy ? "belowBar" : "aboveBar"},
+                                           {"shape", t.buy ? "arrowUp" : "arrowDown"},
+                                           {"color", css(t.live ? live : simulated)},
+                                           {"text", t.buy ? QStringLiteral("매수") : QStringLiteral("매도")}});
+    }
     data_ = compact(data_json(real, icons));
     emit bridge_->data_changed(data_);
 
@@ -545,7 +563,7 @@ QJsonObject KrxChart::data_json(const QList<krx_quant::ChartBar>& real, const QJ
     QJsonObject data{{"bars", candles}, {"volumes", volumes},
                      {"icons", icons},  {"fit", QJsonObject{{"from", from}, {"to", to}}},
                      {"day", dated},    {"style", krx_quant::style_key(look_.style)},
-                     {"bands", bands}};
+                     {"bands", bands},  {"trades", trades_}};
     if (base_)
         data.insert("base", *base_);
     // Nothing before the first bar to read (krx-quant #253): the engine has none, or bricks start at a

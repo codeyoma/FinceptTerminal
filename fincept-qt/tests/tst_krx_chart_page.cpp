@@ -47,6 +47,10 @@
 // The day view draws a daily kind's calls (krx-quant #264): an icon on each day's candle and its box
 // without a window; a week view's candle holds many days and has none.
 //
+// The trader's buys and sells (krx-quant #398) show on the 1-minute view with the consensus's icon on the
+// same bar: a buy under the bar, a sell over the icon, the live account's in another colour than paper's;
+// one on no bar drawn, and every one in a wider view, is not drawn.
+//
 // The page runs in Qt WebEngine with TradingView Lightweight Charts, so this suite opens a
 // window. It is skipped where the WebEngine runtime is missing or the platform draws nothing
 // (offscreen).
@@ -816,6 +820,45 @@ class TstKrxChartPage : public QObject {
         // The week view: no icon, no box.
         chart_->set_data(days, {}, {box}, {}, kWeekView, {}, {}, std::nullopt, {up, flat});
         QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.icons().length").toInt(), 0, 10000);
+    }
+
+    void the_trader_s_buys_and_sells_show_with_the_consensus_s_icon_on_their_bar() {
+        empty();
+        const QList<Bar> morning = minutes("2026-10-15T09:00:00+09:00", 30);
+        const qint64 ten = chart_time(kst("2026-10-15T09:10:00+09:00")); // the bar 09:10–09:11
+        Mark icon; // the consensus's of the 09:11 bar close, on the bar that closed then
+        icon.bar_close = kst("2026-10-15T09:11:00+09:00");
+        icon.predicted = Direction::Down;
+        icon.prediction.algorithm = QStringLiteral("consensus-final");
+        const QList<TraderIcon> trades{
+            {ten, true, false, QStringLiteral("t1b")},                                         // paper
+            {ten, false, true, QStringLiteral("t2s")},                                         // live
+            {chart_time(kst("2026-10-15T09:20:00+09:00")), true, true, QStringLiteral("t3b")}, // live
+            {chart_time(kst("2026-10-15T10:30:00+09:00")), true, false, QStringLiteral("t4b")}, // no bar there
+        };
+        chart_->set_data(morning, {icon}, {}, {}, 1, {}, {}, std::nullopt, {}, trades);
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.markers().length").toInt(), 4, 10000);
+        QList<QVariantList> at_ten; // [time, position, shape, text, colour], as drawn
+        QString live, paper;
+        for (const QVariant& m : js("window.krxChart.markers()").toList()) {
+            const QVariantList marker = m.toList();
+            if (marker.value(0).toLongLong() == ten)
+                at_ten << marker;
+            if (marker.value(3).toString() == QStringLiteral("매수") && marker.value(0).toLongLong() != ten)
+                live = marker.value(4).toString();
+        }
+        QCOMPARE(at_ten.size(), 3); // the icon and both of the trader's: none hides another
+        QCOMPARE(at_ten[0].value(1).toString(), QStringLiteral("aboveBar")); // the icon, nearest its bar
+        QCOMPARE(at_ten[0].value(3).toString(), QStringLiteral("?"));
+        QCOMPARE(at_ten[1].mid(1, 3), (QVariantList{"belowBar", "arrowUp", QStringLiteral("매수")}));
+        QCOMPARE(at_ten[2].mid(1, 3), (QVariantList{"aboveBar", "arrowDown", QStringLiteral("매도")})); // over it
+        paper = at_ten[1].value(4).toString();
+        QCOMPARE(at_ten[2].value(4).toString(), live); // both live
+        QVERIFY2(paper != live, qPrintable(paper));
+        QVERIFY(paper != at_ten[0].value(4).toString() && live != at_ten[0].value(4).toString());
+        // A wider view has neither the icons nor the trader's.
+        chart_->set_data(morning, {icon}, {}, {}, 5, {}, {}, std::nullopt, {}, trades);
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.markers().length").toInt(), 0, 10000);
     }
 
     void a_bar_double_clicked_in_the_1_minute_view_opens_its_window() {

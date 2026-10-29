@@ -175,6 +175,61 @@ QDateTime full_from_after(const QDateTime& full_from, const QList<Prediction>& p
 /// as both reach; one with none in the page has none before, so the other's.
 QDateTime finals_from_after(const QDateTime& finals_from, const QList<Prediction>& page);
 
+// ---- The trader's buys and sells (krx-quant #398) -------------------------------------------
+
+/// The symbol the trader trades (krx-quant #393): only its chart reads and marks them.
+inline constexpr const char* kTraderSymbol = "005930";
+/// The most marks the engine gives in one read (its ``limit``).
+inline constexpr int kTraderPage = 1000;
+
+/// ``kept`` (the marks read so far) with ``page`` read over them, newest first: a mark in both (the
+/// same trade and side) is the page's.
+QList<TraderMark> join_trader_marks(const QList<TraderMark>& kept, const QList<TraderMark>& page);
+
+/// The marks are read apart from the bars, a page at a time from the latest back to the 1-minute bar
+/// starting at ``first`` (the first held), as the icons' predictions are (marks_before). ``from`` is
+/// the earliest moment from which on they were read (invalid: none; from_the_start: all). The next
+/// page to read: its ``before`` (invalid: before now); none without a bar or once they reach the
+/// first bar. A page before ``from`` asks a millisecond past it: the engine's times are to the
+/// microsecond and this screen's to the millisecond, so the page holds again the marks of ``from``'s
+/// millisecond (joined, not doubled) and misses none of it. The engine never splits a moment's marks
+/// between two pages (krx-quant #398), so none at ``from`` itself is missed either.
+std::optional<QDateTime> trader_before(const QDateTime& from, const QDateTime& first);
+
+/// ``from`` once a page read with ``limit`` (``page``) came in: its earliest mark's time, if earlier;
+/// from_the_start once the page is short of ``limit`` (the engine has none before it). A page read
+/// ``back`` (before ``from``) that comes no earlier than ``from`` (a millisecond holding more than a
+/// page) goes no further back: from_the_start, so the same page is not asked for again and again.
+QDateTime trader_from_after(const QDateTime& from, const QList<TraderMark>& page, bool back = false,
+                            int limit = kTraderPage);
+
+/// Whether the latest page (``page``, read with ``limit``) leaves out marks between it and those held
+/// (``held``, newest first): it is full and its earliest is no earlier than the newest held, so more
+/// came in since the last read than a page holds (the screen hidden for days, the engine out of
+/// reach). Those held are dropped then and read again from this page back to the first bar.
+bool trader_gap(const QList<TraderMark>& held, const QList<TraderMark>& page, int limit = kTraderPage);
+
+/// A buy or sell as the chart draws it, on the 1-minute bar its fill came in: a buy ▲ under the bar,
+/// a sell ▼ over it (over the consensus's icon too), coloured by whether it was the live account's.
+struct TraderIcon {
+    qint64 time = 0; ///< the bar's start, as chart_time
+    bool buy = true;
+    bool live = false; ///< the live account's; else paper or KIS's mock trading
+    QString id;        ///< the marker's: its trade and side, "t12b", "t12s"
+    bool operator==(const TraderIcon&) const = default;
+};
+
+/// The icons of ``marks``, in time order.
+QList<TraderIcon> trader_icons(const QList<TraderMark>& marks);
+
+/// A mark's line in its bar's hover box: "자동 매매 매수 70,100원 × 14주 · 모의", "자동 매매 매도
+/// 70,250원 × 14주 · 익절 · 순손익 -162원 · 실전" (모의 for paper, KIS 모의 for KIS's mock trading).
+QString trader_line(const TraderMark& mark);
+
+/// ``hovers`` (the 1-minute bars' boxes) with each of ``marks``' lines last in its bar's box, in time
+/// order; a bar without a box gets one of its lines alone.
+QList<BarHover> with_trader_lines(QList<BarHover> hovers, const QList<TraderMark>& marks);
+
 /// A row of a bar close's judgements, the prediction table's while an icon is chosen
 /// (krx-quant #107).
 struct CloseRow {

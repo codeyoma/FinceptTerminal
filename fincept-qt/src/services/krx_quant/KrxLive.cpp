@@ -65,6 +65,7 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
                 emit chart_changed();
                 ensure_marks();      // their icons' predictions, if not read along (krx-quant #239)
                 read_kind_history(); // the kind's over the bars now shown too (krx-quant #182)
+                read_trader();       // the trader's buys and sells over them (krx-quant #398)
                 read_history();      // more for the indicators (krx-quant #222)
                 read_special(false); // the special situations of the days now held (krx-quant #236)
                 read_supply(false);  // and their daily supply data (krx-quant #226)
@@ -240,6 +241,33 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
                 if (symbol != selected_ || kind != kind_)
                     read_kind_history(true);
             });
+    // The trader's buys and sells (krx-quant #398): the chosen symbol's, if the trader's.
+    connect(service_, &KrxQuantService::trader_ready, this,
+            [this](const QString& symbol, const QDateTime& before, const QList<krx_quant::TraderMark>& marks) {
+                trader_paging_ = false;
+                if (symbol == selected_) {
+                    const bool back = before.isValid();
+                    // More since the last read than a page holds: those held and the latest page do not
+                    // meet, so all are read again from this page back to the first bar.
+                    if (!back && krx_quant::trader_gap(trader_marks_, marks))
+                        forget_trader();
+                    // A page back was asked a millisecond past where they were read from (trader_before):
+                    // unless reading again from scratch moved that since.
+                    if (!back || (trader_from_.isValid() && before == trader_from_.addMSecs(1)))
+                        trader_from_ = krx_quant::trader_from_after(trader_from_, marks, back);
+                    if (const auto joined = krx_quant::join_trader_marks(trader_marks_, marks);
+                        joined != trader_marks_) {
+                        trader_marks_ = joined;
+                        emit marks_changed();
+                    }
+                }
+                read_trader(); // back to the first bar held, or another symbol's
+            });
+    connect(service_, &KrxQuantService::trader_failed, this, [this](const QString& symbol, const QString&) {
+        trader_paging_ = false; // asked again on the next chart read; the marks shown stay
+        if (symbol != selected_)
+            read_trader(true); // another was chosen meanwhile
+    });
     connect(service_, &KrxQuantService::macro_ready, this, [this](const krx_quant::Macro& macro) {
         macro_ = macro;
         macro_failure_.clear();
@@ -313,6 +341,7 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
             });
     connect(service_, &KrxQuantService::base_url_changed, this, [this](const QString& url) {
         marks_paging_ = false; // its page was dropped with the old engine's reads
+        trader_paging_ = false;
         algorithms_.clear(); // the old engine's; the new one's come with the details
         algorithms_failure_.clear();
         emit algorithms_changed();
@@ -375,6 +404,8 @@ void KrxLive::apply_base_url(const QString& url) {
     kind_from_ = {};
     kind_paging_ = false;
     marks_paging_ = false; // the restart below drops a page under way: none would answer
+    forget_trader();       // the old engine's trader (krx-quant #398)
+    trader_paging_ = false;
     bars_.clear();
     day_read_ = false;
     live_.reset();
@@ -419,6 +450,7 @@ void KrxLive::select(const QString& symbol) {
     bars_.clear();
     day_read_ = false;
     forget_older();
+    forget_trader();  // the trader's symbol alone has them (krx-quant #398)
     special_.clear(); // its own are read with its bars (krx-quant #236)
     special_read_.reset();
     supply_.clear(); // likewise its daily supply data (krx-quant #226)
@@ -612,6 +644,31 @@ void KrxLive::read_chart() {
     if (!selected_.isEmpty())
         service_->read_chart(selected_, all_predictors());
     read_kind_history(true); // the kind's latest bar closes with the chart's (krx-quant #182)
+    read_trader(true);       // the trader's latest buys and sells with them (krx-quant #398)
+}
+
+void KrxLive::read_trader(bool latest) {
+    if (selected_ != QLatin1String(krx_quant::kTraderSymbol))
+        return;
+    trader_latest_ |= latest;
+    if (trader_paging_)
+        return; // asked again once it answers
+    const QDateTime first = !older_.isEmpty()  ? older_.first().start
+                            : !bars_.isEmpty() ? bars_.first().start
+                                               : QDateTime();
+    // The latest page again: the buys and sells since, and the sells of trades open then.
+    const auto before = krx_quant::trader_before(trader_latest_ ? QDateTime() : trader_from_, first);
+    if (!before)
+        return; // no bar yet, or read back to the first: asked again when bars come
+    if (!before->isValid())
+        trader_latest_ = false;
+    trader_paging_ = true;
+    service_->read_trader_marks(selected_, *before, krx_quant::kTraderPage);
+}
+
+void KrxLive::forget_trader() {
+    trader_marks_.clear();
+    trader_from_ = {};
 }
 
 void KrxLive::view_from(double from, double to, int minutes) {
@@ -917,6 +974,7 @@ void KrxLive::on_snapshot(const KrxQuantService::Snapshot& snapshot) {
         live_.reset();
         full_from_ = {};
         finals_from_ = {};
+        forget_trader(); // read again with the chart
     }
     if (snapshot.status.now.isValid() && kind_board_.rewind_to(snapshot.status.now))
         kind_from_ = {};
@@ -953,6 +1011,7 @@ void KrxLive::on_status(const krx_quant::EngineStatus& status, bool with_snapsho
         live_.reset();
         full_from_ = {};
         finals_from_ = {};
+        forget_trader();
         emit predictions_changed();
         emit chart_changed();
         read_chart();
@@ -984,6 +1043,7 @@ void KrxLive::on_failure(const QString& reason) {
     day_read_ = false;
     live_.reset();
     forget_older();
+    forget_trader();  // not shown as the engine's while it cannot be read (krx-quant #398)
     special_.clear(); // not shown as the engine's while it cannot be read (krx-quant #236)
     special_read_.reset();
     supply_.clear(); // likewise its daily supply data (krx-quant #226)
@@ -1018,6 +1078,7 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
     emit marks_changed();
     ensure_marks();
     read_kind_history(); // the kind's over the bars now shown (krx-quant #182)
+    read_trader();       // the trader's buys and sells over them (krx-quant #398)
     // The view's candles, unless read (a symbol or an engine changed); in a minute view the bars
     // before that the indicators want (krx-quant #222), or with nothing today yet the last day's.
     set_view(view_minutes_); // also the daily supply data of the days held, unless read (krx-quant #226)
