@@ -1,22 +1,27 @@
 // Tests for the KRX auto trader screen itself (src/screens/krx_quant/KrxTraderScreen.h,
-// codeyoma/krx-quant#397) against a stand-in engine on this computer: what a poll does to its tables
+// codeyoma/krx-quant#397, #401) against a stand-in engine on this computer: what a poll does to its tables
 // (krx_tables::refill: nothing when the rows are the same; the view's top row and the selected row kept
-// when they change), and that it has the two pause buttons and no resume button. The values are made
-// up. Widgets and Qt Network; it runs on the offscreen platform too. The settings (the engine's address)
+// when they change), that it has the two pause buttons and no resume button, the policy versions table
+// with no challenger and with three, the live gate passed and not, and the trades of a policy chosen.
+// The values are made up. Widgets and Qt Network; it runs on the offscreen platform too. The settings (the engine's address)
 // go to a temporary INI file: AppConfig is defined below, in place of core/config/AppConfig.cpp.
 
 #include "core/config/AppConfig.h"
 #include "screens/krx_quant/KrxTraderScreen.h"
 #include "services/krx_quant/KrxQuantService.h"
 #include "services/krx_quant/KrxTraderLive.h"
+#include "ui/theme/Theme.h"
 
 #include <QApplication>
+#include <QComboBox>
+#include <QLabel>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSettings>
+#include <QSignalSpy>
 #include <QTableWidget>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -105,12 +110,62 @@ QJsonObject trade_json(int id, bool held) {
     return o;
 }
 
+QJsonObject paper_json(int days, int trades, double net, QJsonValue low) {
+    return {{"since", days > 0 ? QJsonValue("2026-10-08") : QJsonValue()},
+            {"last", days > 0 ? QJsonValue("2026-10-14") : QJsonValue()},
+            {"days", days},
+            {"trades", trades},
+            {"net", net},
+            {"mean", days > 0 ? QJsonValue(net / days) : QJsonValue()},
+            {"low", low}};
+}
+
+/// Policy ``version`` with ``status``, one cell, admitted unless it waits or is the first champion.
+QJsonObject policy_json(int version, const char* status, QJsonObject paper) {
+    const QString created = QStringLiteral("2026-10-%1T22:31:04+09:00").arg(6 + version, 2, 10, QChar('0'));
+    const bool admitted = version > 1 && QLatin1String(status) != QLatin1String("waiting");
+    return {{"version", version},
+            {"status", status},
+            {"created_at", created},
+            {"reason", QStringLiteral("정책 %1의 밤 맞추기(지어낸 값)").arg(version)},
+            {"cells", QJsonArray{QJsonObject{{"kind", "barrier"},
+                                             {"role", "top"},
+                                             {"predictor", "breiman"},
+                                             {"threshold", 0.6},
+                                             {"kelly_fraction", 0.5},
+                                             {"fitted", QJsonObject{}}}}},
+            {"left_out", QJsonArray{}},
+            {"fit", QJsonObject{}},
+            {"admitted_at", admitted ? QJsonValue(created) : QJsonValue()},
+            {"dropped_at", QLatin1String(status) == QLatin1String("dropped") ? QJsonValue("2026-10-14T22:30:40+09:00")
+                                                                             : QJsonValue()},
+            {"paper", paper}};
+}
+
+/// A challenger's standing against champion 1: won (``passed``) or short of days.
+QJsonObject promotion_json(int days, bool passed, int challengers) {
+    return {{"champion", 1},
+            {"days", days},
+            {"required", 10},
+            {"until", 20},
+            {"mean", 500.0},
+            {"low", passed ? QJsonValue(63.0) : QJsonValue()},
+            {"level", 1 - 0.05 / challengers},
+            {"challengers", challengers},
+            {"passed", passed},
+            {"why", passed ? QJsonValue() : QJsonValue("few_days")}};
+}
+
 /// The engine as the screen reads it: the trader running with trade ``newest`` open, its trades
-/// ``newest`` down to 1, newest first, and its days; each request's path kept.
+/// ``newest`` down to 1, newest first, and its days; policy 1 the champion with ``challengers`` (0 or 3:
+/// versions 2–4) and one waiting and one dropped with them, its gate passed or not; policy 2's own trades
+/// for ``policy=2``; each request's path kept.
 class StandIn : public QObject {
   public:
     int newest = 40;
     double unrealized = -5051.2;
+    int challengers = 0;
+    bool gate_passed = false;
     QStringList asked;
 
     StandIn() {
@@ -128,8 +183,47 @@ class StandIn : public QObject {
     }
 
   private:
+    QJsonObject gate() const {
+        return gate_passed ? QJsonObject{{"policy", 1},     {"days", 21},     {"required", 20}, {"mean", 9300.0},
+                                         {"low", 3930.0}, {"level", 0.95}, {"passed", true}}
+                           : QJsonObject{{"policy", 1},      {"days", 12},     {"required", 20}, {"mean", 800.0},
+                                         {"low", -3000.0}, {"level", 0.95}, {"passed", false}};
+    }
+
+    QJsonArray running() const {
+        QJsonArray out{QJsonObject{{"version", 1}, {"status", "champion"}, {"paper", paper_json(12, 24, 9600.0, -3000.0)},
+                                   {"promotion", QJsonValue()}}};
+        for (int version = 2; version < 2 + challengers; ++version)
+            out.append(QJsonObject{{"version", version},
+                                   {"status", "challenger"},
+                                   {"paper", paper_json(version + 9, version * 3, 1000.0 * version, 63.0)},
+                                   {"promotion", promotion_json(version == 2 ? 11 : version, version == 2, challengers)}});
+        return out;
+    }
+
+    QJsonObject policies() const {
+        QJsonArray versions;
+        if (challengers > 0) {
+            versions.append(policy_json(2 + challengers, "waiting", paper_json(0, 0, 0.0, QJsonValue())));
+            for (int version = 2 + challengers - 1; version >= 2; --version)
+                versions.append(policy_json(version, "challenger", paper_json(version + 9, version * 3, 1000.0 * version, 63.0)));
+        }
+        versions.append(policy_json(1, "champion", paper_json(12, 24, 9600.0, -3000.0)));
+        if (challengers > 0)
+            versions.append(policy_json(2 + challengers + 1, "dropped", paper_json(20, 30, -9000.0, -1500.0)));
+        return {{"champion", 1},
+                {"policies", versions},
+                {"champions", QJsonArray{QJsonObject{{"at", "2026-10-07T22:31:04+09:00"},
+                                                     {"version", 1},
+                                                     {"reason", "처음 맞춘 정책(#399)"},
+                                                     {"detail", QJsonValue()}}}}};
+    }
+
     QJsonObject state() const {
         return {{"updated_at", "2026-10-14T10:06:00+09:00"},
+                {"champion", 1},
+                {"gate", gate()},
+                {"policies", running()},
                 {"alive", true},
                 {"mode", "paper"},
                 {"status", "running"},
@@ -184,12 +278,25 @@ class StandIn : public QObject {
         if (route == "/v1/trader") {
             status = 200;
             body = state();
+        } else if (route == "/v1/trader/trades" && path.contains("policy=2")) {
+            status = 200;
+            QJsonArray trades;
+            for (int id = 103; id >= 101; --id) {
+                QJsonObject t = trade_json(id, false);
+                t["policy"] = 2;
+                t["champion"] = false;
+                trades.append(t);
+            }
+            body = {{"trades", trades}};
         } else if (route == "/v1/trader/trades") {
             status = 200;
             QJsonArray trades;
             for (int id = newest; id >= 1; --id)
                 trades.append(trade_json(id, id == newest));
             body = {{"trades", trades}};
+        } else if (route == "/v1/trader/policies") {
+            status = 200;
+            body = policies();
         } else if (route == "/v1/trader/days") {
             status = 200;
             body = {{"from", "2025-10-15"}, {"to", "2026-10-14"}, {"days", QJsonArray{}}};
@@ -285,6 +392,111 @@ class TstKrxTraderScreen : public QObject {
         QTRY_COMPARE_WITH_TIMEOUT(table->rowCount(), 42, 10000);
         QCOMPARE(table->verticalScrollBar()->value(), 0);
         QCOMPARE(key_at(table, table->rowAt(0)), QStringLiteral("42"));
+    }
+
+    void the_policy_table_with_no_challenger_and_with_three() {
+        StandIn engine;
+        services::KrxQuantService::set_base_url(engine.url());
+        screens::KrxTraderScreen screen;
+        screen.resize(1600, 1000);
+        screen.show();
+        auto* table = screen.findChild<QTableWidget*>(screens::KrxTraderScreen::kPoliciesName);
+        auto* history = screen.findChild<QTableWidget*>(screens::KrxTraderScreen::kHistoryName);
+        auto* choice = screen.findChild<QComboBox*>(screens::KrxTraderScreen::kTradesPolicyName);
+        auto* live = screen.findChild<services::KrxTraderLive*>();
+        QVERIFY(table && history && choice && live);
+        // No challenger: the champion alone, its first change, and the trades of it or the champion's.
+        QTRY_COMPARE_WITH_TIMEOUT(table->rowCount(), 1, 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(!live->reading(), 10000);
+        QCOMPARE(table->item(0, 0)->text(), QStringLiteral("정책 1"));
+        QCOMPARE(table->item(0, 1)->text(), QStringLiteral("챔피언"));
+        QCOMPARE(table->item(0, 11)->text(), QStringLiteral("관문 12/20일 · 못 넘음"));
+        QCOMPARE(history->rowCount(), 1);
+        QCOMPARE(history->item(0, 2)->text(), QStringLiteral("처음 챔피언"));
+        QCOMPARE(choice->count(), 2);
+        QCOMPARE(choice->currentText(), QStringLiteral("챔피언의 매매"));
+
+        // Three challengers, one waiting and one dropped: in the table's order, each challenger's standing.
+        engine.challengers = 3;
+        live->read_now();
+        QTRY_COMPARE_WITH_TIMEOUT(table->rowCount(), 6, 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(!live->reading(), 10000);
+        QStringList rows;
+        for (int r = 0; r < table->rowCount(); ++r)
+            rows << QStringLiteral("%1 %2").arg(table->item(r, 0)->text(), table->item(r, 1)->text());
+        QCOMPARE(rows, (QStringList{"정책 1 챔피언", "정책 4 도전", "정책 3 도전", "정책 2 도전", "정책 5 대기", "정책 6 내려짐"}));
+        QCOMPARE(table->item(3, 11)->text(), QStringLiteral("이김 · 함께 11/10일 · 차이 하한 +63원"));
+        QCOMPARE(table->item(1, 11)->text(), QStringLiteral("함께 4/10일 · 날 수 부족"));
+        QVERIFY(table->item(3, 11)->toolTip().contains(QStringLiteral("98.33%"))); // over three challengers
+        QCOMPARE(history->rowCount(), 1 + 4 + 1); // the first champion, four slots given, one dropped
+        QCOMPARE(choice->count(), 1 + 6);
+        const auto labels = screen.findChildren<QLabel*>();
+        QVERIFY(std::any_of(labels.cbegin(), labels.cend(), [](const QLabel* l) {
+            return l->text() == QStringLiteral("챔피언 정책 1 · 도전 3개 · 대기 1개 · 전 챔피언 0개 · 내려짐 1개");
+        }));
+    }
+
+    void the_gate_passed_and_not_in_the_header_and_over_the_table() {
+        StandIn engine;
+        services::KrxQuantService::set_base_url(engine.url());
+        screens::KrxTraderScreen screen;
+        screen.resize(1600, 1000);
+        screen.show();
+        auto* gate = screen.findChild<QLabel*>(screens::KrxTraderScreen::kGateName);
+        auto* line = screen.findChild<QLabel*>(screens::KrxTraderScreen::kGateLineName);
+        auto* live = screen.findChild<services::KrxTraderLive*>();
+        QVERIFY(gate && line && live);
+        // Not passed.
+        QTRY_COMPARE_WITH_TIMEOUT(gate->text(), QStringLiteral("챔피언 정책 1 · 관문 모의 12/20일 · 하한 -0.3%"), 10000);
+        QVERIFY(gate->isVisible());
+        QVERIFY(!gate->styleSheet().contains(ui::colors::POSITIVE()));
+        QVERIFY(line->text().startsWith(QStringLiteral("실전 관문 · 챔피언 정책 1의 모의 기록 12/20일")));
+        QVERIFY(line->text().endsWith(QStringLiteral("못 넘음: 8일 더, 하한 ≤ 0")));
+        // Passed: said so, in green.
+        engine.gate_passed = true;
+        live->read_now();
+        QTRY_COMPARE_WITH_TIMEOUT(gate->text(), QStringLiteral("챔피언 정책 1 · 관문 모의 21/20일 · 하한 0.4% · 관문 넘음"), 10000);
+        QVERIFY(gate->styleSheet().contains(ui::colors::POSITIVE()));
+        QVERIFY(line->text().endsWith(QStringLiteral("넘음: 실전 모드는 서버에서 켭니다")));
+        QVERIFY(line->styleSheet().contains(ui::colors::POSITIVE()));
+        auto* table = screen.findChild<QTableWidget*>(screens::KrxTraderScreen::kPoliciesName);
+        QTRY_COMPARE_WITH_TIMEOUT(table->item(0, 11)->text(), QStringLiteral("관문 넘음"), 10000);
+    }
+
+    void choosing_a_policy_shows_its_trades() {
+        StandIn engine;
+        engine.challengers = 3;
+        services::KrxQuantService::set_base_url(engine.url());
+        screens::KrxTraderScreen screen;
+        screen.resize(1600, 1000);
+        screen.show();
+        auto* trades = screen.findChild<QTableWidget*>(screens::KrxTraderScreen::kTradesName);
+        auto* choice = screen.findChild<QComboBox*>(screens::KrxTraderScreen::kTradesPolicyName);
+        auto* live = screen.findChild<services::KrxTraderLive*>();
+        QVERIFY(trades && choice && live);
+        QTRY_COMPARE_WITH_TIMEOUT(trades->rowCount(), 40, 10000);
+        QTRY_COMPARE_WITH_TIMEOUT(choice->count(), 7, 10000);
+        const int two = choice->findText(QStringLiteral("정책 2 · 도전"));
+        QVERIFY(two > 0);
+        choice->setCurrentIndex(two);
+        emit choice->activated(two); // as a click on it
+        QTRY_COMPARE_WITH_TIMEOUT(trades->rowCount(), 3, 10000);
+        QVERIFY(engine.asked.contains(QStringLiteral("/v1/trader/trades?limit=100&policy=2")));
+        QCOMPARE(trades->item(0, 11)->text(), QStringLiteral("정책 2 · 도전"));
+        QCOMPARE(choice->currentText(), QStringLiteral("정책 2 · 도전"));
+        // A poll keeps the choice, and leaves the list as it is (an open one is not closed under the reader).
+        QTRY_VERIFY_WITH_TIMEOUT(!live->reading(), 10000);
+        const QSignalSpy removed(choice->model(), &QAbstractItemModel::rowsRemoved);
+        const qsizetype polled = engine.count("/v1/trader/policies");
+        live->read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(engine.count("/v1/trader/policies") > polled && !live->reading(), 10000);
+        QCOMPARE(trades->rowCount(), 3);
+        QCOMPARE(choice->currentText(), QStringLiteral("정책 2 · 도전"));
+        QCOMPARE(removed.count(), 0);
+        // Back to the champion's.
+        emit choice->activated(0);
+        QTRY_COMPARE_WITH_TIMEOUT(trades->rowCount(), 40, 10000);
+        QCOMPARE(choice->currentText(), QStringLiteral("챔피언의 매매"));
     }
 };
 

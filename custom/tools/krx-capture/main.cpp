@@ -12,7 +12,9 @@
 // symbol (default the one kept, else the engine's first).
 // KRX_CAPTURE_TRADER=1 saves the auto trader screen (codeyoma/krx-quant#397); KRX_CAPTURE_CONFIRM=entries or
 // =sell then presses that pause button and saves its confirm window, <out>-confirm.png, and cancels it:
-// nothing is sent.
+// nothing is sent. KRX_CAPTURE_POLICY=<version> chooses that policy's trades over the trades table, and
+// KRX_CAPTURE_SCROLL=trades|policies scrolls the screen to that panel before it is saved
+// (codeyoma/krx-quant#401).
 //
 //   krx_capture <engine url> <out.png> [seconds=8] [width=1600] [height=1000] [predictor,...]
 //
@@ -57,6 +59,7 @@
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QTabWidget>
 #include <QTest>
 #include <QTextStream>
@@ -244,6 +247,8 @@ int main(int argc, char* argv[]) {
 
     // KRX_CAPTURE_TRADER=1: the auto trader screen (codeyoma/krx-quant#397), saved after the wait;
     // KRX_CAPTURE_CONFIRM=entries|sell: then a pause button's confirm window too, cancelled.
+    // KRX_CAPTURE_POLICY=<version>: that policy's trades, chosen at half the wait (codeyoma/krx-quant#401);
+    // KRX_CAPTURE_SCROLL=trades|policies: the screen scrolled to that panel before it is saved.
     if (qEnvironmentVariableIntValue("KRX_CAPTURE_TRADER") != 0) {
         fincept::screens::KrxTraderScreen trader;
         trader.resize(width, height);
@@ -251,7 +256,36 @@ int main(int argc, char* argv[]) {
         const QString out = QString::fromLocal8Bit(argv[2]);
         const QString confirm = qEnvironmentVariable("KRX_CAPTURE_CONFIRM");
         int status = 0;
+        if (const QString policy = qEnvironmentVariable("KRX_CAPTURE_POLICY"); !policy.isEmpty())
+            QTimer::singleShot(seconds * 500, &app, [&trader, &status, policy]() {
+                auto* box = trader.findChild<QComboBox*>(
+                    QString::fromLatin1(fincept::screens::KrxTraderScreen::kTradesPolicyName));
+                const int index = box != nullptr ? box->findData(QVariant(policy.toLongLong())) : -1;
+                if (index < 0) {
+                    QTextStream(stderr) << "no policy " << policy << " to choose\n";
+                    status = 1;
+                    return;
+                }
+                box->setCurrentIndex(index);
+                emit box->activated(index); // as a click on it
+            });
         QTimer::singleShot(seconds * 1000, &app, [&]() {
+            if (const QString to = qEnvironmentVariable("KRX_CAPTURE_SCROLL"); !to.isEmpty()) {
+                const char* name = to == QLatin1String("trades") ? fincept::screens::KrxTraderScreen::kTradesName
+                                                                 : fincept::screens::KrxTraderScreen::kPoliciesName;
+                auto* area = trader.findChild<QScrollArea*>();
+                QWidget* panel = trader.findChild<QWidget*>(QString::fromLatin1(name));
+                // The table's panel, its header at the top of the view: the ancestor right under the body.
+                while (area != nullptr && panel != nullptr && panel->parentWidget() != area->widget())
+                    panel = panel->parentWidget();
+                if (area != nullptr && panel != nullptr) {
+                    area->verticalScrollBar()->setValue(panel->mapTo(area->widget(), QPoint(0, 0)).y());
+                    QApplication::processEvents();
+                } else {
+                    QTextStream(stderr) << "no " << to << " to scroll to\n";
+                    status = 1;
+                }
+            }
             if (!trader.grab().save(out)) {
                 QTextStream(stderr) << "could not save " << out << "\n";
                 status = 1;

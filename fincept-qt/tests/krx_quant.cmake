@@ -367,10 +367,10 @@ fincept_add_test(tst_krx_closing
 target_link_libraries(tst_krx_closing PRIVATE Qt6::Network)
 
 # src/services/krx_quant/TraderView.{h,cpp} and KrxTraderLive.{h,cpp} — what the KRX auto trader screen
-# (codeyoma/krx-quant#397) reads of GET /v1/trader, /v1/trader/days and /v1/trader/trades, what it shows of
-# them, when it reads them, and that its pause (POST /v1/trader/pause) is sent as JSON only after a yes, the
-# last against a stand-in engine on this computer (Qt Network; the settings are a temporary file's: the test
-# defines AppConfig).
+# (codeyoma/krx-quant#397, #401) reads of GET /v1/trader, /v1/trader/days, /v1/trader/trades and
+# /v1/trader/policies, what it shows of them (the policy versions and the live gate too), when it reads them,
+# and that its pause (POST /v1/trader/pause) is sent as JSON only after a yes, the last against a stand-in
+# engine on this computer (Qt Network; the settings are a temporary file's: the test defines AppConfig).
 fincept_add_test(tst_krx_trader
     tst_krx_trader.cpp
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/TraderView.cpp"
@@ -394,9 +394,10 @@ fincept_add_test(tst_krx_trader
     "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
 target_link_libraries(tst_krx_trader PRIVATE Qt6::Network)
 
-# src/screens/krx_quant/KrxTraderScreen.{h,cpp} — the KRX auto trader screen itself (codeyoma/krx-quant#397)
-# against a stand-in engine on this computer: a poll leaves its trades table where the reader is
-# (krx_tables::refill), and it has the two pause buttons and no resume button. Widgets and Qt Network; it
+# src/screens/krx_quant/KrxTraderScreen.{h,cpp} — the KRX auto trader screen itself (codeyoma/krx-quant#397,
+# #401) against a stand-in engine on this computer: a poll leaves its trades table where the reader is
+# (krx_tables::refill), it has the two pause buttons and no resume button, and its policy versions, live gate
+# and trades of a policy chosen. Widgets and Qt Network; it
 # runs on the offscreen platform too (the settings are a temporary file's: the test defines AppConfig).
 fincept_add_test(tst_krx_trader_screen
     tst_krx_trader_screen.cpp

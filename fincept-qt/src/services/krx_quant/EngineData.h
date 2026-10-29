@@ -535,6 +535,49 @@ struct TraderGate {
     bool operator==(const TraderGate&) const = default;
 };
 
+/// A policy's paper record (codeyoma/krx-quant#400): every trading day it ran in the trader, as a
+/// challenger or the champion, each day's net P&L the trades entered that day made (0 without one), in
+/// won: its first and last day, the days, the trades exited, their net, the mean a day and that mean's
+/// 95% lower bound (none from fewer than two days).
+struct TraderPaper {
+    QDate since; ///< invalid before its first day
+    QDate last;
+    int days = 0;
+    int trades = 0;
+    double net = 0;
+    std::optional<double> mean;
+    std::optional<double> low;
+    bool operator==(const TraderPaper&) const = default;
+};
+
+/// A challenger against the champion (GET /v1/trader's ``policies[].promotion``, codeyoma/krx-quant#400):
+/// their common trading days (the champion not stopped), the days it needs and the day it is dropped
+/// by, the mean a day of (challenger − champion) net P&L in won and its lower bound at ``level``
+/// (Bonferroni over the challengers running), and whether it would win if judged now, else why.
+struct TraderPromotion {
+    qint64 champion = 0;
+    int days = 0;
+    int required = 10;
+    int until = 20;
+    std::optional<double> mean;
+    std::optional<double> low;
+    double level = 0.95;
+    int challengers = 1;
+    bool passed = false;
+    QString why; ///< "few_days", "not_above"; empty when it passed
+    bool operator==(const TraderPromotion&) const = default;
+};
+
+/// A policy running in the trader (GET /v1/trader's ``policies``, codeyoma/krx-quant#400): the champion and
+/// the challengers, with their paper records as the engine reads them at the request.
+struct TraderRunning {
+    qint64 version = 0;
+    QString status; ///< "champion" or "challenger"
+    TraderPaper paper;
+    std::optional<TraderPromotion> promotion; ///< a challenger's
+    bool operator==(const TraderRunning&) const = default;
+};
+
 /// The trader's state as it last wrote it (GET /v1/trader, codeyoma/krx-quant#396). Every field but
 /// ``alive`` and ``controls`` is empty before the trader first wrote it (``written``).
 struct TraderState {
@@ -557,6 +600,9 @@ struct TraderState {
     /// gate, from the store's records, so they hold while the trader is stopped too.
     std::optional<qint64> champion;
     std::optional<TraderGate> gate; ///< none from an engine before #400
+    /// The champion and the challengers running (codeyoma/krx-quant#400, champion first, then the oldest
+    /// challenger first); empty before the first champion and from an engine before #400.
+    QList<TraderRunning> policies;
     bool written() const { return updated_at.isValid(); }
     bool operator==(const TraderState&) const = default;
 };
@@ -590,6 +636,9 @@ struct TraderTrade {
     QString predictor;
     QString role;                 ///< "consensus", "top" or "baseline"; empty before #395
     std::optional<qint64> policy; ///< the policy version it was made under (#399)
+    /// The champion's book made it (codeyoma/krx-quant#400: the trader's trade, which the limits hold and
+    /// the chart marks); false: a challenger's paper trade. True from an engine before #400.
+    bool champion = true;
     QDateTime bar_close;
     std::optional<double> probability;
     std::optional<double> threshold;
@@ -620,6 +669,95 @@ struct TraderTrade {
     bool operator==(const TraderTrade&) const = default;
 };
 
+/// A cell a policy trades (GET /v1/trader/policies' ``cells``, codeyoma/krx-quant#399): its kind and
+/// predictor with its place on the cost map, its threshold θ on the up probability and its Kelly fraction
+/// λ (the share bought is λ × that day's f*, clipped to 0–1), and what the nightly fit read: the cost
+/// map's p* and hit rate lower bound, f* and the share it gave, the days, and the paper trades, the ones
+/// that made money and their net in won the whole policy's simulation gave the cell.
+struct TraderPolicyCell {
+    QString kind;
+    QString role; ///< "consensus", "top" or "baseline"
+    QString predictor;
+    double threshold = 0;
+    double kelly_fraction = 0;
+    std::optional<double> p_star;
+    std::optional<double> low;
+    std::optional<double> kelly;
+    std::optional<double> fraction;
+    int fitted_days = 0;
+    int fitted_trades = 0;
+    int wins = 0;
+    std::optional<double> fitted_net;
+    bool operator==(const TraderPolicyCell&) const = default;
+};
+
+/// A cell the cost map passed that the fit left out (codeyoma/krx-quant#399), and why: "few_trades"
+/// (fewer paper trades than the fit needs at every point, ``most_trades`` at most) or "no_gain" (adding
+/// it did not grow the policy).
+struct TraderLeftOut {
+    QString kind;
+    QString role;
+    QString predictor;
+    QString why;
+    std::optional<int> most_trades;
+    bool operator==(const TraderLeftOut&) const = default;
+};
+
+/// A policy version (GET /v1/trader/policies, codeyoma/krx-quant#399, #400): its status, when and why it
+/// was fitted, its cells in rank order (none: it trades nothing), the cells it left out, what the fit
+/// simulated, when it got a challenger's slot and when it was dropped, and its paper record.
+struct TraderPolicy {
+    qint64 version = 0;
+    /// "champion", "challenger", "waiting", "former" (a champion once, beaten) or "dropped" (a challenger
+    /// that did not win by its 20th common day)
+    QString status;
+    QDateTime created_at;
+    QString reason;
+    QList<TraderPolicyCell> cells;
+    QList<TraderLeftOut> left_out;
+    QDateTime cost_map_at;              ///< the cost map it was fitted on; invalid if not given
+    std::optional<int> passed;          ///< the cells that cost map passed
+    std::optional<int> simulated_trades; ///< the whole policy's simulation over its days
+    std::optional<double> simulated_net;
+    QDateTime admitted_at; ///< invalid while it waits (or never did: the first champion)
+    QDateTime dropped_at;  ///< invalid unless dropped
+    TraderPaper paper;
+    bool operator==(const TraderPolicy&) const = default;
+};
+
+/// A promotion's figures (``champions[].detail``, codeyoma/krx-quant#400): the champion it replaced, their
+/// common days and the days needed, the mean a day of (challenger − champion) net P&L and its lower bound
+/// in won at ``level``, and how many challengers ran then.
+struct TraderPromotionDetail {
+    qint64 from = 0;
+    int days = 0;
+    int required = 10;
+    std::optional<double> mean;
+    std::optional<double> low;
+    double level = 0.95;
+    int challengers = 1;
+    bool operator==(const TraderPromotionDetail&) const = default;
+};
+
+/// A change of the champion (``champions``): when, which version, why; the figures of a promotion (none
+/// for the first champion).
+struct TraderChampionChange {
+    QDateTime at;
+    qint64 version = 0;
+    QString reason;
+    std::optional<TraderPromotionDetail> detail;
+    bool operator==(const TraderChampionChange&) const = default;
+};
+
+/// GET /v1/trader/policies (codeyoma/krx-quant#399, #400): the champion's version (none before the first
+/// fit), the last policy versions newest first, and every change of the champion newest first.
+struct TraderPolicies {
+    std::optional<qint64> champion;
+    QList<TraderPolicy> policies;
+    QList<TraderChampionChange> champions;
+    bool operator==(const TraderPolicies&) const = default;
+};
+
 Result<EngineStatus> parse_status(const QJsonDocument& doc);        ///< GET /v1/status
 Result<QList<SymbolQuote>> parse_symbols(const QJsonDocument& doc); ///< GET /v1/symbols
 /// GET /v1/symbols/{symbol}/special?from=&to= (krx-quant #236): the symbol's VIs and the market's
@@ -645,6 +783,9 @@ Result<QList<TraderDay>> parse_trader_days(const QJsonDocument& doc);
 Result<QList<TraderTrade>> parse_trader_trades(const QJsonDocument& doc);
 /// The answer of POST /v1/trader/pause (codeyoma/krx-quant#396): the control written.
 Result<TraderControl> parse_trader_pause(const QJsonDocument& doc);
+/// GET /v1/trader/policies (codeyoma/krx-quant#399, #400): newest version first, as the engine sends them;
+/// a policy without its version or a change without its version or time is dropped.
+Result<TraderPolicies> parse_trader_policies(const QJsonDocument& doc);
 
 /// Day candles the engine stored (krx-quant #111): oldest first, each starting at 00:00 KST of
 /// its day, and the market they come from ("UN" integrated, "KRX"; empty with none stored).

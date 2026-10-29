@@ -47,13 +47,28 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
     connect(service_, &KrxQuantService::trader_trades_ready, this,
             [this](const QList<krx_quant::TraderTrade>& trades) {
                 reading_trades_ = false;
-                trades_ = trades;
-                trades_failure_.clear();
+                if (trades_asked_policy_ == trades_policy_) { // else asked before another choice: not kept
+                    trades_ = trades;
+                    trades_failure_.clear();
+                }
                 history_done();
             });
     connect(service_, &KrxQuantService::trader_trades_failed, this, [this](const QString& reason) {
         reading_trades_ = false;
-        trades_failure_ = reason;
+        if (trades_asked_policy_ == trades_policy_)
+            trades_failure_ = reason;
+        history_done();
+    });
+    connect(service_, &KrxQuantService::trader_policies_ready, this,
+            [this](const krx_quant::TraderPolicies& policies) {
+                reading_policies_ = false;
+                policies_ = policies;
+                policies_failure_.clear();
+                history_done();
+            });
+    connect(service_, &KrxQuantService::trader_policies_failed, this, [this](const QString& reason) {
+        reading_policies_ = false;
+        policies_failure_ = reason;
         history_done();
     });
     connect(service_, &KrxQuantService::trader_paused, this,
@@ -94,6 +109,28 @@ void KrxTraderLive::read_now() {
     history_wanted_ = true;
     if (running_)
         read();
+}
+
+void KrxTraderLive::set_trades_policy(std::optional<qint64> policy) {
+    if (policy == trades_policy_)
+        return;
+    trades_policy_ = policy;
+    trades_.reset(); // another policy's trades are not shown under this one
+    trades_failure_.clear();
+    if (running_)
+        read_trades();
+    emit changed();
+}
+
+void KrxTraderLive::read_trades() {
+    if (reading_trades_) { // the answer under way is the other choice's: asked again once it is in
+        trades_wanted_ = true;
+        return;
+    }
+    trades_wanted_ = false;
+    reading_trades_ = true;
+    trades_asked_policy_ = trades_policy_;
+    service_->read_trader_trades(kTradesShown, trades_policy_);
 }
 
 bool KrxTraderLive::pause(bool sell_now, const Confirm& confirm) {
@@ -139,6 +176,8 @@ QString KrxTraderLive::failure() const {
         parts << QStringLiteral("날마다: %1").arg(days_failure_);
     if (!trades_failure_.isEmpty() && !parts.contains(trades_failure_))
         parts << QStringLiteral("매매: %1").arg(trades_failure_);
+    if (!policies_failure_.isEmpty() && !parts.contains(policies_failure_))
+        parts << QStringLiteral("정책: %1").arg(policies_failure_);
     return parts.join(QStringLiteral(" · "));
 }
 
@@ -153,6 +192,8 @@ void KrxTraderLive::read() {
         reading_state_ = false;
         reading_days_ = false;
         reading_trades_ = false;
+        reading_policies_ = false;
+        trades_wanted_ = false;
         sending_ = false;
     }
     if (service_->url().isEmpty()) {
@@ -166,7 +207,7 @@ void KrxTraderLive::read() {
         service_->read_trader();
     }
     // The first read asks for all three at once; later ones, the days and trades as the state says.
-    if ((!state_ || history_wanted_) && !reading_days_ && !reading_trades_)
+    if ((!state_ || history_wanted_) && !reading_days_ && !reading_trades_ && !reading_policies_)
         read_history();
     emit changed();
 }
@@ -177,15 +218,15 @@ void KrxTraderLive::check_history() {
     const QString key = view::history_key(*state_);
     if (!history_key_)
         history_key_ = key; // asked with the first state, before it answered: of the same moment
-    if (reading_days_ || reading_trades_) {
+    if (reading_days_ || reading_trades_ || reading_policies_) {
         if (*history_key_ != key) // changed since they were asked: their answer is stale
             history_wanted_ = true;
         return;
     }
     const bool stale = !history_asked_at_.isValid() || history_asked_at_.msecsTo(now_()) >= view::kIdleMs;
     // A failure is asked again with the next state's answer, not at once: no loop on an engine that fails.
-    if (history_wanted_ || !days_ || !trades_ || !days_failure_.isEmpty() || !trades_failure_.isEmpty() ||
-        *history_key_ != key || stale)
+    if (history_wanted_ || !days_ || !trades_ || !policies_ || !days_failure_.isEmpty() || !trades_failure_.isEmpty() ||
+        !policies_failure_.isEmpty() || *history_key_ != key || stale)
         read_history();
 }
 
@@ -195,15 +236,20 @@ void KrxTraderLive::read_history() {
     history_key_ = state_ ? std::optional(view::history_key(*state_)) : std::nullopt;
     reading_days_ = true;
     service_->read_trader_days();
-    reading_trades_ = true;
-    service_->read_trader_trades(kTradesShown);
+    read_trades();
+    reading_policies_ = true;
+    service_->read_trader_policies();
 }
 
 void KrxTraderLive::history_done() {
     emit changed();
+    if (!running_)
+        return;
     // Asked for again while they were read (read_now, a pause sent, a state changed meanwhile): now.
-    if (running_ && history_wanted_ && !reading_days_ && !reading_trades_)
+    if (history_wanted_ && !reading_days_ && !reading_trades_ && !reading_policies_)
         read_history();
+    else if (trades_wanted_ && !reading_trades_) // another policy chosen while the trades were read
+        read_trades();
 }
 
 void KrxTraderLive::schedule() {
@@ -216,11 +262,16 @@ void KrxTraderLive::drop() {
     state_.reset();
     days_.reset();
     trades_.reset();
+    policies_.reset();
+    trades_policy_.reset(); // another engine's versions: the champion's trades again
+    trades_asked_policy_.reset();
+    trades_wanted_ = false;
     history_key_.reset();
     history_asked_at_ = {};
     state_failure_.clear();
     days_failure_.clear();
     trades_failure_.clear();
+    policies_failure_.clear();
     pause_note_.clear();
     pause_failed_ = false;
     answered_at_ = {};

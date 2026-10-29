@@ -40,17 +40,17 @@ class KrxTraderDaysChart : public QWidget {
     int hover_ = -1;
 };
 
-/// KRX auto trader (fork addition, codeyoma/krx-quant#397, see custom/README.md): the engine's auto
-/// trader of 005930 (krx-quant design.md 14장). The header has its mode (모의, KIS 모의, 실전) and status
-/// (도는 중, 새 진입 정지, 정지, 하루 한도, 누적 한도); the cards its capital, cash, position (with its
-/// target, stop and the time left to its time barrier), today's and the cumulative net P&L and the
-/// loss limits' use; then each day's net P&L, the two pause buttons ("새 진입 정지", "정지하고 즉시
-/// 매도", each behind a confirm window) with the recent requests, and the trades table. There is no
-/// resume button: resuming is the server's alone, and the screen says so. It draws what its
-/// KrxTraderLive holds, in Fincept's panels, tables, fonts and theme. The text is Korean.
-///
-/// Room is left under the trades for the policy versions and the live gate's progress
-/// (codeyoma/krx-quant#401).
+/// KRX auto trader (fork addition, codeyoma/krx-quant#397, #401, see custom/README.md): the engine's auto
+/// trader of 005930 (krx-quant design.md 14장). The header has its mode (모의, KIS 모의, 실전), status
+/// (도는 중, 새 진입 정지, 정지, 하루 한도, 누적 한도), champion and live gate's progress; the cards its
+/// capital, cash, position (with its target, stop and the time left to its time barrier), today's and the
+/// cumulative net P&L and the loss limits' use; then each day's net P&L, the two pause buttons ("새 진입
+/// 정지", "정지하고 즉시 매도", each behind a confirm window) with the recent requests, the trades table
+/// (the champion's, or a policy version's chosen above it), and the policy versions (champion,
+/// challengers, waiting, former, dropped: their values, paper records and standing) with the gate in
+/// full and the champion's history. There is no resume button: resuming is the server's alone, and the
+/// screen says so. It draws what its KrxTraderLive holds, in Fincept's panels, tables, fonts and theme.
+/// The text is Korean.
 class KrxTraderScreen : public QWidget {
     Q_OBJECT
   public:
@@ -62,6 +62,13 @@ class KrxTraderScreen : public QWidget {
     /// The tables' object names (tests find them).
     static constexpr const char* kTradesName = "krxTraderTrades";
     static constexpr const char* kControlsName = "krxTraderControls";
+    static constexpr const char* kPoliciesName = "krxTraderPolicies";
+    static constexpr const char* kHistoryName = "krxTraderHistory";
+    /// The trades' policy choice (codeyoma/krx-quant#401): krx-capture and the tests choose in it.
+    static constexpr const char* kTradesPolicyName = "krxTraderTradesPolicy";
+    /// The champion and the live gate in the header, and the gate in full over the policy table.
+    static constexpr const char* kGateName = "krxTraderGate";
+    static constexpr const char* kGateLineName = "krxTraderGateLine";
 
   protected:
     void showEvent(QShowEvent* event) override;
@@ -84,6 +91,7 @@ class KrxTraderScreen : public QWidget {
     void fill_days();
     void fill_pause();
     void fill_trades();
+    void fill_policies();
     void ask_pause(bool sell_now);
 
     services::KrxTraderLive* live_ = nullptr;
@@ -109,8 +117,15 @@ class KrxTraderScreen : public QWidget {
     QLabel* pause_note_ = nullptr;
     QTableWidget* controls_ = nullptr;
     krx_panel::Header trades_header_;
+    QComboBox* policy_box_ = nullptr; ///< whose trades (codeyoma/krx-quant#401)
+    QList<krx_quant::trader::PolicyChoice> choices_; ///< what policy_box_ lists now
     QLabel* trades_line_ = nullptr;
     QTableWidget* trades_ = nullptr;
+    krx_panel::Header policies_header_;
+    QLabel* policies_line_ = nullptr;
+    QLabel* gate_line_ = nullptr;
+    QTableWidget* policies_ = nullptr;
+    QTableWidget* history_ = nullptr;
 };
 
 } // namespace fincept::screens
