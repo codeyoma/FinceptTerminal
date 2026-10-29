@@ -394,6 +394,39 @@ fincept_add_test(tst_krx_trader
     "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
 target_link_libraries(tst_krx_trader PRIVATE Qt6::Network)
 
+# src/screens/krx_quant/KrxTraderScreen.{h,cpp} — the KRX auto trader screen itself (codeyoma/krx-quant#397)
+# against a stand-in engine on this computer: a poll leaves its trades table where the reader is
+# (krx_tables::refill), and it has the two pause buttons and no resume button. Widgets and Qt Network; it
+# runs on the offscreen platform too (the settings are a temporary file's: the test defines AppConfig).
+fincept_add_test(tst_krx_trader_screen
+    tst_krx_trader_screen.cpp
+    "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxTraderScreen.cpp"
+    "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxTraderScreen.h"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/TraderView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxTraderLive.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxTraderLive.h"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.h"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/StatsView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp"
+    "${PROJECT_SOURCE_DIR}/src/ui/tables/DataTable.cpp"
+    "${PROJECT_SOURCE_DIR}/src/ui/theme/Theme.cpp"
+    "${PROJECT_SOURCE_DIR}/src/ui/theme/ThemeManager.cpp"
+    "${PROJECT_SOURCE_DIR}/src/ui/theme/ThemeManager.h"
+    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.cpp"
+    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.h"
+    "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
+target_link_libraries(tst_krx_trader_screen PRIVATE Qt6::Widgets Qt6::Network)
+
 # Upstream v4.5.1 made src/trading/OrderValidator.cpp read the risk limits through
 # SettingsRepository (Qt Sql and the app database), but tst_order_validator below in
 # tests/CMakeLists.txt still links Qt Core and that one source, so it does not compile.

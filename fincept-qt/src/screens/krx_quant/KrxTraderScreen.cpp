@@ -5,7 +5,6 @@
 #include "ui/theme/Theme.h"
 
 #include <QFrame>
-#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QMessageBox>
@@ -116,6 +115,8 @@ KrxTraderDaysChart::KrxTraderDaysChart(QWidget* parent) : QWidget(parent) {
 }
 
 void KrxTraderDaysChart::set_points(const QList<krx_quant::trader::DayPoint>& points) {
+    if (points == points_) // a poll that brought the same days: the hover stays
+        return;
     points_ = points;
     hover_ = -1;
     update();
@@ -346,6 +347,7 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
     recent->setObjectName("krxTraderRecent");
     pause_layout->addWidget(recent);
     controls_ = krx_tables::table({tr("시각"), tr("요청"), tr("누가"), tr("trader")});
+    controls_->setObjectName(kControlsName);
     controls_->horizontalHeader()->setStretchLastSection(true);
     if (auto* item = controls_->horizontalHeaderItem(2))
         item->setToolTip(tr("화면: 이 화면의 정지. 서버: 서버의 krx-quant trade resume·rearm"));
@@ -366,6 +368,7 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
     trades_ = krx_tables::table({tr("진입"), tr("청산"), tr("수량"), tr("청산 이유"), tr("비용"), tr("순손익"), tr("칸"),
                                  tr("확률"), tr("p*"), tr("하한"), tr("모드")});
     trades_->horizontalHeader()->setStretchLastSection(false);
+    trades_->setObjectName(kTradesName);
     const QList<std::pair<int, QString>> tips{
         {kEntry, tr("매수 체결 시각과 가격(매도 1호가)")},
         {kExit, tr("매도 체결 시각과 가격. 아직 들고 있으면 보유 중")},
@@ -421,8 +424,10 @@ void KrxTraderScreen::refresh_theme() {
                            ui::colors::BG_SURFACE()));
     for (const auto* header : {&header_, &days_header_, &pause_header_, &trades_header_})
         header->restyle();
-    for (auto* table : {controls_, trades_})
+    for (auto* table : {controls_, trades_}) {
         krx_tables::restyle(table);
+        table->setProperty(krx_tables::kRowsProperty, QVariant()); // their rows' colours: filled again
+    }
     failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
     for (auto* label : {header_line_, days_line_, resume_note_, trades_line_})
         label->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_SECONDARY()));
@@ -552,48 +557,60 @@ void KrxTraderScreen::fill_pause() {
     pause_note_->setStyleSheet(
         QString("color:%1;font-weight:700;").arg(live_->pause_failed() ? ui::colors::NEGATIVE() : ui::colors::WARNING()));
     pause_note_->setVisible(!live_->pause_note().isEmpty());
-    controls_->setRowCount(0);
-    if (s) {
-        for (const auto& row : view::control_rows(*s)) {
+    const QList<view::ControlRow> rows = s ? view::control_rows(*s) : QList<view::ControlRow>{};
+    QStringList text;
+    for (const auto& row : rows)
+        text << QStringList{QString::number(row.id), row.at, row.what, row.who, row.applied}.join(QChar(0x1f));
+    krx_tables::refill(controls_, text.join(QChar(0x1e)), [this, &rows] {
+        for (const auto& row : rows) {
             const int r = controls_->rowCount();
             controls_->insertRow(r);
-            controls_->setItem(r, 0, cell(row.at));
+            auto* at = cell(row.at);
+            at->setData(Qt::UserRole, QString::number(row.id));
+            controls_->setItem(r, 0, at);
             controls_->setItem(r, 1, cell(row.what));
             controls_->setItem(r, 2, cell(row.who));
             controls_->setItem(r, 3, toned(row.applied, row.waiting ? Tone::Warning : Tone::Dim));
         }
-    }
-    fit_height(controls_, 6);
+        fit_height(controls_, 6);
+    });
 }
 
 void KrxTraderScreen::fill_trades() {
-    trades_->setRowCount(0);
     const auto& t = live_->trades();
     trades_line_->setText(t ? tr("%1개").arg(t->size()) : QString());
-    if (!t) {
+    const QList<view::TradeRow> rows = t ? view::trade_rows(*t, live_->state()) : QList<view::TradeRow>{};
+    QStringList text; // all a row shows: its texts and tips (its colours follow from them)
+    for (const auto& row : rows)
+        text << QStringList{QString::number(row.id), row.entry,   row.exit,        row.quantity, row.reason,
+                            row.cost,               row.net,     row.cell,        row.probability,
+                            row.p_star,             row.low,     row.mode,        row.tip,
+                            row.cost_tip,           row.net_tip, row.why_tip}
+                    .join(QChar(0x1f));
+    krx_tables::refill(trades_, text.join(QChar(0x1e)), [this, &rows] {
+        for (const auto& row : rows) {
+            const int r = trades_->rowCount();
+            trades_->insertRow(r);
+            auto* entry = cell(row.entry, kNumber);
+            entry->setData(Qt::UserRole, QString::number(row.id));
+            trades_->setItem(r, kEntry, entry);
+            trades_->setItem(r, kExit, toned(row.exit, row.held ? Tone::Warning : Tone::Plain, {}, kNumber));
+            trades_->setItem(r, kQuantity, cell(row.quantity, kNumber));
+            trades_->setItem(r, kReason, toned(row.reason, row.reason_tone));
+            trades_->setItem(r, kCost, toned(row.cost, Tone::Plain, row.cost_tip, kNumber));
+            trades_->setItem(r, kNet, toned(row.net, row.net_tone, row.net_tip, kNumber));
+            trades_->setItem(r, kCell, cell(row.cell));
+            trades_->setItem(r, kProbability, toned(row.probability, Tone::Plain, row.why_tip, kNumber));
+            trades_->setItem(r, kPStar, toned(row.p_star, row.p_star == QLatin1String("—") ? Tone::Dim : Tone::Plain,
+                                              row.why_tip, kNumber));
+            trades_->setItem(r, kLow, toned(row.low, row.low == QLatin1String("—") ? Tone::Dim : Tone::Plain,
+                                            row.why_tip, kNumber));
+            trades_->setItem(r, kMode, toned(row.mode, row.live ? Tone::Live : Tone::Simulated));
+            for (const int column : {int(kEntry), int(kExit), int(kQuantity), int(kCell)})
+                trades_->item(r, column)->setToolTip(row.tip);
+        }
         fit_height(trades_, kTradesShown);
-        return;
-    }
-    for (const auto& row : view::trade_rows(*t, live_->state())) {
-        const int r = trades_->rowCount();
-        trades_->insertRow(r);
-        trades_->setItem(r, kEntry, cell(row.entry, kNumber));
-        trades_->setItem(r, kExit, toned(row.exit, row.held ? Tone::Warning : Tone::Plain, {}, kNumber));
-        trades_->setItem(r, kQuantity, cell(row.quantity, kNumber));
-        trades_->setItem(r, kReason, toned(row.reason, row.reason_tone));
-        trades_->setItem(r, kCost, toned(row.cost, Tone::Plain, row.cost_tip, kNumber));
-        trades_->setItem(r, kNet, toned(row.net, row.net_tone, row.net_tip, kNumber));
-        trades_->setItem(r, kCell, cell(row.cell));
-        trades_->setItem(r, kProbability, toned(row.probability, Tone::Plain, row.why_tip, kNumber));
-        trades_->setItem(r, kPStar, toned(row.p_star, row.p_star == QLatin1String("—") ? Tone::Dim : Tone::Plain,
-                                          row.why_tip, kNumber));
-        trades_->setItem(r, kLow,
-                         toned(row.low, row.low == QLatin1String("—") ? Tone::Dim : Tone::Plain, row.why_tip, kNumber));
-        trades_->setItem(r, kMode, toned(row.mode, row.live ? Tone::Live : Tone::Simulated));
-        for (const int column : {int(kEntry), int(kExit), int(kQuantity), int(kCell)})
-            trades_->item(r, column)->setToolTip(row.tip);
-    }
-    fit_height(trades_, kTradesShown);
+    });
 }
 
 void KrxTraderScreen::ask_pause(bool sell_now) {

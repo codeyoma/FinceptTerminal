@@ -74,6 +74,7 @@ QList<Card> cards(const TraderState& state, const QDateTime& now);
 
 /// A row of the trades table, newest entry first as the engine gives them.
 struct TradeRow {
+    qint64 id = 0; ///< the trade's
     QString entry; ///< "10-12 10:27:05 · 78,600"
     QString exit;  ///< "10:31:00 · 78,700"; "보유 중"
     QString quantity;
@@ -107,6 +108,7 @@ struct DayPoint {
     double sum = 0;
     QString tip;
     bool halted = false; ///< a loss limit was reached that day
+    bool operator==(const DayPoint&) const = default;
 };
 /// ``mode``'s days, oldest first.
 QList<DayPoint> day_points(const QList<TraderDay>& days, const QString& mode);
@@ -115,6 +117,7 @@ QString days_line(const QList<DayPoint>& points, const QString& mode);
 
 /// A row of the recent pauses, resumes and re-arms, newest first.
 struct ControlRow {
+    qint64 id = 0; ///< the request's
     QString at;
     QString what;    ///< "새 진입 정지", "정지하고 즉시 매도", "재개", "누적 한도 다시 켜기 (모의)"
     QString who;     ///< "화면", "서버"

@@ -293,6 +293,7 @@ QList<TradeRow> trade_rows(const QList<TraderTrade>& trades, const std::optional
     QList<TradeRow> rows;
     for (const auto& t : trades) {
         TradeRow r;
+        r.id = t.id;
         r.held = t.held();
         r.live = t.mode == QLatin1String("live");
         r.mode = trader_mode_label(t.mode);
@@ -427,6 +428,7 @@ QList<ControlRow> control_rows(const TraderState& state) {
     QList<ControlRow> rows;
     for (const auto& c : state.controls) {
         ControlRow r;
+        r.id = c.id;
         r.at = kst_text(c.at, "MM-dd HH:mm:ss");
         if (c.action == QLatin1String("pause"))
             r.what = pause_kind(c.sell_now.value_or(false));

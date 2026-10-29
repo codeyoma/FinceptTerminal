@@ -99,17 +99,16 @@ void KrxTraderLive::read_now() {
 bool KrxTraderLive::pause(bool sell_now, const Confirm& confirm) {
     if (sending_ || !view::pause_action(sell_now, state_).enabled)
         return false;
+    // The engine whose state is shown and asked about: the pause goes to it, or nowhere.
+    const QString shown = service_->url();
+    const int engine = engine_;
+    if (KrxQuantService::base_url() != shown) // another KRX screen set another engine since it was read
+        return refuse_pause();
     if (!confirm || !confirm(view::pause_question(sell_now, state_)))
         return false; // asked, and not confirmed: nothing is sent
-    if (KrxQuantService::base_url() != service_->url()) {
-        // Another KRX screen set another engine since this state was read: what was confirmed is not it.
-        if (running_)
-            read(); // the new engine's, what was read of this one dropped
-        pause_failed_ = true;
-        pause_note_ = QStringLiteral("엔진 주소가 바뀌었습니다. 새 엔진의 상태를 읽은 뒤에 다시 누르세요.");
-        emit changed();
-        return false;
-    }
+    // The confirm window runs its own event loop: a poll meanwhile may have read a new address's engine.
+    if (engine != engine_ || service_->url() != shown || KrxQuantService::base_url() != shown)
+        return refuse_pause();
     if (!service_->pause_trader(sell_now)) {
         pause_failed_ = true;
         pause_note_ = QStringLiteral("정지 요청을 보내지 못했습니다: 엔진 주소가 없습니다.");
@@ -121,6 +120,15 @@ bool KrxTraderLive::pause(bool sell_now, const Confirm& confirm) {
     pause_note_ = QStringLiteral("정지 요청을 보내는 중…");
     emit changed();
     return true;
+}
+
+bool KrxTraderLive::refuse_pause() {
+    if (running_)
+        read(); // the new engine's, what was read of the other dropped
+    pause_failed_ = true;
+    pause_note_ = QStringLiteral("엔진 주소가 바뀌었습니다. 보내지 않았습니다. 새 엔진의 상태를 읽은 뒤에 다시 누르세요.");
+    emit changed();
+    return false;
 }
 
 QString KrxTraderLive::failure() const {
@@ -204,6 +212,7 @@ void KrxTraderLive::schedule() {
 }
 
 void KrxTraderLive::drop() {
+    ++engine_;
     state_.reset();
     days_.reset();
     trades_.reset();

@@ -82,6 +82,8 @@ class KrxTraderLive : public QObject {
     void schedule();
     /// Another engine: what was read of the one before is dropped.
     void drop();
+    /// A pause confirmed for an engine other than the one now read: not sent, said so. Always false.
+    bool refuse_pause();
 
     std::function<QDateTime()> now_;
     KrxQuantService* service_ = nullptr;
@@ -105,6 +107,7 @@ class KrxTraderLive : public QObject {
     bool reading_days_ = false;
     bool reading_trades_ = false;
     bool sending_ = false;
+    int engine_ = 0; ///< bumped whenever the engine read changes (drop): a pause is bound to one
 };
 
 } // namespace fincept::services

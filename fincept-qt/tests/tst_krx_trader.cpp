@@ -844,6 +844,37 @@ class TstKrxTrader : public QObject {
         live.stop();
     }
 
+    void a_pause_confirmed_after_the_engine_changed_while_asking_is_not_sent() {
+        // Codex review on codeyoma/FinceptTerminal#108: the confirm window runs its own event loop, so a
+        // poll may read a new address's engine while it is open; its yes was given for the engine shown.
+        StandIn first;
+        services::KrxQuantService::set_base_url(first.url());
+        services::KrxTraderLive live(nullptr, [] { return kst("2026-10-15T10:06:30+09:00"); });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.state().has_value() && !live.reading(), 10000);
+        StandIn second;
+        bool asked = false;
+        QVERIFY(!live.pause(true, [&](const view::Question&) {
+            asked = true;
+            services::KrxQuantService::set_base_url(second.url());
+            live.read_now(); // a poll while the window is open: the new engine is read
+            return QTest::qWaitFor(
+                [&] { return second.count("GET", "/v1/trader") > 0 && live.state().has_value() && !live.reading(); },
+                10000);
+        }));
+        QVERIFY(asked);
+        QVERIFY(!live.sending());
+        QVERIFY(live.pause_failed());
+        QVERIFY(live.pause_note().contains(QStringLiteral("보내지 않았습니다")));
+        QCOMPARE(first.count("POST", "/v1/trader/pause"), 0);
+        QCOMPARE(second.count("POST", "/v1/trader/pause"), 0);
+        // Asked again now, of the engine shown, it is sent there.
+        QVERIFY(live.pause(true, [](const view::Question&) { return true; }));
+        QTRY_COMPARE_WITH_TIMEOUT(second.count("POST", "/v1/trader/pause"), 1, 10000);
+        QCOMPARE(first.count("POST", "/v1/trader/pause"), 0);
+        live.stop();
+    }
+
     void without_an_address_it_says_where_to_set_it() {
         services::KrxQuantService::set_base_url(QString());
         services::KrxTraderLive live;

@@ -59,6 +59,9 @@ class KrxTraderScreen : public QWidget {
     /// The pause buttons' object names (krx-capture presses one to show its confirm window).
     static constexpr const char* kPauseEntriesName = "krxTraderPauseEntries";
     static constexpr const char* kPauseSellName = "krxTraderPauseSell";
+    /// The tables' object names (tests find them).
+    static constexpr const char* kTradesName = "krxTraderTrades";
+    static constexpr const char* kControlsName = "krxTraderControls";
 
   protected:
     void showEvent(QShowEvent* event) override;
