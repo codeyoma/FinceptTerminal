@@ -223,6 +223,41 @@ QString header_line(const TraderState& state) {
     return parts.join(QStringLiteral(" · "));
 }
 
+QString gate_text(const TraderState& state) {
+    if (!state.gate)
+        return {};
+    if (!state.champion)
+        return QStringLiteral("챔피언 정책 없음");
+    const TraderGate& g = *state.gate;
+    QString low = dash();
+    if (g.low)
+        low = state.capital && *state.capital > 0 ? percent_text(*g.low / *state.capital) : signed_won_text(*g.low);
+    QString text = QStringLiteral("챔피언 정책 %1 · 관문 모의 %2/%3일 · 하한 %4")
+                       .arg(QString::number(*state.champion))
+                       .arg(g.days)
+                       .arg(g.required)
+                       .arg(low);
+    if (g.passed)
+        text += QStringLiteral(" · 관문 넘음");
+    return text;
+}
+
+QString gate_tip(const TraderState& state) {
+    if (!state.gate)
+        return {};
+    if (!state.champion)
+        return QStringLiteral("첫 밤 정책 맞추기 전입니다. 그때까지는 기본 문턱과 Kelly 비율로 사고, 실전 관문은 첫 챔피언의 "
+                              "모의 기록부터 셉니다.");
+    const TraderGate& g = *state.gate;
+    return QStringLiteral("실전 관문: 챔피언의 모의 기록이 %1거래일 이상이고, 날마다 순손익(매매 없는 날 0)의 평균의 %2 하한이 "
+                          "0보다 커야 합니다. 지금 %3일, 평균 %4, 하한 %5(운용 상한 대비). 관문을 넘어도 저절로 실전이 되지 "
+                          "않습니다: 모드는 서버에서 바꿉니다. 정책 표와 자세한 것은 다음 화면 작업(codeyoma/krx-quant#401)입니다.")
+        .arg(g.required)
+        .arg(percent_text(g.level, 0))
+        .arg(g.days)
+        .arg(g.mean ? signed_won_text(*g.mean) : dash(), g.low ? signed_won_text(*g.low) : dash());
+}
+
 QDateTime trader_now(const TraderState& state, const QDateTime& answered_at, const QDateTime& now) {
     if (!state.written() || !answered_at.isValid())
         return now;

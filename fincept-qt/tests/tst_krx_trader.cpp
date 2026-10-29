@@ -374,6 +374,39 @@ class TstKrxTrader : public QObject {
         QVERIFY(!state(fresh).position->bid.has_value());
     }
 
+    void the_champion_and_the_live_gate_are_read_and_shown() {
+        // codeyoma/krx-quant#400: the engine gives the champion's version and the gate on its paper record.
+        QJsonObject o = state_json();
+        o["champion"] = 1;
+        o["gate"] = QJsonObject{{"policy", 1},  {"days", 12},     {"required", 20},  {"mean", 1200.0},
+                                {"low", -3000.0}, {"level", 0.95}, {"passed", false}};
+        const TraderState s = state(o);
+        QCOMPARE(*s.champion, 1);
+        QVERIFY(s.gate.has_value());
+        QCOMPARE(s.gate->days, 12);
+        QCOMPARE(*s.gate->low, -3000.0);
+        QCOMPARE(view::gate_text(s), QStringLiteral("챔피언 정책 1 · 관문 모의 12/20일 · 하한 -0.3%"));
+        QVERIFY(view::gate_tip(s).contains(QStringLiteral("20거래일")));
+        QVERIFY(view::gate_tip(s).contains(QStringLiteral("서버")));
+        // Passed: said so.
+        o["gate"] = QJsonObject{{"policy", 1},  {"days", 21},     {"required", 20}, {"mean", 1200.0},
+                                {"low", 500.0}, {"level", 0.95}, {"passed", true}};
+        QCOMPARE(view::gate_text(state(o)), QStringLiteral("챔피언 정책 1 · 관문 모의 21/20일 · 하한 0.1% · 관문 넘음"));
+        // Fewer than two days: no lower bound yet.
+        o["gate"] = QJsonObject{{"policy", 1},          {"days", 1},      {"required", 20}, {"mean", -500.0},
+                                {"low", QJsonValue()}, {"level", 0.95}, {"passed", false}};
+        QCOMPARE(view::gate_text(state(o)), QStringLiteral("챔피언 정책 1 · 관문 모의 1/20일 · 하한 —"));
+        // Before the first champion.
+        o["champion"] = QJsonValue();
+        o["gate"] = QJsonObject{{"policy", QJsonValue()}, {"days", 0},      {"required", 20}, {"mean", QJsonValue()},
+                                {"low", QJsonValue()},    {"level", 0.95}, {"passed", false}};
+        QCOMPARE(view::gate_text(state(o)), QStringLiteral("챔피언 정책 없음"));
+        // An engine before #400: nothing.
+        QVERIFY(!state().gate.has_value());
+        QVERIFY(!state().champion.has_value());
+        QVERIFY(view::gate_text(state()).isEmpty());
+    }
+
     void a_state_the_trader_never_wrote_has_only_alive_and_controls() {
         const TraderState s = state(unwritten_json());
         QVERIFY(!s.written());

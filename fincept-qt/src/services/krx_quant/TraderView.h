@@ -53,6 +53,14 @@ Badge status_badge(const TraderState& state);
 /// The line after them: "상태 10-12 10:30:00 · 시작 10-12 10:05 · 정지 10-08 15:02 화면(새 진입 정지)".
 QString header_line(const TraderState& state);
 
+/// The champion and the live gate's progress (codeyoma/krx-quant#400): "챔피언 정책 1 · 관문 모의 12/20일 ·
+/// 하한 -0.3%" (the lower bound of the daily net P&L over the capital), "… · 관문 넘음" once passed,
+/// "챔피언 정책 없음" before the first; empty from an engine before #400. The policy table and the gate's
+/// detail are codeyoma/krx-quant#401's.
+QString gate_text(const TraderState& state);
+/// Its tooltip: what the gate asks for and that passing it sends no live order by itself.
+QString gate_tip(const TraderState& state);
+
 /// The trader's clock now: its state's time, moved on by what passed since it was read
 /// (``answered_at`` and ``now`` on the screen's clock); ``now`` before it wrote one.
 QDateTime trader_now(const TraderState& state, const QDateTime& answered_at, const QDateTime& now);

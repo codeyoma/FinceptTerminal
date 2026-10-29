@@ -93,6 +93,7 @@ class KrxTraderScreen : public QWidget {
     QLabel* mode_badge_ = nullptr;
     QLabel* status_badge_ = nullptr;
     QLabel* header_line_ = nullptr;
+    QLabel* gate_ = nullptr; ///< the champion and the live gate's progress (codeyoma/krx-quant#400)
     QPushButton* reload_ = nullptr;
     QLabel* failure_ = nullptr;
     QList<CardView> cards_;

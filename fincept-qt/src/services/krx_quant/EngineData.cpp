@@ -1981,6 +1981,17 @@ Result<TraderState> parse_trader(const QJsonDocument& doc) {
         if (c.id >= 0 && c.at.isValid())
             t.controls.push_back(c);
     }
+    t.champion = long_of(o.value("champion"));
+    if (o.value("gate").isObject()) {
+        const QJsonObject g = o.value("gate").toObject();
+        t.gate = TraderGate{long_of(g.value("policy")),
+                            g.value("days").toInt(),
+                            g.value("required").toInt(20),
+                            number(g.value("mean")),
+                            number(g.value("low")),
+                            g.value("level").toDouble(0.95),
+                            g.value("passed").toBool()};
+    }
     return Result<TraderState>::ok(t);
 }
 

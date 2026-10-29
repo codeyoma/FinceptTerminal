@@ -241,8 +241,11 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
     header_.row->insertWidget(3, mode_badge_);
     status_badge_ = new QLabel;
     header_.row->insertWidget(4, status_badge_);
+    gate_ = new QLabel;
+    gate_->setContentsMargins(0, 0, 10, 0); // apart from the state's line after it
+    header_.row->insertWidget(5, gate_);
     header_line_ = new QLabel;
-    header_.row->insertWidget(5, header_line_);
+    header_.row->insertWidget(6, header_line_);
     reload_ = tool_button(tr("새로 읽기"), tr("지금 다시 읽습니다(날마다와 매매도)"));
     header_.controls->addWidget(reload_);
     connect(reload_, &QPushButton::clicked, this, [this] { live_->read_now(); });
@@ -429,7 +432,7 @@ void KrxTraderScreen::refresh_theme() {
         table->setProperty(krx_tables::kRowsProperty, QVariant()); // their rows' colours: filled again
     }
     failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
-    for (auto* label : {header_line_, days_line_, resume_note_, trades_line_})
+    for (auto* label : {header_line_, gate_, days_line_, resume_note_, trades_line_})
         label->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_SECONDARY()));
     if (auto* recent = findChild<QLabel*>("krxTraderRecent"))
         recent->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::TEXT_SECONDARY()));
@@ -483,9 +486,13 @@ void KrxTraderScreen::fill_header() {
     if (!s) {
         mode_badge_->hide();
         status_badge_->hide();
+        gate_->hide();
         header_line_->setText(live_->reading() ? tr("읽는 중") : QString());
         return;
     }
+    gate_->setText(view::gate_text(*s));
+    gate_->setToolTip(view::gate_tip(*s));
+    gate_->setVisible(!gate_->text().isEmpty());
     for (const auto& [label, badge] : {std::pair{mode_badge_, view::mode_badge(*s)},
                                        std::pair{status_badge_, view::status_badge(*s)}}) {
         label->setText(badge.text);

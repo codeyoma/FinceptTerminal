@@ -521,6 +521,20 @@ struct TraderPause {
     bool operator==(const TraderPause&) const = default;
 };
 
+/// The live gate on the champion's paper record (GET /v1/trader's ``gate``, codeyoma/krx-quant#400): the
+/// days it has, the days it needs, its daily net P&L's mean and that mean's lower bound in won, and
+/// whether it passed (enough days and the lower bound above 0).
+struct TraderGate {
+    std::optional<qint64> policy; ///< the champion's version; none before the first
+    int days = 0;
+    int required = 20;
+    std::optional<double> mean;
+    std::optional<double> low; ///< none from fewer than two days
+    double level = 0.95;
+    bool passed = false;
+    bool operator==(const TraderGate&) const = default;
+};
+
 /// The trader's state as it last wrote it (GET /v1/trader, codeyoma/krx-quant#396). Every field but
 /// ``alive`` and ``controls`` is empty before the trader first wrote it (``written``).
 struct TraderState {
@@ -539,6 +553,10 @@ struct TraderState {
     std::optional<TraderLimit> cumulative_limit;
     std::optional<TraderPause> pause;
     QList<TraderControl> controls; ///< the last ones asked for, newest first
+    /// The champion's version (codeyoma/krx-quant#400), none before the first; the engine reads it, and the
+    /// gate, from the store's records, so they hold while the trader is stopped too.
+    std::optional<qint64> champion;
+    std::optional<TraderGate> gate; ///< none from an engine before #400
     bool written() const { return updated_at.isValid(); }
     bool operator==(const TraderState&) const = default;
 };
