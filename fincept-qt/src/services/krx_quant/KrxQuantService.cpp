@@ -4,6 +4,7 @@
 #include "core/logging/Logger.h"
 #include "network/http/HttpClient.h"
 
+#include <QJsonObject>
 #include <QTimeZone>
 #include <QUrl>
 #include <QUrlQuery>
@@ -135,6 +136,18 @@ void KrxQuantService::get(const QString& path, Step step) {
     // `this` as the context: the answer is dropped if the screen (and this service) is gone.
     HttpClient::instance().get(
         url_ + path,
+        [this, generation, step = std::move(step)](Result<QJsonDocument> answer) {
+            if (generation == generation_) // a restart since drops it
+                step(std::move(answer));
+        },
+        this);
+}
+
+void KrxQuantService::post(const QString& path, const QJsonObject& body, Step step) {
+    const int generation = generation_;
+    // HttpClient sends a JSON body as application/json, which the engine's pause asks for.
+    HttpClient::instance().post(
+        url_ + path, body,
         [this, generation, step = std::move(step)](Result<QJsonDocument> answer) {
             if (generation == generation_) // a restart since drops it
                 step(std::move(answer));
@@ -658,6 +671,61 @@ void KrxQuantService::read_closing_days(const QString& symbol, const QDate& from
             return emit closing_days_failed(symbol, why(days.error()));
         emit closing_days_ready(symbol, days.value());
     });
+}
+
+void KrxQuantService::read_trader() {
+    if (!begin(kTraderState))
+        return;
+    get("/v1/trader", [this](Result<QJsonDocument> answer) {
+        end(kTraderState);
+        auto state = parsed(answer, krx_quant::parse_trader);
+        if (state.is_err())
+            return emit trader_state_failed(why(state.error()));
+        emit trader_state_ready(state.value());
+    });
+}
+
+void KrxQuantService::read_trader_days(const QDate& from, const QDate& to) {
+    if (!begin(kTraderDays))
+        return;
+    QUrlQuery q;
+    if (from.isValid())
+        q.addQueryItem("from", from.toString(Qt::ISODate));
+    if (to.isValid())
+        q.addQueryItem("to", to.toString(Qt::ISODate));
+    const QString query = q.isEmpty() ? QString() : "?" + q.toString(QUrl::FullyEncoded);
+    get("/v1/trader/days" + query, [this](Result<QJsonDocument> answer) {
+        end(kTraderDays);
+        auto days = parsed(answer, krx_quant::parse_trader_days);
+        if (days.is_err())
+            return emit trader_days_failed(why(days.error()));
+        emit trader_days_ready(days.value());
+    });
+}
+
+void KrxQuantService::read_trader_trades(int limit) {
+    if (!begin(kTraderTrades))
+        return;
+    get(QStringLiteral("/v1/trader/trades?limit=%1").arg(limit), [this](Result<QJsonDocument> answer) {
+        end(kTraderTrades);
+        auto trades = parsed(answer, krx_quant::parse_trader_trades);
+        if (trades.is_err())
+            return emit trader_trades_failed(why(trades.error()));
+        emit trader_trades_ready(trades.value());
+    });
+}
+
+bool KrxQuantService::pause_trader(bool sell_now) {
+    if (!begin(kTraderPause))
+        return false;
+    post("/v1/trader/pause", QJsonObject{{"sell_now", sell_now}}, [this, sell_now](Result<QJsonDocument> answer) {
+        end(kTraderPause);
+        auto control = parsed(answer, krx_quant::parse_trader_pause);
+        if (control.is_err())
+            return emit trader_pause_failed(sell_now, why(control.error()));
+        emit trader_paused(sell_now, control.value());
+    });
+    return true;
 }
 
 void KrxQuantService::read_symbol_list() {

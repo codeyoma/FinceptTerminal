@@ -450,9 +450,156 @@ struct TraderMark {
     QString mode; ///< "paper" (the trader's own paper fills), "mock" (KIS's mock trading) or "live"
     QString kind; ///< its cell: the kind and the predictor
     QString predictor;
-    QString exit_reason;       ///< a sell's: "take_profit", "stop_loss" or "time"; empty for a buy
+    /// A sell's: "take_profit", "stop_loss", "time", or since krx-quant #396 "pause", "daily_limit" or
+    /// "cumulative_limit" (trader_exit_label); empty for a buy.
+    QString exit_reason;
     std::optional<double> net; ///< a sell's net P&L after costs, in won; none for a buy
     bool operator==(const TraderMark&) const = default;
+};
+
+/// A loss limit of the trader (codeyoma/krx-quant#396): its share of the capital in percent and in
+/// won, how much of it the P&L uses now (0: no loss, 1: all of it), and when it was reached if it
+/// holds now.
+struct TraderLimit {
+    double percent = 0;
+    double won = 0;
+    double used = 0;
+    QDateTime reached_at; ///< invalid unless it holds now
+    bool operator==(const TraderLimit&) const = default;
+};
+
+/// The trader's open position (GET /v1/trader's ``position``, codeyoma/krx-quant#396).
+struct TraderPosition {
+    qint64 trade_id = 0;
+    QString kind; ///< its cell: the kind and the predictor
+    QString predictor;
+    int quantity = 0;
+    double entry_price = 0;
+    QDateTime entry_at;
+    double target = 0;
+    double stop = 0;
+    QDateTime time_barrier;
+    std::optional<double> bid; ///< the best bid it is marked at; none before a quote since the buy
+    QDateTime bid_at;
+    double unrealized = 0; ///< what selling it at that bid would net, after the costs, won
+    bool selling = false;  ///< a pause or a limit has it sold at the next quote
+    bool operator==(const TraderPosition&) const = default;
+};
+
+/// A P&L of the trader, in won: the trades exited (``realized``) and the open position's
+/// (``unrealized``), their sum and its lowest. The day's (from 00:00 KST) has its day and the trades
+/// exited; the cumulative one where its count starts (the mode's first start or its last re-arm).
+struct TraderPnl {
+    QDate day;
+    QDateTime since;
+    double realized = 0;
+    double unrealized = 0;
+    double net = 0;
+    int trades = 0;
+    double worst = 0; ///< at most 0
+    bool operator==(const TraderPnl&) const = default;
+};
+
+/// A pause, resume or re-arm asked for (GET /v1/trader's ``controls``, the answer of POST
+/// /v1/trader/pause; codeyoma/krx-quant#396).
+struct TraderControl {
+    qint64 id = 0;
+    QDateTime at;
+    QString action;               ///< "pause", "resume" or "rearm"
+    QString source;               ///< "api" (the screen's pause) or "cli" (the server's krx-quant trade)
+    std::optional<bool> sell_now; ///< a pause's: true sells the open position at once
+    QString mode;                 ///< a re-arm's mode
+    QDateTime applied_at;         ///< when the trader read it; invalid until it has
+    bool operator==(const TraderControl&) const = default;
+};
+
+/// The pause in force: since its first, whether one of them sells at once, who asked first.
+struct TraderPause {
+    QDateTime at;
+    bool sell_now = false;
+    QString source;
+    bool operator==(const TraderPause&) const = default;
+};
+
+/// The trader's state as it last wrote it (GET /v1/trader, codeyoma/krx-quant#396). Every field but
+/// ``alive`` and ``controls`` is empty before the trader first wrote it (``written``).
+struct TraderState {
+    QDateTime updated_at;
+    bool alive = false; ///< its state at most 15 s old at the engine's clock: the trader runs
+    QString mode;       ///< "paper", "mock" or "live"
+    /// "running", "entries_paused", "paused", "daily_limit" or "cumulative_limit" (trader_status_label)
+    QString status;
+    QDateTime started_at;
+    std::optional<double> capital; ///< won
+    std::optional<double> cash;    ///< what an order may use now, won
+    std::optional<TraderPosition> position;
+    std::optional<TraderPnl> today;
+    std::optional<TraderPnl> cumulative;
+    std::optional<TraderLimit> daily_limit;
+    std::optional<TraderLimit> cumulative_limit;
+    std::optional<TraderPause> pause;
+    QList<TraderControl> controls; ///< the last ones asked for, newest first
+    bool written() const { return updated_at.isValid(); }
+    bool operator==(const TraderState&) const = default;
+};
+
+/// A trading day of the trader, one mode's (GET /v1/trader/days, codeyoma/krx-quant#396).
+struct TraderDay {
+    QDate day;
+    QString mode;
+    double net = 0; ///< the trades exited that day, after costs, won
+    int trades = 0;
+    double daily_limit = 0; ///< won
+    double daily_worst = 0; ///< the day's lowest P&L, realized + open: at most 0
+    double daily_used = 0;
+    double cumulative_limit = 0;
+    double cumulative_net = 0; ///< at the day's last update
+    double cumulative_worst = 0;
+    double cumulative_used = 0;
+    QString status; ///< at the day's last update
+    QString halt;   ///< the limit reached that day; empty for none
+    QDateTime updated_at;
+    bool operator==(const TraderDay&) const = default;
+};
+
+/// A trade of the trader (GET /v1/trader/trades, codeyoma/krx-quant#394): its cell and why it was
+/// bought (the probability, the threshold, and the cost map's p* and lower bound since #395), its
+/// barriers, its entry, its exit once there is one, and its costs and P&L in won.
+struct TraderTrade {
+    qint64 id = 0;
+    QString mode;
+    QString kind;
+    QString predictor;
+    QString role;                 ///< "consensus", "top" or "baseline"; empty before #395
+    std::optional<qint64> policy; ///< the policy version it was made under (#399)
+    QDateTime bar_close;
+    std::optional<double> probability;
+    std::optional<double> threshold;
+    std::optional<double> p_star;
+    std::optional<double> precision_low;
+    std::optional<double> kelly;
+    std::optional<double> fraction;
+    std::optional<double> anchor;
+    std::optional<double> tick;
+    int width_ticks = 0;
+    double target = 0;
+    double stop = 0;
+    QDateTime time_barrier;
+    QDateTime decided_at;
+    QDateTime entry_at;
+    double entry_price = 0;
+    int quantity = 0;
+    QDateTime exit_at; ///< invalid while it is held
+    std::optional<double> exit_price;
+    QString exit_reason; ///< trader_exit_label's; empty while held
+    double buy_fee = 0;
+    std::optional<double> sell_fee;
+    std::optional<double> tax;
+    std::optional<double> cost;
+    std::optional<double> gross;
+    std::optional<double> net;
+    bool held() const { return !exit_at.isValid(); }
+    bool operator==(const TraderTrade&) const = default;
 };
 
 Result<EngineStatus> parse_status(const QJsonDocument& doc);        ///< GET /v1/status
@@ -470,6 +617,16 @@ Result<QList<Bar>> parse_bars(const QJsonDocument& doc); ///< GET /v1/symbols/{s
 /// GET /v1/symbols/{symbol}/trader-marks (krx-quant #398): newest first, as the engine sends them; a
 /// mark without its trade, side or time is dropped.
 Result<QList<TraderMark>> parse_trader_marks(const QJsonDocument& doc);
+/// GET /v1/trader (codeyoma/krx-quant#396): the trader's state, its fields empty before it first wrote it.
+Result<TraderState> parse_trader(const QJsonDocument& doc);
+/// GET /v1/trader/days (codeyoma/krx-quant#396): oldest first, each mode's; a day without its date or
+/// mode is dropped.
+Result<QList<TraderDay>> parse_trader_days(const QJsonDocument& doc);
+/// GET /v1/trader/trades (codeyoma/krx-quant#394): newest entry first; a trade without its id or entry
+/// is dropped.
+Result<QList<TraderTrade>> parse_trader_trades(const QJsonDocument& doc);
+/// The answer of POST /v1/trader/pause (codeyoma/krx-quant#396): the control written.
+Result<TraderControl> parse_trader_pause(const QJsonDocument& doc);
 
 /// Day candles the engine stored (krx-quant #111): oldest first, each starting at 00:00 KST of
 /// its day, and the market they come from ("UN" integrated, "KRX"; empty with none stored).
@@ -1391,6 +1548,15 @@ QString standing_label(const QString& status);
 /// Why last night's training runs or not, in Korean where the engine's reason is known; an
 /// unknown one as it is.
 QString training_reason_label(const QString& reason);
+/// The trader's mode in Korean (codeyoma/krx-quant#393): "모의" (paper, its own fills), "KIS 모의" (KIS's
+/// mock trading), "실전" (live); an unknown one as it is.
+QString trader_mode_label(const QString& mode);
+/// The trader's status in Korean (codeyoma/krx-quant#396): "도는 중", "새 진입 정지", "정지" (paused and
+/// sold), "하루 한도", "누적 한도"; an unknown one as it is.
+QString trader_status_label(const QString& status);
+/// Why a trade was sold, in Korean: "익절", "손절", "시간 청산", and since codeyoma/krx-quant#396 "정지 매도",
+/// "하루 한도", "누적 한도"; an unknown one as it is.
+QString trader_exit_label(const QString& reason);
 
 /// A macro reading as the screen writes it: its name, value and change.
 QString reading_text(const Reading& reading);

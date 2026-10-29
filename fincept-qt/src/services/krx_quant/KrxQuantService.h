@@ -186,6 +186,22 @@ class KrxQuantService : public QObject {
     /// default, the year to today; GET /v1/symbols/{symbol}/closing-flow/days, codeyoma/krx-quant#305):
     /// closing_days_ready or closing_days_failed. Asked again while one is read, it is not read.
     void read_closing_days(const QString& symbol, const QDate& from = {}, const QDate& to = {});
+    /// The auto trader's state as it last wrote it (GET /v1/trader, codeyoma/krx-quant#396):
+    /// trader_state_ready or trader_state_failed (also from an engine before #396). Asked again while one
+    /// is read, it is not read.
+    void read_trader();
+    /// The auto trader's days from ``from`` to ``to`` (invalid: the engine's default, the year to today;
+    /// GET /v1/trader/days, codeyoma/krx-quant#396): trader_days_ready or trader_days_failed. Asked again
+    /// while one is read, it is not read.
+    void read_trader_days(const QDate& from = {}, const QDate& to = {});
+    /// The auto trader's last ``limit`` trades (GET /v1/trader/trades?limit=, codeyoma/krx-quant#394):
+    /// trader_trades_ready or trader_trades_failed. Asked again while one is read, it is not read.
+    void read_trader_trades(int limit);
+    /// The screen's pause of the auto trader (POST /v1/trader/pause with {"sell_now": …} as JSON,
+    /// codeyoma/krx-quant#396, #397): ``sell_now`` false pauses new entries, true also sells the open
+    /// position at once. trader_paused with the control the engine wrote, or trader_pause_failed. The
+    /// engine's one write: nothing here resumes. Asked again while one is sent, it is not sent (false).
+    bool pause_trader(bool sell_now);
 
   signals:
     void snapshot_ready(const fincept::services::KrxQuantService::Snapshot& snapshot);
@@ -244,6 +260,14 @@ class KrxQuantService : public QObject {
     void closing_flow_failed(const QString& symbol, const QString& reason);
     void closing_days_ready(const QString& symbol, const fincept::krx_quant::ClosingDays& days);
     void closing_days_failed(const QString& symbol, const QString& reason);
+    void trader_state_ready(const fincept::krx_quant::TraderState& state);
+    void trader_state_failed(const QString& reason);
+    void trader_days_ready(const QList<fincept::krx_quant::TraderDay>& days);
+    void trader_days_failed(const QString& reason);
+    void trader_trades_ready(const QList<fincept::krx_quant::TraderTrade>& trades);
+    void trader_trades_failed(const QString& reason);
+    void trader_paused(bool sell_now, const fincept::krx_quant::TraderControl& control);
+    void trader_pause_failed(bool sell_now, const QString& reason);
     /// The address this service reads changed (also when another panel set it).
     void base_url_changed(const QString& url);
 
@@ -273,6 +297,10 @@ class KrxQuantService : public QObject {
         kCostMap,     ///< the cost map (codeyoma/krx-quant#307)
         kClosingFlow, ///< a symbol's closing demand today (codeyoma/krx-quant#305)
         kClosingDays, ///< a symbol's closing-flow days (codeyoma/krx-quant#305)
+        kTraderState, ///< the auto trader's state (codeyoma/krx-quant#396)
+        kTraderDays,  ///< its days
+        kTraderTrades, ///< its trades
+        kTraderPause, ///< the screen's pause sent (codeyoma/krx-quant#397)
         kKinds        ///< how many kinds of read there are
     };
 
@@ -280,6 +308,8 @@ class KrxQuantService : public QObject {
     bool begin(Kind kind);
     void end(Kind kind) { busy_[kind] = false; }
     void get(const QString& path, Step step);
+    /// POST ``body`` as JSON to ``path``: the answer to ``step``, dropped after a restart as get's.
+    void post(const QString& path, const QJsonObject& body, Step step);
     void read_symbols(Snapshot snapshot);
     void read_members(Snapshot snapshot);
     /// A chart's predictions at ``path`` (a query string without the algorithm): every

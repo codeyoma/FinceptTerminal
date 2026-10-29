@@ -111,6 +111,7 @@ QString DockScreenRouter::title_for_id(const QString& id) {
         {"krx_flow", QT_TRANSLATE_NOOP("fincept::DockScreenRouter", "KRX 수급 흐름")}, // fork addition
         {"krx_cost", QT_TRANSLATE_NOOP("fincept::DockScreenRouter", "KRX 지평·비용")}, // fork addition
         {"krx_closing", QT_TRANSLATE_NOOP("fincept::DockScreenRouter", "KRX 마감 흐름")}, // fork addition
+        {"krx_trader", QT_TRANSLATE_NOOP("fincept::DockScreenRouter", "KRX 자동 매매")}, // fork addition
     };
     auto it = titles.find(id);
     if (it == titles.end())

@@ -1288,6 +1288,38 @@ QString training_reason_label(const QString& reason) {
     return reason;
 }
 
+QString trader_mode_label(const QString& mode) {
+    static const QMap<QString, QString> labels = {
+        {"paper", QStringLiteral("모의")},
+        {"mock", QStringLiteral("KIS 모의")},
+        {"live", QStringLiteral("실전")},
+    };
+    return labels.value(mode, mode);
+}
+
+QString trader_status_label(const QString& status) {
+    static const QMap<QString, QString> labels = {
+        {"running", QStringLiteral("도는 중")},
+        {"entries_paused", QStringLiteral("새 진입 정지")},
+        {"paused", QStringLiteral("정지")},
+        {"daily_limit", QStringLiteral("하루 한도")},
+        {"cumulative_limit", QStringLiteral("누적 한도")},
+    };
+    return labels.value(status, status);
+}
+
+QString trader_exit_label(const QString& reason) {
+    static const QMap<QString, QString> labels = {
+        {"take_profit", QStringLiteral("익절")},
+        {"stop_loss", QStringLiteral("손절")},
+        {"time", QStringLiteral("시간 청산")},
+        {"pause", QStringLiteral("정지 매도")},
+        {"daily_limit", QStringLiteral("하루 한도")},
+        {"cumulative_limit", QStringLiteral("누적 한도")},
+    };
+    return labels.value(reason, reason);
+}
+
 namespace {
 
 const QLocale& korean() {
@@ -1855,6 +1887,192 @@ Result<ClosingDays> parse_closing_days(const QJsonDocument& doc) {
                               closing_stats_of(t.value("without_special"))});
     }
     return Result<ClosingDays>::ok(d);
+}
+
+
+namespace {
+
+std::optional<TraderLimit> trader_limit_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return TraderLimit{o.value("percent").toDouble(), o.value("won").toDouble(), o.value("used").toDouble(),
+                       time_of(o.value("reached_at"))};
+}
+
+std::optional<TraderPnl> trader_pnl_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    TraderPnl pnl;
+    pnl.day = day_of(o.value("day"));
+    pnl.since = time_of(o.value("since"));
+    pnl.realized = o.value("realized").toDouble();
+    pnl.unrealized = o.value("unrealized").toDouble();
+    pnl.net = o.value("net").toDouble();
+    pnl.trades = o.value("trades").toInt();
+    pnl.worst = o.value("worst").toDouble();
+    return pnl;
+}
+
+TraderControl trader_control_of(const QJsonObject& o) {
+    TraderControl c;
+    c.id = o.value("id").toInteger(-1);
+    c.at = time_of(o.value("at"));
+    c.action = o.value("action").toString();
+    c.source = o.value("source").toString();
+    if (o.value("sell_now").isBool())
+        c.sell_now = o.value("sell_now").toBool();
+    c.mode = o.value("mode").toString();
+    c.applied_at = time_of(o.value("applied_at"));
+    return c;
+}
+
+std::optional<qint64> long_of(const QJsonValue& v) {
+    if (!v.isDouble())
+        return std::nullopt;
+    return v.toInteger();
+}
+
+} // namespace
+
+Result<TraderState> parse_trader(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<TraderState>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    TraderState t;
+    t.updated_at = time_of(o.value("updated_at"));
+    t.alive = o.value("alive").toBool();
+    t.mode = o.value("mode").toString();
+    t.status = o.value("status").toString();
+    t.started_at = time_of(o.value("started_at"));
+    t.capital = number(o.value("capital"));
+    t.cash = number(o.value("cash"));
+    if (o.value("position").isObject()) {
+        const QJsonObject p = o.value("position").toObject();
+        TraderPosition position;
+        position.trade_id = p.value("trade_id").toInteger();
+        position.kind = p.value("kind").toString();
+        position.predictor = p.value("predictor").toString();
+        position.quantity = p.value("quantity").toInt();
+        position.entry_price = p.value("entry_price").toDouble();
+        position.entry_at = time_of(p.value("entry_at"));
+        position.target = p.value("target").toDouble();
+        position.stop = p.value("stop").toDouble();
+        position.time_barrier = time_of(p.value("time_barrier"));
+        position.bid = number(p.value("bid"));
+        position.bid_at = time_of(p.value("bid_at"));
+        position.unrealized = p.value("unrealized").toDouble();
+        position.selling = p.value("selling").toBool();
+        t.position = position;
+    }
+    t.today = trader_pnl_of(o.value("today"));
+    t.cumulative = trader_pnl_of(o.value("cumulative"));
+    const QJsonObject limits = o.value("limits").toObject();
+    t.daily_limit = trader_limit_of(limits.value("daily"));
+    t.cumulative_limit = trader_limit_of(limits.value("cumulative"));
+    if (o.value("pause").isObject()) {
+        const QJsonObject p = o.value("pause").toObject();
+        t.pause = TraderPause{time_of(p.value("at")), p.value("sell_now").toBool(), p.value("source").toString()};
+    }
+    for (const auto& v : o.value("controls").toArray()) {
+        const TraderControl c = trader_control_of(v.toObject());
+        if (c.id >= 0 && c.at.isValid())
+            t.controls.push_back(c);
+    }
+    return Result<TraderState>::ok(t);
+}
+
+Result<QList<TraderDay>> parse_trader_days(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<QList<TraderDay>>::err(obj.error());
+    QList<TraderDay> days;
+    for (const auto& v : obj.value().value("days").toArray()) {
+        const QJsonObject o = v.toObject();
+        TraderDay d;
+        d.day = day_of(o.value("day"));
+        d.mode = o.value("mode").toString();
+        d.net = o.value("net").toDouble();
+        d.trades = o.value("trades").toInt();
+        const QJsonObject daily = o.value("daily").toObject();
+        d.daily_limit = daily.value("limit").toDouble();
+        d.daily_worst = daily.value("worst").toDouble();
+        d.daily_used = daily.value("used").toDouble();
+        const QJsonObject cumulative = o.value("cumulative").toObject();
+        d.cumulative_limit = cumulative.value("limit").toDouble();
+        d.cumulative_net = cumulative.value("net").toDouble();
+        d.cumulative_worst = cumulative.value("worst").toDouble();
+        d.cumulative_used = cumulative.value("used").toDouble();
+        d.status = o.value("status").toString();
+        d.halt = o.value("halt").toString();
+        d.updated_at = time_of(o.value("updated_at"));
+        if (d.day.isValid() && !d.mode.isEmpty())
+            days.push_back(d);
+    }
+    return Result<QList<TraderDay>>::ok(days);
+}
+
+Result<QList<TraderTrade>> parse_trader_trades(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<QList<TraderTrade>>::err(obj.error());
+    QList<TraderTrade> trades;
+    for (const auto& v : obj.value().value("trades").toArray()) {
+        const QJsonObject o = v.toObject();
+        TraderTrade t;
+        t.id = o.value("id").toInteger(-1);
+        t.mode = o.value("mode").toString();
+        t.kind = o.value("kind").toString();
+        t.predictor = o.value("predictor").toString();
+        t.role = o.value("role").toString();
+        t.policy = long_of(o.value("policy"));
+        t.bar_close = time_of(o.value("bar_close"));
+        t.probability = number(o.value("probability"));
+        t.threshold = number(o.value("threshold"));
+        t.p_star = number(o.value("p_star"));
+        t.precision_low = number(o.value("precision_low"));
+        t.kelly = number(o.value("kelly"));
+        t.fraction = number(o.value("fraction"));
+        t.anchor = number(o.value("anchor"));
+        t.tick = number(o.value("tick"));
+        t.width_ticks = o.value("width_ticks").toInt();
+        t.target = o.value("target").toDouble();
+        t.stop = o.value("stop").toDouble();
+        t.time_barrier = time_of(o.value("time_barrier"));
+        t.decided_at = time_of(o.value("decided_at"));
+        const QJsonObject entry = o.value("entry").toObject();
+        t.entry_at = time_of(entry.value("at"));
+        t.entry_price = entry.value("price").toDouble();
+        t.quantity = entry.value("quantity").toInt();
+        if (o.value("exit").isObject()) {
+            const QJsonObject out = o.value("exit").toObject();
+            t.exit_at = time_of(out.value("at"));
+            t.exit_price = number(out.value("price"));
+            t.exit_reason = out.value("reason").toString();
+        }
+        t.buy_fee = o.value("buy_fee").toDouble();
+        t.sell_fee = number(o.value("sell_fee"));
+        t.tax = number(o.value("tax"));
+        t.cost = number(o.value("cost"));
+        t.gross = number(o.value("gross"));
+        t.net = number(o.value("net"));
+        if (t.id < 0 || !t.entry_at.isValid())
+            continue;
+        trades.push_back(t);
+    }
+    return Result<QList<TraderTrade>>::ok(trades);
+}
+
+Result<TraderControl> parse_trader_pause(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<TraderControl>::err(obj.error());
+    const TraderControl c = trader_control_of(obj.value().value("control").toObject());
+    if (c.id < 0)
+        return Result<TraderControl>::err(QStringLiteral("엔진 응답에 정지 요청이 없습니다").toStdString());
+    return Result<TraderControl>::ok(c);
 }
 
 } // namespace fincept::krx_quant

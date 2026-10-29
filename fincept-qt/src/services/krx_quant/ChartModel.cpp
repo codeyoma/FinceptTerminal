@@ -438,26 +438,6 @@ QList<TraderIcon> trader_icons(const QList<TraderMark>& marks) {
 
 namespace {
 
-QString mode_label(const QString& mode) {
-    if (mode == QLatin1String("live"))
-        return QStringLiteral("실전");
-    if (mode == QLatin1String("mock"))
-        return QStringLiteral("KIS 모의");
-    if (mode == QLatin1String("paper"))
-        return QStringLiteral("모의");
-    return mode;
-}
-
-QString exit_label(const QString& reason) {
-    if (reason == QLatin1String("take_profit"))
-        return QStringLiteral("익절");
-    if (reason == QLatin1String("stop_loss"))
-        return QStringLiteral("손절");
-    if (reason == QLatin1String("time"))
-        return QStringLiteral("시간 청산");
-    return reason;
-}
-
 /// Won with its sign, to the won: "+1,922원", "-162원", "0원".
 QString signed_won(double won) {
     const double rounded = std::round(won);
@@ -473,11 +453,11 @@ QString trader_line(const TraderMark& mark) {
                           .arg(mark.quantity)};
     if (!mark.buy) {
         if (!mark.exit_reason.isEmpty())
-            parts << exit_label(mark.exit_reason);
+            parts << trader_exit_label(mark.exit_reason);
         if (mark.net)
             parts << QStringLiteral("순손익 %1").arg(signed_won(*mark.net));
     }
-    parts << mode_label(mark.mode);
+    parts << trader_mode_label(mark.mode);
     return parts.join(QStringLiteral(" · "));
 }
 
