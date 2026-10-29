@@ -13,6 +13,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPointer>
 #include <QSettings>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -22,6 +23,7 @@
 #include <QTimer>
 
 #include <algorithm>
+#include <utility>
 
 namespace {
 
@@ -208,6 +210,180 @@ QJsonObject trades_json() {
                                   trade_json(2, "stop_loss", "live"), trade_json(1, "take_profit", "paper", false)}}};
 }
 
+/// A challenger's paper trades (codeyoma/krx-quant#400): policy 2's book, not the champion's.
+QJsonObject challenger_trades_json() {
+    QJsonArray trades;
+    for (const int id : {11, 10}) {
+        QJsonObject t = trade_json(id, "take_profit");
+        t["policy"] = 2;
+        t["champion"] = false;
+        trades.append(t);
+    }
+    return {{"trades", trades}};
+}
+
+QJsonObject paper_json(QJsonValue since, QJsonValue last, int days, int trades, double net, QJsonValue mean,
+                       QJsonValue low) {
+    return {{"since", since}, {"last", last}, {"days", days}, {"trades", trades},
+            {"net", net},     {"mean", mean}, {"low", low}};
+}
+
+QJsonObject cell_json(const char* kind, const char* role, const char* predictor, double threshold, double fraction) {
+    return {{"kind", kind},
+            {"role", role},
+            {"predictor", predictor},
+            {"threshold", threshold},
+            {"kelly_fraction", fraction},
+            {"fitted",
+             QJsonObject{{"p_star", 0.63},
+                         {"low", 0.7},
+                         {"kelly", 10.5},
+                         {"fraction", 1.0},
+                         {"days", QJsonArray{"2026-10-07", "2026-10-08"}},
+                         {"read", QJsonObject{{"read", 380}, {"rises", 120}}},
+                         {"trades", 24},
+                         {"wins", 14},
+                         {"net", 8400.0},
+                         {"growth", 0.0084}}}};
+}
+
+QJsonObject policy_json(int version, const char* status, const char* created, QJsonArray cells, QJsonValue admitted,
+                        QJsonValue dropped, QJsonObject paper) {
+    return {{"version", version},
+            {"status", status},
+            {"created_at", created},
+            {"reason", QStringLiteral("%1 밤 맞추기(지어낸 값)").arg(QString::fromLatin1(created).left(10))},
+            {"cells", cells},
+            {"left_out", QJsonArray{}},
+            {"fit", QJsonObject{}},
+            {"admitted_at", admitted},
+            {"dropped_at", dropped},
+            {"paper", paper}};
+}
+
+QJsonObject promotion_json(int days, QJsonValue mean, QJsonValue low, double level, int challengers, bool passed,
+                           QJsonValue why) {
+    return {{"champion", 2},         {"days", days},     {"required", 10},
+            {"until", 20},           {"mean", mean},     {"low", low},
+            {"level", level},        {"challengers", challengers},
+            {"passed", passed},      {"why", why}};
+}
+
+/// The first champion, policy 1, alone: no challenger yet (made-up values).
+QJsonObject lone_policies_json() {
+    return {{"champion", 1},
+            {"policies",
+             QJsonArray{policy_json(1, "champion", "2026-10-07T22:31:04+09:00",
+                                    QJsonArray{cell_json("barrier", "top", "breiman", 0.6, 0.5)}, QJsonValue(),
+                                    QJsonValue(),
+                                    paper_json("2026-10-08", "2026-10-12", 2, 4, -10418.37, -5209.185, -26882.09))}},
+            {"champions", QJsonArray{QJsonObject{{"at", "2026-10-07T22:31:04+09:00"},
+                                                 {"version", 1},
+                                                 {"reason", "처음 맞춘 정책(#399)"},
+                                                 {"detail", QJsonValue()}}}}};
+}
+
+/// Policy 2 the champion since it beat policy 1 on 10-29, with three challengers (4, 5, 6), one waiting
+/// (7, no cells) and one dropped (3); made-up values. The versions' paper records are a poll older than
+/// the state's (policy 2's 14 days against its 15).
+QJsonObject busy_policies_json() {
+    const QJsonValue none;
+    return {
+        {"champion", 2},
+        {"policies",
+         QJsonArray{
+             policy_json(7, "waiting", "2026-10-29T22:31:04+09:00", QJsonArray{}, none, none,
+                         paper_json(none, none, 0, 0, 0.0, none, none)),
+             policy_json(6, "challenger", "2026-10-28T22:31:04+09:00",
+                         QJsonArray{cell_json("barrier_30m", "top", "gauss", 0.55, 0.25)}, "2026-10-28T22:31:04+09:00",
+                         none, paper_json("2026-10-29", "2026-10-29", 1, 1, 500.0, 500.0, none)),
+             policy_json(5, "challenger", "2026-10-15T22:31:04+09:00",
+                         QJsonArray{cell_json("barrier", "top", "breiman", 0.7, 0.5)}, "2026-10-15T22:31:04+09:00", none,
+                         paper_json("2026-10-12", "2026-10-29", 12, 20, -3000.0, -250.0, -900.0)),
+             policy_json(4, "challenger", "2026-10-12T22:31:04+09:00",
+                         QJsonArray{cell_json("barrier", "top", "breiman", 0.65, 1.0)}, "2026-10-12T22:31:04+09:00", none,
+                         paper_json("2026-10-13", "2026-10-29", 13, 26, 15000.0, 1153.8, 120.0)),
+             policy_json(3, "dropped", "2026-10-09T22:31:04+09:00",
+                         QJsonArray{cell_json("direction", "consensus", "consensus-final", 0.6, 0.5)},
+                         "2026-10-09T22:31:04+09:00", "2026-10-28T22:30:40+09:00",
+                         paper_json("2026-10-12", "2026-10-28", 20, 31, -9000.0, -450.0, -1500.0)),
+             policy_json(2, "champion", "2026-10-08T22:31:04+09:00",
+                         QJsonArray{cell_json("barrier", "top", "breiman", 0.65, 1.0),
+                                    cell_json("barrier_15m", "baseline", "barrier-persist", 0.7, 0.25)},
+                         "2026-10-08T22:31:04+09:00", none,
+                         paper_json("2026-10-12", "2026-10-28", 14, 28, 11200.0, 800.0, -150.0)),
+             policy_json(1, "former", "2026-10-07T22:31:04+09:00",
+                         QJsonArray{cell_json("barrier", "top", "breiman", 0.6, 0.5)}, none, none,
+                         paper_json("2026-10-08", "2026-10-29", 16, 30, -4000.0, -250.0, -2000.0)),
+         }},
+        {"champions",
+         QJsonArray{QJsonObject{{"at", "2026-10-29T22:30:40+09:00"},
+                                {"version", 2},
+                                {"reason", "도전 정책 2이 챔피언 정책 1을 모의로 이겼다(#400)"},
+                                {"detail", QJsonObject{{"from", 1},
+                                                       {"days", 10},
+                                                       {"required", 10},
+                                                       {"mean", 1100.0},
+                                                       {"low", 63.35},
+                                                       {"level", 0.95},
+                                                       {"challengers", 1}}}},
+                    QJsonObject{{"at", "2026-10-07T22:31:04+09:00"},
+                                {"version", 1},
+                                {"reason", "처음 맞춘 정책(#399)"},
+                                {"detail", QJsonValue()}}}}};
+}
+
+/// The state's champion, gate and running policies for busy_policies_json: the gate not passed
+/// (15/20 days, the bound below 0) unless ``passed`` (21 days, +393원).
+QJsonObject busy_state_json(bool passed = false) {
+    const QJsonValue none;
+    QJsonObject o = state_json();
+    o["champion"] = 2;
+    o["gate"] = passed ? QJsonObject{{"policy", 2},    {"days", 21},  {"required", 20}, {"mean", 9300.0},
+                                     {"low", 3930.0}, {"level", 0.95}, {"passed", true}}
+                       : QJsonObject{{"policy", 2},     {"days", 15},  {"required", 20}, {"mean", 800.0},
+                                     {"low", -3000.0}, {"level", 0.95}, {"passed", false}};
+    o["policies"] = QJsonArray{
+        QJsonObject{{"version", 2},
+                    {"status", "champion"},
+                    {"paper", paper_json("2026-10-12", "2026-10-29", 15, 30, 12000.0, 800.0, -3000.0)},
+                    {"promotion", none}},
+        QJsonObject{{"version", 4},
+                    {"status", "challenger"},
+                    {"paper", paper_json("2026-10-13", "2026-10-29", 13, 26, 15000.0, 1153.8, 120.0)},
+                    {"promotion", promotion_json(12, 600.0, 63.35, 0.98333, 3, true, none)}},
+        QJsonObject{{"version", 5},
+                    {"status", "challenger"},
+                    {"paper", paper_json("2026-10-12", "2026-10-29", 12, 20, -3000.0, -250.0, -900.0)},
+                    {"promotion", promotion_json(12, -300.0, -244.0, 0.98333, 3, false, "not_above")}},
+        QJsonObject{{"version", 6},
+                    {"status", "challenger"},
+                    {"paper", paper_json("2026-10-29", "2026-10-29", 1, 1, 500.0, 500.0, none)},
+                    {"promotion", promotion_json(1, 300.0, none, 0.98333, 3, false, "few_days")}}};
+    return o;
+}
+
+/// The state for lone_policies_json: champion 1, its gate at 2/20 days.
+QJsonObject lone_state_json() {
+    QJsonObject o = state_json();
+    o["champion"] = 1;
+    o["gate"] = QJsonObject{{"policy", 1},       {"days", 2},     {"required", 20}, {"mean", -5209.185},
+                            {"low", -26882.09}, {"level", 0.95}, {"passed", false}};
+    o["policies"] = QJsonArray{
+        QJsonObject{{"version", 1},
+                    {"status", "champion"},
+                    {"paper", paper_json("2026-10-08", "2026-10-12", 2, 4, -10418.37, -5209.185, -26882.09)},
+                    {"promotion", QJsonValue()}}};
+    return o;
+}
+
+TraderPolicies policies(const QJsonObject& o) {
+    auto p = parse_trader_policies(QJsonDocument(o));
+    if (p.is_err())
+        qFatal("%s", p.error().c_str());
+    return p.value();
+}
+
 TraderState state(const QJsonObject& o = state_json()) {
     auto s = parse_trader(QJsonDocument(o));
     if (s.is_err())
@@ -242,7 +418,12 @@ class StandIn : public QObject {
     bool fail = false;         ///< every answer fails
     bool fail_pause = false;   ///< the pause alone
     bool without_trader = false; ///< an engine before codeyoma/krx-quant#396: 404
+    /// GET /v1/trader/trades is answered only on release() while this holds (codeyoma/krx-quant#401: an
+    /// answer still under way when another policy is chosen).
+    bool hold_trades = false;
+    bool without_policies = false; ///< an engine before codeyoma/krx-quant#399: 404 for the versions
     QJsonObject state = state_json();
+    QJsonObject policies = lone_policies_json();
     QList<Request> asked;
 
     StandIn() {
@@ -259,6 +440,13 @@ class StandIn : public QObject {
         return std::count_if(asked.cbegin(), asked.cend(), [&](const Request& r) {
             return r.method == method && r.path.section('?', 0, 0) == path;
         });
+    }
+    /// The trades held answered now.
+    void release() {
+        const auto held = std::exchange(held_, {});
+        for (const auto& [socket, r] : held)
+            if (socket)
+                respond(socket, r);
     }
 
   private:
@@ -285,6 +473,14 @@ class StandIn : public QObject {
         const Request r{QString::fromLatin1(first.value(0)), QString::fromLatin1(first.value(1)), content_type,
                         body.left(length)};
         asked << r;
+        if (hold_trades && r.path.section('?', 0, 0) == "/v1/trader/trades") {
+            held_.push_back({QPointer<QTcpSocket>(socket), r});
+            return;
+        }
+        respond(socket, r);
+    }
+
+    void respond(QTcpSocket* socket, const Request& r) {
         int status = 404;
         QJsonObject answer{{"error", "not found"}};
         const QString path = r.path.section('?', 0, 0);
@@ -300,7 +496,10 @@ class StandIn : public QObject {
             answer = days_json();
         } else if (r.method == "GET" && path == "/v1/trader/trades") {
             status = 200;
-            answer = trades_json();
+            answer = r.path.contains("policy=2") ? challenger_trades_json() : trades_json();
+        } else if (r.method == "GET" && path == "/v1/trader/policies" && !without_policies) {
+            status = 200;
+            answer = policies;
         } else if (r.method == "POST" && path == "/v1/trader/pause") {
             const QJsonObject asked_for = QJsonDocument::fromJson(r.body).object();
             status = 202;
@@ -315,6 +514,7 @@ class StandIn : public QObject {
     }
 
     QTcpServer server_;
+    QList<std::pair<QPointer<QTcpSocket>, Request>> held_;
 };
 
 /// The live object's own schedule, fired now (its next read, as the timer would start it).
@@ -405,6 +605,257 @@ class TstKrxTrader : public QObject {
         QVERIFY(!state().gate.has_value());
         QVERIFY(!state().champion.has_value());
         QVERIFY(view::gate_text(state()).isEmpty());
+    }
+
+    void the_policy_versions_are_read_with_their_cells_records_and_history() {
+        // codeyoma/krx-quant#399, #400: GET /v1/trader/policies, and the state's running policies.
+        QJsonObject o = busy_policies_json();
+        QJsonArray versions = o["policies"].toArray();
+        QJsonObject two = versions[5].toObject();
+        two["left_out"] = QJsonArray{QJsonObject{{"kind", "direction"}, {"role", "consensus"}, {"predictor", "consensus"},
+                                                 {"p_star", 0.6}, {"low", 0.62}, {"kelly", 3.0}, {"why", "few_trades"},
+                                                 {"most_trades", 12}, {"read", QJsonObject{}}}};
+        two["fit"] = QJsonObject{{"cost_map", QJsonObject{{"as_of", "2026-10-08T22:31:02+09:00"}, {"period", "20d"}, {"passed", 3}}},
+                                 {"result", QJsonObject{{"trades", 64}, {"wins", 38}, {"net", 21000.0}, {"growth", 0.02}}}};
+        versions[5] = two;
+        o["policies"] = versions;
+        const TraderPolicies p = policies(o);
+        QCOMPARE(*p.champion, 2);
+        QCOMPARE(p.policies.size(), 7);
+        QCOMPARE(p.policies[0].version, 7); // newest first, as the engine sends them
+        QCOMPARE(p.policies[0].status, QStringLiteral("waiting"));
+        QVERIFY(p.policies[0].cells.isEmpty());
+        QVERIFY(!p.policies[0].admitted_at.isValid());
+        QVERIFY(!p.policies[0].paper.since.isValid());
+        QVERIFY(!p.policies[0].paper.low.has_value());
+        const TraderPolicy& champion = p.policies[5];
+        QCOMPARE(champion.cells.size(), 2);
+        QCOMPARE(champion.cells[1].kind, QStringLiteral("barrier_15m"));
+        QCOMPARE(champion.cells[1].role, QStringLiteral("baseline"));
+        QCOMPARE(champion.cells[1].threshold, 0.7);
+        QCOMPARE(champion.cells[1].kelly_fraction, 0.25);
+        QCOMPARE(*champion.cells[0].p_star, 0.63);
+        QCOMPARE(champion.cells[0].fitted_days, 2);
+        QCOMPARE(champion.cells[0].fitted_trades, 24);
+        QCOMPARE(champion.cells[0].wins, 14);
+        QCOMPARE(champion.left_out.size(), 1);
+        QCOMPARE(champion.left_out[0].why, QStringLiteral("few_trades"));
+        QCOMPARE(*champion.left_out[0].most_trades, 12);
+        QCOMPARE(champion.cost_map_at, kst("2026-10-08T22:31:02+09:00"));
+        QCOMPARE(*champion.passed, 3);
+        QCOMPARE(*champion.simulated_trades, 64);
+        QCOMPARE(champion.paper.days, 14);
+        QCOMPARE(*champion.paper.low, -150.0);
+        QCOMPARE(p.policies[4].dropped_at, kst("2026-10-28T22:30:40+09:00"));
+        QVERIFY(!p.policies[6].cost_map_at.isValid()); // an empty fit: nothing assumed
+        QVERIFY(!p.policies[6].simulated_trades.has_value());
+        QCOMPARE(p.champions.size(), 2);
+        QCOMPARE(p.champions[0].version, 2);
+        QVERIFY(p.champions[0].detail.has_value());
+        QCOMPARE(p.champions[0].detail->from, 1);
+        QCOMPARE(*p.champions[0].detail->low, 63.35);
+        QVERIFY(!p.champions[1].detail.has_value()); // the first champion
+        // Before the first nightly fit: nothing.
+        const TraderPolicies none =
+            policies(QJsonObject{{"champion", QJsonValue()}, {"policies", QJsonArray{}}, {"champions", QJsonArray{}}});
+        QVERIFY(!none.champion.has_value());
+        QVERIFY(none.policies.isEmpty());
+        QVERIFY(parse_trader_policies(QJsonDocument(QJsonObject{{"error", "bad limit"}})).is_err());
+
+        // The state's running policies: the champion and the challengers, with their standing.
+        const TraderState s = state(busy_state_json());
+        QCOMPARE(s.policies.size(), 4);
+        QCOMPARE(s.policies[0].status, QStringLiteral("champion"));
+        QVERIFY(!s.policies[0].promotion.has_value());
+        QCOMPARE(s.policies[0].paper.days, 15);
+        QCOMPARE(s.policies[1].promotion->challengers, 3);
+        QVERIFY(s.policies[1].promotion->passed);
+        QVERIFY(s.policies[1].promotion->why.isEmpty());
+        QCOMPARE(s.policies[2].promotion->why, QStringLiteral("not_above"));
+        QVERIFY(!s.policies[3].promotion->low.has_value());
+        QVERIFY(state().policies.isEmpty()); // an engine before #400
+
+        // A trade says whose book made it; true from an engine before #400.
+        const auto mine = parse_trader_trades(QJsonDocument(challenger_trades_json())).value();
+        QVERIFY(!mine[0].champion);
+        QCOMPARE(*mine[0].policy, 2);
+        QVERIFY(trades()[0].champion);
+    }
+
+    void the_policy_table_without_a_challenger() {
+        const TraderPolicies p = policies(lone_policies_json());
+        const TraderState s = state(lone_state_json());
+        const auto rows = view::policy_rows(p, s);
+        QCOMPARE(rows.size(), 1);
+        QCOMPARE(rows[0].version_text, QStringLiteral("정책 1"));
+        QCOMPARE(rows[0].status, QStringLiteral("챔피언"));
+        QCOMPARE(rows[0].status_tone, Tone::Positive);
+        QCOMPARE(rows[0].created, QStringLiteral("10-07 22:31"));
+        QCOMPARE(rows[0].cells, QStringLiteral("장벽 4분 · breiman (1위)"));
+        QCOMPARE(rows[0].thresholds, QStringLiteral("60.0%"));
+        QCOMPARE(rows[0].kelly, QStringLiteral("0.5"));
+        QCOMPARE(rows[0].days, QStringLiteral("2일"));
+        QCOMPARE(rows[0].trades, QStringLiteral("4개"));
+        QCOMPARE(rows[0].net, QStringLiteral("-10,418원"));
+        QCOMPARE(rows[0].net_tone, Tone::Negative);
+        QCOMPARE(rows[0].mean, QStringLiteral("-5,209원"));
+        QCOMPARE(rows[0].low, QStringLiteral("-26,882원"));
+        QCOMPARE(rows[0].judgement, QStringLiteral("관문 2/20일 · 못 넘음"));
+        QCOMPARE(rows[0].judgement_tone, Tone::Plain);
+        QVERIFY(rows[0].paper_tip.contains(QStringLiteral("10-08(목) ~ 10-12(월), 2거래일")));
+        QVERIFY(rows[0].paper_tip.contains(QStringLiteral("운용 상한의 -2.7%")));
+        QVERIFY(rows[0].cells_tip.contains(QStringLiteral("p* 63.0% · 하한 70.0%")));
+        QVERIFY(rows[0].cells_tip.contains(QStringLiteral("모의 매매 24개(이익 14)")));
+        QVERIFY(rows[0].tip.contains(QStringLiteral("2026-10-07 밤 맞추기")));
+        QCOMPARE(view::policies_line(p), QStringLiteral("챔피언 정책 1 · 도전 0개 · 대기 0개 · 전 챔피언 0개 · 내려짐 0개"));
+        // The history: the first champion alone.
+        const auto history = view::history_rows(p);
+        QCOMPARE(history.size(), 1);
+        QCOMPARE(history[0].what, QStringLiteral("처음 챔피언"));
+        QCOMPARE(history[0].why, QStringLiteral("처음 맞춘 정책(#399)"));
+        QCOMPARE(history[0].at, QStringLiteral("10-07 22:31"));
+        // The trades' choices: the champion's, then policy 1's.
+        const auto choices = view::trade_policy_choices(p, s);
+        QCOMPARE(choices.size(), 2);
+        QVERIFY(!choices[0].version.has_value());
+        QCOMPARE(choices[0].text, QStringLiteral("챔피언의 매매"));
+        QCOMPARE(*choices[1].version, 1);
+        QCOMPARE(choices[1].text, QStringLiteral("정책 1 · 챔피언"));
+        // Before the versions are read: the state's running ones; before either, the champion's alone.
+        QCOMPARE(view::trade_policy_choices(std::nullopt, s).size(), 2);
+        QCOMPARE(view::trade_policy_choices(std::nullopt, std::nullopt).size(), 1);
+        // Before the first nightly fit.
+        const TraderPolicies none =
+            policies(QJsonObject{{"champion", QJsonValue()}, {"policies", QJsonArray{}}, {"champions", QJsonArray{}}});
+        QVERIFY(view::policy_rows(none, s).isEmpty());
+        QVERIFY(view::history_rows(none).isEmpty());
+        QVERIFY(view::policies_line(none).contains(QStringLiteral("첫 밤 정책 맞추기 전")));
+    }
+
+    void the_policy_table_with_three_challengers_one_waiting_one_former_and_one_dropped() {
+        const TraderPolicies p = policies(busy_policies_json());
+        const TraderState s = state(busy_state_json());
+        const auto rows = view::policy_rows(p, s);
+        QCOMPARE(rows.size(), 7);
+        // The champion, the challengers, the waiting, the former, the dropped; the newest first in each.
+        QList<qint64> order;
+        QStringList statuses;
+        for (const auto& row : rows) {
+            order << row.version;
+            statuses << row.status;
+        }
+        QCOMPARE(order, (QList<qint64>{2, 6, 5, 4, 7, 1, 3}));
+        QCOMPARE(statuses, (QStringList{"챔피언", "도전", "도전", "도전", "대기", "전 챔피언", "내려짐"}));
+        // Two cells in rank order, each one's θ and λ in the same order.
+        QCOMPARE(rows[0].cells, QStringLiteral("장벽 4분 · breiman (1위) / 장벽 15분 · 기준: 직전 4분 장벽 (기준)"));
+        QCOMPARE(rows[0].thresholds, QStringLiteral("65.0% / 70.0%"));
+        QCOMPARE(rows[0].kelly, QStringLiteral("1 / 0.25"));
+        // A running one's record is the state's (read every few seconds), not the versions' older one.
+        QCOMPARE(rows[0].days, QStringLiteral("15일"));
+        QCOMPARE(rows[0].net, QStringLiteral("+12,000원"));
+        QCOMPARE(rows[0].net_tone, Tone::Positive);
+        // Each challenger's standing against the champion, over three challengers (Bonferroni).
+        QCOMPARE(rows[3].judgement, QStringLiteral("이김 · 함께 12/10일 · 차이 하한 +63원"));
+        QCOMPARE(rows[3].judgement_tone, Tone::Positive);
+        QVERIFY(rows[3].judgement_tip.contains(QStringLiteral("98.33% 하한 +63원 (도전 정책 3개로 Bonferroni 보정)")));
+        QVERIFY(rows[3].judgement_tip.contains(QStringLiteral("밤 작업")));
+        QCOMPARE(rows[2].judgement, QStringLiteral("함께 12/10일 · 차이 하한 -244원 ≤ 0"));
+        QCOMPARE(rows[2].judgement_tone, Tone::Warning);
+        QVERIFY(rows[2].judgement_tip.contains(QStringLiteral("20일까지 이기지 못하면 그 밤에 내려집니다(남은 8일)")));
+        QCOMPARE(rows[1].judgement, QStringLiteral("함께 1/10일 · 날 수 부족"));
+        QCOMPARE(rows[1].low, QStringLiteral("—"));
+        QCOMPARE(rows[1].low_tone, Tone::Dim);
+        QCOMPARE(rows[3].low_tone, Tone::Positive);
+        // The waiting one trades nothing yet, and has no record.
+        QCOMPARE(rows[4].cells, QStringLiteral("칸 없음"));
+        QCOMPARE(rows[4].thresholds, QStringLiteral("—"));
+        QCOMPARE(rows[4].judgement, QStringLiteral("자리 기다림"));
+        QCOMPARE(rows[4].days, QStringLiteral("0일"));
+        QCOMPARE(rows[4].net_tone, Tone::Dim);
+        QVERIFY(rows[4].paper_tip.contains(QStringLiteral("아직 모의로 돈 거래일이 없습니다")));
+        // The former champion: beaten on 10-29 by policy 2; the dropped one: on 10-28.
+        QCOMPARE(rows[5].judgement, QStringLiteral("10-29 정책 2에게 짐"));
+        QCOMPARE(rows[5].days, QStringLiteral("16일")); // not running: the versions' record
+        QCOMPARE(rows[6].judgement, QStringLiteral("10-28 내려짐"));
+        QCOMPARE(rows[6].cells, QStringLiteral("방향 4분 · 합의 (최종) (합의)"));
+        QCOMPARE(view::policies_line(p), QStringLiteral("챔피언 정책 2 · 도전 3개 · 대기 1개 · 전 챔피언 1개 · 내려짐 1개"));
+
+        // The history, newest first: the promotion with its figures, the slots given, the drop.
+        const auto history = view::history_rows(p);
+        QStringList what;
+        for (const auto& row : history)
+            what << QStringLiteral("%1 %2 %3").arg(row.at, row.version, row.what);
+        QCOMPARE(what, (QStringList{"10-29 22:30 정책 2 챔피언 (정책 1 → 2)", "10-28 22:31 정책 6 도전 자리 받음",
+                                    "10-28 22:30 정책 3 내려짐", "10-15 22:31 정책 5 도전 자리 받음",
+                                    "10-12 22:31 정책 4 도전 자리 받음", "10-09 22:31 정책 3 도전 자리 받음",
+                                    "10-08 22:31 정책 2 도전 자리 받음", "10-07 22:31 정책 1 처음 챔피언"}));
+        QCOMPARE(history[0].why, QStringLiteral("도전 정책 2이 챔피언 정책 1을 모의로 이겼다(#400)"));
+        QVERIFY(history[0].tip.contains(QStringLiteral("함께 돈 거래일 10일(필요 10일)")));
+        QVERIFY(history[0].tip.contains(QStringLiteral("95% 하한 +63원")));
+        QStringList keys;
+        for (const auto& row : history)
+            keys << row.key;
+        keys.removeDuplicates();
+        QCOMPARE(keys.size(), history.size()); // each row's own key (the table keeps the reader's place by it)
+
+        // The trades' choices follow the table's order.
+        const auto choices = view::trade_policy_choices(p, s);
+        QCOMPARE(choices.size(), 8);
+        QCOMPARE(choices[1].text, QStringLiteral("정책 2 · 챔피언"));
+        QCOMPARE(choices[2].text, QStringLiteral("정책 6 · 도전"));
+        QCOMPARE(choices[7].text, QStringLiteral("정책 3 · 내려짐"));
+        QCOMPARE(view::trades_line(std::nullopt, 11), QStringLiteral("챔피언의 매매 11개"));
+        QCOMPARE(view::trades_line(qint64(2), 2), QStringLiteral("정책 2의 매매 2개"));
+        // Without the state (not read yet): the versions' records, no standing.
+        const auto unread = view::policy_rows(p, std::nullopt);
+        QCOMPARE(unread[0].days, QStringLiteral("14일"));
+        QCOMPARE(unread[0].judgement, QStringLiteral("—"));
+        QCOMPARE(unread[3].judgement, QStringLiteral("—"));
+    }
+
+    void the_gate_passed_and_not_passed() {
+        // Not passed: days short of 20 and the bound at or below 0, both said.
+        const TraderState short_of = state(busy_state_json());
+        QCOMPARE(view::gate_text(short_of), QStringLiteral("챔피언 정책 2 · 관문 모의 15/20일 · 하한 -0.3%"));
+        QCOMPARE(view::gate_tone(short_of), Tone::Plain);
+        QCOMPARE(view::gate_line(short_of),
+                 QStringLiteral("실전 관문 · 챔피언 정책 2의 모의 기록 15/20일 · 날마다 평균 +800원 · 95% 하한 -3,000원 (운용 상한의 "
+                                "-0.3%) · 못 넘음: 5일 더, 하한 ≤ 0"));
+        QVERIFY(!view::gate_tip(short_of).contains(QStringLiteral("#401")));
+        QVERIFY(view::gate_tip(short_of).contains(QStringLiteral("정책 버전 표")));
+        // Passed: green, and the mode is still the server's to change.
+        const TraderState passed = state(busy_state_json(true));
+        QCOMPARE(view::gate_text(passed), QStringLiteral("챔피언 정책 2 · 관문 모의 21/20일 · 하한 0.4% · 관문 넘음"));
+        QCOMPARE(view::gate_tone(passed), Tone::Positive);
+        QCOMPARE(view::gate_line(passed),
+                 QStringLiteral("실전 관문 · 챔피언 정책 2의 모의 기록 21/20일 · 날마다 평균 +9,300원 · 95% 하한 +3,930원 (운용 상한의 "
+                                "0.4%) · 넘음: 실전 모드는 서버에서 켭니다"));
+        const TraderPolicies p = policies(busy_policies_json());
+        QCOMPARE(view::policy_rows(p, passed)[0].judgement, QStringLiteral("관문 넘음"));
+        QCOMPARE(view::policy_rows(p, passed)[0].judgement_tone, Tone::Positive);
+        QCOMPARE(view::policy_rows(p, short_of)[0].judgement, QStringLiteral("관문 15/20일 · 못 넘음"));
+        QVERIFY(view::policy_rows(p, short_of)[0].judgement_tip.contains(QStringLiteral("5일 더")));
+        // Enough days, the bound below 0: only the bound short.
+        QJsonObject days_enough = busy_state_json();
+        QJsonObject g = days_enough["gate"].toObject();
+        g["days"] = 22;
+        days_enough["gate"] = g;
+        QVERIFY(view::gate_line(state(days_enough)).endsWith(QStringLiteral("못 넘음: 하한 ≤ 0")));
+        // One day: no bound yet.
+        QJsonObject one_day = lone_state_json();
+        g = one_day["gate"].toObject();
+        g["days"] = 1;
+        g["low"] = QJsonValue();
+        one_day["gate"] = g;
+        QVERIFY(view::gate_line(state(one_day)).endsWith(QStringLiteral("95% 하한 — · 못 넘음: 19일 더, 하한은 2일부터")));
+        // Before the first champion, and from an engine before #400.
+        QJsonObject first = state_json();
+        first["champion"] = QJsonValue();
+        first["gate"] = QJsonObject{{"policy", QJsonValue()}, {"days", 0},      {"required", 20}, {"mean", QJsonValue()},
+                                    {"low", QJsonValue()},    {"level", 0.95}, {"passed", false}};
+        QVERIFY(view::gate_line(state(first)).contains(QStringLiteral("첫 챔피언 전")));
+        QCOMPARE(view::gate_tone(state(first)), Tone::Plain);
+        QVERIFY(view::gate_line(state()).isEmpty());
     }
 
     void a_state_the_trader_never_wrote_has_only_alive_and_controls() {
@@ -620,6 +1071,17 @@ class TstKrxTrader : public QObject {
         later["exit"] = out;
         const auto next_day = parse_trader_trades(QJsonDocument(QJsonObject{{"trades", QJsonArray{later}}})).value();
         QCOMPARE(view::trade_rows(next_day, std::nullopt)[0].exit, QStringLiteral("10-15 09:05:00 · 69,800"));
+        // Whose trade: the champion's under its version, a challenger's paper trade, one before the first champion.
+        QCOMPARE(rows[0].policy, QStringLiteral("정책 1"));
+        QCOMPARE(rows[0].policy_tone, Tone::Plain);
+        QCOMPARE(rows[6].policy, QStringLiteral("—"));
+        QCOMPARE(rows[6].policy_tone, Tone::Dim);
+        const auto challenger =
+            view::trade_rows(parse_trader_trades(QJsonDocument(challenger_trades_json())).value(), state());
+        QCOMPARE(challenger[0].policy, QStringLiteral("정책 2 · 도전"));
+        QCOMPARE(challenger[0].policy_tone, Tone::Simulated);
+        QVERIFY(challenger[0].tip.contains(QStringLiteral("도전 정책의 모의 매매")));
+        QVERIFY(!rows[0].tip.contains(QStringLiteral("도전 정책의 모의 매매")));
         QCOMPARE(view::kind_label("barrier_30m"), QStringLiteral("장벽 30분"));
         QCOMPARE(view::kind_label("direction"), QStringLiteral("방향 4분"));
     }
@@ -825,6 +1287,112 @@ class TstKrxTrader : public QObject {
         QVERIFY(live.pause(false, [](const view::Question&) { return true; }));
         QTRY_VERIFY_WITH_TIMEOUT(live.pause_failed(), 10000);
         QVERIFY(live.pause_note().contains(QStringLiteral("새 진입 정지 요청을 보내지 못했습니다")));
+        live.stop();
+    }
+
+    void the_policy_versions_are_read_with_the_days_and_trades() {
+        StandIn engine;
+        engine.state = busy_state_json();
+        engine.policies = busy_policies_json();
+        services::KrxQuantService::set_base_url(engine.url());
+        QDateTime clock = kst("2026-10-15T10:06:30+09:00");
+        services::KrxTraderLive live(nullptr, [&clock] { return clock; });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.policies().has_value() && live.state().has_value() && !live.reading(), 10000);
+        QCOMPARE(live.policies()->policies.size(), 7);
+        QCOMPARE(engine.count("GET", "/v1/trader/policies"), 1);
+        QVERIFY(live.failure().isEmpty());
+        // The next poll with nothing changed: the state alone.
+        clock = clock.addSecs(2);
+        fire_schedule(live);
+        QTRY_COMPARE_WITH_TIMEOUT(engine.count("GET", "/v1/trader"), 2, 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(!live.reading(), 10000);
+        QCOMPARE(engine.count("GET", "/v1/trader/policies"), 1);
+        // A challenger's record moved (a trade of its exited): the versions again, with the days and trades.
+        QJsonObject moved = busy_state_json();
+        QJsonArray running = moved["policies"].toArray();
+        QJsonObject six = running[3].toObject();
+        six["paper"] = paper_json("2026-10-29", "2026-10-30", 2, 2, 900.0, 450.0, -300.0);
+        running[3] = six;
+        moved["policies"] = running;
+        engine.state = moved;
+        clock = clock.addSecs(2);
+        fire_schedule(live);
+        QTRY_COMPARE_WITH_TIMEOUT(engine.count("GET", "/v1/trader/policies"), 2, 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(!live.reading(), 10000);
+        // The champion replaced: the same.
+        QJsonObject promoted = moved;
+        promoted["champion"] = 4;
+        engine.state = promoted;
+        clock = clock.addSecs(2);
+        fire_schedule(live);
+        QTRY_COMPARE_WITH_TIMEOUT(engine.count("GET", "/v1/trader/policies"), 3, 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(!live.reading(), 10000);
+        // An engine without the versions (before codeyoma/krx-quant#399): said so, the rest kept and shown.
+        engine.without_policies = true;
+        live.read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(live.failure().startsWith(QStringLiteral("정책: ")) && !live.reading(), 10000);
+        QVERIFY(live.state().has_value() && live.days().has_value() && live.trades().has_value());
+        QVERIFY(live.policies().has_value()); // the last versions read stay
+        live.stop();
+    }
+
+    void the_trades_of_a_policy_chosen_are_read_at_once_and_a_late_answer_for_another_is_not_kept() {
+        StandIn engine;
+        engine.state = busy_state_json();
+        engine.policies = busy_policies_json();
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxTraderLive live(nullptr, [] { return kst("2026-10-15T10:06:30+09:00"); });
+        QCOMPARE(live.trades_policy(), std::optional<qint64>()); // the champion's at first
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.trades().has_value() && !live.reading(), 10000);
+        QCOMPARE(live.trades()->size(), 7);
+        QVERIFY(std::all_of(engine.asked.cbegin(), engine.asked.cend(),
+                            [](const StandIn::Request& r) { return !r.path.contains("policy="); }));
+
+        // Policy 2 chosen: its trades at once, the champion's dropped meanwhile.
+        live.set_trades_policy(2);
+        QCOMPARE(*live.trades_policy(), 2);
+        QVERIFY(!live.trades().has_value());
+        QTRY_VERIFY_WITH_TIMEOUT(live.trades().has_value() && !live.reading(), 10000);
+        QVERIFY(std::any_of(engine.asked.cbegin(), engine.asked.cend(), [](const StandIn::Request& r) {
+            return r.path == "/v1/trader/trades?limit=100&policy=2";
+        }));
+        QCOMPARE(live.trades()->size(), 2);
+        QVERIFY(!live.trades()->first().champion);
+        // A read of all three keeps the choice.
+        live.read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(!live.reading(), 10000);
+        QCOMPARE(live.trades()->size(), 2);
+
+        // Chosen again while the trades are read: the answer under way is the old choice's, not kept;
+        // the new choice's is asked once it is in.
+        engine.hold_trades = true;
+        const qsizetype asked = engine.count("GET", "/v1/trader/trades");
+        live.read_now();
+        QTRY_COMPARE_WITH_TIMEOUT(engine.count("GET", "/v1/trader/trades"), asked + 1, 10000); // policy 2's, held
+        live.set_trades_policy(std::nullopt);
+        engine.release(); // policy 2's answer comes in now, after the champion's were chosen
+        QTRY_COMPARE_WITH_TIMEOUT(engine.count("GET", "/v1/trader/trades"), asked + 2, 10000); // the champion's, held
+        QVERIFY(!live.trades().has_value()); // policy 2's answer was not kept for the champion's
+        const auto last_trades = std::find_if(engine.asked.crbegin(), engine.asked.crend(), [](const StandIn::Request& r) {
+            return r.path.startsWith("/v1/trader/trades");
+        });
+        QCOMPARE(last_trades->path, QStringLiteral("/v1/trader/trades?limit=100"));
+        engine.hold_trades = false;
+        engine.release();
+        QTRY_VERIFY_WITH_TIMEOUT(live.trades().has_value() && !live.reading(), 10000);
+        QCOMPARE(live.trades()->size(), 7);
+        QVERIFY(live.trades()->first().champion);
+        QVERIFY(live.failure().isEmpty());
+
+        // Another engine: back to the champion's.
+        live.set_trades_policy(2);
+        StandIn other;
+        services::KrxQuantService::set_base_url(other.url());
+        live.read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(live.state().has_value() && other.count("GET", "/v1/trader") > 0 && !live.reading(), 10000);
+        QVERIFY(!live.trades_policy().has_value());
         live.stop();
     }
 

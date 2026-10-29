@@ -1934,6 +1934,43 @@ std::optional<qint64> long_of(const QJsonValue& v) {
     return v.toInteger();
 }
 
+TraderPaper trader_paper_of(const QJsonValue& v) {
+    const QJsonObject o = v.toObject();
+    TraderPaper paper;
+    paper.since = day_of(o.value("since"));
+    paper.last = day_of(o.value("last"));
+    paper.days = o.value("days").toInt();
+    paper.trades = o.value("trades").toInt();
+    paper.net = o.value("net").toDouble();
+    paper.mean = number(o.value("mean"));
+    paper.low = number(o.value("low"));
+    return paper;
+}
+
+std::optional<TraderPromotion> trader_promotion_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    TraderPromotion p;
+    p.champion = o.value("champion").toInteger();
+    p.days = o.value("days").toInt();
+    p.required = o.value("required").toInt(10);
+    p.until = o.value("until").toInt(20);
+    p.mean = number(o.value("mean"));
+    p.low = number(o.value("low"));
+    p.level = o.value("level").toDouble(0.95);
+    p.challengers = o.value("challengers").toInt(1);
+    p.passed = o.value("passed").toBool();
+    p.why = o.value("why").toString();
+    return p;
+}
+
+std::optional<int> int_of(const QJsonValue& v) {
+    if (!v.isDouble())
+        return std::nullopt;
+    return v.toInt();
+}
+
 } // namespace
 
 Result<TraderState> parse_trader(const QJsonDocument& doc) {
@@ -1992,6 +2029,14 @@ Result<TraderState> parse_trader(const QJsonDocument& doc) {
                             g.value("level").toDouble(0.95),
                             g.value("passed").toBool()};
     }
+    for (const auto& v : o.value("policies").toArray()) {
+        const QJsonObject p = v.toObject();
+        const std::optional<qint64> version = long_of(p.value("version"));
+        if (!version)
+            continue;
+        t.policies.push_back(
+            {*version, p.value("status").toString(), trader_paper_of(p.value("paper")), trader_promotion_of(p.value("promotion"))});
+    }
     return Result<TraderState>::ok(t);
 }
 
@@ -2039,6 +2084,7 @@ Result<QList<TraderTrade>> parse_trader_trades(const QJsonDocument& doc) {
         t.predictor = o.value("predictor").toString();
         t.role = o.value("role").toString();
         t.policy = long_of(o.value("policy"));
+        t.champion = o.value("champion").toBool(true);
         t.bar_close = time_of(o.value("bar_close"));
         t.probability = number(o.value("probability"));
         t.threshold = number(o.value("threshold"));
@@ -2084,6 +2130,85 @@ Result<TraderControl> parse_trader_pause(const QJsonDocument& doc) {
     if (c.id < 0)
         return Result<TraderControl>::err(QStringLiteral("엔진 응답에 정지 요청이 없습니다").toStdString());
     return Result<TraderControl>::ok(c);
+}
+
+Result<TraderPolicies> parse_trader_policies(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<TraderPolicies>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    TraderPolicies out;
+    out.champion = long_of(o.value("champion"));
+    for (const auto& v : o.value("policies").toArray()) {
+        const QJsonObject p = v.toObject();
+        TraderPolicy policy;
+        const std::optional<qint64> version = long_of(p.value("version"));
+        if (!version)
+            continue;
+        policy.version = *version;
+        policy.status = p.value("status").toString();
+        policy.created_at = time_of(p.value("created_at"));
+        policy.reason = p.value("reason").toString();
+        for (const auto& c : p.value("cells").toArray()) {
+            const QJsonObject cell = c.toObject();
+            const QJsonObject fitted = cell.value("fitted").toObject();
+            TraderPolicyCell pc;
+            pc.kind = cell.value("kind").toString();
+            pc.role = cell.value("role").toString();
+            pc.predictor = cell.value("predictor").toString();
+            pc.threshold = cell.value("threshold").toDouble();
+            pc.kelly_fraction = cell.value("kelly_fraction").toDouble();
+            pc.p_star = number(fitted.value("p_star"));
+            pc.low = number(fitted.value("low"));
+            pc.kelly = number(fitted.value("kelly"));
+            pc.fraction = number(fitted.value("fraction"));
+            pc.fitted_days = static_cast<int>(fitted.value("days").toArray().size());
+            pc.fitted_trades = fitted.value("trades").toInt();
+            pc.wins = fitted.value("wins").toInt();
+            pc.fitted_net = number(fitted.value("net"));
+            policy.cells.push_back(pc);
+        }
+        for (const auto& c : p.value("left_out").toArray()) {
+            const QJsonObject cell = c.toObject();
+            policy.left_out.push_back({cell.value("kind").toString(), cell.value("role").toString(),
+                                       cell.value("predictor").toString(), cell.value("why").toString(),
+                                       int_of(cell.value("most_trades"))});
+        }
+        // ``fit`` is the nightly fit's record as it keeps it: read what is there, nothing assumed.
+        const QJsonObject fit = p.value("fit").toObject();
+        const QJsonObject cost_map = fit.value("cost_map").toObject();
+        policy.cost_map_at = time_of(cost_map.value("as_of"));
+        policy.passed = int_of(cost_map.value("passed"));
+        const QJsonObject result = fit.value("result").toObject();
+        policy.simulated_trades = int_of(result.value("trades"));
+        policy.simulated_net = number(result.value("net"));
+        policy.admitted_at = time_of(p.value("admitted_at"));
+        policy.dropped_at = time_of(p.value("dropped_at"));
+        policy.paper = trader_paper_of(p.value("paper"));
+        out.policies.push_back(policy);
+    }
+    for (const auto& v : o.value("champions").toArray()) {
+        const QJsonObject c = v.toObject();
+        TraderChampionChange change;
+        change.at = time_of(c.value("at"));
+        const std::optional<qint64> version = long_of(c.value("version"));
+        if (!version || !change.at.isValid())
+            continue;
+        change.version = *version;
+        change.reason = c.value("reason").toString();
+        if (c.value("detail").isObject()) {
+            const QJsonObject d = c.value("detail").toObject();
+            change.detail = TraderPromotionDetail{d.value("from").toInteger(),
+                                                  d.value("days").toInt(),
+                                                  d.value("required").toInt(10),
+                                                  number(d.value("mean")),
+                                                  number(d.value("low")),
+                                                  d.value("level").toDouble(0.95),
+                                                  d.value("challengers").toInt(1)};
+        }
+        out.champions.push_back(change);
+    }
+    return Result<TraderPolicies>::ok(out);
 }
 
 } // namespace fincept::krx_quant

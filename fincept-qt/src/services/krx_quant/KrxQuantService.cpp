@@ -703,15 +703,30 @@ void KrxQuantService::read_trader_days(const QDate& from, const QDate& to) {
     });
 }
 
-void KrxQuantService::read_trader_trades(int limit) {
+void KrxQuantService::read_trader_trades(int limit, std::optional<qint64> policy) {
     if (!begin(kTraderTrades))
         return;
-    get(QStringLiteral("/v1/trader/trades?limit=%1").arg(limit), [this](Result<QJsonDocument> answer) {
+    QString path = QStringLiteral("/v1/trader/trades?limit=%1").arg(limit);
+    if (policy)
+        path += QStringLiteral("&policy=%1").arg(*policy);
+    get(path, [this](Result<QJsonDocument> answer) {
         end(kTraderTrades);
         auto trades = parsed(answer, krx_quant::parse_trader_trades);
         if (trades.is_err())
             return emit trader_trades_failed(why(trades.error()));
         emit trader_trades_ready(trades.value());
+    });
+}
+
+void KrxQuantService::read_trader_policies() {
+    if (!begin(kTraderPolicies))
+        return;
+    get("/v1/trader/policies", [this](Result<QJsonDocument> answer) {
+        end(kTraderPolicies);
+        auto policies = parsed(answer, krx_quant::parse_trader_policies);
+        if (policies.is_err())
+            return emit trader_policies_failed(why(policies.error()));
+        emit trader_policies_ready(policies.value());
     });
 }
 

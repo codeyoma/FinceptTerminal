@@ -194,9 +194,15 @@ class KrxQuantService : public QObject {
     /// GET /v1/trader/days, codeyoma/krx-quant#396): trader_days_ready or trader_days_failed. Asked again
     /// while one is read, it is not read.
     void read_trader_days(const QDate& from = {}, const QDate& to = {});
-    /// The auto trader's last ``limit`` trades (GET /v1/trader/trades?limit=, codeyoma/krx-quant#394):
-    /// trader_trades_ready or trader_trades_failed. Asked again while one is read, it is not read.
-    void read_trader_trades(int limit);
+    /// The auto trader's last ``limit`` trades (GET /v1/trader/trades?limit=, codeyoma/krx-quant#394): the
+    /// champion's (the trader's own) without ``policy``, else that policy version's (``&policy=``, its paper
+    /// trades as a challenger and its trades as the champion, codeyoma/krx-quant#400). trader_trades_ready or
+    /// trader_trades_failed. Asked again while one is read, it is not read.
+    void read_trader_trades(int limit, std::optional<qint64> policy = std::nullopt);
+    /// The auto trader's policy versions and the champion's changes (GET /v1/trader/policies,
+    /// codeyoma/krx-quant#399, #400): trader_policies_ready or trader_policies_failed. Asked again while one
+    /// is read, it is not read.
+    void read_trader_policies();
     /// The screen's pause of the auto trader (POST /v1/trader/pause with {"sell_now": …} as JSON,
     /// codeyoma/krx-quant#396, #397): ``sell_now`` false pauses new entries, true also sells the open
     /// position at once. trader_paused with the control the engine wrote, or trader_pause_failed. The
@@ -266,6 +272,8 @@ class KrxQuantService : public QObject {
     void trader_days_failed(const QString& reason);
     void trader_trades_ready(const QList<fincept::krx_quant::TraderTrade>& trades);
     void trader_trades_failed(const QString& reason);
+    void trader_policies_ready(const fincept::krx_quant::TraderPolicies& policies);
+    void trader_policies_failed(const QString& reason);
     void trader_paused(bool sell_now, const fincept::krx_quant::TraderControl& control);
     void trader_pause_failed(bool sell_now, const QString& reason);
     /// The address this service reads changed (also when another panel set it).
@@ -301,6 +309,7 @@ class KrxQuantService : public QObject {
         kTraderDays,  ///< its days
         kTraderTrades, ///< its trades
         kTraderPause, ///< the screen's pause sent (codeyoma/krx-quant#397)
+        kTraderPolicies, ///< its policy versions (codeyoma/krx-quant#401)
         kKinds        ///< how many kinds of read there are
     };
 
