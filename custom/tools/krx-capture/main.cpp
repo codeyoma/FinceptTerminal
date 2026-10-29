@@ -10,6 +10,9 @@
 // period (default 20d), KRX_CAPTURE_SYMBOL its symbol (default all).
 // KRX_CAPTURE_CLOSING=1 saves the closing flow screen (codeyoma/krx-quant#305): KRX_CAPTURE_SYMBOL its
 // symbol (default the one kept, else the engine's first).
+// KRX_CAPTURE_TRADER=1 saves the auto trader screen (codeyoma/krx-quant#397); KRX_CAPTURE_CONFIRM=entries or
+// =sell then presses that pause button and saves its confirm window, <out>-confirm.png, and cancels it:
+// nothing is sent.
 //
 //   krx_capture <engine url> <out.png> [seconds=8] [width=1600] [height=1000] [predictor,...]
 //
@@ -21,6 +24,7 @@
 #include "screens/krx_quant/KrxFlowScreen.h"
 #include "screens/krx_quant/KrxCostScreen.h"
 #include "screens/krx_quant/KrxClosingScreen.h"
+#include "screens/krx_quant/KrxTraderScreen.h"
 #include "screens/krx_quant/KrxBarWindow.h"
 #include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxChartToolbar.h"
@@ -50,6 +54,7 @@
 #include <QKeySequence>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
 #include <QTabWidget>
@@ -232,6 +237,49 @@ int main(int argc, char* argv[]) {
                 status = 1;
             }
             app.quit();
+        });
+        app.exec();
+        return status;
+    }
+
+    // KRX_CAPTURE_TRADER=1: the auto trader screen (codeyoma/krx-quant#397), saved after the wait;
+    // KRX_CAPTURE_CONFIRM=entries|sell: then a pause button's confirm window too, cancelled.
+    if (qEnvironmentVariableIntValue("KRX_CAPTURE_TRADER") != 0) {
+        fincept::screens::KrxTraderScreen trader;
+        trader.resize(width, height);
+        trader.show();
+        const QString out = QString::fromLocal8Bit(argv[2]);
+        const QString confirm = qEnvironmentVariable("KRX_CAPTURE_CONFIRM");
+        int status = 0;
+        QTimer::singleShot(seconds * 1000, &app, [&]() {
+            if (!trader.grab().save(out)) {
+                QTextStream(stderr) << "could not save " << out << "\n";
+                status = 1;
+            }
+            if (confirm.isEmpty())
+                return app.quit();
+            const char* name = confirm == QLatin1String("sell") ? fincept::screens::KrxTraderScreen::kPauseSellName
+                                                                : fincept::screens::KrxTraderScreen::kPauseEntriesName;
+            auto* button = trader.findChild<QPushButton*>(QString::fromLatin1(name));
+            if (button == nullptr || !button->isEnabled()) {
+                QTextStream(stderr) << "the " << confirm << " pause button cannot be pressed\n";
+                status = 1;
+                return app.quit();
+            }
+            // The window is modal: it is saved and cancelled from within its own loop.
+            QTimer::singleShot(800, &app, [&]() {
+                QWidget* window = QApplication::activeModalWidget();
+                const QFileInfo info(out);
+                const QString path = info.dir().filePath(info.completeBaseName() + "-confirm.png");
+                if (window == nullptr || !window->grab().save(path)) {
+                    QTextStream(stderr) << "could not save " << path << "\n";
+                    status = 1;
+                }
+                if (window != nullptr)
+                    window->close(); // the cancel: nothing is sent
+                QTimer::singleShot(0, &app, [&app]() { app.quit(); });
+            });
+            button->click();
         });
         app.exec();
         return status;

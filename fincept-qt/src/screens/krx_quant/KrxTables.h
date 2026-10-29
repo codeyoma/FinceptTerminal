@@ -5,7 +5,10 @@
 #include "ui/theme/Theme.h"
 
 #include <QHeaderView>
+#include <QItemSelectionModel>
 #include <QObject>
+#include <QScrollBar>
+#include <QVariant>
 #include <QString>
 #include <QStringList>
 #include <QTableWidget>
@@ -101,6 +104,48 @@ inline void restyle(QTableWidget* table) {
                 "QTableWidget::indicator:checked { background: %7; border-color: %7; }")
             .arg(ui::colors::DARK(), ui::colors::ROW_ALT(), ui::colors::BORDER(), ui::colors::BG_RAISED(),
                  ui::colors::BORDER_MED(), ui::colors::BG_SURFACE(), ui::colors::AMBER()));
+}
+
+/// The property a table keeps what it shows under (refill): all its rows as text.
+inline constexpr const char* kRowsProperty = "krxRows";
+
+/// Fill ``table`` again with ``fill``, which inserts its rows, each with its key (a trade's id, say) in
+/// column 0's Qt::UserRole, unless ``rows`` (all it would show, as text) is what it shows already: a poll
+/// every few seconds that brings nothing new leaves the table as it is (codeyoma/krx-quant#397). When it
+/// does fill again, the row at the top of a scrolled view stays at the top and the selected row stays
+/// selected, each found again by its key, so the reader is not thrown back to the newest rows; a table
+/// not scrolled stays at its top, where new rows come in. Clearing kRowsProperty makes the next one fill
+/// again (a theme change: the rows' colours). Whether it filled again.
+template <typename Fill>
+bool refill(QTableWidget* table, const QString& rows, Fill&& fill) {
+    const QVariant shown = table->property(kRowsProperty);
+    if (shown.isValid() && shown.toString() == rows)
+        return false;
+    const auto key_at = [table](int row) {
+        const QTableWidgetItem* item = row >= 0 ? table->item(row, 0) : nullptr;
+        return item != nullptr ? item->data(Qt::UserRole).toString() : QString();
+    };
+    const QString top = table->verticalScrollBar()->value() > 0 ? key_at(table->rowAt(0)) : QString();
+    const QModelIndexList selected =
+        table->selectionModel() != nullptr ? table->selectionModel()->selectedRows() : QModelIndexList{};
+    const QString chosen = selected.isEmpty() ? QString() : key_at(selected.first().row());
+    table->setRowCount(0);
+    fill();
+    table->setProperty(kRowsProperty, rows);
+    table->doItemsLayout(); // the new rows' scroll range, before scrolling in it
+    // Selected through the selection model: selectRow would make it current and scroll to it.
+    for (int r = 0; r < table->rowCount() && !chosen.isEmpty() && table->selectionModel() != nullptr; ++r)
+        if (key_at(r) == chosen) {
+            table->selectionModel()->select(table->model()->index(r, 0),
+                                            QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+            break;
+        }
+    for (int r = 0; r < table->rowCount() && !top.isEmpty(); ++r)
+        if (key_at(r) == top) {
+            table->scrollToItem(table->item(r, 0), QAbstractItemView::PositionAtTop);
+            break;
+        }
+    return true;
 }
 
 inline QTableWidget* table(const QStringList& headers) {

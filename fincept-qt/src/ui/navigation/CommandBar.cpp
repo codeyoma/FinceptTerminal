@@ -201,6 +201,13 @@ void CommandBar::build_commands() {
          {"krx", "krx_closing", "closing", "rebalancing"},
          "",
          {"krx", "korea", "closing", "마감", "리밸런싱", "레버리지"}},
+        // Fork addition (codeyoma/krx-quant#397)
+        {"krx_trader",
+         tr("KRX 자동 매매"),
+         "KRX auto trader",
+         {"krx", "krx_trader", "trader", "auto trading"},
+         "",
+         {"krx", "korea", "trader", "자동", "매매", "자동 매매"}},
         {"crypto_trading",
          tr("Crypto Trading"),
          "Cryptocurrency trading",

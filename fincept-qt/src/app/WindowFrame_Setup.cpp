@@ -80,6 +80,7 @@
 #include "screens/krx_quant/KrxClosingScreen.h" // fork addition (custom/README.md)
 #include "screens/krx_quant/KrxCostScreen.h" // fork addition (custom/README.md)
 #include "screens/krx_quant/KrxQuantScreen.h" // fork addition (custom/README.md)
+#include "screens/krx_quant/KrxTraderScreen.h" // fork addition (custom/README.md)
 #include "ui/navigation/DockStatusBar.h"
 #include "ui/navigation/DockToolBar.h"
 #include "ui/navigation/FKeyBar.h"
@@ -313,6 +314,8 @@ void WindowFrame::setup_dock_screens() {
     dock_router_->register_factory("krx_cost", []() { return new screens::KrxCostScreen; });
     // Fork addition (custom/README.md): the closing flow (codeyoma/krx-quant#305).
     dock_router_->register_factory("krx_closing", []() { return new screens::KrxClosingScreen; });
+    // Fork addition (custom/README.md): the auto trader (codeyoma/krx-quant#397).
+    dock_router_->register_factory("krx_trader", []() { return new screens::KrxTraderScreen; });
 }
 
 } // namespace fincept

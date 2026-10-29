@@ -859,6 +859,14 @@ class TstKrxChartModel : public QObject {
         sell.exit_reason = QStringLiteral("stop_loss");
         sell.net = 0.4;
         QCOMPARE(trader_line(sell), QStringLiteral("자동 매매 매도 70,250원 × 14주 · 손절 · 순손익 0원 · KIS 모의"));
+        // The pause's and the loss limits' sells (codeyoma/krx-quant#396, #397), in Korean as the trader screen says them.
+        sell.mode = QStringLiteral("paper");
+        sell.exit_reason = QStringLiteral("pause");
+        QCOMPARE(trader_line(sell), QStringLiteral("자동 매매 매도 70,250원 × 14주 · 정지 매도 · 순손익 0원 · 모의"));
+        sell.exit_reason = QStringLiteral("daily_limit");
+        QVERIFY(trader_line(sell).contains(QStringLiteral(" · 하루 한도 · ")));
+        sell.exit_reason = QStringLiteral("cumulative_limit");
+        QVERIFY(trader_line(sell).contains(QStringLiteral(" · 누적 한도 · ")));
         buy.price = 70050.5; // a price between ticks, as price_text writes it
         QVERIFY(trader_line(buy).contains(QStringLiteral("70,050.5원")));
     }
