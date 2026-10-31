@@ -454,6 +454,9 @@ struct TraderMark {
     /// "cumulative_limit" (trader_exit_label); empty for a buy.
     QString exit_reason;
     std::optional<double> net; ///< a sell's net P&L after costs, in won; none for a buy
+    /// The mock book's practice trade's (codeyoma/krx-quant#427, #430): of no policy; false from an
+    /// engine before #427.
+    bool practice = false;
     bool operator==(const TraderMark&) const = default;
 };
 

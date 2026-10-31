@@ -416,6 +416,7 @@ Result<QList<TraderMark>> parse_trader_marks(const QJsonDocument& doc) {
         mark.predictor = m.value("predictor").toString();
         mark.exit_reason = m.value("exit_reason").toString();
         mark.net = number(m.value("net"));
+        mark.practice = m.value("practice").toBool(); // codeyoma/krx-quant#430
         if (mark.trade_id < 0 || !mark.at.isValid() || (side != QLatin1String("buy") && side != QLatin1String("sell")))
             continue;
         marks.push_back(mark);

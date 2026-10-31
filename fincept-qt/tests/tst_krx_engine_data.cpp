@@ -434,6 +434,24 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(marks[2].kind, QStringLiteral("direction"));
         QCOMPARE(marks[2].predictor, QStringLiteral("consensus-final"));
         QCOMPARE(marks[2].mode, QStringLiteral("paper"));
+        QVERIFY(!marks[0].practice && !marks[2].practice); // an engine before krx-quant #427 gives none
+        // The mock book's practice trade (codeyoma/krx-quant#427, #430): ``practice`` on each mark.
+        const auto practice = parse_trader_marks(json(R"json({"symbol": "005930", "marks": [
+            {"trade_id": 5, "side": "sell", "at": "2026-10-31T10:04:00+09:00", "price": 70200.0, "quantity": 1,
+             "mode": "mock", "policy": null, "kind": "barrier", "predictor": "breiman", "exit_reason": "time",
+             "net": 62.4, "practice": true},
+            {"trade_id": 5, "side": "buy", "at": "2026-10-31T10:00:02+09:00", "price": 70100.0, "quantity": 1,
+             "mode": "mock", "policy": null, "kind": "barrier", "predictor": "breiman", "exit_reason": null,
+             "net": null, "practice": true},
+            {"trade_id": 4, "side": "buy", "at": "2026-10-31T09:30:02+09:00", "price": 70000.0, "quantity": 14,
+             "mode": "mock", "policy": 1, "kind": "barrier", "predictor": "breiman", "exit_reason": null,
+             "net": null, "practice": false}
+          ]})json"));
+        QVERIFY(practice.is_ok());
+        QCOMPARE(practice.value().size(), 3);
+        QVERIFY(practice.value()[0].practice);
+        QVERIFY(practice.value()[1].practice);
+        QVERIFY(!practice.value()[2].practice);
         // None, and the engine's error.
         QVERIFY(parse_trader_marks(json(R"({"symbol": "000660", "marks": []})")).value().isEmpty());
         QVERIFY(parse_trader_marks(json(R"({"error": "unknown symbol"})")).is_err());

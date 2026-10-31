@@ -223,7 +223,8 @@ struct TraderIcon {
 QList<TraderIcon> trader_icons(const QList<TraderMark>& marks);
 
 /// A mark's line in its bar's hover box: "자동 매매 매수 70,100원 × 14주 · 모의", "자동 매매 매도
-/// 70,250원 × 14주 · 익절 · 순손익 -162원 · 실전" (모의 for paper, KIS 모의 for KIS's mock trading).
+/// 70,250원 × 14주 · 익절 · 순손익 -162원 · 실전" (모의 for paper, KIS 모의 for KIS's mock trading);
+/// a practice trade's ends "· 연습" (codeyoma/krx-quant#430).
 QString trader_line(const TraderMark& mark);
 
 /// ``hovers`` (the 1-minute bars' boxes) with each of ``marks``' lines last in its bar's box, in time

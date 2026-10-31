@@ -458,6 +458,8 @@ QString trader_line(const TraderMark& mark) {
             parts << QStringLiteral("순손익 %1").arg(signed_won(*mark.net));
     }
     parts << trader_mode_label(mark.mode);
+    if (mark.practice) // codeyoma/krx-quant#430: not the champion's trade
+        parts << QStringLiteral("연습");
     return parts.join(QStringLiteral(" · "));
 }
 

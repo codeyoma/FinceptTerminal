@@ -871,6 +871,32 @@ class TstKrxChartModel : public QObject {
         QVERIFY(trader_line(buy).contains(QStringLiteral("70,050.5원")));
     }
 
+    void a_practice_trade_s_buy_and_sell_end_with_practice() {
+        // The mock book's practice trade (codeyoma/krx-quant#427, #430): a share of the practice cell, its
+        // buy's and its sell's lines end "· 연습" so it is not read as the champion's trade.
+        TraderMark buy = trader_mark(4, true, "2026-10-14T10:00:02.500+09:00");
+        buy.mode = QStringLiteral("mock");
+        buy.quantity = 1;
+        buy.practice = true;
+        QCOMPARE(trader_line(buy), QStringLiteral("자동 매매 매수 70,100원 × 1주 · KIS 모의 · 연습"));
+        TraderMark sell = buy;
+        sell.buy = false;
+        sell.at = kst("2026-10-14T10:04:00+09:00");
+        sell.price = 70200;
+        sell.exit_reason = QStringLiteral("time");
+        sell.net = 62.4;
+        QCOMPARE(trader_line(sell), QStringLiteral("자동 매매 매도 70,200원 × 1주 · 시간 청산 · 순손익 +62원 · KIS 모의 · 연습"));
+        // The champion's trade, and a mark from an engine before #427 (practice false): none.
+        TraderMark champion = buy;
+        champion.practice = false;
+        QCOMPARE(trader_line(champion), QStringLiteral("자동 매매 매수 70,100원 × 1주 · KIS 모의"));
+        // Each in its bar's box.
+        const QList<BarHover> out = with_trader_lines({}, {sell, buy});
+        QCOMPARE(out.size(), 2);
+        QCOMPARE(out[0].lines, QStringList{trader_line(buy)});
+        QCOMPARE(out[1].lines, QStringList{trader_line(sell)});
+    }
+
     void each_mark_s_line_goes_last_in_its_bar_s_box_in_time_order() {
         BarHover ten;
         ten.time = chart_time(kst("2026-10-14T10:00:00+09:00"));
