@@ -51,6 +51,10 @@ struct Badge {
 /// check is not passed yet, so it runs as paper (codeyoma/krx-quant#408), its tooltip naming what is missing;
 /// "—" before the trader wrote its state.
 Badge mode_badge(const TraderState& state);
+/// Beside the mode (codeyoma/krx-quant#427): "연습" while the mock book practises (no champion cell to
+/// trade, KRX_TRADER_MOCK_PRACTICE on) or holds a practice position, its tooltip naming the practice cell
+/// and what counts it; none otherwise, and from a trader before #427.
+std::optional<Badge> practice_badge(const TraderState& state);
 /// The status: "도는 중", "새 진입 정지", "정지", "주문 실패" (codeyoma/krx-quant#405), "하루 한도", "누적 한도";
 /// "응답 없음" when the trader has
 /// not written it for a while (the values under it are its last), "상태 없음" before it first did.
@@ -110,7 +114,8 @@ struct TradeRow {
     QString low;         ///< the cell's hit rate's lower bound
     QString mode;
     /// The policy version it was made under: "정책 1"; "정책 2 · 도전" for a challenger's paper trade
-    /// (codeyoma/krx-quant#400); "—" before the first champion.
+    /// (codeyoma/krx-quant#400); "연습" for the mock book's practice trade, of no policy
+    /// (codeyoma/krx-quant#427); "—" before the first champion.
     QString policy;
     QString tip; ///< the trade's barriers, its decision and sizing
     QString cost_tip;

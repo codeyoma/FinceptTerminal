@@ -166,6 +166,7 @@ class StandIn : public QObject {
     double unrealized = -5051.2;
     int challengers = 0;
     bool gate_passed = false;
+    bool practising = false; ///< the mock practice active (codeyoma/krx-quant#427)
     QStringList asked;
 
     StandIn() {
@@ -220,7 +221,7 @@ class StandIn : public QObject {
     }
 
     QJsonObject state() const {
-        return {{"updated_at", "2026-10-14T10:06:00+09:00"},
+        QJsonObject o{{"updated_at", "2026-10-14T10:06:00+09:00"},
                 {"champion", 1},
                 {"gate", gate()},
                 {"policies", running()},
@@ -263,6 +264,18 @@ class StandIn : public QObject {
                               QJsonObject{{"percent", 20}, {"won", 200000}, {"used", 0.02}, {"reached_at", QJsonValue()}}}}},
                 {"pause", QJsonValue()},
                 {"controls", QJsonArray{}}};
+        if (practising) { // codeyoma/krx-quant#427: the mock book practises, no champion cell to trade
+            o["mode"] = "mock";
+            o["practice"] = QJsonObject{{"enabled", true},
+                                        {"active", true},
+                                        {"cell", QJsonObject{{"kind", "barrier"},
+                                                             {"role", "top"},
+                                                             {"predictor", "breiman"},
+                                                             {"p_star", 0.63},
+                                                             {"low", 0.60},
+                                                             {"quantity", 1}}}};
+        }
+        return o;
     }
 
     void read(QTcpSocket* socket) {
@@ -461,6 +474,29 @@ class TstKrxTraderScreen : public QObject {
         QVERIFY(line->styleSheet().contains(ui::colors::POSITIVE()));
         auto* table = screen.findChild<QTableWidget*>(screens::KrxTraderScreen::kPoliciesName);
         QTRY_COMPARE_WITH_TIMEOUT(table->item(0, 11)->text(), QStringLiteral("관문 넘음"), 10000);
+    }
+
+    void practising_shows_practice_beside_the_mode() {
+        // codeyoma/krx-quant#427: "연습" beside the mode badge while the mock book practises, hidden else.
+        StandIn engine;
+        services::KrxQuantService::set_base_url(engine.url());
+        screens::KrxTraderScreen screen;
+        screen.resize(1600, 1000);
+        screen.show();
+        auto* practice = screen.findChild<QLabel*>(screens::KrxTraderScreen::kPracticeName);
+        auto* gate = screen.findChild<QLabel*>(screens::KrxTraderScreen::kGateName);
+        auto* live = screen.findChild<services::KrxTraderLive*>();
+        QVERIFY(practice && gate && live);
+        QTRY_VERIFY_WITH_TIMEOUT(!gate->text().isEmpty(), 10000); // the state read
+        QVERIFY(practice->isHidden());
+        engine.practising = true;
+        live->read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(practice->isVisible(), 10000);
+        QCOMPARE(practice->text(), QStringLiteral("연습"));
+        QVERIFY(practice->toolTip().contains(QStringLiteral("연습 칸 장벽 4분 · breiman (1위)을 1주씩")));
+        engine.practising = false;
+        live->read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(practice->isHidden(), 10000);
     }
 
     void choosing_a_policy_shows_its_trades() {

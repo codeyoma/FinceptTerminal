@@ -69,6 +69,8 @@ class KrxTraderScreen : public QWidget {
     /// The champion and the live gate in the header, and the gate in full over the policy table.
     static constexpr const char* kGateName = "krxTraderGate";
     static constexpr const char* kGateLineName = "krxTraderGateLine";
+    /// "연습" beside the mode badge while the mock book practises (codeyoma/krx-quant#427).
+    static constexpr const char* kPracticeName = "krxTraderPractice";
 
   protected:
     void showEvent(QShowEvent* event) override;
@@ -99,6 +101,7 @@ class KrxTraderScreen : public QWidget {
     krx_panel::Header header_;
     QLabel* dot_ = nullptr;
     QLabel* mode_badge_ = nullptr;
+    QLabel* practice_badge_ = nullptr; ///< "연습" beside the mode while the mock book practises (#427)
     QLabel* status_badge_ = nullptr;
     QLabel* header_line_ = nullptr;
     QLabel* gate_ = nullptr; ///< the champion and the live gate's progress (codeyoma/krx-quant#400)
