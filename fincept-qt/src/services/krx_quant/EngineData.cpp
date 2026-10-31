@@ -1302,10 +1302,21 @@ QString trader_status_label(const QString& status) {
         {"running", QStringLiteral("도는 중")},
         {"entries_paused", QStringLiteral("새 진입 정지")},
         {"paused", QStringLiteral("정지")},
+        {"order_failed", QStringLiteral("주문 실패")},
         {"daily_limit", QStringLiteral("하루 한도")},
         {"cumulative_limit", QStringLiteral("누적 한도")},
     };
     return labels.value(status, status);
+}
+
+QString trader_stall_label(const QString& effect) {
+    if (effect == QLatin1String("waited"))
+        return QStringLiteral("호가가 돌아온 뒤 첫 호가로 청산");
+    if (effect == QLatin1String("rest"))
+        return QStringLiteral("끊긴 동안 KIS 호가로 매도");
+    if (effect.isEmpty())
+        return QStringLiteral("청산에 영향 없음");
+    return effect;
 }
 
 QString trader_exit_label(const QString& reason) {
@@ -2021,13 +2032,50 @@ Result<TraderState> parse_trader(const QJsonDocument& doc) {
     t.champion = long_of(o.value("champion"));
     if (o.value("gate").isObject()) {
         const QJsonObject g = o.value("gate").toObject();
-        t.gate = TraderGate{long_of(g.value("policy")),
-                            g.value("days").toInt(),
-                            g.value("required").toInt(20),
-                            number(g.value("mean")),
-                            number(g.value("low")),
-                            g.value("level").toDouble(0.95),
-                            g.value("passed").toBool()};
+        TraderGate gate;
+        gate.policy = long_of(g.value("policy"));
+        gate.days = g.value("days").toInt();
+        gate.required = g.value("required").toInt(20);
+        gate.mean = number(g.value("mean"));
+        gate.low = number(g.value("low"));
+        gate.level = g.value("level").toDouble(0.95);
+        gate.passed = g.value("passed").toBool();
+        if (g.value("checkpoint").isObject()) { // codeyoma/krx-quant#408
+            const QJsonObject c = g.value("checkpoint").toObject();
+            gate.checkpoints = true;
+            gate.history = g.value("history").toInt();
+            gate.next_k = c.value("k").toInt();
+            gate.next_day = c.value("day").toInt();
+            gate.next_alpha = c.value("alpha").toDouble();
+            gate.stressed = g.value("stressed").toBool();
+            if (g.value("passed_at").isObject()) {
+                const QJsonObject p = g.value("passed_at").toObject();
+                gate.passed_k = p.value("k").toInt();
+                gate.passed_day = day_of(p.value("day"));
+            }
+        }
+        t.gate = gate;
+    }
+    if (o.value("live").isObject()) { // codeyoma/krx-quant#408
+        const QJsonObject l = o.value("live").toObject();
+        TraderLive live;
+        live.configured = l.value("configured").toBool();
+        live.ordering = l.value("ordering").toBool();
+        live.unlocked = l.value("unlocked").toBool();
+        for (const auto& m : l.value("missing").toArray())
+            live.missing << m.toString();
+        live.gate = l.value("gate").toString();
+        for (const auto& v : l.value("checks").toArray()) {
+            const QJsonObject c = v.toObject();
+            live.checks.push_back({c.value("name").toString(), c.value("passed").toBool(), c.value("said").toString()});
+        }
+        if (l.value("ramp").isObject()) {
+            const QJsonObject r = l.value("ramp").toObject();
+            live.cap = number(r.value("cap"));
+            live.lifted = r.value("lifted_at").isString();
+            live.breached = r.value("breached_at").isString();
+        }
+        t.live = live;
     }
     for (const auto& v : o.value("policies").toArray()) {
         const QJsonObject p = v.toObject();
@@ -2115,6 +2163,8 @@ Result<QList<TraderTrade>> parse_trader_trades(const QJsonDocument& doc) {
         t.cost = number(o.value("cost"));
         t.gross = number(o.value("gross"));
         t.net = number(o.value("net"));
+        for (const auto& v : o.value("stalls").toArray()) // codeyoma/krx-quant#407
+            t.stalls << v.toObject().value("effect").toString();
         if (t.id < 0 || !t.entry_at.isValid())
             continue;
         trades.push_back(t);

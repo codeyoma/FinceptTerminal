@@ -947,6 +947,114 @@ class TstKrxTrader : public QObject {
         QCOMPARE(view::header_line(state(unwritten_json())), QStringLiteral("trader가 아직 상태를 쓰지 않았습니다"));
     }
 
+    void the_live_mode_waiting_an_order_failure_the_gate_s_checkpoints_and_a_stall_are_said() {
+        // codeyoma/krx-quant#408: KRX_TRADER_MODE=live before the gate and the checks pass: it runs as paper.
+        QJsonObject waiting = state_json("paper");
+        waiting["live"] = QJsonObject{
+            {"configured", true},
+            {"ordering", false},
+            {"unlocked", false},
+            {"missing", QJsonArray{"gate", "mock_days"}},
+            {"gate", "실전 관문: 챔피언 정책 1의 챔피언으로 돈 모의 기록 12일, 다음 판정은 모의 이력 20거래일째"},
+            {"checks",
+             QJsonArray{QJsonObject{{"name", "mock_days"}, {"passed", false}, {"value", 3}, {"required", 20},
+                                    {"said", "KIS 모의 거래일 3/20일"}},
+                        QJsonObject{{"name", "mock_trips"}, {"passed", true}, {"value", 40}, {"required", 30},
+                                    {"said", "KIS 모의 왕복 매매 40/30건"}}}},
+            {"period", QJsonObject{{"since", "2026-10-08"}, {"until", "2026-10-14"}, {"days", 3}}},
+            {"ramp", QJsonValue()}};
+        const TraderState w = state(waiting);
+        QVERIFY(w.live.has_value() && w.live->configured && !w.live->ordering);
+        QCOMPARE(w.live->missing, QStringList({"gate", "mock_days"}));
+        const view::Badge badge = view::mode_badge(w);
+        QCOMPARE(badge.text, QStringLiteral("실전 대기"));
+        QCOMPARE(badge.tone, Tone::Warning);
+        QVERIFY(badge.tip.contains(QStringLiteral("아직 실제 주문을 내지 않고 모의로 돕니다")));
+        QVERIFY(badge.tip.contains(QStringLiteral("· 실전 관문: 챔피언 정책 1의 챔피언으로 돈 모의 기록 12일")));
+        QVERIFY(badge.tip.contains(QStringLiteral("· KIS 모의 거래일 3/20일")));
+        QVERIFY(!badge.tip.contains(QStringLiteral("왕복 매매 40/30건")));
+        // Ordering on the live account, its first period's cap.
+        QJsonObject ordering = state_json("live");
+        QJsonObject live = waiting["live"].toObject();
+        live["ordering"] = true;
+        live["unlocked"] = true;
+        live["missing"] = QJsonArray{};
+        live["ramp"] = QJsonObject{{"cap", 250000}, {"lifted_at", QJsonValue()}, {"since", "2026-10-15T08:00:00+09:00"},
+                                   {"days", 3}, {"required_days", 20}, {"trips", 4}, {"required_trips", 30},
+                                   {"checks", QJsonArray{}}, {"breached_at", QJsonValue()}};
+        ordering["live"] = live;
+        const view::Badge real = view::mode_badge(state(ordering));
+        QCOMPARE(real.text, QStringLiteral("실전"));
+        QCOMPARE(real.tone, Tone::Live);
+        QVERIFY(real.tip.contains(QStringLiteral("운용 상한 250,000원까지만")));
+        // Not live: the paper badge as ever, whatever the live state says.
+        live["configured"] = false;
+        waiting["live"] = live;
+        QCOMPARE(view::mode_badge(state(waiting)).text, QStringLiteral("모의"));
+
+        // A KIS order failed today (codeyoma/krx-quant#405).
+        const view::Badge failed = view::status_badge(state(state_json("mock", "order_failed")));
+        QCOMPARE(failed.text, QStringLiteral("주문 실패"));
+        QCOMPARE(failed.tone, Tone::Warning);
+        QVERIFY(failed.tip.contains(QStringLiteral("다음 거래일에 저절로 다시 돕니다")));
+
+        // The gate judged at checkpoints (codeyoma/krx-quant#408): the next one and its α.
+        QJsonObject gated = state_json();
+        gated["champion"] = 1;
+        gated["gate"] = QJsonObject{{"policy", 1},
+                                    {"days", 12},
+                                    {"required", 20},
+                                    {"mean", 1200.0},
+                                    {"low", -3000.0},
+                                    {"level", 0.9696},
+                                    {"passed", false},
+                                    {"history", 12},
+                                    {"checkpoint", QJsonObject{{"k", 1}, {"day", 20}, {"every", 20}, {"alpha", 0.0152},
+                                                               {"level", 0.9696}}},
+                                    {"passed_at", QJsonValue()},
+                                    {"stressed", false},
+                                    {"last", QJsonValue()}};
+        const TraderState g = state(gated);
+        QVERIFY(g.gate->checkpoints);
+        QCOMPARE(g.gate->next_day, 20);
+        QCOMPARE(view::gate_text(g), QStringLiteral("챔피언 정책 1 · 관문 판정 이력 20일째(지금 12일) · 하한 -0.3%"));
+        QVERIFY(view::gate_line(g).endsWith(
+            QStringLiteral("못 넘음: 다음 판정 1번째, 이력 20일째(지금 12일, α 1.52%), 8일 더, 하한 ≤ 0")));
+        QVERIFY(view::gate_line(g).contains(QStringLiteral("96.96% 하한 -3,000원")));
+        // Its days as the champion alone (codeyoma/krx-quant#425's review).
+        QVERIFY(view::gate_line(g).startsWith(QStringLiteral("실전 관문 · 챔피언 정책 1의 챔피언으로 돈 모의 기록 12/20일 · ")));
+        QVERIFY(view::gate_tip(g).contains(QStringLiteral("도전 정책이었던 날은 세지 않습니다")));
+        QVERIFY(view::gate_tip(g).contains(QStringLiteral("챔피언으로 돈 날 12일")));
+        QVERIFY(view::gate_tip(g).contains(QStringLiteral("20일마다 한 번 판정합니다")));
+        QVERIFY(view::gate_tip(g).contains(QStringLiteral("α 1.52%")));
+        QJsonObject gate = gated["gate"].toObject();
+        gate["passed"] = true;
+        gate["days"] = 20;
+        gate["history"] = 20;
+        gate["low"] = 321.0;
+        gate["passed_at"] = QJsonObject{{"k", 1}, {"day", "2026-10-13"}};
+        gated["gate"] = gate;
+        const TraderState passed = state(gated);
+        QCOMPARE(view::gate_text(passed), QStringLiteral("챔피언 정책 1 · 관문 넘음(1번째 판정)"));
+        QVERIFY(view::gate_line(passed).endsWith(QStringLiteral("넘음(1번째 판정, 10-13): 실전 모드는 서버에서 켭니다")));
+        QCOMPARE(view::gate_tone(passed), Tone::Positive);
+
+        // A trade open through a stall of the collector's quotes (codeyoma/krx-quant#407).
+        QJsonObject stalled = trade_json(9, "time");
+        stalled["stalls"] = QJsonArray{QJsonObject{{"began_at", "2026-10-14T10:01:00+09:00"},
+                                                   {"last_quote_at", "2026-10-14T10:00:54+09:00"},
+                                                   {"ended_at", "2026-10-14T10:02:00+09:00"},
+                                                   {"effect", "waited"}}};
+        const auto parsed = parse_trader_trades(QJsonDocument(QJsonObject{{"trades", QJsonArray{stalled}}}));
+        QVERIFY(parsed.is_ok());
+        QCOMPARE(parsed.value()[0].stalls, QStringList({"waited"}));
+        const auto rows = view::trade_rows(parsed.value(), std::nullopt);
+        QCOMPARE(rows[0].reason, QStringLiteral("시간 청산 · 호가 끊김"));
+        QVERIFY(rows[0].tip.contains(QStringLiteral("수집기 호가 끊김: 호가가 돌아온 뒤 첫 호가로 청산")));
+        QCOMPARE(trader_stall_label("rest"), QStringLiteral("끊긴 동안 KIS 호가로 매도"));
+        QCOMPARE(trader_stall_label(""), QStringLiteral("청산에 영향 없음"));
+    }
+
     void the_cards_show_the_position_with_its_time_left() {
         const TraderState s = state();
         const QDateTime now = kst("2026-10-15T10:06:30+09:00");

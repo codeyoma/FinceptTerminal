@@ -242,13 +242,34 @@ QString history_key(const TraderState& state) {
 Badge mode_badge(const TraderState& state) {
     if (!state.written())
         return {dash(), QStringLiteral("trader가 아직 상태를 쓰지 않았습니다."), Tone::Dim};
+    if (state.live && state.live->configured && state.mode != QLatin1String("live")) {
+        // codeyoma/krx-quant#408: KRX_TRADER_MODE=live, the gate or an execution check not passed yet.
+        QStringList missing;
+        if (state.live->missing.contains(QStringLiteral("gate")) && !state.live->gate.isEmpty())
+            missing << state.live->gate;
+        for (const auto& c : state.live->checks)
+            if (!c.passed)
+                missing << c.said;
+        QString tip = QStringLiteral("실전 모드(KRX_TRADER_MODE=live)지만 실전 관문이나 실행 점검이 모자라 아직 실제 주문을 "
+                                     "내지 않고 모의로 돕니다. 모두 채우면 08:30 고르기에서 trader가 스스로 다시 시작해 실전 "
+                                     "계좌에 주문합니다.");
+        if (!missing.isEmpty())
+            tip += QStringLiteral("\n모자란 것:\n· ") + missing.join(QStringLiteral("\n· "));
+        tip += QStringLiteral("\n모드는 서버의 .env(KRX_TRADER_MODE)로만 바뀝니다.");
+        return {QStringLiteral("실전 대기"), tip, Tone::Warning};
+    }
     Badge badge{trader_mode_label(state.mode), {}, Tone::Simulated};
     if (state.mode == QLatin1String("paper"))
         badge.tip = QStringLiteral("내부 모의: 실시간 호가로 체결을 흉내 냅니다. 주문을 내지 않습니다.");
     else if (state.mode == QLatin1String("mock"))
         badge.tip = QStringLiteral("KIS 모의투자: KIS 모의투자 계좌에 주문합니다.");
     else if (state.mode == QLatin1String("live")) {
-        badge.tip = QStringLiteral("실전: 실전 계좌에 주문합니다.");
+        badge.tip = QStringLiteral("실전: 실전 관문과 실행 점검을 넘은 챔피언이 실전 계좌에 주문합니다.");
+        if (state.live && state.live->cap && !state.live->lifted) // codeyoma/krx-quant#408: the first period
+            badge.tip += QStringLiteral(" 첫 단계라 운용 상한 %1까지만 삽니다(실전 20거래일, 왕복 매매 30건 동안).")
+                             .arg(won_text(*state.live->cap));
+        if (state.live && state.live->breached)
+            badge.tip += QStringLiteral(" 첫 단계의 점검을 벗어나 새 진입이 멈춰 있습니다(서버의 krx-quant trade resume).");
         badge.tone = Tone::Live;
     }
     badge.tip += QStringLiteral(" 모드는 서버의 .env(KRX_TRADER_MODE)로만 바뀝니다.");
@@ -278,6 +299,11 @@ Badge status_badge(const TraderState& state) {
         return {label,
                 QStringLiteral("새로 사지 않고, 들고 있던 것은 바로 팝니다. 다시 켜기는 서버의 krx-quant trade resume뿐입니다."),
                 Tone::Warning};
+    if (state.status == QLatin1String("order_failed")) // codeyoma/krx-quant#405
+        return {label,
+                QStringLiteral("오늘 KIS 주문이 실패해(거부, 응답 없음, 보내지 못함) 오늘은 새로 사지 않습니다. 들고 있는 것은 "
+                               "원래 규칙(목표가, 손절가, 시간 장벽)대로 팝니다. 다음 거래일에 저절로 다시 돕니다."),
+                Tone::Warning};
     if (state.status == QLatin1String("daily_limit"))
         return {label,
                 QStringLiteral("하루 손실 한도에 닿아 오늘은 사지 않습니다(들고 있던 것은 바로 팝니다). 다음 거래일에 저절로 "
@@ -304,6 +330,11 @@ QString header_line(const TraderState& state) {
     return parts.join(QStringLiteral(" · "));
 }
 
+/// A checkpoint's one-sided α (codeyoma/krx-quant#408): "1.52%".
+QString alpha_text(double alpha) {
+    return korean().toString(alpha * 100, 'f', 2) + QStringLiteral("%");
+}
+
 QString gate_text(const TraderState& state) {
     if (!state.gate)
         return {};
@@ -313,6 +344,15 @@ QString gate_text(const TraderState& state) {
     QString low = dash();
     if (g.low)
         low = state.capital && *state.capital > 0 ? percent_text(*g.low / *state.capital) : signed_won_text(*g.low);
+    if (g.checkpoints) { // codeyoma/krx-quant#408: judged at checkpoints of the trader's paper history
+        if (g.passed)
+            return QStringLiteral("챔피언 정책 %1 · 관문 넘음(%2번째 판정)").arg(*state.champion).arg(g.passed_k);
+        return QStringLiteral("챔피언 정책 %1 · 관문 판정 이력 %2일째(지금 %3일) · 하한 %4")
+            .arg(QString::number(*state.champion))
+            .arg(g.next_day)
+            .arg(g.history)
+            .arg(low);
+    }
     QString text = QStringLiteral("챔피언 정책 %1 · 관문 모의 %2/%3일 · 하한 %4")
                        .arg(QString::number(*state.champion))
                        .arg(g.days)
@@ -330,6 +370,21 @@ QString gate_tip(const TraderState& state) {
         return QStringLiteral("첫 밤 정책 맞추기 전입니다. 그때까지는 기본 문턱과 Kelly 비율로 사고, 실전 관문은 첫 챔피언의 "
                               "모의 기록부터 셉니다.");
     const TraderGate& g = *state.gate;
+    if (g.checkpoints) // codeyoma/krx-quant#408
+        return QStringLiteral("실전 관문: trader의 모의 이력(챔피언이 돈 거래일) 20일마다 한 번 판정합니다. k번째 판정에서는 그날 "
+                              "챔피언이 챔피언으로 돈 날의 모의 기록이 %1거래일 이상이고 날마다 순손익(매매 없는 날 0)의 평균이 "
+                              "한쪽 α_k = 2.5% × 6 ÷ (π²k²)로 0보다 커야 넘습니다(평생 2.5% 이하). 도전 정책이었던 날은 세지 "
+                              "않습니다: 승격을 그 날들로 판정했습니다. 넘은 챔피언은 넘은 채이고, 챔피언이 바뀌어도 k는 이어서 "
+                              "셉니다. 지금 이력 %2일, 챔피언으로 돈 날 %3일, 평균 %4, 다음 판정(%5번째, 이력 %6일째, α %7)의 "
+                              "%8 하한 %9. 관문을 넘어도 저절로 실전이 되지 않습니다: 모드는 서버에서 바꾸고, live는 실행 점검도 "
+                              "넘어야 주문합니다. 정책마다의 모의 기록과 승격 판정은 아래 정책 버전 표에 있습니다.")
+            .arg(g.required)
+            .arg(g.history)
+            .arg(g.days)
+            .arg(g.mean ? signed_won_text(*g.mean) : dash())
+            .arg(g.next_k)
+            .arg(g.next_day)
+            .arg(alpha_text(g.next_alpha), level_text(g.level), g.low ? signed_won_text(*g.low) : dash());
     return QStringLiteral("실전 관문: 챔피언의 모의 기록이 %1거래일 이상이고, 날마다 순손익(매매 없는 날 0)의 평균의 %2 하한이 "
                           "0보다 커야 합니다. 지금 %3일, 평균 %4, 하한 %5(운용 상한 대비). 관문을 넘어도 저절로 실전이 되지 "
                           "않습니다: 모드는 서버에서 바꿉니다. 정책마다의 모의 기록과 승격 판정은 아래 정책 버전 표에 있습니다.")
@@ -351,17 +406,30 @@ QString gate_line(const TraderState& state) {
                               "%1거래일을 셉니다.")
             .arg(state.gate->required);
     const TraderGate& g = *state.gate;
-    QStringList parts{QStringLiteral("실전 관문"),
-                      QStringLiteral("챔피언 정책 %1의 모의 기록 %2/%3일").arg(*state.champion).arg(g.days).arg(g.required),
+    QString record = QStringLiteral("챔피언 정책 %1의 모의 기록 %2/%3일");
+    if (g.checkpoints) // codeyoma/krx-quant#425: the gate counts the champion's days as the champion alone
+        record = QStringLiteral("챔피언 정책 %1의 챔피언으로 돈 모의 기록 %2/%3일");
+    QStringList parts{QStringLiteral("실전 관문"), record.arg(*state.champion).arg(g.days).arg(g.required),
                       QStringLiteral("날마다 평균 %1").arg(g.mean ? signed_won_text(*g.mean) : dash())};
     QString low = QStringLiteral("%1 하한 %2").arg(level_text(g.level), g.low ? signed_won_text(*g.low) : dash());
     if (g.low && state.capital && *state.capital > 0)
         low += QStringLiteral(" (운용 상한의 %1)").arg(percent_text(*g.low / *state.capital));
     parts << low;
     if (g.passed) {
-        parts << QStringLiteral("넘음: 실전 모드는 서버에서 켭니다");
+        if (g.checkpoints && g.passed_k > 0) // codeyoma/krx-quant#408
+            parts << QStringLiteral("넘음(%1번째 판정, %2): 실전 모드는 서버에서 켭니다")
+                         .arg(g.passed_k)
+                         .arg(g.passed_day.toString(QStringLiteral("MM-dd")));
+        else
+            parts << QStringLiteral("넘음: 실전 모드는 서버에서 켭니다");
     } else {
         QStringList short_of;
+        if (g.checkpoints) // codeyoma/krx-quant#408: the next checkpoint and its α, in place of the days left
+            short_of << QStringLiteral("다음 판정 %1번째, 이력 %2일째(지금 %3일, α %4)")
+                            .arg(g.next_k)
+                            .arg(g.next_day)
+                            .arg(g.history)
+                            .arg(alpha_text(g.next_alpha));
         if (g.days < g.required)
             short_of << QStringLiteral("%1일 더").arg(g.required - g.days);
         if (!g.low)
@@ -469,6 +537,8 @@ QList<TradeRow> trade_rows(const QList<TraderTrade>& trades, const std::optional
             r.exit = QStringLiteral("%1 · %2").arg(kst_text(t.exit_at, same_day ? "HH:mm:ss" : "MM-dd HH:mm:ss"),
                                                     t.exit_price ? price_text(*t.exit_price) : dash());
             r.reason = trader_exit_label(t.exit_reason);
+            if (!t.stalls.isEmpty()) // codeyoma/krx-quant#407: the collector's quotes stalled while it was open
+                r.reason += QStringLiteral(" · 호가 끊김");
             if (t.exit_reason == QLatin1String("take_profit"))
                 r.reason_tone = Tone::Positive;
             else if (t.exit_reason == QLatin1String("stop_loss") || t.exit_reason == QLatin1String("daily_limit") ||
@@ -514,6 +584,8 @@ QList<TradeRow> trade_rows(const QList<TraderTrade>& trades, const std::optional
         if (!t.champion)
             tip << QStringLiteral("도전 정책의 모의 매매입니다: 챔피언 옆에서 같은 호가로 흉내 내고, 한도와 정지에 멈추지 않으며 "
                                   "차트에 보이지 않습니다.");
+        for (const auto& effect : t.stalls) // codeyoma/krx-quant#407
+            tip << QStringLiteral("수집기 호가 끊김: %1").arg(trader_stall_label(effect));
         r.tip = tip.join('\n');
         if (!t.policy) {
             r.policy = dash();

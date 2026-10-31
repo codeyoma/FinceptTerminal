@@ -47,9 +47,12 @@ struct Badge {
     Tone tone = Tone::Plain;
     bool operator==(const Badge&) const = default;
 };
-/// The mode: "모의", "KIS 모의", "실전"; "—" before the trader wrote its state.
+/// The mode: "모의", "KIS 모의", "실전"; "실전 대기" when KRX_TRADER_MODE is live but the gate or an execution
+/// check is not passed yet, so it runs as paper (codeyoma/krx-quant#408), its tooltip naming what is missing;
+/// "—" before the trader wrote its state.
 Badge mode_badge(const TraderState& state);
-/// The status: "도는 중", "새 진입 정지", "정지", "하루 한도", "누적 한도"; "응답 없음" when the trader has
+/// The status: "도는 중", "새 진입 정지", "정지", "주문 실패" (codeyoma/krx-quant#405), "하루 한도", "누적 한도";
+/// "응답 없음" when the trader has
 /// not written it for a while (the values under it are its last), "상태 없음" before it first did.
 Badge status_badge(const TraderState& state);
 /// The line after them: "상태 10-12 10:30:00 · 시작 10-12 10:05 · 정지 10-08 15:02 화면(새 진입 정지)".
@@ -57,7 +60,9 @@ QString header_line(const TraderState& state);
 
 /// The champion and the live gate's progress (codeyoma/krx-quant#400, #401): "챔피언 정책 1 · 관문 모의
 /// 12/20일 · 하한 -0.3%" (the lower bound of the daily net P&L over the capital), "… · 관문 넘음" once
-/// passed, "챔피언 정책 없음" before the first; empty from an engine before #400.
+/// passed, "챔피언 정책 없음" before the first; empty from an engine before #400. From an engine that judges
+/// checkpoints (codeyoma/krx-quant#408): "챔피언 정책 1 · 관문 판정 이력 20일째(지금 12일) · 하한 -0.3%", and
+/// "챔피언 정책 1 · 관문 넘음(1번째 판정)" once passed.
 QString gate_text(const TraderState& state);
 /// Its tooltip: what the gate asks for and that passing it sends no live order by itself.
 QString gate_tip(const TraderState& state);
@@ -66,7 +71,9 @@ Tone gate_tone(const TraderState& state);
 /// The gate in full, over the policy table (codeyoma/krx-quant#401): "실전 관문 · 챔피언 정책 1의 모의 기록
 /// 2/20일 · 날마다 평균 -5,209원 · 95% 하한 -26,882원 (운용 상한의 -2.7%) · 못 넘음: 18일 더, 하한 ≤ 0";
 /// "… · 넘음 …" once passed; before the first champion, that it counts from it; empty from an engine
-/// before #400.
+/// before #400. With checkpoints (codeyoma/krx-quant#408) the bound is at the next checkpoint's level and
+/// what it is short of starts with the next checkpoint and its α: "못 넘음: 다음 판정 1번째, 이력 20일째(지금
+/// 2일, α 1.52%), 18일 더, 하한 ≤ 0"; "넘음(1번째 판정, 10-13): …" once passed.
 QString gate_line(const TraderState& state);
 
 /// The trader's clock now: its state's time, moved on by what passed since it was read

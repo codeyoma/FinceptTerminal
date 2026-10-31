@@ -523,7 +523,9 @@ struct TraderPause {
 
 /// The live gate on the champion's paper record (GET /v1/trader's ``gate``, codeyoma/krx-quant#400): the
 /// days it has, the days it needs, its daily net P&L's mean and that mean's lower bound in won, and
-/// whether it passed (enough days and the lower bound above 0).
+/// whether it passed (enough days and the lower bound above 0). Since codeyoma/krx-quant#408 it is judged
+/// at checkpoints alone, every 20th day of the trader's paper history, at a one-sided α_k = 0.025 × 6 ÷
+/// (π² k²): ``low`` is at the next checkpoint's level (``level``, 1 − 2α), or at the one it passed at.
 struct TraderGate {
     std::optional<qint64> policy; ///< the champion's version; none before the first
     int days = 0;
@@ -532,7 +534,44 @@ struct TraderGate {
     std::optional<double> low; ///< none from fewer than two days
     double level = 0.95;
     bool passed = false;
+    /// The engine judges checkpoints (codeyoma/krx-quant#408); false from an engine before it, whose
+    /// gate is looked at every night (its days left are then ``required`` − ``days``).
+    bool checkpoints = false;
+    int history = 0;        ///< the trader's paper history, days (the days a champion ran)
+    int next_k = 0;         ///< the next checkpoint's number
+    int next_day = 0;       ///< its day of the history (20 × ``next_k``)
+    double next_alpha = 0;  ///< its one-sided α
+    int passed_k = 0;       ///< the checkpoint the champion passed at; 0 when it has not
+    QDate passed_day;
+    bool stressed = false; ///< it passed one with one extra adverse tick a leg too
     bool operator==(const TraderGate&) const = default;
+};
+
+/// One check of the live mode (GET /v1/trader's ``live.checks``, codeyoma/krx-quant#408): its name
+/// ("mock_days", "gap", …), whether it passes, and what it found in Korean as the engine wrote it.
+struct TraderLiveCheck {
+    QString name;
+    bool passed = false;
+    QString said;
+    bool operator==(const TraderLiveCheck&) const = default;
+};
+
+/// The live mode as the trader judged it at its start and its last pick (GET /v1/trader's ``live``,
+/// codeyoma/krx-quant#408): whether KRX_TRADER_MODE is live (``configured``), whether the champion orders
+/// on the live account now (``ordering``), whether the gate and every execution check pass, what is
+/// missing (the gate's standing and each failing check, in Korean), and in live mode the first
+/// period's cap (250,000 won until lifted) and whether a breach of it paused new entries.
+struct TraderLive {
+    bool configured = false;
+    bool ordering = false;
+    bool unlocked = false;
+    QStringList missing; ///< "gate", then the failing checks' names
+    QString gate;        ///< the gate's standing, in Korean
+    QList<TraderLiveCheck> checks;
+    std::optional<double> cap; ///< won; none outside live
+    bool lifted = false;
+    bool breached = false;
+    bool operator==(const TraderLive&) const = default;
 };
 
 /// A policy's paper record (codeyoma/krx-quant#400): every trading day it ran in the trader, as a
@@ -603,6 +642,7 @@ struct TraderState {
     /// The champion and the challengers running (codeyoma/krx-quant#400, champion first, then the oldest
     /// challenger first); empty before the first champion and from an engine before #400.
     QList<TraderRunning> policies;
+    std::optional<TraderLive> live; ///< none from a trader before codeyoma/krx-quant#408
     bool written() const { return updated_at.isValid(); }
     bool operator==(const TraderState&) const = default;
 };
@@ -665,6 +705,9 @@ struct TraderTrade {
     std::optional<double> cost;
     std::optional<double> gross;
     std::optional<double> net;
+    /// The collector's quote stalls the trade was open through (codeyoma/krx-quant#407), oldest first: what
+    /// each did to its exit ("waited", "rest"; empty for none), as trader_stall_label names it.
+    QStringList stalls;
     bool held() const { return !exit_at.isValid(); }
     bool operator==(const TraderTrade&) const = default;
 };
@@ -1711,8 +1754,12 @@ QString training_reason_label(const QString& reason);
 /// mock trading), "실전" (live); an unknown one as it is.
 QString trader_mode_label(const QString& mode);
 /// The trader's status in Korean (codeyoma/krx-quant#396): "도는 중", "새 진입 정지", "정지" (paused and
-/// sold), "하루 한도", "누적 한도"; an unknown one as it is.
+/// sold), "주문 실패" (a KIS order failed today, codeyoma/krx-quant#405), "하루 한도", "누적 한도"; an
+/// unknown one as it is.
 QString trader_status_label(const QString& status);
+/// What a stall of the collector's quotes did to a trade's exit, in Korean (codeyoma/krx-quant#407):
+/// "waited" "호가가 돌아온 뒤 첫 호가로 청산", "rest" "끊긴 동안 KIS 호가로 매도", none "청산에 영향 없음".
+QString trader_stall_label(const QString& effect);
 /// Why a trade was sold, in Korean: "익절", "손절", "시간 청산", and since codeyoma/krx-quant#396 "정지 매도",
 /// "하루 한도", "누적 한도"; an unknown one as it is.
 QString trader_exit_label(const QString& reason);
