@@ -483,6 +483,8 @@ struct TraderPosition {
     QDateTime bid_at;
     double unrealized = 0; ///< what selling it at that bid would net, after the costs, won
     bool selling = false;  ///< a pause or a limit has it sold at the next quote
+    /// The mock book's practice trade (codeyoma/krx-quant#427); false from a trader before it.
+    bool practice = false;
     bool operator==(const TraderPosition&) const = default;
 };
 
@@ -574,6 +576,23 @@ struct TraderLive {
     bool operator==(const TraderLive&) const = default;
 };
 
+/// The mock practice (GET /v1/trader's ``practice``, codeyoma/krx-quant#427): whether
+/// KRX_TRADER_MOCK_PRACTICE is on (mock mode alone), whether the champion's book practises now (its last
+/// pick read the cost map and the champion but found no champion cell to trade) and, then, the practice
+/// cell: the greatest hit rate's lower bound less p* of the cells with a verdict, bought a share
+/// (``quantity``) at a time at the default threshold.
+struct TraderPractice {
+    bool enabled = false;
+    bool active = false;
+    QString kind; ///< the practice cell's, empty when not active
+    QString predictor;
+    QString role;
+    std::optional<double> p_star;
+    std::optional<double> low;
+    int quantity = 0;
+    bool operator==(const TraderPractice&) const = default;
+};
+
 /// A policy's paper record (codeyoma/krx-quant#400): every trading day it ran in the trader, as a
 /// challenger or the champion, each day's net P&L the trades entered that day made (0 without one), in
 /// won: its first and last day, the days, the trades exited, their net, the mean a day and that mean's
@@ -643,6 +662,7 @@ struct TraderState {
     /// challenger first); empty before the first champion and from an engine before #400.
     QList<TraderRunning> policies;
     std::optional<TraderLive> live; ///< none from a trader before codeyoma/krx-quant#408
+    std::optional<TraderPractice> practice; ///< none from a trader before codeyoma/krx-quant#427
     bool written() const { return updated_at.isValid(); }
     bool operator==(const TraderState&) const = default;
 };
@@ -679,6 +699,9 @@ struct TraderTrade {
     /// The champion's book made it (codeyoma/krx-quant#400: the trader's trade, which the limits hold and
     /// the chart marks); false: a challenger's paper trade. True from an engine before #400.
     bool champion = true;
+    /// The mock book's practice trade (codeyoma/krx-quant#427): one share of the practice cell on a day no
+    /// champion cell traded, of no policy (``policy`` none). False from an engine before it.
+    bool practice = false;
     QDateTime bar_close;
     std::optional<double> probability;
     std::optional<double> threshold;

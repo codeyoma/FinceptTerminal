@@ -273,7 +273,33 @@ Badge mode_badge(const TraderState& state) {
         badge.tone = Tone::Live;
     }
     badge.tip += QStringLiteral(" 모드는 서버의 .env(KRX_TRADER_MODE)로만 바뀝니다.");
+    if (state.practice && state.practice->enabled) // codeyoma/krx-quant#427
+        badge.tip += QStringLiteral(" KIS 모의 연습(KRX_TRADER_MOCK_PRACTICE)이 켜져 있습니다.");
     return badge;
+}
+
+std::optional<Badge> practice_badge(const TraderState& state) {
+    if (!state.written() || !state.practice)
+        return std::nullopt;
+    const TraderPractice& p = *state.practice;
+    const bool holding = state.position && state.position->practice;
+    if (!p.active && !holding)
+        return std::nullopt;
+    QStringList tip;
+    if (p.active)
+        tip << QStringLiteral("KIS 모의 연습 중입니다: 매매할 챔피언 칸이 없어(비용 지도에서 통과한 칸이 없거나 챔피언에 "
+                              "없다) 연습 칸 %1을 %2주씩, 기본 문턱 θ로 KIS 모의투자에 삽니다(KRX_TRADER_MOCK_PRACTICE).")
+                   .arg(cell_text(p.kind, p.predictor, p.role))
+                   .arg(p.quantity > 0 ? p.quantity : 1);
+    if (p.active && p.low && p.p_star)
+        tip << QStringLiteral("연습 칸: 판정이 있는 칸 가운데 맞힘률 하한 − p*가 가장 큰 칸(하한 %1, p* %2)입니다.")
+                   .arg(percent_text(*p.low), percent_text(*p.p_star));
+    if (holding)
+        tip << QStringLiteral("연습 포지션을 들고 있습니다: 원래 규칙(목표가, 손절가, 시간 장벽)대로 팝니다. 그동안은 챔피언 칸도 "
+                              "사지 않습니다(포지션은 하나).");
+    tip << QStringLiteral("연습 매매는 승격, 실전 관문, 정책의 모의 기록에는 세지 않고, 손실 한도와 실전의 실행 점검(KIS 대조, "
+                          "체결 차이, 왕복 매매 수)에는 셉니다. 챔피언 칸이 다시 생기면 새 연습을 멈춥니다.");
+    return Badge{QStringLiteral("연습"), tip.join('\n'), Tone::Warning};
 }
 
 Badge status_badge(const TraderState& state) {
@@ -487,7 +513,8 @@ QList<Card> cards(const TraderState& state, const QDateTime& now) {
         position.lines << (p.bid ? QStringLiteral("매수 1호가 %1원 · 평가 %2")
                                        .arg(price_text(*p.bid), signed_won_text(p.unrealized))
                                  : QStringLiteral("산 뒤의 호가 아직 없음"));
-        position.lines << cell_text(p.kind, p.predictor);
+        position.lines << (p.practice ? QStringLiteral("%1 · 연습").arg(cell_text(p.kind, p.predictor))
+                                      : cell_text(p.kind, p.predictor)); // codeyoma/krx-quant#427
         if (p.selling) {
             position.lines << QStringLiteral("매도 중: 다음 호가의 매수 1호가에 팝니다");
             position.tone = Tone::Warning;
@@ -584,10 +611,16 @@ QList<TradeRow> trade_rows(const QList<TraderTrade>& trades, const std::optional
         if (!t.champion)
             tip << QStringLiteral("도전 정책의 모의 매매입니다: 챔피언 옆에서 같은 호가로 흉내 내고, 한도와 정지에 멈추지 않으며 "
                                   "차트에 보이지 않습니다.");
+        if (t.practice) // codeyoma/krx-quant#427
+            tip << QStringLiteral("KIS 모의 연습 매매입니다: 매매할 챔피언 칸이 없던 날 연습 칸을 1주씩 샀습니다. 정책이 없어 "
+                                  "승격·실전 관문·모의 기록에는 세지 않고, 손실 한도와 실전의 실행 점검에는 셉니다.");
         for (const auto& effect : t.stalls) // codeyoma/krx-quant#407
             tip << QStringLiteral("수집기 호가 끊김: %1").arg(trader_stall_label(effect));
         r.tip = tip.join('\n');
-        if (!t.policy) {
+        if (t.practice) { // codeyoma/krx-quant#427: of no policy
+            r.policy = QStringLiteral("연습");
+            r.policy_tone = Tone::Warning;
+        } else if (!t.policy) {
             r.policy = dash();
             r.policy_tone = Tone::Dim;
         } else if (t.champion) {

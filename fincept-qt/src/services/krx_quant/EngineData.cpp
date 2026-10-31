@@ -2013,6 +2013,7 @@ Result<TraderState> parse_trader(const QJsonDocument& doc) {
         position.bid_at = time_of(p.value("bid_at"));
         position.unrealized = p.value("unrealized").toDouble();
         position.selling = p.value("selling").toBool();
+        position.practice = p.value("practice").toBool(); // codeyoma/krx-quant#427
         t.position = position;
     }
     t.today = trader_pnl_of(o.value("today"));
@@ -2077,6 +2078,22 @@ Result<TraderState> parse_trader(const QJsonDocument& doc) {
         }
         t.live = live;
     }
+    if (o.value("practice").isObject()) { // codeyoma/krx-quant#427
+        const QJsonObject p = o.value("practice").toObject();
+        TraderPractice practice;
+        practice.enabled = p.value("enabled").toBool();
+        practice.active = p.value("active").toBool();
+        if (p.value("cell").isObject()) {
+            const QJsonObject c = p.value("cell").toObject();
+            practice.kind = c.value("kind").toString();
+            practice.predictor = c.value("predictor").toString();
+            practice.role = c.value("role").toString();
+            practice.p_star = number(c.value("p_star"));
+            practice.low = number(c.value("low"));
+            practice.quantity = c.value("quantity").toInt();
+        }
+        t.practice = practice;
+    }
     for (const auto& v : o.value("policies").toArray()) {
         const QJsonObject p = v.toObject();
         const std::optional<qint64> version = long_of(p.value("version"));
@@ -2133,6 +2150,7 @@ Result<QList<TraderTrade>> parse_trader_trades(const QJsonDocument& doc) {
         t.role = o.value("role").toString();
         t.policy = long_of(o.value("policy"));
         t.champion = o.value("champion").toBool(true);
+        t.practice = o.value("practice").toBool(); // codeyoma/krx-quant#427
         t.bar_close = time_of(o.value("bar_close"));
         t.probability = number(o.value("probability"));
         t.threshold = number(o.value("threshold"));

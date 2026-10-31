@@ -264,14 +264,18 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
     header_.row->insertWidget(2, dot_);
     mode_badge_ = new QLabel;
     header_.row->insertWidget(3, mode_badge_);
+    practice_badge_ = new QLabel; // codeyoma/krx-quant#427
+    practice_badge_->setObjectName(kPracticeName);
+    practice_badge_->hide();
+    header_.row->insertWidget(4, practice_badge_);
     status_badge_ = new QLabel;
-    header_.row->insertWidget(4, status_badge_);
+    header_.row->insertWidget(5, status_badge_);
     gate_ = new QLabel;
     gate_->setObjectName(kGateName);
     gate_->setContentsMargins(0, 0, 10, 0); // apart from the state's line after it
-    header_.row->insertWidget(5, gate_);
+    header_.row->insertWidget(6, gate_);
     header_line_ = new QLabel;
-    header_.row->insertWidget(6, header_line_);
+    header_.row->insertWidget(7, header_line_);
     reload_ = tool_button(tr("새로 읽기"), tr("지금 다시 읽습니다(날마다와 매매도)"));
     header_.controls->addWidget(reload_);
     connect(reload_, &QPushButton::clicked, this, [this] { live_->read_now(); });
@@ -578,6 +582,7 @@ void KrxTraderScreen::fill_header() {
     const auto& s = live_->state();
     if (!s) {
         mode_badge_->hide();
+        practice_badge_->hide();
         status_badge_->hide();
         gate_->hide();
         header_line_->setText(live_->reading() ? tr("읽는 중") : QString());
@@ -593,6 +598,14 @@ void KrxTraderScreen::fill_header() {
         label->setToolTip(badge.tip);
         label->setStyleSheet(badge_style(badge.tone));
         label->show();
+    }
+    if (const auto practice = view::practice_badge(*s)) { // codeyoma/krx-quant#427
+        practice_badge_->setText(practice->text);
+        practice_badge_->setToolTip(practice->tip);
+        practice_badge_->setStyleSheet(badge_style(practice->tone));
+        practice_badge_->show();
+    } else {
+        practice_badge_->hide();
     }
     header_line_->setText(view::header_line(*s));
 }

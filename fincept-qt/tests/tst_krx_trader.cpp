@@ -1055,6 +1055,81 @@ class TstKrxTrader : public QObject {
         QCOMPARE(trader_stall_label(""), QStringLiteral("청산에 영향 없음"));
     }
 
+    void the_mock_practice_is_said_beside_the_mode_on_the_position_and_on_its_trades() {
+        // codeyoma/krx-quant#427: no champion cell to trade, the mock book practises one share of a cell.
+        QJsonObject o = state_json("mock");
+        QJsonObject position = o["position"].toObject();
+        position["quantity"] = 1;
+        position["practice"] = true;
+        o["position"] = position;
+        o["practice"] = QJsonObject{{"enabled", true},
+                                    {"active", true},
+                                    {"cell", QJsonObject{{"kind", "barrier"},
+                                                         {"role", "top"},
+                                                         {"predictor", "breiman"},
+                                                         {"p_star", 0.63},
+                                                         {"low", 0.60},
+                                                         {"priority", -0.03},
+                                                         {"calls", 300},
+                                                         {"width", 10.0},
+                                                         {"cost", 2.6},
+                                                         {"reference_price", 70050.0},
+                                                         {"tick", 100.0},
+                                                         {"kelly", -4.5},
+                                                         {"fraction", 0.0},
+                                                         {"threshold", QJsonValue()},
+                                                         {"quantity", 1},
+                                                         {"practice", true}}}};
+        const TraderState s = state(o);
+        QVERIFY(s.practice.has_value() && s.practice->enabled && s.practice->active);
+        QCOMPARE(s.practice->kind, QStringLiteral("barrier"));
+        QCOMPARE(s.practice->quantity, 1);
+        QVERIFY(s.position.has_value() && s.position->practice);
+        const auto badge = view::practice_badge(s);
+        QVERIFY(badge.has_value());
+        QCOMPARE(badge->text, QStringLiteral("연습"));
+        QCOMPARE(badge->tone, Tone::Warning);
+        QVERIFY(badge->tip.contains(QStringLiteral("연습 칸 장벽 4분 · breiman (1위)을 1주씩")));
+        QVERIFY(badge->tip.contains(QStringLiteral("하한 60.0%, p* 63.0%")));
+        QVERIFY(badge->tip.contains(QStringLiteral("연습 포지션을 들고 있습니다")));
+        QVERIFY(badge->tip.contains(QStringLiteral("승격, 실전 관문, 정책의 모의 기록에는 세지 않고")));
+        QCOMPARE(view::mode_badge(s).text, QStringLiteral("KIS 모의"));
+        QVERIFY(view::mode_badge(s).tip.contains(QStringLiteral("KIS 모의 연습(KRX_TRADER_MOCK_PRACTICE)이 켜져 있습니다")));
+        const view::Card card = view::cards(s, kst("2026-10-15T10:06:30+09:00"))[2];
+        QVERIFY(card.lines.contains(QStringLiteral("장벽 4분 · breiman · 연습")));
+
+        // A champion cell back: no practice, the practice position held still.
+        QJsonObject back = o;
+        back["practice"] = QJsonObject{{"enabled", true}, {"active", false}, {"cell", QJsonValue()}};
+        const auto holding = view::practice_badge(state(back));
+        QVERIFY(holding.has_value());
+        QVERIFY(!holding->tip.contains(QStringLiteral("연습 칸")));
+        QVERIFY(holding->tip.contains(QStringLiteral("연습 포지션을 들고 있습니다")));
+        // Nothing practised, nothing held of it; a trader before #427.
+        back["position"] = QJsonValue();
+        QVERIFY(!view::practice_badge(state(back)).has_value());
+        QVERIFY2(view::mode_badge(state(back)).tip.contains(QStringLiteral("KIS 모의 연습")), "the practice on still");
+        const TraderState before = state(state_json("mock"));
+        QVERIFY(!before.practice.has_value() && !before.position->practice);
+        QVERIFY(!view::practice_badge(before).has_value());
+        QVERIFY(!view::mode_badge(before).tip.contains(QStringLiteral("연습")));
+
+        // Its trades: of no policy, said "연습".
+        QJsonObject trade = trade_json(11, "take_profit", "mock");
+        trade["policy"] = QJsonValue();
+        trade["fraction"] = QJsonValue();
+        trade["practice"] = true;
+        const auto parsed = parse_trader_trades(QJsonDocument(QJsonObject{{"trades", QJsonArray{trade, trade_json(9, "time")}}}));
+        QVERIFY(parsed.is_ok());
+        QVERIFY(parsed.value()[0].practice && !parsed.value()[1].practice);
+        const auto rows = view::trade_rows(parsed.value(), std::nullopt);
+        QCOMPARE(rows[0].policy, QStringLiteral("연습"));
+        QCOMPARE(rows[0].policy_tone, Tone::Warning);
+        QVERIFY(rows[0].tip.contains(QStringLiteral("KIS 모의 연습 매매입니다")));
+        QCOMPARE(rows[1].policy, QStringLiteral("정책 1"));
+        QVERIFY(!rows[1].tip.contains(QStringLiteral("연습")));
+    }
+
     void the_cards_show_the_position_with_its_time_left() {
         const TraderState s = state();
         const QDateTime now = kst("2026-10-15T10:06:30+09:00");
