@@ -955,7 +955,7 @@ class TstKrxTrader : public QObject {
             {"ordering", false},
             {"unlocked", false},
             {"missing", QJsonArray{"gate", "mock_days"}},
-            {"gate", "실전 관문: 챔피언 정책 1의 모의 기록 12일, 다음 판정은 모의 이력 20거래일째"},
+            {"gate", "실전 관문: 챔피언 정책 1의 챔피언으로 돈 모의 기록 12일, 다음 판정은 모의 이력 20거래일째"},
             {"checks",
              QJsonArray{QJsonObject{{"name", "mock_days"}, {"passed", false}, {"value", 3}, {"required", 20},
                                     {"said", "KIS 모의 거래일 3/20일"}},
@@ -970,7 +970,7 @@ class TstKrxTrader : public QObject {
         QCOMPARE(badge.text, QStringLiteral("실전 대기"));
         QCOMPARE(badge.tone, Tone::Warning);
         QVERIFY(badge.tip.contains(QStringLiteral("아직 실제 주문을 내지 않고 모의로 돕니다")));
-        QVERIFY(badge.tip.contains(QStringLiteral("· 실전 관문: 챔피언 정책 1의 모의 기록 12일")));
+        QVERIFY(badge.tip.contains(QStringLiteral("· 실전 관문: 챔피언 정책 1의 챔피언으로 돈 모의 기록 12일")));
         QVERIFY(badge.tip.contains(QStringLiteral("· KIS 모의 거래일 3/20일")));
         QVERIFY(!badge.tip.contains(QStringLiteral("왕복 매매 40/30건")));
         // Ordering on the live account, its first period's cap.
@@ -1021,6 +1021,10 @@ class TstKrxTrader : public QObject {
         QVERIFY(view::gate_line(g).endsWith(
             QStringLiteral("못 넘음: 다음 판정 1번째, 이력 20일째(지금 12일, α 1.52%), 8일 더, 하한 ≤ 0")));
         QVERIFY(view::gate_line(g).contains(QStringLiteral("96.96% 하한 -3,000원")));
+        // Its days as the champion alone (codeyoma/krx-quant#425's review).
+        QVERIFY(view::gate_line(g).startsWith(QStringLiteral("실전 관문 · 챔피언 정책 1의 챔피언으로 돈 모의 기록 12/20일 · ")));
+        QVERIFY(view::gate_tip(g).contains(QStringLiteral("도전 정책이었던 날은 세지 않습니다")));
+        QVERIFY(view::gate_tip(g).contains(QStringLiteral("챔피언으로 돈 날 12일")));
         QVERIFY(view::gate_tip(g).contains(QStringLiteral("20일마다 한 번 판정합니다")));
         QVERIFY(view::gate_tip(g).contains(QStringLiteral("α 1.52%")));
         QJsonObject gate = gated["gate"].toObject();

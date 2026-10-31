@@ -372,9 +372,10 @@ QString gate_tip(const TraderState& state) {
     const TraderGate& g = *state.gate;
     if (g.checkpoints) // codeyoma/krx-quant#408
         return QStringLiteral("실전 관문: trader의 모의 이력(챔피언이 돈 거래일) 20일마다 한 번 판정합니다. k번째 판정에서는 그날 "
-                              "챔피언의 모의 기록이 %1거래일 이상이고 날마다 순손익(매매 없는 날 0)의 평균이 한쪽 α_k = 2.5% × 6 "
-                              "÷ (π²k²)로 0보다 커야 넘습니다(평생 2.5% 이하). 넘은 챔피언은 넘은 채이고, 챔피언이 바뀌어도 k는 "
-                              "이어서 셉니다. 지금 이력 %2일, 챔피언의 기록 %3일, 평균 %4, 다음 판정(%5번째, 이력 %6일째, α %7)의 "
+                              "챔피언이 챔피언으로 돈 날의 모의 기록이 %1거래일 이상이고 날마다 순손익(매매 없는 날 0)의 평균이 "
+                              "한쪽 α_k = 2.5% × 6 ÷ (π²k²)로 0보다 커야 넘습니다(평생 2.5% 이하). 도전 정책이었던 날은 세지 "
+                              "않습니다: 승격을 그 날들로 판정했습니다. 넘은 챔피언은 넘은 채이고, 챔피언이 바뀌어도 k는 이어서 "
+                              "셉니다. 지금 이력 %2일, 챔피언으로 돈 날 %3일, 평균 %4, 다음 판정(%5번째, 이력 %6일째, α %7)의 "
                               "%8 하한 %9. 관문을 넘어도 저절로 실전이 되지 않습니다: 모드는 서버에서 바꾸고, live는 실행 점검도 "
                               "넘어야 주문합니다. 정책마다의 모의 기록과 승격 판정은 아래 정책 버전 표에 있습니다.")
             .arg(g.required)
@@ -405,8 +406,10 @@ QString gate_line(const TraderState& state) {
                               "%1거래일을 셉니다.")
             .arg(state.gate->required);
     const TraderGate& g = *state.gate;
-    QStringList parts{QStringLiteral("실전 관문"),
-                      QStringLiteral("챔피언 정책 %1의 모의 기록 %2/%3일").arg(*state.champion).arg(g.days).arg(g.required),
+    QString record = QStringLiteral("챔피언 정책 %1의 모의 기록 %2/%3일");
+    if (g.checkpoints) // codeyoma/krx-quant#425: the gate counts the champion's days as the champion alone
+        record = QStringLiteral("챔피언 정책 %1의 챔피언으로 돈 모의 기록 %2/%3일");
+    QStringList parts{QStringLiteral("실전 관문"), record.arg(*state.champion).arg(g.days).arg(g.required),
                       QStringLiteral("날마다 평균 %1").arg(g.mean ? signed_won_text(*g.mean) : dash())};
     QString low = QStringLiteral("%1 하한 %2").arg(level_text(g.level), g.low ? signed_won_text(*g.low) : dash());
     if (g.low && state.capital && *state.capital > 0)
