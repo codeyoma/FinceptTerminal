@@ -167,6 +167,8 @@ class StandIn : public QObject {
     int challengers = 0;
     bool gate_passed = false;
     bool practising = false; ///< the mock practice active (codeyoma/krx-quant#427)
+    /// An engine of codeyoma/krx-quant#469–#475: the review cycle, its cohort and the risk rules' state.
+    bool cohorts = false;
     QStringList asked;
 
     StandIn() {
@@ -264,6 +266,17 @@ class StandIn : public QObject {
                               QJsonObject{{"percent", 20}, {"won", 200000}, {"used", 0.02}, {"reached_at", QJsonValue()}}}}},
                 {"pause", QJsonValue()},
                 {"controls", QJsonArray{}}};
+        if (cohorts) { // codeyoma/krx-quant#469, #473, #475
+            o["cycle"] = QJsonObject{{"evaluation", 2}, {"since", "2026-10-12"}, {"number", 1}, {"start", "2026-10-12"},
+                                     {"review", "2026-11-06"}, {"day", 3}, {"days", 20}};
+            o["cohort"] = QJsonObject{{"evaluation", 2},  {"cycle", 1},          {"formed_at", "2026-10-09T22:40:00+09:00"},
+                                      {"start", "2026-10-12"}, {"review", "2026-11-06"}, {"champion", 1},
+                                      {"members", QJsonArray{2}}, {"passed_over", QJsonArray{}}, {"verdict", QJsonValue()}};
+            o["risk"] = QJsonObject{{"day", "2026-10-14"},   {"budget_percent", 0.5}, {"budget", 5000.0}, {"buys", 3},
+                                    {"daily_buys", 20},      {"losses", 1},           {"loss_streak", 3},
+                                    {"cooldown_minutes", 30.0}, {"cooldowns", 0},     {"cooldown_until", QJsonValue()},
+                                    {"held", QJsonValue()}};
+        }
         if (practising) { // codeyoma/krx-quant#427: the mock book practises, no champion cell to trade
             o["mode"] = "mock";
             o["practice"] = QJsonObject{{"enabled", true},
@@ -497,6 +510,33 @@ class TstKrxTraderScreen : public QObject {
         engine.practising = false;
         live->read_now();
         QTRY_VERIFY_WITH_TIMEOUT(practice->isHidden(), 10000);
+    }
+
+    void a_cohort_engine_shows_the_cohort_the_cycle_and_the_risk_rules() {
+        // codeyoma/krx-quant#469, #473, #475: shown when the engine gives them, nothing of them before.
+        StandIn engine;
+        services::KrxQuantService::set_base_url(engine.url());
+        screens::KrxTraderScreen screen;
+        screen.resize(1600, 1000);
+        screen.show();
+        auto* cohort = screen.findChild<QLabel*>(screens::KrxTraderScreen::kCohortLineName);
+        auto* gate = screen.findChild<QLabel*>(screens::KrxTraderScreen::kGateName);
+        auto* live = screen.findChild<services::KrxTraderLive*>();
+        QVERIFY(cohort && gate && live);
+        QTRY_VERIFY_WITH_TIMEOUT(!gate->text().isEmpty(), 10000);
+        QVERIFY(cohort->isHidden());
+        const auto shown = [&screen](const QString& text) {
+            const auto labels = screen.findChildren<QLabel*>();
+            return std::any_of(labels.cbegin(), labels.cend(), [&text](const QLabel* l) { return l->text() == text; });
+        };
+        QVERIFY(!shown(QStringLiteral("매수 3/20")));
+        engine.cohorts = true;
+        live->read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(cohort->isVisible(), 10000);
+        QCOMPARE(cohort->text(), QStringLiteral("도전 정책 묶음 · 주기 1(10-12–11-06) · 정책 2 · 챔피언 정책 1과 견줌 · 검토 날 11-06 "
+                                                "장 마감 뒤 한 번 판정"));
+        QTRY_VERIFY_WITH_TIMEOUT(shown(QStringLiteral("매수 3/20")), 10000);
+        QVERIFY(shown(QStringLiteral("3/20일째")));
     }
 
     void choosing_a_policy_shows_its_trades() {

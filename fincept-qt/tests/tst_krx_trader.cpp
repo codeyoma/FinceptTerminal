@@ -377,6 +377,109 @@ QJsonObject lone_state_json() {
     return o;
 }
 
+/// The cohort of review cycle 1 (codeyoma/krx-quant#473): policy 2 against policy 1, policy 3 passed over;
+/// once ``judged``, policy 2 crowned on 11-06's night (made-up values).
+QJsonObject cohort_json(bool judged) {
+    QJsonObject o{{"evaluation", 2},
+                  {"cycle", 1},
+                  {"formed_at", "2026-10-08T22:31:04+09:00"},
+                  {"start", "2026-10-12"},
+                  {"review", "2026-11-06"},
+                  {"champion", 1},
+                  {"members", QJsonArray{2}},
+                  {"passed_over", QJsonArray{QJsonObject{{"version", 3}, {"why", "older"}}}},
+                  {"verdict", QJsonValue()}};
+    if (judged)
+        o["verdict"] = QJsonObject{{"judged_at", "2026-11-06T22:30:40+09:00"},
+                                   {"champion", 1},
+                                   {"outcome", "promoted"},
+                                   {"promoted", 2},
+                                   {"level", 0.95},
+                                   {"members", QJsonArray{QJsonObject{{"version", 2},
+                                                                      {"days", 18},
+                                                                      {"mean", 1100.0},
+                                                                      {"low", 63.35},
+                                                                      {"verdict", "promoted"}}}}};
+    return o;
+}
+
+/// A cell's calibration (codeyoma/krx-quant#475): 25 rises in its first bin, none in the others, 7 under it.
+QJsonObject calibration_json() {
+    QJsonArray bins;
+    const double edges[] = {0.4, 0.5, 0.6, 0.7, 0.8, 1.0};
+    for (int i = 0; i < 5; ++i) {
+        const bool first = i == 0;
+        bins.append(QJsonObject{{"from", edges[i]},
+                                {"to", edges[i + 1]},
+                                {"signals", first ? 25 : 0},
+                                {"missing", 0},
+                                {"answered", first ? 25 : 0},
+                                {"outcomes", QJsonObject{{"up", first ? 10 : 0}, {"flat", first ? 6 : 0}, {"down", first ? 9 : 0}}},
+                                {"hits", first ? 10 : 0},
+                                {"first", first ? 9 : 0},
+                                {"bought", first ? 23 : 0},
+                                {"profitable", first ? 8 : 0}});
+    }
+    return {{"bins", bins}, {"below", 7}};
+}
+
+/// A policy fitted since codeyoma/krx-quant#472, #475: its cell without λ, entered on its replayed net per
+/// signal's lower bound, with its calibration; two cells left out (no_edge, few_days); the cohort judged.
+QJsonObject new_policies_json() {
+    QJsonObject cell{{"kind", "barrier"},
+                     {"role", "top"},
+                     {"predictor", "breiman"},
+                     {"threshold", 0.7},
+                     {"fitted", QJsonObject{{"p_star", 0.63},
+                                            {"low", 0.6},
+                                            {"kelly", QJsonValue()},
+                                            {"verdict", "fail"},
+                                            {"days", QJsonArray{"2026-10-07", "2026-10-08"}},
+                                            {"recorded_days", 20},
+                                            {"read", QJsonObject{{"read", 380}, {"rises", 120}}},
+                                            {"bound", QJsonObject{{"value", 0.31}, {"low", 0.04}, {"high", 0.58}, {"days", 20}, {"level", 0.99889}}},
+                                            {"trades", 64},
+                                            {"wins", 38},
+                                            {"net", 21000.0},
+                                            {"growth", 0.02},
+                                            {"calibration", calibration_json()}}}};
+    QJsonObject policy = policy_json(2, "champion", "2026-10-08T22:31:04+09:00", QJsonArray{cell},
+                                     "2026-10-08T22:31:04+09:00", QJsonValue(),
+                                     paper_json("2026-10-12", "2026-11-06", 18, 30, 12000.0, 666.7, 63.35));
+    policy["left_out"] = QJsonArray{
+        QJsonObject{{"kind", "direction"}, {"role", "consensus"}, {"predictor", "consensus-final"}, {"p_star", 0.58},
+                    {"low", 0.52}, {"kelly", QJsonValue()}, {"verdict", "pass"}, {"why", "no_edge"},
+                    {"recorded_days", 20},
+                    {"best", QJsonObject{{"threshold", 0.6},
+                                         {"bound", QJsonObject{{"value", -0.31}, {"low", -0.9}, {"high", 0.28}, {"days", 20}, {"level", 0.99889}}}}},
+                    {"read", QJsonObject{{"read", 1640}}}, {"calibration", calibration_json()}},
+        QJsonObject{{"kind", "barrier_15m"}, {"role", "baseline"}, {"predictor", "barrier-persist-15m"},
+                    {"p_star", QJsonValue()}, {"low", QJsonValue()}, {"kelly", QJsonValue()}, {"why", "few_days"},
+                    {"recorded_days", 12}, {"read", QJsonObject{}}}};
+    return {{"champion", 2},
+            {"policies", QJsonArray{policy_json(4, "waiting", "2026-11-05T22:31:04+09:00", QJsonArray{}, QJsonValue(),
+                                                QJsonValue(), paper_json(QJsonValue(), QJsonValue(), 0, 0, 0.0, QJsonValue(), QJsonValue())),
+                                    policy,
+                                    policy_json(3, "dropped", "2026-10-07T22:41:00+09:00",
+                                                QJsonArray{cell_json("barrier", "top", "breiman", 0.6, 0.5)}, QJsonValue(),
+                                                "2026-10-08T22:31:04+09:00",
+                                                paper_json(QJsonValue(), QJsonValue(), 0, 0, 0.0, QJsonValue(), QJsonValue())),
+                                    policy_json(1, "former", "2026-10-07T22:31:04+09:00",
+                                                QJsonArray{cell_json("barrier", "top", "breiman", 0.6, 0.5)}, QJsonValue(),
+                                                QJsonValue(), paper_json("2026-10-08", "2026-11-06", 20, 30, -4000.0, -200.0, -900.0))}},
+            {"champions", QJsonArray{QJsonObject{{"at", "2026-11-06T22:30:40+09:00"},
+                                                 {"version", 2},
+                                                 {"reason", "주기 1 묶음의 검토 날 판정(#473)"},
+                                                 {"detail", QJsonObject{{"from", 1}, {"days", 18}, {"required", 10}, {"mean", 1100.0},
+                                                                        {"low", 63.35}, {"level", 0.95}, {"challengers", 1},
+                                                                        {"evaluation", 2}, {"cycle", 1}}}},
+                                     QJsonObject{{"at", "2026-10-07T22:31:04+09:00"},
+                                                 {"version", 1},
+                                                 {"reason", "처음 맞춘 정책(#399)"},
+                                                 {"detail", QJsonValue()}}}},
+            {"cohorts", QJsonArray{cohort_json(true)}}};
+}
+
 TraderPolicies policies(const QJsonObject& o) {
     auto p = parse_trader_policies(QJsonDocument(o));
     if (p.is_err())
@@ -693,7 +796,7 @@ class TstKrxTrader : public QObject {
         QCOMPARE(rows[0].created, QStringLiteral("10-07 22:31"));
         QCOMPARE(rows[0].cells, QStringLiteral("장벽 4분 · breiman (1위)"));
         QCOMPARE(rows[0].thresholds, QStringLiteral("60.0%"));
-        QCOMPARE(rows[0].kelly, QStringLiteral("0.5"));
+        QCOMPARE(rows[0].basis, QStringLiteral("λ 0.5"));
         QCOMPARE(rows[0].days, QStringLiteral("2일"));
         QCOMPARE(rows[0].trades, QStringLiteral("4개"));
         QCOMPARE(rows[0].net, QStringLiteral("-10,418원"));
@@ -749,7 +852,7 @@ class TstKrxTrader : public QObject {
         // Two cells in rank order, each one's θ and λ in the same order.
         QCOMPARE(rows[0].cells, QStringLiteral("장벽 4분 · breiman (1위) / 장벽 15분 · 기준: 직전 4분 장벽 (기준)"));
         QCOMPARE(rows[0].thresholds, QStringLiteral("65.0% / 70.0%"));
-        QCOMPARE(rows[0].kelly, QStringLiteral("1 / 0.25"));
+        QCOMPARE(rows[0].basis, QStringLiteral("λ 1 / λ 0.25"));
         // A running one's record is the state's (read every few seconds), not the versions' older one.
         QCOMPARE(rows[0].days, QStringLiteral("15일"));
         QCOMPARE(rows[0].net, QStringLiteral("+12,000원"));
@@ -1130,11 +1233,174 @@ class TstKrxTrader : public QObject {
         QVERIFY(!rows[1].tip.contains(QStringLiteral("연습")));
     }
 
+    void the_risk_rules_and_the_review_cycle_are_cards_and_an_older_engine_has_neither() {
+        // codeyoma/krx-quant#475: three net losses in a row, the cooldown to 10:32:30; #469: day 4 of cycle 1.
+        QJsonObject o = state_json();
+        o["risk"] = QJsonObject{{"day", "2026-10-15"},         {"budget_percent", 0.5}, {"budget", 5000.0},
+                                {"buys", 3},                   {"daily_buys", 20},      {"losses", 3},
+                                {"loss_streak", 3},            {"cooldown_minutes", 30.0}, {"cooldowns", 1},
+                                {"cooldown_until", "2026-10-15T10:32:30+09:00"}, {"held", "cooldown"}};
+        o["cycle"] = QJsonObject{{"evaluation", 2}, {"since", "2026-10-12"}, {"number", 1}, {"start", "2026-10-12"},
+                                 {"review", "2026-11-06"}, {"day", 4}, {"days", 20}};
+        o["cohort"] = cohort_json(false);
+        const TraderState s = state(o);
+        QVERIFY(s.risk && s.cycle && s.cohort);
+        QCOMPARE(s.risk->cooldown_until, kst("2026-10-15T10:32:30+09:00"));
+        QCOMPARE(s.cohort->members, QList<qint64>{2});
+
+        const QList<view::Card> cooling = view::cards(s, kst("2026-10-15T10:06:30+09:00"));
+        QCOMPARE(cooling.size(), view::kCards);
+        QCOMPARE(cooling[7].title, QStringLiteral("위험 규칙"));
+        QCOMPARE(cooling[7].value, QStringLiteral("쉬는 중"));
+        QCOMPARE(cooling[7].tone, Tone::Warning);
+        QCOMPARE(cooling[7].lines,
+                 (QStringList{QStringLiteral("10:32:30까지 새로 사지 않음"), QStringLiteral("오늘 매수 주문 3/20"),
+                              QStringLiteral("연달은 순손실 3/3 · 쉬면 30분"), QStringLiteral("오늘 쉼 1번"),
+                              QStringLiteral("손실 예산 5,000원 (0.5%)")}));
+        QVERIFY(cooling[7].tip.contains(QStringLiteral("마지막 청산부터 30분")));
+        const QList<view::Card> later = view::cards(s, kst("2026-10-15T10:40:00+09:00"));
+        QCOMPARE(later[7].value, QStringLiteral("매수 3/20"));
+        QCOMPARE(later[7].tone, Tone::Plain);
+
+        QCOMPARE(cooling[8].title, QStringLiteral("검토 주기"));
+        QCOMPARE(cooling[8].value, QStringLiteral("4/20일째"));
+        QCOMPARE(cooling[8].lines, (QStringList{QStringLiteral("주기 1 · 10-12(월) – 11-06(금)"),
+                                               QStringLiteral("검토 날 11-06(금) 장 마감 뒤"), QStringLiteral("묶음: 정책 2")}));
+
+        // An engine before #469 and #475: the two cards say nothing, nothing else changes.
+        const QList<view::Card> older = view::cards(state(), kst("2026-10-15T10:06:30+09:00"));
+        QCOMPARE(older.size(), view::kCards);
+        QCOMPARE(older[7].value, QStringLiteral("—"));
+        QCOMPARE(older[7].tone, Tone::Dim);
+        QCOMPARE(older[8].value, QStringLiteral("—"));
+        QVERIFY(!state().risk && !state().cycle && !state().cohort);
+        QCOMPARE(view::cohort_line(std::nullopt, state()).text, QString());
+    }
+
+    void the_policies_say_what_each_cell_entered_on_its_calibration_and_the_cohort_s_verdict() {
+        // codeyoma/krx-quant#472, #473, #475.
+        const TraderPolicies p = policies(new_policies_json());
+        QCOMPARE(p.cohorts.size(), 1);
+        const TraderPolicy& fitted = p.policies[1];
+        QVERIFY(!fitted.cells[0].kelly_fraction);
+        QCOMPARE(fitted.cells[0].bound_low, std::optional<double>(0.04));
+        QCOMPARE(fitted.cells[0].calibration.size(), 5);
+        QCOMPARE(fitted.cells[0].calibration[0].rises, 25);
+        QCOMPARE(fitted.left_out[0].best_low, std::optional<double>(-0.9));
+
+        const QList<view::PolicyRow> rows = view::policy_rows(p, std::nullopt);
+        QCOMPARE(rows[0].version, 2);
+        QCOMPARE(rows[0].basis, QStringLiteral("하한 +0.04틱"));
+        QVERIFY(rows[0].cells_tip.contains(QStringLiteral(
+            "장벽 4분 · breiman (1위): θ 70.0%, 1주씩 따로 잰 신호당 +0.31틱(하한 +0.04틱, 99.89% 수준, 녹화한 날 20일)")));
+        QVERIFY(rows[0].cells_tip.contains(QStringLiteral("판정 fail(기록일 뿐)")));
+        QVERIFY(!rows[0].cells_tip.contains(QStringLiteral("λ ")));
+        QVERIFY(rows[0].cells_tip.contains(QStringLiteral(
+            "  보정: [0.4, 0.5) 25건 · 상승 40% · 보합 24% · 하락 36% · 목표 먼저 36% · 순이익 35%(체결 23)")));
+        QVERIFY(rows[0].cells_tip.contains(QStringLiteral("  보정: 0.4 아래 7건(어느 θ도 사지 않는다)")));
+        QVERIFY(rows[0].cells_tip.contains(QStringLiteral(
+            "(합의): 신호당 순손익의 하한이 0을 넘는 θ가 없음(가장 높은 θ 60.0%: 하한 -0.90틱) · 비용 지도 판정 pass")));
+        QVERIFY(rows[0].cells_tip.contains(QStringLiteral("녹화한 날이 모자람(12일)")));
+        const auto waiting = std::find_if(rows.begin(), rows.end(), [](const auto& r) { return r.version == 4; });
+        QCOMPARE(waiting->judgement, QStringLiteral("다음 묶음 기다림"));
+        const auto former = std::find_if(rows.begin(), rows.end(), [](const auto& r) { return r.version == 1; });
+        QCOMPARE(former->basis, QStringLiteral("λ 0.5")); // a policy fitted before #471 keeps its λ
+
+        const view::CohortLine line = view::cohort_line(p, std::nullopt);
+        QCOMPARE(line.text, QStringLiteral("도전 정책 묶음 · 주기 1(10-12–11-06) · 정책 2 · 챔피언 정책 1과 견줌 · 판정 11-06: 정책 2 "
+                                           "챔피언이 됨"));
+        QCOMPARE(line.tone, Tone::Positive);
+        QVERIFY(line.tip.contains(QStringLiteral("정책 2: 챔피언이 됨 · 함께 18일 · 평균 +1,100원 · 하한 +63원 (95%)")));
+        QVERIFY(line.tip.contains(QStringLiteral("묶음에 들지 못해 내린 정책 3(older)")));
+        QCOMPARE(view::cohort_line(p, state()).text, line.text); // the state of an older trader: the versions'
+
+        const QList<view::HistoryRow> history = view::history_rows(p);
+        QStringList whats;
+        for (const auto& r : history)
+            whats << r.what + QStringLiteral(" · ") + r.why;
+        QCOMPARE(whats.mid(0, 2), (QStringList{QStringLiteral("챔피언 (정책 1 → 2) · 주기 1 묶음의 검토 날 판정(#473)"),
+                                              QStringLiteral("묶음 판정 (주기 1) · 정책 2이 챔피언 정책 1을 이겼다")}));
+        QVERIFY(whats.contains(QStringLiteral("묶음에 듦 (주기 1) · 10-12(월)부터 검토 날 11-06(금)까지 챔피언 옆에서 모의로 돈다")));
+        QVERIFY(whats.contains(QStringLiteral("내려짐 · 주기 1의 묶음에 들지 못했다")));
+
+        // A challenger's standing on a cohort engine: its review day, judged once.
+        QJsonObject o = busy_state_json();
+        QJsonArray running = o["policies"].toArray();
+        QJsonObject challenger = running[1].toObject();
+        QJsonObject promotion = challenger["promotion"].toObject();
+        promotion["review"] = "2026-11-06";
+        challenger["promotion"] = promotion;
+        running[1] = challenger;
+        o["policies"] = running;
+        const QList<view::PolicyRow> busy = view::policy_rows(policies(busy_policies_json()), state(o));
+        const auto four = std::find_if(busy.begin(), busy.end(), [](const auto& r) { return r.version == 4; });
+        QCOMPARE(four->judgement, QStringLiteral("이김 · 함께 12/10일 · 차이 하한 +63원 · 검토 11-06"));
+        QVERIFY(four->judgement_tip.contains(QStringLiteral("검토 날(11-06(금)) 장이 끝난 뒤 한 번만 판정합니다")));
+        QVERIFY(!four->judgement_tip.contains(QStringLiteral("20일까지 이기지 못하면")));
+    }
+
+    void a_trade_s_execution_cost_is_in_its_tooltip_and_an_older_trade_has_none() {
+        // codeyoma/krx-quant#475
+        QJsonObject t = trade_json(1, "take_profit");
+        t["execution"] = QJsonObject{
+            {"clock", "trader"},
+            {"entry", QJsonObject{{"ticks", 0.5}, {"placed", 0.2}, {"filled", 0.84}}},
+            {"exit", QJsonObject{{"reason", "take_profit"}, {"reference", "target"}, {"ticks", -0.5}, {"placed", 0.3}, {"filled", QJsonValue()}}}};
+        QJsonObject stopped = trade_json(2, "stop_loss");
+        stopped["execution"] = QJsonObject{
+            {"clock", "quote"},
+            {"entry", QJsonObject{{"ticks", QJsonValue()}, {"placed", 0.2}, {"filled", 0.2}}},
+            {"exit", QJsonObject{{"reason", "stop_loss"}, {"reference", "mid"}, {"ticks", 0.5}, {"placed", 0.0}, {"filled", 0.0}}}};
+        auto parsed = parse_trader_trades(QJsonDocument(QJsonObject{{"trades", QJsonArray{t, stopped, trade_json(3, "time")}}}));
+        QVERIFY(parsed.is_ok());
+        const QList<TraderTrade>& trades = parsed.value();
+        QCOMPARE(trades[0].clock, QStringLiteral("trader"));
+        QCOMPARE(trades[0].exit_reference, QStringLiteral("target"));
+        QVERIFY(!trades[0].exit_filled);
+        const auto rows = view::trade_rows(trades, std::nullopt);
+        QVERIFY(rows[0].tip.contains(QStringLiteral(
+            "실행: 매수 +0.50틱(결정 때 중간가 대비) · 결정 뒤 주문 0.2초, 체결 0.8초 · 익절 -0.50틱(목표가 대비) · 매수 체결 뒤 "
+            "주문 0.3초")));
+        QVERIFY(rows[0].tip.contains(QStringLiteral("trader가 KIS 주문 체결 조회에서 체결을 읽은 때")));
+        QVERIFY(rows[1].tip.contains(QStringLiteral(
+            "실행: 매수 ?(결정 때 중간가 대비) · 결정 뒤 주문 0.2초, 체결 0.2초 · 매도 +0.50틱(결정 때 중간가 대비) · 결정 뒤 "
+            "주문 0.0초, 체결 0.0초")));
+        QVERIFY(rows[1].tip.contains(QStringLiteral("체결한 호가를 받은 때")));
+        QVERIFY(!rows[2].tip.contains(QStringLiteral("실행")));
+    }
+
+    void the_practice_cell_frozen_for_the_cycle_and_why_it_does_not_practise_are_said() {
+        // codeyoma/krx-quant#474
+        QJsonObject frozen{{"evaluation", 2}, {"cycle", 1}, {"chosen_at", "2026-10-09T22:41:00+09:00"},
+                           {"kind", "barrier"}, {"role", "top"}, {"predictor", "breiman"}, {"threshold", 0.6},
+                           {"per_signal", QJsonObject{{"value", -0.2}, {"low", -0.6}, {"high", 0.2}, {"days", 20}}},
+                           {"signals", 120}, {"bought", 100}, {"wins", 48}, {"measured", 45}, {"eligible", 30},
+                           {"gone_at", QJsonValue()}};
+        QJsonObject cell{{"kind", "barrier"}, {"role", "top"}, {"predictor", "breiman"}, {"p_star", 0.63}, {"low", 0.6},
+                         {"threshold", 0.6}, {"quantity", 1}, {"practice", true}};
+        QJsonObject o = state_json("mock", "running", true, false);
+        o["practice"] = QJsonObject{{"enabled", true}, {"active", true}, {"cell", cell}, {"frozen", frozen}, {"why", QJsonValue()}};
+        const TraderState practising = state(o);
+        QCOMPARE(practising.practice->frozen_cycle, 1);
+        QCOMPARE(practising.practice->threshold, std::optional<double>(0.6));
+        const auto badge = view::practice_badge(practising);
+        QVERIFY(badge);
+        QVERIFY(badge->tip.contains(QStringLiteral("1주씩, 문턱 θ 60.0%로")));
+        QVERIFY(badge->tip.contains(QStringLiteral("검토 주기 1에 고정한 칸입니다(10-09 22:41에 밤 작업이 고름")));
+
+        o["practice"] = QJsonObject{{"enabled", true}, {"active", false}, {"cell", QJsonValue()}, {"frozen", QJsonValue()},
+                                    {"why", "not_frozen"}};
+        const TraderState waiting = state(o);
+        QVERIFY(!view::practice_badge(waiting));
+        QVERIFY(view::mode_badge(waiting).tip.contains(
+            QStringLiteral("지금 연습하지 않는 까닭: 이 검토 주기의 연습 칸을 아직 고르지 않았다(밤 작업이 고른다).")));
+    }
+
     void the_cards_show_the_position_with_its_time_left() {
         const TraderState s = state();
         const QDateTime now = kst("2026-10-15T10:06:30+09:00");
         const QList<view::Card> cards = view::cards(s, now);
-        QCOMPARE(cards.size(), 7);
+        QCOMPARE(cards.size(), view::kCards);
         QCOMPARE(cards[0].title, QStringLiteral("운용 상한"));
         QCOMPARE(cards[0].value, QStringLiteral("1,000,000원"));
         QCOMPARE(cards[1].value, QStringLiteral("14,143원"));

@@ -1974,6 +1974,7 @@ std::optional<TraderPromotion> trader_promotion_of(const QJsonValue& v) {
     p.challengers = o.value("challengers").toInt(1);
     p.passed = o.value("passed").toBool();
     p.why = o.value("why").toString();
+    p.review = day_of(o.value("review")); // codeyoma/krx-quant#473
     return p;
 }
 
@@ -1981,6 +1982,73 @@ std::optional<int> int_of(const QJsonValue& v) {
     if (!v.isDouble())
         return std::nullopt;
     return v.toInt();
+}
+
+/// A cell's calibration (codeyoma/krx-quant#475): its bins, and the rises under the first edge.
+QList<TraderCalibrationBin> trader_calibration_of(const QJsonValue& v, int& below) {
+    QList<TraderCalibrationBin> bins;
+    const QJsonObject o = v.toObject();
+    below = o.value("below").toInt();
+    for (const auto& b : o.value("bins").toArray()) {
+        const QJsonObject bin = b.toObject();
+        const QJsonObject outcomes = bin.value("outcomes").toObject();
+        TraderCalibrationBin c;
+        c.from = bin.value("from").toDouble();
+        c.to = bin.value("to").toDouble();
+        c.rises = bin.value("signals").toInt();
+        c.missing = bin.value("missing").toInt();
+        c.answered = bin.value("answered").toInt();
+        c.up = outcomes.value("up").toInt();
+        c.flat = outcomes.value("flat").toInt();
+        c.down = outcomes.value("down").toInt();
+        c.hits = bin.value("hits").toInt();
+        c.first = bin.value("first").toInt();
+        c.bought = bin.value("bought").toInt();
+        c.profitable = bin.value("profitable").toInt();
+        bins.push_back(c);
+    }
+    return bins;
+}
+
+/// A cohort of challengers (codeyoma/krx-quant#473), with its verdict once judged.
+TraderCohort trader_cohort_of(const QJsonObject& o) {
+    TraderCohort c;
+    c.evaluation = o.value("evaluation").toInt();
+    c.cycle = o.value("cycle").toInt();
+    c.formed_at = time_of(o.value("formed_at"));
+    c.start = day_of(o.value("start"));
+    c.review = day_of(o.value("review"));
+    c.champion = long_of(o.value("champion"));
+    for (const auto& m : o.value("members").toArray())
+        if (m.isDouble())
+            c.members << m.toInteger();
+    for (const auto& v : o.value("passed_over").toArray()) {
+        const QJsonObject p = v.toObject();
+        if (const std::optional<qint64> version = long_of(p.value("version")))
+            c.passed_over.push_back({*version, p.value("why").toString()});
+    }
+    if (o.value("verdict").isObject()) {
+        const QJsonObject v = o.value("verdict").toObject();
+        c.judged = true;
+        c.judged_at = time_of(v.value("judged_at"));
+        c.outcome = v.value("outcome").toString();
+        c.promoted = long_of(v.value("promoted"));
+        c.level = number(v.value("level"));
+        for (const auto& m : v.value("members").toArray()) {
+            const QJsonObject member = m.toObject();
+            const std::optional<qint64> version = long_of(member.value("version"));
+            if (!version)
+                continue;
+            TraderCohortMember figures;
+            figures.version = *version;
+            figures.days = int_of(member.value("days"));
+            figures.mean = number(member.value("mean"));
+            figures.low = number(member.value("low"));
+            figures.verdict = member.value("verdict").toString();
+            c.verdicts.push_back(figures);
+        }
+    }
+    return c;
 }
 
 } // namespace
@@ -2092,9 +2160,52 @@ Result<TraderState> parse_trader(const QJsonDocument& doc) {
             practice.p_star = number(c.value("p_star"));
             practice.low = number(c.value("low"));
             practice.quantity = c.value("quantity").toInt();
+            practice.threshold = number(c.value("threshold")); // codeyoma/krx-quant#474
         }
+        if (p.value("frozen").isObject()) { // codeyoma/krx-quant#474
+            const QJsonObject f = p.value("frozen").toObject();
+            practice.frozen_cycle = f.value("cycle").toInt();
+            practice.frozen_at = time_of(f.value("chosen_at"));
+            practice.frozen_kind = f.value("kind").toString();
+            practice.frozen_predictor = f.value("predictor").toString();
+            practice.frozen_role = f.value("role").toString();
+            practice.frozen_threshold = number(f.value("threshold"));
+            practice.gone_at = time_of(f.value("gone_at"));
+        }
+        practice.why = p.value("why").toString();
         t.practice = practice;
     }
+    if (o.value("risk").isObject()) { // codeyoma/krx-quant#475
+        const QJsonObject r = o.value("risk").toObject();
+        TraderRisk risk;
+        risk.day = day_of(r.value("day"));
+        risk.budget_percent = r.value("budget_percent").toDouble();
+        risk.budget = r.value("budget").toDouble();
+        risk.buys = r.value("buys").toInt();
+        risk.daily_buys = r.value("daily_buys").toInt();
+        risk.losses = r.value("losses").toInt();
+        risk.loss_streak = r.value("loss_streak").toInt();
+        risk.cooldown_minutes = r.value("cooldown_minutes").toDouble();
+        risk.cooldowns = r.value("cooldowns").toInt();
+        risk.cooldown_until = time_of(r.value("cooldown_until"));
+        risk.held = r.value("held").toString();
+        t.risk = risk;
+    }
+    if (o.value("cycle").isObject()) { // codeyoma/krx-quant#469
+        const QJsonObject c = o.value("cycle").toObject();
+        TraderCycle cycle;
+        cycle.evaluation = c.value("evaluation").toInt();
+        cycle.since = day_of(c.value("since"));
+        cycle.number = c.value("number").toInt();
+        cycle.start = day_of(c.value("start"));
+        cycle.review = day_of(c.value("review"));
+        cycle.day = c.value("day").toInt();
+        cycle.days = c.value("days").toInt(20);
+        if (cycle.number > 0 && cycle.review.isValid())
+            t.cycle = cycle;
+    }
+    if (o.value("cohort").isObject()) // codeyoma/krx-quant#473
+        t.cohort = trader_cohort_of(o.value("cohort").toObject());
     for (const auto& v : o.value("policies").toArray()) {
         const QJsonObject p = v.toObject();
         const std::optional<qint64> version = long_of(p.value("version"));
@@ -2184,6 +2295,21 @@ Result<QList<TraderTrade>> parse_trader_trades(const QJsonDocument& doc) {
         t.net = number(o.value("net"));
         for (const auto& v : o.value("stalls").toArray()) // codeyoma/krx-quant#407
             t.stalls << v.toObject().value("effect").toString();
+        if (o.value("execution").isObject()) { // codeyoma/krx-quant#475
+            const QJsonObject e = o.value("execution").toObject();
+            t.clock = e.value("clock").toString();
+            const QJsonObject in = e.value("entry").toObject();
+            t.entry_ticks = number(in.value("ticks"));
+            t.entry_placed = number(in.value("placed"));
+            t.entry_filled = number(in.value("filled"));
+            if (e.value("exit").isObject()) {
+                const QJsonObject out = e.value("exit").toObject();
+                t.exit_reference = out.value("reference").toString();
+                t.exit_ticks = number(out.value("ticks"));
+                t.exit_placed = number(out.value("placed"));
+                t.exit_filled = number(out.value("filled"));
+            }
+        }
         if (t.id < 0 || !t.entry_at.isValid())
             continue;
         trades.push_back(t);
@@ -2226,7 +2352,7 @@ Result<TraderPolicies> parse_trader_policies(const QJsonDocument& doc) {
             pc.role = cell.value("role").toString();
             pc.predictor = cell.value("predictor").toString();
             pc.threshold = cell.value("threshold").toDouble();
-            pc.kelly_fraction = cell.value("kelly_fraction").toDouble();
+            pc.kelly_fraction = number(cell.value("kelly_fraction")); // a policy fitted before #471 alone
             pc.p_star = number(fitted.value("p_star"));
             pc.low = number(fitted.value("low"));
             pc.kelly = number(fitted.value("kelly"));
@@ -2235,13 +2361,31 @@ Result<TraderPolicies> parse_trader_policies(const QJsonDocument& doc) {
             pc.fitted_trades = fitted.value("trades").toInt();
             pc.wins = fitted.value("wins").toInt();
             pc.fitted_net = number(fitted.value("net"));
+            pc.verdict = fitted.value("verdict").toString(); // codeyoma/krx-quant#472
+            pc.recorded_days = int_of(fitted.value("recorded_days"));
+            const QJsonObject bound = fitted.value("bound").toObject();
+            pc.bound_value = number(bound.value("value"));
+            pc.bound_low = number(bound.value("low"));
+            pc.bound_level = number(bound.value("level"));
+            pc.calibration = trader_calibration_of(fitted.value("calibration"), pc.calibration_below); // #475
             policy.cells.push_back(pc);
         }
         for (const auto& c : p.value("left_out").toArray()) {
             const QJsonObject cell = c.toObject();
-            policy.left_out.push_back({cell.value("kind").toString(), cell.value("role").toString(),
-                                       cell.value("predictor").toString(), cell.value("why").toString(),
-                                       int_of(cell.value("most_trades"))});
+            TraderLeftOut out_cell;
+            out_cell.kind = cell.value("kind").toString();
+            out_cell.role = cell.value("role").toString();
+            out_cell.predictor = cell.value("predictor").toString();
+            out_cell.why = cell.value("why").toString();
+            out_cell.most_trades = int_of(cell.value("most_trades"));
+            out_cell.verdict = cell.value("verdict").toString(); // codeyoma/krx-quant#472
+            out_cell.recorded_days = int_of(cell.value("recorded_days"));
+            out_cell.most_days = int_of(cell.value("most_days"));
+            const QJsonObject best = cell.value("best").toObject();
+            out_cell.best_threshold = number(best.value("threshold"));
+            out_cell.best_low = number(best.value("bound").toObject().value("low"));
+            out_cell.calibration = trader_calibration_of(cell.value("calibration"), out_cell.calibration_below);
+            policy.left_out.push_back(out_cell);
         }
         // ``fit`` is the nightly fit's record as it keeps it: read what is there, nothing assumed.
         const QJsonObject fit = p.value("fit").toObject();
@@ -2267,16 +2411,22 @@ Result<TraderPolicies> parse_trader_policies(const QJsonDocument& doc) {
         change.reason = c.value("reason").toString();
         if (c.value("detail").isObject()) {
             const QJsonObject d = c.value("detail").toObject();
-            change.detail = TraderPromotionDetail{d.value("from").toInteger(),
-                                                  d.value("days").toInt(),
-                                                  d.value("required").toInt(10),
-                                                  number(d.value("mean")),
-                                                  number(d.value("low")),
-                                                  d.value("level").toDouble(0.95),
-                                                  d.value("challengers").toInt(1)};
+            TraderPromotionDetail detail;
+            detail.from = d.value("from").toInteger();
+            detail.days = d.value("days").toInt();
+            detail.required = d.value("required").toInt(10);
+            detail.mean = number(d.value("mean"));
+            detail.low = number(d.value("low"));
+            detail.level = d.value("level").toDouble(0.95);
+            detail.challengers = d.value("challengers").toInt(1);
+            detail.cycle = d.value("cycle").toInt(); // codeyoma/krx-quant#473
+            change.detail = detail;
         }
         out.champions.push_back(change);
     }
+    for (const auto& v : o.value("cohorts").toArray()) // codeyoma/krx-quant#473
+        if (v.isObject())
+            out.cohorts.push_back(trader_cohort_of(v.toObject()));
     return Result<TraderPolicies>::ok(out);
 }
 

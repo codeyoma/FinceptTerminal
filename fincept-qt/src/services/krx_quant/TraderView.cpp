@@ -141,6 +141,154 @@ QString fraction_text(double fraction) {
     return korean().toString(fraction, 'g', 3);
 }
 
+/// Ticks with their sign: "+0.50틱", "-1.25틱", "0.00틱".
+QString ticks_text(double ticks) {
+    const QString sign = ticks > 0.005 ? QStringLiteral("+") : QString();
+    return sign + korean().toString(ticks, 'f', 2) + QStringLiteral("틱");
+}
+
+/// Seconds: "0.2초", "12.0초".
+QString seconds_text(double seconds) {
+    return korean().toString(seconds, 'f', 1) + QStringLiteral("초");
+}
+
+/// A share of a count: "40%"; "—" of none.
+QString share_text(int n, int of) {
+    return of > 0 ? korean().toString(std::round(100.0 * n / of), 'f', 0) + QStringLiteral("%") : dash();
+}
+
+/// A cell's calibration (codeyoma/krx-quant#475), a line a bin with rises: "[0.6, 0.7) 25건 · 상승 40% · 보합 24% · 하락
+/// 36% · 목표 먼저 36% · 순이익 32%(체결 23)".
+QStringList calibration_lines(const QList<TraderCalibrationBin>& bins, int below) {
+    QStringList out;
+    for (const auto& b : bins) {
+        if (b.rises == 0)
+            continue;
+        const QString span = b.to >= 1 ? QStringLiteral("[%1, 1]").arg(korean().toString(b.from, 'g', 3))
+                                       : QStringLiteral("[%1, %2)").arg(korean().toString(b.from, 'g', 3),
+                                                                        korean().toString(b.to, 'g', 3));
+        out << QStringLiteral("%1 %2건 · 상승 %3 · 보합 %4 · 하락 %5 · 목표 먼저 %6 · 순이익 %7(체결 %8)")
+                   .arg(span)
+                   .arg(b.rises)
+                   .arg(share_text(b.up, b.answered), share_text(b.flat, b.answered), share_text(b.down, b.answered),
+                        share_text(b.first, b.answered), share_text(b.profitable, b.bought))
+                   .arg(b.bought);
+    }
+    if (below > 0)
+        out << QStringLiteral("0.4 아래 %1건(어느 θ도 사지 않는다)").arg(below);
+    return out;
+}
+
+/// The engine judges challengers as a cohort once, on a review night (codeyoma/krx-quant#473): it gives
+/// cohorts, a review cycle or a challenger's review day.
+bool cohort_engine(const std::optional<TraderPolicies>& policies, const std::optional<TraderState>& state) {
+    if (policies && !policies->cohorts.isEmpty())
+        return true;
+    if (!state)
+        return false;
+    if (state->cycle || state->cohort)
+        return true;
+    for (const auto& p : state->policies)
+        if (p.promotion && p.promotion->review.isValid())
+            return true;
+    return false;
+}
+
+/// A cohort member's verdict in Korean (codeyoma/krx-quant#473).
+QString cohort_verdict_label(const QString& verdict) {
+    static const QMap<QString, QString> labels = {
+        {"promoted", QStringLiteral("챔피언이 됨")},
+        {"passed", QStringLiteral("넘었지만 다른 정책의 하한이 더 큼")},
+        {"not_above", QStringLiteral("하한 ≤ 0")},
+        {"undecided", QStringLiteral("날 수 부족(판정 불가)")},
+        {"missed", QStringLiteral("판정 못 함")},
+    };
+    return labels.value(verdict, verdict);
+}
+
+/// The risk rules' card (codeyoma/krx-quant#475) at ``now``, the trader's clock.
+Card risk_card(const TraderState& state, const QDateTime& now) {
+    Card card{QStringLiteral("위험 규칙"), {}, {}, {}, Tone::Plain};
+    if (!state.risk) {
+        card.value = dash();
+        card.tone = Tone::Dim;
+        card.tip = state.written() ? QStringLiteral("이 엔진의 trader는 위험 규칙의 상태를 쓰지 않습니다(codeyoma/krx-quant#475 전).")
+                                   : QStringLiteral("trader가 아직 상태를 쓰지 않았습니다.");
+        return card;
+    }
+    const TraderRisk& r = *state.risk;
+    const bool cooling = r.cooldown_until.isValid() && now < r.cooldown_until;
+    const bool limited = r.daily_buys > 0 && r.buys >= r.daily_buys;
+    if (cooling) {
+        card.value = QStringLiteral("쉬는 중");
+        card.lines << QStringLiteral("%1까지 새로 사지 않음").arg(kst_text(r.cooldown_until, "HH:mm:ss"));
+        card.tone = Tone::Warning;
+    } else if (limited) {
+        card.value = QStringLiteral("매수 한도");
+        card.tone = Tone::Warning;
+    } else {
+        card.value = QStringLiteral("매수 %1/%2").arg(r.buys).arg(r.daily_buys);
+    }
+    if (cooling || limited)
+        card.lines << QStringLiteral("오늘 매수 주문 %1/%2").arg(r.buys).arg(r.daily_buys);
+    card.lines << QStringLiteral("연달은 순손실 %1/%2 · 쉬면 %3분")
+                      .arg(r.losses)
+                      .arg(r.loss_streak)
+                      .arg(korean().toString(r.cooldown_minutes, 'g', 4));
+    if (r.cooldowns > 0)
+        card.lines << QStringLiteral("오늘 쉼 %1번").arg(r.cooldowns);
+    card.lines << QStringLiteral("손실 예산 %1 (%2%)").arg(won_text(r.budget), korean().toString(r.budget_percent, 'g', 3));
+    if (r.day.isValid() && r.day != in_kst(now).date())
+        card.lines << QStringLiteral("%1의 값(trader가 그 뒤 쓰지 않음)").arg(r.day.toString("MM-dd"));
+    card.tip = QStringLiteral("위험 규칙(codeyoma/krx-quant#471): 순손실로 끝난 매매가 연달아 %1번이면 마지막 청산부터 %2분 동안, "
+                              "그날 매수 주문이 %3번이면 그날은 새로 사지 않습니다(KIS 장부는 거부된 주문도 셉니다). 상태는 "
+                              "'도는 중' 그대로이고, 그동안 읽은 예측의 이유가 cooldown, buy_limit입니다. 매매마다의 손실 예산은 "
+                              "운용 상한의 %4%(%5)이고, 수량 = 손실 예산 ÷ (매수가 − 손절가 + 1틱 + 수수료·매도세)입니다. 날마다 "
+                              "0시(KST)에 다시 셉니다. 값은 서버의 .env에서만 오고 좁힐 수만 있습니다.")
+                   .arg(r.loss_streak)
+                   .arg(korean().toString(r.cooldown_minutes, 'g', 4))
+                   .arg(r.daily_buys)
+                   .arg(korean().toString(r.budget_percent, 'g', 3), won_text(r.budget));
+    return card;
+}
+
+/// The review cycle's card (codeyoma/krx-quant#469, #473).
+Card cycle_card(const TraderState& state) {
+    Card card{QStringLiteral("검토 주기"), {}, {}, {}, Tone::Plain};
+    if (!state.cycle) {
+        card.value = dash();
+        card.tone = Tone::Dim;
+        card.tip = QStringLiteral("검토 주기가 없습니다: 평가 버전이 아직 시작되지 않았거나(trader의 첫 시작 전), 이 엔진이 "
+                                  "codeyoma/krx-quant#469 전입니다.");
+        return card;
+    }
+    const TraderCycle& c = *state.cycle;
+    card.value = c.day > 0 ? QStringLiteral("%1/%2일째").arg(c.day).arg(c.days) : QStringLiteral("첫날 전");
+    card.lines << QStringLiteral("주기 %1 · %2 – %3").arg(c.number).arg(day_text(c.start), day_text(c.review));
+    if (c.day == c.days) {
+        card.lines << QStringLiteral("오늘 장 마감 뒤 검토");
+        card.tone = Tone::Warning;
+    } else {
+        card.lines << QStringLiteral("검토 날 %1 장 마감 뒤").arg(day_text(c.review));
+    }
+    if (state.cohort && state.cohort->cycle == c.number && state.cohort->evaluation == c.evaluation) {
+        QStringList members;
+        for (qint64 v : state.cohort->members)
+            members << QStringLiteral("정책 %1").arg(v);
+        card.lines << (members.isEmpty() ? QStringLiteral("묶음: 도전 정책 없음") : QStringLiteral("묶음: %1").arg(members.join(", ")));
+    } else if (state.cohort || !state.policies.isEmpty()) {
+        card.lines << QStringLiteral("이 주기의 묶음 없음");
+    }
+    card.tip = QStringLiteral("평가 버전 %1(%2부터)의 검토 주기 %3입니다. 챔피언 정책(칸, 순서, θ)은 검토와 검토 사이에 바뀌지 "
+                              "않습니다. 도전 정책은 주기의 첫날 묶음(셋까지)으로 들어와 챔피언 옆에서 모의로 돌고, 검토 날 "
+                              "장이 끝난 뒤 한 번만 판정합니다. 바뀐 챔피언은 다음 거래일부터 매매합니다(codeyoma/krx-quant#469, "
+                              "#473).")
+                   .arg(c.evaluation)
+                   .arg(day_text(c.since))
+                   .arg(c.number);
+    return card;
+}
+
 /// The table's order of the statuses: the champion, the challengers, the waiting, the former, the dropped.
 int status_rank(const QString& status) {
     static const QStringList order{"champion", "challenger", "waiting", "former", "dropped"};
@@ -169,12 +317,28 @@ QList<TraderPolicy> table_order(const QList<TraderPolicy>& policies) {
 }
 
 QString why_left_out(const TraderLeftOut& c) {
-    if (c.why == QLatin1String("few_trades"))
-        return c.most_trades ? QStringLiteral("모의 매매가 모자람(가장 많을 때 %1개)").arg(*c.most_trades)
-                             : QStringLiteral("모의 매매가 모자람");
-    if (c.why == QLatin1String("no_gain"))
-        return QStringLiteral("넣어도 정책의 로그 성장이 늘지 않음");
-    return c.why;
+    QString why;
+    if (c.why == QLatin1String("few_trades")) {
+        if (c.most_days) // codeyoma/krx-quant#472: the signals bought alone a share
+            why = QStringLiteral("1주씩 따로 산 신호가 모자람(가장 많을 때 %1건, %2일)").arg(c.most_trades.value_or(0)).arg(*c.most_days);
+        else
+            why = c.most_trades ? QStringLiteral("모의 매매가 모자람(가장 많을 때 %1개)").arg(*c.most_trades)
+                                : QStringLiteral("모의 매매가 모자람");
+    } else if (c.why == QLatin1String("no_gain")) {
+        why = QStringLiteral("넣어도 정책의 로그 성장이 늘지 않음");
+    } else if (c.why == QLatin1String("few_days")) { // codeyoma/krx-quant#472
+        why = c.recorded_days ? QStringLiteral("녹화한 날이 모자람(%1일)").arg(*c.recorded_days)
+                              : QStringLiteral("녹화한 날이 모자람");
+    } else if (c.why == QLatin1String("no_edge")) { // codeyoma/krx-quant#472
+        why = QStringLiteral("신호당 순손익의 하한이 0을 넘는 θ가 없음");
+        if (c.best_threshold && c.best_low)
+            why += QStringLiteral("(가장 높은 θ %1: 하한 %2)").arg(percent_text(*c.best_threshold), ticks_text(*c.best_low));
+    } else {
+        why = c.why;
+    }
+    if (!c.verdict.isEmpty())
+        why += QStringLiteral(" · 비용 지도 판정 %1").arg(c.verdict);
+    return why;
 }
 
 /// A challenger's standing against the champion now: its judgement's text, colour and tooltip.
@@ -198,12 +362,23 @@ void set_standing(PolicyRow& row, const TraderPromotion& p) {
                         .arg(p.challengers),
                     QStringLiteral("함께 돈 날이 %1일 이상이고 하한이 0보다 크면 이깁니다. 교체는 장이 끝난 뒤 밤 작업이 합니다.")
                         .arg(p.required)};
-    if (p.passed)
+    if (p.review.isValid()) { // codeyoma/krx-quant#473: judged once, on its cohort's review night
+        row.judgement += QStringLiteral(" · 검토 %1").arg(p.review.toString("MM-dd"));
+        tip.removeLast();
+        tip << QStringLiteral("수치는 참고입니다: 묶음은 검토 날(%1) 장이 끝난 뒤 한 번만 판정합니다. 그때 함께 돈 날이 %2일 이상이고 "
+                              "하한이 0보다 큰 것 가운데 하한이 가장 큰 것이 챔피언이 되고, 나머지는 모두 내려집니다. 날이 "
+                              "모자라면 판정 불가로 내려집니다.")
+                   .arg(day_text(p.review))
+                   .arg(p.required);
+        if (p.passed)
+            tip << QStringLiteral("지금의 날들로는 넘습니다.");
+    } else if (p.passed) {
         tip << QStringLiteral("지금 판정하면 이깁니다.");
-    else
+    } else {
         tip << QStringLiteral("%1일까지 이기지 못하면 그 밤에 내려집니다(남은 %2일).")
                    .arg(p.until)
                    .arg(std::max(0, p.until - p.days));
+    }
     row.judgement_tip = tip.join('\n');
 }
 
@@ -273,8 +448,24 @@ Badge mode_badge(const TraderState& state) {
         badge.tone = Tone::Live;
     }
     badge.tip += QStringLiteral(" 모드는 서버의 .env(KRX_TRADER_MODE)로만 바뀝니다.");
-    if (state.practice && state.practice->enabled) // codeyoma/krx-quant#427
+    if (state.practice && state.practice->enabled) { // codeyoma/krx-quant#427
         badge.tip += QStringLiteral(" KIS 모의 연습(KRX_TRADER_MOCK_PRACTICE)이 켜져 있습니다.");
+        const TraderPractice& p = *state.practice;
+        static const QMap<QString, QString> why = { // codeyoma/krx-quant#474
+            {"champion", QStringLiteral("챔피언 칸이 매매한다")},
+            {"not_frozen", QStringLiteral("이 검토 주기의 연습 칸을 아직 고르지 않았다(밤 작업이 고른다)")},
+            {"gone", QStringLiteral("고정한 연습 칸의 예측자가 없어져 주기 끝까지 쉰다")},
+            {"no_cost_map", QStringLiteral("비용 지도를 읽지 못했다")},
+            {"no_policy", QStringLiteral("챔피언 정책을 읽지 못했다")},
+        };
+        if (!p.active && !p.why.isEmpty())
+            badge.tip += QStringLiteral(" 지금 연습하지 않는 까닭: %1.").arg(why.value(p.why, p.why));
+        if (p.frozen_cycle > 0)
+            badge.tip += QStringLiteral(" 검토 주기 %1의 연습 칸: %2 · θ %3.")
+                             .arg(p.frozen_cycle)
+                             .arg(cell_text(p.frozen_kind, p.frozen_predictor, p.frozen_role),
+                                  p.frozen_threshold ? percent_text(*p.frozen_threshold) : dash());
+    }
     return badge;
 }
 
@@ -286,12 +477,20 @@ std::optional<Badge> practice_badge(const TraderState& state) {
     if (!p.active && !holding)
         return std::nullopt;
     QStringList tip;
+    const bool frozen = p.frozen_cycle > 0; // codeyoma/krx-quant#474
+    const std::optional<double> theta = frozen && p.frozen_threshold ? p.frozen_threshold : p.threshold;
     if (p.active)
-        tip << QStringLiteral("KIS 모의 연습 중입니다: 매매할 챔피언 칸이 없어(비용 지도에서 통과한 칸이 없거나 챔피언에 "
-                              "없다) 연습 칸 %1을 %2주씩, 기본 문턱 θ로 KIS 모의투자에 삽니다(KRX_TRADER_MOCK_PRACTICE).")
+        tip << QStringLiteral("KIS 모의 연습 중입니다: 매매할 챔피언 칸이 없어 연습 칸 %1을 %2주씩, %3로 KIS 모의투자에 "
+                              "삽니다(KRX_TRADER_MOCK_PRACTICE).")
                    .arg(cell_text(p.kind, p.predictor, p.role))
-                   .arg(p.quantity > 0 ? p.quantity : 1);
-    if (p.active && p.low && p.p_star)
+                   .arg(p.quantity > 0 ? p.quantity : 1)
+                   .arg(theta ? QStringLiteral("문턱 θ %1").arg(percent_text(*theta)) : QStringLiteral("기본 문턱 θ"));
+    if (frozen)
+        tip << QStringLiteral("연습 칸: 검토 주기 %1에 고정한 칸입니다(%2에 밤 작업이 고름: 녹화를 재생해 1주씩 잰 신호당 "
+                              "순손익의 하한이 가장 큰 칸과 θ). 주기 동안 바꾸지 않습니다(codeyoma/krx-quant#474).")
+                   .arg(p.frozen_cycle)
+                   .arg(kst_text(p.frozen_at, "MM-dd HH:mm"));
+    else if (p.active && p.low && p.p_star)
         tip << QStringLiteral("연습 칸: 판정이 있는 칸 가운데 맞힘률 하한 − p*가 가장 큰 칸(하한 %1, p* %2)입니다.")
                    .arg(percent_text(*p.low), percent_text(*p.p_star));
     if (holding)
@@ -532,6 +731,8 @@ QList<Card> cards(const TraderState& state, const QDateTime& now) {
     out << pnl_card(QStringLiteral("누적 순손익"), state.cumulative, true);
     out << limit_card(QStringLiteral("하루 한도 사용"), state.daily_limit, false);
     out << limit_card(QStringLiteral("누적 한도 사용"), state.cumulative_limit, true);
+    out << risk_card(state, now);   // codeyoma/krx-quant#475
+    out << cycle_card(state);       // codeyoma/krx-quant#469
     return out;
 }
 
@@ -616,6 +817,22 @@ QList<TradeRow> trade_rows(const QList<TraderTrade>& trades, const std::optional
                                   "승격·실전 관문·모의 기록에는 세지 않고, 손실 한도와 실전의 실행 점검에는 셉니다.");
         for (const auto& effect : t.stalls) // codeyoma/krx-quant#407
             tip << QStringLiteral("수집기 호가 끊김: %1").arg(trader_stall_label(effect));
+        if (!t.clock.isEmpty()) { // codeyoma/krx-quant#475: the execution cost
+            const auto ticks = [](const std::optional<double>& v) { return v ? ticks_text(*v) : QStringLiteral("?"); };
+            const auto secs = [](const std::optional<double>& v) { return v ? seconds_text(*v) : QStringLiteral("?"); };
+            QString line = QStringLiteral("실행: 매수 %1(결정 때 중간가 대비) · 결정 뒤 주문 %2, 체결 %3")
+                               .arg(ticks(t.entry_ticks), secs(t.entry_placed), secs(t.entry_filled));
+            if (t.exit_reference == QLatin1String("target"))
+                line += QStringLiteral(" · 익절 %1(목표가 대비) · 매수 체결 뒤 주문 %2").arg(ticks(t.exit_ticks), secs(t.exit_placed));
+            else if (t.exit_reference == QLatin1String("mid"))
+                line += QStringLiteral(" · 매도 %1(결정 때 중간가 대비) · 결정 뒤 주문 %2, 체결 %3")
+                            .arg(ticks(t.exit_ticks), secs(t.exit_placed), secs(t.exit_filled));
+            tip << line;
+            tip << (t.clock == QLatin1String("trader")
+                        ? QStringLiteral("틱은 0보다 크면 불리합니다. 시각은 trader가 KIS 주문 체결 조회에서 체결을 읽은 때입니다(KIS가 "
+                                         "알린 체결 시각이 아닙니다).")
+                        : QStringLiteral("틱은 0보다 크면 불리합니다. 시각은 체결한 호가를 받은 때입니다(모의 체결)."));
+        }
         r.tip = tip.join('\n');
         if (t.practice) { // codeyoma/krx-quant#427: of no policy
             r.policy = QStringLiteral("연습");
@@ -668,6 +885,7 @@ QString trades_line(const std::optional<qint64>& policy, qsizetype count) {
 
 QList<PolicyRow> policy_rows(const TraderPolicies& policies, const std::optional<TraderState>& state) {
     QList<PolicyRow> rows;
+    const bool cohorts = cohort_engine(policies, state); // codeyoma/krx-quant#473
     for (const auto& p : table_order(policies.policies)) {
         PolicyRow r;
         r.version = p.version;
@@ -678,36 +896,56 @@ QList<PolicyRow> policy_rows(const TraderPolicies& policies, const std::optional
                                                                   : Tone::Dim;
         r.created = kst_text(p.created_at, "MM-dd HH:mm");
 
-        // Its values: the cells in rank order, each one's θ and λ in the same order.
-        QStringList cells, thresholds, kelly, cells_tip;
+        // Its values: the cells in rank order, each one's θ and what it entered on in the same order: the
+        // lower bound of its net per signal (codeyoma/krx-quant#472), a λ before #471, else none.
+        QStringList cells, thresholds, basis, cells_tip;
         for (const auto& c : p.cells) {
             cells << cell_text(c.kind, c.predictor, c.role);
             thresholds << percent_text(c.threshold);
-            kelly << fraction_text(c.kelly_fraction);
-            QStringList fitted{QStringLiteral("θ %1 · λ %2").arg(percent_text(c.threshold), fraction_text(c.kelly_fraction))};
+            basis << (c.bound_low      ? QStringLiteral("하한 %1").arg(ticks_text(*c.bound_low))
+                      : c.kelly_fraction ? QStringLiteral("λ %1").arg(fraction_text(*c.kelly_fraction))
+                                         : dash());
+            QStringList fitted{c.kelly_fraction
+                                   ? QStringLiteral("θ %1 · λ %2").arg(percent_text(c.threshold), fraction_text(*c.kelly_fraction))
+                                   : QStringLiteral("θ %1").arg(percent_text(c.threshold))};
+            if (c.bound_value || c.bound_low) // codeyoma/krx-quant#472
+                fitted << QStringLiteral("1주씩 따로 잰 신호당 %1(하한 %2%3%4)")
+                              .arg(c.bound_value ? ticks_text(*c.bound_value) : dash(),
+                                   c.bound_low ? ticks_text(*c.bound_low) : dash(),
+                                   c.bound_level ? QStringLiteral(", %1 수준").arg(level_text(*c.bound_level)) : QString(),
+                                   c.recorded_days ? QStringLiteral(", 녹화한 날 %1일").arg(*c.recorded_days) : QString());
             if (c.p_star || c.low)
-                fitted << QStringLiteral("p* %1 · 하한 %2").arg(optional_percent(c.p_star), optional_percent(c.low));
-            if (c.kelly)
+                fitted << QStringLiteral("비용 지도 p* %1 · 하한 %2%3")
+                              .arg(optional_percent(c.p_star), optional_percent(c.low),
+                                   c.verdict.isEmpty() ? QString() : QStringLiteral(" · 판정 %1(기록일 뿐)").arg(c.verdict));
+            if (c.kelly && c.fraction) // a policy fitted before codeyoma/krx-quant#471
                 fitted << QStringLiteral("f* %1 → 비율 %2")
                               .arg(korean().toString(*c.kelly, 'f', 2), optional_percent(c.fraction));
-            fitted << QStringLiteral("맞춘 날 %1일 · 모의 매매 %2개(이익 %3) · 순손익 %4")
-                          .arg(c.fitted_days)
+            fitted << QStringLiteral("정책 재생 모의 매매 %1개(이익 %2) · 순손익 %3")
                           .arg(c.fitted_trades)
                           .arg(c.wins)
                           .arg(c.fitted_net ? signed_won_text(*c.fitted_net) : dash());
             cells_tip << QStringLiteral("%1: %2").arg(cell_text(c.kind, c.predictor, c.role), fitted.join(QStringLiteral(", ")));
+            const QStringList calibrated = calibration_lines(c.calibration, c.calibration_below);
+            if (!calibrated.isEmpty()) // codeyoma/krx-quant#475
+                cells_tip << QStringLiteral("  보정: ") + calibrated.join(QStringLiteral("\n  보정: "));
         }
         const QString joint = QStringLiteral(" / ");
         r.cells = cells.isEmpty() ? QStringLiteral("칸 없음") : cells.join(joint);
         r.thresholds = thresholds.isEmpty() ? dash() : thresholds.join(joint);
-        r.kelly = kelly.isEmpty() ? dash() : kelly.join(joint);
+        r.basis = basis.isEmpty() ? dash() : basis.join(joint);
         if (p.cells.isEmpty())
-            cells_tip << QStringLiteral("매매할 칸이 없는 정책입니다(그 밤 비용 지도가 통과시킨 칸이 없거나, 넣을 칸이 없었다). "
-                                        "챔피언이면 trader는 사지 않습니다.");
-        cells_tip.prepend(QStringLiteral("순위대로의 칸. θ: 사는 오름 확률의 문턱, λ: Kelly 비율(산 비율 = λ × 그날 f*, 0–1로 "
-                                         "자름). 맞춘 것은 그 밤의 비용 지도와 지난 거래일의 모의입니다."));
-        for (const auto& c : p.left_out)
+            cells_tip << QStringLiteral("매매할 칸이 없는 정책입니다(그 밤 넣을 칸이 없었다). 챔피언이면 trader는 사지 않습니다.");
+        cells_tip.prepend(QStringLiteral("순위대로의 칸. θ: 사는 오름 확률의 문턱. 밤 맞추기는 칸마다 녹화를 재생해 1주씩 따로 잰 "
+                                         "신호당 순손익의 날 단위 하한이 0을 넘는 가장 낮은 θ로 넣습니다(codeyoma/krx-quant#472). "
+                                         "λ(Kelly 비율)는 #471 전에 맞춘 정책에만 있고 읽지 않습니다. 보정: 점수 구간마다 오름 "
+                                         "신호의 결과(설명일 뿐 θ를 바꾸지 않는다, #475)."));
+        for (const auto& c : p.left_out) {
             cells_tip << QStringLiteral("뺀 칸 %1: %2").arg(cell_text(c.kind, c.predictor, c.role), why_left_out(c));
+            const QStringList calibrated = calibration_lines(c.calibration, c.calibration_below);
+            if (!calibrated.isEmpty())
+                cells_tip << QStringLiteral("  보정: ") + calibrated.join(QStringLiteral("\n  보정: "));
+        }
         r.cells_tip = cells_tip.join('\n');
 
         // Its paper record: the state's while it runs, the versions' otherwise.
@@ -753,10 +991,16 @@ QList<PolicyRow> policy_rows(const TraderPolicies& policies, const std::optional
                 r.judgement_tone = Tone::Dim;
             }
         } else if (p.status == QLatin1String("waiting")) {
-            r.judgement = QStringLiteral("자리 기다림");
             r.judgement_tone = Tone::Dim;
-            r.judgement_tip = QStringLiteral("도전 정책의 자리 셋이 차 있어 기다립니다. 자리가 나면 기다리는 것 가운데 가장 새 것부터 "
-                                             "들어가 다음 고르기(08:30)부터 모의로 돕니다.");
+            if (cohorts) { // codeyoma/krx-quant#473
+                r.judgement = QStringLiteral("다음 묶음 기다림");
+                r.judgement_tip = QStringLiteral("다음 도전 정책 묶음을 기다립니다. 검토 날 밤에 기다리는 정책 가운데 새것부터 셋까지 "
+                                                 "다음 주기의 묶음으로 들어가 그 첫날부터 모의로 돌고, 들지 못한 것은 내려집니다.");
+            } else {
+                r.judgement = QStringLiteral("자리 기다림");
+                r.judgement_tip = QStringLiteral("도전 정책의 자리 셋이 차 있어 기다립니다. 자리가 나면 기다리는 것 가운데 가장 새 것부터 "
+                                                 "들어가 다음 고르기(08:30)부터 모의로 돕니다.");
+            }
         } else if (p.status == QLatin1String("former")) {
             r.judgement = QStringLiteral("전 챔피언");
             for (const auto& c : policies.champions)
@@ -770,7 +1014,9 @@ QList<PolicyRow> policy_rows(const TraderPolicies& policies, const std::optional
             r.judgement = p.dropped_at.isValid() ? QStringLiteral("%1 내려짐").arg(kst_text(p.dropped_at, "MM-dd"))
                                                  : QStringLiteral("내려짐");
             r.judgement_tone = Tone::Dim;
-            r.judgement_tip = QStringLiteral("함께 돈 거래일 20일까지 챔피언을 이기지 못해 내려졌습니다. 다시 돌지 않습니다.");
+            r.judgement_tip = cohorts ? QStringLiteral("묶음의 판정에서 뽑히지 않았거나 묶음에 들지 못해 내려졌습니다. 다시 돌지 "
+                                                       "않습니다(codeyoma/krx-quant#473).")
+                                      : QStringLiteral("함께 돈 거래일 20일까지 챔피언을 이기지 못해 내려졌습니다. 다시 돌지 않습니다.");
         }
 
         QStringList tip{QStringLiteral("정책 %1 · 맞춘 때 %2").arg(QString::number(p.version), kst_text(p.created_at, "yyyy-MM-dd HH:mm")),
@@ -784,7 +1030,9 @@ QList<PolicyRow> policy_rows(const TraderPolicies& policies, const std::optional
                        .arg(*p.simulated_trades)
                        .arg(p.simulated_net ? signed_won_text(*p.simulated_net) : dash());
         if (p.admitted_at.isValid())
-            tip << QStringLiteral("도전 자리 받음 %1").arg(kst_text(p.admitted_at, "MM-dd HH:mm"));
+            tip << QStringLiteral("%1 %2")
+                       .arg(cohorts ? QStringLiteral("묶음에 듦") : QStringLiteral("도전 자리 받음"),
+                            kst_text(p.admitted_at, "MM-dd HH:mm"));
         if (p.dropped_at.isValid())
             tip << QStringLiteral("내려짐 %1").arg(kst_text(p.dropped_at, "MM-dd HH:mm"));
         r.tip = tip.join('\n');
@@ -806,10 +1054,66 @@ QString policies_line(const TraderPolicies& policies) {
     return parts.join(QStringLiteral(" · "));
 }
 
+CohortLine cohort_line(const std::optional<TraderPolicies>& policies, const std::optional<TraderState>& state) {
+    if (!cohort_engine(policies, state))
+        return {};
+    const TraderCohort* found = state && state->cohort ? &*state->cohort
+                                : policies && !policies->cohorts.isEmpty() ? &policies->cohorts.first()
+                                                                           : nullptr;
+    if (!found)
+        return {QStringLiteral("도전 정책 묶음: 아직 없음 · 검토 날 밤에 기다리는 정책 가운데 새것부터 셋까지로 다음 주기의 묶음을 "
+                               "만듭니다"),
+                QStringLiteral("도전 정책은 검토 주기의 첫날 묶음으로 들어와, 그때 고정한 챔피언과 그 주기 동안 모의로 견줍니다. "
+                               "판정은 검토 날 장이 끝난 뒤 한 번뿐입니다(codeyoma/krx-quant#473)."),
+                Tone::Dim};
+    const TraderCohort& c = *found;
+    QStringList members;
+    for (qint64 v : c.members)
+        members << QStringLiteral("정책 %1").arg(v);
+    QStringList parts{QStringLiteral("도전 정책 묶음 · 주기 %1(%2–%3)").arg(c.cycle).arg(c.start.toString("MM-dd"), c.review.toString("MM-dd")),
+                      members.isEmpty() ? QStringLiteral("도전 정책 없음") : members.join(QStringLiteral(", "))};
+    if (c.champion)
+        parts << QStringLiteral("챔피언 정책 %1과 견줌").arg(*c.champion);
+    CohortLine line;
+    QStringList tip{QStringLiteral("주기 %1의 묶음: %2에 만들었다. 정책들은 %3부터 %4까지 고정한 챔피언과 모의로 견주고, 검토 날 장이 "
+                                   "끝난 뒤 한 번만 판정한다. 함께 10일 이상이고 날마다 (도전 − 챔피언) 순손익의 하한(묶음 안 "
+                                   "Bonferroni)이 0보다 큰 것 가운데 하한이 가장 큰 것이 챔피언이 되고, 나머지는 모두 내려진다.")
+                        .arg(c.cycle)
+                        .arg(kst_text(c.formed_at, "MM-dd HH:mm"), day_text(c.start), day_text(c.review))};
+    if (!c.judged) {
+        parts << QStringLiteral("검토 날 %1 장 마감 뒤 한 번 판정").arg(c.review.toString("MM-dd"));
+    } else {
+        QString verdict;
+        if (c.outcome == QLatin1String("promoted") && c.promoted) {
+            verdict = QStringLiteral("정책 %1 챔피언이 됨").arg(*c.promoted);
+            line.tone = Tone::Positive;
+        } else if (c.outcome == QLatin1String("kept")) {
+            verdict = QStringLiteral("챔피언 그대로");
+        } else if (c.outcome == QLatin1String("missed")) {
+            verdict = QStringLiteral("판정 못 함(검토 날 밤 작업이 돌지 않음)");
+            line.tone = Tone::Warning;
+        } else {
+            verdict = c.outcome;
+        }
+        parts << QStringLiteral("판정 %1: %2").arg(kst_text(c.judged_at, "MM-dd"), verdict);
+        for (const auto& m : c.verdicts)
+            tip << QStringLiteral("정책 %1: %2 · 함께 %3일 · 평균 %4 · 하한 %5%6")
+                       .arg(m.version)
+                       .arg(cohort_verdict_label(m.verdict), m.days ? QString::number(*m.days) : dash(),
+                            m.mean ? signed_won_text(*m.mean) : dash(), m.low ? signed_won_text(*m.low) : dash(),
+                            c.level ? QStringLiteral(" (%1)").arg(level_text(*c.level)) : QString());
+    }
+    for (const auto& [version, why] : c.passed_over)
+        tip << QStringLiteral("묶음에 들지 못해 내린 정책 %1(%2)").arg(version).arg(why);
+    line.text = parts.join(QStringLiteral(" · "));
+    line.tip = tip.join('\n');
+    return line;
+}
+
 QList<HistoryRow> history_rows(const TraderPolicies& policies) {
     struct Event {
         QDateTime at;
-        int rank = 0; ///< at one time: the champion's change, then a drop, then a slot given
+        int rank = 0; ///< at one time: the champion's change, a cohort's verdict, a drop, then a slot given
         HistoryRow row;
     };
     QList<Event> events;
@@ -836,26 +1140,73 @@ QList<HistoryRow> history_rows(const TraderPolicies& policies) {
         }
         events << Event{c.at, 0, r};
     }
+    // codeyoma/krx-quant#473: each policy's cohort, and the one that passed it over.
+    const auto cohort_of = [&policies](qint64 version) -> const TraderCohort* {
+        for (const auto& c : policies.cohorts)
+            if (c.members.contains(version))
+                return &c;
+        return nullptr;
+    };
+    const auto passed_over = [&policies](qint64 version) -> const TraderCohort* {
+        for (const auto& c : policies.cohorts)
+            for (const auto& over : c.passed_over)
+                if (over.first == version)
+                    return &c;
+        return nullptr;
+    };
+    for (const auto& c : policies.cohorts) {
+        if (!c.judged || !c.judged_at.isValid())
+            continue;
+        HistoryRow r;
+        r.key = QStringLiteral("j%1:%2").arg(c.evaluation).arg(c.cycle);
+        r.at = kst_text(c.judged_at, "MM-dd HH:mm");
+        QStringList members;
+        for (qint64 v : c.members)
+            members << QStringLiteral("정책 %1").arg(v);
+        r.version = members.isEmpty() ? dash() : members.join(QStringLiteral(", "));
+        r.what = QStringLiteral("묶음 판정 (주기 %1)").arg(c.cycle);
+        r.why = c.outcome == QLatin1String("promoted") && c.promoted
+                    ? QStringLiteral("정책 %1이 챔피언 정책 %2을 이겼다").arg(*c.promoted).arg(c.champion.value_or(0))
+                : c.outcome == QLatin1String("kept") ? QStringLiteral("챔피언 그대로: 하한이 0을 넘은 정책이 없다")
+                                                     : QStringLiteral("판정 못 함: 검토 날 밤 작업이 돌지 않았다");
+        QStringList tip;
+        for (const auto& m : c.verdicts)
+            tip << QStringLiteral("정책 %1: %2").arg(m.version).arg(cohort_verdict_label(m.verdict));
+        r.tip = tip.join('\n');
+        r.tone = c.outcome == QLatin1String("promoted") ? Tone::Positive : Tone::Plain;
+        events << Event{c.judged_at, 1, r};
+    }
     for (const auto& p : policies.policies) {
+        const TraderCohort* in = cohort_of(p.version);
         if (p.dropped_at.isValid()) {
             HistoryRow r;
             r.key = QStringLiteral("d%1").arg(p.version);
             r.at = kst_text(p.dropped_at, "MM-dd HH:mm");
             r.version = QStringLiteral("정책 %1").arg(p.version);
             r.what = QStringLiteral("내려짐");
-            r.why = QStringLiteral("함께 돈 거래일 20일까지 챔피언을 이기지 못했다");
+            if (const TraderCohort* over = passed_over(p.version))
+                r.why = QStringLiteral("주기 %1의 묶음에 들지 못했다").arg(over->cycle);
+            else if (in)
+                r.why = QStringLiteral("주기 %1 묶음의 판정에서 뽑히지 않았다").arg(in->cycle);
+            else
+                r.why = QStringLiteral("함께 돈 거래일 20일까지 챔피언을 이기지 못했다");
             r.tone = Tone::Dim;
-            events << Event{p.dropped_at, 1, r};
+            events << Event{p.dropped_at, 2, r};
         }
         if (p.admitted_at.isValid()) {
             HistoryRow r;
             r.key = QStringLiteral("a%1").arg(p.version);
             r.at = kst_text(p.admitted_at, "MM-dd HH:mm");
             r.version = QStringLiteral("정책 %1").arg(p.version);
-            r.what = QStringLiteral("도전 자리 받음");
-            r.why = QStringLiteral("자리 셋 가운데 하나를 받아, 다음 고르기(08:30)부터 챔피언 옆에서 모의로 돈다");
+            if (in) {
+                r.what = QStringLiteral("묶음에 듦 (주기 %1)").arg(in->cycle);
+                r.why = QStringLiteral("%1부터 검토 날 %2까지 챔피언 옆에서 모의로 돈다").arg(day_text(in->start), day_text(in->review));
+            } else {
+                r.what = QStringLiteral("도전 자리 받음");
+                r.why = QStringLiteral("자리 셋 가운데 하나를 받아, 다음 고르기(08:30)부터 챔피언 옆에서 모의로 돈다");
+            }
             r.tip = p.reason;
-            events << Event{p.admitted_at, 2, r};
+            events << Event{p.admitted_at, 3, r};
         }
     }
     std::stable_sort(events.begin(), events.end(), [](const Event& a, const Event& b) {
