@@ -96,8 +96,12 @@ struct Card {
 };
 /// The cards, in order: the capital, the cash, the position (quantity, entry price, target, stop,
 /// time left to its time barrier at ``now``, the trader's clock), today's and the cumulative net P&L,
-/// the daily and the cumulative limit's use.
+/// the daily and the cumulative limit's use; the risk rules (codeyoma/krx-quant#475: the day's buy orders,
+/// the losses in a row and the cooldown at ``now``, the loss budget) and the review cycle (#469: its day,
+/// its review day and the challengers' cohort, #473), "—" from an engine before them.
 QList<Card> cards(const TraderState& state, const QDateTime& now);
+/// The number of cards ``cards`` gives, whatever the state.
+inline constexpr int kCards = 9;
 
 /// A row of the trades table, newest entry first as the engine gives them.
 struct TradeRow {
@@ -159,7 +163,9 @@ struct PolicyRow {
     QString created;      ///< "10-08 22:31"
     QString cells;        ///< "장벽 4분 · breiman (1위)", several in rank order joined by " / "; "칸 없음"
     QString thresholds;   ///< each cell's θ in that order: "65.0%"
-    QString kelly;        ///< each cell's Kelly fraction λ: "0.5"
+    /// What each cell entered on, in that order (codeyoma/krx-quant#472, #475): its net per signal's lower
+    /// bound in ticks ("하한 +0.04틱"); a policy fitted before #471 its Kelly fraction λ ("λ 0.5"); "—".
+    QString basis;
     QString days;         ///< its paper record: "2일"
     QString trades;       ///< "4개"
     QString net;
@@ -181,6 +187,16 @@ QList<PolicyRow> policy_rows(const TraderPolicies& policies, const std::optional
 /// The policy table's title line: "챔피언 정책 1 · 도전 1개 · 대기 0개 · 전 챔피언 0개 · 내려짐 0개"; why it is
 /// empty before the first nightly fit.
 QString policies_line(const TraderPolicies& policies);
+/// The challengers' cohort over the policy table (codeyoma/krx-quant#473), the one formed last (the
+/// state's, else the policy versions' newest): "도전 정책 묶음 · 주기 1(10-12–11-06) · 정책 2 · 챔피언 정책 1과
+/// 견줌 · 검토 날 11-06 장 마감 뒤 한 번 판정", once judged with its verdict; before the first, that the
+/// next review night forms one; empty from an engine before #473 (and its tooltip empty).
+struct CohortLine {
+    QString text;
+    QString tip;
+    Tone tone = Tone::Plain;
+};
+CohortLine cohort_line(const std::optional<TraderPolicies>& policies, const std::optional<TraderState>& state);
 
 /// A row of the champion's and the challengers' history (codeyoma/krx-quant#401), newest first: a change
 /// of the champion with its reason and figures, a challenger's slot given, a challenger dropped.

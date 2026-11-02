@@ -593,7 +593,93 @@ struct TraderPractice {
     std::optional<double> p_star;
     std::optional<double> low;
     int quantity = 0;
+    /// The practice cell's θ (codeyoma/krx-quant#474: the one frozen for the review cycle); none from a
+    /// trader before it (the default threshold).
+    std::optional<double> threshold;
+    /// The practice cell kept for the review cycle in force (codeyoma/krx-quant#474): its cycle, when the
+    /// nightly job chose it, the cell and its θ, and when a pick found its predictor gone (invalid: not
+    /// gone). ``frozen_cycle`` 0: none kept yet, or a trader before #474.
+    int frozen_cycle = 0;
+    QDateTime frozen_at;
+    QString frozen_kind;
+    QString frozen_predictor;
+    QString frozen_role;
+    std::optional<double> frozen_threshold;
+    QDateTime gone_at;
+    /// Why the champion's book does not practise at its last pick, the practice on (codeyoma/krx-quant#474):
+    /// "champion", "not_frozen", "gone", "no_cost_map", "no_policy"; empty when it practises, or before #474.
+    QString why;
     bool operator==(const TraderPractice&) const = default;
+};
+
+/// The loss budget and the risk rules' state of the champion's book on its day (GET /v1/trader's
+/// ``risk``, codeyoma/krx-quant#471, #475): a trade's loss budget (percent of the capital a buy sizes on,
+/// and won), the day's buy orders and their limit, the net losses in a row at the day's last exit and
+/// how many start a cooldown, its minutes, the cooldowns begun that day, the end of the one in force
+/// (invalid when none is) and what holds a new buy now ("buy_limit", "cooldown"; empty for neither).
+struct TraderRisk {
+    QDate day;
+    double budget_percent = 0;
+    double budget = 0;
+    int buys = 0;
+    int daily_buys = 0;
+    int losses = 0;
+    int loss_streak = 0;
+    double cooldown_minutes = 0;
+    int cooldowns = 0;
+    QDateTime cooldown_until;
+    QString held;
+    bool operator==(const TraderRisk&) const = default;
+};
+
+/// The review cycle in force (GET /v1/trader's ``cycle``, codeyoma/krx-quant#469): its evaluation version
+/// and that version's first day, the cycle's number, its first trading day and its review day (its
+/// ``days``-th, 20), and the place in it of the day being traded (0 before its first).
+struct TraderCycle {
+    int evaluation = 0;
+    QDate since;
+    int number = 0;
+    QDate start;
+    QDate review;
+    int day = 0;
+    int days = 20;
+    bool operator==(const TraderCycle&) const = default;
+};
+
+/// A member's figures in a cohort's verdict (codeyoma/krx-quant#473): its common days with the champion,
+/// the mean a day of (member − champion) net P&L and its lower bound in won, and its verdict
+/// ("promoted", "passed", "not_above", "undecided", "missed").
+struct TraderCohortMember {
+    qint64 version = 0;
+    std::optional<int> days;
+    std::optional<double> mean;
+    std::optional<double> low;
+    QString verdict;
+    bool operator==(const TraderCohortMember&) const = default;
+};
+
+/// A cohort of challengers (GET /v1/trader's ``cohort``, /v1/trader/policies' ``cohorts``,
+/// codeyoma/krx-quant#473): formed at the start of review cycle ``cycle`` (``formed_at``), its members
+/// (newest first) run in paper from ``start`` to ``review`` and are judged once after that day's close
+/// against the champion fixed when it was formed; the policies it passed over, and its one verdict
+/// (``judged``: when, the outcome "promoted", "kept" or "missed", the one crowned, the level and each
+/// member's figures).
+struct TraderCohort {
+    int evaluation = 0;
+    int cycle = 0;
+    QDateTime formed_at;
+    QDate start;
+    QDate review;
+    std::optional<qint64> champion;
+    QList<qint64> members;
+    QList<std::pair<qint64, QString>> passed_over; ///< each version and why
+    bool judged = false;
+    QDateTime judged_at;
+    QString outcome;
+    std::optional<qint64> promoted;
+    std::optional<double> level;
+    QList<TraderCohortMember> verdicts;
+    bool operator==(const TraderCohort&) const = default;
 };
 
 /// A policy's paper record (codeyoma/krx-quant#400): every trading day it ran in the trader, as a
@@ -626,6 +712,10 @@ struct TraderPromotion {
     int challengers = 1;
     bool passed = false;
     QString why; ///< "few_days", "not_above"; empty when it passed
+    /// Its cohort's review day (codeyoma/krx-quant#473), which judges it once (``until`` is then the
+    /// cycle's days); invalid from an engine before it, which judged it every night from its 10th day and
+    /// dropped it after its ``until``-th.
+    QDate review;
     bool operator==(const TraderPromotion&) const = default;
 };
 
@@ -666,6 +756,9 @@ struct TraderState {
     QList<TraderRunning> policies;
     std::optional<TraderLive> live; ///< none from a trader before codeyoma/krx-quant#408
     std::optional<TraderPractice> practice; ///< none from a trader before codeyoma/krx-quant#427
+    std::optional<TraderRisk> risk;         ///< none from a trader before codeyoma/krx-quant#475
+    std::optional<TraderCycle> cycle;       ///< none before the evaluation began, or from an engine before #469
+    std::optional<TraderCohort> cohort;     ///< the one formed last; none before it, or from an engine before #473
     bool written() const { return updated_at.isValid(); }
     bool operator==(const TraderState&) const = default;
 };
@@ -734,8 +827,40 @@ struct TraderTrade {
     /// The collector's quote stalls the trade was open through (codeyoma/krx-quant#407), oldest first: what
     /// each did to its exit ("waited", "rest"; empty for none), as trader_stall_label names it.
     QStringList stalls;
+    /// Its execution cost (codeyoma/krx-quant#475): whose clock its times are on ("quote": a paper fill's
+    /// quote; "trader": the trader's read of KIS's inquiry; empty from an engine before #475), each leg's
+    /// adverse ticks from the mid-point known at its decision (the take-profit's from its target,
+    /// ``exit_reference`` "target") and its seconds from the decision to its order and to its fill.
+    QString clock;
+    std::optional<double> entry_ticks;
+    std::optional<double> entry_placed;
+    std::optional<double> entry_filled;
+    QString exit_reference; ///< "mid" or "target"; empty while held, or before #475
+    std::optional<double> exit_ticks;
+    std::optional<double> exit_placed;
+    std::optional<double> exit_filled;
     bool held() const { return !exit_at.isValid(); }
     bool operator==(const TraderTrade&) const = default;
+};
+
+/// A bin of a cell's calibration (codeyoma/krx-quant#475): its rises of probability ``from`` to ``to``
+/// replayed alone a share on the nightly fit's recorded days: those measured, their answers' classes
+/// (``up`` the kind's rise, ``flat``, ``down``), the class right, the upper target reached first, and those
+/// bought alone with those that netted above 0.
+struct TraderCalibrationBin {
+    double from = 0;
+    double to = 0;
+    int rises = 0; ///< the rises measured (the engine's ``signals``)
+    int missing = 0;
+    int answered = 0;
+    int up = 0;
+    int flat = 0;
+    int down = 0;
+    int hits = 0;
+    int first = 0;
+    int bought = 0;
+    int profitable = 0;
+    bool operator==(const TraderCalibrationBin&) const = default;
 };
 
 /// A cell a policy trades (GET /v1/trader/policies' ``cells``, codeyoma/krx-quant#399): its kind and
@@ -748,7 +873,9 @@ struct TraderPolicyCell {
     QString role; ///< "consensus", "top" or "baseline"
     QString predictor;
     double threshold = 0;
-    double kelly_fraction = 0;
+    /// Kept by a policy fitted before codeyoma/krx-quant#471 alone, and not read since (a loss budget sizes
+    /// every buy); none from a policy fitted after.
+    std::optional<double> kelly_fraction;
     std::optional<double> p_star;
     std::optional<double> low;
     std::optional<double> kelly;
@@ -757,6 +884,17 @@ struct TraderPolicyCell {
     int fitted_trades = 0;
     int wins = 0;
     std::optional<double> fitted_net;
+    /// What the nightly fit entered it on (codeyoma/krx-quant#472): the cost map's verdict at a market
+    /// order's round trip (a record, "pass", "fail", "few"; empty for none), the days whose recording was
+    /// read, and its net per signal measured alone a share at its θ, in ticks, with that mean's lower bound
+    /// at the night's Bonferroni level. None from a policy fitted before #472.
+    QString verdict;
+    std::optional<int> recorded_days;
+    std::optional<double> bound_value;
+    std::optional<double> bound_low;
+    std::optional<double> bound_level;
+    QList<TraderCalibrationBin> calibration; ///< codeyoma/krx-quant#475; empty before it
+    int calibration_below = 0;
     bool operator==(const TraderPolicyCell&) const = default;
 };
 
@@ -767,8 +905,16 @@ struct TraderLeftOut {
     QString kind;
     QString role;
     QString predictor;
+    /// "few_trades", "no_gain" (before codeyoma/krx-quant#472), "few_days", "no_edge" (#472)
     QString why;
     std::optional<int> most_trades;
+    QString verdict;                    ///< the cost map's (#472), a record; empty for none
+    std::optional<int> recorded_days;   ///< #472
+    std::optional<int> most_days;       ///< #472, few_trades
+    std::optional<double> best_threshold; ///< #472, no_edge: the θ whose lower bound is the highest
+    std::optional<double> best_low;       ///< its lower bound, ticks
+    QList<TraderCalibrationBin> calibration; ///< codeyoma/krx-quant#475
+    int calibration_below = 0;
     bool operator==(const TraderLeftOut&) const = default;
 };
 
@@ -805,6 +951,7 @@ struct TraderPromotionDetail {
     std::optional<double> low;
     double level = 0.95;
     int challengers = 1;
+    int cycle = 0; ///< its cohort's review cycle (codeyoma/krx-quant#473); 0 before it
     bool operator==(const TraderPromotionDetail&) const = default;
 };
 
@@ -824,6 +971,9 @@ struct TraderPolicies {
     std::optional<qint64> champion;
     QList<TraderPolicy> policies;
     QList<TraderChampionChange> champions;
+    /// Every cohort of challengers, newest first (codeyoma/krx-quant#473); empty before the first, or from
+    /// an engine before it.
+    QList<TraderCohort> cohorts;
     bool operator==(const TraderPolicies&) const = default;
 };
 

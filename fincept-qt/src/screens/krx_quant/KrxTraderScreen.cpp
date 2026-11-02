@@ -51,7 +51,7 @@ enum PolicyColumn {
     kCreated,
     kCells,
     kThreshold,
-    kKelly,
+    kBasis, ///< what each cell entered on (codeyoma/krx-quant#472); a policy before #471 its λ
     kDays,
     kPaperTrades,
     kPaperNet,
@@ -296,12 +296,13 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
     body_layout->setContentsMargins(0, 0, 0, 0);
     body_layout->setSpacing(1);
 
-    // The cards: the capital, the cash, the position (twice as wide), the P&Ls and the limits.
+    // The cards: the capital, the cash, the position (twice as wide), the P&Ls, the limits, the risk rules
+    // and the review cycle (codeyoma/krx-quant#475, #469).
     auto* cards = new QWidget;
     auto* cards_layout = new QHBoxLayout(cards);
     cards_layout->setContentsMargins(0, 0, 0, 0);
     cards_layout->setSpacing(1);
-    for (int i = 0; i < 7; ++i) {
+    for (int i = 0; i < view::kCards; ++i) {
         CardView card;
         card.box = new QFrame;
         card.box->setObjectName("krxTraderCard");
@@ -435,10 +436,11 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
     // The policy versions (codeyoma/krx-quant#401): the gate in full, the table, the champion's history.
     policies_header_ = krx_panel::header(
         tr("정책 버전"),
-        tr("정책은 버전이 있는 값 묶음입니다: 매매할 칸과 순위, 칸마다 문턱 θ와 Kelly 비율 λ. 밤마다 지난 거래일로 다시 맞춘 "
-           "정책이 도전 정책이 되어(자리 셋, 차 있으면 대기) 다음 거래일부터 챔피언 옆에서 모의로 돌고, 함께 돈 거래일 10일째 "
-           "밤부터 챔피언을 이기면 챔피언이 됩니다. 20일까지 이기지 못하면 내려집니다. 실전 관문은 챔피언의 모의 기록으로 "
-           "잽니다. 한도는 정책에 없습니다(서버의 코드와 .env에서만 옵니다)."));
+        tr("정책은 버전이 있는 값 묶음입니다: 매매할 칸과 순위, 칸마다 문턱 θ. 밤마다 녹화를 재생해 맞춘 정책은 다음 도전 정책 "
+           "묶음을 기다리고, 검토 날 밤에 새것부터 셋까지 묶음으로 들어가 20거래일의 검토 주기 동안 챔피언 옆에서 모의로 돕니다. "
+           "검토 날 장이 끝난 뒤 한 번만 판정해, 함께 10일 이상이고 하한이 0보다 큰 것 가운데 하한이 가장 큰 것이 챔피언이 되고 "
+           "나머지는 모두 내려집니다(codeyoma/krx-quant#469, #473). 실전 관문은 챔피언의 모의 기록으로 잽니다. 한도와 위험 "
+           "규칙은 정책에 없습니다(서버의 코드와 .env에서만 옵니다)."));
     policies_line_ = new QLabel;
     policies_header_.controls->addWidget(policies_line_);
     auto* policies_body = new QWidget;
@@ -450,24 +452,31 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
     gate_line_->setContentsMargins(12, 6, 12, 6);
     gate_line_->setWordWrap(true);
     policies_layout->addWidget(gate_line_);
-    policies_ = krx_tables::table({tr("정책"), tr("상태"), tr("맞춘 때"), tr("칸"), tr("θ"), tr("λ"), tr("모의 날"),
+    cohort_line_ = new QLabel; // codeyoma/krx-quant#473
+    cohort_line_->setObjectName(kCohortLineName);
+    cohort_line_->setContentsMargins(12, 0, 12, 6);
+    cohort_line_->setWordWrap(true);
+    cohort_line_->hide();
+    policies_layout->addWidget(cohort_line_);
+    policies_ = krx_tables::table({tr("정책"), tr("상태"), tr("맞춘 때"), tr("칸"), tr("θ"), tr("진입 근거"), tr("모의 날"),
                                    tr("매매"), tr("순손익"), tr("날마다 평균"), tr("하한"), tr("판정")});
     policies_->setObjectName(kPoliciesName);
     policies_->horizontalHeader()->setStretchLastSection(true);
     const QList<std::pair<int, QString>> policy_tips{
-        {kStatus, tr("챔피언(trader가 매매하는 정책), 도전(자리 셋 가운데 하나에서 모의로 돈다), 대기(자리를 기다린다), 전 "
-                     "챔피언(도전 정책에 졌다), 내려짐(20일까지 이기지 못했다)")},
+        {kStatus, tr("챔피언(trader가 매매하는 정책), 도전(이 검토 주기의 묶음에서 모의로 돈다), 대기(다음 묶음을 기다린다), "
+                     "전 챔피언(도전 정책에 졌다), 내려짐(묶음 판정에서 뽑히지 않았거나 묶음에 들지 못했다)")},
         {kCreated, tr("밤 정책 맞추기가 이 정책을 만든 때. 툴팁에 그 이유와 맞춘 것")},
         {kCells, tr("매매하는 칸, 순위대로: 예측 종류와 예측자(비용 지도의 자리). 툴팁에 칸마다 맞춘 값과 뺀 칸")},
         {kThreshold, tr("칸마다 사는 오름 확률의 문턱 θ(칸 순서대로)")},
-        {kKelly, tr("칸마다 Kelly 비율 λ: 산 비율 = λ × 그날 f*, 0–1로 자름(칸 순서대로)")},
+        {kBasis, tr("칸마다 밤 맞추기가 넣은 근거(칸 순서대로): 1주씩 따로 잰 신호당 순손익의 날 단위 하한(틱, 0보다 커야 "
+                    "넣는다, codeyoma/krx-quant#472). #471 전에 맞춘 정책은 그때의 Kelly 비율 λ(읽지 않는다)")},
         {kDays, tr("이 정책이 trader에서 모의로 돈 거래일(도전 정책일 때와 챔피언일 때 모두)")},
         {kPaperTrades, tr("그 날들에 청산한 모의 매매 수")},
         {kPaperNet, tr("그 매매의 순손익 합(수수료와 매도세를 뺌, 원)")},
         {kMean, tr("날마다 순손익(매매 없는 날 0)의 평균")},
         {kPaperLow, tr("날마다 평균의 95% 하한(2일부터). 챔피언은 이것이 0보다 크고 20거래일 이상이면 실전 관문을 넘습니다")},
-        {kJudgement, tr("챔피언: 실전 관문. 도전: 챔피언과 함께 돈 거래일과 날마다 (도전 − 챔피언) 순손익의 하한(도전 정책 "
-                        "수로 보정). 함께 10일 이상이고 하한이 0보다 크면 그 밤에 챔피언이 됩니다")},
+        {kJudgement, tr("챔피언: 실전 관문. 도전: 그 주기에 챔피언과 함께 돈 거래일과 날마다 (도전 − 챔피언) 순손익의 하한(묶음 "
+                        "안 Bonferroni), 그리고 검토 날. 검토 날 밤에 한 번 판정하고 그 전의 수치는 참고입니다")},
     };
     for (const auto& [column, tip] : policy_tips)
         if (auto* item = policies_->horizontalHeaderItem(column))
@@ -532,6 +541,7 @@ void KrxTraderScreen::refresh_theme() {
             title->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::TEXT_SECONDARY()));
     gate_->setProperty("krxTone", QVariant()); // the gate's colour, painted again
     gate_line_->setProperty("krxTone", QVariant());
+    cohort_line_->setProperty("krxTone", QVariant());
     // The pause buttons stand out from the flat ones: framed, the sale's in the loss colour.
     const QString button("QPushButton#%1{color:%2;border:1px solid %2;border-radius:3px;padding:4px 12px;}"
                          "QPushButton#%1:hover{background:%3;}"
@@ -755,12 +765,17 @@ void KrxTraderScreen::fill_policies() {
     if (s)
         paint(gate_line_, tone_color(view::gate_tone(*s)));
     const auto& p = live_->policies();
+    const view::CohortLine cohort = view::cohort_line(p, s); // codeyoma/krx-quant#473
+    cohort_line_->setText(cohort.text);
+    cohort_line_->setToolTip(cohort.tip);
+    cohort_line_->setVisible(!cohort.text.isEmpty());
+    paint(cohort_line_, tone_color(cohort.tone));
     policies_line_->setText(p ? view::policies_line(*p) : (live_->reading() ? tr("읽는 중") : QString()));
     const QList<view::PolicyRow> rows = p ? view::policy_rows(*p, s) : QList<view::PolicyRow>{};
     QStringList text;
     for (const auto& row : rows)
         text << QStringList{QString::number(row.version), row.status,      row.created,   row.cells,
-                            row.thresholds,               row.kelly,       row.days,      row.trades,
+                            row.thresholds,               row.basis,       row.days,      row.trades,
                             row.net,                      row.mean,        row.low,       row.judgement,
                             row.tip,                      row.cells_tip,   row.paper_tip, row.judgement_tip}
                     .join(QChar(0x1f));
@@ -775,7 +790,7 @@ void KrxTraderScreen::fill_policies() {
             policies_->setItem(r, kCreated, toned(row.created, Tone::Plain, row.tip, kNumber));
             policies_->setItem(r, kCells, toned(row.cells, Tone::Plain, row.cells_tip));
             policies_->setItem(r, kThreshold, toned(row.thresholds, Tone::Plain, row.cells_tip, kNumber));
-            policies_->setItem(r, kKelly, toned(row.kelly, Tone::Plain, row.cells_tip, kNumber));
+            policies_->setItem(r, kBasis, toned(row.basis, Tone::Plain, row.cells_tip, kNumber));
             policies_->setItem(r, kDays, toned(row.days, Tone::Plain, row.paper_tip, kNumber));
             policies_->setItem(r, kPaperTrades, toned(row.trades, Tone::Plain, row.paper_tip, kNumber));
             policies_->setItem(r, kPaperNet, toned(row.net, row.net_tone, row.paper_tip, kNumber));

@@ -69,6 +69,8 @@ class KrxTraderScreen : public QWidget {
     /// The champion and the live gate in the header, and the gate in full over the policy table.
     static constexpr const char* kGateName = "krxTraderGate";
     static constexpr const char* kGateLineName = "krxTraderGateLine";
+    /// The challengers' cohort over the policy table (codeyoma/krx-quant#473).
+    static constexpr const char* kCohortLineName = "krxTraderCohortLine";
     /// "연습" beside the mode badge while the mock book practises (codeyoma/krx-quant#427).
     static constexpr const char* kPracticeName = "krxTraderPractice";
 
@@ -127,6 +129,7 @@ class KrxTraderScreen : public QWidget {
     krx_panel::Header policies_header_;
     QLabel* policies_line_ = nullptr;
     QLabel* gate_line_ = nullptr;
+    QLabel* cohort_line_ = nullptr; ///< codeyoma/krx-quant#473
     QTableWidget* policies_ = nullptr;
     QTableWidget* history_ = nullptr;
 };
