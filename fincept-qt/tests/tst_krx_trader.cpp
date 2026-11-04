@@ -124,6 +124,40 @@ QJsonObject state_json(const char* mode = "paper", const char* status = "running
     return o;
 }
 
+/// ``o`` as a trader of codeyoma/krx-quant#533 writes it: ``today`` and ``cumulative`` what the loss limits
+/// count, the mock practice's beside them (``practice`` won over ``trades`` trades exited today, ``before`` on
+/// the days before) and the account's, both together.
+QJsonObject split_json(QJsonObject o, double practice, int trades, double before) {
+    QJsonObject today = o["today"].toObject();
+    const double open = today["unrealized"].toDouble();
+    today["practice"] = QJsonObject{{"realized", practice}, {"unrealized", 0.0}, {"net", practice}, {"trades", trades}};
+    today["account"] = QJsonObject{{"realized", today["realized"].toDouble() + practice},
+                                   {"unrealized", open},
+                                   {"net", today["net"].toDouble() + practice},
+                                   {"trades", today["trades"].toInt() + trades}};
+    o["today"] = today;
+    QJsonObject cumulative = o["cumulative"].toObject();
+    const double all = practice + before;
+    cumulative["practice"] = QJsonObject{{"realized", all}, {"unrealized", 0.0}, {"net", all}};
+    cumulative["account"] = QJsonObject{{"realized", cumulative["realized"].toDouble() + all},
+                                        {"unrealized", open},
+                                        {"net", cumulative["net"].toDouble() + all}};
+    o["cumulative"] = cumulative;
+    return o;
+}
+
+/// The mock practice on and practising a share of barrier · breiman (codeyoma/krx-quant#427).
+QJsonObject practising_json() {
+    return {{"enabled", true},
+            {"active", true},
+            {"cell", QJsonObject{{"kind", "barrier"},
+                                 {"role", "top"},
+                                 {"predictor", "breiman"},
+                                 {"p_star", 0.63},
+                                 {"low", 0.60},
+                                 {"quantity", 1}}}};
+}
+
 /// Before the trader first wrote its state: all null but alive and controls.
 QJsonObject unwritten_json() {
     QJsonObject o;
@@ -1394,6 +1428,147 @@ class TstKrxTrader : public QObject {
         QVERIFY(!view::practice_badge(waiting));
         QVERIFY(view::mode_badge(waiting).tip.contains(
             QStringLiteral("지금 연습하지 않는 까닭: 이 검토 주기의 연습 칸을 아직 고르지 않았다(밤 작업이 고른다).")));
+    }
+
+    void the_practice_and_the_account_p_and_l_are_beside_the_limits_and_an_older_engine_has_neither() {
+        // codeyoma/krx-quant#533: the mock practice made 20 trades for -9,140 won today (-4,600 before); the loss
+        // limits count the champion's alone, the account both.
+        const QDateTime now = kst("2026-10-15T10:06:30+09:00");
+        QJsonObject o = split_json(state_json("mock"), -9140.0, 20, -4600.0);
+        o["practice"] = practising_json();
+        const TraderState s = state(o);
+        QVERIFY(s.today->practice && s.today->account && s.cumulative->practice && s.cumulative->account);
+        QCOMPARE(s.today->net, -5051.2);
+        QCOMPARE(*s.today->practice, (TraderPnlPart{-9140.0, 0.0, -9140.0, 20}));
+        QCOMPARE(s.today->account->realized, -9140.0);
+        QCOMPARE(s.today->account->unrealized, -5051.2);
+        QCOMPARE(s.today->account->net, -14191.2);
+        QCOMPARE(s.today->account->trades, 20);
+        QCOMPARE(*s.cumulative->practice, (TraderPnlPart{-13740.0, 0.0, -13740.0, 0}));
+        QCOMPARE(s.cumulative->account->net, -23101.2);
+
+        // The cards keep what the limits count, the practice's and the account's in a line under it.
+        const QList<view::Card> cards = view::cards(s, now);
+        QCOMPARE(cards.size(), view::kCards);
+        QCOMPARE(cards[3].value, QStringLiteral("-5,051원"));
+        QCOMPARE(cards[3].tone, Tone::Negative);
+        QCOMPARE(cards[3].lines, (QStringList{QStringLiteral("실현 0원 · 매매 0"), QStringLiteral("평가 -5,051원"),
+                                             QStringLiteral("가장 낮을 때 -5,051원"),
+                                             QStringLiteral("연습 -9,140원 · 계좌 -14,191원")}));
+        QVERIFY(cards[3].tip.contains(QStringLiteral("위 값은 손실 한도가 세는 손익(챔피언의 매매)입니다")));
+        QVERIFY(cards[3].tip.contains(QStringLiteral("연습: 실현 -9,140원 · 매매 20 · 평가 0원 · 합 -9,140원")));
+        QVERIFY(cards[3].tip.contains(
+            QStringLiteral("계좌(KIS, 한도가 세는 것과 연습의 합): 실현 -9,140원 · 매매 20 · 평가 -5,051원 · 합 -14,191원")));
+        QCOMPARE(cards[4].value, QStringLiteral("-9,361원"));
+        QCOMPARE(cards[4].lines.last(), QStringLiteral("연습 -13,740원 · 계좌 -23,101원"));
+        QVERIFY(cards[4].tip.contains(QStringLiteral("연습: 실현 -13,740원 · 평가 0원 · 합 -13,740원")));
+        // The limits' use is the engine's, of what they count; the cards say the practice is not counted.
+        QCOMPARE(cards[5].value, QStringLiteral("5.1%"));
+        QCOMPARE(cards[6].value, QStringLiteral("4.7%"));
+        for (const int i : {5, 6}) {
+            QCOMPARE(cards[i].lines.last(), QStringLiteral("연습은 한도에 세지 않음"));
+            QVERIFY(cards[i].tip.contains(QStringLiteral("KIS 모의 연습 매매의 손익은 한도에 세지 않습니다")));
+        }
+        QVERIFY(cards[6].tip.contains(QStringLiteral("누적 순손익 카드의 값이")));
+        // The practice badge and a practice trade say the limits leave it out.
+        const auto badge = view::practice_badge(s);
+        QVERIFY(badge.has_value());
+        QVERIFY(badge->tip.contains(QStringLiteral("정책의 모의 기록과 손실 한도(codeyoma/krx-quant#533)에는 세지 않고")));
+        QVERIFY(badge->tip.contains(QStringLiteral("위험 규칙(그날 매수 주문 수, 연달은 순손실)")));
+        QJsonObject trade = trade_json(11, "take_profit", "mock");
+        trade["policy"] = QJsonValue();
+        trade["practice"] = true;
+        const auto parsed = parse_trader_trades(QJsonDocument(QJsonObject{{"trades", QJsonArray{trade}}}));
+        QVERIFY(parsed.is_ok());
+        QVERIFY(view::trade_rows(parsed.value(), s)[0].tip.contains(QStringLiteral("손실 한도에도 세지 않습니다")));
+        // A practice trade exited reads the trades again, though the limits' count of trades stays.
+        QVERIFY(view::history_key(state(split_json(state_json("mock"), -9500.0, 21, -4600.0))) != view::history_key(s));
+
+        // The practice on, nothing practised yet: no line, the limits still say it is not counted.
+        QJsonObject quiet = split_json(state_json("mock"), 0.0, 0, 0.0);
+        quiet["practice"] = practising_json();
+        const QList<view::Card> waiting = view::cards(state(quiet), now);
+        QCOMPARE(waiting[3].lines.size(), 3);
+        QCOMPARE(waiting[4].lines.size(), 4);
+        QVERIFY(!waiting[3].tip.contains(QStringLiteral("연습")));
+        QCOMPARE(waiting[5].lines.last(), QStringLiteral("연습은 한도에 세지 않음"));
+
+        // A practice position open, nothing of it exited: its open P&L is the practice's and the account's, not
+        // the limits'.
+        QJsonObject holding = state_json("mock");
+        holding["today"] = QJsonObject{
+            {"day", "2026-10-15"},
+            {"realized", 0.0},
+            {"unrealized", 0.0},
+            {"net", 0.0},
+            {"trades", 0},
+            {"worst", 0.0},
+            {"practice", QJsonObject{{"realized", 0.0}, {"unrealized", -500.0}, {"net", -500.0}, {"trades", 0}}},
+            {"account", QJsonObject{{"realized", 0.0}, {"unrealized", -500.0}, {"net", -500.0}, {"trades", 0}}}};
+        const view::Card opened = view::cards(state(holding), now)[3];
+        QCOMPARE(opened.value, QStringLiteral("0원"));
+        QCOMPARE(opened.lines.last(), QStringLiteral("연습 -500원 · 계좌 -500원"));
+
+        // Paper on a trader of #533 (its practice 0), and a trader before #533 practising: as before, nothing
+        // of the practice's P&L.
+        const QList<view::Card> paper = view::cards(state(split_json(state_json(), 0.0, 0, 0.0)), now);
+        QJsonObject older = state_json("mock");
+        older["practice"] = practising_json();
+        const TraderState before = state(older);
+        QVERIFY(!before.today->practice && !before.today->account && !before.cumulative->practice);
+        const QList<view::Card> old = view::cards(before, now);
+        const QList<view::Card> plain = view::cards(state(), now);
+        for (const int i : {3, 4, 5, 6}) {
+            QCOMPARE(paper[i].lines, plain[i].lines);
+            QCOMPARE(paper[i].tip, plain[i].tip);
+            QCOMPARE(old[i].lines, plain[i].lines);
+            QCOMPARE(old[i].tip, plain[i].tip);
+        }
+        QVERIFY(view::practice_badge(before)->tip.contains(QStringLiteral("손실 한도와 실전의 실행 점검(KIS 대조")));
+        QVERIFY(view::trade_rows(parsed.value(), before)[0].tip.contains(QStringLiteral("손실 한도와 실전의 실행 점검에는 셉니다")));
+        QCOMPARE(view::history_key(before), view::history_key(state(state_json("mock"))));
+    }
+
+    void the_days_say_the_practice_s_and_the_account_s_and_a_day_before_them_neither() {
+        // codeyoma/krx-quant#533: a day's net is what the limits count; the practice's and the account's beside it,
+        // null on a day written before #533, absent from an engine before it.
+        const QJsonObject older = day_json("2026-10-13", "mock", 1922.25, 1);
+        QJsonObject before = day_json("2026-10-14", "mock", -161.735, 1);
+        before["practice"] = QJsonValue();
+        before["account"] = QJsonValue();
+        QJsonObject quiet = day_json("2026-10-15", "mock", 0.0, 0);
+        quiet["practice"] = QJsonObject{{"net", 0.0}, {"trades", 0}, {"cumulative", 0.0}};
+        quiet["account"] = QJsonObject{{"net", 0.0}, {"trades", 0}, {"cumulative", 0.0}};
+        QJsonObject split = day_json("2026-10-16", "mock", -5000.0, 2);
+        split["practice"] = QJsonObject{{"net", -9140.0}, {"trades", 20}, {"cumulative", -13740.0}};
+        split["account"] = QJsonObject{{"net", -14140.0}, {"trades", 22}, {"cumulative", -18740.0}};
+        const auto parsed = parse_trader_days(QJsonDocument(QJsonObject{
+            {"from", "2025-10-17"}, {"to", "2026-10-16"}, {"days", QJsonArray{older, before, quiet, split}}}));
+        QVERIFY(parsed.is_ok());
+        const QList<TraderDay>& d = parsed.value();
+        QCOMPARE(d.size(), 4);
+        QVERIFY(!d[0].practice && !d[0].account);
+        QVERIFY(!d[1].practice && !d[1].account);
+        QCOMPARE(*d[2].practice, (TraderDayPnl{0.0, 0, 0.0}));
+        QCOMPARE(*d[3].practice, (TraderDayPnl{-9140.0, 20, -13740.0}));
+        QCOMPARE(*d[3].account, (TraderDayPnl{-14140.0, 22, -18740.0}));
+
+        const auto points = view::day_points(d, "mock");
+        QCOMPARE(points.size(), 4);
+        QCOMPARE(points[3].net, -5000.0); // the bars and the sum: the limits' count
+        QCOMPARE(points[3].sum, 1922.25 - 161.735 - 5000.0);
+        QVERIFY(points[3].tip.contains(QStringLiteral("순손익 -5,000원 · 매매 2 (한도가 세는 것)\n"
+                                                      "연습 -9,140원 · 매매 20 · 누적 -13,740원 (한도에 세지 않음)\n"
+                                                      "계좌(KIS) -14,140원 · 매매 22 · 누적 -18,740원\n")));
+        // An engine before #533, a day before it and a day without practice: the tooltip as before.
+        QCOMPARE(points[0].tip, QStringLiteral("10-13(화) KIS 모의\n순손익 +1,922원 · 매매 1\n합 +1,922원 (보이는 첫날부터)\n"
+                                               "하루 가장 낮을 때 0원 (한도의 0.0%)\n누적 +1,922원 (가장 낮을 때 0원, 한도의 1.0%)\n"
+                                               "그날 마지막 상태: 도는 중"));
+        for (const int i : {1, 2}) {
+            QVERIFY(!points[i].tip.contains(QStringLiteral("연습")));
+            QVERIFY(!points[i].tip.contains(QStringLiteral("계좌")));
+            QVERIFY(!points[i].tip.contains(QStringLiteral("한도가 세는 것")));
+        }
     }
 
     void the_cards_show_the_position_with_its_time_left() {

@@ -31,9 +31,9 @@ bool in_session(const QDateTime& now);
 int poll_ms(const std::optional<TraderState>& last, const QDateTime& now);
 
 /// What the trades, the days and the policy versions hang on in a state: its mode, day, trades exited
-/// that day, open trade, status and counts' starts, and the champion and each running policy's status,
-/// paper days and trades (codeyoma/krx-quant#401). A state with another key than the last read's has them
-/// read again (KrxTraderLive); so does kIdleMs passing.
+/// that day (the mock practice's too, codeyoma/krx-quant#533), open trade, status and counts' starts, and
+/// the champion and each running policy's status, paper days and trades (codeyoma/krx-quant#401). A state
+/// with another key than the last read's has them read again (KrxTraderLive); so does kIdleMs passing.
 QString history_key(const TraderState& state);
 
 /// How a value is coloured. Live and Simulated are the chart's colours for the live account's trades
@@ -53,7 +53,8 @@ struct Badge {
 Badge mode_badge(const TraderState& state);
 /// Beside the mode (codeyoma/krx-quant#427): "연습" while the mock book practises (no champion cell to
 /// trade, KRX_TRADER_MOCK_PRACTICE on) or holds a practice position, its tooltip naming the practice cell
-/// and what counts it; none otherwise, and from a trader before #427.
+/// and what counts it (the loss limits not since codeyoma/krx-quant#533); none otherwise, and from a trader
+/// before #427.
 std::optional<Badge> practice_badge(const TraderState& state);
 /// The status: "도는 중", "새 진입 정지", "정지", "주문 실패" (codeyoma/krx-quant#405), "하루 한도", "누적 한도";
 /// "응답 없음" when the trader has
@@ -95,8 +96,10 @@ struct Card {
     Tone tone = Tone::Plain;
 };
 /// The cards, in order: the capital, the cash, the position (quantity, entry price, target, stop,
-/// time left to its time barrier at ``now``, the trader's clock), today's and the cumulative net P&L,
-/// the daily and the cumulative limit's use; the risk rules (codeyoma/krx-quant#475: the day's buy orders,
+/// time left to its time barrier at ``now``, the trader's clock), today's and the cumulative net P&L
+/// (what the loss limits count; codeyoma/krx-quant#533: with practice P&L, a line of the mock practice's and
+/// the account's under it), the daily and the cumulative limit's use (#533: with the mock practice on or
+/// practice P&L, that the limit leaves it out); the risk rules (codeyoma/krx-quant#475: the day's buy orders,
 /// the losses in a row and the cooldown at ``now``, the loss budget) and the review cycle (#469: its day,
 /// its review day and the challengers' cohort, #473), "—" from an engine before them.
 QList<Card> cards(const TraderState& state, const QDateTime& now);
@@ -215,7 +218,9 @@ QList<HistoryRow> history_rows(const TraderPolicies& policies);
 QStringList day_modes(const QList<TraderDay>& days);
 /// The mode the curve shows first: the trader's now if it has days, else the latest day's.
 QString default_mode(const QList<TraderDay>& days, const std::optional<TraderState>& state);
-/// A day of the curve: its net P&L and the running sum from the first day shown, with its tooltip.
+/// A day of the curve: its net P&L (what the loss limits count) and the running sum from the first day
+/// shown, with its tooltip (codeyoma/krx-quant#533: with practice P&L that day, the practice's and the
+/// account's; none on a day before it).
 struct DayPoint {
     QDate day;
     double net = 0;

@@ -71,8 +71,36 @@ QString optional_percent(const std::optional<double>& share) {
     return share ? percent_text(*share) : dash();
 }
 
-/// A loss limit's card: its use now, the limit in won and percent, and when it was reached.
-Card limit_card(const QString& title, const std::optional<TraderLimit>& limit, bool cumulative) {
+/// Whether a practice P&L (codeyoma/krx-quant#533) holds anything: a trade exited or a won of P&L.
+bool practised(const std::optional<TraderPnlPart>& p) {
+    return p && (p->trades > 0 || std::round(p->realized) != 0 || std::round(p->unrealized) != 0 ||
+                 std::round(p->net) != 0);
+}
+
+bool practised(const std::optional<TraderDayPnl>& p) {
+    return p && (p->trades > 0 || std::round(p->net) != 0 || std::round(p->cumulative) != 0);
+}
+
+/// Whether the trader counts the mock practice's P&L apart from the loss limits' (codeyoma/krx-quant#533): its
+/// state gives ``practice`` beside ``today`` or ``cumulative``. A trader before it counted the practice in them.
+bool practice_apart(const TraderState& state) {
+    return (state.today && state.today->practice) || (state.cumulative && state.cumulative->practice);
+}
+
+/// What the practice trades count for, said on the practice badge and a practice trade's tooltip.
+QString practice_counts_text(bool apart) {
+    return apart ? QStringLiteral("연습 매매는 승격, 실전 관문, 정책의 모의 기록과 손실 한도(codeyoma/krx-quant#533)에는 세지 "
+                                  "않고, 위험 규칙(그날 매수 주문 수, 연달은 순손실)과 실전의 실행 점검(KIS 대조, 체결 차이, "
+                                  "왕복 매매 수)에는 셉니다.")
+                 : QStringLiteral("연습 매매는 승격, 실전 관문, 정책의 모의 기록에는 세지 않고, 손실 한도와 실전의 실행 점검(KIS "
+                                  "대조, 체결 차이, 왕복 매매 수)에는 셉니다.");
+}
+
+/// A loss limit's card: its use now, the limit in won and percent, and when it was reached; with
+/// ``practice_left_out`` (codeyoma/krx-quant#533: the mock practice on, or practice P&L there) that the limit
+/// does not count the practice.
+Card limit_card(const QString& title, const std::optional<TraderLimit>& limit, bool cumulative,
+                bool practice_left_out) {
     Card card;
     card.title = title;
     if (!limit) {
@@ -89,16 +117,34 @@ Card limit_card(const QString& title, const std::optional<TraderLimit>& limit, b
     } else if (limit->used >= 0.5) {
         card.tone = Tone::Warning;
     }
+    if (practice_left_out)
+        card.lines << QStringLiteral("연습은 한도에 세지 않음");
     card.tip = cumulative ? QStringLiteral("누적 손익(비용을 뺀 실현 + 열린 포지션의 평가)이 누적 손실 한도에서 쓴 몫입니다. "
                                            "닿으면 열린 포지션을 바로 팔고, 서버의 krx-quant trade rearm으로 다시 켤 "
                                            "때까지 사지 않습니다.")
                           : QStringLiteral("오늘(0시부터) 손익(비용을 뺀 실현 + 열린 포지션의 평가)이 하루 손실 한도에서 쓴 "
                                            "몫입니다. 닿으면 열린 포지션을 바로 팔고 그날은 사지 않습니다. 다음 거래일에 "
                                            "저절로 다시 돕니다.");
+    if (practice_left_out)
+        card.tip += QStringLiteral(" KIS 모의 연습 매매의 손익은 한도에 세지 않습니다(codeyoma/krx-quant#533): %1 카드의 값이 "
+                                   "한도가 세는 손익(챔피언의 매매)이고, 연습과 계좌(KIS)의 손익은 그 아래 줄에 있습니다. "
+                                   "챔피언의 손실로 한도에 닿으면 연습도 멈춥니다.")
+                        .arg(cumulative ? QStringLiteral("누적 순손익") : QStringLiteral("오늘 순손익"));
     return card;
 }
 
-/// A P&L's card: its net, its realized part with the trades exited, its open part and its lowest.
+/// "실현 -9,140원 · 매매 20 · 평가 0원": a practice or account P&L in full, on its card's tooltip.
+QString part_tip(const TraderPnlPart& p, bool cumulative) {
+    return cumulative ? QStringLiteral("실현 %1 · 평가 %2").arg(signed_won_text(p.realized), signed_won_text(p.unrealized))
+                      : QStringLiteral("실현 %1 · 매매 %2 · 평가 %3")
+                            .arg(signed_won_text(p.realized))
+                            .arg(p.trades)
+                            .arg(signed_won_text(p.unrealized));
+}
+
+/// A P&L's card: its net, its realized part with the trades exited, its open part and its lowest. With
+/// practice P&L (codeyoma/krx-quant#533: the mock practice traded) a line of the practice's and the
+/// account's under them; the value stays what the loss limits count.
 Card pnl_card(const QString& title, const std::optional<TraderPnl>& pnl, bool cumulative) {
     Card card;
     card.title = title;
@@ -119,6 +165,18 @@ Card pnl_card(const QString& title, const std::optional<TraderPnl>& pnl, bool cu
                                            "매도세를 뺌)과 열린 포지션을 지금 매수 1호가에 팔면 받을 순손익의 합입니다.")
                           : QStringLiteral("오늘 0시부터 청산한 매매의 순손익(수수료와 매도세를 뺌)과 열린 포지션을 지금 매수 "
                                            "1호가에 팔면 받을 순손익의 합입니다.");
+    if (practised(pnl->practice)) {
+        QString line = QStringLiteral("연습 %1").arg(signed_won_text(pnl->practice->net));
+        if (pnl->account)
+            line += QStringLiteral(" · 계좌 %1").arg(signed_won_text(pnl->account->net));
+        card.lines << line;
+        card.tip += QStringLiteral("\n위 값은 손실 한도가 세는 손익(챔피언의 매매)입니다. KIS 모의 연습 매매의 손익은 한도에 세지 "
+                                   "않고 따로 셉니다(codeyoma/krx-quant#533).\n연습: %1 · 합 %2")
+                        .arg(part_tip(*pnl->practice, cumulative), signed_won_text(pnl->practice->net));
+        if (pnl->account)
+            card.tip += QStringLiteral("\n계좌(KIS, 한도가 세는 것과 연습의 합): %1 · 합 %2")
+                            .arg(part_tip(*pnl->account, cumulative), signed_won_text(pnl->account->net));
+    }
     return card;
 }
 
@@ -404,6 +462,8 @@ QString history_key(const TraderState& state) {
         state.started_at.toString(Qt::ISODateWithMs),
         state.today ? state.today->day.toString(Qt::ISODate) : QString(),
         state.today ? QString::number(state.today->trades) : QString(),
+        // codeyoma/krx-quant#533: a practice trade exited counts here, not in ``trades``.
+        state.today && state.today->practice ? QString::number(state.today->practice->trades) : QString(),
         state.cumulative ? state.cumulative->since.toString(Qt::ISODateWithMs) : QString(),
         state.position ? QString::number(state.position->trade_id) : QString(),
         state.champion ? QString::number(*state.champion) : QString(),
@@ -496,8 +556,7 @@ std::optional<Badge> practice_badge(const TraderState& state) {
     if (holding)
         tip << QStringLiteral("연습 포지션을 들고 있습니다: 원래 규칙(목표가, 손절가, 시간 장벽)대로 팝니다. 그동안은 챔피언 칸도 "
                               "사지 않습니다(포지션은 하나).");
-    tip << QStringLiteral("연습 매매는 승격, 실전 관문, 정책의 모의 기록에는 세지 않고, 손실 한도와 실전의 실행 점검(KIS 대조, "
-                          "체결 차이, 왕복 매매 수)에는 셉니다. 챔피언 칸이 다시 생기면 새 연습을 멈춥니다.");
+    tip << practice_counts_text(practice_apart(state)) + QStringLiteral(" 챔피언 칸이 다시 생기면 새 연습을 멈춥니다.");
     return Badge{QStringLiteral("연습"), tip.join('\n'), Tone::Warning};
 }
 
@@ -729,8 +788,13 @@ QList<Card> cards(const TraderState& state, const QDateTime& now) {
     out << position;
     out << pnl_card(QStringLiteral("오늘 순손익"), state.today, false);
     out << pnl_card(QStringLiteral("누적 순손익"), state.cumulative, true);
-    out << limit_card(QStringLiteral("하루 한도 사용"), state.daily_limit, false);
-    out << limit_card(QStringLiteral("누적 한도 사용"), state.cumulative_limit, true);
+    // codeyoma/krx-quant#533: the limits leave the practice out; said while it is on, or has P&L there.
+    const bool practising = state.mode == QLatin1String("mock") && state.practice && state.practice->enabled;
+    out << limit_card(QStringLiteral("하루 한도 사용"), state.daily_limit, false,
+                      state.today && state.today->practice && (practising || practised(state.today->practice)));
+    out << limit_card(QStringLiteral("누적 한도 사용"), state.cumulative_limit, true,
+                      state.cumulative && state.cumulative->practice &&
+                          (practising || practised(state.cumulative->practice)));
     out << risk_card(state, now);   // codeyoma/krx-quant#475
     out << cycle_card(state);       // codeyoma/krx-quant#469
     return out;
@@ -813,8 +877,13 @@ QList<TradeRow> trade_rows(const QList<TraderTrade>& trades, const std::optional
             tip << QStringLiteral("도전 정책의 모의 매매입니다: 챔피언 옆에서 같은 호가로 흉내 내고, 한도와 정지에 멈추지 않으며 "
                                   "차트에 보이지 않습니다.");
         if (t.practice) // codeyoma/krx-quant#427
-            tip << QStringLiteral("KIS 모의 연습 매매입니다: 매매할 챔피언 칸이 없던 날 연습 칸을 1주씩 샀습니다. 정책이 없어 "
-                                  "승격·실전 관문·모의 기록에는 세지 않고, 손실 한도와 실전의 실행 점검에는 셉니다.");
+            tip << (state && practice_apart(*state)
+                        ? QStringLiteral("KIS 모의 연습 매매입니다: 매매할 챔피언 칸이 없던 날 연습 칸을 1주씩 샀습니다. 정책이 "
+                                         "없어 승격·실전 관문·모의 기록에 세지 않고, 손실 한도에도 세지 않습니다"
+                                         "(codeyoma/krx-quant#533). 위험 규칙과 실전의 실행 점검에는 셉니다.")
+                        : QStringLiteral("KIS 모의 연습 매매입니다: 매매할 챔피언 칸이 없던 날 연습 칸을 1주씩 샀습니다. 정책이 "
+                                         "없어 승격·실전 관문·모의 기록에는 세지 않고, 손실 한도와 실전의 실행 점검에는 "
+                                         "셉니다."));
         for (const auto& effect : t.stalls) // codeyoma/krx-quant#407
             tip << QStringLiteral("수집기 호가 끊김: %1").arg(trader_stall_label(effect));
         if (!t.clock.isEmpty()) { // codeyoma/krx-quant#475: the execution cost
@@ -1247,14 +1316,26 @@ QList<DayPoint> day_points(const QList<TraderDay>& days, const QString& mode) {
     for (const auto& d : of_mode) {
         sum += d.net;
         QStringList tip{QStringLiteral("%1 %2").arg(day_text(d.day), trader_mode_label(d.mode)),
-                        QStringLiteral("순손익 %1 · 매매 %2").arg(signed_won_text(d.net)).arg(d.trades),
-                        QStringLiteral("합 %1 (보이는 첫날부터)").arg(signed_won_text(sum)),
-                        QStringLiteral("하루 가장 낮을 때 %1 (한도의 %2)")
-                            .arg(signed_won_text(d.daily_worst), percent_text(d.daily_used)),
-                        QStringLiteral("누적 %1 (가장 낮을 때 %2, 한도의 %3)")
-                            .arg(signed_won_text(d.cumulative_net), signed_won_text(d.cumulative_worst),
-                                 percent_text(d.cumulative_used)),
-                        QStringLiteral("그날 마지막 상태: %1").arg(trader_status_label(d.status))};
+                        QStringLiteral("순손익 %1 · 매매 %2").arg(signed_won_text(d.net)).arg(d.trades)};
+        if (practised(d.practice)) { // codeyoma/krx-quant#533; none on a day before it (null)
+            tip.last() += QStringLiteral(" (한도가 세는 것)");
+            tip << QStringLiteral("연습 %1 · 매매 %2 · 누적 %3 (한도에 세지 않음)")
+                       .arg(signed_won_text(d.practice->net))
+                       .arg(d.practice->trades)
+                       .arg(signed_won_text(d.practice->cumulative));
+            if (d.account)
+                tip << QStringLiteral("계좌(KIS) %1 · 매매 %2 · 누적 %3")
+                           .arg(signed_won_text(d.account->net))
+                           .arg(d.account->trades)
+                           .arg(signed_won_text(d.account->cumulative));
+        }
+        tip << QStringLiteral("합 %1 (보이는 첫날부터)").arg(signed_won_text(sum));
+        tip << QStringLiteral("하루 가장 낮을 때 %1 (한도의 %2)")
+                   .arg(signed_won_text(d.daily_worst), percent_text(d.daily_used));
+        tip << QStringLiteral("누적 %1 (가장 낮을 때 %2, 한도의 %3)")
+                   .arg(signed_won_text(d.cumulative_net), signed_won_text(d.cumulative_worst),
+                        percent_text(d.cumulative_used));
+        tip << QStringLiteral("그날 마지막 상태: %1").arg(trader_status_label(d.status));
         if (!d.halt.isEmpty())
             tip << QStringLiteral("%1에 닿은 날").arg(trader_status_label(d.halt));
         points << DayPoint{d.day, d.net, sum, tip.join('\n'), !d.halt.isEmpty()};

@@ -1940,6 +1940,16 @@ std::optional<TraderLimit> trader_limit_of(const QJsonValue& v) {
                        time_of(o.value("reached_at"))};
 }
 
+/// codeyoma/krx-quant#533: ``today``'s or ``cumulative``'s practice or account; none when absent (a trader
+/// before #533).
+std::optional<TraderPnlPart> trader_pnl_part_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return TraderPnlPart{o.value("realized").toDouble(), o.value("unrealized").toDouble(), o.value("net").toDouble(),
+                         o.value("trades").toInt()};
+}
+
 std::optional<TraderPnl> trader_pnl_of(const QJsonValue& v) {
     if (!v.isObject())
         return std::nullopt;
@@ -1952,7 +1962,18 @@ std::optional<TraderPnl> trader_pnl_of(const QJsonValue& v) {
     pnl.net = o.value("net").toDouble();
     pnl.trades = o.value("trades").toInt();
     pnl.worst = o.value("worst").toDouble();
+    pnl.practice = trader_pnl_part_of(o.value("practice"));
+    pnl.account = trader_pnl_part_of(o.value("account"));
     return pnl;
+}
+
+/// codeyoma/krx-quant#533: a day's practice or account; none when null (a day written before #533) or absent
+/// (an engine before it).
+std::optional<TraderDayPnl> trader_day_pnl_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return TraderDayPnl{o.value("net").toDouble(), o.value("trades").toInt(), o.value("cumulative").toDouble()};
 }
 
 TraderControl trader_control_of(const QJsonObject& o) {
@@ -2257,6 +2278,8 @@ Result<QList<TraderDay>> parse_trader_days(const QJsonDocument& doc) {
         d.mode = o.value("mode").toString();
         d.net = o.value("net").toDouble();
         d.trades = o.value("trades").toInt();
+        d.practice = trader_day_pnl_of(o.value("practice"));
+        d.account = trader_day_pnl_of(o.value("account"));
         const QJsonObject daily = o.value("daily").toObject();
         d.daily_limit = daily.value("limit").toDouble();
         d.daily_worst = daily.value("worst").toDouble();

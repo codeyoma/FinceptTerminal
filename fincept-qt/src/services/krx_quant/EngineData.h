@@ -508,9 +508,23 @@ struct TraderPosition {
     bool operator==(const TraderPosition&) const = default;
 };
 
+/// A P&L beside the one the loss limits count (codeyoma/krx-quant#533, schema ``trader_pnl``): the
+/// mock book's practice trades' (0 in paper and live) or the account's (KIS), both together. In won:
+/// realized, open (a practice position's is the practice's), their sum, and in the day's the trades exited.
+struct TraderPnlPart {
+    double realized = 0;
+    double unrealized = 0;
+    double net = 0;
+    int trades = 0;
+    bool operator==(const TraderPnlPart&) const = default;
+};
+
 /// A P&L of the trader, in won: the trades exited (``realized``) and the open position's
 /// (``unrealized``), their sum and its lowest. The day's (from 00:00 KST) has its day and the trades
 /// exited; the cumulative one where its count starts (the mode's first start or its last re-arm).
+/// Since codeyoma/krx-quant#533 these are what the loss limits count, never a mock practice trade's;
+/// ``practice`` and ``account`` are beside them, none from a trader before it (whose figures counted the
+/// practice with the rest).
 struct TraderPnl {
     QDate day;
     QDateTime since;
@@ -519,6 +533,8 @@ struct TraderPnl {
     double net = 0;
     int trades = 0;
     double worst = 0; ///< at most 0
+    std::optional<TraderPnlPart> practice;
+    std::optional<TraderPnlPart> account;
     bool operator==(const TraderPnl&) const = default;
 };
 
@@ -780,12 +796,27 @@ struct TraderState {
     bool operator==(const TraderState&) const = default;
 };
 
-/// A trading day of the trader, one mode's (GET /v1/trader/days, codeyoma/krx-quant#396).
+/// A trading day's P&L beside the one the loss limits count (codeyoma/krx-quant#533, schema
+/// ``trader_day_pnl``): the mock book's practice trades' or the account's, both together. Its net that day,
+/// its trades exited and its cumulative net at the day's last update, in won.
+struct TraderDayPnl {
+    double net = 0;
+    int trades = 0;
+    double cumulative = 0;
+    bool operator==(const TraderDayPnl&) const = default;
+};
+
+/// A trading day of the trader, one mode's (GET /v1/trader/days, codeyoma/krx-quant#396). Since
+/// codeyoma/krx-quant#533 its figures are what the loss limits count, never a mock practice trade's.
 struct TraderDay {
     QDate day;
     QString mode;
     double net = 0; ///< the trades exited that day, after costs, won
     int trades = 0;
+    /// The practice's and the account's (codeyoma/krx-quant#533); none on a day written before it (null), or
+    /// from an engine before it.
+    std::optional<TraderDayPnl> practice;
+    std::optional<TraderDayPnl> account;
     double daily_limit = 0; ///< won
     double daily_worst = 0; ///< the day's lowest P&L, realized + open: at most 0
     double daily_used = 0;
