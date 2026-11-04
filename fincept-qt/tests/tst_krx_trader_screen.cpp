@@ -169,6 +169,9 @@ class StandIn : public QObject {
     bool practising = false; ///< the mock practice active (codeyoma/krx-quant#427)
     /// An engine of codeyoma/krx-quant#469–#475: the review cycle, its cohort and the risk rules' state.
     bool cohorts = false;
+    /// A trader of codeyoma/krx-quant#533: the practice's P&L (-9,140 won over 20 trades today) and the
+    /// account's beside today and cumulative, which the loss limits count.
+    bool split = false;
     QStringList asked;
 
     StandIn() {
@@ -276,6 +279,23 @@ class StandIn : public QObject {
                                     {"daily_buys", 20},      {"losses", 1},           {"loss_streak", 3},
                                     {"cooldown_minutes", 30.0}, {"cooldowns", 0},     {"cooldown_until", QJsonValue()},
                                     {"held", QJsonValue()}};
+        }
+        if (split) { // codeyoma/krx-quant#533
+            for (const char* key : {"today", "cumulative"}) {
+                QJsonObject pnl = o[key].toObject();
+                const bool today = QLatin1String(key) == QLatin1String("today");
+                QJsonObject practice{{"realized", -9140.0}, {"unrealized", 0.0}, {"net", -9140.0}};
+                QJsonObject account{{"realized", pnl["realized"].toDouble() - 9140.0},
+                                    {"unrealized", pnl["unrealized"].toDouble()},
+                                    {"net", pnl["net"].toDouble() - 9140.0}};
+                if (today) {
+                    practice["trades"] = 20;
+                    account["trades"] = pnl["trades"].toInt() + 20;
+                }
+                pnl["practice"] = practice;
+                pnl["account"] = account;
+                o[key] = pnl;
+            }
         }
         if (practising) { // codeyoma/krx-quant#427: the mock book practises, no champion cell to trade
             o["mode"] = "mock";
@@ -510,6 +530,34 @@ class TstKrxTraderScreen : public QObject {
         engine.practising = false;
         live->read_now();
         QTRY_VERIFY_WITH_TIMEOUT(practice->isHidden(), 10000);
+    }
+
+    void the_cards_show_the_practice_s_and_the_account_s_p_and_l_from_an_engine_that_gives_them() {
+        // codeyoma/krx-quant#533: the cards keep what the loss limits count, the practice's and the account's in
+        // a line under them, and the limits say they leave the practice out; an engine before it as before.
+        StandIn engine;
+        engine.practising = true;
+        services::KrxQuantService::set_base_url(engine.url());
+        screens::KrxTraderScreen screen;
+        screen.resize(1600, 1000);
+        screen.show();
+        auto* practice = screen.findChild<QLabel*>(screens::KrxTraderScreen::kPracticeName);
+        auto* live = screen.findChild<services::KrxTraderLive*>();
+        QVERIFY(practice && live);
+        const auto shown = [&screen](const QString& text) {
+            const auto labels = screen.findChildren<QLabel*>();
+            return std::any_of(labels.cbegin(), labels.cend(),
+                               [&text](const QLabel* l) { return l->isVisible() && l->text().contains(text); });
+        };
+        QTRY_VERIFY_WITH_TIMEOUT(practice->isVisible(), 10000); // the state read, practising
+        QVERIFY(shown(QStringLiteral("가장 낮을 때 -5,051원")));
+        QVERIFY(!shown(QStringLiteral("· 계좌 ")));
+        QVERIFY(!shown(QStringLiteral("연습은 한도에 세지 않음")));
+        engine.split = true;
+        live->read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(shown(QStringLiteral("연습 -9,140원 · 계좌 -14,191원")), 10000);
+        QVERIFY(shown(QStringLiteral("연습은 한도에 세지 않음")));
+        QVERIFY(practice->toolTip().contains(QStringLiteral("손실 한도(codeyoma/krx-quant#533)에는 세지 않고")));
     }
 
     void a_cohort_engine_shows_the_cohort_the_cycle_and_the_risk_rules() {
