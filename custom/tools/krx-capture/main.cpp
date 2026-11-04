@@ -137,6 +137,10 @@ int main(int argc, char* argv[]) {
     if (qEnvironmentVariableIsSet("KRX_CAPTURE_SPECIAL"))
         fincept::AppConfig::instance().set(fincept::krx_quant::kSpecialKey,
                                            qEnvironmentVariableIntValue("KRX_CAPTURE_SPECIAL") != 0);
+    // KRX_CAPTURE_SMT=<0|1>: the toolbar's SMT divergences (codeyoma/krx-quant#522).
+    if (qEnvironmentVariableIsSet("KRX_CAPTURE_SMT"))
+        fincept::AppConfig::instance().set(fincept::krx_quant::kSmtKey,
+                                           qEnvironmentVariableIntValue("KRX_CAPTURE_SMT") != 0);
     // KRX_CAPTURE_MAGNET=<0|1>: the drawing menu's magnet (krx-quant #224).
     if (qEnvironmentVariableIsSet("KRX_CAPTURE_MAGNET"))
         fincept::AppConfig::instance().set(fincept::krx_quant::kMagnetKey,

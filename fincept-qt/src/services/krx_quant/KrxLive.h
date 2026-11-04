@@ -33,7 +33,9 @@ namespace fincept::services {
 /// outcomes), the macro row every 5 min. The chosen symbol's special situations over the days of
 /// its bars held (krx-quant #236) every 60 s while shown, and as soon as those days change; its daily
 /// supply data over the days of the view's bars held (krx-quant #226) every 5 min while shown, and as
-/// soon as those days change. The stats of each predictor
+/// soon as those days change; while the chart shows them, its SMT divergences over the days of its bars
+/// held (codeyoma/krx-quant#522) with each chart read (a new bar close's too) and as soon as those days
+/// change. The stats of each predictor
 /// a detail window shows are read with the leaderboard, each on its own. Without the stream, the status, predictions,
 /// members and leaderboard every 5 s; the chart and the macro row as with it. While the
 /// screen is hidden only what the alerts need is read, and an address applied elsewhere.
@@ -161,6 +163,15 @@ class KrxLive : public QObject {
     /// back to the first bar held, a page at a time. None for another symbol, from an engine without
     /// them, or while the engine cannot be read.
     const QList<krx_quant::TraderMark>& trader_marks() const { return trader_marks_; }
+    /// Whether the chart shows the SMT divergences (codeyoma/krx-quant#522: the toolbar's SMT): they are
+    /// read while it does, at once when it starts to.
+    void set_smt(bool on);
+    /// The chosen symbol's SMT divergences (codeyoma/krx-quant#521) over the days of its 1-minute bars
+    /// held, the last krx_quant::kSmtDays at most, in the engine's order: read while the chart shows them,
+    /// again with each chart read (a new bar close's, whose events the engine keeps before it answers)
+    /// and as soon as those days change. Those read stay while they are not shown. None before they are
+    /// read, from an engine without them, or while the engine cannot be read.
+    const QList<krx_quant::SmtEvent>& smt() const { return smt_; }
     /// Why the engine could not be read; empty once it can.
     const QString& failure() const { return failure_; }
     /// The stream's state in Korean ("스트림 연결됨", why it is down and when it is tried again).
@@ -189,6 +200,8 @@ class KrxLive : public QObject {
     /// The chosen symbol's daily supply data, or whether the engine gives it, changed (krx-quant
     /// #226): the chart's supply indicators and the panel's list.
     void supply_changed();
+    /// The chosen symbol's SMT divergences changed (codeyoma/krx-quant#522): the chart's SMT marks.
+    void smt_changed();
     void macro_changed(const fincept::krx_quant::Macro& macro);
     void macro_failed(const QString& reason);
     void leaderboard_changed(const fincept::krx_quant::Leaderboard& leaderboard);
@@ -328,6 +341,17 @@ class KrxLive : public QObject {
     QList<krx_quant::SupplyDay> supply_;
     std::optional<std::pair<QDate, QDate>> supply_read_;  ///< the days supply_ is of
     bool supply_served_ = true;                           ///< the engine answered it (not 404)
+    /// The days whose SMT divergences the chart wants (codeyoma/krx-quant#522): from the first 1-minute
+    /// bar held to the engine's day, the last krx_quant::kSmtDays at most (what the engine answers at
+    /// once); none without a symbol or bars.
+    std::optional<std::pair<QDate, QDate>> smt_days() const;
+    /// While the chart shows them, read the chosen symbol's SMT divergences over smt_days (``always``),
+    /// or only when those days are not the ones read. Asked while one is under way, once that one answers.
+    void read_smt(bool always = true);
+    QList<krx_quant::SmtEvent> smt_;
+    std::optional<std::pair<QDate, QDate>> smt_read_;     ///< the days smt_ is of
+    bool smt_on_ = false;                                 ///< the chart shows them
+    bool smt_again_ = false;                              ///< asked again while one was under way
     int history_ = 0;                                     ///< bars of the view the indicators want
     QDateTime history_back_to_;                           ///< and the moment they reach back to
     bool whole_days_ = false;                             ///< and whole days on the first screen (the VWAP)

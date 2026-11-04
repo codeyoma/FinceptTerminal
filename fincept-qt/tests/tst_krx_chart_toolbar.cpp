@@ -7,6 +7,9 @@
 // style without a time axis, where the drawing button is off. While a tool is chosen the button
 // carries its name, and a long name that does not fit hides the labels only until the cursor is back.
 //
+// The SMT button (codeyoma/krx-quant#522) turns the SMT divergences on and off, filled while on, in the
+// 1-minute view with a time axis alone: off and unfilled in the others, which draw none.
+//
 // The keys go through Qt's shortcuts, which need an active window: the suite opens one and is
 // skipped where the platform draws nothing (offscreen) or no window becomes active.
 
@@ -200,6 +203,31 @@ class TstKrxChartToolbar : public QObject {
         QCOMPARE(button->toolButtonStyle(), Qt::ToolButtonTextBesideIcon);
         toolbar_->show_tool(std::nullopt); // drawn, or Esc: the cursor
         QCOMPARE(button->text(), QStringLiteral("그리기"));
+    }
+
+    void the_smt_button_is_the_1_minute_view_s() {
+        auto* smt = toolbar_->findChild<QToolButton*>("krxSmt");
+        QVERIFY(smt);
+        QSignalSpy toggled(toolbar_, &screens::KrxChartToolbar::smt_toggled);
+        toolbar_->show_smt(true); // shown, not toggled
+        QVERIFY(smt->isChecked() && smt->property("active").toBool());
+        QCOMPARE(toggled.count(), 0);
+        QTest::mouseClick(smt, Qt::LeftButton);
+        QCOMPARE(toggled.count(), 1);
+        QCOMPARE(toggled.first().first().toBool(), false);
+        QVERIFY(!smt->property("active").toBool());
+        toolbar_->show_smt(true);
+        toolbar_->show_view(5);
+        QVERIFY(!smt->isEnabled());
+        QVERIFY(!smt->property("active").toBool()); // not filled where none are drawn
+        toolbar_->show_view(1);
+        QVERIFY(smt->isEnabled() && smt->property("active").toBool());
+        toolbar_->show_style(ChartStyle::Renko);
+        QVERIFY(!smt->isEnabled());
+        toolbar_->show_style(ChartStyle::Candle);
+        QVERIFY(smt->isEnabled());
+        toolbar_->show_smt(false);
+        QCOMPARE(toggled.count(), 1);
     }
 
     void a_long_name_hides_the_labels_until_the_cursor() {

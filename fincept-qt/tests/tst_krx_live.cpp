@@ -17,6 +17,10 @@
 // with the chart, then back to the first bar held, a page at a time; none from an engine without them
 // (404), and none for another symbol, which never asks.
 //
+// The SMT divergences (codeyoma/krx-quant#522) are read while the chart shows them, over the days of the bars
+// held (31 at most), again with each chart read (a new bar close's), and once more after a read under way
+// when asked meanwhile; none from an engine without them (404).
+//
 // The stand-in answers the routes these reads need (status, symbols, a symbol's bars, candles
 // and predictions, and the daily supply data when a test gives it); every other route is 404, which
 // the screen shows as not read. Built
@@ -104,6 +108,23 @@ QJsonArray bars_json(const char* first, int count) {
     return out;
 }
 
+/// A live SMT divergence of 005930 and ``partner`` at ``bar_close``, ``direction`` "bearish" or "bullish", as
+/// the engine sends it (codeyoma/krx-quant#521).
+QJsonObject smt_json(const char* bar_close, const char* partner, const char* direction) {
+    const QDateTime close = QDateTime::fromString(QString::fromLatin1(bar_close), Qt::ISODate);
+    return {{"bar_close", close.toString(Qt::ISODate)},
+            {"bar_start", close.addSecs(-60).toString(Qt::ISODate)},
+            {"a", kSymbol},
+            {"b", partner},
+            {"direction", direction},
+            {"minutes", 15},
+            {"swept", kSymbol},
+            {"other", partner},
+            {"definition", "rolling_extreme"},
+            {"version", 1},
+            {"source", "live"}};
+}
+
 /// The engine as these reads see it: each GET answered from its route, the paths asked kept.
 class StandIn : public QObject {
   public:
@@ -120,6 +141,11 @@ class StandIn : public QObject {
     /// GET /v1/symbols/005930/trader-marks (krx-quant #398): these, newest first, answered by ``before``
     /// and ``limit`` as the engine answers; none: 404, as an engine before it.
     std::optional<QList<QJsonObject>> trader;
+    /// GET /v1/symbols/005930/smt?from=&to= (codeyoma/krx-quant#521): these events whatever the days; none: 404,
+    /// as an engine before it. With ``hold_smt`` the first read is answered only by release_smt, with the
+    /// events as they were when it was asked.
+    std::optional<QJsonArray> smt;
+    bool hold_smt = false;
     QStringList asked;
 
     StandIn() {
@@ -139,6 +165,17 @@ class StandIn : public QObject {
         return std::count_if(asked.begin(), asked.end(), [](const QString& path) {
             return path.startsWith("/v1/symbols/" + kSymbol + "/supply?");
         });
+    }
+    qsizetype smt_reads() const {
+        return std::count_if(asked.begin(), asked.end(),
+                             [](const QString& path) { return path.startsWith("/v1/symbols/" + kSymbol + "/smt?"); });
+    }
+    /// Whether an SMT read is held (hold_smt).
+    bool smt_held() const { return smt_held_ != nullptr; }
+    /// Answer the SMT read held, as it would have been answered when asked.
+    void release_smt() {
+        if (QTcpSocket* socket = std::exchange(smt_held_, nullptr))
+            send(socket, 200, smt_held_body_);
     }
     /// Whether a supply read is held (hold_supply).
     bool supply_held() const { return held_ != nullptr; }
@@ -169,12 +206,23 @@ class StandIn : public QObject {
             held_path_ = path;
             return;
         }
+        if (hold_smt && smt && path.startsWith("/v1/symbols/" + kSymbol + "/smt?")) {
+            hold_smt = false; // the first alone
+            smt_held_ = socket;
+            int status = 200;
+            smt_held_body_ = QJsonDocument(answer(path, &status)).toJson(QJsonDocument::Compact);
+            return;
+        }
         respond(socket, path);
     }
 
     void respond(QTcpSocket* socket, const QString& path) {
         int status = 200;
         const QByteArray body = QJsonDocument(answer(path, &status)).toJson(QJsonDocument::Compact);
+        send(socket, status, body);
+    }
+
+    void send(QTcpSocket* socket, int status, const QByteArray& body) {
         const QByteArray reason = status == 200 ? " OK" : status == 404 ? " Not Found" : " Internal Server Error";
         socket->write("HTTP/1.1 " + QByteArray::number(status) + reason +
                       "\r\nContent-Type: application/json\r\nContent-Length: " + QByteArray::number(body.size()) +
@@ -227,6 +275,8 @@ class StandIn : public QObject {
         }
         if (supply && path.startsWith("/v1/symbols/" + kSymbol + "/supply?"))
             return {{"symbol", kSymbol}, {"days", *supply}};
+        if (smt && path.startsWith("/v1/symbols/" + kSymbol + "/smt?"))
+            return {{"symbol", kSymbol}, {"events", *smt}};
         if (path.startsWith("/v1/symbols/" + kSymbol + "/candles")) {
             const QJsonArray candles{QJsonObject{{"date", "2026-10-15"}, {"open", 210000}, {"high", 211000},
                                                  {"low", 206000}, {"close", 207500}, {"volume", 15000000}}};
@@ -241,6 +291,8 @@ class StandIn : public QObject {
     QTcpServer server_;
     QTcpSocket* held_ = nullptr; ///< a supply read not answered yet (hold_supply)
     QString held_path_;
+    QTcpSocket* smt_held_ = nullptr; ///< an SMT read not answered yet (hold_smt)
+    QByteArray smt_held_body_;       ///< its answer, as it was when asked
 };
 
 } // namespace
@@ -522,6 +574,82 @@ class TstKrxLive : public QObject {
         QTest::qWait(300);
         QVERIFY(!engine.asked_for("/v1/symbols/" + engine.other + "/trader-marks"));
         QVERIFY(live.trader_marks().isEmpty());
+    }
+
+    void the_smt_divergences_are_read_while_shown_and_again_with_each_chart_read() {
+        // codeyoma/krx-quant#522, made-up events: not read until the chart shows them; then over the days of the
+        // bars held, and again with each chart read, which a new bar close brings (the engine keeps that bar
+        // close's events before the stream tells it). Turned off, those read stay and no more are read.
+        StandIn engine;
+        engine.now = "2026-10-16T09:20:00+09:00";
+        engine.today = bars_json("2026-10-16T09:00:00+09:00", 20);
+        engine.smt = QJsonArray{smt_json("2026-10-16T09:16:00+09:00", "000660", "bearish")};
+        services::KrxLive live;
+        live.set_view(1);
+        live.apply_base_url(engine.url());
+        QTRY_COMPARE_WITH_TIMEOUT(live.bars().size(), qsizetype(20), 10000);
+        // The special situations of the days held are asked along with them (krx-quant #236).
+        QTRY_VERIFY_WITH_TIMEOUT(engine.asked_for("/v1/symbols/" + kSymbol + "/special?"), 10000);
+        QTest::qWait(300); // any other read under way asked
+        QCOMPARE(engine.smt_reads(), 0);
+
+        live.set_smt(true);
+        QTRY_COMPARE_WITH_TIMEOUT(live.smt().size(), qsizetype(1), 10000);
+        QVERIFY2(engine.asked_for("/v1/symbols/" + kSymbol + "/smt?from=2026-10-16&to=2026-10-16"),
+                 qPrintable(engine.asked.join(' ')));
+        QVERIFY(live.smt().first().bearish);
+        QCOMPARE(live.smt().first().b, QStringLiteral("000660"));
+
+        engine.smt->append(smt_json("2026-10-16T09:21:00+09:00", "KOSPI200F", "bullish")); // the 09:21 bar close's
+        live.set_shown(true); // a chart read, as a new bar close's
+        QTRY_COMPARE_WITH_TIMEOUT(live.smt().size(), qsizetype(2), 10000);
+        QVERIFY(!live.smt().last().bearish);
+
+        live.set_smt(false);
+        const auto bar_reads = [&engine]() { return engine.asked.count(kBarsPath); };
+        const auto chart_reads = bar_reads();
+        const auto smt_reads = engine.smt_reads();
+        live.set_shown(true);
+        QTRY_VERIFY_WITH_TIMEOUT(bar_reads() > chart_reads, 10000);
+        QTest::qWait(300);
+        QCOMPARE(engine.smt_reads(), smt_reads);
+        QCOMPARE(live.smt().size(), qsizetype(2));
+    }
+
+    void an_smt_read_asked_while_one_is_under_way_is_read_once_it_answers() {
+        // codeyoma/krx-quant#522: a chart read (a new bar close's) while an SMT read is under way. That one was
+        // asked before the new events; they are read once it answers, not a bar close later.
+        StandIn engine;
+        engine.now = "2026-10-16T09:20:00+09:00";
+        engine.today = bars_json("2026-10-16T09:00:00+09:00", 20);
+        engine.smt = QJsonArray{smt_json("2026-10-16T09:16:00+09:00", "000660", "bearish")};
+        engine.hold_smt = true;
+        services::KrxLive live;
+        live.set_view(1);
+        live.set_smt(true);
+        live.apply_base_url(engine.url());
+        QTRY_VERIFY_WITH_TIMEOUT(engine.smt_held(), 10000);
+        engine.smt->append(smt_json("2026-10-16T09:21:00+09:00", "KOSPI200F", "bullish"));
+        live.set_shown(true); // the chart read meanwhile
+        engine.release_smt(); // the one under way: as it was, one event
+        QTRY_COMPARE_WITH_TIMEOUT(live.smt().size(), qsizetype(2), 10000);
+    }
+
+    void the_smt_days_are_the_last_31_held_and_an_engine_without_them_has_none() {
+        // codeyoma/krx-quant#521: the engine answers 31 days at most; bars held from 09-01 are asked from 09-16.
+        // An engine before it answers 404: none, and no failure shown.
+        StandIn old;
+        old.now = "2026-10-16T09:20:00+09:00";
+        old.today = bars_json("2026-09-01T09:00:00+09:00", 20);
+        services::KrxLive live;
+        live.set_view(1);
+        live.set_smt(true);
+        live.apply_base_url(old.url());
+        QTRY_VERIFY2_WITH_TIMEOUT(old.asked_for("/v1/symbols/" + kSymbol + "/smt?from=2026-09-16&to=2026-10-16"),
+                                  qPrintable(old.asked.join(' ')), 10000);
+        QTest::qWait(300);
+        QVERIFY(live.smt().isEmpty());
+        QVERIFY(live.failure().isEmpty());
     }
 
     void a_bar_window_reads_its_bar_until_nothing_more_comes() {

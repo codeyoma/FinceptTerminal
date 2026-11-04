@@ -9,8 +9,8 @@
   without a time axis, a slot each, named by when each ended), a minute view's empty bars (a slot
   without trades between two bars of a day: whitespace, no candle and no volume, #236) and the
   special situations' bands over every pane with their names (#236), the days' first bars filled,
-  the consensus icons, each bar's hover box and its four-minute window with two levels across it
-  (the touch targets, the range's highest and lowest mid-points, or the barrier's U and L), the
+  the consensus icons, the SMT divergences' marks (#522), each bar's hover box and its four-minute
+  window with two levels across it (the touch targets, the range's highest and lowest mid-points, or the barrier's U and L), the
   indicators (their lines, the fills between two, the fractals' marks, the volume profile's bars,
   the anchored VWAP's marker; below the prices a pane per lower indicator, the volume's among
   them, with its guide lines) with each pane's legend (the price pane's first row the bar's own prices
@@ -371,10 +371,11 @@
   }
 
   let main = null;  // the price series
-  let icons = null; // its markers: the consensus icons, the fractals and the trader's buys and sells
+  let icons = null; // its markers: the consensus icons, the fractals, the trader's buys and sells and the SMT marks
   let iconMarks = []; // the consensus icons as markers
   let studyMarks = []; // the fractals as markers (krx-quant #222)
   let tradeMarks = []; // the trader's buys and sells as markers (krx-quant #398)
+  let smtMarks = []; // the SMT divergences as markers (codeyoma/krx-quant#522)
   // The indicators (krx-quant #222, #223): a series each, in the price pane or a lower one, kept by
   // id while the screen sends them again; the fills, the fractals, the volume profile and the
   // anchor are layers. id -> {series, pane (a lower pane; null: the prices'), histogram, decimals,
@@ -726,8 +727,9 @@
   let hoverAt = new Map(); // time -> hover box (krx-quant #159)
   let hovered = null;      // the bar hovered: {time, x}, kept while the data is sent again
   function showMarks() {
-    // On one bar the consensus's icon sits nearest it, the trader's sell over it (krx-quant #398).
-    const all = iconMarks.concat(studyMarks, tradeMarks);
+    // On one bar the consensus's icon sits nearest it, the trader's sell over it (krx-quant #398), and
+    // an SMT mark past them (codeyoma/krx-quant#522).
+    const all = iconMarks.concat(studyMarks, tradeMarks, smtMarks);
     all.sort((a, b) => a.time - b.time);
     icons.setMarkers(all);
   }
@@ -771,6 +773,12 @@
     // A click on one is its bar's (its id is no icon's): the screen pins that bar close.
     tradeMarks = (data.trades || []).map((t) => ({
       id: t.id, time: t.time, position: t.position, shape: t.shape, color: t.color, size: 1, text: t.text,
+    }));
+    // An SMT mark (codeyoma/krx-quant#522) is its triangle alone: a marker of size 0 draws no shape, only its
+    // text (▼ ▲ filled, ▽ △ hollow), stacked with the others. A click on one is its bar's, as a trade's.
+    smtMarks = (data.smt || []).map((m) => ({
+      id: m.id, time: m.time, position: m.position, shape: m.position === 'aboveBar' ? 'arrowDown' : 'arrowUp',
+      color: m.color, size: 0, text: m.text,
     }));
     showStudies(data.studies || {}, data.profile || {});
     fitRange = data.fit;
@@ -2113,7 +2121,8 @@
     // The icons drawn: each one's time, shape and text (krx-quant #264: a daily kind's on the day view).
     icons: function () { return iconMarks.map((m) => [m.time, m.shape, m.text]); },
     // Every marker on the price series as drawn, in order: time, position, shape, text, colour
-    // (krx-quant #398: the consensus's icons, the fractals and the trader's buys and sells together).
+    // (krx-quant #398: the consensus's icons, the fractals and the trader's buys and sells together; the SMT
+    // marks too, codeyoma/krx-quant#522).
     markers: function () {
       return icons.markers().map((m) => [m.time, m.position, m.shape, m.text || '', m.color]);
     },

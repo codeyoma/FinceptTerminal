@@ -231,6 +231,35 @@ QString trader_line(const TraderMark& mark);
 /// order; a bar without a box gets one of its lines alone.
 QList<BarHover> with_trader_lines(QList<BarHover> hovers, const QList<TraderMark>& marks);
 
+// ---- The SMT divergences (codeyoma/krx-quant#522) -------------------------------------------
+
+/// The most days of SMT divergences the engine gives in one answer (codeyoma/krx-quant#521: more is 400).
+inline constexpr int kSmtDays = 31;
+
+/// An SMT mark as the chart draws it, on the 1-minute bar of an episode's first bar close: bearish ▼
+/// over the bar, bullish ▲ under it; filled for the events the engine judged at the bar close (live),
+/// hollow for those worked out again later (reconstructed). The events of several pairs and Ls in one
+/// direction on one bar share a mark.
+struct SmtIcon {
+    qint64 time = 0; ///< the bar's start, as chart_time
+    bool bearish = true;
+    bool live = true; ///< all of the bar's events in that direction were the engine's live ones
+    bool operator==(const SmtIcon&) const = default;
+};
+
+/// The marks of ``events``, one per bar and direction, in time order (bullish first on one bar).
+QList<SmtIcon> smt_icons(const QList<SmtEvent>& events);
+
+/// An event's line in its bar's hover box on the chart of ``symbol``: its direction, the other of the pair
+/// (상대), L, the one that went past its high or low, and where it came from: "하락 SMT · 상대 000660 · L
+/// 15분 · 고점을 넘은 쪽 005930 · 장중", "상승 SMT · 상대 KOSPI200 선물 · L 30분 · 저점을 넘은 쪽
+/// KOSPI200 선물 · 재구성".
+QString smt_line(const SmtEvent& event, const QString& symbol);
+
+/// ``hovers`` (the 1-minute bars' boxes) with each of ``events``' lines last in its bar's box, in the
+/// engine's order; a bar without a box gets one of its lines alone.
+QList<BarHover> with_smt_lines(QList<BarHover> hovers, const QList<SmtEvent>& events, const QString& symbol);
+
 /// A row of a bar close's judgements, the prediction table's while an icon is chosen
 /// (krx-quant #107).
 struct CloseRow {

@@ -397,6 +397,34 @@ Result<QList<SpecialWindow>> parse_special(const QJsonDocument& doc) {
     return Result<QList<SpecialWindow>>::ok(windows);
 }
 
+Result<QList<SmtEvent>> parse_smt(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<QList<SmtEvent>>::err(obj.error());
+    QList<SmtEvent> events;
+    for (const auto& v : obj.value().value("events").toArray()) {
+        const QJsonObject e = v.toObject();
+        const QString direction = e.value("direction").toString();
+        SmtEvent event;
+        event.bar_close = time_of(e.value("bar_close"));
+        event.bar_start = time_of(e.value("bar_start"));
+        if (!event.bar_start.isValid() && event.bar_close.isValid())
+            event.bar_start = event.bar_close.addSecs(-60);
+        event.a = e.value("a").toString();
+        event.b = e.value("b").toString();
+        event.bearish = direction == QLatin1String("bearish");
+        event.minutes = e.value("minutes").toInt();
+        event.swept = e.value("swept").toString();
+        event.other = e.value("other").toString();
+        event.source = e.value("source").toString();
+        if (!event.bar_close.isValid() || event.a.isEmpty() || event.b.isEmpty() || event.minutes <= 0 ||
+            (direction != QLatin1String("bearish") && direction != QLatin1String("bullish")))
+            continue;
+        events.push_back(event);
+    }
+    return Result<QList<SmtEvent>>::ok(events);
+}
+
 Result<QList<TraderMark>> parse_trader_marks(const QJsonDocument& doc) {
     const auto obj = object_of(doc);
     if (obj.is_err())

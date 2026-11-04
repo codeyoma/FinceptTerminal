@@ -22,7 +22,8 @@ namespace fincept::screens {
 /// The row above the KRX chart (krx-quant #220, #221): the minute views in a drop-down, the
 /// day, week, month and year buttons, the chart style's menu, the indicators button (#222: it
 /// asks the screen to open the indicators panel) and the drawing menu (#224: the twelve tools and
-/// the magnet), and at the right end the trash (#224: the symbol's drawings, all of them) and the
+/// the magnet), and at the right end the SMT divergences' toggle (codeyoma/krx-quant#522), the trash
+/// (#224: the symbol's drawings, all of them) and the
 /// options menu with the day separators, the special situations' bands (#236) and, while a style
 /// without a time axis is shown (#225), its size. It only shows what the screen says and tells it
 /// what was picked; the screen keeps the choices. While a tool is chosen the drawing button is
@@ -39,6 +40,9 @@ class KrxChartToolbar : public QWidget {
     void show_day_separator(bool on);
     /// Whether the special situations' bands are shown (krx-quant #236): the options menu's check.
     void show_special(bool on);
+    /// Whether the SMT divergences are shown (codeyoma/krx-quant#522): the SMT button filled while on, in
+    /// the 1-minute view with a time axis (off and dimmed in the others, which draw none).
+    void show_smt(bool on);
     /// The size of the style shown when it has no time axis (krx-quant #225): the one the symbol set
     /// (``kept``; none: the default) and ATR(14) of the view's bars (``atr``; none: not counted yet),
     /// in the options menu below the day separators. Hidden for a style with a time axis.
@@ -66,6 +70,8 @@ class KrxChartToolbar : public QWidget {
     void day_separator_toggled(bool on);
     /// The options menu's `특수 상황 표시` (krx-quant #236): the special situations' bands on or off.
     void special_toggled(bool on);
+    /// The SMT button (codeyoma/krx-quant#522): the SMT divergences on or off.
+    void smt_toggled(bool on);
     /// A size set for ``style``, a style without a time axis (krx-quant #225), in the options menu:
     /// won, or the line break's lines; 0: back to its default (ATR(14), 3 lines).
     void brick_size_chosen(krx_quant::ChartStyle style, double size);
@@ -90,16 +96,16 @@ class KrxChartToolbar : public QWidget {
     void fit_labels();
     /// The indicators and drawing buttons' labels shown, or icons only.
     void show_labels(bool on);
-    /// The left group from the left end, cut off where the right group (trash, options) starts.
+    /// The left group from the left end, cut off where the right group (SMT, trash, options) starts.
     void place();
     void paint_icons();
     /// The day separators' item and the special situations' (krx-quant #236): on in a minute view
-    /// with a time axis.
+    /// with a time axis. The SMT button (codeyoma/krx-quant#522): on in the 1-minute view with one.
     void show_day_separator_state();
 
     QWidget* left_clip_ = nullptr;   ///< clips the left group
     QWidget* left_ = nullptr;        ///< the views, the style, the indicators and drawing buttons
-    QWidget* right_ = nullptr;       ///< the trash and the options
+    QWidget* right_ = nullptr;       ///< the SMT toggle, the trash and the options
     QToolButton* minutes_ = nullptr; ///< the minute views' drop-down, labelled with the last one picked
     QMenu* minutes_menu_ = nullptr;
     QList<QPushButton*> candle_buttons_; ///< 일 주 월 년 (property "view")
@@ -113,6 +119,7 @@ class KrxChartToolbar : public QWidget {
     QToolButton* options_ = nullptr;
     QAction* day_separator_ = nullptr;
     QAction* special_ = nullptr;         ///< the special situations' bands (krx-quant #236)
+    QToolButton* smt_ = nullptr;         ///< the SMT divergences (codeyoma/krx-quant#522), checked while on
     QAction* brick_divider_ = nullptr;   ///< above the size, while a style without a time axis is shown
     QWidgetAction* brick_row_ = nullptr; ///< its size (krx-quant #225)
     QLabel* brick_title_ = nullptr;

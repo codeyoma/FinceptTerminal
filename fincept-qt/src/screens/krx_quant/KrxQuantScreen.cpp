@@ -186,14 +186,17 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
             [](bool log) { AppConfig::instance().set(krx_quant::kLogScaleKey, log); });
     // The row above the chart (krx-quant #220, #221): the minute views' drop-down, the day, week,
     // month and year buttons, the chart style, and the options. Each symbol keeps its view and
-    // style; the day separators and the special situations' bands (krx-quant #236) are every symbol's.
+    // style; the day separators, the special situations' bands (krx-quant #236) and the SMT divergences
+    // (codeyoma/krx-quant#522) are every symbol's.
     chart_toolbar_ = new KrxChartToolbar;
     look_.day_separator = AppConfig::instance().get(krx_quant::kDaySeparatorKey, true).toBool();
     look_.special = AppConfig::instance().get(krx_quant::kSpecialKey, true).toBool();
+    look_.smt = AppConfig::instance().get(krx_quant::kSmtKey, false).toBool();
     chart_toolbar_->show_view(minutes_);
     chart_toolbar_->show_style(look_.style);
     chart_toolbar_->show_day_separator(look_.day_separator);
     chart_toolbar_->show_special(look_.special);
+    chart_toolbar_->show_smt(look_.smt);
     connect(chart_toolbar_, &KrxChartToolbar::view_chosen, this, &KrxQuantScreen::set_view);
     connect(chart_toolbar_, &KrxChartToolbar::style_chosen, this, &KrxQuantScreen::set_style);
     // The size of a style without a time axis (krx-quant #225), set in the options menu for the
@@ -211,6 +214,12 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     connect(chart_toolbar_, &KrxChartToolbar::special_toggled, this, [this](bool on) {
         look_.special = on;
         AppConfig::instance().set(krx_quant::kSpecialKey, on);
+        fill_chart();
+    });
+    connect(chart_toolbar_, &KrxChartToolbar::smt_toggled, this, [this](bool on) {
+        look_.smt = on;
+        AppConfig::instance().set(krx_quant::kSmtKey, on);
+        live_->set_smt(on); // read while shown
         fill_chart();
     });
     // The indicators (krx-quant #222): their panel under the toolbar's button, and the legend's
@@ -380,8 +389,10 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     chart_soon_->setInterval(kChartSettleMs);
     connect(chart_soon_, &QTimer::timeout, this, &KrxQuantScreen::fill_chart);
     connect(live_, &services::KrxLive::marks_changed, chart_soon_, qOverload<>(&QTimer::start));
-    // The special situations' bands (krx-quant #236) with the next drawing.
+    // The special situations' bands (krx-quant #236) with the next drawing, and the SMT divergences
+    // (codeyoma/krx-quant#522).
     connect(live_, &services::KrxLive::special_changed, chart_soon_, qOverload<>(&QTimer::start));
+    connect(live_, &services::KrxLive::smt_changed, chart_soon_, qOverload<>(&QTimer::start));
     // The daily supply data (krx-quant #226) with the next drawing; an engine without it greys its
     // indicators in the panel.
     connect(live_, &services::KrxLive::supply_changed, this, [this]() {
@@ -527,6 +538,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     const QStringList selection = krx_quant::parse_selection(AppConfig::instance().get(kChartSelectionKey).toString());
     leaderboard_->set_selection(selection);
     live_->set_selection(selection);
+    live_->set_smt(look_.smt); // the SMT divergences read while the chart shows them (codeyoma/krx-quant#522)
     live_->start(); // from now on, even before the screen is first shown: the signal alerts
 }
 
@@ -1245,13 +1257,18 @@ void KrxQuantScreen::fill_chart() {
     // symbol (KrxLive reads them for it alone), each with its line last in its bar's box.
     const QList<krx_quant::TraderMark> traded =
         minutes_ == 1 && !bricks ? live_->trader_marks() : QList<krx_quant::TraderMark>{};
-    const QList<krx_quant::BarHover> hovers = krx_quant::with_trader_lines(
-        daily_days       ? krx_quant::daily_hovers(shown_bars, closes, *kind, live_->kind_standings())
-        : minutes_ != 1  ? QList<krx_quant::BarHover>{}
-        : kind && !daily ? krx_quant::kind_hovers(live_->bars(), closes, *kind, live_->kind_standings())
-                         : krx_quant::bar_hovers(live_->bars(), live_->board().closes(symbol), live_->selection(),
-                                                 live_->standings(), rule),
-        traded);
+    // The SMT divergences (codeyoma/krx-quant#522) while shown: likewise, each with its line last in its bar's box.
+    const QList<krx_quant::SmtEvent> smt =
+        look_.smt && minutes_ == 1 && !bricks ? live_->smt() : QList<krx_quant::SmtEvent>{};
+    const QList<krx_quant::BarHover> hovers = krx_quant::with_smt_lines(
+        krx_quant::with_trader_lines(
+            daily_days       ? krx_quant::daily_hovers(shown_bars, closes, *kind, live_->kind_standings())
+            : minutes_ != 1  ? QList<krx_quant::BarHover>{}
+            : kind && !daily ? krx_quant::kind_hovers(live_->bars(), closes, *kind, live_->kind_standings())
+                             : krx_quant::bar_hovers(live_->bars(), live_->board().closes(symbol), live_->selection(),
+                                                     live_->standings(), rule),
+            traded),
+        smt, symbol);
     const QList<krx_quant::ChartIcon> day_icons =
         daily_days ? krx_quant::daily_icons(shown_bars, closes, *kind) : QList<krx_quant::ChartIcon>{};
     // Nothing before the first bar held in this view: its first day's VWAP is drawn, and the AD
@@ -1264,7 +1281,7 @@ void KrxQuantScreen::fill_chart() {
     const auto clock = krx_quant::session_clock(live_->status(), live_->engine_now());
     clock_slot_drawn_ = krx_quant::clock_slot(clock, minutes_);
     chart_->set_data(shown_bars, marks, hovers, rule, minutes_, look_, live_->special(), clock, day_icons,
-                     krx_quant::trader_icons(traded));
+                     krx_quant::trader_icons(traded), krx_quant::smt_icons(smt));
     show_score();
 }
 
