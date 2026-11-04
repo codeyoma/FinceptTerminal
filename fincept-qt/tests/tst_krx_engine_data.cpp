@@ -457,6 +457,49 @@ class TstKrxEngineData : public QObject {
         QVERIFY(parse_trader_marks(json(R"({"error": "unknown symbol"})")).is_err());
     }
 
+    void the_smt_divergences_are_read() {
+        // GET /v1/symbols/{symbol}/smt (codeyoma/krx-quant#521), as the demo engine answers it: the engine's
+        // order kept, a live event and a reconstructed one; an event without its bar close, pair or L, or of
+        // a direction not known, is dropped; one without its bar's start has the minute before its close.
+        const auto read = parse_smt(json(R"json({"symbol": "005930", "from": "2026-10-06", "to": "2026-10-12",
+          "pairs": [{"a": "005930", "b": "000660"}, {"a": "005930", "b": "KOSPI200F"}],
+          "days": [{"date": "2026-10-07", "source": "reconstructed", "bars": "backfilled"},
+                   {"date": "2026-10-12", "source": "live", "bars": null}],
+          "events": [
+            {"bar_close": "2026-10-07T14:21:00+09:00", "bar_start": "2026-10-07T14:20:00+09:00", "a": "005930",
+             "b": "000660", "direction": "bullish", "minutes": 15, "swept": "000660", "other": "005930",
+             "swept_extreme_at": "2026-10-07T14:19:00+09:00", "other_extreme_at": "2026-10-07T14:12:00+09:00",
+             "definition": "rolling_extreme", "version": 1, "source": "reconstructed"},
+            {"bar_close": null, "bar_start": "2026-10-12T10:00:00+09:00", "a": "005930", "b": "000660",
+             "direction": "bearish", "minutes": 15, "swept": "005930", "other": "000660", "source": "live"},
+            {"bar_close": "2026-10-12T10:01:00+09:00", "a": "005930", "b": "000660", "direction": "both",
+             "minutes": 15, "swept": "005930", "other": "000660", "source": "live"},
+            {"bar_close": "2026-10-12T10:02:00+09:00", "a": "005930", "direction": "bearish", "minutes": 15,
+             "swept": "005930", "other": "000660", "source": "live"},
+            {"bar_close": "2026-10-12T10:03:00+09:00", "a": "005930", "b": "000660", "direction": "bearish",
+             "swept": "005930", "other": "000660", "source": "live"},
+            {"bar_close": "2026-10-12T10:30:00+09:00", "a": "005930", "b": "KOSPI200F", "direction": "bearish",
+             "minutes": 30, "swept": "005930", "other": "KOSPI200F", "swept_extreme_at": null,
+             "other_extreme_at": null, "definition": "rolling_extreme", "version": 1, "source": "live"}
+          ]})json"));
+        QVERIFY(read.is_ok());
+        const auto& events = read.value();
+        QCOMPARE(events.size(), 2);
+        QCOMPARE(events[0], (SmtEvent{QDateTime::fromString("2026-10-07T14:21:00+09:00", Qt::ISODate),
+                                      QDateTime::fromString("2026-10-07T14:20:00+09:00", Qt::ISODate), "005930",
+                                      "000660", false, 15, "000660", "005930", "reconstructed"}));
+        QCOMPARE(events[1].bar_start, QDateTime::fromString("2026-10-12T10:29:00+09:00", Qt::ISODate));
+        QVERIFY(events[1].bearish);
+        QCOMPARE(events[1].minutes, 30);
+        QCOMPARE(events[1].b, QStringLiteral("KOSPI200F"));
+        QCOMPARE(events[1].swept, QStringLiteral("005930"));
+        QCOMPARE(events[1].other, QStringLiteral("KOSPI200F"));
+        QCOMPARE(events[1].source, QStringLiteral("live"));
+        // A symbol in no pair (009150) has none, and the engine's error.
+        QVERIFY(parse_smt(json(R"({"symbol": "009150", "pairs": [], "days": [], "events": []})")).value().isEmpty());
+        QVERIFY(parse_smt(json(R"({"error": "from is after to"})")).is_err());
+    }
+
     void a_symbols_daily_supply_data_is_read() {
         // GET /v1/symbols/{symbol}/supply (krx-quant #226): eight fields a day, a null one none, kept
         // oldest first; a day without a date dropped. Made-up values.

@@ -51,6 +51,10 @@
 // same bar: a buy under the bar, a sell over the icon, the live account's in another colour than paper's;
 // one on no bar drawn, and every one in a wider view, is not drawn.
 //
+// The SMT divergences (codeyoma/krx-quant#522) show on the 1-minute view while on: a bearish one's ▼ over the
+// consensus's icon and the trader's there, a bullish one's ▲ under the bar, hollow (▽ △) for those worked out
+// again, in a colour of their own, each event's line in its bar's box; none while off or in a wider view.
+//
 // The page runs in Qt WebEngine with TradingView Lightweight Charts, so this suite opens a
 // window. It is skipped where the WebEngine runtime is missing or the platform draws nothing
 // (offscreen).
@@ -858,6 +862,77 @@ class TstKrxChartPage : public QObject {
         QVERIFY(paper != at_ten[0].value(4).toString() && live != at_ten[0].value(4).toString());
         // A wider view has neither the icons nor the trader's.
         chart_->set_data(morning, {icon}, {}, {}, 5, {}, {}, std::nullopt, {}, trades);
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.markers().length").toInt(), 0, 10000);
+    }
+
+    void the_smt_divergences_show_over_and_under_their_bars_past_the_other_marks() {
+        // codeyoma/krx-quant#522: on the 09:10 bar the consensus's icon, the trader's sell, a bearish SMT ▼ over
+        // them and a bullish one ▲ under the bar; on 09:20 a reconstructed bearish one, hollow ▽; one on no bar
+        // drawn is not. Each event's line is in its bar's box. Turned off, or in a wider view, none.
+        empty();
+        const QList<Bar> morning = minutes("2026-10-15T09:00:00+09:00", 30);
+        const qint64 ten = chart_time(kst("2026-10-15T09:10:00+09:00"));
+        Mark icon;
+        icon.bar_close = kst("2026-10-15T09:11:00+09:00");
+        icon.predicted = Direction::Down;
+        icon.prediction.algorithm = QStringLiteral("consensus-final");
+        const QList<TraderIcon> trades{{ten, false, false, QStringLiteral("t1s")}};
+        const auto event = [](const char* bar_close, const char* partner, bool bearish, const char* source) {
+            SmtEvent e;
+            e.bar_close = kst(bar_close);
+            e.bar_start = e.bar_close.addSecs(-60);
+            e.a = QStringLiteral("005930");
+            e.b = QString::fromLatin1(partner);
+            e.bearish = bearish;
+            e.minutes = 15;
+            e.swept = e.a;
+            e.other = e.b;
+            e.source = QString::fromLatin1(source);
+            return e;
+        };
+        const QList<SmtEvent> events{event("2026-10-15T09:11:00+09:00", "000660", true, "live"),
+                                     event("2026-10-15T09:11:00+09:00", "KOSPI200F", false, "live"),
+                                     event("2026-10-15T09:21:00+09:00", "000660", true, "reconstructed"),
+                                     event("2026-10-15T10:31:00+09:00", "000660", true, "live")}; // no bar there
+        const QList<BarHover> hovers = with_smt_lines({}, events, QStringLiteral("005930"));
+        ChartLook look;
+        look.smt = true;
+        chart_->set_data(morning, {icon}, hovers, {}, 1, look, {}, std::nullopt, {}, trades, smt_icons(events));
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.markers().length").toInt(), 5, 10000);
+        QList<QVariantList> at_ten; // [time, position, shape, text, colour], as drawn
+        QVariantList at_twenty;
+        for (const QVariant& m : js("window.krxChart.markers()").toList()) {
+            const QVariantList marker = m.toList();
+            if (marker.value(0).toLongLong() == ten)
+                at_ten << marker;
+            else
+                at_twenty = marker;
+        }
+        QCOMPARE(at_ten.size(), 4);                                      // none hides another
+        QCOMPARE(at_ten[0].value(3).toString(), QStringLiteral("?"));    // the icon, nearest its bar
+        QCOMPARE(at_ten[1].value(3).toString(), QStringLiteral("매도")); // the trader's sell over it
+        QCOMPARE(at_ten[2].mid(1, 1) + at_ten[2].mid(3, 1), (QVariantList{"belowBar", QStringLiteral("▲")}));
+        QCOMPARE(at_ten[3].mid(1, 1) + at_ten[3].mid(3, 1), (QVariantList{"aboveBar", QStringLiteral("▼")}));
+        QCOMPARE(at_twenty.value(0).toLongLong(), chart_time(kst("2026-10-15T09:20:00+09:00")));
+        QCOMPARE(at_twenty.mid(1, 1) + at_twenty.mid(3, 1), (QVariantList{"aboveBar", QStringLiteral("▽")}));
+        const QString smt_colour = at_ten[3].value(4).toString();
+        QCOMPARE(at_ten[2].value(4).toString(), smt_colour);
+        QVERIFY2(smt_colour != at_ten[0].value(4).toString() && smt_colour != at_ten[1].value(4).toString(),
+                 qPrintable(smt_colour));
+        // Its box: the two events' lines.
+        hover_at(ten);
+        QTRY_VERIFY_WITH_TIMEOUT(
+            js("window.krxChart.tip()")
+                .toString()
+                .contains(QStringLiteral("하락 SMT · 상대 000660 · L 15분 · 고점을 넘은 쪽 005930 · 장중")),
+            10000);
+        QVERIFY(js("window.krxChart.tip()").toString().contains(QStringLiteral("상승 SMT · 상대 KOSPI200 선물")));
+        // Off: the icon and the trader's alone. A wider view: none.
+        look.smt = false;
+        chart_->set_data(morning, {icon}, {}, {}, 1, look, {}, std::nullopt, {}, trades, smt_icons(events));
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.markers().length").toInt(), 2, 10000);
+        look.smt = true;
+        chart_->set_data(morning, {icon}, {}, {}, 5, look, {}, std::nullopt, {}, trades, smt_icons(events));
         QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.markers().length").toInt(), 0, 10000);
     }
 

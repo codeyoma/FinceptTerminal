@@ -381,7 +381,7 @@ void repolish(QWidget* widget) {
 
 KrxChartToolbar::KrxChartToolbar(QWidget* parent) : QWidget(parent) {
     // Its width never widens the chart's panel: a narrow one drops the labels, then cuts the
-    // left group off at its right end. The trash and the options stay at the right end.
+    // left group off at its right end. The SMT toggle, the trash and the options stay at the right end.
     setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
     left_clip_ = new QWidget(this);
     left_ = new QWidget(left_clip_);
@@ -505,6 +505,19 @@ KrxChartToolbar::KrxChartToolbar(QWidget* parent) : QWidget(parent) {
         row->addWidget(button);
     }
 
+    // The SMT divergences (codeyoma/krx-quant#522): every symbol's, filled while on. At the right end, so a
+    // narrow panel that cuts the left group off still shows it.
+    smt_ = new QToolButton;
+    smt_->setObjectName("krxSmt");
+    smt_->setText(tr("SMT"));
+    smt_->setCheckable(true);
+    smt_->setFocusPolicy(Qt::NoFocus);
+    connect(smt_, &QToolButton::toggled, this, [this](bool on) {
+        show_day_separator_state(); // filled while on
+        emit smt_toggled(on);
+    });
+    end->addWidget(smt_);
+
     // The symbol's drawings, all of them (krx-quant #224): the screen asks first.
     trash_ = new QToolButton;
     trash_->setObjectName("krxTrash");
@@ -595,6 +608,18 @@ void KrxChartToolbar::show_day_separator_state() {
         : candles ? tr("분봉에서만")
                   : tr("분봉에서 엔진이 아는 서킷브레이커·사이드카(시장 전체)와 이 종목의 VI 구간을 옅은 띠와 "
                        "이름표로 칠하고, 그 안의 봉 호버에 적는다."));
+    // The SMT divergences are the 1-minute view's (codeyoma/krx-quant#522), filled while on there.
+    const bool minute = view_ == 1 && !bricks;
+    smt_->setEnabled(minute);
+    smt_->setProperty("active", minute && smt_->isChecked());
+    repolish(smt_);
+    smt_->setToolTip(
+        bricks    ? tr("SMT 다이버전스: 1분 보기에서만. 시간축 없는 차트에서는 쓰지 않는다.")
+        : !minute ? tr("SMT 다이버전스: 1분 보기에서만")
+                  : tr("SMT 다이버전스. 이 종목이 든 쌍(005930·000660, 005930·KOSPI200 선물, 000660·KOSPI200 "
+                       "선물)에서 한쪽만 직전 L분(15분, 30분)의 고점이나 저점을 넘은 봉에 표시한다. 하락 SMT는 봉 "
+                       "위 ▼, 상승 SMT는 봉 아래 ▲다. 찬 표시는 엔진이 장중에 판정한 것, 속이 빈 표시(▽ △)는 지난날을 "
+                       "다시 계산한 것이다. 호버에 상대 종목, L, 넘은 쪽, 출처가 있다. 모든 종목에 하나다."));
 }
 
 void KrxChartToolbar::show_brick_size(std::optional<double> kept, std::optional<double> atr) {
@@ -735,6 +760,14 @@ void KrxChartToolbar::show_day_separator(bool on) {
 void KrxChartToolbar::show_special(bool on) {
     const QSignalBlocker quiet(special_); // shown, not toggled
     special_->setChecked(on);
+}
+
+void KrxChartToolbar::show_smt(bool on) {
+    {
+        const QSignalBlocker quiet(smt_); // shown, not toggled
+        smt_->setChecked(on);
+    }
+    show_day_separator_state();
 }
 
 void KrxChartToolbar::paint_icons() {

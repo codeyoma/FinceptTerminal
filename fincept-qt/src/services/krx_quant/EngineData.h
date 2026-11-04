@@ -460,6 +460,23 @@ struct TraderMark {
     bool operator==(const TraderMark&) const = default;
 };
 
+/// An SMT divergence (codeyoma/krx-quant#519, #521): at a bar close, one of a pair went past its high
+/// (bearish) or low (bullish) of the last L minutes and the other did not, as the chart marks it (GET
+/// /v1/symbols/{symbol}/smt). The episode's first bar close alone: the bars after it in the same pair,
+/// direction and L are not another.
+struct SmtEvent {
+    QDateTime bar_close; ///< the episode's first bar close
+    QDateTime bar_start; ///< the 1-minute bar that closed then, which the chart marks
+    QString a;           ///< the pair, in the engine's order: 005930·000660, 005930·KOSPI200F, 000660·KOSPI200F
+    QString b;
+    bool bearish = true; ///< "bearish" (past the high); false: "bullish" (past the low)
+    int minutes = 0;     ///< L: how far back its high or low is taken (15 or 30)
+    QString swept;       ///< the one of a and b that went past it
+    QString other;       ///< the one that did not
+    QString source;      ///< "live" (judged at the bar close) or "reconstructed" (worked out again later)
+    bool operator==(const SmtEvent&) const = default;
+};
+
 /// A loss limit of the trader (codeyoma/krx-quant#396): its share of the capital in percent and in
 /// won, how much of it the P&L uses now (0: no loss, 1: all of it), and when it was reached if it
 /// holds now.
@@ -992,6 +1009,11 @@ Result<QList<Bar>> parse_bars(const QJsonDocument& doc); ///< GET /v1/symbols/{s
 /// GET /v1/symbols/{symbol}/trader-marks (krx-quant #398): newest first, as the engine sends them; a
 /// mark without its trade, side or time is dropped.
 Result<QList<TraderMark>> parse_trader_marks(const QJsonDocument& doc);
+/// GET /v1/symbols/{symbol}/smt?from=&to= (codeyoma/krx-quant#521): the SMT divergences of the pairs the
+/// symbol is in over those days, in the engine's order (bar close, pair, L, direction). An event without
+/// its bar close, pair, L or a known direction is dropped; one without its bar's start has the minute
+/// before its bar close.
+Result<QList<SmtEvent>> parse_smt(const QJsonDocument& doc);
 /// GET /v1/trader (codeyoma/krx-quant#396): the trader's state, its fields empty before it first wrote it.
 Result<TraderState> parse_trader(const QJsonDocument& doc);
 /// GET /v1/trader/days (codeyoma/krx-quant#396): oldest first, each mode's; a day without its date or

@@ -152,6 +152,12 @@ class KrxQuantService : public QObject {
     /// trader_failed. Asked again while one is read, it is not read: KrxLive asks again once that one
     /// answers.
     void read_trader_marks(const QString& symbol, const QDateTime& before, int limit);
+    /// A symbol's SMT divergences from ``from`` to ``to`` (KST dates, both in; GET
+    /// /v1/symbols/{symbol}/smt, codeyoma/krx-quant#521): those of the pairs it is in, for the chart's SMT
+    /// marks. smt_ready, also with none from an engine without the answer (404, before #521), or
+    /// smt_failed. Asked again while one is read, it is not read (false): KrxLive asks again once that
+    /// one answers.
+    bool read_smt(const QString& symbol, const QDate& from, const QDate& to);
     /// What a bar's window shows (krx-quant #255, krx_quant::BarRead), read at once: every prediction
     /// of ``bar_close`` (GET …/predictions?bar_close=), the algorithms' statuses now (GET
     /// /v1/algorithms), the last kBarReadBars 1-minute bars before its scoring time (GET
@@ -251,6 +257,9 @@ class KrxQuantService : public QObject {
     void trader_ready(const QString& symbol, const QDateTime& before,
                       const QList<fincept::krx_quant::TraderMark>& marks);
     void trader_failed(const QString& symbol, const QString& reason);
+    void smt_ready(const QString& symbol, const QDate& from, const QDate& to,
+                   const QList<fincept::krx_quant::SmtEvent>& events);
+    void smt_failed(const QString& symbol, const QDate& from, const QDate& to, const QString& reason);
     void bar_ready(const fincept::krx_quant::BarRead& read);
     void bar_failed(const QString& symbol, const QDateTime& bar_close, const QString& reason);
     void briefing_ready(const QDate& day, const fincept::krx_quant::Briefing& briefing);
@@ -299,6 +308,7 @@ class KrxQuantService : public QObject {
         kSpecial,     ///< a symbol's special situations over days (krx-quant #236)
         kSupply,      ///< a symbol's daily supply data over days (krx-quant #226)
         kTrader,      ///< a symbol's trader marks (codeyoma/krx-quant#398)
+        kSmt,         ///< a symbol's SMT divergences over days (codeyoma/krx-quant#522)
         kBriefing,    ///< a day's pre-open briefing (codeyoma/krx-quant#304)
         kSymbolList,  ///< the symbols alone
         kFlow,        ///< a symbol's intraday flows (codeyoma/krx-quant#306)

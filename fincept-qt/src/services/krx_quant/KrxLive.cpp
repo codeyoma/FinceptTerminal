@@ -69,6 +69,7 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
                 read_history();      // more for the indicators (krx-quant #222)
                 read_special(false); // the special situations of the days now held (krx-quant #236)
                 read_supply(false);  // and their daily supply data (krx-quant #226)
+                read_smt(false);     // and their SMT divergences (codeyoma/krx-quant#522)
             });
     connect(service_, &KrxQuantService::predictions_ready, this,
             [this](const QString& symbol, const QDateTime& before, const QList<krx_quant::Prediction>& predictions,
@@ -268,6 +269,28 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         if (symbol != selected_)
             read_trader(true); // another was chosen meanwhile
     });
+    // The SMT divergences (codeyoma/krx-quant#522): the chosen symbol's, while the chart shows them.
+    connect(
+        service_, &KrxQuantService::smt_ready, this,
+        [this](const QString& symbol, const QDate& from, const QDate& to, const QList<krx_quant::SmtEvent>& events) {
+            if (symbol == selected_) {
+                smt_read_ = std::pair(from, to);
+                if (events != smt_) {
+                    smt_ = events;
+                    emit smt_changed();
+                }
+            }
+            // Asked again meanwhile (a bar close's read), another symbol's, or more days held.
+            read_smt(std::exchange(smt_again_, false));
+        });
+    connect(service_, &KrxQuantService::smt_failed, this,
+            [this](const QString& symbol, const QDate& from, const QDate& to, const QString&) {
+                // The marks are left as they were; asked again with the next chart read. Asked again
+                // meanwhile, another symbol's, or days no longer wanted: at once.
+                const bool again = std::exchange(smt_again_, false);
+                if (again || symbol != selected_ || smt_days() != std::optional(std::pair(from, to)))
+                    read_smt(again);
+            });
     connect(service_, &KrxQuantService::macro_ready, this, [this](const krx_quant::Macro& macro) {
         macro_ = macro;
         macro_failure_.clear();
@@ -415,6 +438,9 @@ void KrxLive::apply_base_url(const QString& url) {
     supply_.clear(); // and its daily supply data (krx-quant #226): the new one may give it
     supply_read_.reset();
     supply_served_ = true;
+    smt_.clear(); // and its SMT divergences (codeyoma/krx-quant#522)
+    smt_read_.reset();
+    smt_again_ = false; // the restart below drops a read under way
     status_.reset();
     macro_.reset(); // the new engine's is read below
     macro_failure_.clear();
@@ -455,6 +481,8 @@ void KrxLive::select(const QString& symbol) {
     special_read_.reset();
     supply_.clear(); // likewise its daily supply data (krx-quant #226)
     supply_read_.reset();
+    smt_.clear(); // and its SMT divergences (codeyoma/krx-quant#522)
+    smt_read_.reset();
     emit selected_changed();
     emit chart_changed();
     emit predictions_changed();
@@ -645,6 +673,7 @@ void KrxLive::read_chart() {
         service_->read_chart(selected_, all_predictors());
     read_kind_history(true); // the kind's latest bar closes with the chart's (krx-quant #182)
     read_trader(true);       // the trader's latest buys and sells with them (krx-quant #398)
+    read_smt(true);          // and the SMT divergences, a new bar close's among them (codeyoma/krx-quant#522)
 }
 
 void KrxLive::read_trader(bool latest) {
@@ -836,6 +865,35 @@ std::optional<std::pair<QDate, QDate>> KrxLive::supply_days() const {
     const QDate to = std::max(last.toTimeZone(kst).date(), engine_day());
     // The engine answers at most kSupplyDays at a time: bars held further back have no values.
     return std::pair(std::max(from, to.addDays(1 - kSupplyDays)), to);
+}
+
+std::optional<std::pair<QDate, QDate>> KrxLive::smt_days() const {
+    const QDateTime first = !older_.isEmpty()  ? older_.first().start
+                            : !bars_.isEmpty() ? bars_.first().start
+                                               : QDateTime();
+    if (selected_.isEmpty() || !first.isValid())
+        return std::nullopt;
+    const QTimeZone kst = QTimeZone::fromSecondsAheadOfUtc(9 * 3600);
+    const QDate from = first.toTimeZone(kst).date();
+    const QDate last = (!bars_.isEmpty() ? bars_.last().start : older_.last().start).toTimeZone(kst).date();
+    const QDate to = std::max(last, engine_day());
+    // The engine answers at most kSmtDays at a time: bars held further back have no marks.
+    return std::pair(std::max(from, to.addDays(1 - krx_quant::kSmtDays)), to);
+}
+
+void KrxLive::read_smt(bool always) {
+    const auto days = smt_days();
+    if (!smt_on_ || !days || (!always && days == smt_read_))
+        return;
+    if (!service_->read_smt(selected_, days->first, days->second))
+        smt_again_ = true; // one under way, perhaps asked before this bar close's events: once it answers
+}
+
+void KrxLive::set_smt(bool on) {
+    if (on == smt_on_)
+        return;
+    smt_on_ = on;
+    read_smt(); // turned on: at once, the events since it was off too
 }
 
 void KrxLive::read_supply(bool always) {
@@ -1048,6 +1106,8 @@ void KrxLive::on_failure(const QString& reason) {
     special_read_.reset();
     supply_.clear(); // likewise its daily supply data (krx-quant #226)
     supply_read_.reset();
+    smt_.clear(); // and its SMT divergences (codeyoma/krx-quant#522)
+    smt_read_.reset();
     emit predictions_changed();
     emit kind_predictions_changed();
     emit chart_changed();
@@ -1083,6 +1143,7 @@ void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
     // before that the indicators want (krx-quant #222), or with nothing today yet the last day's.
     set_view(view_minutes_); // also the daily supply data of the days held, unless read (krx-quant #226)
     read_special(false);     // the special situations of the days held, unless read (krx-quant #236)
+    read_smt(false);         // their SMT divergences, unless read (codeyoma/krx-quant#522)
 }
 
 void KrxLive::on_event(const krx_quant::Event& event) {

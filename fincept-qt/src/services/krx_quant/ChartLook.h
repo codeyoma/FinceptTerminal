@@ -76,6 +76,9 @@ inline constexpr auto kDaySeparatorKey = "krx_quant/chart_day_separator";
 /// Whether the minute views draw the special situations' bands (krx-quant #236, ChartSlots), for
 /// every symbol.
 inline constexpr auto kSpecialKey = "krx_quant/chart_special";
+/// Whether the 1-minute view draws the SMT divergences (codeyoma/krx-quant#522: the toolbar's SMT), for
+/// every symbol. Off at first.
+inline constexpr auto kSmtKey = "krx_quant/chart_smt";
 /// Whether the price pane is drawn on a logarithmic scale (krx-quant #245: 로그 at the chart's bottom
 /// right), for every symbol and view.
 inline constexpr auto kLogScaleKey = "krx_quant/chart_log_scale";
@@ -122,11 +125,13 @@ std::optional<double> baseline_base(const QList<ChartBar>& bars, int view, std::
 /// view fills its days' first bars; the indicators and the anchored VWAP's anchor (krx-quant #222);
 /// the lower panes' heights (krx-quant #223); the drawings and the magnet (krx-quant #224); the sizes
 /// set for the styles without a time axis (krx-quant #225); whether a minute view draws the special
-/// situations' bands (krx-quant #236).
+/// situations' bands (krx-quant #236); whether the 1-minute view draws the SMT divergences
+/// (codeyoma/krx-quant#522).
 struct ChartLook {
     ChartStyle style = ChartStyle::Candle;
     bool day_separator = true;
     bool special = true; ///< the bands of the VIs, circuit breakers and sidecars, and their hover lines
+    bool smt = false;    ///< the SMT divergences' marks and their hover lines
     StudySet studies = default_studies();
     std::optional<qint64> anchor; ///< the anchored VWAP's moment (chart_time); none: not chosen
     bool picking = false;         ///< a click on the chart chooses it

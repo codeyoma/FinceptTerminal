@@ -483,6 +483,56 @@ QList<BarHover> with_trader_lines(QList<BarHover> hovers, const QList<TraderMark
     return hovers;
 }
 
+QList<SmtIcon> smt_icons(const QList<SmtEvent>& events) {
+    QMap<std::pair<qint64, bool>, bool> live; // by bar and direction: whether all its events are live
+    for (const auto& e : events) {
+        const std::pair key{chart_time(e.bar_start), e.bearish};
+        live.insert(key, live.value(key, true) && e.source == QLatin1String("live"));
+    }
+    QList<SmtIcon> out;
+    out.reserve(live.size());
+    for (auto it = live.cbegin(); it != live.cend(); ++it)
+        out << SmtIcon{it.key().first, it.key().second, it.value()};
+    return out;
+}
+
+namespace {
+
+/// An instrument of an SMT pair by name: the KOSPI200 futures' in Korean, a stock's by its code.
+QString smt_name(const QString& code) {
+    return code == QLatin1String("KOSPI200F") ? QStringLiteral("KOSPI200 선물") : code;
+}
+
+} // namespace
+
+QString smt_line(const SmtEvent& event, const QString& symbol) {
+    const QString partner = event.a == symbol ? event.b : event.a;
+    const QString source = event.source == QLatin1String("live")            ? QStringLiteral("장중")
+                           : event.source == QLatin1String("reconstructed") ? QStringLiteral("재구성")
+                                                                            : event.source;
+    return QStringLiteral("%1 SMT · 상대 %2 · L %3분 · %4을 넘은 쪽 %5 · %6")
+        .arg(event.bearish ? QStringLiteral("하락") : QStringLiteral("상승"), smt_name(partner))
+        .arg(event.minutes)
+        .arg(event.bearish ? QStringLiteral("고점") : QStringLiteral("저점"), smt_name(event.swept), source);
+}
+
+QList<BarHover> with_smt_lines(QList<BarHover> hovers, const QList<SmtEvent>& events, const QString& symbol) {
+    QHash<qint64, qsizetype> at; // a box's place, by its bar's start
+    for (qsizetype i = 0; i < hovers.size(); ++i)
+        at.insert(hovers[i].time, i);
+    for (const auto& e : events) {
+        const qint64 time = chart_time(e.bar_start);
+        if (!at.contains(time)) {
+            BarHover box;
+            box.time = time;
+            at.insert(time, hovers.size());
+            hovers << box;
+        }
+        hovers[at.value(time)].lines << smt_line(e, symbol);
+    }
+    return hovers;
+}
+
 QDateTime finals_from_after(const QDateTime& finals_from, const QList<Prediction>& page) {
     // Each one's earliest bar close in the page; invalid while it has none there.
     QDateTime finals, flats;

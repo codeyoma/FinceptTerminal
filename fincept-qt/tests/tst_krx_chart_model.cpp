@@ -5,7 +5,9 @@
 // result, faintness, signal and the bar they sit on), each bar's hover box and target, the
 // selected consensus's score and the selection itself (krx-quant #159), the bar close of a
 // bar clicked (krx-quant #249), and the trader's buys and sells (krx-quant #398): which are read next,
-// the bar each sits on and its line in that bar's box. The expected values are worked out by hand.
+// the bar each sits on and its line in that bar's box. The SMT divergences (codeyoma/krx-quant#522): a mark
+// for each bar and direction, filled or hollow by where they came from, and each event's line in its bar's
+// box. The expected values are worked out by hand.
 
 #include "services/krx_quant/ChartModel.h"
 
@@ -52,6 +54,23 @@ TraderMark trader_mark(qint64 trade, bool buy, const char* at) {
     m.kind = QStringLiteral("barrier");
     m.predictor = QStringLiteral("breiman");
     return m;
+}
+
+/// An SMT divergence on 005930's chart of the pair 005930 and ``partner``, at ``bar_close`` (its bar the
+/// minute before), bearish or bullish, over L ``minutes``, ``swept`` going past.
+SmtEvent smt_event(const char* bar_close, const char* partner, bool bearish, int minutes, const char* swept,
+                   const char* source = "live") {
+    SmtEvent e;
+    e.bar_close = kst(bar_close);
+    e.bar_start = e.bar_close.addSecs(-60);
+    e.a = QStringLiteral("005930");
+    e.b = QString::fromLatin1(partner);
+    e.bearish = bearish;
+    e.minutes = minutes;
+    e.swept = QString::fromLatin1(swept);
+    e.other = e.swept == e.a ? e.b : e.a;
+    e.source = QString::fromLatin1(source);
+    return e;
 }
 
 /// A forecast of ``algorithm`` at 09:31: up 62%, flat 25%, down 13% unless given.
@@ -916,6 +935,59 @@ class TstKrxChartModel : public QObject {
         QCOMPARE(out[2].time, chart_time(kst("2026-10-14T10:05:00+09:00")));
         QCOMPARE(out[2].lines, QStringList{trader_line(later)});
         QCOMPARE(with_trader_lines({ten}, {}).first().lines, ten.lines);
+    }
+
+    // ---- The SMT divergences (codeyoma/krx-quant#522) ---------------------------------------
+
+    void an_smt_mark_sits_on_its_bar_one_for_each_direction() {
+        // On the 10:00 bar (closed at 10:01): two bearish events of two pairs share one ▼, a bullish one has
+        // its ▲. On 10:05 a live and a reconstructed bearish one: hollow (a day's events have one source, and
+        // a mark is filled only when all of its are live). On an earlier day's 14:20 bar a reconstructed one.
+        const QList<SmtEvent> events{
+            smt_event("2026-10-07T14:21:00+09:00", "000660", false, 15, "000660", "reconstructed"),
+            smt_event("2026-10-12T10:01:00+09:00", "000660", true, 15, "005930"),
+            smt_event("2026-10-12T10:01:00+09:00", "KOSPI200F", true, 30, "KOSPI200F"),
+            smt_event("2026-10-12T10:01:00+09:00", "KOSPI200F", false, 15, "005930"),
+            smt_event("2026-10-12T10:06:00+09:00", "000660", true, 15, "005930"),
+            smt_event("2026-10-12T10:06:00+09:00", "KOSPI200F", true, 30, "005930", "reconstructed"),
+        };
+        const qint64 ten = chart_time(kst("2026-10-12T10:00:00+09:00"));
+        QCOMPARE(smt_icons(events), (QList<SmtIcon>{{chart_time(kst("2026-10-07T14:20:00+09:00")), false, false},
+                                                    {ten, false, true},
+                                                    {ten, true, true},
+                                                    {ten + 300, true, false}}));
+        QVERIFY(smt_icons({}).isEmpty());
+    }
+
+    void an_smt_line_names_the_other_of_the_pair_l_the_side_that_went_past_and_the_source() {
+        QCOMPARE(smt_line(smt_event("2026-10-12T10:01:00+09:00", "000660", true, 15, "005930"), "005930"),
+                 QStringLiteral("하락 SMT · 상대 000660 · L 15분 · 고점을 넘은 쪽 005930 · 장중"));
+        // The futures went past and the stock did not: on the stock's chart all the same (spec #519).
+        QCOMPARE(smt_line(smt_event("2026-10-07T14:21:00+09:00", "KOSPI200F", false, 30, "KOSPI200F", "reconstructed"),
+                          "005930"),
+                 QStringLiteral("상승 SMT · 상대 KOSPI200 선물 · L 30분 · 저점을 넘은 쪽 KOSPI200 선물 · 재구성"));
+        // On the chart of the pair's second, the first is the other.
+        QVERIFY(smt_line(smt_event("2026-10-12T10:01:00+09:00", "000660", true, 15, "005930"), "000660")
+                    .startsWith(QStringLiteral("하락 SMT · 상대 005930 · ")));
+        // A source this screen does not know yet, as the engine names it.
+        QVERIFY(smt_line(smt_event("2026-10-12T10:01:00+09:00", "000660", true, 15, "005930", "replayed"), "005930")
+                    .endsWith(QStringLiteral(" · replayed")));
+    }
+
+    void each_smt_line_goes_last_in_its_bar_s_box_in_the_engine_s_order() {
+        BarHover ten;
+        ten.time = chart_time(kst("2026-10-12T10:00:00+09:00"));
+        ten.lines = {QStringLiteral("10:01 봉 → 10:05 목표 · 채점 전"), QStringLiteral("합의 (최종) · 상승")};
+        const SmtEvent first = smt_event("2026-10-12T10:01:00+09:00", "000660", true, 15, "005930");
+        const SmtEvent second = smt_event("2026-10-12T10:01:00+09:00", "KOSPI200F", false, 15, "005930");
+        const SmtEvent later = smt_event("2026-10-12T10:06:00+09:00", "000660", true, 15, "005930"); // no box
+        const QList<BarHover> out = with_smt_lines({ten}, {first, second, later}, "005930");
+        QCOMPARE(out.size(), 2);
+        QCOMPARE(out[0].lines,
+                 (QStringList{ten.lines[0], ten.lines[1], smt_line(first, "005930"), smt_line(second, "005930")}));
+        QCOMPARE(out[1].time, ten.time + 300);
+        QCOMPARE(out[1].lines, QStringList{smt_line(later, "005930")});
+        QCOMPARE(with_smt_lines({ten}, {}, "005930").first().lines, ten.lines);
     }
 
     void the_view_to_fit_is_the_last_sixty_bars() {

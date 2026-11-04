@@ -523,6 +523,23 @@ void KrxQuantService::read_trader_marks(const QString& symbol, const QDateTime& 
     });
 }
 
+bool KrxQuantService::read_smt(const QString& symbol, const QDate& from, const QDate& to) {
+    if (!begin(kSmt))
+        return false;
+    const QString path = QStringLiteral("/smt?from=%1&to=%2").arg(from.toString(Qt::ISODate), to.toString(Qt::ISODate));
+    get(symbol_path(symbol, path), [this, symbol, from, to](Result<QJsonDocument> answer) {
+        end(kSmt);
+        // An engine before codeyoma/krx-quant#521 has no such answer: no marks, not a failure to show.
+        if (answer.is_err() && HttpClient::status_from_error(answer.error()) == 404)
+            return emit smt_ready(symbol, from, to, {});
+        auto events = parsed(answer, krx_quant::parse_smt);
+        if (events.is_err())
+            return emit smt_failed(symbol, from, to, why(events.error()));
+        emit smt_ready(symbol, from, to, events.value());
+    });
+    return true;
+}
+
 void KrxQuantService::read_bar(const QString& symbol, const QDateTime& bar_close, const QStringList& kinds) {
     if (url_.isEmpty())
         return;
