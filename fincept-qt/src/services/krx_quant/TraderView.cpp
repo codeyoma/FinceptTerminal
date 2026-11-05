@@ -1,5 +1,6 @@
 #include "services/krx_quant/TraderView.h"
 
+#include <QHash>
 #include <QLocale>
 #include <QMap>
 #include <QTimeZone>
@@ -1465,6 +1466,408 @@ QString kind_label(const QString& kind) {
     if (kind.startsWith(QLatin1String("barrier_")) && kind.endsWith('m'))
         return QStringLiteral("장벽 %1분").arg(kind.mid(8).chopped(1));
     return kind;
+}
+
+// ---- The decisions (codeyoma/krx-quant#601) ------------------------------------------------------------
+
+QList<BookChoice> book_choices() {
+    return {
+        {QStringLiteral("practice"), QStringLiteral("연습"),
+         QStringLiteral(
+             "연습: mock 장부가 연습 칸을 고른 동안(codeyoma/krx-quant#427) 그 칸의 예측마다 한 일. 정책이 없다.")},
+        {QStringLiteral("champion"), QStringLiteral("챔피언"),
+         QStringLiteral(
+             "챔피언: trader 자신의 장부. 챔피언 정책 아래 trader가 돈 모드의 결정이고, 그 매매가 한도에 세고 차트에 "
+             "보인다.")},
+        {QStringLiteral("shadow"), QStringLiteral("그림자"),
+         QStringLiteral(
+             "그림자: mock·live에서 KIS 장부 옆에서 챔피언 정책을 모의로 체결하는 장부. 그 매매는 차트에 없다.")},
+        {QStringLiteral("challenger"), QStringLiteral("도전"),
+         QStringLiteral("도전: 도전 정책마다의 모의 장부. 그 매매는 차트에 없다.")},
+    };
+}
+
+QString book_label(const QString& book) {
+    for (const auto& choice : book_choices())
+        if (choice.book == book)
+            return choice.text;
+    return book;
+}
+
+QString book_entry_label(const TraderDecisionBook& book) {
+    QString text = book_label(book.book);
+    if (book.policy)
+        text += QStringLiteral(" 정책 %1").arg(*book.policy);
+    return text + QStringLiteral(" · ") + trader_mode_label(book.mode);
+}
+
+namespace {
+
+/// A reason's Korean name and what it means (krx-quant design.md 14장 "진입", "모의 체결", "KIS 모의").
+struct Reason {
+    const char* key;
+    const char* label;
+    const char* tip;
+};
+
+const Reason* reason_of(const QString& key) {
+    static const Reason reasons[] = {
+        {"not_picked", "고른 칸 아님", "읽는 사이 칸을 다시 골라, 이 칸이 고른 칸이 아니었다."},
+        {"not_ok", "예측 없음", "엔진이 이 봉 마감의 예측을 만들지 못했다."},
+        {"blocked", "합의 막힘", "엔진이 최종 합의를 막았다."},
+        {"special", "특수 상황", "VI, 서킷브레이커, 사이드카 창이 그 예측의 창(봉 마감부터 시간 장벽까지)에 닿았다."},
+        {"stale", "늦게 읽음", "표시된 뒤 10초가 지나 읽었다. 멈춰 있던 trader는 놓친 예측으로 사지 않는다."},
+        {"expired", "시간 장벽 지남", "결정이나 사려던 호가가 그 예측의 시간 장벽 뒤였다."},
+        {"not_up", "오름 아님", "가장 큰 클래스가 오름(방향은 상승, 장벽은 위 먼저)이 아니었다."},
+        {"below_threshold", "θ 아래", "오름이지만 그 확률이 그 칸의 문턱 θ보다 낮았다."},
+        {"no_reference", "기준가 없음", "봉 마감의 중간가가 없어 목표가와 손절가를 정할 수 없었다."},
+        {"closed", "휴장", "거래일이 아니었다."},
+        {"before_entry", "진입 전", "봉 마감이 개장 + 5분(보통 09:05) 전이었다."},
+        {"past_last_exit", "청산 마감 뒤", "시간 장벽이 종가 단일가 − 5분(보통 15:15) 뒤였다."},
+        {"holding", "보유 중", "들고 있는 포지션이나 사려고 기다리는 매수가 있었다. 포지션은 하나다."},
+        {"reconciling", "계좌 맞추는 중", "시작할 때의 KIS 계좌 맞추기가 아직 끝나지 않았다."},
+        {"outranked", "순위에 밀림", "같은 봉 마감에 순위가 더 높은 칸이 샀다."},
+        {"quotes_stalled", "호가 끊김", "수집기의 호가가 5초 넘게 끊겨 새로 사지 않았다."},
+        {"entries_paused", "새 진입 정지", "새 진입 정지 중이었다."},
+        {"paused", "정지", "정지 중이었다."},
+        {"daily_limit", "하루 한도", "하루 손실 한도에 닿아 멈춰 있었다."},
+        {"cumulative_limit", "누적 한도", "누적 손실 한도에 닿아 멈춰 있었다."},
+        {"order_failed", "주문 실패", "그날 KIS 주문이 실패해 새로 사지 않았다."},
+        {"buy_limit", "매수 한도", "그날 매수 주문이 위험 규칙의 한도(기본 20번)에 닿았다."},
+        {"cooldown", "쉬는 중",
+         "순손실로 끝난 매매가 연달아 위험 규칙의 수(기본 3번)에 닿아, 그 청산부터 쉬는 동안(기본 30분)이었다."},
+        {"outside_held", "장부 밖 보유", "실전 계좌가 장부 밖에서 005930을 들고 있었다."},
+        {"target_reached", "이미 목표가", "사려던 호가의 매도 1호가가 이미 목표가 이상이었다."},
+        {"no_quote", "호가 없음", "결정 뒤 5초 안에 호가가 오지 않았다."},
+        {"no_shares", "1주 미만", "손실 예산과 현금으로 1주도 살 수 없었다."},
+        {"bad_stop", "손절가 위", "손절가가 매도 1호가 이상이었다: 사기 전에 손절가 아래로 떨어졌다."},
+        {"restarted", "다시 시작", "사려고 기다리는 동안 trader가 다시 시작했다."},
+        {"unfilled", "체결 없음", "KIS 매수 주문이 취소 전까지 체결되지 않았다(호가가 움직였다)."},
+        {"?", "이유 없음", "이유 없이 남은 결정이다(trader는 늘 이유를 남긴다)."},
+    };
+    for (const auto& r : reasons)
+        if (key == QLatin1String(r.key))
+            return &r;
+    return nullptr;
+}
+
+/// The engine's answer of a call (krx-quant #584: the kind's rise, middle or fall): "상승", "보합", "하락" for
+/// the direction; "위 먼저", "시간 만료", "아래 먼저" for a barrier; "—" before it.
+QString answer_label(const QString& kind, const QString& answer) {
+    const bool direction = kind == QLatin1String("direction");
+    if (answer == QLatin1String("up"))
+        return direction ? QStringLiteral("상승") : QStringLiteral("위 먼저");
+    if (answer == QLatin1String("flat"))
+        return direction ? QStringLiteral("보합") : QStringLiteral("시간 만료");
+    if (answer == QLatin1String("down"))
+        return direction ? QStringLiteral("하락") : QStringLiteral("아래 먼저");
+    return answer.isEmpty() ? dash() : answer;
+}
+
+bool same_book(const TraderDecisionBook& a, const TraderDecisionBook& b) {
+    return a.book == b.book && a.mode == b.mode && a.policy == b.policy;
+}
+
+/// The earliest decision held of ``book``; invalid without any.
+QDateTime earliest_of(const TraderDecisionBook& book) {
+    QDateTime earliest;
+    for (const auto& d : book.decisions)
+        if (!earliest.isValid() || d.decided_at < earliest)
+            earliest = d.decided_at;
+    return earliest;
+}
+
+bool newer(const TraderDecision& a, const TraderDecision& b) {
+    return a.decided_at != b.decided_at ? a.decided_at > b.decided_at : a.id > b.id;
+}
+
+/// Whether a call traded nothing: a skip, or a buy that did not fill (not one waiting for its quote).
+bool traded_nothing(const TraderDecision& d) {
+    return !d.trade_id && !(d.buy && d.reason.isEmpty());
+}
+
+/// The 1-minute bar ``at`` falls in: its minute's start, as chart_time.
+qint64 bar_of(const QDateTime& at) {
+    const qint64 time = chart_time(at);
+    return time - ((time % 60) + 60) % 60;
+}
+
+/// "오름 아님 230 · 매수 한도 30": each reason's name and count.
+QString counts_text(const QList<std::pair<QString, int>>& counts) {
+    QStringList parts;
+    for (const auto& [reason, n] : counts)
+        parts << QStringLiteral("%1 %2").arg(reason_label(reason), korean().toString(n));
+    return parts.join(QStringLiteral(" · "));
+}
+
+int sum_of(const QList<std::pair<QString, int>>& counts) {
+    int sum = 0;
+    for (const auto& c : counts)
+        sum += c.second;
+    return sum;
+}
+
+} // namespace
+
+QString reason_label(const QString& reason) {
+    const Reason* r = reason_of(reason);
+    return r ? QString::fromUtf8(r->label) : reason;
+}
+
+QString reason_tip(const QString& reason) {
+    const Reason* r = reason_of(reason);
+    return r ? QString::fromUtf8(r->tip) : QString();
+}
+
+DecisionPages decision_pages(const TraderDecisions& latest) {
+    DecisionPages pages{latest, {}};
+    for (const auto& book : latest.books)
+        pages.done << (!book.more || book.decisions.isEmpty());
+    return pages;
+}
+
+std::optional<QDateTime> decisions_before(const DecisionPages& pages) {
+    QDateTime latest; // of the earliest held of the books not done
+    for (qsizetype i = 0; i < pages.read.books.size() && i < pages.done.size(); ++i)
+        if (!pages.done[i])
+            if (const QDateTime earliest = earliest_of(pages.read.books[i]);
+                earliest.isValid() && (!latest.isValid() || earliest > latest))
+                latest = earliest;
+    if (!latest.isValid())
+        return std::nullopt;
+    return latest.addMSecs(1);
+}
+
+void join_decisions(DecisionPages& pages, const TraderDecisions& page, const QDateTime& before) {
+    QList<bool> in_page(pages.read.books.size(), false);
+    for (const auto& book : page.books) {
+        qsizetype i = 0;
+        while (i < pages.read.books.size() && !same_book(pages.read.books[i], book))
+            ++i;
+        if (i == pages.read.books.size()) { // none held of it: as a latest page's
+            pages.read.books << book;
+            pages.done << (!book.more || book.decisions.isEmpty());
+            in_page << true;
+            continue;
+        }
+        in_page[i] = true;
+        TraderDecisionBook& held = pages.read.books[i];
+        const QDateTime was = earliest_of(held);
+        QHash<qint64, qsizetype> at; // a decision's place, by its id
+        for (qsizetype k = 0; k < held.decisions.size(); ++k)
+            at.insert(held.decisions[k].id, k);
+        for (const auto& d : book.decisions) {
+            if (const auto found = at.constFind(d.id); found != at.constEnd()) {
+                held.decisions[*found] = d;
+            } else {
+                at.insert(d.id, held.decisions.size());
+                held.decisions << d;
+            }
+        }
+        std::stable_sort(held.decisions.begin(), held.decisions.end(), newer);
+        if (pages.done[i])
+            continue;
+        // Asked for this book (its earliest a millisecond before ``before``), the page brings none earlier:
+        // a millisecond holds more than a page, and asking again would bring the same.
+        const bool asked = was.isValid() && was.addMSecs(1) == before;
+        const QDateTime earliest = earliest_of(book);
+        if (!book.more || (asked && (!earliest.isValid() || earliest >= was)))
+            pages.done[i] = true;
+    }
+    // A book not done that the page leaves out has nothing before ``before``.
+    for (qsizetype i = 0; i < in_page.size() && i < pages.done.size(); ++i)
+        if (!in_page[i])
+            pages.done[i] = true;
+}
+
+QString decisions_line(const std::optional<TraderDecisions>& decisions, bool served, bool reading) {
+    if (!served)
+        return QStringLiteral("엔진이 아직 지원하지 않음");
+    if (!decisions)
+        return reading ? QStringLiteral("읽는 중") : QString();
+    int count = 0;
+    for (const auto& book : decisions->books)
+        count += book.totals.decisions;
+    const QString day = decisions->day.isValid() ? day_text(decisions->day) + QStringLiteral(" · ") : QString();
+    return count > 0 ? day + QStringLiteral("결정 %1개").arg(korean().toString(count))
+                     : day + QStringLiteral("결정 없음");
+}
+
+QList<TotalsLine> totals_lines(const TraderDecisions& decisions) {
+    QList<TotalsLine> out;
+    for (const auto& book : decisions.books) {
+        const TraderDecisionTotals& t = book.totals;
+        QStringList parts{book_entry_label(book), QStringLiteral("결정 %1").arg(korean().toString(t.decisions)),
+                          QStringLiteral("산 것 %1").arg(korean().toString(t.bought))};
+        if (t.waiting > 0)
+            parts << QStringLiteral("호가 기다림 %1").arg(korean().toString(t.waiting));
+        if (const int unfilled = sum_of(t.unfilled); unfilled > 0)
+            parts << QStringLiteral("못 산 것 %1(%2)").arg(korean().toString(unfilled), counts_text(t.unfilled));
+        if (const int skipped = sum_of(t.skipped); skipped > 0)
+            parts << QStringLiteral("건너뜀 %1(%2)").arg(korean().toString(skipped), counts_text(t.skipped));
+        // What came of the calls the engine answered: the buys filled right, the skips that missed a rise.
+        int bought = 0, bought_right = 0, skipped = 0, missed = 0;
+        for (const auto& d : book.decisions) {
+            if (!d.right)
+                continue;
+            if (d.trade_id) {
+                ++bought;
+                bought_right += *d.right ? 1 : 0;
+            } else if (!d.buy) {
+                ++skipped;
+                missed += *d.right ? 1 : 0;
+            }
+        }
+        QStringList answered;
+        if (bought > 0)
+            answered
+                << QStringLiteral("산 것 %1/%2 맞음").arg(korean().toString(bought_right), korean().toString(bought));
+        if (skipped > 0)
+            answered << QStringLiteral("건너뛴 것 %1/%2 놓친 오름")
+                            .arg(korean().toString(missed), korean().toString(skipped));
+        if (!answered.isEmpty())
+            parts << QStringLiteral("정답 난 것: ") + answered.join(QStringLiteral(" · "));
+        const QString text = parts.join(QStringLiteral(" · "));
+        QStringList tip{
+            QStringLiteral("%1의 그날 결정 모두의 합계다(엔진의 totals).").arg(book_entry_label(book)),
+            QStringLiteral("산 것: 체결해 매매가 된 매수. 호가 기다림: 결정 뒤 첫 호가를 기다리는 매수. 못 산 것: 사려 "
+                           "했지만 체결하지 못한 매수. 건너뜀: 사지 않은 결정.")};
+        for (const auto& [title, counts] :
+             {std::pair{QStringLiteral("못 산 이유"), t.unfilled}, std::pair{QStringLiteral("건너뛴 이유"), t.skipped}})
+            for (const auto& [reason, n] : counts)
+                tip << QStringLiteral("%1 · %2 %3: %4")
+                           .arg(title, reason_label(reason), korean().toString(n), reason_tip(reason));
+        if (bought + skipped > 0)
+            tip << QStringLiteral(
+                "정답 난 것: 엔진이 정답을 낸 결정만 센다. 산 것은 오름이 왔으면 맞음, 건너뛴 것은 오름이 "
+                "왔으면 놓친 오름이다.");
+        out << TotalsLine{text, tip.join('\n')};
+    }
+    return out;
+}
+
+QList<DecisionRow> decision_rows(const TraderDecisions& decisions) {
+    QList<std::pair<const TraderDecision*, const TraderDecisionBook*>> all;
+    for (const auto& book : decisions.books)
+        for (const auto& d : book.decisions)
+            all.push_back({&d, &book});
+    std::stable_sort(all.begin(), all.end(), [](const auto& a, const auto& b) { return newer(*a.first, *b.first); });
+    QList<DecisionRow> rows;
+    rows.reserve(all.size());
+    for (const auto& [d, book] : all) {
+        DecisionRow row;
+        row.id = d->id;
+        row.at = kst_text(d->decided_at, "HH:mm:ss");
+        row.book = book_entry_label(*book);
+        row.cell = kind_label(d->kind) + QStringLiteral(" · ") + d->predictor;
+        row.probability = d->probability ? percent_text(*d->probability) : dash();
+        row.threshold = d->threshold ? percent_text(*d->threshold) : dash();
+        row.p_star = d->p_star ? percent_text(*d->p_star) : dash();
+        if (d->trade_id) {
+            row.action = QStringLiteral("매수");
+            row.action_tone = Tone::Positive;
+        } else if (d->buy) {
+            row.action = d->reason.isEmpty() ? QStringLiteral("호가 기다림") : QStringLiteral("매수 못 함");
+            row.action_tone = Tone::Warning;
+        } else {
+            row.action = QStringLiteral("건너뜀");
+            row.action_tone = Tone::Dim;
+        }
+        row.reason = d->reason.isEmpty() ? dash() : reason_label(d->reason);
+        row.reason_tip =
+            d->reason.isEmpty() ? QString() : QStringLiteral("%1 (%2)").arg(reason_tip(d->reason), d->reason);
+        row.answer = answer_label(d->kind, d->answer);
+        if (!d->right) {
+            row.right = dash();
+            row.right_tip = QStringLiteral("엔진이 아직 이 예측의 정답을 내지 않았다.");
+        } else if (d->buy) {
+            row.right = *d->right ? QStringLiteral("맞음") : QStringLiteral("틀림");
+            // A buy that did not fill traded nothing: its call alone, faint.
+            row.right_tone = !d->trade_id ? Tone::Dim : *d->right ? Tone::Positive : Tone::Negative;
+            row.right_tip = *d->right ? QStringLiteral("산 결정이고 오름이 왔다.")
+                                      : QStringLiteral("산 결정이고 오름이 오지 않았다.");
+            if (!d->trade_id)
+                row.right_tip += QStringLiteral(" 체결하지 못해 매매는 없다.");
+        } else {
+            row.right = *d->right ? QStringLiteral("놓친 오름") : QStringLiteral("맞음");
+            row.right_tone = *d->right ? Tone::Warning : Tone::Dim;
+            row.right_tip = *d->right ? QStringLiteral("건너뛴 결정이고 오름이 왔다.")
+                                      : QStringLiteral("건너뛴 결정이고 오름이 오지 않았다.");
+        }
+        QStringList tip{QStringLiteral("결정 %1 · 예측 %2 (%3 · %4)")
+                            .arg(d->id)
+                            .arg(d->prediction_id)
+                            .arg(kind_label(d->kind), d->predictor),
+                        QStringLiteral("봉 마감 %1 · 표시 %2 · 결정 %3")
+                            .arg(kst_text(d->bar_close, "HH:mm:ss"), kst_text(d->displayed_at, "HH:mm:ss.zzz"),
+                                 kst_text(d->decided_at, "HH:mm:ss.zzz")),
+                        QStringLiteral("장부 %1").arg(row.book)};
+        if (d->trade_id)
+            tip << QStringLiteral("매매 %1").arg(*d->trade_id);
+        if (!d->threshold)
+            tip << QStringLiteral("θ·p* —: 그 칸이 고르기에 없었거나(고른 칸 아님) 첫 고르기 전이다.");
+        row.tip = tip.join('\n');
+        rows << row;
+    }
+    return rows;
+}
+
+QList<SkipIcon> skip_icons(const TraderDecisions& decisions) {
+    QMap<qint64, bool> live; // by bar: whether a live book's
+    for (const auto& book : decisions.books)
+        for (const auto& d : book.decisions)
+            if (traded_nothing(d)) {
+                const qint64 time = bar_of(d.decided_at);
+                live.insert(time, live.value(time, false) || book.mode == QLatin1String("live"));
+            }
+    QList<SkipIcon> out;
+    out.reserve(live.size());
+    for (auto it = live.cbegin(); it != live.cend(); ++it)
+        out << SkipIcon{it.key(), it.value()};
+    return out;
+}
+
+QString skip_line(const TraderDecision& d, const TraderDecisionBook& book) {
+    QString who = book_label(book.book);
+    if (book.policy)
+        who += QStringLiteral(" 정책 %1").arg(*book.policy);
+    QStringList parts{who + (d.buy ? QStringLiteral(" 매수 못 함") : QStringLiteral(" 건너뜀")), kind_label(d.kind),
+                      d.predictor};
+    if (d.probability)
+        parts << (d.threshold
+                      ? QStringLiteral("%1 (θ %2)").arg(percent_text(*d.probability), percent_text(*d.threshold))
+                      : percent_text(*d.probability));
+    if (!d.reason.isEmpty())
+        parts << reason_label(d.reason);
+    if (!d.answer.isEmpty())
+        parts << QStringLiteral("정답 ") + answer_label(d.kind, d.answer);
+    if (!d.buy && d.right && *d.right)
+        parts << QStringLiteral("놓친 오름");
+    return parts.join(QStringLiteral(" · "));
+}
+
+QList<BarHover> with_skip_lines(QList<BarHover> hovers, const TraderDecisions& decisions) {
+    QList<std::pair<const TraderDecision*, const TraderDecisionBook*>> calls;
+    for (const auto& book : decisions.books)
+        for (const auto& d : book.decisions)
+            if (traded_nothing(d))
+                calls.push_back({&d, &book});
+    std::stable_sort(calls.begin(), calls.end(),
+                     [](const auto& a, const auto& b) { return newer(*b.first, *a.first); });
+    QHash<qint64, qsizetype> at; // a box's place, by its bar's start
+    for (qsizetype i = 0; i < hovers.size(); ++i)
+        at.insert(hovers[i].time, i);
+    for (const auto& [d, book] : calls) {
+        const qint64 time = bar_of(d->decided_at);
+        if (!at.contains(time)) {
+            BarHover box;
+            box.time = time;
+            at.insert(time, hovers.size());
+            hovers << box;
+        }
+        hovers[at.value(time)].lines << skip_line(*d, *book);
+    }
+    return hovers;
 }
 
 } // namespace fincept::krx_quant::trader

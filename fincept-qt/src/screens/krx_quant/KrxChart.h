@@ -170,13 +170,17 @@ class KrxChart : public QWidget {
     /// and the trader's there, filled for the engine's live ones and hollow ▽ △ for those worked out
     /// again: krx_quant::smt_icons), in their own colour, on the bars drawn alone; clicked, one is the
     /// click of its bar.
+    /// The 1-minute view with a time axis draws ``skips`` too (codeyoma/krx-quant#601, the auto trader's calls
+    /// that traded nothing: hollow △ under their bars, past a buy's ▲ there, in the trader's amber for a live
+    /// book's and cyan for the others': krx_quant::trader::skip_icons), on the bars drawn alone; clicked, one
+    /// is the click of its bar. The auto trader screen's chart passes them, the KRX 4-minute screen's none.
     void set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant::Mark>& marks,
                   const QList<krx_quant::BarHover>& hovers = {}, const krx_quant::SignalRule& rule = {},
                   int minutes = 1, const krx_quant::ChartLook& look = {},
                   const QList<krx_quant::SpecialWindow>& special = {},
                   const std::optional<krx_quant::SessionClock>& clock = std::nullopt,
                   const QList<krx_quant::ChartIcon>& day_icons = {}, const QList<krx_quant::TraderIcon>& trades = {},
-                  const QList<krx_quant::SmtIcon>& smt = {});
+                  const QList<krx_quant::SmtIcon>& smt = {}, const QList<krx_quant::SkipIcon>& skips = {});
     /// Only the last bar of ``bars`` moved (the bar being made, krx-quant #110): it alone is
     /// drawn again, in the view of ``minutes`` and the style last set. A candle view's ``bars``
     /// are its candles. The indicators' values on it move with it (krx-quant #222): the point
@@ -293,6 +297,7 @@ class KrxChart : public QWidget {
     QJsonArray icons_;                             ///< as last sent: sent again when all is (krx-quant #238)
     QJsonArray trades_;                            ///< the trader's marks as last sent (krx-quant #398)
     QJsonArray smt_;                               ///< the SMT marks as last sent (codeyoma/krx-quant#522)
+    QJsonArray skips_;                             ///< the trader's hollow marks as last sent (codeyoma/krx-quant#601)
     int minutes_ = 1;
     krx_quant::ChartLook look_;
     std::optional<double> base_;          ///< the baseline's base last sent

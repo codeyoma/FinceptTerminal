@@ -220,6 +220,13 @@ class KrxQuantService : public QObject {
     /// codeyoma/krx-quant#399, #400): trader_policies_ready or trader_policies_failed. Asked again while one
     /// is read, it is not read.
     void read_trader_policies();
+    /// The auto trader's decisions of ``day`` (invalid: the engine's today) in ``book`` ("champion",
+    /// "practice", "shadow", "challenger"): each of its books' last ``limit`` decided before ``before``
+    /// (invalid: the latest), with its totals of the day (GET /v1/trader/decisions, krx-quant #584,
+    /// codeyoma/krx-quant#601). trader_decisions_ready, with ``served`` false and none from an engine without
+    /// the answer (404, before #584), or trader_decisions_failed. Asked again while one is read, it is not
+    /// read (false).
+    bool read_trader_decisions(const QString& book, const QDate& day, const QDateTime& before, int limit);
     /// The screen's pause of the auto trader (POST /v1/trader/pause with {"sell_now": …} as JSON,
     /// codeyoma/krx-quant#396, #397): ``sell_now`` false pauses new entries, true also sells the open
     /// position at once. trader_paused with the control the engine wrote, or trader_pause_failed. The
@@ -298,6 +305,9 @@ class KrxQuantService : public QObject {
     void trader_trades_failed(const QString& reason);
     void trader_policies_ready(const fincept::krx_quant::TraderPolicies& policies);
     void trader_policies_failed(const QString& reason);
+    void trader_decisions_ready(const QString& book, const QDateTime& before,
+                                const fincept::krx_quant::TraderDecisions& decisions, bool served);
+    void trader_decisions_failed(const QString& book, const QDateTime& before, const QString& reason);
     void trader_paused(bool sell_now, const fincept::krx_quant::TraderControl& control);
     void trader_pause_failed(bool sell_now, const QString& reason);
     /// The address this service reads changed (also when another panel set it).
@@ -336,6 +346,7 @@ class KrxQuantService : public QObject {
         kTraderPause,    ///< the screen's pause sent (codeyoma/krx-quant#397)
         kTraderPolicies, ///< its policy versions (codeyoma/krx-quant#401)
         kBars,           ///< a symbol's day of 1-minute bars alone (codeyoma/krx-quant#537)
+        kDecisions,      ///< the auto trader's decisions of a day (codeyoma/krx-quant#601)
         kKinds           ///< how many kinds of read there are
     };
 

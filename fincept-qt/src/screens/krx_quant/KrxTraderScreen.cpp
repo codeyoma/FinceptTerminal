@@ -61,8 +61,24 @@ enum PolicyColumn {
     kJudgement,
     kPolicyColumns
 };
+/// The decisions table's columns (codeyoma/krx-quant#601).
+enum DecisionColumn {
+    kDecidedAt,
+    kBook,
+    kDecisionCell,
+    kRise,
+    kTheta,
+    kDecisionPStar,
+    kAction,
+    kWhy,
+    kAnswer,
+    kRight,
+    kDecisionColumns
+};
 /// Rows the trades table shows before it scrolls on its own.
 constexpr int kTradesShown = 15;
+/// Rows the decisions table shows before it scrolls on its own (codeyoma/krx-quant#601).
+constexpr int kDecisionsShown = 12;
 /// The 1-minute chart's height (codeyoma/krx-quant#537): the screen scrolls, the chart does not grow.
 constexpr int kBarsChartHeight = 380;
 
@@ -120,6 +136,22 @@ void fit_height(QTableWidget* table, int rows = -1) {
         table->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     }
     table->setFixedHeight(height + 2 * table->frameWidth() + 4);
+}
+
+/// A table of up to a day's rows (the decisions, codeyoma/krx-quant#601) as tall as ``rows`` of them, then it
+/// scrolls: its rows one line high, not each measured (fit_height's) a thousand times a minute.
+void fit_rows(QTableWidget* table, int rows) {
+    const auto* header = table->horizontalHeader();
+    const auto* vertical = table->verticalHeader();
+    int height = std::max(header->height(), header->sizeHint().height());
+    if (table->rowCount() > rows) {
+        height += vertical->sectionPosition(rows);
+        table->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    } else {
+        height += std::max(vertical->length(), vertical->defaultSectionSize()); // an empty table: one row's room
+        table->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    }
+    table->setFixedHeight(height + 2 * table->frameWidth());
 }
 
 QTableWidgetItem* toned(const QString& text, Tone tone, const QString& tip = {},
@@ -346,13 +378,27 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
                              "봉에 마우스를 올리면 그 봉의 매매마다 한 줄이 나옵니다. 엔진의 "
                              "trader-marks가 주는 매매(챔피언의 장부가 낸 것, 정책 버전을 가리지 "
                              "않고 연습 매매도) 그대로이고, 아래 매매 표의 정책 고르기를 따르지 "
-                             "않습니다. 화면이 보이는 동안 1분마다 다시 읽습니다.\n\n"
+                             "않습니다. 건너뜀 △를 켜 두면 아래 결정 패널에서 고른 장부가 사지 않은 "
+                             "호출을 그 결정이 난 봉 아래에 빈 △로 그립니다. 화면이 보이는 동안 1분마다 "
+                             "다시 읽습니다.\n\n"
                              "차트: TradingView Lightweight Charts™ · Copyright (c) 2026 TradingView, Inc. · "
                              "https://www.tradingview.com/"));
     bars_failure_ = new QLabel(tr("읽지 못함"));
     bars_failure_->setObjectName(kBarsFailureName);
     bars_failure_->hide();
     bars_header_.controls->addWidget(bars_failure_);
+    // The hollow marks of the calls the book chosen below traded nothing on (codeyoma/krx-quant#601): on at
+    // first, for the app's run (not a setting).
+    skips_ = new QCheckBox(tr("건너뜀 △"));
+    skips_->setObjectName(kSkipsName);
+    skips_->setChecked(true);
+    skips_->setCursor(Qt::PointingHandCursor);
+    skips_->setToolTip(
+        tr("아래 결정 패널에서 고른 장부가 사지 않은 호출(건너뛴 것과 사려 했지만 체결하지 못한 것)을 그 결정이 "
+           "난 1분봉 아래에 빈 △로 그립니다. 산 호출은 위의 매수 ▲입니다(챔피언과 연습 장부의 것). 봉에 "
+           "마우스를 올리면 그 봉의 호출마다 한 줄이 나옵니다. 끄면 그리지 않습니다(앱을 다시 켜면 켜져 "
+           "있습니다)."));
+    bars_header_.controls->addWidget(skips_);
     auto* fit = tool_button(tr("맞춤"), tr("최근 60봉 보기로 돌아간다."));
     bars_header_.controls->addWidget(fit);
     bars_chart_ = new KrxChart;
@@ -364,6 +410,65 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
     // does nothing here (no prediction panel, no bar window).
     connect(bars_chart_, &KrxChart::view_moved, this, [this](double from, double to) { live_->view_from(from, to); });
     body_layout->addWidget(krx_panel::panel(bars_header_, bars_chart_));
+    connect(skips_, &QCheckBox::toggled, this, [this] { fill_bars(); });
+
+    // A book's decisions of the chart's day (codeyoma/krx-quant#601): what it did with each call it read.
+    decisions_header_ = krx_panel::header(
+        tr("결정"),
+        tr("고른 장부가 그날(위 차트의 마지막 봉의 날) 읽은 칸의 예측마다 한 일입니다: 샀는지, 사지 않았으면 "
+           "그 이유, 그때의 오름 확률과 θ·p*, 엔진의 정답과 맞았는지. 위 줄은 장부의 그날 합계와 이유별 수입니다"
+           "(엔진의 GET /v1/trader/decisions). 처음은 연습 장부입니다. 화면이 보이는 동안 1분마다 다시 "
+           "읽습니다. 가격은 없습니다."));
+    decisions_failure_ = new QLabel(tr("읽지 못함"));
+    decisions_failure_->setObjectName(kDecisionsFailureName);
+    decisions_failure_->hide();
+    decisions_header_.controls->addWidget(decisions_failure_);
+    decisions_line_ = new QLabel;
+    decisions_line_->setObjectName(kDecisionsLineName);
+    decisions_header_.controls->addWidget(decisions_line_);
+    book_box_ = new QComboBox;
+    book_box_->setObjectName(kDecisionsBookName);
+    book_box_->setToolTip(tr("누구의 결정을 볼지: 연습(기본), 챔피언, 그림자, 도전"));
+    for (const auto& choice : view::book_choices()) {
+        book_box_->addItem(choice.text, choice.book);
+        book_box_->setItemData(book_box_->count() - 1, choice.tip, Qt::ToolTipRole);
+    }
+    book_box_->setCurrentIndex(book_box_->findData(live_->decisions_book()));
+    decisions_header_.controls->addWidget(book_box_);
+    connect(book_box_, &QComboBox::activated, this,
+            [this](int index) { live_->set_decisions_book(book_box_->itemData(index).toString()); });
+    auto* decisions_body = new QWidget;
+    auto* decisions_layout = new QVBoxLayout(decisions_body);
+    decisions_layout->setContentsMargins(0, 0, 0, 0);
+    decisions_layout->setSpacing(0);
+    totals_ = new QLabel;
+    totals_->setObjectName(kDecisionsTotalsName);
+    totals_->setContentsMargins(12, 6, 12, 6);
+    totals_->setWordWrap(true);
+    decisions_layout->addWidget(totals_);
+    decisions_ = krx_tables::table({tr("시각"), tr("장부"), tr("칸"), tr("확률"), tr("θ"), tr("p*"), tr("결정"),
+                                    tr("이유"), tr("정답"), tr("맞음")});
+    decisions_->setObjectName(kDecisionsName);
+    decisions_->horizontalHeader()->setStretchLastSection(true);
+    decisions_->horizontalHeader()->setResizeContentsPrecision(200); // a day's thousand rows: those in view and some
+    decisions_->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed); // one line a row
+    const QList<std::pair<int, QString>> decision_tips{
+        {kDecidedAt, tr("결정한 때: trader가 그 예측을 읽은 때(순위가 높은 칸을 기다렸으면 정한 때)")},
+        {kBook, tr("장부와 그 정책, 모드. 한 장부는 한 모드, 한 정책입니다(그날 다른 모드로 다시 시작했으면 둘)")},
+        {kDecisionCell, tr("읽은 칸: 예측 종류와 예측자")},
+        {kRise, tr("그 예측의 오름 확률(방향은 상승, 장벽은 위 먼저). 예측이 없으면 —")},
+        {kTheta, tr("그 칸의 사는 문턱 θ(그때의 고르기). 고르기에 없는 칸과 첫 고르기 전이면 —")},
+        {kDecisionPStar, tr("그때의 고르기에서 그 칸의 시장가 왕복 손익분기 맞힘률")},
+        {kAction, tr("매수(체결해 매매가 됨), 호가 기다림, 매수 못 함(체결하지 못함), 건너뜀")},
+        {kWhy, tr("건너뛴 이유, 또는 산 것이 체결하지 못한 이유. 툴팁에 그 뜻")},
+        {kAnswer, tr("엔진의 정답: 방향은 상승·보합·하락, 장벽은 위 먼저·시간 만료·아래 먼저. 아직이면 —")},
+        {kRight, tr("산 것은 오름이 왔으면 맞음, 아니면 틀림. 건너뛴 것은 오름이 왔으면 놓친 오름, 아니면 맞음")},
+    };
+    for (const auto& [column, tip] : decision_tips)
+        if (auto* item = decisions_->horizontalHeaderItem(column))
+            item->setToolTip(tip);
+    decisions_layout->addWidget(decisions_);
+    body_layout->addWidget(krx_panel::panel(decisions_header_, decisions_body));
 
     auto* middle = new QHBoxLayout;
     middle->setContentsMargins(0, 0, 0, 0);
@@ -545,6 +650,10 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
     });
     connect(live_, &services::KrxTraderLive::changed, this, [this] { render(); });
     connect(live_, &services::KrxTraderLive::chart_changed, this, [this] { fill_bars(); });
+    connect(live_, &services::KrxTraderLive::decisions_changed, this, [this] {
+        fill_decisions();
+        fill_bars(); // the hollow marks
+    });
     connect(&ui::ThemeManager::instance(), &ui::ThemeManager::theme_changed, this, [this] { refresh_theme(); });
     refresh_theme();
 }
@@ -570,18 +679,21 @@ void KrxTraderScreen::refresh_theme() {
                           "#krxTraderScreen QPushButton:hover{border-color:%3;}")
                       .arg(ui::colors::BG_BASE(), ui::colors::TEXT_PRIMARY(), ui::colors::BORDER_MED(),
                            ui::colors::BG_SURFACE()));
-    for (const auto* header :
-         {&header_, &bars_header_, &days_header_, &pause_header_, &trades_header_, &policies_header_})
+    for (const auto* header : {&header_, &bars_header_, &decisions_header_, &days_header_, &pause_header_,
+                               &trades_header_, &policies_header_})
         header->restyle();
     bars_chart_->restyle();
     bars_failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
+    decisions_failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
+    // One line a row (codeyoma/krx-quant#601), as high as the user's font makes it.
+    decisions_->verticalHeader()->setDefaultSectionSize(decisions_->fontMetrics().height() + 8);
     fill_bars(); // the marks' colours are the theme's when they are sent
-    for (auto* table : {controls_, trades_, policies_, history_}) {
+    for (auto* table : {controls_, decisions_, trades_, policies_, history_}) {
         krx_tables::restyle(table);
         table->setProperty(krx_tables::kRowsProperty, QVariant()); // their rows' colours: filled again
     }
     failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
-    for (auto* label : {header_line_, days_line_, resume_note_, trades_line_, policies_line_})
+    for (auto* label : {header_line_, days_line_, resume_note_, trades_line_, policies_line_, decisions_line_, totals_})
         label->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_SECONDARY()));
     for (const char* name : {"krxTraderRecent", "krxTraderHistoryTitle"})
         if (auto* title = findChild<QLabel*>(name))
@@ -599,6 +711,7 @@ void KrxTraderScreen::refresh_theme() {
                                           ui::colors::TEXT_DIM(), ui::colors::BORDER_DIM()));
     dot_->setProperty("krxColor", QVariant());
     render();
+    fill_decisions();
 }
 
 void KrxTraderScreen::render() {
@@ -709,8 +822,87 @@ void KrxTraderScreen::fill_bars() {
     const QList<krx_quant::TraderMark>& marks = live_->marks();
     krx_quant::ChartLook look = bars_look();
     look.first_day_whole = live_->reached_start(); // nothing before to wait for: a zoom out slides off the left end
-    bars_chart_->set_data(live_->chart_bars(), {}, krx_quant::with_trader_lines({}, marks), {}, 1, look, {},
-                          std::nullopt, {}, krx_quant::trader_icons(marks));
+    // The book's calls that traded nothing, hollow under their bars, while shown (codeyoma/krx-quant#601).
+    QList<krx_quant::BarHover> hovers = krx_quant::with_trader_lines({}, marks);
+    QList<krx_quant::SkipIcon> skips;
+    if (const auto& d = live_->decisions(); d && skips_->isChecked()) {
+        hovers = view::with_skip_lines(hovers, *d);
+        skips = view::skip_icons(*d);
+    }
+    bars_chart_->set_data(live_->chart_bars(), {}, hovers, {}, 1, look, {}, std::nullopt, {},
+                          krx_quant::trader_icons(marks), {}, skips);
+}
+
+void KrxTraderScreen::fill_decisions() {
+    const auto& d = live_->decisions();
+    const QString& failure = live_->decisions_failure();
+    decisions_failure_->setToolTip(failure.isEmpty() ? QString() : tr("결정을 읽지 못했습니다: %1").arg(failure));
+    decisions_failure_->setVisible(!failure.isEmpty());
+    decisions_line_->setText(view::decisions_line(d, live_->decisions_served(), live_->decisions_reading()));
+    decisions_line_->setToolTip(live_->decisions_served()
+                                    ? QString()
+                                    : tr("엔진에 GET /v1/trader/decisions가 없습니다(krx-quant #584 전의 엔진). 엔진이 "
+                                         "업데이트되면 보입니다."));
+    if (const int index = book_box_->findData(live_->decisions_book()); index != book_box_->currentIndex()) {
+        const QSignalBlocker quiet(book_box_); // as the live object has it: no choice
+        book_box_->setCurrentIndex(index);
+    }
+    const QList<view::TotalsLine> totals = d ? view::totals_lines(*d) : QList<view::TotalsLine>{};
+    QStringList texts, tips;
+    for (const auto& line : totals) {
+        texts << line.text;
+        tips << line.tip;
+    }
+    totals_->setText(texts.join('\n'));
+    totals_->setToolTip(tips.join(QStringLiteral("\n\n")));
+    totals_->setVisible(!texts.isEmpty());
+    const QList<view::DecisionRow> rows = d ? view::decision_rows(*d) : QList<view::DecisionRow>{};
+    QStringList text; // all a row shows: its texts and tips (its colours follow from them)
+    for (const auto& row : rows)
+        text << QStringList{QString::number(row.id),
+                            row.at,
+                            row.book,
+                            row.cell,
+                            row.probability,
+                            row.threshold,
+                            row.p_star,
+                            row.action,
+                            row.reason,
+                            row.answer,
+                            row.right,
+                            row.tip,
+                            row.reason_tip,
+                            row.right_tip}
+                    .join(QChar(0x1f));
+    krx_tables::refill(decisions_, text.join(QChar(0x1e)), [this, &rows] {
+        decisions_->setUpdatesEnabled(false);
+        decisions_->setRowCount(static_cast<int>(rows.size()));
+        for (int r = 0; r < rows.size(); ++r) {
+            const auto& row = rows[r];
+            auto* at = toned(row.at, Tone::Plain, row.tip, kNumber);
+            at->setData(Qt::UserRole, QString::number(row.id));
+            decisions_->setItem(r, kDecidedAt, at);
+            decisions_->setItem(r, kBook, toned(row.book, Tone::Plain, row.tip));
+            decisions_->setItem(r, kDecisionCell, toned(row.cell, Tone::Plain, row.tip));
+            decisions_->setItem(r, kRise,
+                                toned(row.probability, row.probability == QLatin1String("—") ? Tone::Dim : Tone::Plain,
+                                      row.tip, kNumber));
+            decisions_->setItem(
+                r, kTheta,
+                toned(row.threshold, row.threshold == QLatin1String("—") ? Tone::Dim : Tone::Plain, row.tip, kNumber));
+            decisions_->setItem(
+                r, kDecisionPStar,
+                toned(row.p_star, row.p_star == QLatin1String("—") ? Tone::Dim : Tone::Plain, row.tip, kNumber));
+            decisions_->setItem(r, kAction, toned(row.action, row.action_tone, row.tip));
+            decisions_->setItem(
+                r, kWhy, toned(row.reason, row.reason == QLatin1String("—") ? Tone::Dim : Tone::Plain, row.reason_tip));
+            decisions_->setItem(r, kAnswer,
+                                toned(row.answer, row.answer == QLatin1String("—") ? Tone::Dim : Tone::Plain, row.tip));
+            decisions_->setItem(r, kRight, toned(row.right, row.right_tone, row.right_tip));
+        }
+        decisions_->setUpdatesEnabled(true);
+        fit_rows(decisions_, kDecisionsShown);
+    });
 }
 
 void KrxTraderScreen::fill_days() {

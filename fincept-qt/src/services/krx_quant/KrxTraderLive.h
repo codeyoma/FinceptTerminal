@@ -4,6 +4,7 @@
 #include "services/krx_quant/EngineData.h"
 #include "services/krx_quant/TraderView.h"
 
+#include <QDate>
 #include <QDateTime>
 #include <QList>
 #include <QObject>
@@ -36,6 +37,13 @@ class KrxQuantService;
 /// page of them, at once when started and as each minute turns (trader::chart_ms); the bars before as the
 /// chart scrolls back, and the marks back to the first bar held, a page at a time. An engine that answers
 /// again after a failed read of the state has its chart read at once. Stopped, the chart reads nothing.
+///
+/// The decisions panel's (codeyoma/krx-quant#601): a book's decisions of the chart's day (that of its newest
+/// bar; before any, the engine's today), the day whole, page after page (GET /v1/trader/decisions,
+/// krx-quant #584), read with the chart: at once when started, as each minute turns, when the engine
+/// answers again after a failed read of the state, on a new address, and when the chart's bars come of
+/// another day; and at once when another book is chosen. An engine without them (404) has none, and says
+/// so: not a failure. Stopped, it reads nothing.
 ///
 /// Its one write is the screen's pause (pause): it asks first, through the screen's ``confirm``, and
 /// sends POST /v1/trader/pause only on a yes. Nothing here resumes the trader: that is the server's
@@ -107,11 +115,29 @@ class KrxTraderLive : public QObject {
     /// Whether the day's bars, those before or a page of marks are being read.
     bool chart_reading() const { return reading_bars_ || reading_older_ || marks_paging_; }
 
+    /// The book whose decisions are read (codeyoma/krx-quant#601): krx_quant::trader::kDefaultBook at first,
+    /// the practice's. Another drops those read and reads its own at once (when started); an answer for the
+    /// one before it is not kept. Kept for another engine; not saved.
+    void set_decisions_book(const QString& book);
+    const QString& decisions_book() const { return decisions_book_; }
+    /// The book's decisions of the day, read whole; none before the first read, after another book was
+    /// chosen or another engine set, and from an engine without them.
+    const std::optional<krx_quant::TraderDecisions>& decisions() const { return decisions_; }
+    /// Whether the engine has the decisions: false once it answered 404 (before krx-quant #584).
+    bool decisions_served() const { return decisions_served_; }
+    /// Why they could not be read last (those shown stay); empty once they can.
+    const QString& decisions_failure() const { return decisions_failure_; }
+    /// Whether a page of them is being read.
+    bool decisions_reading() const { return reading_decisions_; }
+
   signals:
     /// Something to draw again: an answer, a failure, a pause sent or its answer, a read started.
     void changed();
     /// The chart's bars, marks or failures changed (codeyoma/krx-quant#537).
     void chart_changed();
+    /// The decisions, whether the engine has them, their failure or their reading changed
+    /// (codeyoma/krx-quant#601).
+    void decisions_changed();
 
   private:
     void read();
@@ -139,6 +165,15 @@ class KrxTraderLive : public QObject {
     void read_marks(bool latest = false);
     /// Back to no chart: another engine.
     void forget_chart();
+    /// The decisions of the chosen book and the chart's day, from their latest page back to the day's first
+    /// (codeyoma/krx-quant#601); once the read under way ends, if one is.
+    void read_decisions();
+    /// The chart's day: its newest bar's (KST); invalid without a bar.
+    QDate chart_day() const;
+    /// On an answer of the chart's bars: their day's decisions, if those read are another day's.
+    void check_decisions_day();
+    /// Back to no decisions: another engine.
+    void forget_decisions();
 
     std::function<QDateTime()> now_;
     KrxQuantService* service_ = nullptr;
@@ -189,6 +224,15 @@ class KrxTraderLive : public QObject {
     /// The day's bars were not read for a while since those held (hidden, a failed read): days may have
     /// passed, so older_ may not reach the next answer's day.
     bool stale_ = false;
+    // The decisions (codeyoma/krx-quant#601).
+    QString decisions_book_ = QString::fromLatin1(krx_quant::trader::kDefaultBook);
+    std::optional<krx_quant::TraderDecisions> decisions_;   ///< the last read whole
+    std::optional<krx_quant::trader::DecisionPages> pages_; ///< the read under way, its pages so far
+    QDate decisions_day_;            ///< the day the read under way asked for; invalid: the engine's today
+    bool decisions_served_ = true;   ///< false once the engine answered 404
+    bool reading_decisions_ = false; ///< a page is being read
+    bool decisions_wanted_ = false;  ///< asked for again while a read was under way
+    QString decisions_failure_;
 };
 
 } // namespace fincept::services

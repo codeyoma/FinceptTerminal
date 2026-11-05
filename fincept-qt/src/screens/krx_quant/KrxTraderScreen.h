@@ -3,6 +3,7 @@
 #include "screens/krx_quant/KrxPanel.h"
 #include "services/krx_quant/TraderView.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
 #include <QList>
@@ -48,7 +49,9 @@ class KrxTraderDaysChart : public QWidget {
 /// capital, cash, position (with its target, stop and the time left to its time barrier), today's and the
 /// cumulative net P&L and the loss limits' use; then 005930's 1-minute chart with the trader's buys and
 /// sells (codeyoma/krx-quant#537: KrxChart, its candles and those marks alone, and their hover lines; only a
-/// fit button over it), each day's net P&L, the two pause buttons ("새 진입
+/// fit button over it, and the switch of the hollow marks of a book's calls that traded nothing,
+/// codeyoma/krx-quant#601), a book's decisions of the day (the practice's first) with their totals by
+/// reason, each day's net P&L, the two pause buttons ("새 진입
 /// 정지", "정지하고 즉시 매도", each behind a confirm window) with the recent requests, the trades table
 /// (the champion's, or a policy version's chosen above it), and the policy versions (champion,
 /// challengers, waiting, former, dropped: their values, paper records and standing) with the gate in
@@ -80,6 +83,14 @@ class KrxTraderScreen : public QWidget {
     /// The 1-minute chart and its header's "읽지 못함" (codeyoma/krx-quant#537).
     static constexpr const char* kBarsChartName = "krxTraderBarsChart";
     static constexpr const char* kBarsFailureName = "krxTraderBarsFailure";
+    /// The chart's switch of the hollow marks of the calls that traded nothing (codeyoma/krx-quant#601).
+    static constexpr const char* kSkipsName = "krxTraderSkips";
+    /// The decisions panel (codeyoma/krx-quant#601): its book choice, header line, "읽지 못함", totals and table.
+    static constexpr const char* kDecisionsBookName = "krxTraderDecisionsBook";
+    static constexpr const char* kDecisionsLineName = "krxTraderDecisionsLine";
+    static constexpr const char* kDecisionsFailureName = "krxTraderDecisionsFailure";
+    static constexpr const char* kDecisionsTotalsName = "krxTraderDecisionsTotals";
+    static constexpr const char* kDecisionsName = "krxTraderDecisions";
 
   protected:
     void showEvent(QShowEvent* event) override;
@@ -99,8 +110,11 @@ class KrxTraderScreen : public QWidget {
     void show_dot();
     void fill_header();
     void fill_cards();
-    /// The 1-minute chart: the bars and the trader's marks held, and why a read of them failed.
+    /// The 1-minute chart: the bars and the trader's marks held, and why a read of them failed; while
+    /// shown, the hollow marks of the book's calls that traded nothing (codeyoma/krx-quant#601).
     void fill_bars();
+    /// The decisions panel (codeyoma/krx-quant#601): the book's decisions of the day and their totals.
+    void fill_decisions();
     void fill_days();
     void fill_pause();
     void fill_trades();
@@ -122,6 +136,13 @@ class KrxTraderScreen : public QWidget {
     krx_panel::Header bars_header_;
     QLabel* bars_failure_ = nullptr;
     KrxChart* bars_chart_ = nullptr;
+    QCheckBox* skips_ = nullptr; ///< the hollow marks shown (codeyoma/krx-quant#601)
+    krx_panel::Header decisions_header_;
+    QLabel* decisions_failure_ = nullptr;
+    QLabel* decisions_line_ = nullptr;
+    QComboBox* book_box_ = nullptr;
+    QLabel* totals_ = nullptr;
+    QTableWidget* decisions_ = nullptr;
     krx_panel::Header days_header_;
     QComboBox* mode_box_ = nullptr;
     QLabel* days_line_ = nullptr;

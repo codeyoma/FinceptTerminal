@@ -1025,6 +1025,68 @@ struct TraderPolicies {
     bool operator==(const TraderPolicies&) const = default;
 };
 
+/// A prediction of a picked cell one of the trader's books read, and what it did with it (krx-quant #584,
+/// codeyoma/krx-quant#601: GET /v1/trader/decisions): bought, or why not. No price.
+struct TraderDecision {
+    qint64 id = 0;        ///< the store's: unique over every book
+    QDateTime decided_at; ///< when the trader read it (or settled it, having waited for a higher cell)
+    QString kind;         ///< its cell: the kind and the predictor
+    QString predictor;
+    qint64 prediction_id = 0; ///< the engine's
+    QDateTime bar_close;
+    QDateTime displayed_at; ///< when the engine displayed it
+    /// The rise's probability (the direction's p_up, a barrier's p_up_first); none without a forecast.
+    std::optional<double> probability;
+    /// The cell's θ and p* in the pick it was decided under; none for a cell not in it (``not_picked``), or
+    /// before the first pick.
+    std::optional<double> threshold;
+    std::optional<double> p_star;
+    bool buy = false; ///< "buy"; else "skip"
+    /// A skip's reason, or why a buy did not fill (krx-quant design.md 14장 "진입"); empty once it filled or
+    /// while it waits for its quote.
+    QString reason;
+    std::optional<qint64> trade_id; ///< its trade once it filled (GET /v1/trader/trades' id)
+    /// The class of the engine's answer: "up" (the kind's rise), "flat" (its middle), "down"; empty before it.
+    QString answer;
+    /// Whether the rise came: a buy bought right, a skip missed one; none before the answer.
+    std::optional<bool> right;
+    bool operator==(const TraderDecision&) const = default;
+};
+
+/// A book's decisions of the whole day by what came of them (krx-quant #584), each count of a reason
+/// commonest first (a tie by its name).
+struct TraderDecisionTotals {
+    int decisions = 0;
+    int bought = 0;                          ///< buys filled: a trade each
+    int waiting = 0;                         ///< a buy waiting for its quote
+    QList<std::pair<QString, int>> unfilled; ///< buys that did not fill, by why
+    QList<std::pair<QString, int>> skipped;  ///< skips, by why
+    bool operator==(const TraderDecisionTotals&) const = default;
+};
+
+/// A book's decisions of a day (krx-quant #584): "champion" (the trader's own), "practice" (the mock
+/// book's practice cell, codeyoma/krx-quant#427), "shadow" (the champion policy's paper book beside a KIS
+/// book) or "challenger" (a challenger policy's paper book); of one mode and one policy, so a day may
+/// have two of one book (a start in another mode) and one per challenger.
+struct TraderDecisionBook {
+    QString book;
+    QString mode;                    ///< "paper", "mock", "live"
+    std::optional<qint64> policy;    ///< none before the first champion, and the practice's
+    TraderDecisionTotals totals;     ///< of the whole day, not the page's alone
+    QList<TraderDecision> decisions; ///< newest first
+    bool more = false;               ///< earlier ones that day are left for the next page
+    bool operator==(const TraderDecisionBook&) const = default;
+};
+
+/// GET /v1/trader/decisions?day=&book=&before=&limit= (krx-quant #584): the day's (KST) books asked for,
+/// none before the first decision that day.
+struct TraderDecisions {
+    QDate day;
+    QString book; ///< the one asked; empty: every book
+    QList<TraderDecisionBook> books;
+    bool operator==(const TraderDecisions&) const = default;
+};
+
 Result<EngineStatus> parse_status(const QJsonDocument& doc);        ///< GET /v1/status
 Result<QList<SymbolQuote>> parse_symbols(const QJsonDocument& doc); ///< GET /v1/symbols
 /// GET /v1/symbols/{symbol}/special?from=&to= (krx-quant #236): the symbol's VIs and the market's
@@ -1058,6 +1120,9 @@ Result<TraderControl> parse_trader_pause(const QJsonDocument& doc);
 /// GET /v1/trader/policies (codeyoma/krx-quant#399, #400): newest version first, as the engine sends them;
 /// a policy without its version or a change without its version or time is dropped.
 Result<TraderPolicies> parse_trader_policies(const QJsonDocument& doc);
+/// GET /v1/trader/decisions (krx-quant #584, codeyoma/krx-quant#601): the books in the engine's order, each's
+/// decisions newest first; a book without its name or mode, or a decision without its id or time, is dropped.
+Result<TraderDecisions> parse_trader_decisions(const QJsonDocument& doc);
 
 /// Day candles the engine stored (krx-quant #111): oldest first, each starting at 00:00 KST of
 /// its day, and the market they come from ("UN" integrated, "KRX"; empty with none stored).

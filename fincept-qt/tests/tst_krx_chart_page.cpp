@@ -865,6 +865,41 @@ class TstKrxChartPage : public QObject {
         QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.markers().length").toInt(), 0, 10000);
     }
 
+    void the_trader_s_hollow_marks_sit_under_a_buy_on_their_bars() {
+        // codeyoma/krx-quant#601: on the 09:10 bar a paper buy ▲ and a hollow △ of a call that traded nothing under
+        // it, in the same colour; on 09:20 a live book's △ alone, in the live colour; one on no bar drawn is not.
+        // A wider view: none.
+        empty();
+        const QList<Bar> morning = minutes("2026-10-15T09:00:00+09:00", 30);
+        const qint64 ten = chart_time(kst("2026-10-15T09:10:00+09:00"));
+        const qint64 twenty = chart_time(kst("2026-10-15T09:20:00+09:00"));
+        const QList<TraderIcon> trades{{ten, true, false, QStringLiteral("t1b")}};
+        const QList<SkipIcon> skips{
+            {ten, false}, {twenty, true}, {chart_time(kst("2026-10-15T10:30:00+09:00")), false}};
+        chart_->set_data(morning, {}, {}, {}, 1, {}, {}, std::nullopt, {}, trades, {}, skips);
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.markers().length").toInt(), 3, 10000);
+        QList<QVariantList> at_ten; // [time, position, shape, text, colour], as drawn
+        QVariantList at_twenty;
+        for (const QVariant& m : js("window.krxChart.markers()").toList()) {
+            const QVariantList marker = m.toList();
+            if (marker.value(0).toLongLong() == ten)
+                at_ten << marker;
+            else
+                at_twenty = marker;
+        }
+        QCOMPARE(at_ten.size(), 2); // none hides another
+        QCOMPARE(at_ten[0].mid(1, 1) + at_ten[0].mid(3, 1),
+                 (QVariantList{"belowBar", QStringLiteral("매수")})); // nearest
+        QCOMPARE(at_ten[1].mid(1, 1) + at_ten[1].mid(3, 1), (QVariantList{"belowBar", QStringLiteral("△")}));
+        QCOMPARE(at_ten[1].value(4).toString(), at_ten[0].value(4).toString()); // the paper colour
+        QCOMPARE(at_twenty.value(0).toLongLong(), twenty);
+        QCOMPARE(at_twenty.mid(1, 1) + at_twenty.mid(3, 1), (QVariantList{"belowBar", QStringLiteral("△")}));
+        QVERIFY2(at_twenty.value(4).toString() != at_ten[1].value(4).toString(),
+                 qPrintable(at_twenty.value(4).toString()));
+        chart_->set_data(morning, {}, {}, {}, 5, {}, {}, std::nullopt, {}, trades, {}, skips);
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.markers().length").toInt(), 0, 10000);
+    }
+
     void the_smt_divergences_show_over_and_under_their_bars_past_the_other_marks() {
         // codeyoma/krx-quant#522: on the 09:10 bar the consensus's icon, the trader's sell, a bearish SMT ▼ over
         // them and a bullish one ▲ under the bar; on 09:20 a reconstructed bearish one, hollow ▽; one on no bar

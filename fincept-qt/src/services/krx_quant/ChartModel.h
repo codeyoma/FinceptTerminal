@@ -222,6 +222,16 @@ struct TraderIcon {
 /// The icons of ``marks``, in time order.
 QList<TraderIcon> trader_icons(const QList<TraderMark>& marks);
 
+/// A call a book of the trader read and did not trade (codeyoma/krx-quant#601): skipped, or bought and not
+/// filled. The chart draws it hollow △ under the 1-minute bar it was decided in, where a buy's ▲ sits,
+/// in the trader's colour (the live account's or the others'); the bar's calls share one
+/// (krx_quant::trader::skip_icons).
+struct SkipIcon {
+    qint64 time = 0;   ///< the bar's start, as chart_time
+    bool live = false; ///< a live book's
+    bool operator==(const SkipIcon&) const = default;
+};
+
 /// A mark's line in its bar's hover box: "자동 매매 매수 70,100원 × 14주 · 모의", "자동 매매 매도
 /// 70,250원 × 14주 · 익절 · 순손익 -162원 · 실전" (모의 for paper, KIS 모의 for KIS's mock trading);
 /// a practice trade's ends "· 연습" (codeyoma/krx-quant#430).

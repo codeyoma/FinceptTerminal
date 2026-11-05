@@ -2643,4 +2643,73 @@ Result<TraderPolicies> parse_trader_policies(const QJsonDocument& doc) {
     return Result<TraderPolicies>::ok(out);
 }
 
+namespace {
+
+/// A count by reason, commonest first and a tie by its name: a JSON object keeps no order of its own.
+QList<std::pair<QString, int>> counts_of(const QJsonValue& v) {
+    QList<std::pair<QString, int>> out;
+    const QJsonObject counts = v.toObject();
+    for (auto it = counts.constBegin(); it != counts.constEnd(); ++it)
+        if (const int n = it.value().toInt(); n > 0)
+            out.push_back({it.key(), n});
+    std::stable_sort(out.begin(), out.end(), [](const auto& a, const auto& b) {
+        return a.second != b.second ? a.second > b.second : a.first < b.first;
+    });
+    return out;
+}
+
+} // namespace
+
+Result<TraderDecisions> parse_trader_decisions(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<TraderDecisions>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    TraderDecisions out;
+    out.day = QDate::fromString(o.value("day").toString(), Qt::ISODate);
+    out.book = o.value("book").toString();
+    for (const auto& b : o.value("books").toArray()) {
+        const QJsonObject j = b.toObject();
+        TraderDecisionBook book;
+        book.book = j.value("book").toString();
+        book.mode = j.value("mode").toString();
+        if (book.book.isEmpty() || book.mode.isEmpty())
+            continue;
+        book.policy = long_of(j.value("policy"));
+        const QJsonObject totals = j.value("totals").toObject();
+        book.totals.decisions = totals.value("decisions").toInt();
+        book.totals.bought = totals.value("bought").toInt();
+        book.totals.waiting = totals.value("waiting").toInt();
+        book.totals.unfilled = counts_of(totals.value("unfilled"));
+        book.totals.skipped = counts_of(totals.value("skipped"));
+        book.more = j.value("more").toBool();
+        for (const auto& v : j.value("decisions").toArray()) {
+            const QJsonObject d = v.toObject();
+            TraderDecision decision;
+            const std::optional<qint64> id = long_of(d.value("id"));
+            decision.decided_at = time_of(d.value("decided_at"));
+            if (!id || !decision.decided_at.isValid())
+                continue;
+            decision.id = *id;
+            decision.kind = d.value("kind").toString();
+            decision.predictor = d.value("predictor").toString();
+            decision.prediction_id = d.value("prediction_id").toInteger();
+            decision.bar_close = time_of(d.value("bar_close"));
+            decision.displayed_at = time_of(d.value("displayed_at"));
+            decision.probability = number(d.value("probability"));
+            decision.threshold = number(d.value("threshold"));
+            decision.p_star = number(d.value("p_star"));
+            decision.buy = d.value("action").toString() == QLatin1String("buy");
+            decision.reason = d.value("reason").toString();
+            decision.trade_id = long_of(d.value("trade_id"));
+            decision.answer = d.value("answer").toString();
+            if (d.value("right").isBool())
+                decision.right = d.value("right").toBool();
+            book.decisions.push_back(decision);
+        }
+        out.books.push_back(book);
+    }
+    return Result<TraderDecisions>::ok(out);
+}
+
 } // namespace fincept::krx_quant

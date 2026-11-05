@@ -5,7 +5,8 @@
 // with no challenger and with three, the live gate passed and not, and the trades of a policy chosen.
 // Its 1-minute chart (codeyoma/krx-quant#537) draws the trader's buys and sells and their hover lines and
 // nothing of the KRX 4-minute screen's: built without Qt WebEngine, what the screen sends the chart's page is
-// read on the chart's bridge.
+// read on the chart's bridge. The decisions panel (codeyoma/krx-quant#601) shows a book's day of decisions with
+// its totals, the practice's first, and the chart the hollow marks of its calls that traded nothing.
 // The values are made up. Widgets and Qt Network; it runs on the offscreen platform too. The settings (the engine's
 // address) go to a temporary INI file: AppConfig is defined below, in place of core/config/AppConfig.cpp.
 
@@ -32,6 +33,7 @@
 #include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QUrlQuery>
 
 #include <algorithm>
 
@@ -202,6 +204,8 @@ class StandIn : public QObject {
                     {"quantity", 2},
                     {"mode", "live"}},
     };
+    /// GET /v1/trader/decisions (codeyoma/krx-quant#601): false, an engine before krx-quant #584 (404).
+    bool decisions = true;
     QStringList asked;
 
     StandIn() {
@@ -253,6 +257,58 @@ class StandIn : public QObject {
                                                      {"version", 1},
                                                      {"reason", "처음 맞춘 정책(#399)"},
                                                      {"detail", QJsonValue()}}}}};
+    }
+
+    /// The day of the book asked for (codeyoma/krx-quant#601): the practice's four calls of 10:02–10:07 (a skip,
+    /// the buy of trade 40 filled, a skip while it was held, a buy unfilled), the champion's one skip; none of
+    /// another book.
+    static QJsonObject decisions_json(const QString& path) {
+        const auto decision = [](int id, const char* at, const char* action, QJsonValue reason, double probability,
+                                 QJsonValue trade = QJsonValue()) {
+            return QJsonObject{{"id", id},
+                               {"decided_at", at},
+                               {"symbol", "005930"},
+                               {"kind", "barrier"},
+                               {"predictor", "breiman"},
+                               {"prediction_id", id + 100},
+                               {"bar_close", QString::fromLatin1(at).left(16) + ":00+09:00"},
+                               {"displayed_at", at},
+                               {"probability", probability},
+                               {"threshold", 0.6},
+                               {"p_star", 0.58},
+                               {"action", action},
+                               {"reason", reason},
+                               {"trade_id", trade},
+                               {"answer", QJsonValue()},
+                               {"right", QJsonValue()}};
+        };
+        const auto book = [](const char* name, const char* mode, QJsonValue policy, const QJsonArray& decisions,
+                             const QJsonObject& totals) {
+            return QJsonObject{{"book", name},     {"mode", mode},           {"policy", policy},
+                               {"totals", totals}, {"decisions", decisions}, {"more", false}};
+        };
+        QJsonArray books;
+        if (path.contains("book=practice"))
+            books.append(book("practice", "mock", QJsonValue(),
+                              QJsonArray{decision(4, "2026-10-14T10:07:02+09:00", "buy", "no_quote", 0.66),
+                                         decision(3, "2026-10-14T10:06:02+09:00", "skip", "holding", 0.7),
+                                         decision(2, "2026-10-14T10:05:02+09:00", "buy", QJsonValue(), 0.68, 40),
+                                         decision(1, "2026-10-14T10:02:02+09:00", "skip", "not_up", 0.3)},
+                              QJsonObject{{"decisions", 4},
+                                          {"bought", 1},
+                                          {"waiting", 0},
+                                          {"unfilled", QJsonObject{{"no_quote", 1}}},
+                                          {"skipped", QJsonObject{{"holding", 1}, {"not_up", 1}}}}));
+        else if (path.contains("book=champion"))
+            books.append(book("champion", "mock", 1,
+                              QJsonArray{decision(9, "2026-10-14T10:04:02+09:00", "skip", "not_picked", 0.62)},
+                              QJsonObject{{"decisions", 1},
+                                          {"bought", 0},
+                                          {"waiting", 0},
+                                          {"unfilled", QJsonObject{}},
+                                          {"skipped", QJsonObject{{"not_picked", 1}}}}));
+        return {
+            {"day", "2026-10-14"}, {"book", QUrlQuery(path.section('?', 1)).queryItemValue("book")}, {"books", books}};
     }
 
     QJsonObject state() const {
@@ -392,6 +448,9 @@ class StandIn : public QObject {
         } else if (route == "/v1/symbols/005930/trader-marks") {
             status = 200;
             body = {{"symbol", "005930"}, {"marks", path.contains("before=") ? QJsonArray{} : marks}};
+        } else if (route == "/v1/trader/decisions" && decisions) {
+            status = 200;
+            body = decisions_json(path);
         }
         const QByteArray bytes = QJsonDocument(body).toJson(QJsonDocument::Compact);
         socket->write("HTTP/1.1 " + QByteArray::number(status) + (status == 200 ? " OK" : " Error") +
@@ -635,8 +694,10 @@ class TstKrxTraderScreen : public QObject {
 
     void the_chart_draws_the_trader_s_buys_and_sells_and_their_hover_lines_alone() {
         // codeyoma/krx-quant#537: candles, the trader's ▲ under a buy's bar and ▼ over a sell's, and each such
-        // bar's hover lines; no consensus icon, SMT mark, special situation band or indicator.
+        // bar's hover lines; no consensus icon, SMT mark, special situation band or indicator. An engine without
+        // the decisions (codeyoma/krx-quant#601): no hollow mark, and the trades' boxes alone.
         StandIn engine;
+        engine.decisions = false;
         services::KrxQuantService::set_base_url(engine.url());
         screens::KrxTraderScreen screen;
         screen.resize(1600, 1000);
@@ -656,6 +717,7 @@ class TstKrxTraderScreen : public QObject {
         QCOMPARE(d.value("bars").toArray().size(), qsizetype(20));
         QVERIFY(d.value("icons").toArray().isEmpty());
         QVERIFY(d.value("smt").toArray().isEmpty());
+        QVERIFY(d.value("skips").toArray().isEmpty());
         QVERIFY(d.value("special").toArray().isEmpty());
         QVERIFY(d.value("studies").toObject().value("series").toArray().isEmpty());
         QVERIFY(d.value("studies").toObject().value("panes").toArray().isEmpty());
@@ -712,6 +774,135 @@ class TstKrxTraderScreen : public QObject {
         const qsizetype reads = engine.count("/v1/symbols/005930/bars");
         screen.show();
         QTRY_VERIFY_WITH_TIMEOUT(engine.count("/v1/symbols/005930/bars") > reads, 10000);
+    }
+
+    void the_decisions_panel_shows_a_book_s_day_and_the_chart_its_calls_that_traded_nothing() {
+        // codeyoma/krx-quant#601: the practice's day first, its totals and rows; the chart's hollow △ on the bars of
+        // its skips and its buy unfilled, not on the buy filled (the trade's ▲ is there); off, none. Another book
+        // chosen: its own. Hidden, none is read; shown again, at once.
+        StandIn engine;
+        services::KrxQuantService::set_base_url(engine.url());
+        screens::KrxTraderScreen screen;
+        screen.resize(1600, 1000);
+        auto* chart = screen.findChild<screens::KrxChart*>(screens::KrxTraderScreen::kBarsChartName);
+        QVERIFY(chart);
+        auto* bridge = chart->findChild<screens::KrxChartBridge*>();
+        QVERIFY(bridge);
+        QSignalSpy data(bridge, &screens::KrxChartBridge::data_changed);
+        QSignalSpy hovers(bridge, &screens::KrxChartBridge::hovers_changed);
+        screen.show();
+        auto* table = screen.findChild<QTableWidget*>(screens::KrxTraderScreen::kDecisionsName);
+        auto* book = screen.findChild<QComboBox*>(screens::KrxTraderScreen::kDecisionsBookName);
+        auto* line = screen.findChild<QLabel*>(screens::KrxTraderScreen::kDecisionsLineName);
+        auto* totals = screen.findChild<QLabel*>(screens::KrxTraderScreen::kDecisionsTotalsName);
+        auto* failure = screen.findChild<QLabel*>(screens::KrxTraderScreen::kDecisionsFailureName);
+        auto* skips = screen.findChild<QCheckBox*>(screens::KrxTraderScreen::kSkipsName);
+        QVERIFY(table && book && line && totals && failure && skips);
+        QCOMPARE(book->currentText(), QStringLiteral("연습"));
+        QVERIFY(skips->isChecked());
+        QTRY_COMPARE_WITH_TIMEOUT(table->rowCount(), 4, 10000);
+        QVERIFY(std::any_of(engine.asked.cbegin(), engine.asked.cend(), [](const QString& path) {
+            return path.startsWith(QStringLiteral("/v1/trader/decisions?book=practice&limit=1000"));
+        }));
+        QCOMPARE(line->text(), QStringLiteral("10-14(수) · 결정 4개"));
+        QCOMPARE(totals->text(),
+                 QStringLiteral("연습 · KIS 모의 · 결정 4 · 산 것 1 · 못 산 것 1(호가 없음 1) · 건너뜀 2(보유 중 1 "
+                                "· 오름 아님 1)"));
+        QVERIFY(failure->isHidden());
+        QCOMPARE(table->item(0, 0)->text(), QStringLiteral("10:07:02"));
+        QCOMPARE(table->item(0, 6)->text(), QStringLiteral("매수 못 함"));
+        QCOMPARE(table->item(0, 7)->text(), QStringLiteral("호가 없음"));
+        QCOMPARE(table->item(2, 6)->text(), QStringLiteral("매수"));
+        QCOMPARE(table->item(3, 7)->text(), QStringLiteral("오름 아님"));
+
+        const auto last_data = [&data] {
+            return data.isEmpty() ? QJsonObject()
+                                  : QJsonDocument::fromJson(data.constLast().constFirst().toString().toUtf8()).object();
+        };
+        const auto bar = [](const char* start) {
+            return krx_quant::chart_time(QDateTime::fromString(QString::fromLatin1(start), Qt::ISODate));
+        };
+        QTRY_VERIFY_WITH_TIMEOUT(last_data().value("skips").toArray().size() == 3 &&
+                                     last_data().value("trades").toArray().size() == 3,
+                                 10000);
+        QStringList shown;
+        for (const QJsonValue& v : last_data().value("skips").toArray())
+            shown << QStringList{QString::number(v.toObject().value("time").toInteger()),
+                                 v.toObject().value("text").toString()}
+                         .join(' ');
+        QCOMPARE(shown, (QStringList{QStringLiteral("%1 △").arg(bar("2026-10-14T10:02:00+09:00")),
+                                     QStringLiteral("%1 △").arg(bar("2026-10-14T10:06:00+09:00")),
+                                     QStringLiteral("%1 △").arg(bar("2026-10-14T10:07:00+09:00"))}));
+        // In the KIS mock book's colour, as its buy's.
+        const QJsonArray trades = last_data().value("trades").toArray();
+        QCOMPARE(last_data().value("skips").toArray()[0].toObject().value("color"),
+                 trades[2].toObject().value("color"));
+        QMap<qint64, QStringList> boxes;
+        for (const auto& emitted : hovers)
+            for (const QJsonValue& v :
+                 QJsonDocument::fromJson(emitted.constFirst().toString().toUtf8()).object().value("set").toArray()) {
+                QStringList lines;
+                for (const QJsonValue& l : v.toObject().value("lines").toArray())
+                    lines << l.toString();
+                boxes.insert(v.toObject().value("time").toInteger(), lines);
+            }
+        QCOMPARE(boxes.value(bar("2026-10-14T10:06:00+09:00")),
+                 QStringList{QStringLiteral("연습 건너뜀 · 장벽 4분 · breiman · 70.0% (θ 60.0%) · 보유 중")});
+        QCOMPARE(boxes.value(bar("2026-10-14T10:05:00+09:00")), // the buy filled: the trade's line alone
+                 QStringList{QStringLiteral("자동 매매 매수 70,100원 × 14주 · KIS 모의 · 연습")});
+
+        // Off: no hollow mark, the trades' as they were.
+        skips->setChecked(false);
+        QTRY_VERIFY_WITH_TIMEOUT(last_data().value("skips").toArray().isEmpty(), 10000);
+        QCOMPARE(last_data().value("trades").toArray().size(), qsizetype(3));
+        skips->setChecked(true);
+        QTRY_COMPARE_WITH_TIMEOUT(last_data().value("skips").toArray().size(), qsizetype(3), 10000);
+
+        // The champion's book: its own day, at once.
+        const int champion = book->findText(QStringLiteral("챔피언"));
+        QVERIFY(champion > 0);
+        book->setCurrentIndex(champion);
+        emit book->activated(champion); // as a click on it
+        QTRY_COMPARE_WITH_TIMEOUT(table->rowCount(), 1, 10000);
+        QVERIFY(engine.asked.contains(QStringLiteral("/v1/trader/decisions?book=champion&limit=1000&day=2026-10-14")));
+        QCOMPARE(table->item(0, 1)->text(), QStringLiteral("챔피언 정책 1 · KIS 모의"));
+        QCOMPARE(table->item(0, 7)->text(), QStringLiteral("고른 칸 아님"));
+        QTRY_COMPARE_WITH_TIMEOUT(last_data().value("skips").toArray().size(), qsizetype(1), 10000);
+
+        // Hidden: not read; shown again, at once.
+        screen.hide();
+        auto* live = screen.findChild<services::KrxTraderLive*>();
+        QVERIFY(live && !live->running());
+        const qsizetype reads = engine.count("/v1/trader/decisions");
+        live->read_now();
+        QVERIFY(!live->decisions_reading());
+        QCOMPARE(engine.count("/v1/trader/decisions"), reads);
+        screen.show();
+        QTRY_VERIFY_WITH_TIMEOUT(engine.count("/v1/trader/decisions") > reads, 10000);
+        QCOMPARE(book->currentText(), QStringLiteral("챔피언"));
+    }
+
+    void an_engine_without_decisions_says_it_does_not_have_them_yet() {
+        // krx-quant #584 not there (404): the panel empty, "엔진이 아직 지원하지 않음", no failure, no hollow mark.
+        StandIn engine;
+        engine.decisions = false;
+        services::KrxQuantService::set_base_url(engine.url());
+        screens::KrxTraderScreen screen;
+        screen.resize(1600, 1000);
+        screen.show();
+        auto* table = screen.findChild<QTableWidget*>(screens::KrxTraderScreen::kDecisionsName);
+        auto* line = screen.findChild<QLabel*>(screens::KrxTraderScreen::kDecisionsLineName);
+        auto* failure = screen.findChild<QLabel*>(screens::KrxTraderScreen::kDecisionsFailureName);
+        auto* totals = screen.findChild<QLabel*>(screens::KrxTraderScreen::kDecisionsTotalsName);
+        QVERIFY(table && line && failure && totals);
+        QTRY_COMPARE_WITH_TIMEOUT(line->text(), QStringLiteral("엔진이 아직 지원하지 않음"), 10000);
+        QCOMPARE(table->rowCount(), 0);
+        QVERIFY(failure->isHidden());
+        QVERIFY(totals->isHidden());
+        auto* live = screen.findChild<services::KrxTraderLive*>();
+        QVERIFY(live);
+        QTRY_VERIFY_WITH_TIMEOUT(!live->reading(), 10000);
+        QVERIFY(live->failure().isEmpty()); // nor in the screen's failure line
     }
 
     void choosing_a_policy_shows_its_trades() {

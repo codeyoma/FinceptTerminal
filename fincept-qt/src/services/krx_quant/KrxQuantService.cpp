@@ -779,6 +779,29 @@ void KrxQuantService::read_trader_policies() {
     });
 }
 
+bool KrxQuantService::read_trader_decisions(const QString& book, const QDate& day, const QDateTime& before, int limit) {
+    if (!begin(kDecisions))
+        return false;
+    QString path = QStringLiteral("/v1/trader/decisions?book=%1&limit=%2")
+                       .arg(QString::fromUtf8(QUrl::toPercentEncoding(book)))
+                       .arg(limit);
+    if (day.isValid())
+        path += "&day=" + day.toString(Qt::ISODate);
+    if (before.isValid()) // its offset's "+" encoded: a query's "+" reads as a space
+        path += "&before=" + QString::fromUtf8(QUrl::toPercentEncoding(before.toString(Qt::ISODateWithMs)));
+    get(path, [this, book, before](Result<QJsonDocument> answer) {
+        end(kDecisions);
+        // An engine before krx-quant #584 has no such answer: nothing to show, not a failure.
+        if (answer.is_err() && HttpClient::status_from_error(answer.error()) == 404)
+            return emit trader_decisions_ready(book, before, {}, false);
+        auto decisions = parsed(answer, krx_quant::parse_trader_decisions);
+        if (decisions.is_err())
+            return emit trader_decisions_failed(book, before, why(decisions.error()));
+        emit trader_decisions_ready(book, before, decisions.value(), true);
+    });
+    return true;
+}
+
 bool KrxQuantService::pause_trader(bool sell_now) {
     if (!begin(kTraderPause))
         return false;

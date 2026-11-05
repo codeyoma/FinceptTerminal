@@ -1,5 +1,6 @@
 #pragma once
 
+#include "services/krx_quant/ChartModel.h"
 #include "services/krx_quant/EngineData.h"
 
 #include <QDate>
@@ -10,12 +11,13 @@
 
 #include <optional>
 
-/// What the KRX auto trader screen shows (codeyoma/krx-quant#397, #401), from the engine's GET /v1/trader,
-/// /v1/trader/days, /v1/trader/trades and /v1/trader/policies: the header's mode badge, status, champion
-/// and live gate, the cards, the days' curve, the trades table (the champion's or a policy version's), the
-/// recent requests, the policy versions with the champion's history, and what the two pause buttons ask
-/// before they send POST /v1/trader/pause. The screen only draws them; resuming is the server's alone, so nothing
-/// here offers it.
+/// What the KRX auto trader screen shows (codeyoma/krx-quant#397, #401, #601), from the engine's GET /v1/trader,
+/// /v1/trader/days, /v1/trader/trades, /v1/trader/policies and /v1/trader/decisions: the header's mode badge,
+/// status, champion and live gate, the cards, a book's decisions of the day with their totals and the chart's
+/// hollow marks of its calls that traded nothing, the days' curve, the trades table (the champion's or a
+/// policy version's), the recent requests, the policy versions with the champion's history, and what the
+/// two pause buttons ask before they send POST /v1/trader/pause. The screen only draws them; resuming is the server's
+/// alone, so nothing here offers it.
 ///
 /// Qt Core only (no network, no widgets), unit-tested on its own (tests/tst_krx_trader.cpp).
 namespace fincept::krx_quant::trader {
@@ -269,6 +271,105 @@ struct Action {
 Action pause_action(bool sell_now, const std::optional<TraderState>& state);
 /// The line by the buttons: resuming is the server's alone.
 QString resume_note();
+
+// ---- The decisions (codeyoma/krx-quant#601) ------------------------------------------------------------
+
+/// The decisions read at once (GET /v1/trader/decisions?limit=): the engine's most. A book's day is read
+/// whole, page after page (DecisionPages), each time the panel reads.
+inline constexpr int kDecisionPage = 1000;
+/// The book the decisions panel shows first: the mock book's practice (codeyoma/krx-quant#427).
+inline constexpr const char* kDefaultBook = "practice";
+
+/// A book the decisions panel can show (GET /v1/trader/decisions?book=).
+struct BookChoice {
+    QString book; ///< "practice", "champion", "shadow", "challenger"
+    QString text; ///< "연습", "챔피언", "그림자", "도전"
+    QString tip;
+    bool operator==(const BookChoice&) const = default;
+};
+/// The books, the practice's first (the default), then the champion's, the shadow's and the challengers'.
+QList<BookChoice> book_choices();
+/// A book's name in Korean: "연습", "챔피언", "그림자", "도전"; an unknown one as it is.
+QString book_label(const QString& book);
+/// One of a day's books by its mode and policy: "연습 · KIS 모의", "챔피언 정책 1 · 실전", "도전 정책 2 · 모의";
+/// "챔피언 · 모의" before the first champion.
+QString book_entry_label(const TraderDecisionBook& book);
+
+/// Why a call bought nothing, in Korean (krx-quant design.md 14장 "진입", the trader's ``decisions.reason``):
+/// a skip's ("오름 아님", "θ 아래", "보유 중", "매수 한도", "쉬는 중", …) or a buy's that did not fill ("호가 없음",
+/// "이미 목표가", "1주 미만", …); an unknown one as it is.
+QString reason_label(const QString& reason);
+/// What it means: the rule behind it, in a sentence; empty for an unknown one.
+QString reason_tip(const QString& reason);
+
+/// A book's day of decisions being read (codeyoma/krx-quant#601): the pages joined so far, each of the day's
+/// books (a mode and a policy each) newest first, and which of them are read back to their first that day.
+struct DecisionPages {
+    TraderDecisions read;
+    QList<bool> done; ///< by read.books' index
+    bool operator==(const DecisionPages&) const = default;
+};
+/// The pages once the latest one (read without ``before``) is in: a book with ``more`` is not done.
+DecisionPages decision_pages(const TraderDecisions& latest);
+/// The next page to read: its ``before``; none once every book is read back to its first decision that day.
+/// It is the latest of the earliest decisions held of the books not done, a millisecond past it: the engine's
+/// times are to the microsecond and this screen's to the millisecond, so that millisecond's decisions come
+/// again (joined by id, not doubled) and none is missed; the engine never splits a moment's decisions
+/// between two pages. The page holds the other books' decisions before it too.
+std::optional<QDateTime> decisions_before(const DecisionPages& pages);
+/// ``pages`` with ``page`` (read with ``before``, decisions_before's) joined in: each book's decisions by id,
+/// the page's in place of those held. A book is done once a page says it has no more, or once the page
+/// asked for it brings none earlier than those held (a millisecond holding more than a page: no further).
+void join_decisions(DecisionPages& pages, const TraderDecisions& page, const QDateTime& before);
+
+/// The decisions panel's header line: "10-12(월) · 결정 300개"; "10-12(월) · 결정 없음"; "엔진이 아직 지원하지
+/// 않음" from an engine without them (``served`` false, krx-quant #584); "읽는 중" while the first read is under
+/// way; empty before.
+QString decisions_line(const std::optional<TraderDecisions>& decisions, bool served, bool reading);
+/// A line of a book's totals of the day and its tooltip: "연습 · KIS 모의 · 결정 300 · 산 것 18 · 못 산 것 2(호가
+/// 없음 2) · 건너뜀 280(오름 아님 230 · 매수 한도 30 · …)"; with the answers in, what came of them: "· 정답
+/// 난 것: 산 것 12/18 맞음 · 건너뛴 것 40/250 놓친 오름" (each part only with an answered call of it).
+struct TotalsLine {
+    QString text;
+    QString tip;
+};
+QList<TotalsLine> totals_lines(const TraderDecisions& decisions);
+
+/// A row of the decisions table, newest first over the day's books.
+struct DecisionRow {
+    qint64 id = 0;       ///< the decision's (unique over the books)
+    QString at;          ///< when it was decided: "10:05:02"
+    QString book;        ///< book_entry_label's
+    QString cell;        ///< "장벽 4분 · breiman"
+    QString probability; ///< the rise's: "41.0%"; "—" without a forecast
+    QString threshold;   ///< θ: "60.0%"; "—"
+    QString p_star;      ///< "58.0%"; "—"
+    QString action;      ///< "매수", "매수 못 함", "호가 기다림", "건너뜀"
+    QString reason;      ///< reason_label's; "—" for a buy filled or waiting
+    /// The engine's answer: "상승", "보합", "하락" for the direction, "위 먼저", "시간 만료", "아래 먼저" for a
+    /// barrier; "—" before it.
+    QString answer;
+    /// What came of the call: a buy's "맞음" (the rise came) or "틀림"; a skip's "놓친 오름" (it came) or
+    /// "맞음"; "—" before the answer.
+    QString right;
+    QString tip;        ///< its prediction, bar close, display and decision times, its trade
+    QString reason_tip; ///< reason_tip's
+    QString right_tip;
+    Tone action_tone = Tone::Plain;
+    Tone right_tone = Tone::Dim;
+};
+QList<DecisionRow> decision_rows(const TraderDecisions& decisions);
+
+/// The chart's hollow marks (codeyoma/krx-quant#601): every bar with a call of ``decisions`` that traded
+/// nothing (a skip, or a buy that did not fill; not a buy filled, which the chart marks as a trade, nor
+/// one waiting for its quote), one a bar, in time order.
+QList<SkipIcon> skip_icons(const TraderDecisions& decisions);
+/// Such a call's line in its bar's hover box: "연습 건너뜀 · 장벽 4분 · breiman · 41.0% (θ 60.0%) · 오름 아님",
+/// "연습 매수 못 함 · … · 호가 없음", the answer's once it is in ("· 정답 위 먼저 · 놓친 오름").
+QString skip_line(const TraderDecision& decision, const TraderDecisionBook& book);
+/// ``hovers`` (the 1-minute bars' boxes) with the lines of the calls skip_icons marks last in their bar's
+/// box, in time order; a bar without a box gets one of its lines alone.
+QList<BarHover> with_skip_lines(QList<BarHover> hovers, const TraderDecisions& decisions);
 
 /// "1,000,000원"; "+1,922원", "-162원", "0원"; "61.0%".
 QString won_text(double won);
