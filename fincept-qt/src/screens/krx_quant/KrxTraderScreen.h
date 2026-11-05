@@ -17,6 +17,8 @@ class KrxTraderLive;
 
 namespace fincept::screens {
 
+class KrxChart;
+
 /// The days' net P&L of one mode (codeyoma/krx-quant#397): a bar a day (green a gain, red a loss) and
 /// the running sum as a line, on one scale with its zero; a day where a loss limit was reached is
 /// marked. Hovering a day shows its tooltip (trader::DayPoint::tip). QPainter.
@@ -44,7 +46,9 @@ class KrxTraderDaysChart : public QWidget {
 /// trader of 005930 (krx-quant design.md 14장). The header has its mode (모의, KIS 모의, 실전), status
 /// (도는 중, 새 진입 정지, 정지, 하루 한도, 누적 한도), champion and live gate's progress; the cards its
 /// capital, cash, position (with its target, stop and the time left to its time barrier), today's and the
-/// cumulative net P&L and the loss limits' use; then each day's net P&L, the two pause buttons ("새 진입
+/// cumulative net P&L and the loss limits' use; then 005930's 1-minute chart with the trader's buys and
+/// sells (codeyoma/krx-quant#537: KrxChart, its candles and those marks alone, and their hover lines; only a
+/// fit button over it), each day's net P&L, the two pause buttons ("새 진입
 /// 정지", "정지하고 즉시 매도", each behind a confirm window) with the recent requests, the trades table
 /// (the champion's, or a policy version's chosen above it), and the policy versions (champion,
 /// challengers, waiting, former, dropped: their values, paper records and standing) with the gate in
@@ -73,6 +77,9 @@ class KrxTraderScreen : public QWidget {
     static constexpr const char* kCohortLineName = "krxTraderCohortLine";
     /// "연습" beside the mode badge while the mock book practises (codeyoma/krx-quant#427).
     static constexpr const char* kPracticeName = "krxTraderPractice";
+    /// The 1-minute chart and its header's "읽지 못함" (codeyoma/krx-quant#537).
+    static constexpr const char* kBarsChartName = "krxTraderBarsChart";
+    static constexpr const char* kBarsFailureName = "krxTraderBarsFailure";
 
   protected:
     void showEvent(QShowEvent* event) override;
@@ -92,6 +99,8 @@ class KrxTraderScreen : public QWidget {
     void show_dot();
     void fill_header();
     void fill_cards();
+    /// The 1-minute chart: the bars and the trader's marks held, and why a read of them failed.
+    void fill_bars();
     void fill_days();
     void fill_pause();
     void fill_trades();
@@ -110,6 +119,9 @@ class KrxTraderScreen : public QWidget {
     QPushButton* reload_ = nullptr;
     QLabel* failure_ = nullptr;
     QList<CardView> cards_;
+    krx_panel::Header bars_header_;
+    QLabel* bars_failure_ = nullptr;
+    KrxChart* bars_chart_ = nullptr;
     krx_panel::Header days_header_;
     QComboBox* mode_box_ = nullptr;
     QLabel* days_line_ = nullptr;

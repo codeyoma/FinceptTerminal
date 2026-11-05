@@ -397,12 +397,17 @@ target_link_libraries(tst_krx_trader PRIVATE Qt6::Network)
 # src/screens/krx_quant/KrxTraderScreen.{h,cpp} — the KRX auto trader screen itself (codeyoma/krx-quant#397,
 # #401) against a stand-in engine on this computer: a poll leaves its trades table where the reader is
 # (krx_tables::refill), it has the two pause buttons and no resume button, and its policy versions, live gate
-# and trades of a policy chosen. Widgets and Qt Network; it
+# and trades of a policy chosen; its 1-minute chart (codeyoma/krx-quant#537) gets the trader's buys and sells
+# and their hover lines alone, as KrxChart sends them to its page. Widgets and Qt Network, without Qt WebEngine:
+# the chart's page does not open, what the screen sends it is read on its bridge. It
 # runs on the offscreen platform too (the settings are a temporary file's: the test defines AppConfig).
 fincept_add_test(tst_krx_trader_screen
     tst_krx_trader_screen.cpp
     "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxTraderScreen.cpp"
     "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxTraderScreen.h"
+    "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChart.cpp"
+    "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChart.h"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartBricks.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/TraderView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxTraderLive.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxTraderLive.h"

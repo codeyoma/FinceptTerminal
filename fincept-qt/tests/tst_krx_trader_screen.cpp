@@ -3,10 +3,14 @@
 // (krx_tables::refill: nothing when the rows are the same; the view's top row and the selected row kept
 // when they change), that it has the two pause buttons and no resume button, the policy versions table
 // with no challenger and with three, the live gate passed and not, and the trades of a policy chosen.
-// The values are made up. Widgets and Qt Network; it runs on the offscreen platform too. The settings (the engine's address)
-// go to a temporary INI file: AppConfig is defined below, in place of core/config/AppConfig.cpp.
+// Its 1-minute chart (codeyoma/krx-quant#537) draws the trader's buys and sells and their hover lines and
+// nothing of the KRX 4-minute screen's: built without Qt WebEngine, what the screen sends the chart's page is
+// read on the chart's bridge.
+// The values are made up. Widgets and Qt Network; it runs on the offscreen platform too. The settings (the engine's
+// address) go to a temporary INI file: AppConfig is defined below, in place of core/config/AppConfig.cpp.
 
 #include "core/config/AppConfig.h"
+#include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxTraderScreen.h"
 #include "services/krx_quant/KrxQuantService.h"
 #include "services/krx_quant/KrxTraderLive.h"
@@ -14,10 +18,11 @@
 
 #include <QApplication>
 #include <QComboBox>
-#include <QLabel>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLabel>
+#include <QMap>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSettings>
@@ -172,6 +177,31 @@ class StandIn : public QObject {
     /// A trader of codeyoma/krx-quant#533: the practice's P&L (-9,140 won over 20 trades today) and the
     /// account's beside today and cumulative, which the loss limits count.
     bool split = false;
+    /// GET /v1/symbols/005930/trader-marks (codeyoma/krx-quant#537), newest first: a live trade bought at
+    /// 10:01:10 and sold at 10:03:20, and the mock practice's buy at 10:05:02.5 (codeyoma/krx-quant#430).
+    QJsonArray marks{
+        QJsonObject{{"trade_id", 40},
+                    {"side", "buy"},
+                    {"at", "2026-10-14T10:05:02.500+09:00"},
+                    {"price", 70100},
+                    {"quantity", 14},
+                    {"mode", "mock"},
+                    {"practice", true}},
+        QJsonObject{{"trade_id", 39},
+                    {"side", "sell"},
+                    {"at", "2026-10-14T10:03:20+09:00"},
+                    {"price", 70150},
+                    {"quantity", 2},
+                    {"mode", "live"},
+                    {"exit_reason", "take_profit"},
+                    {"net", 188.4}},
+        QJsonObject{{"trade_id", 39},
+                    {"side", "buy"},
+                    {"at", "2026-10-14T10:01:10+09:00"},
+                    {"price", 70000},
+                    {"quantity", 2},
+                    {"mode", "live"}},
+    };
     QStringList asked;
 
     StandIn() {
@@ -346,6 +376,22 @@ class StandIn : public QObject {
         } else if (route == "/v1/trader/days") {
             status = 200;
             body = {{"from", "2025-10-15"}, {"to", "2026-10-14"}, {"days", QJsonArray{}}};
+        } else if (route == "/v1/symbols/005930/bars") { // the chart's (codeyoma/krx-quant#537): 10:00–10:19
+            status = 200;
+            QJsonArray bars;
+            const QDateTime ten = QDateTime::fromString("2026-10-14T10:00:00+09:00", Qt::ISODate);
+            for (int i = 0; i < (path.contains("before=") ? 0 : 20); ++i)
+                bars.append(QJsonObject{{"start", ten.addSecs(60 * i).toString(Qt::ISODate)},
+                                        {"open", 70000},
+                                        {"high", 70200},
+                                        {"low", 69900},
+                                        {"close", 70100},
+                                        {"volume", 100 + i},
+                                        {"trades", QJsonValue::Null}});
+            body = {{"symbol", "005930"}, {"bars", bars}};
+        } else if (route == "/v1/symbols/005930/trader-marks") {
+            status = 200;
+            body = {{"symbol", "005930"}, {"marks", path.contains("before=") ? QJsonArray{} : marks}};
         }
         const QByteArray bytes = QJsonDocument(body).toJson(QJsonDocument::Compact);
         socket->write("HTTP/1.1 " + QByteArray::number(status) + (status == 200 ? " OK" : " Error") +
@@ -585,6 +631,87 @@ class TstKrxTraderScreen : public QObject {
                                                 "장 마감 뒤 한 번 판정"));
         QTRY_VERIFY_WITH_TIMEOUT(shown(QStringLiteral("매수 3/20")), 10000);
         QVERIFY(shown(QStringLiteral("3/20일째")));
+    }
+
+    void the_chart_draws_the_trader_s_buys_and_sells_and_their_hover_lines_alone() {
+        // codeyoma/krx-quant#537: candles, the trader's ▲ under a buy's bar and ▼ over a sell's, and each such
+        // bar's hover lines; no consensus icon, SMT mark, special situation band or indicator.
+        StandIn engine;
+        services::KrxQuantService::set_base_url(engine.url());
+        screens::KrxTraderScreen screen;
+        screen.resize(1600, 1000);
+        auto* chart = screen.findChild<screens::KrxChart*>(screens::KrxTraderScreen::kBarsChartName);
+        QVERIFY(chart);
+        auto* bridge = chart->findChild<screens::KrxChartBridge*>();
+        QVERIFY(bridge);
+        QSignalSpy data(bridge, &screens::KrxChartBridge::data_changed);
+        QSignalSpy hovers(bridge, &screens::KrxChartBridge::hovers_changed);
+        screen.show();
+        const auto last_data = [&data] {
+            return data.isEmpty() ? QJsonObject()
+                                  : QJsonDocument::fromJson(data.constLast().constFirst().toString().toUtf8()).object();
+        };
+        QTRY_COMPARE_WITH_TIMEOUT(last_data().value("trades").toArray().size(), qsizetype(3), 10000);
+        const QJsonObject d = last_data();
+        QCOMPARE(d.value("bars").toArray().size(), qsizetype(20));
+        QVERIFY(d.value("icons").toArray().isEmpty());
+        QVERIFY(d.value("smt").toArray().isEmpty());
+        QVERIFY(d.value("special").toArray().isEmpty());
+        QVERIFY(d.value("studies").toObject().value("series").toArray().isEmpty());
+        QVERIFY(d.value("studies").toObject().value("panes").toArray().isEmpty());
+        QStringList trades;
+        for (const QJsonValue& v : d.value("trades").toArray()) {
+            const QJsonObject t = v.toObject();
+            trades << QStringList{t.value("id").toString(), t.value("position").toString(), t.value("shape").toString(),
+                                  t.value("text").toString()}
+                          .join(' ');
+        }
+        QCOMPARE(trades, (QStringList{QStringLiteral("t39b belowBar arrowUp 매수"),
+                                      QStringLiteral("t39s aboveBar arrowDown 매도"),
+                                      QStringLiteral("t40b belowBar arrowUp 매수")}));
+        const auto& array = d.value("trades").toArray();
+        QCOMPARE(array[0].toObject().value("color"), array[1].toObject().value("color"));  // the live account's
+        QVERIFY(array[0].toObject().value("color") != array[2].toObject().value("color")); // and KIS's mock trading's
+
+        // The hover boxes of the bars with trades: their lines, as the KRX 4-minute screen's chart had them.
+        QMap<qint64, QStringList> boxes;
+        for (const auto& emitted : hovers)
+            for (const QJsonValue& v :
+                 QJsonDocument::fromJson(emitted.constFirst().toString().toUtf8()).object().value("set").toArray()) {
+                QStringList lines;
+                for (const QJsonValue& line : v.toObject().value("lines").toArray())
+                    lines << line.toString();
+                boxes.insert(v.toObject().value("time").toInteger(), lines);
+            }
+        const auto bar = [](const char* start) {
+            return krx_quant::chart_time(QDateTime::fromString(QString::fromLatin1(start), Qt::ISODate));
+        };
+        QCOMPARE(boxes.size(), qsizetype(3));
+        QCOMPARE(boxes.value(bar("2026-10-14T10:01:00+09:00")),
+                 QStringList{QStringLiteral("자동 매매 매수 70,000원 × 2주 · 실전")});
+        QCOMPARE(boxes.value(bar("2026-10-14T10:03:00+09:00")),
+                 QStringList{QStringLiteral("자동 매매 매도 70,150원 × 2주 · 익절 · 순손익 +188원 · 실전")});
+        QCOMPARE(boxes.value(bar("2026-10-14T10:05:00+09:00")),
+                 QStringList{QStringLiteral("자동 매매 매수 70,100원 × 14주 · KIS 모의 · 연습")});
+        auto* failure = screen.findChild<QLabel*>(screens::KrxTraderScreen::kBarsFailureName);
+        QVERIFY(failure && failure->isHidden());
+
+        // The trades table's policy choice is not the chart's: the same marks.
+        auto* choice = screen.findChild<QComboBox*>(screens::KrxTraderScreen::kTradesPolicyName);
+        auto* live = screen.findChild<services::KrxTraderLive*>();
+        QVERIFY(choice && live);
+        live->set_trades_policy(2);
+        QCOMPARE(live->marks().size(), qsizetype(3));
+        QVERIFY(std::none_of(engine.asked.cbegin(), engine.asked.cend(), [](const QString& path) {
+            return path.contains("/trader-marks") && path.contains("policy");
+        }));
+
+        // Hidden: the chart is not read; shown again, it is at once.
+        screen.hide();
+        QVERIFY(!live->running());
+        const qsizetype reads = engine.count("/v1/symbols/005930/bars");
+        screen.show();
+        QTRY_VERIFY_WITH_TIMEOUT(engine.count("/v1/symbols/005930/bars") > reads, 10000);
     }
 
     void choosing_a_policy_shows_its_trades() {

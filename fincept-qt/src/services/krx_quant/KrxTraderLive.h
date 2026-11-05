@@ -1,5 +1,6 @@
 #pragma once
 
+#include "services/krx_quant/ChartModel.h"
 #include "services/krx_quant/EngineData.h"
 #include "services/krx_quant/TraderView.h"
 
@@ -29,6 +30,13 @@ class KrxQuantService;
 /// minutes; the trades also as soon as another policy is chosen. Stopped (the screen hidden), it reads
 /// nothing.
 ///
+/// The screen's 1-minute chart of the trader's symbol (krx_quant::kTraderSymbol, codeyoma/krx-quant#537) is
+/// read here too, without the predictions and the dashboard KrxLive reads for the KRX 4-minute screen: the
+/// day's bars (GET …/bars) and the trader's buys and sells (GET …/trader-marks, krx-quant #398), the latest
+/// page of them, at once when started and as each minute turns (trader::chart_ms); the bars before as the
+/// chart scrolls back, and the marks back to the first bar held, a page at a time. An engine that answers
+/// again after a failed read of the state has its chart read at once. Stopped, the chart reads nothing.
+///
 /// Its one write is the screen's pause (pause): it asks first, through the screen's ``confirm``, and
 /// sends POST /v1/trader/pause only on a yes. Nothing here resumes the trader: that is the server's
 /// alone (krx-quant trade resume). The engine's address is the KRX screen's setting; a new one drops
@@ -38,13 +46,16 @@ class KrxTraderLive : public QObject {
   public:
     /// The trades asked for: the table's rows.
     static constexpr int kTradesShown = 100;
+    /// The timers' object names: the state's schedule, and the chart's (tests fire them).
+    static constexpr const char* kStateTimerName = "krxTraderStateTimer";
+    static constexpr const char* kChartTimerName = "krxTraderChartTimer";
     /// ``now`` is the clock the schedule reads (tests give their own).
     explicit KrxTraderLive(QObject* parent = nullptr, std::function<QDateTime()> now = {});
 
     void start(); ///< read at once, then on schedule
     void stop();  ///< read no more until started again
     bool running() const { return running_; }
-    /// Read the state, the days, the trades and the policy versions now.
+    /// Read the state, the days, the trades, the policy versions and the chart now.
     void read_now();
     /// Whose trades to read (codeyoma/krx-quant#401): none, the champion's (the default); else that
     /// policy version's. Another choice drops the trades read and reads them at once (when started); an
@@ -76,9 +87,31 @@ class KrxTraderLive : public QObject {
     bool reading() const { return reading_state_ || reading_days_ || reading_trades_ || reading_policies_; }
     int next_ms() const; ///< 0 when stopped
 
+    /// The chart's 1-minute bars (codeyoma/krx-quant#537): the day's, after those read before as the chart
+    /// scrolled back. Before the open (no bar today yet) the last day's. On another day, or after the chart
+    /// was not read for a while (hidden, a failed read) unless the day is the same, those read before are
+    /// read again from the new day back.
+    QList<krx_quant::Bar> chart_bars() const { return krx_quant::join_bars(older_, day_bars_); }
+    /// The trader's buys and sells over them, newest first, as GET …/trader-marks gives them (every policy
+    /// version's, practice trades among them); none from an engine without them (404).
+    const QList<krx_quant::TraderMark>& marks() const { return marks_; }
+    /// The chart's view shows its bars from ``from`` to ``to`` (logical indexes from its left end): with
+    /// less than a screen of them before ``from``, the bars before are read (krx_quant::older_read).
+    void view_from(double from, double to);
+    /// Why the day's bars could not be read last (those shown stay); empty once they can.
+    const QString& chart_failure() const { return chart_failure_; }
+    /// Why the bars before could not be read last (those shown stay); empty once they can.
+    const QString& older_failure() const { return older_failure_; }
+    /// Whether the engine has no bars before the first held (a read of those before came back empty).
+    bool reached_start() const { return oldest_; }
+    /// Whether the day's bars, those before or a page of marks are being read.
+    bool chart_reading() const { return reading_bars_ || reading_older_ || marks_paging_; }
+
   signals:
     /// Something to draw again: an answer, a failure, a pause sent or its answer, a read started.
     void changed();
+    /// The chart's bars, marks or failures changed (codeyoma/krx-quant#537).
+    void chart_changed();
 
   private:
     void read();
@@ -94,10 +127,23 @@ class KrxTraderLive : public QObject {
     void drop();
     /// A pause confirmed for an engine other than the one now read: not sent, said so. Always false.
     bool refuse_pause();
+    /// The chart's day of bars and the latest page of marks now (or, the address changed, the new
+    /// engine's), and again as the next minute turns.
+    void read_chart();
+    /// The bars before the first held, if the chart's view is near it.
+    void read_older();
+    /// Back to no bars before the day's: they may not reach the day's (another day, a gap in reading).
+    void forget_older();
+    /// The trader's marks: the latest page (again with ``latest``), then back to the first bar held, a page
+    /// at a time (krx_quant::trader_before).
+    void read_marks(bool latest = false);
+    /// Back to no chart: another engine.
+    void forget_chart();
 
     std::function<QDateTime()> now_;
     KrxQuantService* service_ = nullptr;
     QTimer* timer_ = nullptr;
+    QTimer* chart_timer_ = nullptr; ///< the chart's next read (codeyoma/krx-quant#537)
     std::optional<krx_quant::TraderState> state_;
     std::optional<QList<krx_quant::TraderDay>> days_;
     std::optional<QList<krx_quant::TraderTrade>> trades_;
@@ -124,6 +170,25 @@ class KrxTraderLive : public QObject {
     bool reading_policies_ = false;
     bool sending_ = false;
     int engine_ = 0; ///< bumped whenever the engine read changes (drop): a pause is bound to one
+    // The chart (codeyoma/krx-quant#537).
+    QList<krx_quant::Bar> day_bars_;             ///< the day's, as last read
+    QList<krx_quant::Bar> older_;                ///< read before them, as the chart scrolled back
+    bool oldest_ = false;                        ///< the engine has nothing before older_
+    bool reading_bars_ = false;                  ///< the day's are read
+    bool reading_older_ = false;                 ///< those before are read
+    int older_epoch_ = 0;                        ///< bumped whenever older_ is dropped (forget_older)
+    int older_asked_ = 0;                        ///< older_epoch_ when the read under way was asked
+    double view_from_ = krx_quant::kOlderMargin; ///< where the chart's view last started
+    double view_width_ = 0;                      ///< and how many bars wide it was
+    QList<krx_quant::TraderMark> marks_;         ///< the trader's buys and sells
+    QDateTime marks_from_;                       ///< the earliest moment from which on they were read; invalid: none
+    bool marks_paging_ = false;                  ///< a page of them is read
+    bool marks_latest_ = false;                  ///< the latest page is to be read again
+    QString chart_failure_;
+    QString older_failure_;
+    /// The day's bars were not read for a while since those held (hidden, a failed read): days may have
+    /// passed, so older_ may not reach the next answer's day.
+    bool stale_ = false;
 };
 
 } // namespace fincept::services

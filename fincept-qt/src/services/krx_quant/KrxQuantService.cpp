@@ -288,6 +288,18 @@ void KrxQuantService::read_chart(const QString& symbol, bool all) {
                            });
 }
 
+void KrxQuantService::read_bars(const QString& symbol) {
+    if (!begin(kBars))
+        return;
+    get(symbol_path(symbol, "/bars"), [this, symbol](Result<QJsonDocument> answer) {
+        end(kBars);
+        auto bars = parsed(answer, krx_quant::parse_bars);
+        if (bars.is_err())
+            return emit bars_failed(symbol, why(bars.error()));
+        emit bars_ready(symbol, bars.value());
+    });
+}
+
 bool KrxQuantService::read_older(const QString& symbol, const krx_quant::OlderRead& read) {
     if (!begin(kOlder))
         return false; // the view moves on: asked again once this one is drawn

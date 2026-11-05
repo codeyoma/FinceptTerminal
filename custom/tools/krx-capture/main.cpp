@@ -14,7 +14,8 @@
 // =sell then presses that pause button and saves its confirm window, <out>-confirm.png, and cancels it:
 // nothing is sent. KRX_CAPTURE_POLICY=<version> chooses that policy's trades over the trades table, and
 // KRX_CAPTURE_SCROLL=trades|policies scrolls the screen to that panel before it is saved
-// (codeyoma/krx-quant#401).
+// (codeyoma/krx-quant#401). KRX_CAPTURE_HOVER_AT=<ISO 8601> rests the pointer on that moment's bar of its
+// 1-minute chart (codeyoma/krx-quant#537), as on the KRX screen's.
 //
 //   krx_capture <engine url> <out.png> [seconds=8] [width=1600] [height=1000] [predictor,...]
 //
@@ -253,10 +254,33 @@ int main(int argc, char* argv[]) {
     // KRX_CAPTURE_CONFIRM=entries|sell: then a pause button's confirm window too, cancelled.
     // KRX_CAPTURE_POLICY=<version>: that policy's trades, chosen at half the wait (codeyoma/krx-quant#401);
     // KRX_CAPTURE_SCROLL=trades|policies: the screen scrolled to that panel before it is saved.
+    // KRX_CAPTURE_HOVER_AT=<ISO 8601>: as the pointer resting on that moment's bar of the 1-minute chart
+    // (codeyoma/krx-quant#537), from 0.8 of the wait: its hover box shows (a buy's or sell's lines).
     if (qEnvironmentVariableIntValue("KRX_CAPTURE_TRADER") != 0) {
         fincept::screens::KrxTraderScreen trader;
         trader.resize(width, height);
         trader.show();
+        const QDateTime trader_hover = QDateTime::fromString(qEnvironmentVariable("KRX_CAPTURE_HOVER_AT"), Qt::ISODate);
+        if (trader_hover.isValid())
+            QTimer::singleShot(seconds * 800, &app, [&trader, trader_hover]() {
+#ifdef HAS_QT_WEBENGINE
+                auto* chart = trader.findChild<fincept::screens::KrxChart*>();
+                if (auto* view = chart ? chart->findChild<QWebEngineView*>() : nullptr)
+                    view->page()->runJavaScript(
+                        QStringLiteral(
+                            "(function(){const x = window.krxChart.x(%1), y = innerHeight / 3; if (x === null) return;"
+                            "const at = document.elementFromPoint(x, y);"
+                            "const event = (type, bubbles) => new MouseEvent(type, {clientX: x, clientY: y, "
+                            "  pageX: x, pageY: y, bubbles: bubbles, view: window});"
+                            "for (let e = at; e; e = e.parentElement) e.dispatchEvent(event('mouseenter', false));"
+                            "at.dispatchEvent(event('mousemove', true));"
+                            "})();")
+                            .arg(fincept::krx_quant::chart_time(trader_hover)));
+#else
+                Q_UNUSED(trader);
+                Q_UNUSED(trader_hover);
+#endif
+            });
         const QString out = QString::fromLocal8Bit(argv[2]);
         const QString confirm = qEnvironmentVariable("KRX_CAPTURE_CONFIRM");
         int status = 0;

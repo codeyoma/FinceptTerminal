@@ -91,6 +91,10 @@ class KrxQuantService : public QObject {
     /// and "늘 보합"'s (always made where there is a reference price, so the bar close's truth
     /// shows while the final consensus has no members).
     void read_chart(const QString& symbol, bool all = false);
+    /// A symbol's 1-minute bars over the day alone (GET …/bars), without the predictions read_chart reads
+    /// with them: the auto trader screen's chart (codeyoma/krx-quant#537), which draws no prediction.
+    /// bars_ready or bars_failed. Asked again while one is read, it is not read.
+    void read_bars(const QString& symbol);
     /// The 1-minute bars that start before the chart's first one (``read.before``, krx-quant
     /// #108), without their predictions (read_predictions, krx-quant #239): older_ready or
     /// older_failed. Asked again while one is read, it is not read (false): KrxLive asks again
@@ -147,10 +151,10 @@ class KrxQuantService : public QObject {
     /// one answers.
     void read_supply(const QString& symbol, const QDate& from, const QDate& to);
     /// A symbol's trader marks (krx-quant #398, GET /v1/symbols/{symbol}/trader-marks): the trader's
-    /// last ``limit`` buys and sells before ``before`` (invalid: before now), for the chart. trader_ready,
-    /// also with none from an engine without the answer (404, before krx-quant #398), or
-    /// trader_failed. Asked again while one is read, it is not read: KrxLive asks again once that one
-    /// answers.
+    /// last ``limit`` buys and sells before ``before`` (invalid: before now), for the auto trader screen's
+    /// chart (codeyoma/krx-quant#537). trader_ready, also with none from an engine without the answer (404,
+    /// before krx-quant #398), or trader_failed. Asked again while one is read, it is not read:
+    /// KrxTraderLive asks again once that one answers.
     void read_trader_marks(const QString& symbol, const QDateTime& before, int limit);
     /// A symbol's SMT divergences from ``from`` to ``to`` (KST dates, both in; GET
     /// /v1/symbols/{symbol}/smt, codeyoma/krx-quant#521): those of the pairs it is in, for the chart's SMT
@@ -222,6 +226,8 @@ class KrxQuantService : public QObject {
     void chart_ready(const QString& symbol, const QList<fincept::krx_quant::Bar>& bars,
                      const QList<fincept::krx_quant::Prediction>& predictions, bool all);
     void chart_failed(const QString& symbol, const QString& reason);
+    void bars_ready(const QString& symbol, const QList<fincept::krx_quant::Bar>& bars);
+    void bars_failed(const QString& symbol, const QString& reason);
     void older_ready(const QString& symbol, const QList<fincept::krx_quant::Bar>& bars);
     void older_failed(const QString& symbol, const QString& reason);
     void predictions_ready(const QString& symbol, const QDateTime& before,
@@ -302,25 +308,26 @@ class KrxQuantService : public QObject {
         kCandles,
         kPredictions,
         kAlgorithms,
-        kKindList,    ///< GET /v1/kinds
-        kKindLatest,  ///< a kind's latest predictions
-        kKindHistory, ///< a kind's predictions over bar closes
-        kSpecial,     ///< a symbol's special situations over days (krx-quant #236)
-        kSupply,      ///< a symbol's daily supply data over days (krx-quant #226)
-        kTrader,      ///< a symbol's trader marks (codeyoma/krx-quant#398)
-        kSmt,         ///< a symbol's SMT divergences over days (codeyoma/krx-quant#522)
-        kBriefing,    ///< a day's pre-open briefing (codeyoma/krx-quant#304)
-        kSymbolList,  ///< the symbols alone
-        kFlow,        ///< a symbol's intraday flows (codeyoma/krx-quant#306)
-        kCostMap,     ///< the cost map (codeyoma/krx-quant#307)
-        kClosingFlow, ///< a symbol's closing demand today (codeyoma/krx-quant#305)
-        kClosingDays, ///< a symbol's closing-flow days (codeyoma/krx-quant#305)
-        kTraderState, ///< the auto trader's state (codeyoma/krx-quant#396)
-        kTraderDays,  ///< its days
-        kTraderTrades, ///< its trades
-        kTraderPause, ///< the screen's pause sent (codeyoma/krx-quant#397)
+        kKindList,       ///< GET /v1/kinds
+        kKindLatest,     ///< a kind's latest predictions
+        kKindHistory,    ///< a kind's predictions over bar closes
+        kSpecial,        ///< a symbol's special situations over days (krx-quant #236)
+        kSupply,         ///< a symbol's daily supply data over days (krx-quant #226)
+        kTrader,         ///< a symbol's trader marks (codeyoma/krx-quant#398)
+        kSmt,            ///< a symbol's SMT divergences over days (codeyoma/krx-quant#522)
+        kBriefing,       ///< a day's pre-open briefing (codeyoma/krx-quant#304)
+        kSymbolList,     ///< the symbols alone
+        kFlow,           ///< a symbol's intraday flows (codeyoma/krx-quant#306)
+        kCostMap,        ///< the cost map (codeyoma/krx-quant#307)
+        kClosingFlow,    ///< a symbol's closing demand today (codeyoma/krx-quant#305)
+        kClosingDays,    ///< a symbol's closing-flow days (codeyoma/krx-quant#305)
+        kTraderState,    ///< the auto trader's state (codeyoma/krx-quant#396)
+        kTraderDays,     ///< its days
+        kTraderTrades,   ///< its trades
+        kTraderPause,    ///< the screen's pause sent (codeyoma/krx-quant#397)
         kTraderPolicies, ///< its policy versions (codeyoma/krx-quant#401)
-        kKinds        ///< how many kinds of read there are
+        kBars,           ///< a symbol's day of 1-minute bars alone (codeyoma/krx-quant#537)
+        kKinds           ///< how many kinds of read there are
     };
 
     /// Start a read of ``kind`` unless one is under way; false if skipped.

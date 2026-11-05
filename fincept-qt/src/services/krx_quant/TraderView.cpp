@@ -455,6 +455,12 @@ int poll_ms(const std::optional<TraderState>& last, const QDateTime& now) {
     return in_session(now) ? kSessionMs : kIdleMs;
 }
 
+int chart_ms(const QDateTime& now) {
+    const qint64 into = now.toMSecsSinceEpoch() % 60'000; // the minute's turn is the same in every zone
+    const qint64 ms = kChartSettleMs - into;
+    return static_cast<int>(ms > 0 ? ms : ms + 60'000);
+}
+
 QString history_key(const TraderState& state) {
     const QStringList parts{
         state.mode,

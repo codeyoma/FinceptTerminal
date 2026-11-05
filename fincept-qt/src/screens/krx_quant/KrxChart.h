@@ -163,7 +163,8 @@ class KrxChart : public QWidget {
     /// The 1-minute view with a time axis draws ``trades`` too (krx-quant #398, the trader's buys ▲ under
     /// their bars and sells ▼ over them, over the consensus's icon on the same bar: krx_quant::trader_icons),
     /// in amber for the live account's and cyan for paper and KIS's mock trading, on the bars drawn alone;
-    /// clicked, one is the click of its bar.
+    /// clicked, one is the click of its bar. The auto trader screen's chart passes them (codeyoma/krx-quant#537),
+    /// the KRX 4-minute screen's none.
     /// While ``look`` shows them, the 1-minute view with a time axis draws ``smt`` too (codeyoma/krx-quant#522,
     /// the SMT divergences: bearish ▼ over their bars and bullish ▲ under them, past the consensus's icon
     /// and the trader's there, filled for the engine's live ones and hollow ▽ △ for those worked out
