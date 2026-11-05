@@ -411,7 +411,7 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
                         const krx_quant::ChartLook& look, const QList<krx_quant::SpecialWindow>& special,
                         const std::optional<krx_quant::SessionClock>& clock,
                         const QList<krx_quant::ChartIcon>& day_icons, const QList<krx_quant::TraderIcon>& trades,
-                        const QList<krx_quant::SmtIcon>& smt) {
+                        const QList<krx_quant::SmtIcon>& smt, const QList<krx_quant::SkipIcon>& skips) {
     // A candle view's bars are its candles already (krx-quant #111, #112).
     const bool dated = krx_quant::candle_view(minutes); // the axis shows dates only
     const auto real = krx_quant::chart_bars(dated ? bars : krx_quant::group_bars(bars, minutes));
@@ -472,6 +472,7 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
     // empty bar has no price to sit on). A sell sits over the bar, over the consensus's icon there.
     trades_ = {};
     smt_ = {};
+    skips_ = {};
     if (minute) {
         QSet<qint64> drawn_bars;
         for (const auto& b : real)
@@ -486,6 +487,13 @@ void KrxChart::set_data(const QList<krx_quant::Bar>& bars, const QList<krx_quant
                                            {"shape", t.buy ? "arrowUp" : "arrowDown"},
                                            {"color", css(t.live ? live : simulated)},
                                            {"text", t.buy ? QStringLiteral("매수") : QStringLiteral("매도")}});
+        // The trader's calls that traded nothing (codeyoma/krx-quant#601): hollow, where a buy's ▲ sits.
+        for (const auto& k : skips)
+            if (drawn_bars.contains(k.time))
+                skips_.append(QJsonObject{{"id", QStringLiteral("k%1").arg(k.time)},
+                                          {"time", k.time},
+                                          {"color", css(k.live ? live : simulated)},
+                                          {"text", QStringLiteral("△")}});
         // The SMT divergences (codeyoma/krx-quant#522), while shown: a triangle in a colour of their own, not
         // the consensus's arrows' green and red nor the trader's amber and cyan; hollow for those worked
         // out again.
@@ -580,7 +588,7 @@ QJsonObject KrxChart::data_json(const QList<krx_quant::ChartBar>& real, const QJ
                      {"icons", icons},  {"fit", QJsonObject{{"from", from}, {"to", to}}},
                      {"day", dated},    {"style", krx_quant::style_key(look_.style)},
                      {"bands", bands},  {"trades", trades_},
-                     {"smt", smt_}};
+                     {"smt", smt_},     {"skips", skips_}};
     if (base_)
         data.insert("base", *base_);
     // Nothing before the first bar to read (krx-quant #253): the engine has none, or bricks start at a

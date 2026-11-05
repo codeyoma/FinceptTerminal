@@ -9,6 +9,10 @@
 // and the trader's buys and sells (krx-quant #398): the latest page with each chart read, then back to the
 // first bar held, a page at a time; none from an engine without them (404). Hidden, it reads nothing; shown
 // again, or the engine answering again after a failure, it reads at once.
+//
+// The decisions panel (codeyoma/krx-quant#601) reads a book's decisions of the chart's day (GET
+// /v1/trader/decisions, krx-quant #584) with the chart, the day whole, page after page: the champion's from a
+// payload the demo engine answered (10-12), the practice's made up with its skips, unfilled buys and answers.
 
 #include "core/config/AppConfig.h"
 #include "services/krx_quant/KrxQuantService.h"
@@ -18,6 +22,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMap>
 #include <QPointer>
 #include <QSettings>
 #include <QTcpServer>
@@ -599,6 +604,94 @@ QList<QJsonObject> marks_from(const QDateTime& from, int count, int first_trade 
     return marks;
 }
 
+/// GET /v1/trader/decisions?day=2026-10-12&book=champion as the demo engine answered it (krx-quant #584): the
+/// champion's two books of that morning (paper until 10:05, live after), buys alone, no θ, p* or answer.
+const char* const kDemoChampionDecisions =
+    R"({"day":"2026-10-12","book":"champion","books":[{"book":"champion","mode":"paper","policy":1,"totals":{"decisions":3,"bought":3,"waiting":0,"unfilled":{},"skipped":{}},"decisions":[{"id":5,"decided_at":"2026-10-12T09:55:02+09:00","symbol":"005930","kind":"barrier","predictor":"breiman","prediction_id":5,"bar_close":"2026-10-12T09:55:00+09:00","displayed_at":"2026-10-12T09:55:02+09:00","probability":0.68,"threshold":null,"p_star":null,"action":"buy","reason":null,"trade_id":5,"answer":null,"right":null},{"id":4,"decided_at":"2026-10-12T09:49:02+09:00","symbol":"005930","kind":"barrier","predictor":"breiman","prediction_id":4,"bar_close":"2026-10-12T09:49:00+09:00","displayed_at":"2026-10-12T09:49:02+09:00","probability":0.68,"threshold":null,"p_star":null,"action":"buy","reason":null,"trade_id":4,"answer":null,"right":null},{"id":3,"decided_at":"2026-10-12T09:43:02+09:00","symbol":"005930","kind":"barrier","predictor":"breiman","prediction_id":3,"bar_close":"2026-10-12T09:43:00+09:00","displayed_at":"2026-10-12T09:43:02+09:00","probability":0.68,"threshold":null,"p_star":null,"action":"buy","reason":null,"trade_id":3,"answer":null,"right":null}],"more":false},{"book":"champion","mode":"live","policy":1,"totals":{"decisions":4,"bought":4,"waiting":0,"unfilled":{},"skipped":{}},"decisions":[{"id":9,"decided_at":"2026-10-12T10:27:02+09:00","symbol":"005930","kind":"barrier","predictor":"breiman","prediction_id":9,"bar_close":"2026-10-12T10:27:00+09:00","displayed_at":"2026-10-12T10:27:02+09:00","probability":0.68,"threshold":null,"p_star":null,"action":"buy","reason":null,"trade_id":9,"answer":null,"right":null},{"id":8,"decided_at":"2026-10-12T10:18:02+09:00","symbol":"005930","kind":"barrier","predictor":"breiman","prediction_id":8,"bar_close":"2026-10-12T10:18:00+09:00","displayed_at":"2026-10-12T10:18:02+09:00","probability":0.68,"threshold":null,"p_star":null,"action":"buy","reason":null,"trade_id":8,"answer":null,"right":null},{"id":7,"decided_at":"2026-10-12T10:12:02+09:00","symbol":"005930","kind":"barrier","predictor":"breiman","prediction_id":7,"bar_close":"2026-10-12T10:12:00+09:00","displayed_at":"2026-10-12T10:12:02+09:00","probability":0.68,"threshold":null,"p_star":null,"action":"buy","reason":null,"trade_id":7,"answer":null,"right":null},{"id":6,"decided_at":"2026-10-12T10:06:02+09:00","symbol":"005930","kind":"barrier","predictor":"breiman","prediction_id":6,"bar_close":"2026-10-12T10:06:00+09:00","displayed_at":"2026-10-12T10:06:02+09:00","probability":0.68,"threshold":null,"p_star":null,"action":"buy","reason":null,"trade_id":6,"answer":null,"right":null}],"more":false}]})";
+
+/// A decision as the engine gives it (krx-quant #584), made up: a barrier cell of breiman's unless said.
+QJsonObject decision_json(qint64 id, const QString& at, const char* action, QJsonValue reason, QJsonValue probability,
+                          QJsonValue threshold = 0.6, QJsonValue trade = QJsonValue(), QJsonValue answer = QJsonValue(),
+                          QJsonValue right = QJsonValue(), const char* kind = "barrier",
+                          const char* predictor = "breiman") {
+    const QDateTime decided = QDateTime::fromString(at, Qt::ISODateWithMs);
+    const QDateTime close(decided.date(), QTime(decided.time().hour(), decided.time().minute()), decided.timeZone());
+    return {{"id", id},
+            {"decided_at", at},
+            {"symbol", "005930"},
+            {"kind", kind},
+            {"predictor", predictor},
+            {"prediction_id", 4000 + id},
+            {"bar_close", close.toString(Qt::ISODate)},
+            {"displayed_at", decided.addMSecs(-200).toString(Qt::ISODateWithMs)},
+            {"probability", probability},
+            {"threshold", threshold},
+            {"p_star", threshold.isNull() ? QJsonValue() : QJsonValue(0.58)},
+            {"action", action},
+            {"reason", reason},
+            {"trade_id", trade},
+            {"answer", answer},
+            {"right", right}};
+}
+
+/// The practice's morning of 10-16, made up (codeyoma/krx-quant#601): a buy waiting for its quote, a skip
+/// that missed a rise, a buy filled right, a buy unfilled (no quote), a skip of no rise, and a direction
+/// cell's skip without its θ, p* or answer; the reasons' counts given in no order.
+QJsonObject practice_json() {
+    const QJsonArray decisions{
+        decision_json(106, "2026-10-16T09:12:02.100+09:00", "buy", QJsonValue(), 0.7),
+        decision_json(105, "2026-10-16T09:11:02.400+09:00", "skip", "holding", 0.66, 0.6, QJsonValue(), "up", true),
+        decision_json(104, "2026-10-16T09:10:02.300+09:00", "buy", QJsonValue(), 0.71, 0.6, 41, "up", true),
+        decision_json(103, "2026-10-16T09:09:02.250+09:00", "buy", "no_quote", 0.68, 0.6, QJsonValue(), "down", false),
+        decision_json(102, "2026-10-16T09:08:02.200+09:00", "skip", "not_up", 0.41, 0.6, QJsonValue(), "flat", false),
+        decision_json(101, "2026-10-16T09:07:02+09:00", "skip", "not_up", 0.2, QJsonValue(), QJsonValue(), QJsonValue(),
+                      QJsonValue(), "direction", "gauss"),
+    };
+    return {{"day", "2026-10-16"},
+            {"book", "practice"},
+            {"books",
+             QJsonArray{QJsonObject{{"book", "practice"},
+                                    {"mode", "mock"},
+                                    {"policy", QJsonValue()},
+                                    {"totals", QJsonObject{{"decisions", 6},
+                                                           {"bought", 1},
+                                                           {"waiting", 1},
+                                                           {"unfilled", QJsonObject{{"no_quote", 1}}},
+                                                           {"skipped", QJsonObject{{"holding", 1}, {"not_up", 2}}}}},
+                                    {"decisions", decisions},
+                                    {"more", false}}}}};
+}
+
+/// ``count`` made-up skips a second apart, newest first, the newest ``count - 1`` seconds after ``from``,
+/// ids from ``first_id`` on.
+QJsonArray skips_from(const QDateTime& from, int count, qint64 first_id) {
+    QJsonArray out;
+    for (int i = count - 1; i >= 0; --i)
+        out.append(decision_json(first_id + i, from.addSecs(i).toString(Qt::ISODateWithMs), "skip", "not_up", 0.4));
+    return out;
+}
+
+/// A book of ``decisions`` as the engine keeps it for the stand-in: all of its day, newest first.
+QJsonObject book_json(const char* book, const char* mode, QJsonValue policy, const QJsonArray& decisions) {
+    return {{"book", book},
+            {"mode", mode},
+            {"policy", policy},
+            {"totals", QJsonObject{{"decisions", decisions.size()},
+                                   {"bought", 0},
+                                   {"waiting", 0},
+                                   {"unfilled", QJsonObject{}},
+                                   {"skipped", QJsonObject{{"not_up", decisions.size()}}}}},
+            {"decisions", decisions},
+            {"more", false}};
+}
+
+TraderDecisions decisions_of(const QJsonObject& o) {
+    auto d = parse_trader_decisions(QJsonDocument(o));
+    if (d.is_err())
+        qFatal("%s", d.error().c_str());
+    return d.value();
+}
+
 class StandIn : public QObject {
   public:
     struct Request {
@@ -624,6 +717,14 @@ class StandIn : public QObject {
     /// GET /v1/symbols/005930/trader-marks: these, newest first, answered by ``before`` and ``limit`` as the
     /// engine answers; none: 404, as an engine before krx-quant #398.
     std::optional<QList<QJsonObject>> marks;
+    /// GET /v1/trader/decisions (codeyoma/krx-quant#601): each book's day by its name, as the engine keeps it
+    /// (its books with all their decisions, newest first), answered by ``before`` and ``limit`` as the engine
+    /// answers (krx-quant #584), whatever the day asked; a book not here has none. None: 404, as an engine
+    /// before #584.
+    std::optional<QMap<QString, QJsonObject>> decisions;
+    bool fail_decisions = false; ///< the decisions alone fail
+    /// GET /v1/trader/decisions is answered only on release() while this holds.
+    bool hold_decisions = false;
     QList<Request> asked;
 
     StandIn() {
@@ -677,7 +778,8 @@ class StandIn : public QObject {
         const Request r{QString::fromLatin1(first.value(0)), QString::fromLatin1(first.value(1)), content_type,
                         body.left(length)};
         asked << r;
-        if (hold_trades && r.path.section('?', 0, 0) == "/v1/trader/trades") {
+        if ((hold_trades && r.path.section('?', 0, 0) == "/v1/trader/trades") ||
+            (hold_decisions && r.path.section('?', 0, 0) == "/v1/trader/decisions")) {
             held_.push_back({QPointer<QTcpSocket>(socket), r});
             return;
         }
@@ -689,7 +791,8 @@ class StandIn : public QObject {
         QJsonObject answer{{"error", "not found"}};
         const QString path = r.path.section('?', 0, 0);
         if (without_trader) {
-        } else if (fail || (fail_pause && path == "/v1/trader/pause")) {
+        } else if (fail || (fail_pause && path == "/v1/trader/pause") ||
+                   (fail_decisions && path == "/v1/trader/decisions")) {
             status = 500;
             answer = {{"error", "made-up failure"}};
         } else if (r.method == "GET" && path == "/v1/trader") {
@@ -727,6 +830,40 @@ class StandIn : public QObject {
             }
             status = 200;
             answer = {{"symbol", "005930"}, {"marks", page}};
+        } else if (r.method == "GET" && path == "/v1/trader/decisions" && decisions) {
+            // As the engine answers (krx-quant #584): each book its last ``limit`` decided strictly before
+            // ``before`` (to the microsecond), and any more of the moment the page ends on.
+            const QUrlQuery query(r.path.section('?', 1));
+            const QString book = query.queryItemValue("book");
+            const QString day = query.queryItemValue("day");
+            const QString before = query.queryItemValue("before", QUrl::FullyDecoded);
+            const int limit = query.queryItemValue("limit").toInt();
+            QJsonArray books;
+            for (const auto& v : decisions->value(book).value("books").toArray()) {
+                QJsonObject b = v.toObject();
+                QJsonArray page;
+                QString last;
+                bool more = false;
+                for (const auto& d : b.value("decisions").toArray()) {
+                    const QString at = moment(d.toObject().value("decided_at").toString());
+                    if (!before.isEmpty() && at >= moment(before))
+                        continue;
+                    if (page.size() >= limit && at != last) {
+                        more = true;
+                        break;
+                    }
+                    page.append(d);
+                    last = at;
+                }
+                if (page.isEmpty())
+                    continue; // no decision of it before then
+                b["decisions"] = page;
+                b["more"] = more;
+                books.append(b);
+            }
+            status = 200;
+            // Asked without a day: the engine's today, the 17th, a day after the chart's bars.
+            answer = {{"day", day.isEmpty() ? QStringLiteral("2026-10-17") : day}, {"book", book}, {"books", books}};
         } else if (r.method == "POST" && path == "/v1/trader/pause") {
             const QJsonObject asked_for = QJsonDocument::fromJson(r.body).object();
             status = 202;
@@ -2430,6 +2567,384 @@ class TstKrxTrader : public QObject {
         QTRY_VERIFY_WITH_TIMEOUT(live.chart_bars().size() == 5 && other.asked_for(kChartMarks) && !live.chart_reading(),
                                  10000);
         QVERIFY(live.marks().isEmpty());
+        live.stop();
+    }
+
+    // ---- The decisions (codeyoma/krx-quant#601) ---------------------------------------------------------------
+
+    void the_decisions_are_read_from_the_demo_engine_s_answer() {
+        // krx-quant #584 as the demo engine answered it: the champion's paper book and its live book that morning.
+        const TraderDecisions d = decisions_of(QJsonDocument::fromJson(kDemoChampionDecisions).object());
+        QCOMPARE(d.day, QDate(2026, 10, 12));
+        QCOMPARE(d.book, QStringLiteral("champion"));
+        QCOMPARE(d.books.size(), qsizetype(2));
+        QCOMPARE(d.books[0].mode, QStringLiteral("paper"));
+        QCOMPARE(d.books[1].mode, QStringLiteral("live"));
+        QCOMPARE(d.books[1].policy, std::optional<qint64>(1));
+        QCOMPARE(d.books[1].totals.decisions, 4);
+        QCOMPARE(d.books[1].totals.bought, 4);
+        QVERIFY(d.books[1].totals.skipped.isEmpty());
+        QVERIFY(!d.books[1].more);
+        const TraderDecision& newest = d.books[1].decisions.first();
+        QCOMPARE(newest.id, qint64(9));
+        QCOMPARE(newest.decided_at, kst("2026-10-12T10:27:02+09:00"));
+        QCOMPARE(newest.bar_close, kst("2026-10-12T10:27:00+09:00"));
+        QCOMPARE(newest.probability, std::optional<double>(0.68));
+        QVERIFY(!newest.threshold && !newest.p_star && !newest.right);
+        QVERIFY(newest.buy && newest.reason.isEmpty() && newest.answer.isEmpty());
+        QCOMPARE(newest.trade_id, std::optional<qint64>(9));
+        // The panel: each book's line, its rows newest first over both books.
+        const auto lines = view::totals_lines(d);
+        QCOMPARE(lines.size(), qsizetype(2));
+        QCOMPARE(lines[0].text, QStringLiteral("챔피언 정책 1 · 모의 · 결정 3 · 산 것 3"));
+        QCOMPARE(lines[1].text, QStringLiteral("챔피언 정책 1 · 실전 · 결정 4 · 산 것 4"));
+        const auto rows = view::decision_rows(d);
+        QCOMPARE(rows.size(), qsizetype(7));
+        QCOMPARE(rows.first().id, qint64(9));
+        QCOMPARE(rows.last().id, qint64(3));
+        QCOMPARE(rows.first().book, QStringLiteral("챔피언 정책 1 · 실전"));
+        QCOMPARE(rows.first().action, QStringLiteral("매수"));
+        QCOMPARE(rows.first().threshold, QStringLiteral("—"));
+        QCOMPARE(rows.first().right, QStringLiteral("—"));
+        QCOMPARE(view::decisions_line(d, true, false), QStringLiteral("10-12(월) · 결정 7개"));
+        // Every call bought: no hollow mark.
+        QVERIFY(view::skip_icons(d).isEmpty());
+        QVERIFY(view::with_skip_lines({}, d).isEmpty());
+    }
+
+    void a_book_s_totals_rows_and_hollow_marks_say_why_each_call_bought_or_not() {
+        const TraderDecisions d = decisions_of(practice_json());
+        QCOMPARE(d.books.size(), qsizetype(1));
+        // Commonest first, whatever order the object kept them in.
+        QCOMPARE(d.books[0].totals.skipped,
+                 (QList<std::pair<QString, int>>{{QStringLiteral("not_up"), 2}, {QStringLiteral("holding"), 1}}));
+        const auto lines = view::totals_lines(d);
+        QCOMPARE(lines.size(), qsizetype(1));
+        QCOMPARE(lines[0].text,
+                 QStringLiteral("연습 · KIS 모의 · 결정 6 · 산 것 1 · 호가 기다림 1 · 못 산 것 1(호가 없음 1) · "
+                                "건너뜀 3(오름 아님 2 · 보유 중 1) · 정답 난 것: 산 것 1/1 맞음 · 건너뛴 것 "
+                                "1/2 놓친 오름"));
+        QVERIFY(lines[0].tip.contains(QStringLiteral("건너뛴 이유 · 보유 중 1: 들고 있는 포지션이나")));
+        const auto rows = view::decision_rows(d);
+        QStringList shown;
+        for (const auto& row : rows)
+            shown << QStringList{row.at,     row.cell,   row.probability, row.threshold,
+                                 row.action, row.reason, row.answer,      row.right}
+                         .join(QStringLiteral(" | "));
+        QCOMPARE(
+            shown,
+            (QStringList{
+                QStringLiteral("09:12:02 | 장벽 4분 · breiman | 70.0% | 60.0% | 호가 기다림 | — | — | —"),
+                QStringLiteral(
+                    "09:11:02 | 장벽 4분 · breiman | 66.0% | 60.0% | 건너뜀 | 보유 중 | 위 먼저 | 놓친 오름"),
+                QStringLiteral("09:10:02 | 장벽 4분 · breiman | 71.0% | 60.0% | 매수 | — | 위 먼저 | 맞음"),
+                QStringLiteral(
+                    "09:09:02 | 장벽 4분 · breiman | 68.0% | 60.0% | 매수 못 함 | 호가 없음 | 아래 먼저 | 틀림"),
+                QStringLiteral("09:08:02 | 장벽 4분 · breiman | 41.0% | 60.0% | 건너뜀 | 오름 아님 | 시간 만료 | 맞음"),
+                QStringLiteral("09:07:02 | 방향 4분 · gauss | 20.0% | — | 건너뜀 | 오름 아님 | — | —"),
+            }));
+        QCOMPARE(rows[1].right_tone, Tone::Warning); // a rise missed
+        QCOMPARE(rows[2].right_tone, Tone::Positive);
+        QCOMPARE(rows[3].right_tone, Tone::Dim); // not filled: no trade
+        QCOMPARE(rows[2].action_tone, Tone::Positive);
+        QCOMPARE(rows[1].book, QStringLiteral("연습 · KIS 모의"));
+        QVERIFY(rows[1].reason_tip.contains(QStringLiteral("(holding)")));
+        QVERIFY(rows[2].tip.contains(QStringLiteral("매매 41")));
+
+        // On the chart: a hollow mark on each bar of a call that traded nothing (not the buy filled, which is a
+        // trade's, nor the one waiting), each call's line in its bar's box.
+        const auto bar = [](const char* start) { return chart_time(kst(start)); };
+        QCOMPARE(view::skip_icons(d), (QList<SkipIcon>{{bar("2026-10-16T09:07:00+09:00"), false},
+                                                       {bar("2026-10-16T09:08:00+09:00"), false},
+                                                       {bar("2026-10-16T09:09:00+09:00"), false},
+                                                       {bar("2026-10-16T09:11:00+09:00"), false}}));
+        BarHover kept;
+        kept.time = bar("2026-10-16T09:08:00+09:00");
+        kept.lines << QStringLiteral("자동 매매 매수 70,100원 × 1주 · KIS 모의 · 연습");
+        const auto hovers = view::with_skip_lines({kept}, d);
+        QMap<qint64, QStringList> boxes;
+        for (const auto& h : hovers)
+            boxes.insert(h.time, h.lines);
+        QCOMPARE(boxes.size(), qsizetype(4));
+        QCOMPARE(boxes.value(bar("2026-10-16T09:07:00+09:00")),
+                 QStringList{QStringLiteral("연습 건너뜀 · 방향 4분 · gauss · 20.0% · 오름 아님")});
+        QCOMPARE(boxes.value(bar("2026-10-16T09:08:00+09:00")),
+                 (QStringList{QStringLiteral("자동 매매 매수 70,100원 × 1주 · KIS 모의 · 연습"),
+                              QStringLiteral(
+                                  "연습 건너뜀 · 장벽 4분 · breiman · 41.0% (θ 60.0%) · 오름 아님 · 정답 시간 만료")}));
+        QCOMPARE(boxes.value(bar("2026-10-16T09:09:00+09:00")),
+                 QStringList{QStringLiteral(
+                     "연습 매수 못 함 · 장벽 4분 · breiman · 68.0% (θ 60.0%) · 호가 없음 · 정답 아래 먼저")});
+        QCOMPARE(boxes.value(bar("2026-10-16T09:11:00+09:00")),
+                 QStringList{QStringLiteral(
+                     "연습 건너뜀 · 장벽 4분 · breiman · 66.0% (θ 60.0%) · 보유 중 · 정답 위 먼저 · 놓친 오름")});
+        // A live book's mark is the live account's colour.
+        QJsonObject live = practice_json();
+        QJsonArray books = live["books"].toArray();
+        QJsonObject book = books[0].toObject();
+        book["book"] = "champion";
+        book["mode"] = "live";
+        books[0] = book;
+        live["books"] = books;
+        QVERIFY(view::skip_icons(decisions_of(live)).first().live);
+        QCOMPARE(view::decisions_line(d, true, false), QStringLiteral("10-16(금) · 결정 6개"));
+    }
+
+    void each_reason_has_its_korean_name_and_meaning_and_an_unknown_one_stays() {
+        for (const char* reason : {"not_picked",
+                                   "not_ok",
+                                   "blocked",
+                                   "special",
+                                   "stale",
+                                   "expired",
+                                   "not_up",
+                                   "below_threshold",
+                                   "no_reference",
+                                   "closed",
+                                   "before_entry",
+                                   "past_last_exit",
+                                   "holding",
+                                   "reconciling",
+                                   "outranked",
+                                   "quotes_stalled",
+                                   "entries_paused",
+                                   "paused",
+                                   "daily_limit",
+                                   "cumulative_limit",
+                                   "order_failed",
+                                   "buy_limit",
+                                   "cooldown",
+                                   "outside_held",
+                                   "target_reached",
+                                   "no_quote",
+                                   "no_shares",
+                                   "bad_stop",
+                                   "restarted",
+                                   "unfilled",
+                                   "?"}) {
+            const QString key = QString::fromLatin1(reason);
+            QVERIFY2(view::reason_label(key) != key, reason);
+            QVERIFY2(!view::reason_tip(key).isEmpty(), reason);
+        }
+        QCOMPARE(view::reason_label(QStringLiteral("new_reason")), QStringLiteral("new_reason"));
+        QVERIFY(view::reason_tip(QStringLiteral("new_reason")).isEmpty());
+        QCOMPARE(view::book_choices().first().book, QString::fromLatin1(view::kDefaultBook)); // the practice's first
+        QCOMPARE(view::book_label(QStringLiteral("shadow")), QStringLiteral("그림자"));
+        // Before any answer, from an engine without them, an empty day.
+        QCOMPARE(view::decisions_line(std::nullopt, true, true), QStringLiteral("읽는 중"));
+        QCOMPARE(view::decisions_line(std::nullopt, false, false), QStringLiteral("엔진이 아직 지원하지 않음"));
+        TraderDecisions empty;
+        empty.day = QDate(2026, 10, 17);
+        QCOMPARE(view::decisions_line(empty, true, false), QStringLiteral("10-17(토) · 결정 없음"));
+        QVERIFY(view::totals_lines(empty).isEmpty());
+    }
+
+    void a_day_s_pages_join_until_every_book_is_read_back_to_its_first() {
+        // Two challengers (codeyoma/krx-quant#601): the latest page asks back from the later of their earliest, a
+        // millisecond past it; a book whose page says no more is done, and one asked for that comes no earlier
+        // stops there (a millisecond holding more than a page).
+        const auto page = [](QList<QJsonObject> books) {
+            QJsonArray array;
+            for (const auto& b : books)
+                array.append(b);
+            return decisions_of(QJsonObject{{"day", "2026-10-16"}, {"book", "challenger"}, {"books", array}});
+        };
+        const auto more = [](QJsonObject b) {
+            b["more"] = true;
+            return b;
+        };
+        const QDateTime nine = kst("2026-10-16T09:00:00+09:00");
+        auto pages = view::decision_pages(
+            page({more(book_json("challenger", "paper", 2, skips_from(nine.addSecs(10), 3, 10))),
+                  more(book_json("challenger", "paper", 3, skips_from(nine.addSecs(20), 2, 30)))}));
+        QCOMPARE(pages.done, (QList<bool>{false, false}));
+        QCOMPARE(view::decisions_before(pages), std::optional<QDateTime>(nine.addSecs(20).addMSecs(1)));
+        // Policy 3's page back is all it had; policy 2's is a repeat of the same, not done yet.
+        view::join_decisions(pages,
+                             page({more(book_json("challenger", "paper", 2, skips_from(nine.addSecs(10), 3, 10))),
+                                   book_json("challenger", "paper", 3, skips_from(nine.addSecs(18), 3, 28))}),
+                             nine.addSecs(20).addMSecs(1));
+        QCOMPARE(pages.done, (QList<bool>{false, true}));
+        QCOMPARE(pages.read.books[1].decisions.size(), qsizetype(4)); // 28–31, 30 and 31 not doubled
+        QCOMPARE(pages.read.books[1].decisions.first().id, qint64(31));
+        QCOMPARE(pages.read.books[1].decisions.last().id, qint64(28));
+        QCOMPARE(view::decisions_before(pages), std::optional<QDateTime>(nine.addSecs(10).addMSecs(1)));
+        // Asked for policy 2, its page comes no earlier: done, and nothing more to read.
+        view::join_decisions(pages,
+                             page({more(book_json("challenger", "paper", 2, skips_from(nine.addSecs(10), 1, 10)))}),
+                             nine.addSecs(10).addMSecs(1));
+        QCOMPARE(pages.done, (QList<bool>{true, true}));
+        QVERIFY(!view::decisions_before(pages));
+        QCOMPARE(pages.read.books[0].decisions.size(), qsizetype(3));
+        // A book left out of a page back has nothing before it.
+        auto left = view::decision_pages(page({more(book_json("challenger", "paper", 2, skips_from(nine, 2, 1)))}));
+        view::join_decisions(left, page({}), nine.addMSecs(1));
+        QCOMPARE(left.done, QList<bool>{true});
+        // An empty day: nothing to read back.
+        QVERIFY(!view::decisions_before(view::decision_pages(page({}))));
+    }
+
+    void the_decisions_of_the_chart_s_day_are_read_with_the_chart_and_another_book_at_once() {
+        StandIn engine;
+        engine.bars = bars_json("2026-10-16T09:00:00+09:00", 20);
+        engine.marks = QList<QJsonObject>{};
+        engine.decisions = QMap<QString, QJsonObject>{{QStringLiteral("practice"), practice_json()}};
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxTraderLive live(nullptr, [] { return kst("2026-10-16T09:20:04+09:00"); });
+        QCOMPARE(live.decisions_book(), QStringLiteral("practice")); // the default
+        live.start();
+        const QString asked = QStringLiteral("/v1/trader/decisions?book=practice&limit=1000&day=2026-10-16");
+        QTRY_VERIFY_WITH_TIMEOUT(engine.asked_for(asked) && live.decisions() &&
+                                     live.decisions()->day == QDate(2026, 10, 16) && !live.decisions_reading(),
+                                 10000);
+        QCOMPARE(live.decisions()->books.size(), qsizetype(1));
+        QCOMPARE(live.decisions()->books[0].decisions.size(), qsizetype(6));
+        QVERIFY(live.decisions_served());
+        QVERIFY(live.decisions_failure().isEmpty());
+
+        // Another book: those read are not shown under it, and its own are read at once.
+        live.set_decisions_book(QStringLiteral("champion"));
+        QVERIFY(!live.decisions());
+        QTRY_VERIFY_WITH_TIMEOUT(engine.asked_for(QStringLiteral("/v1/trader/decisions?book=champion&limit=1000&day="
+                                                                 "2026-10-16")) &&
+                                     live.decisions() && !live.decisions_reading(),
+                                 10000);
+        QCOMPARE(live.decisions()->book, QStringLiteral("champion"));
+        QVERIFY(live.decisions()->books.isEmpty()); // none that day
+        // Chosen again while the other's is read: that answer is not kept, the one chosen last is read.
+        engine.hold_decisions = true;
+        const qsizetype held = engine.count("GET", "/v1/trader/decisions");
+        live.set_decisions_book(QStringLiteral("shadow"));
+        QTRY_VERIFY_WITH_TIMEOUT(engine.count("GET", "/v1/trader/decisions") > held, 10000);
+        live.set_decisions_book(QStringLiteral("practice"));
+        engine.hold_decisions = false;
+        engine.release();
+        QTRY_VERIFY_WITH_TIMEOUT(live.decisions() && !live.decisions_reading(), 10000);
+        QCOMPARE(live.decisions()->book, QStringLiteral("practice"));
+        QCOMPARE(live.decisions()->books.size(), qsizetype(1));
+        live.stop();
+    }
+
+    void a_book_s_day_is_read_whole_page_after_page() {
+        // Two challengers' days of 1,100 and 2,500 calls, a second apart from 09:00: the latest page holds each
+        // one's last 1,000; the page back asks from the later of their earliest (policy 3's 09:25:00), a
+        // millisecond past it, then from policy 3's 09:08:21, until neither has more.
+        StandIn engine;
+        engine.bars = bars_json("2026-10-16T09:00:00+09:00", 20);
+        engine.marks = QList<QJsonObject>{};
+        const QDateTime nine = kst("2026-10-16T09:00:00+09:00");
+        engine.decisions = QMap<QString, QJsonObject>{
+            {QStringLiteral("challenger"),
+             QJsonObject{{"books", QJsonArray{book_json("challenger", "paper", 2, skips_from(nine, 1100, 1)),
+                                              book_json("challenger", "paper", 3, skips_from(nine, 2500, 10'001))}}}}};
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxTraderLive live(nullptr, [] { return kst("2026-10-16T09:20:04+09:00"); });
+        live.set_decisions_book(QStringLiteral("challenger"));
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.decisions() && live.decisions()->books.size() == 2 &&
+                                     live.decisions()->books[0].decisions.size() == 1100 &&
+                                     live.decisions()->books[1].decisions.size() == 2500 && !live.decisions_reading(),
+                                 10000);
+        QVERIFY2(
+            engine.asked_for(QStringLiteral("/v1/trader/decisions?book=challenger&limit=1000&day=2026-10-16&before="
+                                            "2026-10-16T09%3A25%3A00.001")),
+            qPrintable(engine.asked.constLast().path));
+        QVERIFY(engine.asked_for(QStringLiteral("/v1/trader/decisions?book=challenger&limit=1000&day=2026-10-16&before="
+                                                "2026-10-16T09%3A08%3A21.001")));
+        QCOMPARE(live.decisions()->books[1].decisions.first().id, qint64(12'500)); // newest first
+        QCOMPARE(live.decisions()->books[1].decisions.last().id, qint64(10'001));
+        live.stop();
+    }
+
+    void an_engine_without_decisions_shows_none_and_no_failure() {
+        // An engine before krx-quant #584 answers 404: nothing to show, "엔진이 아직 지원하지 않음", not a failure.
+        StandIn old;
+        old.bars = bars_json("2026-10-16T09:00:00+09:00", 20);
+        old.marks = QList<QJsonObject>{};
+        services::KrxQuantService::set_base_url(old.url());
+        services::KrxTraderLive live(nullptr, [] { return kst("2026-10-16T09:20:04+09:00"); });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(old.asked_for(QStringLiteral("/v1/trader/decisions")) && !live.decisions_served() &&
+                                     !live.decisions_reading() && !live.reading() && !live.chart_reading(),
+                                 10000);
+        QVERIFY(!live.decisions());
+        QVERIFY(live.decisions_failure().isEmpty());
+        QVERIFY(live.failure().isEmpty());
+        QVERIFY(live.chart_failure().isEmpty());
+        QCOMPARE(view::decisions_line(live.decisions(), live.decisions_served(), live.decisions_reading()),
+                 QStringLiteral("엔진이 아직 지원하지 않음"));
+        // A failure is one, and keeps what was read.
+        StandIn failing;
+        failing.bars = old.bars;
+        failing.marks = QList<QJsonObject>{};
+        failing.decisions = QMap<QString, QJsonObject>{{QStringLiteral("practice"), practice_json()}};
+        services::KrxQuantService::set_base_url(failing.url());
+        live.read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(live.decisions() && live.decisions_served() && !live.decisions_reading(), 10000);
+        failing.fail_decisions = true;
+        live.read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(!live.decisions_failure().isEmpty() && !live.decisions_reading(), 10000);
+        QCOMPARE(live.decisions()->books[0].decisions.size(), qsizetype(6));
+        failing.fail_decisions = false;
+        live.read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(live.decisions_failure().isEmpty() && !live.decisions_reading(), 10000);
+        live.stop();
+    }
+
+    void the_decisions_are_not_read_while_hidden_and_read_at_once_when_shown_each_minute_or_the_engine_back() {
+        // The chart's next read is 59 s away on this clock: each read below is the screen shown again, the minute
+        // turning (its timer fired), the engine answering again after a failure, not that one.
+        StandIn engine;
+        engine.bars = bars_json("2026-10-16T09:00:00+09:00", 20);
+        engine.marks = QList<QJsonObject>{};
+        engine.decisions = QMap<QString, QJsonObject>{{QStringLiteral("practice"), practice_json()}};
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxTraderLive live(nullptr, [] { return kst("2026-10-16T09:20:04+09:00"); });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.decisions() && live.decisions()->day == QDate(2026, 10, 16) &&
+                                     !live.decisions_reading() && !live.chart_reading() && !live.reading(),
+                                 10000);
+        const auto reads = [&engine] { return engine.count("GET", "/v1/trader/decisions"); };
+
+        // Hidden: nothing is asked, now or as a minute turns.
+        live.stop();
+        qsizetype before = reads();
+        live.read_now();
+        live.set_decisions_book(QStringLiteral("champion"));
+        QVERIFY(!live.decisions_reading()); // a read asks at once: none was asked
+        live.set_decisions_book(QStringLiteral("practice"));
+        QVERIFY(!live.decisions_reading());
+        QCOMPARE(reads(), before);
+        // Shown again: at once.
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(reads() > before && live.decisions() && !live.decisions_reading(), 10000);
+        // The minute turns: once more.
+        QTRY_VERIFY_WITH_TIMEOUT(!live.chart_reading() && !live.decisions_reading(), 10000);
+        before = reads();
+        chart_timer(live)->start(0);
+        QTRY_VERIFY_WITH_TIMEOUT(reads() > before && !live.decisions_reading(), 10000);
+        // The engine out of reach, then back: at once, with the state's answer.
+        engine.fail = true;
+        fire_schedule(live);
+        QTRY_VERIFY_WITH_TIMEOUT(!live.failure().isEmpty() && !live.reading(), 10000);
+        engine.fail = false;
+        QTRY_VERIFY_WITH_TIMEOUT(!live.decisions_reading(), 10000);
+        before = reads();
+        QVERIFY(chart_timer(live)->remainingTime() > 30'000); // not the chart's own read
+        fire_schedule(live);
+        QTRY_VERIFY_WITH_TIMEOUT(reads() > before && live.failure().isEmpty() && !live.decisions_reading(), 10000);
+        QVERIFY(live.decisions_failure().isEmpty());
+        // Another address: the old engine's dropped, the new one's read at once.
+        StandIn other;
+        other.bars = engine.bars;
+        other.marks = QList<QJsonObject>{};
+        services::KrxQuantService::set_base_url(other.url());
+        fire_schedule(live);
+        QTRY_VERIFY_WITH_TIMEOUT(other.asked_for(QStringLiteral("/v1/trader/decisions")) && !live.decisions_served() &&
+                                     !live.decisions_reading(),
+                                 10000);
+        QVERIFY(!live.decisions());
+        QCOMPARE(live.decisions_book(), QStringLiteral("practice")); // the choice is kept
         live.stop();
     }
 

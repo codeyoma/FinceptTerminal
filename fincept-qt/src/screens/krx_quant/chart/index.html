@@ -376,6 +376,7 @@
   let studyMarks = []; // the fractals as markers (krx-quant #222)
   let tradeMarks = []; // the trader's buys and sells as markers (krx-quant #398)
   let smtMarks = []; // the SMT divergences as markers (codeyoma/krx-quant#522)
+  let skipMarks = []; // the trader's calls that traded nothing as markers (codeyoma/krx-quant#601)
   // The indicators (krx-quant #222, #223): a series each, in the price pane or a lower one, kept by
   // id while the screen sends them again; the fills, the fractals, the volume profile and the
   // anchor are layers. id -> {series, pane (a lower pane; null: the prices'), histogram, decimals,
@@ -729,7 +730,8 @@
   function showMarks() {
     // On one bar the consensus's icon sits nearest it, the trader's sell over it (krx-quant #398), and
     // an SMT mark past them (codeyoma/krx-quant#522).
-    const all = iconMarks.concat(studyMarks, tradeMarks, smtMarks);
+    // The trader's hollow △ of a call that traded nothing (codeyoma/krx-quant#601) under a buy's ▲.
+    const all = iconMarks.concat(studyMarks, tradeMarks, skipMarks, smtMarks);
     all.sort((a, b) => a.time - b.time);
     icons.setMarkers(all);
   }
@@ -779,6 +781,11 @@
     smtMarks = (data.smt || []).map((m) => ({
       id: m.id, time: m.time, position: m.position, shape: m.position === 'aboveBar' ? 'arrowDown' : 'arrowUp',
       color: m.color, size: 0, text: m.text,
+    }));
+    // The trader's calls that traded nothing (codeyoma/krx-quant#601): a hollow △ alone under the bar, as an
+    // SMT mark is drawn (size 0: its text, no shape). A click on one is its bar's.
+    skipMarks = (data.skips || []).map((m) => ({
+      id: m.id, time: m.time, position: 'belowBar', shape: 'arrowUp', color: m.color, size: 0, text: m.text,
     }));
     showStudies(data.studies || {}, data.profile || {});
     fitRange = data.fit;

@@ -131,6 +131,7 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
             view_from_ = 0; // nothing today yet (before the open, a holiday): the last day's
             read_older();
         }
+        check_decisions_day();
     });
     connect(service_, &KrxQuantService::bars_failed, this, [this](const QString&, const QString& reason) {
         reading_bars_ = false;
@@ -146,8 +147,10 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
         older_ = krx_quant::join_bars(bars, older_);
         older_failure_.clear();
         emit chart_changed();
-        if (running_)
+        if (running_) {
             read_marks(); // the buys and sells over them
+            check_decisions_day();
+        }
     });
     connect(service_, &KrxQuantService::older_failed, this, [this](const QString&, const QString& reason) {
         reading_older_ = false;
@@ -179,6 +182,54 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
     connect(service_, &KrxQuantService::trader_failed, this, [this](const QString&, const QString&) {
         marks_paging_ = false; // asked again with the next chart read; the marks shown stay
     });
+    // The decisions (codeyoma/krx-quant#601): the chosen book's day, page after page back to its first.
+    connect(
+        service_, &KrxQuantService::trader_decisions_ready, this,
+        [this](const QString& book, const QDateTime& before, const krx_quant::TraderDecisions& answer, bool served) {
+            reading_decisions_ = false;
+            // Asked for another book, or stopped since: not kept (a book chosen since is read now).
+            if (book != decisions_book_ || !running_ || (before.isValid() && !pages_)) {
+                pages_.reset();
+                emit decisions_changed();
+                if (running_)
+                    read_decisions();
+                return;
+            }
+            if (!served) { // an engine before krx-quant #584: none, and not a failure
+                pages_.reset();
+                decisions_.reset();
+                decisions_served_ = false;
+                decisions_failure_.clear();
+            } else {
+                decisions_served_ = true;
+                if (!before.isValid())
+                    pages_ = view::decision_pages(answer);
+                else
+                    view::join_decisions(*pages_, answer, before);
+                if (const auto next = view::decisions_before(*pages_)) { // the page before, of the same day
+                    reading_decisions_ =
+                        service_->read_trader_decisions(decisions_book_, pages_->read.day, *next, view::kDecisionPage);
+                    if (reading_decisions_)
+                        return;
+                }
+                decisions_ = pages_->read;
+                pages_.reset();
+                decisions_failure_.clear();
+            }
+            emit decisions_changed();
+            if (decisions_wanted_) // asked again meanwhile (a minute turned, the chart's day changed)
+                read_decisions();
+        });
+    connect(service_, &KrxQuantService::trader_decisions_failed, this,
+            [this](const QString& book, const QDateTime&, const QString& reason) {
+                reading_decisions_ = false;
+                pages_.reset();
+                if (book == decisions_book_)
+                    decisions_failure_ = reason; // those shown stay; asked again as the next minute turns
+                emit decisions_changed();
+                if (running_ && (decisions_wanted_ || book != decisions_book_))
+                    read_decisions();
+            });
     connect(service_, &KrxQuantService::base_url_changed, this, [this] {
         drop();
         read_chart(); // the new engine's, at once
@@ -226,6 +277,7 @@ void KrxTraderLive::read_chart() {
             service_->read_bars(QString::fromLatin1(krx_quant::kTraderSymbol));
         }
         read_marks(true); // the buys and sells since, and the sells of trades open then
+        read_decisions(); // codeyoma/krx-quant#601
     }
     chart_timer_->start(view::chart_ms(now_()));
 }
@@ -280,6 +332,61 @@ void KrxTraderLive::forget_chart() {
     chart_failure_.clear();
     older_failure_.clear();
     emit chart_changed();
+}
+
+void KrxTraderLive::set_decisions_book(const QString& book) {
+    if (book == decisions_book_)
+        return;
+    decisions_book_ = book;
+    decisions_.reset(); // another book's are not shown under this one
+    decisions_failure_.clear();
+    pages_.reset(); // a page under way is the other book's: its answer is not kept
+    if (running_)
+        read_decisions();
+    emit decisions_changed();
+}
+
+void KrxTraderLive::read_decisions() {
+    if (!running_ || service_->url().isEmpty())
+        return;
+    if (reading_decisions_) { // once the read under way ends: what came since
+        decisions_wanted_ = true;
+        return;
+    }
+    decisions_wanted_ = false;
+    pages_.reset();
+    decisions_day_ = chart_day();
+    reading_decisions_ = service_->read_trader_decisions(decisions_book_, decisions_day_, {}, view::kDecisionPage);
+    if (reading_decisions_)
+        emit decisions_changed();
+}
+
+void KrxTraderLive::check_decisions_day() {
+    // Once the engine has them and they were read: an engine without them, or one that failed, is asked
+    // again with the chart as the next minute turns, not on each answer of its bars.
+    if (!running_ || !decisions_served_ || !decisions_failure_.isEmpty())
+        return;
+    const QDate day = chart_day();
+    const QDate read = reading_decisions_ ? decisions_day_ : decisions_ ? decisions_->day : QDate();
+    if (day.isValid() && day != read)
+        read_decisions(); // the chart shows another day's bars: that day's decisions
+}
+
+QDate KrxTraderLive::chart_day() const {
+    if (!day_bars_.isEmpty())
+        return kst_day(day_bars_.last());
+    return older_.isEmpty() ? QDate() : kst_day(older_.last());
+}
+
+void KrxTraderLive::forget_decisions() {
+    decisions_.reset();
+    pages_.reset();
+    decisions_day_ = {};
+    decisions_served_ = true;   // the new engine's not known yet
+    reading_decisions_ = false; // the read under way was dropped with the old engine's
+    decisions_wanted_ = false;
+    decisions_failure_.clear();
+    emit decisions_changed();
 }
 
 void KrxTraderLive::set_trades_policy(std::optional<qint64> policy) {
@@ -447,6 +554,7 @@ void KrxTraderLive::drop() {
     pause_failed_ = false;
     answered_at_ = {};
     forget_chart();
+    forget_decisions();
 }
 
 } // namespace fincept::services
