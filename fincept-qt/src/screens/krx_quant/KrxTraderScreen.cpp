@@ -1,5 +1,6 @@
 #include "screens/krx_quant/KrxTraderScreen.h"
 
+#include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxTables.h"
 #include "services/krx_quant/KrxTraderLive.h"
 #include "ui/theme/Theme.h"
@@ -62,6 +63,19 @@ enum PolicyColumn {
 };
 /// Rows the trades table shows before it scrolls on its own.
 constexpr int kTradesShown = 15;
+/// The 1-minute chart's height (codeyoma/krx-quant#537): the screen scrolls, the chart does not grow.
+constexpr int kBarsChartHeight = 380;
+
+/// How the 1-minute chart looks (codeyoma/krx-quant#537): candles, the day separators, no indicator, no
+/// special situations' bands and no SMT marks. Fixed: nothing of the KRX 4-minute screen's chart settings.
+krx_quant::ChartLook bars_look() {
+    krx_quant::ChartLook look;
+    look.special = false;
+    look.smt = false;
+    for (auto& study : look.studies.studies)
+        study.on = false;
+    return look;
+}
 
 QString tone_color(Tone tone) {
     switch (tone) {
@@ -276,7 +290,7 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
     header_.row->insertWidget(6, gate_);
     header_line_ = new QLabel;
     header_.row->insertWidget(7, header_line_);
-    reload_ = tool_button(tr("새로 읽기"), tr("지금 다시 읽습니다(날마다와 매매도)"));
+    reload_ = tool_button(tr("새로 읽기"), tr("지금 다시 읽습니다(날마다, 매매, 정책 버전과 차트도)"));
     header_.controls->addWidget(reload_);
     connect(reload_, &QPushButton::clicked, this, [this] { live_->read_now(); });
     layout->addWidget(header_.bar);
@@ -322,6 +336,34 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
         cards_ << card;
     }
     body_layout->addWidget(cards);
+
+    // 005930's 1-minute chart with the trader's buys and sells (codeyoma/krx-quant#537). Lightweight Charts'
+    // license asks for its attribution and a link where users see it.
+    bars_header_ =
+        krx_panel::header(tr("005930 · 1분봉과 자동 매매"),
+                          tr("trader의 매수 ▲를 그 체결이 들어온 1분봉 아래에, 매도 ▼를 그 봉 위에 "
+                             "그립니다. 실전 계좌의 것은 주황, 모의와 KIS 모의의 것은 청록입니다. "
+                             "봉에 마우스를 올리면 그 봉의 매매마다 한 줄이 나옵니다. 엔진의 "
+                             "trader-marks가 주는 매매(챔피언의 장부가 낸 것, 정책 버전을 가리지 "
+                             "않고 연습 매매도) 그대로이고, 아래 매매 표의 정책 고르기를 따르지 "
+                             "않습니다. 화면이 보이는 동안 1분마다 다시 읽습니다.\n\n"
+                             "차트: TradingView Lightweight Charts™ · Copyright (c) 2026 TradingView, Inc. · "
+                             "https://www.tradingview.com/"));
+    bars_failure_ = new QLabel(tr("읽지 못함"));
+    bars_failure_->setObjectName(kBarsFailureName);
+    bars_failure_->hide();
+    bars_header_.controls->addWidget(bars_failure_);
+    auto* fit = tool_button(tr("맞춤"), tr("최근 60봉 보기로 돌아간다."));
+    bars_header_.controls->addWidget(fit);
+    bars_chart_ = new KrxChart;
+    bars_chart_->setObjectName(kBarsChartName);
+    bars_chart_->setFixedHeight(kBarsChartHeight);
+    connect(fit, &QPushButton::clicked, bars_chart_, &KrxChart::fit);
+    // Scrolled back: the bars before, and the buys and sells over them. Its 일반·로그 stays its own, for the
+    // app's run: the KRX 4-minute screen's setting is not read or written. A click or double-click on a bar
+    // does nothing here (no prediction panel, no bar window).
+    connect(bars_chart_, &KrxChart::view_moved, this, [this](double from, double to) { live_->view_from(from, to); });
+    body_layout->addWidget(krx_panel::panel(bars_header_, bars_chart_));
 
     auto* middle = new QHBoxLayout;
     middle->setContentsMargins(0, 0, 0, 0);
@@ -502,6 +544,7 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
         fill_cards(); // the time left to the time barrier
     });
     connect(live_, &services::KrxTraderLive::changed, this, [this] { render(); });
+    connect(live_, &services::KrxTraderLive::chart_changed, this, [this] { fill_bars(); });
     connect(&ui::ThemeManager::instance(), &ui::ThemeManager::theme_changed, this, [this] { refresh_theme(); });
     refresh_theme();
 }
@@ -527,8 +570,11 @@ void KrxTraderScreen::refresh_theme() {
                           "#krxTraderScreen QPushButton:hover{border-color:%3;}")
                       .arg(ui::colors::BG_BASE(), ui::colors::TEXT_PRIMARY(), ui::colors::BORDER_MED(),
                            ui::colors::BG_SURFACE()));
-    for (const auto* header : {&header_, &days_header_, &pause_header_, &trades_header_, &policies_header_})
+    for (const auto* header :
+         {&header_, &bars_header_, &days_header_, &pause_header_, &trades_header_, &policies_header_})
         header->restyle();
+    bars_chart_->restyle();
+    bars_failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
     for (auto* table : {controls_, trades_, policies_, history_}) {
         krx_tables::restyle(table);
         table->setProperty(krx_tables::kRowsProperty, QVariant()); // their rows' colours: filled again
@@ -647,6 +693,23 @@ void KrxTraderScreen::fill_cards() {
         card.lines->setVisible(!cards[i].lines.isEmpty());
         card.box->setToolTip(cards[i].tip);
     }
+}
+
+void KrxTraderScreen::fill_bars() {
+    // As the KRX 4-minute screen's chart says it (codeyoma/krx-quant#537): the day's bars, or those before.
+    const QString& failure = live_->chart_failure();
+    const QString& older = live_->older_failure();
+    bars_failure_->setToolTip(!failure.isEmpty() ? tr("1분봉을 읽지 못했습니다: %1").arg(failure)
+                              : !older.isEmpty() ? tr("지난 1분봉을 읽지 못했습니다: %1").arg(older)
+                                                 : QString());
+    bars_failure_->setVisible(!failure.isEmpty() || !older.isEmpty());
+    // The candles and the trader's buys and sells alone: no consensus icon, SMT or special situation; each
+    // bar with trades has their lines in its hover box.
+    const QList<krx_quant::TraderMark>& marks = live_->marks();
+    krx_quant::ChartLook look = bars_look();
+    look.first_day_whole = live_->reached_start(); // nothing before to wait for: a zoom out slides off the left end
+    bars_chart_->set_data(live_->chart_bars(), {}, krx_quant::with_trader_lines({}, marks), {}, 1, look, {},
+                          std::nullopt, {}, krx_quant::trader_icons(marks));
 }
 
 void KrxTraderScreen::fill_days() {

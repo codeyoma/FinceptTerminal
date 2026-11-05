@@ -1253,21 +1253,17 @@ void KrxQuantScreen::fill_chart() {
     // (krx-quant #236).
     const QList<krx_quant::Bar> shown_bars = candles ? live_->view_candles(minutes_) : live_->bars();
     const auto closes = kind ? live_->kind_board().closes(symbol) : QMap<QDateTime, QList<krx_quant::KindPrediction>>{};
-    // The trader's buys and sells (krx-quant #398): on the 1-minute view with a time axis, of the trader's
-    // symbol (KrxLive reads them for it alone), each with its line last in its bar's box.
-    const QList<krx_quant::TraderMark> traded =
-        minutes_ == 1 && !bricks ? live_->trader_marks() : QList<krx_quant::TraderMark>{};
-    // The SMT divergences (codeyoma/krx-quant#522) while shown: likewise, each with its line last in its bar's box.
+    // The SMT divergences (codeyoma/krx-quant#522) while shown: on the 1-minute view with a time axis, each
+    // with its line last in its bar's box. The trader's buys and sells are not drawn here: the auto trader
+    // screen's own chart draws them (codeyoma/krx-quant#537).
     const QList<krx_quant::SmtEvent> smt =
         look_.smt && minutes_ == 1 && !bricks ? live_->smt() : QList<krx_quant::SmtEvent>{};
     const QList<krx_quant::BarHover> hovers = krx_quant::with_smt_lines(
-        krx_quant::with_trader_lines(
-            daily_days       ? krx_quant::daily_hovers(shown_bars, closes, *kind, live_->kind_standings())
-            : minutes_ != 1  ? QList<krx_quant::BarHover>{}
-            : kind && !daily ? krx_quant::kind_hovers(live_->bars(), closes, *kind, live_->kind_standings())
-                             : krx_quant::bar_hovers(live_->bars(), live_->board().closes(symbol), live_->selection(),
-                                                     live_->standings(), rule),
-            traded),
+        daily_days       ? krx_quant::daily_hovers(shown_bars, closes, *kind, live_->kind_standings())
+        : minutes_ != 1  ? QList<krx_quant::BarHover>{}
+        : kind && !daily ? krx_quant::kind_hovers(live_->bars(), closes, *kind, live_->kind_standings())
+                         : krx_quant::bar_hovers(live_->bars(), live_->board().closes(symbol), live_->selection(),
+                                                 live_->standings(), rule),
         smt, symbol);
     const QList<krx_quant::ChartIcon> day_icons =
         daily_days ? krx_quant::daily_icons(shown_bars, closes, *kind) : QList<krx_quant::ChartIcon>{};
@@ -1280,8 +1276,8 @@ void KrxQuantScreen::fill_chart() {
     // Today's slots after the last bar fill up to the engine's clock while the session is open (krx-quant #238).
     const auto clock = krx_quant::session_clock(live_->status(), live_->engine_now());
     clock_slot_drawn_ = krx_quant::clock_slot(clock, minutes_);
-    chart_->set_data(shown_bars, marks, hovers, rule, minutes_, look_, live_->special(), clock, day_icons,
-                     krx_quant::trader_icons(traded), krx_quant::smt_icons(smt));
+    chart_->set_data(shown_bars, marks, hovers, rule, minutes_, look_, live_->special(), clock, day_icons, {},
+                     krx_quant::smt_icons(smt));
     show_score();
 }
 

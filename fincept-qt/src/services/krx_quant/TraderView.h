@@ -30,6 +30,14 @@ inline constexpr int kIdleMs = 300'000;
 bool in_session(const QDateTime& now);
 int poll_ms(const std::optional<TraderState>& last, const QDateTime& now);
 
+/// The screen's 1-minute chart (codeyoma/krx-quant#537) is read again as each minute turns: a bar is over
+/// then, and the engine has it, and the buys and sells filled in it, a moment later. kChartSettleMs is that
+/// moment.
+inline constexpr int kChartSettleMs = 3'000;
+/// The milliseconds from ``now`` to the next such read: kChartSettleMs past the next minute's turn, or past
+/// this one's while that is still ahead.
+int chart_ms(const QDateTime& now);
+
 /// What the trades, the days and the policy versions hang on in a state: its mode, day, trades exited
 /// that day (the mock practice's too, codeyoma/krx-quant#533), open trade, status and counts' starts, and
 /// the champion and each running policy's status, paper days and trades (codeyoma/krx-quant#401). A state

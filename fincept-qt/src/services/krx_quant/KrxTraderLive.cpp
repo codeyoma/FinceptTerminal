@@ -3,6 +3,7 @@
 #include "services/krx_quant/KrxQuantService.h"
 
 #include <QStringList>
+#include <QTimeZone>
 #include <QTimer>
 
 #include <utility>
@@ -11,14 +12,30 @@ namespace fincept::services {
 
 namespace view = krx_quant::trader;
 
+namespace {
+
+/// A bar's day in KST, where the engine's day is.
+QDate kst_day(const krx_quant::Bar& bar) {
+    return bar.start.toTimeZone(QTimeZone::fromSecondsAheadOfUtc(9 * 3600)).date();
+}
+
+} // namespace
+
 KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
     : QObject(parent), now_(now ? std::move(now) : [] { return QDateTime::currentDateTime(); }) {
     service_ = new KrxQuantService(this);
     timer_ = new QTimer(this);
+    timer_->setObjectName(kStateTimerName);
     timer_->setSingleShot(true);
     connect(timer_, &QTimer::timeout, this, &KrxTraderLive::read);
+    chart_timer_ = new QTimer(this);
+    chart_timer_->setObjectName(kChartTimerName);
+    chart_timer_->setSingleShot(true);
+    connect(chart_timer_, &QTimer::timeout, this, &KrxTraderLive::read_chart);
     connect(service_, &KrxQuantService::trader_state_ready, this, [this](const krx_quant::TraderState& state) {
         reading_state_ = false;
+        // The engine answers again after a failure (it restarted, or was out of reach): its chart at once.
+        const bool back = !state_failure_.isEmpty();
         state_ = state;
         state_failure_.clear();
         answered_at_ = now_();
@@ -26,6 +43,8 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
             check_history();
         emit changed();
         schedule();
+        if (back)
+            read_chart();
     });
     connect(service_, &KrxQuantService::trader_state_failed, this, [this](const QString& reason) {
         reading_state_ = false;
@@ -90,25 +109,160 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
                           .arg(sell_now ? QStringLiteral("정지하고 즉시 매도") : QStringLiteral("새 진입 정지"), reason);
         emit changed();
     });
-    connect(service_, &KrxQuantService::base_url_changed, this, [this] { drop(); });
+    // The chart (codeyoma/krx-quant#537): the day's bars, those before, and the trader's buys and sells.
+    connect(service_, &KrxQuantService::bars_ready, this, [this](const QString&, const QList<krx_quant::Bar>& bars) {
+        reading_bars_ = false;
+        // Another day (the screen open past midnight, or shown again days later): the bars read before
+        // the day held may not reach the new one. They are read again from it back, as the view needs.
+        if (!day_bars_.isEmpty() && (bars.isEmpty() || kst_day(bars.first()) != kst_day(day_bars_.first()))) {
+            older_.clear();
+            oldest_ = false;
+        }
+        day_bars_ = bars;
+        chart_failure_.clear();
+        emit chart_changed();
+        if (!running_)
+            return;
+        read_marks(); // over them
+        if (day_bars_.isEmpty() && older_.isEmpty()) {
+            view_from_ = 0; // nothing today yet (before the open, a holiday): the last day's
+            read_older();
+        }
+    });
+    connect(service_, &KrxQuantService::bars_failed, this, [this](const QString&, const QString& reason) {
+        reading_bars_ = false;
+        chart_failure_ = reason; // the bars shown stay; asked again as the next minute turns
+        emit chart_changed();
+    });
+    connect(service_, &KrxQuantService::older_ready, this, [this](const QString&, const QList<krx_quant::Bar>& bars) {
+        reading_older_ = false;
+        oldest_ = bars.isEmpty();
+        older_ = krx_quant::join_bars(bars, older_);
+        older_failure_.clear();
+        emit chart_changed();
+        if (running_)
+            read_marks(); // the buys and sells over them
+    });
+    connect(service_, &KrxQuantService::older_failed, this, [this](const QString&, const QString& reason) {
+        reading_older_ = false;
+        older_failure_ = reason; // the bars shown stay; scrolling to the left end again asks again
+        emit chart_changed();
+    });
+    connect(service_, &KrxQuantService::trader_ready, this,
+            [this](const QString&, const QDateTime& before, const QList<krx_quant::TraderMark>& marks) {
+                marks_paging_ = false;
+                const bool back = before.isValid();
+                // More since the last read than a page holds: those held and the latest page do not meet,
+                // so all are read again from this page back to the first bar.
+                if (!back && krx_quant::trader_gap(marks_, marks)) {
+                    marks_.clear();
+                    marks_from_ = {};
+                }
+                // A page back was asked a millisecond past where they were read from (trader_before):
+                // unless reading again from scratch moved that since.
+                if (!back || (marks_from_.isValid() && before == marks_from_.addMSecs(1)))
+                    marks_from_ = krx_quant::trader_from_after(marks_from_, marks, back);
+                if (const auto joined = krx_quant::join_trader_marks(marks_, marks); joined != marks_) {
+                    marks_ = joined;
+                    emit chart_changed();
+                }
+                read_marks(); // back to the first bar held
+            });
+    connect(service_, &KrxQuantService::trader_failed, this, [this](const QString&, const QString&) {
+        marks_paging_ = false; // asked again with the next chart read; the marks shown stay
+    });
+    connect(service_, &KrxQuantService::base_url_changed, this, [this] {
+        drop();
+        read_chart(); // the new engine's, at once
+    });
 }
 
 void KrxTraderLive::start() {
     if (running_)
         return;
     running_ = true;
+    read_chart(); // first: a new address is taken there, and the chart read from it
     read();
 }
 
 void KrxTraderLive::stop() {
     running_ = false;
     timer_->stop();
+    chart_timer_->stop();
 }
 
 void KrxTraderLive::read_now() {
     history_wanted_ = true;
-    if (running_)
-        read();
+    if (!running_)
+        return;
+    read_chart();
+    read();
+}
+
+void KrxTraderLive::view_from(double from, double to) {
+    view_from_ = from;
+    view_width_ = to - from;
+    read_older();
+}
+
+void KrxTraderLive::read_chart() {
+    chart_timer_->stop();
+    if (!running_)
+        return;
+    if (KrxQuantService::base_url() != service_->url())
+        return read(); // another engine: read() takes it, and its base_url_changed reads its chart
+    if (!service_->url().isEmpty()) {
+        if (!reading_bars_) { // else the read under way answers
+            reading_bars_ = true;
+            service_->read_bars(QString::fromLatin1(krx_quant::kTraderSymbol));
+        }
+        read_marks(true); // the buys and sells since, and the sells of trades open then
+    }
+    chart_timer_->start(view::chart_ms(now_()));
+}
+
+void KrxTraderLive::read_older() {
+    if (!running_ || oldest_ || reading_older_ || service_->url().isEmpty())
+        return; // one at a time: the view moves on, and asks again once it is drawn
+    // The first bar shown: the earliest read before, else the day's first; none: those before now.
+    const QDateTime first = !older_.isEmpty()      ? older_.first().start
+                            : !day_bars_.isEmpty() ? day_bars_.first().start
+                                                   : QDateTime();
+    if (const auto read = krx_quant::older_read(first, view_from_, 1, view_width_))
+        reading_older_ = service_->read_older(QString::fromLatin1(krx_quant::kTraderSymbol), *read);
+}
+
+void KrxTraderLive::read_marks(bool latest) {
+    marks_latest_ |= latest;
+    if (!running_ || marks_paging_)
+        return; // asked again once started, or once the page under way answers
+    const QDateTime first = !older_.isEmpty()      ? older_.first().start
+                            : !day_bars_.isEmpty() ? day_bars_.first().start
+                                                   : QDateTime();
+    const auto before = krx_quant::trader_before(marks_latest_ ? QDateTime() : marks_from_, first);
+    if (!before)
+        return; // no bar yet, or read back to the first: asked again when bars come
+    if (!before->isValid())
+        marks_latest_ = false;
+    marks_paging_ = true;
+    service_->read_trader_marks(QString::fromLatin1(krx_quant::kTraderSymbol), *before, krx_quant::kTraderPage);
+}
+
+void KrxTraderLive::forget_chart() {
+    day_bars_.clear();
+    older_.clear();
+    oldest_ = false;
+    reading_bars_ = false; // the reads under way were dropped with the old engine's
+    reading_older_ = false;
+    view_from_ = krx_quant::kOlderMargin;
+    view_width_ = 0;
+    marks_.clear();
+    marks_from_ = {};
+    marks_paging_ = false;
+    marks_latest_ = false;
+    chart_failure_.clear();
+    older_failure_.clear();
+    emit chart_changed();
 }
 
 void KrxTraderLive::set_trades_policy(std::optional<qint64> policy) {
@@ -275,6 +429,7 @@ void KrxTraderLive::drop() {
     pause_note_.clear();
     pause_failed_ = false;
     answered_at_ = {};
+    forget_chart();
 }
 
 } // namespace fincept::services

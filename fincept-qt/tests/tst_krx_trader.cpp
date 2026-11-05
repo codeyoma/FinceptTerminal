@@ -4,6 +4,11 @@
 // the screen's pause (src/services/krx_quant/KrxTraderLive.h), the last against a stand-in engine on
 // this computer. The values are made up. The settings (the engine's address) go to a temporary INI
 // file: AppConfig is defined below, in place of core/config/AppConfig.cpp.
+//
+// The screen's 1-minute chart of 005930 (codeyoma/krx-quant#537) reads the day's bars without predictions
+// and the trader's buys and sells (krx-quant #398): the latest page with each chart read, then back to the
+// first bar held, a page at a time; none from an engine without them (404). Hidden, it reads nothing; shown
+// again, or the engine answering again after a failure, it reads at once.
 
 #include "core/config/AppConfig.h"
 #include "services/krx_quant/KrxQuantService.h"
@@ -21,6 +26,7 @@
 #include <QTest>
 #include <QTimeZone>
 #include <QTimer>
+#include <QUrlQuery>
 
 #include <algorithm>
 #include <utility>
@@ -544,6 +550,55 @@ QList<TraderTrade> trades() {
 
 /// The engine as the auto trader screen reads it: GET /v1/trader, /v1/trader/days, /v1/trader/trades
 /// and POST /v1/trader/pause, each request kept (its method, path, content type and body).
+/// The chart's reads (codeyoma/krx-quant#537).
+const QString kChartBars = QStringLiteral("/v1/symbols/005930/bars");
+const QString kChartMarks = QStringLiteral("/v1/symbols/005930/trader-marks");
+
+/// A KST time (ISO 8601, ``+09:00``) with its fraction to the microsecond, so that two compare as the
+/// moments they are, as the engine compares them.
+QString moment(const QString& at) {
+    const qsizetype offset = at.indexOf('+');
+    const QString clock = at.left(offset);
+    const qsizetype dot = clock.indexOf('.');
+    const QString whole = dot < 0 ? clock : clock.left(dot);
+    const QString fraction = dot < 0 ? QString() : clock.mid(dot + 1);
+    return whole + "." + fraction.leftJustified(6, '0') + at.mid(offset);
+}
+
+/// ``count`` 1-minute bars from ``first`` on, as the engine sends them; made-up prices.
+QJsonArray bars_json(const char* first, int count) {
+    const QDateTime start = kst(first);
+    QJsonArray out;
+    for (int i = 0; i < count; ++i)
+        out.append(QJsonObject{{"start", start.addSecs(60 * i).toString(Qt::ISODate)},
+                               {"open", 70000},
+                               {"high", 70300},
+                               {"low", 69900},
+                               {"close", 70000 + 100 * (i % 3)},
+                               {"volume", 1000 + i},
+                               {"trades", QJsonValue::Null}});
+    return out;
+}
+
+/// ``count`` made-up trader marks a second apart, newest first, the newest ``count - 1`` seconds after
+/// ``from``; trade ``first_trade`` on, a buy and its sell each.
+QList<QJsonObject> marks_from(const QDateTime& from, int count, int first_trade = 1) {
+    QList<QJsonObject> marks;
+    for (int i = count - 1; i >= 0; --i)
+        marks << QJsonObject{{"trade_id", first_trade + i / 2},
+                             {"side", i % 2 ? "sell" : "buy"},
+                             {"at", from.addSecs(i).toString(Qt::ISODate)},
+                             {"price", 70000},
+                             {"quantity", 4},
+                             {"mode", "paper"},
+                             {"policy", QJsonValue::Null},
+                             {"kind", "barrier"},
+                             {"predictor", "breiman"},
+                             {"exit_reason", i % 2 ? "time" : QJsonValue()},
+                             {"net", i % 2 ? QJsonValue(-120.5) : QJsonValue()}};
+    return marks;
+}
+
 class StandIn : public QObject {
   public:
     struct Request {
@@ -561,6 +616,14 @@ class StandIn : public QObject {
     bool without_policies = false; ///< an engine before codeyoma/krx-quant#399: 404 for the versions
     QJsonObject state = state_json();
     QJsonObject policies = lone_policies_json();
+    /// The chart's (codeyoma/krx-quant#537): GET /v1/symbols/005930/bars, the day's 1-minute bars; with
+    /// ``limit=`` and no ``before=`` (the latest before now) ``last_day``; with ``before=``, none (nothing
+    /// earlier).
+    QJsonArray bars;
+    QJsonArray last_day;
+    /// GET /v1/symbols/005930/trader-marks: these, newest first, answered by ``before`` and ``limit`` as the
+    /// engine answers; none: 404, as an engine before krx-quant #398.
+    std::optional<QList<QJsonObject>> marks;
     QList<Request> asked;
 
     StandIn() {
@@ -577,6 +640,10 @@ class StandIn : public QObject {
         return std::count_if(asked.cbegin(), asked.cend(), [&](const Request& r) {
             return r.method == method && r.path.section('?', 0, 0) == path;
         });
+    }
+    /// Whether a request's path (with its query) starts with ``prefix``.
+    bool asked_for(const QString& prefix) const {
+        return std::any_of(asked.cbegin(), asked.cend(), [&](const Request& r) { return r.path.startsWith(prefix); });
     }
     /// The trades held answered now.
     void release() {
@@ -637,6 +704,29 @@ class StandIn : public QObject {
         } else if (r.method == "GET" && path == "/v1/trader/policies" && !without_policies) {
             status = 200;
             answer = policies;
+        } else if (r.method == "GET" && path == kChartBars) {
+            status = 200;
+            const bool before = r.path.contains("before=");
+            answer = {{"symbol", "005930"}, {"bars", !r.path.contains('?') ? bars : before ? QJsonArray{} : last_day}};
+        } else if (r.method == "GET" && path == kChartMarks && marks) {
+            // As the engine answers (krx-quant #398): to the microsecond, strictly before, and a page never
+            // splits the marks of one moment.
+            const QUrlQuery query(r.path.section('?', 1));
+            const QString before = query.queryItemValue("before", QUrl::FullyDecoded);
+            const int limit = query.queryItemValue("limit").toInt();
+            QJsonArray page;
+            QString last; // the moment the page ends on
+            for (const auto& m : *marks) {
+                const QString at = moment(m.value("at").toString());
+                if (!before.isEmpty() && at >= moment(before))
+                    continue;
+                if (page.size() >= limit && at != last)
+                    break;
+                page.append(m);
+                last = at;
+            }
+            status = 200;
+            answer = {{"symbol", "005930"}, {"marks", page}};
         } else if (r.method == "POST" && path == "/v1/trader/pause") {
             const QJsonObject asked_for = QJsonDocument::fromJson(r.body).object();
             status = 202;
@@ -656,9 +746,14 @@ class StandIn : public QObject {
 
 /// The live object's own schedule, fired now (its next read, as the timer would start it).
 void fire_schedule(services::KrxTraderLive& live) {
-    auto* timer = live.findChild<QTimer*>(QString(), Qt::FindDirectChildrenOnly);
+    auto* timer = live.findChild<QTimer*>(services::KrxTraderLive::kStateTimerName, Qt::FindDirectChildrenOnly);
     QVERIFY(timer);
     timer->start(0);
+}
+
+/// The chart's timer (codeyoma/krx-quant#537).
+QTimer* chart_timer(services::KrxTraderLive& live) {
+    return live.findChild<QTimer*>(services::KrxTraderLive::kChartTimerName, Qt::FindDirectChildrenOnly);
 }
 
 } // namespace
@@ -1805,6 +1900,17 @@ class TstKrxTrader : public QObject {
                  view::kSessionMs); // 10:00 KST
     }
 
+    void the_chart_is_read_again_as_each_minute_turns() {
+        // codeyoma/krx-quant#537: kChartSettleMs past the minute's turn, when the bar just over is the engine's.
+        QCOMPARE(view::chart_ms(kst("2026-10-15T10:06:00+09:00")), view::kChartSettleMs);
+        QCOMPARE(view::chart_ms(kst("2026-10-15T10:06:02.500+09:00")), 500);
+        QCOMPARE(view::chart_ms(kst("2026-10-15T10:06:03+09:00")), 60'000);
+        QCOMPARE(view::chart_ms(kst("2026-10-15T10:06:30+09:00")), 33'000);
+        QCOMPARE(view::chart_ms(kst("2026-10-15T10:06:59.999+09:00")), 3'001);
+        // Whatever the zone the moment is written in.
+        QCOMPARE(view::chart_ms(QDateTime(QDate(2026, 10, 15), QTime(1, 6, 30), QTimeZone::UTC)), 33'000);
+    }
+
     void the_screen_reads_the_state_with_its_days_and_trades_and_then_the_state_on_schedule() {
         StandIn engine;
         services::KrxQuantService::set_base_url(engine.url());
@@ -1855,7 +1961,7 @@ class TstKrxTrader : public QObject {
         QCOMPARE(live.next_ms(), 0);
         live.read_now();
         QVERIFY(!live.reading()); // a read asks at once: none was asked
-        auto* timer = live.findChild<QTimer*>(QString(), Qt::FindDirectChildrenOnly);
+        auto* timer = live.findChild<QTimer*>(services::KrxTraderLive::kStateTimerName, Qt::FindDirectChildrenOnly);
         QVERIFY(timer && !timer->isActive());
         // Nothing here writes but the pause.
         QVERIFY(std::all_of(engine.asked.cbegin(), engine.asked.cend(),
@@ -2097,6 +2203,188 @@ class TstKrxTrader : public QObject {
         QVERIFY(live.pause(true, [](const view::Question&) { return true; }));
         QTRY_COMPARE_WITH_TIMEOUT(second.count("POST", "/v1/trader/pause"), 1, 10000);
         QCOMPARE(first.count("POST", "/v1/trader/pause"), 0);
+        live.stop();
+    }
+
+    void the_chart_reads_the_day_s_bars_and_the_trader_s_marks_back_to_the_first_bar() {
+        // codeyoma/krx-quant#537, made-up values: 1,100 marks a second apart from 09:00. The latest page holds
+        // 1,000, back to 09:01:40, after the first bar (09:00); the page before it holds the 100 left, fewer
+        // than a page, so no more is read.
+        StandIn engine;
+        engine.bars = bars_json("2026-10-16T09:00:00+09:00", 20);
+        const QDateTime nine = kst("2026-10-16T09:00:00+09:00");
+        engine.marks = marks_from(nine, 1100);
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxTraderLive live(nullptr, [] { return kst("2026-10-16T09:20:04+09:00"); });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.marks().size() == 1100 && !live.chart_reading(), 10000);
+        QCOMPARE(live.chart_bars().size(), qsizetype(20));
+        QVERIFY(engine.asked_for(kChartMarks + "?limit=1000"));
+        // A millisecond past the earliest read: that millisecond's marks again (codeyoma/FinceptTerminal#107).
+        QVERIFY2(engine.asked_for(kChartMarks + "?limit=1000&before=2026-10-16T09%3A01%3A40.001"),
+                 qPrintable(engine.asked.constLast().path));
+        for (const auto& r : engine.asked)
+            if (r.path.startsWith(kChartMarks))
+                QVERIFY2(r.path == kChartMarks + "?limit=1000" ||
+                             r.path.startsWith(kChartMarks + "?limit=1000&before=2026-10-16T09%3A01%3A40"),
+                         qPrintable(r.path));
+        QCOMPARE(live.marks().first().at, nine.addSecs(1099)); // newest first
+        QCOMPARE(live.marks().last().at, nine);
+        QCOMPARE(live.marks().first().net, std::optional<double>(-120.5));
+        // The day's bars alone: no prediction, and nothing the KRX 4-minute screen reads.
+        QVERIFY(engine.asked_for(kChartBars));
+        QVERIFY(std::none_of(engine.asked.cbegin(), engine.asked.cend(), [](const StandIn::Request& r) {
+            return r.path.contains("/predictions") || r.path.startsWith("/v1/status") ||
+                   r.path.startsWith("/v1/leaderboard") || r.path == "/v1/symbols";
+        }));
+        QVERIFY(live.chart_failure().isEmpty());
+        QVERIFY(!live.reached_start());
+        // Read again as the minute turns: 09:21:03, 59 s on.
+        QVERIFY(chart_timer(live) && chart_timer(live)->isActive());
+        QCOMPARE(chart_timer(live)->interval(), 59'000);
+        live.stop();
+        QVERIFY(!chart_timer(live)->isActive());
+    }
+
+    void the_marks_of_one_millisecond_at_a_page_s_end_are_all_read() {
+        // codeyoma/FinceptTerminal#107 review: the engine's times are to the microsecond, this screen's to the
+        // millisecond. The latest page ends on two marks of 09:01:40.000400 (the engine keeps a moment whole);
+        // one of 09:01:40.000200 is just before them, in the same millisecond. Asked before 09:01:40.000, it
+        // would be missed; asked a millisecond past, it comes with the page before.
+        StandIn engine;
+        engine.bars = bars_json("2026-10-16T09:00:00+09:00", 20);
+        const QDateTime nine = kst("2026-10-16T09:00:00+09:00");
+        QList<QJsonObject> marks = marks_from(nine.addSecs(101), 999, 100); // 09:01:41 on
+        for (const auto& [trade, at] :
+             {std::pair{98, "2026-10-16T09:01:40.000400+09:00"}, std::pair{97, "2026-10-16T09:01:40.000400+09:00"},
+              std::pair{96, "2026-10-16T09:01:40.000200+09:00"}})
+            marks << QJsonObject{{"trade_id", trade}, {"side", "buy"}, {"at", at},
+                                 {"price", 70000},    {"quantity", 4}, {"mode", "live"}};
+        marks += marks_from(nine, 100, 1); // up to 09:01:39
+        engine.marks = marks;
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxTraderLive live(nullptr, [] { return kst("2026-10-16T09:20:04+09:00"); });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.marks().size() == 1102 && !live.chart_reading(), 10000);
+        const auto traded = [&live](qint64 trade) {
+            return std::any_of(live.marks().begin(), live.marks().end(),
+                               [trade](const TraderMark& m) { return m.trade_id == trade; });
+        };
+        QVERIFY(traded(98) && traded(97) && traded(96));
+        live.stop();
+    }
+
+    void a_latest_page_that_does_not_reach_those_held_reads_them_again_back_to_the_first_bar() {
+        // codeyoma/FinceptTerminal#107 review: more came in since the last read than a page holds (the screen
+        // hidden for days). The latest page does not reach the marks held: they are read again from it back.
+        StandIn engine;
+        engine.bars = bars_json("2026-10-16T09:00:00+09:00", 20);
+        const QDateTime nine = kst("2026-10-16T09:00:00+09:00");
+        engine.marks = marks_from(nine, 100);
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxTraderLive live(nullptr, [] { return kst("2026-10-16T09:20:04+09:00"); });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.marks().size() == 100 && !live.chart_reading(), 10000);
+        live.stop();
+        engine.marks = marks_from(nine.addSecs(100), 1500, 51) + *engine.marks; // 1,500 more since
+        live.start();                                                           // shown again: read at once
+        QTRY_VERIFY_WITH_TIMEOUT(live.marks().size() == 1600 && !live.chart_reading(), 10000);
+        QCOMPARE(live.marks().first().at, nine.addSecs(1599));
+        QCOMPARE(live.marks().last().at, nine);
+        live.stop();
+    }
+
+    void an_engine_without_trader_marks_shows_the_bars_and_no_failure() {
+        // An engine before krx-quant #398 answers 404: no marks, and the chart is not "읽지 못함".
+        StandIn old;
+        old.bars = bars_json("2026-10-16T09:00:00+09:00", 20);
+        services::KrxQuantService::set_base_url(old.url());
+        services::KrxTraderLive live(nullptr, [] { return kst("2026-10-16T09:20:04+09:00"); });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(old.asked_for(kChartMarks) && !live.chart_reading() && !live.reading(), 10000);
+        QCOMPARE(live.chart_bars().size(), qsizetype(20));
+        QVERIFY(live.marks().isEmpty());
+        QVERIFY(live.chart_failure().isEmpty());
+        QVERIFY(live.older_failure().isEmpty());
+        QVERIFY(live.failure().isEmpty());
+        live.stop();
+    }
+
+    void before_the_open_the_chart_shows_the_last_day_and_the_bars_before_as_it_scrolls_back() {
+        // No bar today yet (before the open, a holiday): the latest bars before now. Scrolled back past the
+        // first of them: the bars before it, of which this engine has none.
+        StandIn engine;
+        engine.last_day = bars_json("2026-10-15T19:00:00+09:00", 60);
+        engine.marks = QList<QJsonObject>{QJsonObject{{"trade_id", 1},
+                                                      {"side", "buy"},
+                                                      {"at", "2026-10-15T19:10:02.500+09:00"},
+                                                      {"price", 70000},
+                                                      {"quantity", 4},
+                                                      {"mode", "mock"}}};
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxTraderLive live(nullptr, [] { return kst("2026-10-16T07:30:04+09:00"); });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.chart_bars().size() == 60 && live.marks().size() == 1 && !live.chart_reading(),
+                                 10000);
+        QCOMPARE(live.chart_bars().first().start, kst("2026-10-15T19:00:00+09:00"));
+        QVERIFY(engine.asked_for(kChartBars + "?limit=1000"));
+        QVERIFY(!live.reached_start());
+        live.view_from(-40, 20);
+        QTRY_VERIFY_WITH_TIMEOUT(live.reached_start() && !live.chart_reading(), 10000);
+        QVERIFY2(engine.asked_for(kChartBars + "?limit=1000&before=2026-10-15T19%3A00%3A00"),
+                 qPrintable(engine.asked.constLast().path));
+        QCOMPARE(live.chart_bars().size(), qsizetype(60));
+        QVERIFY(live.older_failure().isEmpty());
+        live.stop();
+    }
+
+    void the_chart_reads_nothing_while_hidden_and_at_once_when_shown_or_the_engine_is_back() {
+        // codeyoma/krx-quant#537: the chart's next read is 59 s away on this clock; each read below is the
+        // screen shown again, the engine answering again after a failure, or a new address, not that one.
+        StandIn engine;
+        engine.bars = bars_json("2026-10-15T09:00:00+09:00", 20);
+        const auto buy = [](int trade, const char* at) {
+            return QJsonObject{{"trade_id", trade}, {"side", "buy"}, {"at", at},
+                               {"price", 70000},    {"quantity", 4}, {"mode", "paper"}};
+        };
+        engine.marks = QList<QJsonObject>{buy(1, "2026-10-15T09:05:02.500+09:00")};
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxTraderLive live(nullptr, [] { return kst("2026-10-15T10:06:04+09:00"); });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.marks().size() == 1 && !live.chart_reading() && !live.reading(), 10000);
+
+        // Hidden: nothing scheduled, and the view moved reads nothing.
+        live.stop();
+        QVERIFY(!chart_timer(live)->isActive());
+        live.view_from(-40, 20);
+        QVERIFY(!live.chart_reading()); // a read asks at once: none was asked
+        // Shown again: at once, the trade since among them.
+        engine.marks = QList<QJsonObject>{buy(2, "2026-10-15T09:10:02.500+09:00")} + *engine.marks;
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.marks().size() == 2 && !live.chart_reading(), 10000);
+        QVERIFY(!engine.asked_for(kChartBars + "?")); // the view moved while hidden read nothing before
+
+        // The engine out of reach, then back: its chart at once, with the state's answer.
+        engine.fail = true;
+        fire_schedule(live);
+        QTRY_VERIFY_WITH_TIMEOUT(!live.failure().isEmpty() && !live.reading(), 10000);
+        QCOMPARE(live.marks().size(), qsizetype(2)); // what was read stays
+        engine.fail = false;
+        engine.marks = QList<QJsonObject>{buy(3, "2026-10-15T09:15:02.500+09:00")} + *engine.marks;
+        QVERIFY(chart_timer(live)->remainingTime() > 30'000); // not the chart's own read
+        fire_schedule(live);
+        QTRY_VERIFY_WITH_TIMEOUT(live.marks().size() == 3 && !live.chart_reading(), 10000);
+        QVERIFY(live.failure().isEmpty());
+
+        // Another address: the new engine's chart at once, the old one's dropped.
+        StandIn other;
+        other.bars = bars_json("2026-10-15T09:00:00+09:00", 5);
+        other.marks = QList<QJsonObject>{};
+        services::KrxQuantService::set_base_url(other.url());
+        fire_schedule(live);
+        QTRY_VERIFY_WITH_TIMEOUT(live.chart_bars().size() == 5 && other.asked_for(kChartMarks) && !live.chart_reading(),
+                                 10000);
+        QVERIFY(live.marks().isEmpty());
         live.stop();
     }
 
