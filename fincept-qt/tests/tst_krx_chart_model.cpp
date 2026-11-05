@@ -86,9 +86,12 @@ Prediction forecast(const QString& algorithm, double up = 0.62, double flat = 0.
     return p;
 }
 
-/// ``p`` scored up on basis A, the mid-point 79,000 at the bar close and 79,300 four minutes on.
+/// ``p`` scored up on its bar close's touch label (krx-quant #170), the mid-point 79,000 at the bar
+/// close and 79,300 four minutes on.
 Prediction scored_up(Prediction p) {
-    p.outcome = Outcome{Direction::Up, Direction::Down, false, {}, 79000.0, 79100.0, 79300.0, std::nullopt};
+    Touch up;
+    up.direction = Direction::Up;
+    p.outcome = Outcome{false, {}, 79000.0, 79100.0, 79300.0, up};
     return p;
 }
 
@@ -230,7 +233,7 @@ class TstKrxChartModel : public QObject {
 
         const Truth truth = truth_of({none, forecast("gauss"), scored_up(forecast("markov"))}, close);
         QVERIFY(truth.scored);
-        QCOMPARE(truth.happened, Direction::Up); // basis A, whatever B said
+        QCOMPARE(truth.happened, Direction::Up); // its touch label
         QCOMPARE(truth.mid_start, std::optional<double>(79000.0));
         QCOMPARE(verdict(Direction::Up, truth), Mark::Result::Hit);
         QCOMPARE(verdict(Direction::Flat, truth), Mark::Result::Miss);
@@ -259,7 +262,7 @@ class TstKrxChartModel : public QObject {
                                             standings, SignalRule{0.6, 2});
 
         QCOMPARE(lines, (QStringList{
-                            "09:31 봉 → 09:35 목표 · 실제 상승 +300원",
+                            "09:31 봉 → 09:35 목표 · 정답 상승",
                             "선택 합의 · 상승 · 상승 62% · 보합 25% · 하락 13% · 상승 1 보합 0 하락 0 · 1/3 모델 · ✓",
                             "gauss · 수습 · 상승 · 상승 62% · 보합 25% · 하락 13% · ✓",
                             "markov · 예측 없음",
@@ -274,7 +277,7 @@ class TstKrxChartModel : public QObject {
 
         const QStringList lines = hover_box({final}, kst("2026-10-12T09:31:00+09:00"), {}, {}, SignalRule{0.6, 2});
 
-        QCOMPARE(lines, (QStringList{"09:31 봉 → 09:35 목표 · 실제 상승 +300원",
+        QCOMPARE(lines, (QStringList{"09:31 봉 → 09:35 목표 · 정답 상승",
                                      "최종 합의 · 상승 · 상승 62% · 보합 25% · 하락 13% · 같은 방향 3/5 · ✓ · 신호"}));
         Prediction pending = forecast("consensus-final");
         QCOMPARE(hover_box({pending}, kst("2026-10-12T09:31:00+09:00"), {}, {}, SignalRule{})[0],
@@ -466,10 +469,9 @@ class TstKrxChartModel : public QObject {
         };
         auto final = at("consensus-final", 0.5, 0.3, 0.2);
         final.pooled = QStringList{"gauss", "markov"};
-        final.outcome = Outcome{Direction::Up, Direction::Down, false, {}, 79000.0, 79100.0, 79300.0, std::nullopt};
+        final = scored_up(final);
         auto gauss = at("gauss", 0.2, 0.2, 0.6);
-        gauss.outcome = Outcome{Direction::Up, Direction::Down, false,        {},
-                                std::nullopt,  std::nullopt,    std::nullopt, std::nullopt};
+        gauss.outcome = Outcome{false, {}, std::nullopt, std::nullopt, std::nullopt, final.outcome->touch};
         auto newton = at("newton", 0.6, 0.3, 0.1);
         Prediction late = at("turing", 0, 0, 0);
         late.status = "timed_out";
@@ -487,7 +489,7 @@ class TstKrxChartModel : public QObject {
         QCOMPARE(order, (QStringList{"consensus-fast", "consensus-final", "gauss", "markov", "newton", "turing",
                                      "baseline-flat"}));
         QVERIFY(rows[6].baseline && !rows[2].baseline);
-        // gauss: active, pooled, leaned down; the bar close went up on basis A (krx-quant #159).
+        // gauss: active, pooled, leaned down; the bar close went up on its touch label (krx-quant #159).
         QCOMPARE(rows[2].status, QStringLiteral("정식"));
         QCOMPARE(rows[2].in_consensus, QStringLiteral("포함"));
         QCOMPARE(rows[2].direction, QStringLiteral("하락"));

@@ -266,20 +266,14 @@ Truth truth_of(const QList<Prediction>& at_close, const QDateTime& bar_close) {
             truth.target_at = p.target_at;
         if (!p.outcome)
             continue;
-        // Every predictor of a bar close is scored on the same label: any one says it. The
-        // touch target's (krx-quant #170); from an engine before it, the bar close's move (A).
+        // Every predictor of a bar close is scored on the same label, the touch target's (krx-quant
+        // #170): any one says it. Without one, the engine says why ("no touch label").
         const Outcome& o = *p.outcome;
         truth.scored = true;
         truth.special = o.special;
-        if (o.touch) {
-            truth.happened = o.touch->direction;
-            truth.unscorable = o.touch->direction == Direction::None
-                                   ? (o.touch->unscorable.isEmpty() ? o.unscorable : o.touch->unscorable)
-                                   : QString();
-        } else {
-            truth.happened = o.class_a;
-            truth.unscorable = o.class_a == Direction::None ? o.unscorable : QString();
-        }
+        truth.happened = o.touch ? o.touch->direction : Direction::None;
+        if (truth.happened == Direction::None)
+            truth.unscorable = o.touch && !o.touch->unscorable.isEmpty() ? o.touch->unscorable : o.unscorable;
         truth.mid_start = o.mid_close;
         truth.mid_target = o.mid_target;
         truth.touch = o.touch;

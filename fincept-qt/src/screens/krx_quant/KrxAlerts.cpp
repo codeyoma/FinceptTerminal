@@ -2,12 +2,15 @@
 
 #include "core/config/AppConfig.h"
 #include "ui/notifications/NotificationService.h"
+#include "ui/theme/Theme.h"
 
 #include <QApplication>
 #include <QDateTime>
 #include <QHBoxLayout>
-#include <QPushButton>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace fincept::screens {
 
@@ -17,6 +20,10 @@ constexpr auto kOnKey = "krx_quant/signal_on";
 constexpr auto kProbabilityKey = "krx_quant/signal_probability";
 constexpr auto kAgreeKey = "krx_quant/signal_agree";
 constexpr auto kSoundKey = "krx_quant/signal_sound";
+// The spin boxes' ranges: the engine's threshold is at most 1 (codeyoma/krx-quant#617).
+constexpr int kMinPercent = 50;
+constexpr int kMaxPercent = 100;
+constexpr int kMaxAgree = 20;
 
 } // namespace
 
@@ -41,9 +48,8 @@ KrxAlerts::KrxAlerts(QWidget* parent) : QWidget(parent) {
     auto* probability = new QHBoxLayout;
     probability->addWidget(new QLabel(tr("최종 합의 확률")));
     probability_ = new QSpinBox;
-    probability_->setRange(50, 99);
+    probability_->setRange(kMinPercent, kMaxPercent);
     probability_->setSuffix("%");
-    probability_->setValue(qRound(saved_rule().min_probability * 100));
     probability->addWidget(probability_);
     probability->addWidget(new QLabel(tr("이상")));
     probability->addStretch();
@@ -52,13 +58,26 @@ KrxAlerts::KrxAlerts(QWidget* parent) : QWidget(parent) {
     auto* agree = new QHBoxLayout;
     agree->addWidget(new QLabel(tr("같은 방향 정식 알고리즘")));
     agree_ = new QSpinBox;
-    agree_->setRange(1, 20);
+    agree_->setRange(1, kMaxAgree);
     agree_->setSuffix(tr("개"));
-    agree_->setValue(saved_rule().min_agree);
     agree->addWidget(agree_);
     agree->addWidget(new QLabel(tr("이상")));
     agree->addStretch();
     layout->addLayout(agree);
+
+    // Where the two values come from (codeyoma/krx-quant#617), and the way back to the engine's.
+    auto* source = new QHBoxLayout;
+    source_ = new QLabel;
+    source_->setWordWrap(true);
+    source_->setToolTip(tr("기준값과 N은 엔진의 신호 규칙(텔레그램 신호와 같은 값)을 따른다.\n"
+                           "여기서 바꾼 값은 저장되어 엔진 기준보다 우선한다(직접 설정).\n"
+                           "기준을 주지 않는 옛 엔진에서는 기본값 60% · 2개다."));
+    source->addWidget(source_, 1);
+    to_engine_ = new QPushButton(tr("엔진 기준으로"));
+    to_engine_->setToolTip(tr("여기서 저장한 기준값과 N을 지우고 엔진의 신호 규칙을 따른다."));
+    source->addWidget(to_engine_, 0, Qt::AlignTop);
+    layout->addLayout(source);
+    show_rule();
 
     sound_ = new QCheckBox(tr("소리"));
     sound_->setChecked(AppConfig::instance().get(kSoundKey, true).toBool());
@@ -76,23 +95,62 @@ KrxAlerts::KrxAlerts(QWidget* parent) : QWidget(parent) {
 
     connect(test, &QPushButton::clicked, this,
             [this]() { notify(tr("KRX 신호 시험 · 이 알림과 소리가 나면 신호도 이렇게 온다")); });
-    connect(on_, &QCheckBox::toggled, this, &KrxAlerts::save);
-    connect(probability_, &QSpinBox::valueChanged, this, &KrxAlerts::save);
-    connect(agree_, &QSpinBox::valueChanged, this, &KrxAlerts::save);
-    connect(sound_, &QCheckBox::toggled, this, &KrxAlerts::save);
+    // Each setting is saved when the user changes it, and only it: a value never set here keeps
+    // following the engine's (codeyoma/krx-quant#617).
+    connect(on_, &QCheckBox::toggled, this, [this](bool on) {
+        AppConfig::instance().set(kOnKey, on);
+        emit changed();
+    });
+    connect(probability_, &QSpinBox::valueChanged, this, [this](int percent) {
+        AppConfig::instance().set(kProbabilityKey, percent);
+        show_rule();
+        emit changed();
+    });
+    connect(agree_, &QSpinBox::valueChanged, this, [this](int agree) {
+        AppConfig::instance().set(kAgreeKey, agree);
+        show_rule();
+        emit changed();
+    });
+    connect(to_engine_, &QPushButton::clicked, this, [this]() {
+        AppConfig::instance().remove(kProbabilityKey);
+        AppConfig::instance().remove(kAgreeKey);
+        show_rule();
+        emit changed();
+    });
+    connect(sound_, &QCheckBox::toggled, this, [](bool on) { AppConfig::instance().set(kSoundKey, on); });
 }
 
 bool KrxAlerts::is_on() const {
     return on_->isChecked();
 }
 
-krx_quant::SignalRule KrxAlerts::rule() const {
-    return {probability_->value() / 100.0, agree_->value()};
+krx_quant::SavedRule KrxAlerts::saved() {
+    krx_quant::SavedRule saved;
+    // As the spin boxes show them, so the rule and what is shown agree.
+    if (const QVariant percent = AppConfig::instance().get(kProbabilityKey); percent.isValid())
+        saved.min_probability = std::clamp(percent.toInt(), kMinPercent, kMaxPercent) / 100.0;
+    if (const QVariant agree = AppConfig::instance().get(kAgreeKey); agree.isValid())
+        saved.min_agree = std::clamp(agree.toInt(), 1, kMaxAgree);
+    return saved;
 }
 
-krx_quant::SignalRule KrxAlerts::saved_rule() {
-    return {AppConfig::instance().get(kProbabilityKey, 60).toInt() / 100.0,
-            AppConfig::instance().get(kAgreeKey, 2).toInt()};
+void KrxAlerts::set_engine_rule(const std::optional<krx_quant::SignalRule>& rule) {
+    engine_rule_ = rule;
+    show_rule();
+}
+
+void KrxAlerts::show_rule() {
+    const krx_quant::SavedRule kept = saved();
+    const krx_quant::SignalRule rule = krx_quant::rule_in_force(kept, engine_rule_);
+    {
+        // Shown, not set by the user: nothing is saved.
+        const QSignalBlocker quiet_probability(probability_);
+        const QSignalBlocker quiet_agree(agree_);
+        probability_->setValue(qRound(rule.min_probability * 100));
+        agree_->setValue(rule.min_agree);
+    }
+    source_->setText(krx_quant::rule_source(kept, engine_rule_));
+    to_engine_->setVisible(kept.any());
 }
 
 void KrxAlerts::raise(const krx_quant::Signal& signal) {
@@ -104,14 +162,7 @@ void KrxAlerts::raise(const krx_quant::Signal& signal) {
 
 void KrxAlerts::restyle() {
     header_.restyle();
-}
-
-void KrxAlerts::save() {
-    AppConfig::instance().set(kOnKey, on_->isChecked());
-    AppConfig::instance().set(kProbabilityKey, probability_->value());
-    AppConfig::instance().set(kAgreeKey, agree_->value());
-    AppConfig::instance().set(kSoundKey, sound_->isChecked());
-    emit changed();
+    source_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_SECONDARY()));
 }
 
 void KrxAlerts::notify(const QString& text) {

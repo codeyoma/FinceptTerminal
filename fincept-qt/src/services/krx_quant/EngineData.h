@@ -83,6 +83,15 @@ struct UsdFutures {
     std::optional<double> change_pct; ///< since the previous close; none without it
 };
 
+/// The rule a signal of the final consensus follows (krx-quant docs/engine-api.md, "텔레그램 신호
+/// 알림"): the engine's (``/v1/status``'s ``signal_rule``, codeyoma/krx-quant#617), or the one in
+/// force on the KRX screen. The defaults are the app's own, for an engine that does not serve its rule.
+struct SignalRule {
+    double min_probability = 0.6; ///< of the move, in the final consensus
+    int min_agree = 2;            ///< active algorithms predicting the move
+    bool operator==(const SignalRule&) const = default;
+};
+
 struct EngineStatus {
     QString mode;  ///< "live", or "demo" for the development engine
     QString phase; ///< the market phase, e.g. "continuous" (see phase_label)
@@ -105,6 +114,8 @@ struct EngineStatus {
     /// and from an engine that does not send it.
     std::optional<double> cpu_usage{};
     int cpu_skipped_today = 0; ///< bar closes the budget skipped an algorithm at today
+    /// The engine's signal rule (codeyoma/krx-quant#617); none from an engine before it.
+    std::optional<SignalRule> signal_rule{};
 };
 
 /// A macro indicator as read the morning the regime was decided. Unknown values stay empty.
@@ -158,15 +169,12 @@ struct Touch {
     std::optional<int> k{};       ///< the flat width in ticks there: the targets are anchor ± k·tick
 };
 
-/// A prediction scored 4 minutes after its bar close, on both bases: A from the bar
-/// close's mid-point, B from the one when it was displayed.
+/// A prediction scored 4 minutes after its bar close, on its bar close's touch label (krx-quant #170).
 struct Outcome {
-    Direction class_a = Direction::None; ///< None where that basis could not be scored
-    Direction class_b = Direction::None;
     bool special = false; ///< a VI, circuit breaker or sidecar touched its 4 minutes
-    QString unscorable;   ///< which mid-point was missing, e.g. "missing mid: target"
-    // The mid-points it was scored on: at the bar close (basis A), when shown (B) and four
-    // minutes on; none where missing.
+    QString unscorable;   ///< why it has no label, e.g. "no touch label" or "missing mid: target"
+    // The mid-points stored with it: at the bar close, when shown and four minutes on; none where
+    // missing.
     std::optional<double> mid_close;
     std::optional<double> mid_display;
     std::optional<double> mid_target;
@@ -368,7 +376,6 @@ struct Leaderboard {
     QString kind = QStringLiteral("direction"); ///< the kind ranked (krx-quant #179); an older engine's: the direction
     QString symbol;                             ///< a symbol, or "all"
     QString period;                             ///< "today", "5d" or "20d"
-    QString basis;   ///< "a" or "b" as asked; an engine since krx-quant #170 scores on the touch target alone
     QString special; ///< "exclude" or "include"
     QStringList days;
     int min_sample = 0;
@@ -417,7 +424,6 @@ struct AlgorithmStats {
     QString algorithm;
     QString symbol; ///< the query's, as in Leaderboard
     QString period;
-    QString basis;
     QString special;
     QStringList days;
     int min_sample = 0;

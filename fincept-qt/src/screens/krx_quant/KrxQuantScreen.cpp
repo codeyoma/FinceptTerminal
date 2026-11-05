@@ -540,8 +540,13 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     });
     connect(leaderboard_, &KrxLeaderboard::detail_requested, this, &KrxQuantScreen::open_detail);
     connect(alerts_, &KrxAlerts::changed, this, [this]() {
-        live_->set_alerts(alerts_->is_on(), alerts_->rule());
+        live_->set_alerts(alerts_->is_on(), KrxAlerts::saved());
         fill_chart(); // the signals the chart marks follow the threshold and N
+    });
+    // The engine's signal rule (codeyoma/krx-quant#617): the threshold and N where none is saved.
+    connect(live_, &services::KrxLive::engine_rule_changed, this, [this]() {
+        alerts_->set_engine_rule(live_->engine_rule());
+        chart_soon_->start(); // its signals too
     });
 
     clock_timer_ = new QTimer(this);
@@ -559,7 +564,7 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     refresh_theme();
     connect(&ui::ThemeManager::instance(), &ui::ThemeManager::theme_changed, this, [this]() { refresh_theme(); });
 
-    live_->set_alerts(alerts_->is_on(), alerts_->rule());
+    live_->set_alerts(alerts_->is_on(), KrxAlerts::saved());
     live_->set_kind(AppConfig::instance().get(kKindKey, QString(krx_quant::kDirectionKind)).toString());
     show_kinds();
     live_->set_leaderboard_query(leaderboard_->query());
@@ -1334,7 +1339,7 @@ void KrxQuantScreen::fill_chart() {
         show_score();
         return;
     }
-    const krx_quant::SignalRule rule = alerts_->rule();
+    const krx_quant::SignalRule rule = live_->rule();
     const QList<krx_quant::Mark> marks = live_->board().marks(symbol, live_->selection());
     // Each 1-minute bar's box (krx-quant #159): the 1-minute view's only. While another kind is
     // shown, its own (krx-quant #182): its answer and predictions, and the range's highest and

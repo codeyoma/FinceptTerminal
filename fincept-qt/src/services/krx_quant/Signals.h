@@ -12,14 +12,26 @@
 #include <optional>
 
 /// The KRX screen's signal alerts: the engine's Telegram signal rule (krx-quant
-/// docs/engine-api.md, "텔레그램 신호 알림"), with the threshold and N set on the screen.
+/// docs/engine-api.md, "텔레그램 신호 알림"), with the engine's threshold and N unless the user set
+/// their own on the screen (``SignalRule`` is in EngineData.h).
 /// Qt Core only, unit-tested on its own (tests/tst_krx_signals.cpp).
 namespace fincept::krx_quant {
 
-struct SignalRule {
-    double min_probability = 0.6; ///< of the move, in the final consensus
-    int min_agree = 2;            ///< active algorithms predicting the move
+/// The signal rule values the user saved on the KRX screen (codeyoma/krx-quant#617); none where
+/// they follow the engine's.
+struct SavedRule {
+    std::optional<double> min_probability;
+    std::optional<int> min_agree;
+    bool any() const { return min_probability || min_agree; }
 };
+
+/// The rule in force (codeyoma/krx-quant#617): each value the user saved, else the engine's
+/// (``EngineStatus::signal_rule``), else the app's own (``SignalRule{}``) for an engine that does
+/// not serve its rule.
+SignalRule rule_in_force(const SavedRule& saved, const std::optional<SignalRule>& engine);
+/// Where it comes from, as the KRX screen's alert settings say: "엔진 기준", "직접 설정(확률) ·
+/// 엔진 기준 70% · 2개", or "기본값 (엔진이 기준을 주지 않음)".
+QString rule_source(const SavedRule& saved, const std::optional<SignalRule>& engine);
 
 /// A final consensus sure enough of a move that enough of its members agree.
 struct Signal {

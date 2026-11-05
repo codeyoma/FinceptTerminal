@@ -49,12 +49,17 @@ Prediction not_made(const QString& symbol, const QString& algorithm, const char*
     return p;
 }
 
-/// ``p`` scored: Direction::None where a basis could not be scored (its mid-point was missing).
-Prediction scored(Prediction p, Direction class_a, Direction class_b, bool special = false) {
-    const bool missing = class_a == Direction::None || class_b == Direction::None;
-    p.outcome =
-        Outcome{class_a,      class_b,      special,      missing ? QStringLiteral("missing mid: display") : QString(),
-                std::nullopt, std::nullopt, std::nullopt, std::nullopt};
+/// ``p`` scored on its bar close's touch label (krx-quant #170): ``happened``; Direction::None where the
+/// bar close has none, as the engine says ("no touch label").
+Prediction scored(Prediction p, Direction happened, bool special = false) {
+    std::optional<Touch> touch;
+    if (happened != Direction::None) {
+        touch = Touch{};
+        touch->direction = happened;
+    }
+    p.outcome = Outcome{special,      happened == Direction::None ? QStringLiteral("no touch label") : QString(),
+                        std::nullopt, std::nullopt,
+                        std::nullopt, touch};
     return p;
 }
 
@@ -174,7 +179,7 @@ class TstKrxBoard : public QObject {
     void a_prediction_already_scored_stays_scored() {
         Board board;
         const Prediction final = made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1);
-        board.apply(event_of(Event::Type::Outcome, {scored(final, Direction::Up, Direction::Up)}));
+        board.apply(event_of(Event::Type::Outcome, {scored(final, Direction::Up)}));
 
         board.set_latest(latest_of("005930", "09:31", {final})); // read before it was scored
         board.set_history("005930", {final});
@@ -209,17 +214,15 @@ class TstKrxBoard : public QObject {
 
     void marks_say_what_the_final_consensus_predicted_and_whether_it_was_right() {
         Board board;
-        board.set_history(
-            "005930",
-            {
-                scored(made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1), Direction::Up, Direction::Up),
-                scored(made("005930", "consensus-final", "09:32", 0.1, 0.3, 0.6), Direction::Up, Direction::Flat),
-                scored(made("005930", "consensus-final", "09:33", 0.2, 0.7, 0.1), Direction::None, Direction::None),
-                scored(made("005930", "consensus-final", "09:34", 0.2, 0.7, 0.1), Direction::Flat, Direction::Flat,
-                       true),
-                made("005930", "consensus-final", "09:35", 0.3, 0.3, 0.4),
-                not_made("005930", "consensus-final", "09:36", "no_members"),
-            });
+        board.set_history("005930",
+                          {
+                              scored(made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1), Direction::Up),
+                              scored(made("005930", "consensus-final", "09:32", 0.1, 0.3, 0.6), Direction::Up),
+                              scored(made("005930", "consensus-final", "09:33", 0.2, 0.7, 0.1), Direction::None),
+                              scored(made("005930", "consensus-final", "09:34", 0.2, 0.7, 0.1), Direction::Flat, true),
+                              made("005930", "consensus-final", "09:35", 0.3, 0.3, 0.4),
+                              not_made("005930", "consensus-final", "09:36", "no_members"),
+                          });
 
         const QList<Mark> marks = board.marks("005930");
 
@@ -232,29 +235,33 @@ class TstKrxBoard : public QObject {
         QCOMPARE(marks[1].result, Mark::Result::Miss);
         QCOMPARE(marks[2].predicted, Direction::Flat);
         QCOMPARE(marks[2].result, Mark::Result::Unscorable);
-        QCOMPARE(marks[2].unscorable, QStringLiteral("missing mid: display"));
+        QCOMPARE(marks[2].unscorable, QStringLiteral("no touch label"));
         QCOMPARE(marks[3].result, Mark::Result::Hit);
         QVERIFY(marks[3].special);
         QCOMPARE(marks[4].result, Mark::Result::Pending);
         QVERIFY(!marks[0].selected);
     }
 
-    void marks_score_on_the_bar_close_s_truth_basis_a() {
-        // The chart no longer follows the leaderboard's basis (krx-quant #159): A, the same
-        // for every predictor of the bar close.
+    void a_bar_close_without_a_touch_label_is_unscorable() {
+        // krx-quant #592: the outcome has no other label to fall back on; the engine says why.
+        const Prediction unlabeled = scored(made("005930", "consensus-final", "09:32", 0.1, 0.3, 0.6), Direction::None);
         Board board;
-        board.set_history("005930", {scored(made("005930", "consensus-final", "09:32", 0.1, 0.3, 0.6), Direction::Down,
-                                            Direction::Flat)});
+        board.set_history("005930", {unlabeled});
 
-        QCOMPARE(board.marks("005930")[0].result, Mark::Result::Hit);
+        const auto marks = board.marks("005930");
+        QCOMPARE(marks[0].result, Mark::Result::Unscorable);
+        QCOMPARE(marks[0].unscorable, QStringLiteral("no touch label"));
+        const Truth truth = truth_of({unlabeled}, at("09:32"));
+        QVERIFY(truth.scored);
+        QCOMPARE(truth.happened, Direction::None);
+        QCOMPARE(truth.unscorable, QStringLiteral("no touch label"));
     }
 
     void marks_score_on_the_touch_label_when_the_engine_gives_one() {
-        // krx-quant #170: the touch target decides, whatever the four-minute move (A) was.
-        Prediction p = scored(made("005930", "consensus-final", "09:32", 0.1, 0.3, 0.6), Direction::Up, Direction::Up);
+        // krx-quant #170: the touch target decides.
+        Prediction p = scored(made("005930", "consensus-final", "09:32", 0.1, 0.3, 0.6), Direction::Up);
         p.outcome->touch = Touch{Direction::Down, {}, 79'000.0, 79'200.0, 78'800.0, std::nullopt, std::nullopt};
-        Prediction silent =
-            scored(made("005930", "consensus-final", "09:33", 0.1, 0.3, 0.6), Direction::Up, Direction::Up);
+        Prediction silent = scored(made("005930", "consensus-final", "09:33", 0.1, 0.3, 0.6), Direction::Up);
         silent.outcome->touch =
             Touch{Direction::None, QStringLiteral("silent quotes"), 79'000.0, std::nullopt, std::nullopt, std::nullopt,
                   std::nullopt};
@@ -271,9 +278,8 @@ class TstKrxBoard : public QObject {
         // Its own outcome not in yet (read before it was scored), a model's is.
         Board board;
         board.focus("005930");
-        board.set_history("005930",
-                          {made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1),
-                           scored(made("005930", "gauss", "09:31", 0.2, 0.2, 0.6), Direction::Up, Direction::Up)});
+        board.set_history("005930", {made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1),
+                                     scored(made("005930", "gauss", "09:31", 0.2, 0.2, 0.6), Direction::Up)});
 
         QCOMPARE(board.marks("005930")[0].result, Mark::Result::Hit);
     }
@@ -284,7 +290,7 @@ class TstKrxBoard : public QObject {
         board.apply(event_of(Event::Type::Consensus, {final}, "final"));
         QCOMPARE(board.marks("005930")[0].result, Mark::Result::Pending);
 
-        board.apply(event_of(Event::Type::Outcome, {scored(final, Direction::Down, Direction::Down)}));
+        board.apply(event_of(Event::Type::Outcome, {scored(final, Direction::Down)}));
 
         QCOMPARE(board.marks("005930").size(), 1);
         QCOMPARE(board.marks("005930")[0].result, Mark::Result::Miss);
@@ -413,12 +419,12 @@ class TstKrxBoard : public QObject {
         board.focus("005930");
         Prediction final = made("005930", "consensus-final", "09:31", 0.6, 0.3, 0.1);
         final.blocked = "special";
-        board.set_history("005930", {final, scored(made("005930", "gauss", "09:31", 0.1, 0.3, 0.6), Direction::Down,
-                                                   Direction::Up, true)});
+        board.set_history("005930",
+                          {final, scored(made("005930", "gauss", "09:31", 0.1, 0.3, 0.6), Direction::Down, true)});
 
         const Mark m = board.marks("005930", {"gauss"})[0];
 
-        QCOMPARE(m.result, Mark::Result::Hit); // down on basis A
+        QCOMPARE(m.result, Mark::Result::Hit); // down on the touch label
         QVERIFY(m.special);
         QCOMPARE(m.prediction.blocked, QStringLiteral("special"));
     }

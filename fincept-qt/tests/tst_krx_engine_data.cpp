@@ -41,7 +41,8 @@ const char* kStatus = R"({
   ]},
   "usd_futures": {"price": 1395.2, "at": "2026-10-08T10:29:58+09:00", "previous_close": 1388.3, "change_pct": 0.497},
   "cpu": {"budget_seconds": 40.0, "algorithm_seconds": 8.0, "algorithms": {"alg-a": 6.0, "alg-b": 12.0},
-          "expected_seconds": 18.0, "usage": 0.45, "skipped_today": 2}
+          "expected_seconds": 18.0, "usage": 0.45, "skipped_today": 2},
+  "signal_rule": {"min_probability": 0.7, "min_agree": 3}
 })";
 
 const char* kMacro = R"json({
@@ -76,8 +77,8 @@ const char* kLatest = R"({
   ]
 })";
 
-// The consensus scored on both bases, an algorithm scored on basis A only (the mid-point at
-// its display time is unknown), and a prediction not made: no target, no outcome.
+// The consensus scored on its bar close's touch label, an algorithm whose bar close has none (the
+// engine says why), and a prediction not made: no target, no outcome.
 const char* kHistory = R"({
   "symbol": "005930",
   "predictions": [
@@ -86,15 +87,17 @@ const char* kHistory = R"({
      "target_at": "2026-10-08T10:30:00+09:00", "status": "ok",
      "p_up": 0.62, "p_flat": 0.30, "p_down": 0.08, "expected_ticks": 1.2,
      "outcome": {"mid_close": 81250.0, "mid_display": 81250.0, "mid_target": 81550.0, "flat_ticks": 2,
-                 "class_a": "up", "class_b": "up", "special": false, "unscorable": null,
-                 "scored_at": "2026-10-08T10:30:00.003000+09:00"}},
+                 "special": false, "unscorable": null, "scored_at": "2026-10-08T10:30:00.003000+09:00",
+                 "touch": {"target_version": 2, "class": "up", "unscorable": null, "anchor": 81250, "tick": 100,
+                           "k": 2, "upper": 81450, "lower": 81050, "upper_at": "2026-10-08T10:28:10+09:00",
+                           "upper_price": 81500, "lower_at": null, "lower_price": null}}},
     {"algorithm": "alg-a", "model_version": "alg-a-1",
      "bar_close": "2026-10-08T10:25:00+09:00", "displayed_at": "2026-10-08T10:25:00.090000+09:00",
      "target_at": "2026-10-08T10:29:00+09:00", "status": "ok",
      "p_up": 0.2, "p_flat": 0.5, "p_down": 0.3, "expected_ticks": -0.4,
      "outcome": {"mid_close": 81300.0, "mid_display": null, "mid_target": 81100.0, "flat_ticks": 2,
-                 "class_a": "down", "class_b": null, "special": true, "unscorable": "missing mid: display",
-                 "scored_at": "2026-10-08T10:29:00.002000+09:00"}},
+                 "special": true, "unscorable": "no touch label", "scored_at": "2026-10-08T10:29:00.002000+09:00",
+                 "touch": null}},
     {"algorithm": "alg-b", "model_version": "alg-b-1",
      "bar_close": "2026-10-08T10:25:00+09:00", "displayed_at": "2026-10-08T10:25:00.001000+09:00",
      "target_at": null, "status": "no_book",
@@ -105,7 +108,7 @@ const char* kHistory = R"({
 // Ranked: one beating every baseline after the luck correction, one not. Unranked: the
 // consensus (no status) with nothing scored. A baseline has no lift and no status.
 const char* kLeaderboard = R"({
-  "symbol": "all", "period": "5d", "days": ["2026-10-07", "2026-10-08"], "basis": "b",
+  "symbol": "all", "period": "5d", "days": ["2026-10-07", "2026-10-08"],
   "special": "exclude", "min_sample": 200,
   "ranked": [
     {"rank": 1, "algorithm": "alg-a", "status": "active", "model_versions": ["alg-a-2", "alg-a-1"], "n": 1128,
@@ -146,7 +149,7 @@ const char* kLeaderboard = R"({
 // curves (two of the ten bins; one with nothing in it; and up on its own), and its
 // breakdowns, whose lifts were not tested together and which leave out nothing.
 const char* kStats = R"({
-  "algorithm": "alg-a", "symbol": "005930", "period": "20d", "days": ["2026-10-08"], "basis": "a",
+  "algorithm": "alg-a", "symbol": "005930", "period": "20d", "days": ["2026-10-08"],
   "special": "include", "min_sample": 200,
   "overall": {
     "rank": 1, "algorithm": "alg-a", "model_versions": ["alg-a-1"], "n": 300,
@@ -355,6 +358,20 @@ class TstKrxEngineData : public QObject {
         QVERIFY(older.is_ok());
         QVERIFY(!older.value().cpu_usage.has_value());
         QCOMPARE(older.value().cpu_skipped_today, 0);
+    }
+
+    void status_has_the_engine_s_signal_rule() {
+        // ``signal_rule`` (codeyoma/krx-quant#617): the KRX screen's default; none from an engine
+        // before it, which keeps the app's own.
+        const auto status = parse_status(json(kStatus));
+        QVERIFY(status.is_ok());
+        QCOMPARE(status.value().signal_rule, (std::optional<SignalRule>(SignalRule{0.7, 3})));
+
+        const auto older = parse_status(json(R"({"mode": "live", "phase": "closed", "now": "2026-10-08T10:30:05+09:00",
+                                                 "last_bar_close": null, "pending_outcomes": 0, "special": [],
+                                                 "training": null})"));
+        QVERIFY(older.is_ok());
+        QVERIFY(!older.value().signal_rule.has_value());
     }
 
     void a_symbols_special_situations_over_days_are_read() {
@@ -776,7 +793,7 @@ class TstKrxEngineData : public QObject {
            "displayed_at": "2026-10-12T09:31:00.5+09:00", "target_at": "2026-10-12T09:35:00+09:00",
            "status": "ok", "p_up": 0.5, "p_flat": 0.3, "p_down": 0.2, "expected_ticks": 1.0,
            "outcome": {"mid_close": 81250, "mid_display": 81250, "mid_target": 81350, "flat_ticks": 2,
-                       "class_a": "flat", "class_b": "flat", "special": false, "unscorable": null,
+                       "special": false, "unscorable": null,
                        "scored_at": "2026-10-12T09:35:00+09:00",
                        "touch": {"target_version": 2, "class": "up", "unscorable": null, "anchor": 81250,
                                  "tick": 100, "k": 2,
@@ -786,7 +803,7 @@ class TstKrxEngineData : public QObject {
            "displayed_at": "2026-10-12T09:31:00.5+09:00", "target_at": "2026-10-12T09:35:00+09:00",
            "status": "ok", "p_up": 0.5, "p_flat": 0.3, "p_down": 0.2, "expected_ticks": 1.0,
            "outcome": {"mid_close": 81250, "mid_display": 81250, "mid_target": 81350, "flat_ticks": 2,
-                       "class_a": "flat", "class_b": "flat", "special": false, "unscorable": null,
+                       "special": false, "unscorable": null,
                        "scored_at": "2026-10-12T09:35:00+09:00"}}]})"));
         QVERIFY(read.is_ok());
         const auto& touch = read.value()[0].outcome->touch;
@@ -1005,19 +1022,18 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(made[0].bar_close, QDateTime::fromString("2026-10-08T10:26:00+09:00", Qt::ISODate));
         QCOMPARE(made[0].target_at, QDateTime::fromString("2026-10-08T10:30:00+09:00", Qt::ISODate));
         QVERIFY(made[0].outcome.has_value());
-        QCOMPARE(made[0].outcome->class_a, Direction::Up);
-        QCOMPARE(made[0].outcome->class_b, Direction::Up);
+        QVERIFY(made[0].outcome->touch.has_value());
+        QCOMPARE(made[0].outcome->touch->direction, Direction::Up);
         QVERIFY(!made[0].outcome->special);
     }
 
-    void an_outcome_unscorable_on_one_basis_has_no_class_there() {
+    void an_outcome_without_a_touch_label_says_why() {
         const auto history = parse_predictions(json(kHistory));
         QVERIFY(history.is_ok());
         const auto& outcome = history.value()[1].outcome;
         QVERIFY(outcome.has_value());
-        QCOMPARE(outcome->class_a, Direction::Down);
-        QCOMPARE(outcome->class_b, Direction::None);
-        QCOMPARE(outcome->unscorable, QStringLiteral("missing mid: display"));
+        QVERIFY(!outcome->touch.has_value());
+        QCOMPARE(outcome->unscorable, QStringLiteral("no touch label"));
         QVERIFY(outcome->special);
     }
 
@@ -1087,7 +1103,6 @@ class TstKrxEngineData : public QObject {
         const auto& b = board.value();
         QCOMPARE(b.symbol, QStringLiteral("all"));
         QCOMPARE(b.period, QStringLiteral("5d"));
-        QCOMPARE(b.basis, QStringLiteral("b"));
         QCOMPARE(b.special, QStringLiteral("exclude"));
         QCOMPARE(b.days, (QStringList{"2026-10-07", "2026-10-08"}));
         QCOMPARE(b.min_sample, 200);
@@ -1174,7 +1189,6 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(s.algorithm, QStringLiteral("alg-a"));
         QCOMPARE(s.symbol, QStringLiteral("005930"));
         QCOMPARE(s.period, QStringLiteral("20d"));
-        QCOMPARE(s.basis, QStringLiteral("a"));
         QCOMPARE(s.special, QStringLiteral("include"));
         QCOMPARE(s.days, QStringList{"2026-10-08"});
         QCOMPARE(s.min_sample, 200);
@@ -1235,7 +1249,7 @@ class TstKrxEngineData : public QObject {
         // A consensus over a period it did not predict in: the baselines are still there to
         // compare with, but no bar close pairs with them.
         const auto stats = parse_stats(json(R"({
-          "algorithm": "consensus-final", "symbol": "all", "period": "today", "days": [], "basis": "b",
+          "algorithm": "consensus-final", "symbol": "all", "period": "today", "days": [],
           "special": "exclude", "min_sample": 200,
           "overall": {"rank": null, "algorithm": "consensus-final", "model_versions": [], "n": 0,
             "accuracy": null, "precision": null, "coverage": null, "brier": null,
@@ -1434,12 +1448,15 @@ class TstKrxEngineData : public QObject {
                "target_at": "2026-10-12T09:35:00+09:00", "status": "ok",
                "p_up": 0.64, "p_flat": 0.26, "p_down": 0.1, "expected_ticks": 1.1,
                "outcome": {"mid_close": 81250.0, "mid_display": 81250.0, "mid_target": 81050.0, "flat_ticks": 2,
-                           "class_a": "down", "class_b": "down", "special": false, "unscorable": null,
-                           "scored_at": "2026-10-12T09:35:00+09:00"}}]})"));
+                           "special": false, "unscorable": null, "scored_at": "2026-10-12T09:35:00+09:00",
+                           "touch": {"target_version": 2, "class": "down", "unscorable": null, "anchor": 81250,
+                                     "tick": 100, "k": 2, "upper": 81450, "lower": 81050, "upper_at": null,
+                                     "upper_price": null, "lower_at": "2026-10-12T09:33:20+09:00",
+                                     "lower_price": 81000}}}]})"));
         QVERIFY(event.is_ok());
         QCOMPARE(event.value().type, Event::Type::Outcome);
         QCOMPARE(event.value().predictions.size(), 1);
-        QCOMPARE(event.value().predictions[0].outcome->class_b, Direction::Down);
+        QCOMPARE(event.value().predictions[0].outcome->touch->direction, Direction::Down);
     }
 
     void a_health_event_brings_the_kis_status() {
