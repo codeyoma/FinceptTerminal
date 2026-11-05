@@ -2625,6 +2625,13 @@ class TstKrxTrader : public QObject {
                                 "건너뜀 3(오름 아님 2 · 보유 중 1) · 정답 난 것: 산 것 1/1 맞음 · 건너뛴 것 "
                                 "1/2 놓친 오름"));
         QVERIFY(lines[0].tip.contains(QStringLiteral("건너뛴 이유 · 보유 중 1: 들고 있는 포지션이나")));
+        // Only the skips answered: their part alone.
+        TraderDecisions skips_answered = d;
+        for (auto& decision : skips_answered.books[0].decisions)
+            if (decision.trade_id)
+                decision.right.reset();
+        QVERIFY(view::totals_lines(skips_answered)[0].text.endsWith(
+            QStringLiteral("· 정답 난 것: 건너뛴 것 1/2 놓친 오름")));
         const auto rows = view::decision_rows(d);
         QStringList shown;
         for (const auto& row : rows)

@@ -1718,11 +1718,16 @@ QList<TotalsLine> totals_lines(const TraderDecisions& decisions) {
                 missed += *d.right ? 1 : 0;
             }
         }
-        QString text = parts.join(QStringLiteral(" · "));
-        if (bought + skipped > 0)
-            text += QStringLiteral(" · 정답 난 것: 산 것 %1/%2 맞음 · 건너뛴 것 %3/%4 놓친 오름")
-                        .arg(korean().toString(bought_right), korean().toString(bought), korean().toString(missed),
-                             korean().toString(skipped));
+        QStringList answered;
+        if (bought > 0)
+            answered
+                << QStringLiteral("산 것 %1/%2 맞음").arg(korean().toString(bought_right), korean().toString(bought));
+        if (skipped > 0)
+            answered << QStringLiteral("건너뛴 것 %1/%2 놓친 오름")
+                            .arg(korean().toString(missed), korean().toString(skipped));
+        if (!answered.isEmpty())
+            parts << QStringLiteral("정답 난 것: ") + answered.join(QStringLiteral(" · "));
+        const QString text = parts.join(QStringLiteral(" · "));
         QStringList tip{
             QStringLiteral("%1의 그날 결정 모두의 합계다(엔진의 totals).").arg(book_entry_label(book)),
             QStringLiteral("산 것: 체결해 매매가 된 매수. 호가 기다림: 결정 뒤 첫 호가를 기다리는 매수. 못 산 것: 사려 "

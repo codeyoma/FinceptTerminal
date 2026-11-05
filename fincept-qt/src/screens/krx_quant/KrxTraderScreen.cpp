@@ -142,11 +142,16 @@ void fit_height(QTableWidget* table, int rows = -1) {
 /// scrolls: its rows one line high, not each measured (fit_height's) a thousand times a minute.
 void fit_rows(QTableWidget* table, int rows) {
     const auto* header = table->horizontalHeader();
-    const int row = table->verticalHeader()->defaultSectionSize();
-    const int shown = std::max(1, std::min(rows, table->rowCount()));
-    table->setVerticalScrollBarPolicy(table->rowCount() > rows ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff);
-    table->setFixedHeight(std::max(header->height(), header->sizeHint().height()) + row * shown +
-                          2 * table->frameWidth() + 4);
+    const auto* vertical = table->verticalHeader();
+    int height = std::max(header->height(), header->sizeHint().height());
+    if (table->rowCount() > rows) {
+        height += vertical->sectionPosition(rows);
+        table->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    } else {
+        height += std::max(vertical->length(), vertical->defaultSectionSize()); // an empty table: one row's room
+        table->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    }
+    table->setFixedHeight(height + 2 * table->frameWidth());
 }
 
 QTableWidgetItem* toned(const QString& text, Tone tone, const QString& tip = {},
@@ -373,7 +378,9 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
                              "봉에 마우스를 올리면 그 봉의 매매마다 한 줄이 나옵니다. 엔진의 "
                              "trader-marks가 주는 매매(챔피언의 장부가 낸 것, 정책 버전을 가리지 "
                              "않고 연습 매매도) 그대로이고, 아래 매매 표의 정책 고르기를 따르지 "
-                             "않습니다. 화면이 보이는 동안 1분마다 다시 읽습니다.\n\n"
+                             "않습니다. 건너뜀 △를 켜 두면 아래 결정 패널에서 고른 장부가 사지 않은 "
+                             "호출을 그 결정이 난 봉 아래에 빈 △로 그립니다. 화면이 보이는 동안 1분마다 "
+                             "다시 읽습니다.\n\n"
                              "차트: TradingView Lightweight Charts™ · Copyright (c) 2026 TradingView, Inc. · "
                              "https://www.tradingview.com/"));
     bars_failure_ = new QLabel(tr("읽지 못함"));

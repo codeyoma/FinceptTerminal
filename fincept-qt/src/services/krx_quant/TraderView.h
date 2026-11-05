@@ -328,7 +328,7 @@ void join_decisions(DecisionPages& pages, const TraderDecisions& page, const QDa
 QString decisions_line(const std::optional<TraderDecisions>& decisions, bool served, bool reading);
 /// A line of a book's totals of the day and its tooltip: "연습 · KIS 모의 · 결정 300 · 산 것 18 · 못 산 것 2(호가
 /// 없음 2) · 건너뜀 280(오름 아님 230 · 매수 한도 30 · …)"; with the answers in, what came of them: "· 정답
-/// 난 것: 산 것 12/18 맞음 · 건너뛴 것 40/250 놓친 오름".
+/// 난 것: 산 것 12/18 맞음 · 건너뛴 것 40/250 놓친 오름" (each part only with an answered call of it).
 struct TotalsLine {
     QString text;
     QString tip;
