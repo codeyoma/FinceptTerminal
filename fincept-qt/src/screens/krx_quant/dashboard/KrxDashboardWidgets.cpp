@@ -142,7 +142,8 @@ void KrxSignalsWidget::read_next_recent() {
 void KrxSignalsWidget::render() {
     if (!snapshot_)
         return;
-    const auto rule = KrxAlerts::saved_rule();
+    // The KRX screen's rule in force: its saved values over the engine's (codeyoma/krx-quant#617).
+    const auto rule = krx_quant::rule_in_force(KrxAlerts::saved(), snapshot_->status.signal_rule);
     const auto rows =
         krx_quant::dashboard::signal_rows(snapshot_->symbols, snapshot_->latest, recent_, rule, snapshot_->status.now);
     table_->setRowCount(static_cast<int>(rows.size()));
@@ -177,10 +178,11 @@ void KrxSignalsWidget::render() {
         table_->setItem(r, 8, last);
     }
     if (auto* header = table_->horizontalHeaderItem(7))
-        header->setToolTip(tr("KRX 화면의 신호 규칙: 최종 합의의 확률 %1% 이상, 정식 알고리즘 %2개 이상 같은 방향. "
+        header->setToolTip(tr("KRX 화면의 신호 규칙(%3): 최종 합의의 확률 %1% 이상, 정식 알고리즘 %2개 이상 같은 방향. "
                               "이 위젯은 알림을 내지 않습니다.")
                                .arg(qRound(rule.min_probability * 100))
-                               .arg(rule.min_agree));
+                               .arg(rule.min_agree)
+                               .arg(krx_quant::rule_source(KrxAlerts::saved(), snapshot_->status.signal_rule)));
 }
 
 // ---- Leaderboard ----------------------------------------------------------------------------------

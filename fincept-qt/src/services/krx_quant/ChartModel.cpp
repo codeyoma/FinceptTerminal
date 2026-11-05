@@ -86,22 +86,15 @@ QString truth_text(const Truth& truth) {
     if (truth.happened == Direction::None)
         return truth.unscorable.isEmpty() ? QStringLiteral("채점 불가")
                                           : QStringLiteral("채점 불가 (%1)").arg(truth.unscorable);
-    QString text;
+    // The touch label (krx-quant #170): the only one a bar close is scored on, so there is one here.
+    QString text = QStringLiteral("정답 %1").arg(direction_label(truth.happened));
     if (truth.touch) {
-        text = QStringLiteral("정답 %1").arg(direction_label(truth.happened));
         const auto& t = *truth.touch;
         const std::optional<Reach> reach = truth.happened == Direction::Up     ? t.upper_reached
                                            : truth.happened == Direction::Down ? t.lower_reached
                                                                                : std::nullopt;
         if (reach)
             text += QStringLiteral(" (%1 닿음)").arg(kst_text(reach->at, "HH:mm:ss"));
-    } else {
-        text = QStringLiteral("실제 %1").arg(direction_label(truth.happened));
-        if (truth.mid_start && truth.mid_target) {
-            const double move = *truth.mid_target - *truth.mid_start;
-            const QString won = QLocale(QLocale::Korean).toString(std::abs(move), 'f', 0);
-            text += QStringLiteral(" %1%2원").arg(move > 0 ? "+" : move < 0 ? "-" : "±", won);
-        }
     }
     if (truth.special)
         text += QStringLiteral(" · 특수 상황");

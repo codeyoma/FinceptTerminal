@@ -1,5 +1,6 @@
 #include "services/krx_quant/Signals.h"
 
+#include <QStringList>
 #include <QTimeZone>
 
 #include <cmath>
@@ -14,6 +15,26 @@ QString Signal::text() const {
         .arg(members)
         .arg(agree)
         .arg(bar_close.toTimeZone(kst).toString("HH:mm"), target_at.toTimeZone(kst).toString("HH:mm"));
+}
+
+SignalRule rule_in_force(const SavedRule& saved, const std::optional<SignalRule>& engine) {
+    const SignalRule base = engine.value_or(SignalRule{});
+    return {saved.min_probability.value_or(base.min_probability), saved.min_agree.value_or(base.min_agree)};
+}
+
+QString rule_source(const SavedRule& saved, const std::optional<SignalRule>& engine) {
+    if (!saved.any())
+        return engine ? QStringLiteral("엔진 기준") : QStringLiteral("기본값 (엔진이 기준을 주지 않음)");
+    QStringList set;
+    if (saved.min_probability)
+        set << QStringLiteral("확률");
+    if (saved.min_agree)
+        set << QStringLiteral("같은 방향 수");
+    const SignalRule base = engine.value_or(SignalRule{});
+    return QStringLiteral("직접 설정(%1) · %2 %3% · %4개")
+        .arg(set.join(QStringLiteral("·")), engine ? QStringLiteral("엔진 기준") : QStringLiteral("기본값"))
+        .arg(std::lround(base.min_probability * 100))
+        .arg(base.min_agree);
 }
 
 namespace {

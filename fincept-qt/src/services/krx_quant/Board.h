@@ -29,7 +29,7 @@ struct Truth {
     std::optional<double> mid_target;
     std::optional<QDateTime> hit_at; ///< where its target was reached (krx-quant #160); none today
     std::optional<double> hit_price;
-    std::optional<Touch> touch; ///< the touch label recorded beside it (krx-quant #167); not scored on yet
+    std::optional<Touch> touch; ///< the touch label it is scored on (krx-quant #167, #170)
 };
 
 /// The truth of the bar close ``bar_close`` from its predictions (any predictors).

@@ -24,6 +24,10 @@
 // shown and for each detail window's kind as it opens; an engine without them (404) is known as such, so the
 // panel shows what it showed before.
 //
+// The signal alerts judge by the engine's signal rule from its status (codeyoma/krx-quant#617), the final
+// consensus that came with it too, unless the user saved their own values; an engine without the rule
+// leaves the app's own (60%, 2).
+//
 // The stand-in answers the routes these reads need (status, symbols, a symbol's bars, candles
 // and predictions, and the daily supply data when a test gives it); every other route is 404, which
 // the screen shows as not read. Built
@@ -128,6 +132,28 @@ QJsonObject smt_json(const char* bar_close, const char* partner, const char* dir
             {"source", "live"}};
 }
 
+/// A forecast of 005930's 09:31 bar close by ``algorithm``, as the engine sends it.
+QJsonObject forecast_json(const char* algorithm, double up, double flat, double down) {
+    return {{"algorithm", algorithm},
+            {"model_version", "v1"},
+            {"status", "ok"},
+            {"bar_close", "2026-10-16T09:31:00+09:00"},
+            {"target_at", "2026-10-16T09:35:00+09:00"},
+            {"p_up", up},
+            {"p_flat", flat},
+            {"p_down", down},
+            {"expected_ticks", 1.0},
+            {"outcome", QJsonValue::Null}};
+}
+
+/// GET /v1/symbols/005930/latest at 09:31: a final consensus 65% up, both its members leaning up.
+QJsonObject latest_up_65() {
+    return {{"symbol", kSymbol},
+            {"bar_close", "2026-10-16T09:31:00+09:00"},
+            {"predictions", QJsonArray{forecast_json("gauss", 0.6, 0.3, 0.1), forecast_json("markov", 0.7, 0.2, 0.1),
+                                       forecast_json("consensus-final", 0.65, 0.25, 0.1)}}};
+}
+
 /// The engine as these reads see it: each GET answered from its route, the paths asked kept.
 class StandIn : public QObject {
   public:
@@ -155,6 +181,11 @@ class StandIn : public QObject {
     std::optional<QJsonObject> days;
     /// GET /v1/algorithms: this answer; none: 404 (the screen then shows them as not read).
     std::optional<QJsonObject> algorithms;
+    /// /v1/status's ``signal_rule`` (codeyoma/krx-quant#617); none: left out, as an engine before it.
+    std::optional<QJsonObject> signal_rule;
+    /// GET /v1/symbols/005930/latest: this answer, and GET /v1/consensus its members (``consensus``); none: 404.
+    std::optional<QJsonObject> latest;
+    QStringList consensus;
     QStringList asked;
 
     StandIn() {
@@ -240,9 +271,21 @@ class StandIn : public QObject {
     }
 
     QJsonObject answer(const QString& path, int* status) const {
-        if (path == "/v1/status")
-            return {{"mode", "live"}, {"phase", "pre_open"}, {"now", now}, {"pending_outcomes", 0},
-                    {"special", QJsonArray{}}};
+        if (path == "/v1/status") {
+            QJsonObject status{{"mode", "live"},
+                               {"phase", "pre_open"},
+                               {"now", now},
+                               {"pending_outcomes", 0},
+                               {"special", QJsonArray{}}};
+            if (signal_rule)
+                status.insert("signal_rule", *signal_rule);
+            return status;
+        }
+        if (latest && path == "/v1/symbols/" + kSymbol + "/latest")
+            return *latest;
+        if (latest && path == "/v1/consensus")
+            return {{"names", QJsonArray{"consensus-fast", "consensus-final"}},
+                    {"members", QJsonArray::fromStringList(consensus)}};
         if (path == "/v1/symbols") {
             QJsonArray symbols{QJsonObject{{"symbol", kSymbol}}};
             if (!other.isEmpty())
@@ -342,6 +385,48 @@ class TstKrxLive : public QObject {
         service.read_status();
         QTRY_COMPARE_WITH_TIMEOUT(status.count(), 1, 10000);
         QCOMPARE(engine.asked, QStringList{"/v1/status"});
+    }
+
+    void the_alerts_follow_the_engine_s_signal_rule_unless_the_user_set_their_own() {
+        // codeyoma/krx-quant#617. The engine's 70%: its 65% final consensus is no signal, judged by that rule
+        // though it came in the same read as the status.
+        const QDateTime close = QDateTime::fromString("2026-10-16T09:31:00+09:00", Qt::ISODate);
+        StandIn engine;
+        engine.now = "2026-10-16T09:31:10+09:00";
+        engine.signal_rule = QJsonObject{{"min_probability", 0.7}, {"min_agree", 2}};
+        engine.latest = latest_up_65();
+        engine.consensus = {"gauss", "markov"};
+        services::KrxLive follows;
+        QSignalSpy follows_raised(&follows, &services::KrxLive::signal_raised);
+        QSignalSpy rule_changed(&follows, &services::KrxLive::engine_rule_changed);
+        follows.set_alerts(true, SavedRule{});
+        follows.apply_base_url(engine.url());
+        QTRY_COMPARE_WITH_TIMEOUT(follows.board().latest(kSymbol).bar_close, close, 10000);
+        QCOMPARE(follows.engine_rule(), (std::optional<SignalRule>(SignalRule{0.7, 2})));
+        QCOMPARE(follows.rule(), (SignalRule{0.7, 2}));
+        QCOMPARE(rule_changed.count(), 1);
+        QCOMPARE(follows_raised.count(), 0);
+
+        // A threshold the user saved wins: the same consensus is a signal at 60%, N still the engine's.
+        services::KrxLive saved;
+        QSignalSpy saved_raised(&saved, &services::KrxLive::signal_raised);
+        saved.set_alerts(true, SavedRule{0.6, std::nullopt});
+        saved.apply_base_url(engine.url());
+        QTRY_COMPARE_WITH_TIMEOUT(saved_raised.count(), 1, 10000);
+        QCOMPARE(saved.rule(), (SignalRule{0.6, 2}));
+
+        // An engine without the rule (before #617): the app's own 60%.
+        StandIn old;
+        old.now = engine.now;
+        old.latest = latest_up_65();
+        old.consensus = engine.consensus;
+        services::KrxLive older;
+        QSignalSpy older_raised(&older, &services::KrxLive::signal_raised);
+        older.set_alerts(true, SavedRule{});
+        older.apply_base_url(old.url());
+        QTRY_COMPARE_WITH_TIMEOUT(older_raised.count(), 1, 10000);
+        QVERIFY(!older.engine_rule().has_value());
+        QCOMPARE(older.rule(), (SignalRule{0.6, 2}));
     }
 
     void before_the_open_a_minute_view_after_a_day_view_reads_the_last_days_bars() {

@@ -310,12 +310,10 @@ class TstKrxStatsView : public QObject {
         AlgorithmStats s;
         s.symbol = "005930";
         s.period = "20d";
-        s.basis = "a"; // asked by an older screen: the touch target is the only one (krx-quant #170)
         s.special = "include";
         QCOMPARE(query_text(s), QStringLiteral("20일 · 005930 · 특수 상황 포함"));
         s.symbol = "all";
         s.period = "today";
-        s.basis.clear();
         s.special = "exclude";
         QCOMPARE(query_text(s), QStringLiteral("오늘 · 전체 종목 · 특수 상황 제외"));
     }

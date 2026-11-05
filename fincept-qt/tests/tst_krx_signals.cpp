@@ -2,9 +2,10 @@
 //
 // The KRX screen raises a desktop notification and a sound when a final consensus is sure
 // enough of a move that enough of the active algorithms it pooled agree: the rule of the
-// engine's Telegram signals (krx-quant docs/engine-api.md), with the threshold and N set on the
-// screen. A move that keeps holding is raised once per 4 minutes, not every minute, and a
-// consensus whose 4 minutes are over (read on opening the screen after the close) is not.
+// engine's Telegram signals (krx-quant docs/engine-api.md), with the engine's threshold and N
+// unless the user set their own on the screen (codeyoma/krx-quant#617). A move that keeps holding is raised once per 4
+// minutes, not every minute, and a consensus whose 4 minutes are over (read on opening the screen after the close) is
+// not.
 
 #include "services/krx_quant/Signals.h"
 
@@ -178,6 +179,46 @@ class TstKrxSignals : public QObject {
         none.bar_close = at("09:31");
         Alerts alerts;
         QVERIFY(!alerts.consider(none, {}, at("09:31")));
+    }
+
+    // The rule in force (codeyoma/krx-quant#617): the engine's, unless the user saved their own.
+
+    void with_nothing_saved_the_engine_s_rule_is_followed() {
+        const SignalRule engine{0.7, 2};
+        const auto consensus = forecast("consensus-final", "09:31", 0.65, 0.25, 0.10);
+
+        const SignalRule rule = rule_in_force(SavedRule{}, engine);
+        QCOMPARE(rule, engine);
+        QVERIFY(!judge(consensus, two_up_one_down("09:31"), rule).has_value()); // 65% is below the engine's 70%
+        QCOMPARE(rule_source(SavedRule{}, engine), QStringLiteral("엔진 기준"));
+    }
+
+    void a_value_the_user_saved_wins_and_says_so() {
+        const SignalRule engine{0.7, 3};
+        const auto consensus = forecast("consensus-final", "09:31", 0.65, 0.25, 0.10);
+
+        const SavedRule probability{0.6, std::nullopt};
+        QCOMPARE(rule_in_force(probability, engine), (SignalRule{0.6, 3})); // N still the engine's
+        QCOMPARE(rule_source(probability, engine), QStringLiteral("직접 설정(확률) · 엔진 기준 70% · 3개"));
+
+        const SavedRule both{0.6, 2};
+        QCOMPARE(rule_in_force(both, engine), (SignalRule{0.6, 2}));
+        QVERIFY(judge(consensus, two_up_one_down("09:31"), rule_in_force(both, engine)).has_value());
+        QCOMPARE(rule_source(both, engine), QStringLiteral("직접 설정(확률·같은 방향 수) · 엔진 기준 70% · 3개"));
+        QCOMPARE(rule_source(SavedRule{std::nullopt, 2}, engine),
+                 QStringLiteral("직접 설정(같은 방향 수) · 엔진 기준 70% · 3개"));
+    }
+
+    void an_engine_without_its_rule_keeps_60_percent() {
+        const auto consensus = forecast("consensus-final", "09:31", 0.62, 0.28, 0.10);
+
+        const SignalRule rule = rule_in_force(SavedRule{}, std::nullopt);
+        QCOMPARE(rule, (SignalRule{0.6, 2}));
+        QVERIFY(judge(consensus, two_up_one_down("09:31"), rule).has_value());
+        QCOMPARE(rule_source(SavedRule{}, std::nullopt), QStringLiteral("기본값 (엔진이 기준을 주지 않음)"));
+        QCOMPARE(rule_in_force(SavedRule{0.75, std::nullopt}, std::nullopt), (SignalRule{0.75, 2}));
+        QCOMPARE(rule_source(SavedRule{0.75, std::nullopt}, std::nullopt),
+                 QStringLiteral("직접 설정(확률) · 기본값 60% · 2개"));
     }
 };
 

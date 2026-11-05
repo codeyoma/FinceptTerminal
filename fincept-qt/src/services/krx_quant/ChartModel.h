@@ -91,8 +91,8 @@ struct BarHover {
 };
 
 /// What happened after a bar close: "정답 상승 (09:32:30 닿음)", the touch target and when it
-/// was reached (krx-quant #170); "실제 상승 +500원" from an engine before it; or why it is not
-/// known yet ("채점 전", "채점 불가 (why)"); " · 특수 상황" when one touched its four minutes.
+/// was reached (krx-quant #170); or why it is not known yet ("채점 전", "채점 불가 (why)"); " · 특수
+/// 상황" when one touched its four minutes.
 /// The hover box's first line and the bar window's (krx-quant #255).
 QString truth_text(const Truth& truth);
 

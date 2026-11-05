@@ -977,9 +977,18 @@ void KrxLive::read_details() {
         service_->read_algorithms(); // what each open window says about its algorithm (krx-quant #163)
 }
 
-void KrxLive::set_alerts(bool on, const krx_quant::SignalRule& rule) {
+void KrxLive::set_alerts(bool on, const krx_quant::SavedRule& saved) {
     alerts_on_ = on;
-    alerts_.set_rule(rule);
+    saved_rule_ = saved;
+    alerts_.set_rule(krx_quant::rule_in_force(saved_rule_, engine_rule_));
+}
+
+void KrxLive::take_engine_rule(const std::optional<krx_quant::SignalRule>& rule) {
+    if (rule == engine_rule_)
+        return;
+    engine_rule_ = rule;
+    alerts_.set_rule(krx_quant::rule_in_force(saved_rule_, engine_rule_));
+    emit engine_rule_changed();
 }
 
 QDateTime KrxLive::engine_now() const {
@@ -1050,6 +1059,7 @@ void KrxLive::read_leaderboard() {
 
 void KrxLive::on_snapshot(const KrxQuantService::Snapshot& snapshot) {
     read_errors_ = snapshot.errors;
+    take_engine_rule(snapshot.status.signal_rule); // the final consensus below is judged by it
     // An engine whose clock went back (a demo started again) takes the screen back too.
     if (snapshot.status.now.isValid() && board_.rewind_to(snapshot.status.now)) {
         bars_.clear();
@@ -1086,6 +1096,7 @@ void KrxLive::on_status(const krx_quant::EngineStatus& status, bool with_snapsho
     const bool recovering = !failure_.isEmpty();
     failure_.clear();
     status_ = status;
+    take_engine_rule(status.signal_rule);
     set_engine_clock(status.now);
     if (status.now.isValid() && board_.rewind_to(status.now)) {
         bars_.clear();

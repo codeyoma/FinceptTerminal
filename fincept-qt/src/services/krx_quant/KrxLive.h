@@ -66,7 +66,14 @@ class KrxLive : public QObject {
     /// of its symbol (another of its minutes is over), and without the stream each tick; with it,
     /// every minute too. A window closed is no longer read.
     void set_bars(const QList<QPair<QString, QDateTime>>& bars);
-    void set_alerts(bool on, const krx_quant::SignalRule& rule);
+    /// The signal alerts on or off, and the rule values the user saved on the screen: the alerts judge by
+    /// those over the engine's rule (krx_quant::rule_in_force, codeyoma/krx-quant#617).
+    void set_alerts(bool on, const krx_quant::SavedRule& saved);
+    /// The rule the alerts judge by now.
+    const krx_quant::SignalRule& rule() const { return alerts_.rule(); }
+    /// The engine's signal rule from its last status (codeyoma/krx-quant#617); none from an engine that
+    /// does not serve it, and before its first status. Kept while the engine cannot be read.
+    const std::optional<krx_quant::SignalRule>& engine_rule() const { return engine_rule_; }
     /// The models selected for the chart (krx-quant #159): their consensus is drawn in place
     /// of the final one. While some are selected and the view is of 1-minute bars, the chart
     /// reads every predictor's predictions; on selecting, those of the bar closes shown are
@@ -237,6 +244,8 @@ class KrxLive : public QObject {
     /// The bars before the chart's could not be read; those shown stay (krx-quant #108).
     void older_failed(const QString& reason);
     void signal_raised(const fincept::krx_quant::Signal& signal);
+    /// The engine's signal rule changed (codeyoma/krx-quant#617): another engine, or its settings.
+    void engine_rule_changed();
     /// What a bar's window shows was read (krx-quant #255), or could not be.
     void bar_changed(const fincept::krx_quant::BarRead& read);
     void bar_failed(const QString& symbol, const QDateTime& bar_close, const QString& reason);
@@ -285,6 +294,9 @@ class KrxLive : public QObject {
     void read_bars(const krx_quant::OlderRead& read);
     void on_event(const krx_quant::Event& event);
     void consider(const krx_quant::Prediction& final, const QDateTime& now);
+    /// The engine's signal rule from a status: the alerts judge by it from now on, before the
+    /// predictions that came with it.
+    void take_engine_rule(const std::optional<krx_quant::SignalRule>& rule);
     void set_engine_clock(const QDateTime& now);
     /// A new bar close of the chosen symbol has a new bar to read.
     void follow_bar_close(const QDateTime& shown_before);
@@ -313,6 +325,8 @@ class KrxLive : public QObject {
     krx_quant::Board board_;
     krx_quant::Alerts alerts_;
     bool alerts_on_ = true;
+    krx_quant::SavedRule saved_rule_;                  ///< the rule values the user saved (codeyoma/krx-quant#617)
+    std::optional<krx_quant::SignalRule> engine_rule_; ///< the engine's, from its last status
     bool shown_ = false;
     QString selected_;
     QList<krx_quant::Bar> bars_;

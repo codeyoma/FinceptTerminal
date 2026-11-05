@@ -80,9 +80,8 @@ std::optional<Outcome> outcome_of(const QJsonValue& v) {
     if (!v.isObject())
         return std::nullopt;
     const QJsonObject o = v.toObject();
-    return Outcome{class_of(o.value("class_a")),     class_of(o.value("class_b")), o.value("special").toBool(),
-                   o.value("unscorable").toString(), number(o.value("mid_close")), number(o.value("mid_display")),
-                   number(o.value("mid_target")),    touch_of(o.value("touch"))};
+    return Outcome{o.value("special").toBool(),    o.value("unscorable").toString(), number(o.value("mid_close")),
+                   number(o.value("mid_display")), number(o.value("mid_target")),    touch_of(o.value("touch"))};
 }
 
 /// The feeds of a KIS status (``/v1/status``'s ``kis``, a health event's).
@@ -381,6 +380,11 @@ Result<EngineStatus> parse_status(const QJsonDocument& doc) {
         s.cpu_usage = number(cpu.value("usage"));
         s.cpu_skipped_today = cpu.value("skipped_today").toInt();
     }
+    // The engine's signal rule (codeyoma/krx-quant#617): none from an engine before it, which leaves
+    // the app's own.
+    if (const QJsonObject rule = o.value("signal_rule").toObject();
+        rule.value("min_probability").isDouble() && rule.value("min_agree").isDouble())
+        s.signal_rule = SignalRule{rule.value("min_probability").toDouble(), rule.value("min_agree").toInt()};
     return Result<EngineStatus>::ok(s);
 }
 
@@ -578,7 +582,6 @@ Result<Leaderboard> parse_leaderboard(const QJsonDocument& doc) {
         board.kind = kind;
     board.symbol = o.value("symbol").toString();
     board.period = o.value("period").toString();
-    board.basis = o.value("basis").toString();
     board.special = o.value("special").toString();
     board.days = strings_of(o.value("days"));
     board.min_sample = o.value("min_sample").toInt();
@@ -599,7 +602,6 @@ Result<AlgorithmStats> parse_stats(const QJsonDocument& doc) {
     stats.algorithm = o.value("algorithm").toString();
     stats.symbol = o.value("symbol").toString();
     stats.period = o.value("period").toString();
-    stats.basis = o.value("basis").toString();
     stats.special = o.value("special").toString();
     stats.days = strings_of(o.value("days"));
     stats.min_sample = o.value("min_sample").toInt();
