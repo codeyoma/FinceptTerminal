@@ -1,5 +1,6 @@
 #include "services/krx_quant/StatsView.h"
 
+#include <QDate>
 #include <QLocale>
 #include <QTime>
 
@@ -822,7 +823,13 @@ QList<QPair<QString, QString>> about_rows(const std::optional<AlgorithmInfo>& in
         rows << Row(QStringLiteral("파라미터"),
                     params.join(info->param_meanings ? QStringLiteral("\n") : QStringLiteral(", ")));
     }
-    if (!info->status.isEmpty()) {
+    if (const QString idle = idle_text(*info); !idle.isEmpty()) {
+        // Not run (krx-quant #561): why, the status it keeps (a daily kind's on probation) after it.
+        QString state = QStringLiteral("%1 · %2").arg(standing_label(info->state), idle);
+        if (!info->status.isEmpty())
+            state += QStringLiteral(" (상태 %1)").arg(standing_label(info->status));
+        rows << Row(QStringLiteral("상태"), state);
+    } else if (!info->status.isEmpty()) {
         QString status = standing_label(info->status);
         if (info->since.isValid())
             status += QStringLiteral(" · %1부터").arg(kst_text(info->since, "yyyy-MM-dd HH:mm"));
@@ -846,6 +853,25 @@ QList<QPair<QString, QString>> about_rows(const std::optional<AlgorithmInfo>& in
 }
 
 namespace {
+
+/// How far a probation or bench algorithm is toward its next review (krx-quant #165): the days
+/// counted, the simulated ones among them, and the next review's day.
+QString stage_text(const Stage& st) {
+    QString text = QStringLiteral("%1거래일 셈").arg(st.days);
+    if (st.simulated > 0)
+        text += QStringLiteral(" (시뮬레이션 %1일 포함)").arg(st.simulated); // krx-quant #298
+    if (st.waiting && st.simulated == 0) {
+        // Nothing counted until a model trained on the touch target runs (krx-quant #170).
+        text += QStringLiteral(" · 새 정답으로 학습한 모델을 기다림");
+    } else if (st.next_review) {
+        text += st.next_review_on.isEmpty()
+                    ? QStringLiteral(" · 다음 판정 %1일째").arg(*st.next_review)
+                    : QStringLiteral(" · 다음 판정 %1일째 (%2 예정)").arg(*st.next_review).arg(st.next_review_on);
+    } else {
+        text += QStringLiteral(" · 마지막 판정이 지났다");
+    }
+    return text;
+}
 
 /// An algorithm's latest simulated probation (krx-quant #298) in a line: its days, how it was
 /// trained, and its review at once.
@@ -914,20 +940,8 @@ QList<QPair<QString, QString>> learning_rows(const std::optional<AlgorithmInfo>&
         rows << Row(QStringLiteral("지난밤 검증"), QStringLiteral("밤 학습 리포트 없음"));
     }
     if (const auto& st = info->stage) {
-        QString text = QStringLiteral("%1부터 · %2거래일 셈").arg(st->began).arg(st->days);
-        if (st->simulated > 0)
-            text += QStringLiteral(" (시뮬레이션 %1일 포함)").arg(st->simulated); // krx-quant #298
-        if (st->waiting && st->simulated == 0) {
-            // Nothing counted until a model trained on the touch target runs (krx-quant #170).
-            text += QStringLiteral(" · 새 정답으로 학습한 모델을 기다림");
-        } else if (st->next_review) {
-            text += st->next_review_on.isEmpty()
-                        ? QStringLiteral(" · 다음 판정 %1일째").arg(*st->next_review)
-                        : QStringLiteral(" · 다음 판정 %1일째 (%2 예정)").arg(*st->next_review).arg(st->next_review_on);
-        } else {
-            text += QStringLiteral(" · 마지막 판정이 지났다");
-        }
-        rows << Row(QStringLiteral("%1 단계").arg(standing_label(st->status)), text);
+        rows << Row(QStringLiteral("%1 단계").arg(standing_label(st->status)),
+                    QStringLiteral("%1부터 · %2").arg(st->began, stage_text(*st)));
         if (const auto& w = st->weakest; w && w->value && w->low) {
             QString lift = QStringLiteral("%1 대비 %2 · 거래일 하한 %3 (%4일")
                                .arg(w->baseline, signed_text(*w->value, 3), signed_text(*w->low, 3))
@@ -943,6 +957,339 @@ QList<QPair<QString, QString>> learning_rows(const std::optional<AlgorithmInfo>&
     if (const auto& sim = info->simulation)
         rows << Row(QStringLiteral("수습 시뮬레이션"), simulation_text(*sim));
     return rows;
+}
+
+namespace {
+
+/// A share as a percent with one decimal: "57.0%".
+QString percent_text(double share) {
+    return number_text(share * 100, 1) + "%";
+}
+
+/// A difference of shares in percentage points with its sign: "+8.0%p", "-1.2%p".
+QString points_text(double share) {
+    return signed_text(share * 100, 1) + "%p";
+}
+
+/// The title the engine gives ``kind`` (GET /v1/kinds), else its name; the direction's in Korean without them.
+QString kind_title(const std::optional<QList<KindInfo>>& kinds, const QString& kind) {
+    if (kinds)
+        for (const auto& k : *kinds)
+            if (k.name == kind && !k.title.isEmpty())
+                return k.title;
+    return kind == QLatin1String("direction") ? QStringLiteral("방향") : kind;
+}
+
+/// The classes a day series shows the precision of, and their titles: ``kind``'s, else the direction's;
+/// another kind not described, the classes its days give, by name.
+QList<QPair<QString, QString>> day_classes(const LeaderboardDays& days, const std::optional<KindInfo>& kind) {
+    QList<QPair<QString, QString>> out;
+    if (kind && !kind->classes.isEmpty()) {
+        for (qsizetype i = 0; i < kind->classes.size(); ++i)
+            out.append({kind->classes[i], kind->class_titles.value(i, kind->classes[i])});
+        return out;
+    }
+    if (days.kind == QLatin1String("direction"))
+        return {{QStringLiteral("up"), QStringLiteral("상승")},
+                {QStringLiteral("flat"), QStringLiteral("보합")},
+                {QStringLiteral("down"), QStringLiteral("하락")}};
+    QStringList names;
+    for (const auto* list : {&days.algorithms, &days.baselines})
+        for (const auto& p : *list)
+            for (const auto& d : p.days)
+                for (const auto& c : d.precision.keys())
+                    if (!names.contains(c))
+                        names << c;
+    names.sort();
+    for (const auto& c : names)
+        out.append({c, c});
+    return out;
+}
+
+/// Which comparison with the final consensus a predictor's day series has (krx-quant #561): the
+/// consensus's against its best member, a model's against the consensus, or none.
+enum class MemberView { None, Consensus, Member };
+
+MemberView member_view(const LeaderboardDays& days, const QString& predictor) {
+    if (days.members.isEmpty())
+        return MemberView::None;
+    if (predictor == days.members.first().consensus)
+        return MemberView::Consensus;
+    if (is_consensus(predictor) || is_baseline(predictor) || predictor == days.climate)
+        return MemberView::None;
+    for (const auto& b : days.baselines) // another kind's baselines are named otherwise
+        if (b.algorithm == predictor)
+            return MemberView::None;
+    return MemberView::Member;
+}
+
+const MembersDay* members_on(const LeaderboardDays& days, const QString& day) {
+    for (const auto& m : days.members)
+        if (m.day == day)
+            return &m;
+    return nullptr;
+}
+
+} // namespace
+
+QString idle_text(const AlgorithmInfo& info, const std::optional<KindInfo>& kind) {
+    const QString& state = info.state;
+    if (state == QLatin1String("waiting")) {
+        if (info.prevalidation && info.prevalidation->queue)
+            return QStringLiteral("밤 사전 검증 순서 %1번째 (밤마다 하나씩 돈다)").arg(*info.prevalidation->queue);
+        return QStringLiteral("사전 검증을 기다린다 (하루 한 번 종류는 첫 밤에 돈다)");
+    }
+    if (state == QLatin1String("refused")) {
+        if (!info.prevalidation || !info.prevalidation->refused)
+            return QStringLiteral("사전 검증에서 거부되어 돌지 않는다");
+        const auto& r = *info.prevalidation->refused;
+        QString text = QStringLiteral("%1 판정").arg(kst_text(r.at, "MM-dd HH:mm"));
+        if (!r.why.isEmpty())
+            text += QStringLiteral(" · %1").arg(r.why);
+        else if (!r.checks.isEmpty())
+            text += QStringLiteral(" · 떨어진 검사 %1").arg(r.checks.join(QStringLiteral(", ")));
+        return text;
+    }
+    if (state == QLatin1String("held")) {
+        if (kind && kind->daily && !kind->daily->review_hold.isEmpty())
+            return QStringLiteral("사전 검증은 통과했고 수습에 오르지 않는다: %1").arg(kind->daily->review_hold);
+        return QStringLiteral("사전 검증은 통과했지만 그 종류의 판정일이 정해지지 않아 수습에 오르지 않는다");
+    }
+    if (state == QLatin1String("awaiting")) {
+        if (kind && kind->daily && !kind->daily->awaiting.isEmpty())
+            return QStringLiteral("그 종류가 아직 돌지 않는다: %1").arg(kind->daily->awaiting);
+        return QStringLiteral("그 종류가 탐침의 결과를 기다려 돌지 않는다");
+    }
+    return {};
+}
+
+QList<StateRow> state_rows(const QMap<QString, AlgorithmInfo>& algorithms,
+                           const std::optional<QList<KindInfo>>& kinds) {
+    QList<const AlgorithmInfo*> listed;
+    for (const auto& info : algorithms)
+        if (info.kind == QLatin1String("algorithm"))
+            listed << &info;
+    const bool given =
+        std::any_of(listed.cbegin(), listed.cend(), [](const AlgorithmInfo* a) { return !a->state.isEmpty(); });
+    if (!given)
+        return {}; // an engine before krx-quant #561: its algorithms list is the running ones, as before
+    std::stable_sort(listed.begin(), listed.end(),
+                     [](const AlgorithmInfo* a, const AlgorithmInfo* b) { return a->order < b->order; });
+    QList<StateRow> rows;
+    for (const AlgorithmInfo* info : listed) {
+        StateRow row;
+        row.algorithm = info->name;
+        row.kind = kind_title(kinds, info->prediction_kind);
+        const QString state = state_of(*info);
+        row.state = standing_label(state);
+        row.predicts = predicts(state);
+        std::optional<KindInfo> kind;
+        if (kinds)
+            for (const auto& k : *kinds)
+                if (k.name == info->prediction_kind)
+                    kind = k;
+        if (const auto& pv = info->prevalidation) {
+            if (pv->refused)
+                row.prevalidation = QStringLiteral("거부");
+            else if (state == QLatin1String("waiting"))
+                row.prevalidation = QStringLiteral("대기");
+            else if (pv->exempt)
+                row.prevalidation = QStringLiteral("면제");
+            else
+                row.prevalidation = QStringLiteral("통과");
+            if (pv->refused) {
+                const auto& r = *pv->refused;
+                QStringList tip{
+                    QStringLiteral("%1에 돌린 사전 검증이 거부했다").arg(kst_text(r.at, "yyyy-MM-dd HH:mm"))};
+                if (!r.checks.isEmpty())
+                    tip << QStringLiteral("떨어진 검사: %1").arg(r.checks.join(QStringLiteral(", ")));
+                if (!r.why.isEmpty())
+                    tip << QStringLiteral("이유: %1").arg(r.why);
+                QStringList judged;
+                if (!r.code.isEmpty())
+                    judged << QStringLiteral("코드 %1").arg(r.code);
+                if (r.target_version)
+                    judged << QStringLiteral("정답 버전 %1").arg(*r.target_version);
+                if (!judged.isEmpty())
+                    tip << QStringLiteral("판정한 것: %1. 같은 코드·정답 버전·입력으로는 다시 검증하지 않는다.")
+                               .arg(judged.join(QStringLiteral(" · ")));
+                row.tip = tip.join('\n');
+            }
+        } else {
+            row.prevalidation = QStringLiteral("—");
+        }
+        if (const QString idle = idle_text(*info, kind); !idle.isEmpty())
+            row.detail = idle;
+        else if (info->stage && (state == QLatin1String("probation") || state == QLatin1String("bench")))
+            row.detail = stage_text(*info->stage);
+        rows << row;
+    }
+    return rows;
+}
+
+QString states_tip() {
+    return QStringLiteral(
+        "엔진에 등록된 모든 알고리즘이 어디에 서 있는지다(/v1/algorithms의 state). 정식·수습·벤치·복제는 엔진이 "
+        "돌린다. 정식만 합의에 들어간다. 사전 검증 대기는 밤의 예약 작업이 하나씩 검증한다(봉 마감 알고리즘은 그 "
+        "순서, 하루 한 번 종류는 기다리는 첫 밤). 사전 검증 거부는 그 코드·정답 버전·입력으로는 돌지 않고, 코드가 "
+        "바뀌어 배포되면 다시 대기가 된다. 수습 보류는 사전 검증은 통과했지만 그 하루 한 번 종류의 판정일이 아직 "
+        "정해지지 않은 것, 탐침 대기는 그 종류가 탐침의 결과를 기다리는 것이다. 단계는 마지막 점검 때의 것이다.");
+}
+
+QList<StatsColumn> day_columns(const LeaderboardDays& days, const QString& predictor,
+                               const std::optional<KindInfo>& kind) {
+    QList<StatsColumn> columns{
+        {QStringLiteral("날"), {}},
+        {QStringLiteral("상태"),
+         QStringLiteral("그날 장 마감 때의 상태다. 그날 점검이 바꾼 상태는 다음 날부터다. 시뮬레이션은 그날 값이 수습 "
+                        "시뮬레이션의 예측으로 잰 것이라는 뜻이다(순위표와 상세 통계는 세지 않는다).")},
+        {QStringLiteral("표본"), QStringLiteral("그날 채점된 예측 수(종목 합침, 특수 상황 제외)")},
+        {QStringLiteral("정답률"),
+         QStringLiteral("가장 큰 확률의 클래스가 맞은 비율. 동률은 가운데 클래스, 그다음 첫 클래스다.")},
+        {QStringLiteral("부른 비율"), QStringLiteral("행동 클래스(방향은 상승·하락)를 부른 비율이다.")},
+    };
+    for (const auto& [klass, title] : day_classes(days, kind))
+        columns.append(
+            {QStringLiteral("%1 정밀도").arg(title),
+             QStringLiteral("그날 %1을(를) 부른 예측 중 %1이(가) 일어난 비율. 부른 적이 없으면 —다.").arg(title)});
+    columns.append({QStringLiteral("기후 대비"),
+                    QStringLiteral("같은 종목·봉 마감의 %1과의 정답률 차이다. 하루 값이라 구간은 없다(매분 예측은 "
+                                   "서로 독립이 아니다). 기후 기준 예측 자신과 짝이 없는 날은 —다.")
+                        .arg(predictor_label(days.climate))});
+    columns.append({QStringLiteral("log loss"),
+                    QStringLiteral("−ln p(일어난 클래스)의 평균. 작을수록 낫다. 밤 학습이 모델을 바꿀지 이것으로 "
+                                   "정한다. 정답률과 갈리면 확률의 크기가 틀린 것이다.")});
+    switch (member_view(days, predictor)) {
+        case MemberView::Consensus:
+            columns.append({QStringLiteral("구성원"), QStringLiteral("그날 장 마감 때 정식이던 알고리즘의 수")});
+            columns.append({QStringLiteral("가장 좋은 구성원"),
+                            QStringLiteral("같은 봉 마감에서 합의가 가장 덜 앞선 구성원과 그 정답률이다.")});
+            columns.append(
+                {QStringLiteral("합의 − 그 구성원"),
+                 QStringLiteral("같은 봉 마감에서 합의의 정답률 − 그 구성원의 정답률. 0보다 작으면 그날 그 "
+                                "구성원 혼자가 합의보다 많이 맞혔다. 보고만 한다: 합의 규칙은 바꾸지 않는다.")});
+            break;
+        case MemberView::Member:
+            columns.append({QStringLiteral("합의"),
+                            QStringLiteral("이 알고리즘이 구성원이던 날, 함께 예측한 봉 마감에서 최종 합의의 정답률")});
+            columns.append({QStringLiteral("합의 − 이 예측"),
+                            QStringLiteral("같은 봉 마감에서 최종 합의의 정답률 − 이 알고리즘의 정답률. 0보다 작으면 "
+                                           "그날 이 알고리즘 혼자가 합의보다 많이 맞혔다.")});
+            break;
+        case MemberView::None:
+            break;
+    }
+    return columns;
+}
+
+QList<DayRow> day_rows(const LeaderboardDays& days, const QString& predictor, const std::optional<KindInfo>& kind) {
+    const PredictorDays* mine = days.of(predictor);
+    if (!mine)
+        return {};
+    const auto classes = day_classes(days, kind);
+    const MemberView view = member_view(days, predictor);
+    const bool climate = predictor == days.climate;
+    QList<DayRow> rows;
+    for (auto it = mine->days.crbegin(); it != mine->days.crend(); ++it) { // the latest first
+        const DayStats& d = *it;
+        DayRow row;
+        row.day = d.day;
+        row.simulated = d.simulated;
+        QString status = standing_label(d.status);
+        if (d.simulated)
+            status = status.isEmpty() ? QStringLiteral("시뮬레이션") : status + QStringLiteral(" · 시뮬레이션");
+        const QDate date = QDate::fromString(d.day, Qt::ISODate);
+        row.cells << (date.isValid() ? date.toString("MM-dd") : d.day) << status << number_text(d.n, 0)
+                  << (d.accuracy ? percent_text(*d.accuracy) : QStringLiteral("—"))
+                  << (d.coverage ? percent_text(*d.coverage) : QStringLiteral("—"));
+        row.tips << d.day << QString() << QString() << QString() << QString();
+        for (const auto& [klass, title] : classes) {
+            const DayPrecision p = d.precision.value(klass);
+            row.cells << (p.n > 0 && p.value ? percent_text(*p.value) : QStringLiteral("—"));
+            row.tips << (p.n > 0 ? QStringLiteral("%1 부름 %2 · 맞음 %3")
+                                       .arg(title, number_text(p.n, 0),
+                                            p.value ? number_text(std::round(*p.value * p.n), 0) : QStringLiteral("—"))
+                                 : QStringLiteral("%1을(를) 부른 적 없음").arg(title));
+        }
+        row.cells << (d.lift ? points_text(*d.lift) : QStringLiteral("—"));
+        row.tips << (climate  ? QStringLiteral("기후 기준 예측 자신")
+                     : d.lift ? QStringLiteral("같은 봉 마감 %1쌍").arg(number_text(d.lift_n, 0))
+                              : QStringLiteral("짝지을 기후 기준 예측이 없음"));
+        row.cells << (d.log_loss ? number_text(*d.log_loss, 3) : QStringLiteral("—"));
+        row.tips << QString();
+        const MembersDay* m = members_on(days, d.day);
+        if (view == MemberView::Consensus) {
+            row.cells << (m ? number_text(static_cast<double>(m->members.size()), 0) : QStringLiteral("—"));
+            row.tips << (m ? m->members.join(QStringLiteral(", ")) : QString());
+            const MemberVs* best = nullptr;
+            if (m)
+                for (const auto& v : m->vs)
+                    if (v.member == m->best)
+                        best = &v;
+            row.cells << (best ? (best->accuracy
+                                      ? QStringLiteral("%1 %2").arg(best->member, percent_text(*best->accuracy))
+                                      : best->member)
+                               : QStringLiteral("—"));
+            row.tips << (best ? QStringLiteral("함께 예측한 봉 마감 %1개").arg(number_text(best->n, 0)) : QString());
+            row.cells << (m && m->lift ? points_text(*m->lift) : QStringLiteral("—"));
+            row.tips << QString();
+        } else if (view == MemberView::Member) {
+            const MemberVs* vs = nullptr;
+            if (m)
+                for (const auto& v : m->vs)
+                    if (v.member == predictor)
+                        vs = &v;
+            const bool member = m && m->members.contains(predictor);
+            row.cells << (vs && vs->consensus ? percent_text(*vs->consensus)
+                          : member            ? QStringLiteral("—")
+                                              : QStringLiteral("구성원 아님"));
+            row.tips << (vs ? QStringLiteral("함께 예측한 봉 마감 %1개").arg(number_text(vs->n, 0)) : QString());
+            row.cells << (vs && vs->lift ? points_text(*vs->lift) : QStringLiteral("—"));
+            row.tips << QString();
+        }
+        rows << row;
+    }
+    return rows;
+}
+
+QString day_summary(const LeaderboardDays& days, const QString& predictor) {
+    const PredictorDays* mine = days.of(predictor);
+    if (!mine || mine->days.isEmpty())
+        return days.days.isEmpty() ? QStringLiteral("점검을 마친 날이 아직 없다")
+                                   : QStringLiteral("최근 %1거래일(%2 – %3)에 채점된 예측이 없다")
+                                         .arg(days.days.size())
+                                         .arg(days.days.first(), days.days.last());
+    QStringList parts{QStringLiteral("최근 %1거래일 중 %2일 (%3 – %4)")
+                          .arg(days.days.size())
+                          .arg(mine->days.size())
+                          .arg(mine->days.first().day, mine->days.last().day)};
+    if (!days.climate.isEmpty())
+        parts << QStringLiteral("기후 대비는 %1와 견준 값").arg(predictor_label(days.climate));
+    const auto simulated =
+        std::count_if(mine->days.cbegin(), mine->days.cend(), [](const DayStats& d) { return d.simulated; });
+    if (simulated > 0)
+        parts << QStringLiteral("시뮬레이션 %1일").arg(simulated);
+    if (const auto& decay = mine->decay) {
+        if (decay->flagged)
+            parts << QStringLiteral("하락 표시: 정식 %1일 동안 %2 대비 %3 (짝 %4)")
+                         .arg(decay->days)
+                         .arg(predictor_label(decay->baseline),
+                              decay->value ? points_text(*decay->value) : QStringLiteral("—"),
+                              number_text(decay->n, 0));
+        else if (!decay->enough)
+            parts << QStringLiteral("하락 판정: 정식 %1일, 표본 부족").arg(decay->days);
+        else
+            parts << QStringLiteral("하락 없음: 정식 %1일").arg(decay->days);
+    }
+    if (member_view(days, predictor) == MemberView::Consensus) {
+        int ahead = 0, behind = 0;
+        for (const auto& m : days.members)
+            if (m.lift)
+                (*m.lift < 0 ? behind : ahead) += 1;
+        if (ahead + behind > 0)
+            parts << QStringLiteral("가장 좋은 구성원 대비 앞선 날 %1 · 뒤진 날 %2").arg(ahead).arg(behind);
+    }
+    return parts.join(QStringLiteral(" · "));
 }
 
 } // namespace fincept::krx_quant

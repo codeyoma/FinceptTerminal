@@ -1039,6 +1039,168 @@ class TstKrxStatsView : public QObject {
         stats.algorithm = "mandelbrot";
         QVERIFY(lift_tip(stats, range_kind()).contains(QStringLiteral("같은 종목·봉 마감의")));
     }
+
+    void the_algorithm_table_lists_every_registered_algorithm_and_where_it_stands() {
+        // krx-quant #561 (made-up values): in the engine's order, the baselines left out; a probation's stage, a
+        // waiting one's place, a refusal's date and reason, a held one with its daily kind's reason.
+        QMap<QString, AlgorithmInfo> algorithms;
+        const auto add = [&algorithms](const char* name, const char* kind, const char* state, int order,
+                                       Prevalidation pv = {}) {
+            AlgorithmInfo a;
+            a.name = QString::fromLatin1(name);
+            a.prediction_kind = QString::fromLatin1(kind);
+            a.state = QString::fromLatin1(state);
+            a.status = predicts(a.state) ? a.state : QString();
+            a.prevalidation = pv;
+            a.order = order;
+            algorithms.insert(a.name, a);
+        };
+        add("alg-z", "direction", "active", 0, Prevalidation{true, std::nullopt, std::nullopt});
+        add("alg-p", "direction", "probation", 1);
+        Stage stage;
+        stage.status = "probation";
+        stage.began = "2026-11-02";
+        stage.days = 4;
+        stage.next_review = 10;
+        stage.next_review_on = "2026-11-13";
+        algorithms["alg-p"].stage = stage;
+        add("alg-w", "barrier_60m", "waiting", 2, Prevalidation{false, 1, std::nullopt});
+        add("alg-r", "open_to_close_5d", "refused", 3,
+            Prevalidation{false, std::nullopt,
+                          Prevalidation::Refusal{QDateTime::fromString("2026-10-23T23:41:07+09:00", Qt::ISODate),
+                                                 "0a1b2c3d4e5f6a7b",
+                                                 1,
+                                                 {"stats"},
+                                                 "stats: weakest lift -0.004"}});
+        add("alg-h", "open_to_close_5d", "held", 4);
+        AlgorithmInfo baseline;
+        baseline.name = "baseline-flat";
+        baseline.kind = "baseline";
+        algorithms.insert(baseline.name, baseline);
+        KindInfo five;
+        five.name = "open_to_close_5d";
+        five.title = QStringLiteral("5거래일 시가→종가");
+        five.daily = DailySchedule{};
+        five.daily->review_hold = QStringLiteral("판정일을 정하기 전");
+        const auto rows = state_rows(algorithms, QList<KindInfo>{five});
+
+        QStringList order;
+        for (const auto& r : rows)
+            order << r.algorithm;
+        QCOMPARE(order, (QStringList{"alg-z", "alg-p", "alg-w", "alg-r", "alg-h"}));
+        QCOMPARE(rows[0].kind, QStringLiteral("방향")); // the direction without its description
+        QCOMPARE(rows[0].state, QStringLiteral("정식"));
+        QCOMPARE(rows[0].prevalidation, QStringLiteral("면제"));
+        QVERIFY(rows[0].predicts && rows[0].detail.isEmpty());
+        QCOMPARE(rows[1].prevalidation, QStringLiteral("통과"));
+        QCOMPARE(rows[1].detail, QStringLiteral("4거래일 셈 · 다음 판정 10일째 (2026-11-13 예정)"));
+        QCOMPARE(rows[2].kind, QStringLiteral("barrier_60m")); // not described: its name
+        QCOMPARE(rows[2].state, QStringLiteral("사전 검증 대기"));
+        QCOMPARE(rows[2].prevalidation, QStringLiteral("대기"));
+        QCOMPARE(rows[2].detail, QStringLiteral("밤 사전 검증 순서 1번째 (밤마다 하나씩 돈다)"));
+        QVERIFY(!rows[2].predicts);
+        QCOMPARE(rows[3].kind, QStringLiteral("5거래일 시가→종가"));
+        QCOMPARE(rows[3].state, QStringLiteral("사전 검증 거부"));
+        QCOMPARE(rows[3].prevalidation, QStringLiteral("거부"));
+        QCOMPARE(rows[3].detail, QStringLiteral("10-23 23:41 판정 · stats: weakest lift -0.004"));
+        QVERIFY(rows[3].tip.contains(QStringLiteral("떨어진 검사: stats")));
+        QVERIFY(rows[3].tip.contains(QStringLiteral("코드 0a1b2c3d4e5f6a7b · 정답 버전 1")));
+        QCOMPARE(rows[4].detail, QStringLiteral("사전 검증은 통과했고 수습에 오르지 않는다: 판정일을 정하기 전"));
+        QCOMPARE(rows[4].prevalidation, QStringLiteral("통과"));
+        // The detail window of one not run says why in its section too.
+        const auto about = about_rows(algorithms.value("alg-w"));
+        QVERIFY(about.contains(QPair<QString, QString>(
+            QStringLiteral("상태"), QStringLiteral("사전 검증 대기 · 밤 사전 검증 순서 1번째 (밤마다 하나씩 돈다)"))));
+        // An engine before krx-quant #561 gives no state: no table, as before.
+        for (auto& a : algorithms) {
+            a.state.clear();
+            a.prevalidation.reset();
+        }
+        QVERIFY(state_rows(algorithms, std::nullopt).isEmpty());
+        QVERIFY(states_tip().contains(QStringLiteral("사전 검증 대기는 밤의 예약 작업이 하나씩 검증한다")));
+    }
+
+    void the_day_series_shows_each_day_and_the_consensus_beside_its_best_member() {
+        // krx-quant #561 (made-up values): an algorithm, the final consensus and the climate baseline.
+        LeaderboardDays days;
+        days.days = {"2026-11-04", "2026-11-05"};
+        days.climate = "baseline-climate";
+        DayStats d1;
+        d1.day = "2026-11-04";
+        d1.status = "active";
+        d1.n = 1100;
+        d1.accuracy = 0.57;
+        d1.coverage = 0.53;
+        d1.precision = {{"up", {380, 0.43}}, {"flat", {520, 0.77}}, {"down", {200, 0.32}}};
+        d1.lift = 0.08;
+        d1.lift_n = 1100;
+        d1.log_loss = 0.94;
+        DayStats d2 = d1;
+        d2.day = "2026-11-05";
+        d2.status = "probation";
+        d2.simulated = true;
+        d2.precision["down"] = {0, std::nullopt};
+        d2.lift.reset();
+        d2.log_loss.reset();
+        days.algorithms = {
+            PredictorDays{"alg-t", "active", Decay{8, 10, "baseline-flat", 8800, -0.012, true, true}, {d1, d2}}};
+        DayStats c1 = d1;
+        c1.status.clear();
+        days.consensus = {PredictorDays{"consensus-final", {}, std::nullopt, {c1}}};
+        days.baselines = {PredictorDays{"baseline-climate", {}, std::nullopt, {c1}}};
+        MembersDay m;
+        m.day = "2026-11-04";
+        m.consensus = "consensus-final";
+        m.members = {"alg-n", "alg-t"};
+        m.vs = {MemberVs{"alg-n", 1100, 0.6, 0.59, -0.01}, MemberVs{"alg-t", 1100, 0.57, 0.59, 0.02}};
+        m.best = "alg-n";
+        m.lift = -0.01;
+        days.members = {m};
+
+        // An algorithm: its days, the latest first, and the consensus against it on the days it was a member.
+        const auto columns = day_columns(days, "alg-t");
+        QStringList headers;
+        for (const auto& c : columns)
+            headers << c.header;
+        QCOMPARE(headers, (QStringList{"날", "상태", "표본", "정답률", "부른 비율", "상승 정밀도", "보합 정밀도",
+                                       "하락 정밀도", "기후 대비", "log loss", "합의", "합의 − 이 예측"}));
+        const auto rows = day_rows(days, "alg-t");
+        QCOMPARE(rows.size(), qsizetype(2));
+        QCOMPARE(rows[0].day, QStringLiteral("2026-11-05"));
+        QVERIFY(rows[0].simulated);
+        QCOMPARE(rows[0].cells, (QStringList{"11-05", "수습 · 시뮬레이션", "1,100", "57.0%", "53.0%", "43.0%", "77.0%",
+                                             "—", "—", "—", "구성원 아님", "—"}));
+        QCOMPARE(rows[1].cells, (QStringList{"11-04", "정식", "1,100", "57.0%", "53.0%", "43.0%", "77.0%", "32.0%",
+                                             "+8.0%p", "0.940", "59.0%", "+2.0%p"}));
+        QCOMPARE(rows[1].tips[5], QStringLiteral("상승 부름 380 · 맞음 163"));
+        QCOMPARE(rows[1].tips[8], QStringLiteral("같은 봉 마감 1,100쌍"));
+        QCOMPARE(rows[0].tips[7], QStringLiteral("하락을(를) 부른 적 없음"));
+        const QString summary = day_summary(days, "alg-t");
+        QVERIFY(summary.contains(QStringLiteral("최근 2거래일 중 2일 (2026-11-04 – 2026-11-05)")));
+        QVERIFY(summary.contains(QStringLiteral("시뮬레이션 1일")));
+        QVERIFY(summary.contains(QStringLiteral("기후 대비는 기준: 시간대 기후와 견준 값")));
+        QVERIFY(summary.contains(QStringLiteral("하락 표시: 정식 8일 동안 기준: 늘 보합 대비 -1.2%p (짝 8,800)")));
+
+        // The final consensus: its best member that day and how far ahead of it.
+        const auto consensus = day_rows(days, "consensus-final");
+        QCOMPARE(day_columns(days, "consensus-final").last().header, QStringLiteral("합의 − 그 구성원"));
+        QCOMPARE(consensus[0].cells.mid(10), (QStringList{"2", "alg-n 60.0%", "-1.0%p"}));
+        QCOMPARE(consensus[0].tips[10], QStringLiteral("alg-n, alg-t"));
+        QVERIFY(day_summary(days, "consensus-final")
+                    .contains(QStringLiteral("가장 좋은 구성원 대비 앞선 날 0 · 뒤진 날 1")));
+        // The climate baseline: no comparison with the consensus, nor with itself.
+        QCOMPARE(day_columns(days, "baseline-climate").size(), qsizetype(10));
+        QCOMPARE(day_rows(days, "baseline-climate")[0].tips[8], QStringLiteral("기후 기준 예측 자신"));
+        // A predictor not in the answer: nothing; another kind's classes by its titles, no member columns.
+        QVERIFY(day_rows(days, "alg-x").isEmpty());
+        QVERIFY(day_summary(days, "alg-x").contains(QStringLiteral("채점된 예측이 없다")));
+        LeaderboardDays range = days;
+        range.kind = "range";
+        range.members.clear();
+        const auto range_columns = day_columns(range, "alg-t", range_kind());
+        QCOMPARE(range_columns[5].header, QStringLiteral("작음 정밀도"));
+        QCOMPARE(range_columns.size(), qsizetype(10));
+    }
 };
 
 QTEST_GUILESS_MAIN(TstKrxStatsView)

@@ -20,6 +20,10 @@
 // held (31 at most), again with each chart read (a new bar close's), and once more after a read under way
 // when asked meanwhile; none from an engine without them (404).
 //
+// The predictors' days (codeyoma/krx-quant#561) are read for the panel (the direction's) while the screen is
+// shown and for each detail window's kind as it opens; an engine without them (404) is known as such, so the
+// panel shows what it showed before.
+//
 // The stand-in answers the routes these reads need (status, symbols, a symbol's bars, candles
 // and predictions, and the daily supply data when a test gives it); every other route is 404, which
 // the screen shows as not read. Built
@@ -146,6 +150,11 @@ class StandIn : public QObject {
     /// events as they were when it was asked.
     std::optional<QJsonArray> smt;
     bool hold_smt = false;
+    /// GET /v1/leaderboard/days?kind=&limit= (codeyoma/krx-quant#561): this answer, of the kind asked; none:
+    /// 404, as an engine before it.
+    std::optional<QJsonObject> days;
+    /// GET /v1/algorithms: this answer; none: 404 (the screen then shows them as not read).
+    std::optional<QJsonObject> algorithms;
     QStringList asked;
 
     StandIn() {
@@ -277,6 +286,13 @@ class StandIn : public QObject {
             return {{"symbol", kSymbol}, {"days", *supply}};
         if (smt && path.startsWith("/v1/symbols/" + kSymbol + "/smt?"))
             return {{"symbol", kSymbol}, {"events", *smt}};
+        if (days && path.startsWith("/v1/leaderboard/days?")) {
+            QJsonObject answer = *days;
+            answer.insert("kind", QUrlQuery(path.mid(path.indexOf('?') + 1)).queryItemValue("kind"));
+            return answer;
+        }
+        if (algorithms && path == "/v1/algorithms")
+            return *algorithms;
         if (path.startsWith("/v1/symbols/" + kSymbol + "/candles")) {
             const QJsonArray candles{QJsonObject{{"date", "2026-10-15"}, {"open", 210000}, {"high", 211000},
                                                  {"low", 206000}, {"close", 207500}, {"volume", 15000000}}};
@@ -387,6 +403,49 @@ class TstKrxLive : public QObject {
         // Another address: not known to be without it until that one answers.
         live.apply_base_url(engine.url());
         QVERIFY(live.supply_served());
+    }
+
+    void the_days_are_read_for_the_panel_and_a_detail_window_and_an_engine_without_them_is_known() {
+        // An engine before codeyoma/krx-quant#561 answers 404: none, and the panel is as before.
+        StandIn old;
+        old.now = "2026-11-05T15:50:00+09:00";
+        services::KrxLive live;
+        live.apply_base_url(old.url());
+        live.set_shown(true);
+        QTRY_VERIFY_WITH_TIMEOUT(old.asked_for("/v1/leaderboard/days?kind=direction&limit=20"), 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(!live.days_served(), 10000);
+        QVERIFY(live.days().isEmpty());
+        // An engine that gives them (made-up values): the direction's for the panel, shown.
+        StandIn engine;
+        engine.now = old.now;
+        engine.days = QJsonObject{
+            {"days", QJsonArray{"2026-11-05"}}, {"climate", "baseline-climate"}, {"min_sample", 200},
+            {"algorithms", QJsonArray{}},       {"baselines", QJsonArray{}},     {"consensus", QJsonArray{}},
+            {"members", QJsonArray{}}};
+        engine.algorithms =
+            QJsonObject{{"algorithms", QJsonArray{QJsonObject{{"name", "alg-r"},
+                                                              {"kind", "range"},
+                                                              {"state", "probation"},
+                                                              {"status", QJsonObject{{"status", "probation"}}}}}},
+                        {"baselines", QJsonArray{}},
+                        {"consensus", QJsonArray{}}};
+        services::KrxLive fresh;
+        fresh.apply_base_url(engine.url());
+        fresh.set_shown(true);
+        QTRY_VERIFY_WITH_TIMEOUT(fresh.days().contains("direction"), 10000);
+        QVERIFY(fresh.days_served());
+        QCOMPARE(fresh.days().value("direction").days, QStringList{"2026-11-05"});
+        QVERIFY(!engine.asked_for("/v1/leaderboard/days?kind=range"));
+        // A detail window of the range's algorithm: its kind's, read as it opens.
+        QTRY_VERIFY_WITH_TIMEOUT(fresh.algorithms().contains("alg-r"), 10000);
+        QCOMPARE(fresh.kind_of("alg-r"), QStringLiteral("range"));
+        QCOMPARE(fresh.states().value("alg-r"), QStringLiteral("probation"));
+        fresh.set_details({"alg-r"});
+        QTRY_VERIFY_WITH_TIMEOUT(fresh.days().contains("range"), 10000);
+        QCOMPARE(fresh.days().value("range").kind, QStringLiteral("range"));
+        // Another address: not known to be without them until that one answers.
+        live.apply_base_url(engine.url());
+        QVERIFY(live.days_served());
     }
 
     void a_week_view_reads_the_supply_data_from_two_weeks_before_its_first_week() {

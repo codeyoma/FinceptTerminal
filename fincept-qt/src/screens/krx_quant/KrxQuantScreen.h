@@ -57,6 +57,9 @@ class KrxQuantScreen : public QWidget {
     void show_dot();
     void fill_symbols();
     void fill_predictions();
+    /// The latest panel from an engine with the days (krx-quant #561): ``rows`` (krx_quant::latest_rows);
+    /// ``days_read`` false while the direction's are not read yet or could not be.
+    void fill_board(const QList<krx_quant::LatestRow>& rows, bool days_read);
     /// The table while a bar close is pinned (a chart icon or 1-minute bar clicked).
     void fill_pinned();
     /// The panel of the kind shown besides the direction (krx-quant #182): its latest bar close's
@@ -105,6 +108,8 @@ class KrxQuantScreen : public QWidget {
     /// A drawing tool chosen (krx-quant #224); none: back at the cursor.
     void set_tool(std::optional<krx_quant::DrawingTool> tool);
     void open_detail(const QString& algorithm);
+    /// ``window``'s day series (krx-quant #561): its predictor's kind's days as last read.
+    void show_days(KrxStatsWindow* window, const QString& predictor);
     /// The window of the chosen symbol's 1-minute bar that closed at ``bar_close`` (krx-quant #255): a
     /// bar of the 1-minute view double-clicked. One per bar; the one already open comes to the front.
     void open_bar(const QDateTime& bar_close);
