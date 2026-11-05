@@ -1282,12 +1282,17 @@ QString day_summary(const LeaderboardDays& days, const QString& predictor) {
             parts << QStringLiteral("하락 없음: 정식 %1일").arg(decay->days);
     }
     if (member_view(days, predictor) == MemberView::Consensus) {
-        int ahead = 0, behind = 0;
+        int ahead = 0, even = 0, behind = 0;
         for (const auto& m : days.members)
             if (m.lift)
-                (*m.lift < 0 ? behind : ahead) += 1;
-        if (ahead + behind > 0)
-            parts << QStringLiteral("가장 좋은 구성원 대비 앞선 날 %1 · 뒤진 날 %2").arg(ahead).arg(behind);
+                (*m.lift > 0 ? ahead : *m.lift < 0 ? behind : even) += 1;
+        if (ahead + even + behind > 0) // a tie is neither ahead nor behind
+            parts << (even > 0
+                          ? QStringLiteral("가장 좋은 구성원 대비 앞선 날 %1 · 같은 날 %2 · 뒤진 날 %3")
+                                .arg(ahead)
+                                .arg(even)
+                                .arg(behind)
+                          : QStringLiteral("가장 좋은 구성원 대비 앞선 날 %1 · 뒤진 날 %2").arg(ahead).arg(behind));
     }
     return parts.join(QStringLiteral(" · "));
 }

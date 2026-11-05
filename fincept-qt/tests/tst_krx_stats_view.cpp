@@ -1188,6 +1188,17 @@ class TstKrxStatsView : public QObject {
         QCOMPARE(consensus[0].tips[10], QStringLiteral("alg-n, alg-t"));
         QVERIFY(day_summary(days, "consensus-final")
                     .contains(QStringLiteral("가장 좋은 구성원 대비 앞선 날 0 · 뒤진 날 1")));
+        // A day the consensus and its best member tie is neither ahead nor behind.
+        LeaderboardDays tied = days;
+        MembersDay even = m;
+        even.day = "2026-11-05";
+        even.lift = 0.0;
+        MembersDay ahead = m;
+        ahead.day = "2026-11-03";
+        ahead.lift = 0.01;
+        tied.members = {ahead, m, even};
+        QVERIFY(day_summary(tied, "consensus-final")
+                    .contains(QStringLiteral("가장 좋은 구성원 대비 앞선 날 1 · 같은 날 1 · 뒤진 날 1")));
         // The climate baseline: no comparison with the consensus, nor with itself.
         QCOMPARE(day_columns(days, "baseline-climate").size(), qsizetype(10));
         QCOMPARE(day_rows(days, "baseline-climate")[0].tips[8], QStringLiteral("기후 기준 예측 자신"));
