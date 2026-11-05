@@ -88,8 +88,9 @@ class KrxTraderLive : public QObject {
     int next_ms() const; ///< 0 when stopped
 
     /// The chart's 1-minute bars (codeyoma/krx-quant#537): the day's, after those read before as the chart
-    /// scrolled back. Before the open (no bar today yet) the last day's; on another day those read before
-    /// are read again from the new day back.
+    /// scrolled back. Before the open (no bar today yet) the last day's. On another day, or after the chart
+    /// was not read for a while (hidden, a failed read) unless the day is the same, those read before are
+    /// read again from the new day back.
     QList<krx_quant::Bar> chart_bars() const { return krx_quant::join_bars(older_, day_bars_); }
     /// The trader's buys and sells over them, newest first, as GET …/trader-marks gives them (every policy
     /// version's, practice trades among them); none from an engine without them (404).
@@ -131,6 +132,8 @@ class KrxTraderLive : public QObject {
     void read_chart();
     /// The bars before the first held, if the chart's view is near it.
     void read_older();
+    /// Back to no bars before the day's: they may not reach the day's (another day, a gap in reading).
+    void forget_older();
     /// The trader's marks: the latest page (again with ``latest``), then back to the first bar held, a page
     /// at a time (krx_quant::trader_before).
     void read_marks(bool latest = false);
@@ -173,6 +176,8 @@ class KrxTraderLive : public QObject {
     bool oldest_ = false;                        ///< the engine has nothing before older_
     bool reading_bars_ = false;                  ///< the day's are read
     bool reading_older_ = false;                 ///< those before are read
+    int older_epoch_ = 0;                        ///< bumped whenever older_ is dropped (forget_older)
+    int older_asked_ = 0;                        ///< older_epoch_ when the read under way was asked
     double view_from_ = krx_quant::kOlderMargin; ///< where the chart's view last started
     double view_width_ = 0;                      ///< and how many bars wide it was
     QList<krx_quant::TraderMark> marks_;         ///< the trader's buys and sells
@@ -181,6 +186,9 @@ class KrxTraderLive : public QObject {
     bool marks_latest_ = false;                  ///< the latest page is to be read again
     QString chart_failure_;
     QString older_failure_;
+    /// The day's bars were not read for a while since those held (hidden, a failed read): days may have
+    /// passed, so older_ may not reach the next answer's day.
+    bool stale_ = false;
 };
 
 } // namespace fincept::services

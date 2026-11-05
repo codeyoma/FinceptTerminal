@@ -2338,6 +2338,51 @@ class TstKrxTrader : public QObject {
         live.stop();
     }
 
+    void the_bars_before_are_kept_only_while_they_reach_the_day() {
+        // Codex review on codeyoma/FinceptTerminal#116: read before the open, the bars held are the last
+        // trading day's. Read on all along, the day that opens next follows them. Shown again after days
+        // hidden, it may not: they are dropped and read again from the new day back. Made-up bars.
+        StandIn engine;
+        engine.last_day = bars_json("2026-10-15T19:00:00+09:00", 60);
+        engine.marks = QList<QJsonObject>{};
+        services::KrxQuantService::set_base_url(engine.url());
+        const auto before_the_open = [] { return kst("2026-10-16T07:30:04+09:00"); };
+
+        // Read on (not hidden): the open's first bars follow the last day's.
+        services::KrxTraderLive on(nullptr, before_the_open);
+        on.start();
+        QTRY_VERIFY_WITH_TIMEOUT(on.chart_bars().size() == 60 && !on.chart_reading(), 10000);
+        engine.bars = bars_json("2026-10-16T08:00:00+09:00", 5);
+        on.read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(on.chart_bars().size() == 65 && !on.chart_reading(), 10000);
+        QCOMPARE(on.chart_bars().first().start, kst("2026-10-15T19:00:00+09:00"));
+        on.stop();
+
+        // Hidden over a whole trading day: the 19th opens, the 15th's bars held do not reach it.
+        engine.bars = QJsonArray{};
+        services::KrxTraderLive hidden(nullptr, before_the_open);
+        hidden.start();
+        QTRY_VERIFY_WITH_TIMEOUT(hidden.chart_bars().size() == 60 && !hidden.chart_reading(), 10000);
+        hidden.stop();
+        engine.bars = bars_json("2026-10-19T08:00:00+09:00", 3);
+        hidden.start();
+        QTRY_VERIFY_WITH_TIMEOUT(hidden.chart_bars().size() == 3 && !hidden.chart_reading(), 10000);
+        QCOMPARE(hidden.chart_bars().first().start, kst("2026-10-19T08:00:00+09:00"));
+        hidden.stop();
+
+        // Before the open again, shown days later: the last trading day is another one, read again.
+        engine.bars = QJsonArray{};
+        services::KrxTraderLive early(nullptr, before_the_open);
+        early.start();
+        QTRY_VERIFY_WITH_TIMEOUT(early.chart_bars().size() == 60 && !early.chart_reading(), 10000);
+        early.stop();
+        engine.last_day = bars_json("2026-10-19T19:00:00+09:00", 30);
+        early.start();
+        QTRY_VERIFY_WITH_TIMEOUT(early.chart_bars().size() == 30 && !early.chart_reading(), 10000);
+        QCOMPARE(early.chart_bars().first().start, kst("2026-10-19T19:00:00+09:00"));
+        early.stop();
+    }
+
     void the_chart_reads_nothing_while_hidden_and_at_once_when_shown_or_the_engine_is_back() {
         // codeyoma/krx-quant#537: the chart's next read is 59 s away on this clock; each read below is the
         // screen shown again, the engine answering again after a failure, or a new address, not that one.

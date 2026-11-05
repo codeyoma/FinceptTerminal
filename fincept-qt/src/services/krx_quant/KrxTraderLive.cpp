@@ -112,12 +112,15 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
     // The chart (codeyoma/krx-quant#537): the day's bars, those before, and the trader's buys and sells.
     connect(service_, &KrxQuantService::bars_ready, this, [this](const QString&, const QList<krx_quant::Bar>& bars) {
         reading_bars_ = false;
-        // Another day (the screen open past midnight, or shown again days later): the bars read before
-        // the day held may not reach the new one. They are read again from it back, as the view needs.
-        if (!day_bars_.isEmpty() && (bars.isEmpty() || kst_day(bars.first()) != kst_day(day_bars_.first()))) {
-            older_.clear();
-            oldest_ = false;
-        }
+        // The bars read before the day held reach this answer's day when it is the same day, or when the
+        // day held had no bar yet and the chart was read all along since (before the open: they are the
+        // last trading day's). Else (past midnight, shown again later, the engine back after a failure)
+        // they may leave days out: they are read again from this day back, as the view needs.
+        const bool same_day =
+            !day_bars_.isEmpty() && !bars.isEmpty() && kst_day(bars.first()) == kst_day(day_bars_.first());
+        if (!same_day && (stale_ || !day_bars_.isEmpty()))
+            forget_older();
+        stale_ = false;
         day_bars_ = bars;
         chart_failure_.clear();
         emit chart_changed();
@@ -132,10 +135,13 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
     connect(service_, &KrxQuantService::bars_failed, this, [this](const QString&, const QString& reason) {
         reading_bars_ = false;
         chart_failure_ = reason; // the bars shown stay; asked again as the next minute turns
+        stale_ = true;           // days may pass before the next answer
         emit chart_changed();
     });
     connect(service_, &KrxQuantService::older_ready, this, [this](const QString&, const QList<krx_quant::Bar>& bars) {
         reading_older_ = false;
+        if (older_asked_ != older_epoch_)
+            return read_older(); // asked before those held were dropped: not before the first held now
         oldest_ = bars.isEmpty();
         older_ = krx_quant::join_bars(bars, older_);
         older_failure_.clear();
@@ -145,6 +151,8 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
     });
     connect(service_, &KrxQuantService::older_failed, this, [this](const QString&, const QString& reason) {
         reading_older_ = false;
+        if (older_asked_ != older_epoch_)
+            return read_older(); // the bars it was asked for were dropped meanwhile
         older_failure_ = reason; // the bars shown stay; scrolling to the left end again asks again
         emit chart_changed();
     });
@@ -181,7 +189,8 @@ void KrxTraderLive::start() {
     if (running_)
         return;
     running_ = true;
-    read_chart(); // first: a new address is taken there, and the chart read from it
+    stale_ = true; // not read while hidden: days may have passed
+    read_chart();  // first: a new address is taken there, and the chart read from it
     read();
 }
 
@@ -228,8 +237,16 @@ void KrxTraderLive::read_older() {
     const QDateTime first = !older_.isEmpty()      ? older_.first().start
                             : !day_bars_.isEmpty() ? day_bars_.first().start
                                                    : QDateTime();
-    if (const auto read = krx_quant::older_read(first, view_from_, 1, view_width_))
+    if (const auto read = krx_quant::older_read(first, view_from_, 1, view_width_)) {
         reading_older_ = service_->read_older(QString::fromLatin1(krx_quant::kTraderSymbol), *read);
+        older_asked_ = older_epoch_;
+    }
+}
+
+void KrxTraderLive::forget_older() {
+    older_.clear();
+    oldest_ = false;
+    ++older_epoch_; // a page before them under way is not theirs
 }
 
 void KrxTraderLive::read_marks(bool latest) {
@@ -250,8 +267,8 @@ void KrxTraderLive::read_marks(bool latest) {
 
 void KrxTraderLive::forget_chart() {
     day_bars_.clear();
-    older_.clear();
-    oldest_ = false;
+    forget_older();
+    stale_ = false;
     reading_bars_ = false; // the reads under way were dropped with the old engine's
     reading_older_ = false;
     view_from_ = krx_quant::kOlderMargin;

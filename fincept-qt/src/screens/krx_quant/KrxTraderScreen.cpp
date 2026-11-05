@@ -575,6 +575,7 @@ void KrxTraderScreen::refresh_theme() {
         header->restyle();
     bars_chart_->restyle();
     bars_failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
+    fill_bars(); // the marks' colours are the theme's when they are sent
     for (auto* table : {controls_, trades_, policies_, history_}) {
         krx_tables::restyle(table);
         table->setProperty(krx_tables::kRowsProperty, QVariant()); // their rows' colours: filled again
