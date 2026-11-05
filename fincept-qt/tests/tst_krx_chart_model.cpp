@@ -520,6 +520,111 @@ class TstKrxChartModel : public QObject {
                  QStringLiteral("consensus-fast")); // no row
     }
 
+    void the_latest_panel_puts_the_members_first_and_dims_the_rest() {
+        // krx-quant #561 (made-up values): the consensuses, the members, the other algorithms, then the
+        // baselines, the last two dimmed; each algorithm with its state, the model version on the name's
+        // tooltip, each predictor with its last days' up and down hit rates against the climate baseline.
+        QList<Prediction> latest{forecast("consensus-final"),
+                                 forecast("consensus-fast"),
+                                 forecast("alg-g"),
+                                 forecast("alg-n"),
+                                 forecast("alg-p"),
+                                 forecast("alg-t"),
+                                 forecast("baseline-climate"),
+                                 forecast("baseline-flat", 0, 1, 0)};
+        latest[3].model_version = "alg-n-20261104-1a2b3c";
+        const QStringList members{"alg-n"};
+        // alg-t is active (a member before the consensus names it), alg-g on the bench.
+        const QMap<QString, QString> states{
+            {"alg-g", "bench"}, {"alg-n", "active"}, {"alg-p", "probation"}, {"alg-t", "active"}};
+        LeaderboardDays days;
+        days.days = {"2026-11-04", "2026-11-05"};
+        days.climate = "baseline-climate";
+        const auto day = [](const char* date, int up_n, std::optional<double> up, int down_n,
+                            std::optional<double> down, bool simulated = false) {
+            DayStats d;
+            d.day = QString::fromLatin1(date);
+            d.simulated = simulated;
+            d.precision.insert("up", DayPrecision{up_n, up});
+            d.precision.insert("down", DayPrecision{down_n, down});
+            return d;
+        };
+        PredictorDays n{"alg-n", "active", std::nullopt, {}};
+        n.days = {day("2026-11-04", 100, 0.4, 50, 0.3), day("2026-11-05", 300, 0.4, 0, std::nullopt, true)};
+        PredictorDays t{"alg-t", "active", Decay{8, 10, "baseline-flat", 8800, -0.012, true, true}, {}};
+        t.days = {day("2026-11-05", 0, std::nullopt, 0, std::nullopt)};
+        PredictorDays climate{"baseline-climate", {}, std::nullopt, {}};
+        climate.days = {day("2026-11-04", 200, 0.38, 0, std::nullopt), day("2026-11-05", 200, 0.42, 0, std::nullopt)};
+        days.algorithms = {n, t};
+        days.baselines = {climate};
+
+        const auto rows = latest_rows(in_screen_order(latest), members, states, days, true);
+        QStringList order;
+        QList<bool> dimmed;
+        for (const auto& r : rows) {
+            order << r.prediction.algorithm;
+            dimmed << r.dimmed;
+        }
+        QCOMPARE(order, (QStringList{"consensus-final", "consensus-fast", "alg-n", "alg-t", "alg-g", "alg-p",
+                                     "baseline-climate", "baseline-flat"}));
+        QCOMPARE(dimmed, (QList<bool>{false, false, false, false, true, true, true, true}));
+        QVERIFY(rows[0].consensus && rows[0].status.isEmpty());
+        QVERIFY(rows[2].member);
+        QCOMPARE(rows[2].status, QStringLiteral("정식"));
+        QCOMPARE(rows[2].name_tip, QStringLiteral("모델 alg-n-20261104-1a2b3c\n정식: 합의에 들어간다"));
+        QCOMPARE(rows[5].status, QStringLiteral("수습"));
+        QVERIFY(rows[6].status.isEmpty()); // a baseline
+        // alg-n: up called 400 times, 160 hits (40%); the climate baseline 400 times, 160 hits (40%) on the
+        // same days: the same. Down only on the first day: 30%, the climate never called it.
+        QCOMPARE(rows[2].up.text, QStringLiteral("40% (0%p)"));
+        QVERIFY(rows[2].up.tip.contains(QStringLiteral("상승을 부른 봉 마감 400개 중 40%가 상승")));
+        QVERIFY(rows[2].up.tip.contains(QStringLiteral("그중 1일은 수습 시뮬레이션의 예측이다.")));
+        QCOMPARE(rows[2].down.text, QStringLiteral("30%"));
+        QVERIFY(rows[2].down.tip.contains(
+            QStringLiteral("같은 날들 기준: 시간대 기후: 하락을 부르지 않아 견주지 않는다.")));
+        // alg-t: its decay flag up; no call on its one day; on 11-05 alone the climate's up is 42%.
+        QVERIFY(rows[3].decay);
+        QCOMPARE(rows[3].status, QStringLiteral("정식 · 하락"));
+        QVERIFY(rows[3].status_tip.contains(QStringLiteral("기준: 늘 보합 대비 -1.2%p (짝 8800)")));
+        QCOMPARE(rows[3].up.text, QStringLiteral("—"));
+        // alg-g: not in the answer, nothing said; the climate itself is not compared with itself.
+        QVERIFY(rows[4].up.text.isEmpty() && rows[4].up.tip.isEmpty());
+        QCOMPARE(rows[6].up.text, QStringLiteral("40%"));
+        // Above the climate baseline: its precision on the same days, the difference in whole percents.
+        PredictorDays better = n;
+        better.algorithm = "alg-p";
+        better.days = {day("2026-11-04", 100, 0.5, 0, std::nullopt)};
+        days.algorithms << better;
+        QCOMPARE(latest_rows(in_screen_order(latest), members, states, days, true)[5].up.text,
+                 QStringLiteral("50% (+12%p)"));
+        // The days not read yet: the states and the order, no hit rate.
+        const auto unread = latest_rows(in_screen_order(latest), members, states, std::nullopt, true);
+        QCOMPARE(unread[2].prediction.algorithm, QStringLiteral("alg-n"));
+        QVERIFY(unread[2].up.text.isEmpty());
+        QCOMPARE(unread[4].status, QStringLiteral("벤치"));
+        QVERIFY(unread[3].member && !unread[3].dimmed); // alg-t: active
+    }
+
+    void the_latest_panel_of_an_older_engine_is_as_before() {
+        // An engine before krx-quant #561 (the days 404): the screen's order, none dimmed, no state or hit
+        // rate, the members' tooltip alone (the model has its own column).
+        QList<Prediction> latest{forecast("consensus-final"), forecast("alg-g"), forecast("alg-n"),
+                                 forecast("baseline-flat", 0, 1, 0)};
+        latest[2].model_version = "alg-n-default";
+        const auto rows =
+            latest_rows(latest, QStringList{"alg-n"}, QMap<QString, QString>{{"alg-g", "active"}}, std::nullopt, false);
+        QStringList order;
+        for (const auto& r : rows) {
+            order << r.prediction.algorithm;
+            QVERIFY(!r.dimmed);
+            QVERIFY(r.status.isEmpty());
+            QVERIFY(r.up.text.isEmpty() && r.down.text.isEmpty());
+        }
+        QCOMPARE(order, (QStringList{"consensus-final", "alg-g", "alg-n", "baseline-flat"}));
+        QCOMPARE(rows[2].name_tip, QStringLiteral("정식: 합의에 들어간다"));
+        QVERIFY(rows[1].name_tip.isEmpty());
+    }
+
     void the_bars_before_are_read_once_the_view_nears_the_left_end() {
         const QDateTime first = kst("2026-10-12T09:00:00+09:00"); // the first bar shown
 

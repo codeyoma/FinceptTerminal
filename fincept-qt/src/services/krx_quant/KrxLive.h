@@ -37,8 +37,12 @@ namespace fincept::services {
 /// held (codeyoma/krx-quant#522) with each chart read (a new bar close's too) and as soon as those days
 /// change. The stats of each predictor
 /// a detail window shows are read with the leaderboard, each on its own. Without the stream, the status, predictions,
-/// members and leaderboard every 5 s; the chart and the macro row as with it. While the
-/// screen is hidden only what the alerts need is read, and an address applied elsewhere.
+/// members and leaderboard every 5 s; the chart and the macro row as with it. What the engine says of each
+/// algorithm (GET /v1/algorithms: its state, krx-quant #561) on connecting, on a status change the stream
+/// brings and every 5 min; the direction's days (GET /v1/leaderboard/days, krx-quant #561) and those of each
+/// open detail window's kind on connecting, when a window opens and every 5 min (the engine adds a day once
+/// it is reviewed, after the close). While the screen is hidden only what the alerts and the open detail
+/// windows need is read, and an address applied elsewhere.
 class KrxLive : public QObject {
     Q_OBJECT
   public:
@@ -93,6 +97,23 @@ class KrxLive : public QObject {
     const QMap<QString, krx_quant::AlgorithmInfo>& algorithms() const { return algorithms_; }
     /// Why the last read of them failed (they are dropped then, not left stale); empty once one works.
     const QString& algorithms_failure() const { return algorithms_failure_; }
+    /// Each algorithm's state now (krx-quant #561), by name: the engine's ``state`` (its status, or why
+    /// it is not run), its status from an older engine, else its status on the last leaderboard read.
+    QMap<QString, QString> states() const;
+    /// The kind ``predictor`` predicts: an algorithm's own (GET /v1/algorithms), the direction for the
+    /// consensus and the direction's baselines, another kind's baseline's (GET /v1/kinds); the kind
+    /// shown while it is not known.
+    QString kind_of(const QString& predictor) const;
+    /// The kinds' predictors day by day (GET /v1/leaderboard/days, krx-quant #561), by kind: the
+    /// direction's (the panel's last 20 days) and those of the open detail windows' kinds. A kind's is
+    /// missing before it is read, while it cannot be read and from an engine without them.
+    const QMap<QString, krx_quant::LeaderboardDays>& days() const { return days_; }
+    /// Why the last read of ``kind``'s days failed (they are dropped then); empty once one works.
+    QString days_failure(const QString& kind) const { return days_failures_.value(kind); }
+    /// Whether the engine gives them: false once it answered 404 (an engine before krx-quant #561), until
+    /// another address is applied; the panel and the detail windows then show what they showed before.
+    /// True before it answered.
+    bool days_served() const { return days_served_; }
     /// Show one bar close's judgements of the chosen symbol (a chart icon or 1-minute bar clicked,
     /// krx-quant #107, #249) instead of the latest's; an invalid time goes back to the latest.
     void pin(const QDateTime& bar_close);
@@ -204,6 +225,8 @@ class KrxLive : public QObject {
     void stats_changed(const fincept::krx_quant::AlgorithmStats& stats); ///< a detail's, on the leaderboard's query
     void stats_failed(const QString& algorithm, const QString& reason);
     void algorithms_changed(); ///< what the engine says about the algorithms (krx-quant #163)
+    /// A kind's days were read, could not be, or the engine was found without them (krx-quant #561).
+    void days_changed(const QString& kind);
     void kinds_changed();      ///< what the engine says of its kinds (the selector's choices)
     void kind_changed();       ///< another kind is shown (krx-quant #182)
     /// The kind's predictions of the chosen symbol or their statuses changed: its panel and
@@ -224,6 +247,12 @@ class KrxLive : public QObject {
     void read_leaderboard();
     /// The stats of every detail window.
     void read_details();
+    /// The days (krx-quant #561) of the kinds wanted: the direction's while the screen is shown, and each
+    /// open detail window's kind's.
+    void read_days();
+    QStringList days_kinds() const;
+    /// Drop the days read (another engine): not known to be without them until it answers.
+    void forget_days();
     void on_snapshot(const KrxQuantService::Snapshot& snapshot);
     /// A status read; ``with_snapshot`` when it came with the predictions.
     void on_status(const krx_quant::EngineStatus& status, bool with_snapshot);
@@ -359,6 +388,9 @@ class KrxLive : public QObject {
     QMap<QString, QString> standings_;                   ///< the predictors' statuses, from the leaderboard
     QMap<QString, krx_quant::AlgorithmInfo> algorithms_; ///< the engine's cards, models and statuses
     QString algorithms_failure_;                         ///< why their last read failed
+    QMap<QString, krx_quant::LeaderboardDays> days_;     ///< by kind (krx-quant #561)
+    QMap<QString, QString> days_failures_;               ///< why a kind's last read of them failed
+    bool days_served_ = true;                            ///< the engine answered them (not 404)
     /// The earliest bar close from which on every predictor's predictions were read; invalid:
     /// none (krx-quant #159); krx_quant::from_the_start: all.
     QDateTime full_from_;

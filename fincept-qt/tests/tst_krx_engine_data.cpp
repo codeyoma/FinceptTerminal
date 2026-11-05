@@ -1755,6 +1755,151 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(read.value().value("alg-d").prediction_kind, QStringLiteral("direction")); // an older engine's
     }
 
+    void every_registered_algorithm_says_where_it_stands() {
+        // krx-quant #561 (made-up values): one that runs, one waiting second for its pre-validation, one
+        // refused with its report's checks and reason, in the engine's order.
+        const auto read = parse_algorithms(json(R"({"algorithms": [
+            {"name": "alg-b", "card": {}, "features": [], "model": {},
+             "status": {"status": "active", "since": "2026-10-12T08:00:00+09:00", "history": []},
+             "state": "active", "prevalidation": {"exempt": true, "queue": null, "refused": null}},
+            {"name": "alg-w", "kind": "barrier_60m", "status": {"status": null, "since": null, "history": []},
+             "stage": null, "simulation": null, "state": "waiting",
+             "prevalidation": {"exempt": false, "queue": 2, "refused": null}},
+            {"name": "alg-a", "kind": "open_to_close_5d", "status": {"status": null, "since": null, "history": []},
+             "state": "refused",
+             "prevalidation": {"exempt": false, "queue": null, "refused": {
+                "at": "2026-10-23T23:41:07+09:00", "code": "0a1b2c3d4e5f6a7b", "target_version": 1,
+                "inputs": {}, "checks": ["days", "stats"], "why": "days: 12 < 20; stats: weakest lift -0.004"}}}],
+            "kinds": [{"kind": "direction", "target_version": 3, "predicting": ["alg-b"], "states": {"active": ["alg-b"]}}],
+            "baselines": [{"name": "baseline-flat", "card": {"character": "기준"}}], "consensus": []})"));
+        QVERIFY(read.is_ok());
+        const auto& algorithms = read.value();
+        const AlgorithmInfo& runs = algorithms.value("alg-b");
+        QCOMPARE(runs.state, QStringLiteral("active"));
+        QVERIFY(runs.prevalidation && runs.prevalidation->exempt && !runs.prevalidation->refused);
+        QCOMPARE(runs.order, 0);
+        const AlgorithmInfo& waits = algorithms.value("alg-w");
+        QCOMPARE(waits.state, QStringLiteral("waiting"));
+        QVERIFY(waits.status.isEmpty());
+        QCOMPARE(waits.prevalidation->queue, std::optional<int>(2));
+        QCOMPARE(waits.order, 1);
+        const AlgorithmInfo& refused = algorithms.value("alg-a");
+        QCOMPARE(refused.order, 2);
+        QVERIFY(refused.prevalidation->refused.has_value());
+        const auto& r = *refused.prevalidation->refused;
+        QCOMPARE(r.at, QDateTime::fromString("2026-10-23T23:41:07+09:00", Qt::ISODate));
+        QCOMPARE(r.code, QStringLiteral("0a1b2c3d4e5f6a7b"));
+        QCOMPARE(r.target_version, std::optional<int>(1));
+        QCOMPARE(r.checks, (QStringList{"days", "stats"}));
+        QCOMPARE(r.why, QStringLiteral("days: 12 < 20; stats: weakest lift -0.004"));
+        QCOMPARE(algorithms.value("baseline-flat").order, -1); // not an algorithm's place
+        // Whether the engine predicts with each, and in Korean.
+        QVERIFY(predicts("active") && predicts("probation") && predicts("bench") && predicts("clone"));
+        QVERIFY(!predicts("retired") && !predicts("waiting") && !predicts("refused") && !predicts("held") &&
+                !predicts("awaiting") && !predicts(""));
+        QCOMPARE(standing_label("waiting"), QStringLiteral("사전 검증 대기"));
+        QCOMPARE(standing_label("refused"), QStringLiteral("사전 검증 거부"));
+        QCOMPARE(standing_label("held"), QStringLiteral("수습 보류"));
+        QCOMPARE(standing_label("awaiting"), QStringLiteral("탐침 대기"));
+    }
+
+    void an_older_engine_s_algorithms_say_no_state() {
+        // Before krx-quant #561 the engine listed only the algorithms it ran: no state, no pre-validation.
+        const auto read = parse_algorithms(json(R"({"algorithms": [
+            {"name": "alg-b", "card": {}, "features": [], "model": {},
+             "status": {"status": "probation", "since": "2026-10-12T08:00:00+09:00", "history": []}}],
+            "baselines": [], "consensus": []})"));
+        QVERIFY(read.is_ok());
+        const AlgorithmInfo& info = read.value().value("alg-b");
+        QVERIFY(info.state.isEmpty());
+        QVERIFY(!info.prevalidation);
+        QCOMPARE(state_of(info), QStringLiteral("probation")); // its status stands for it
+    }
+
+    void the_days_of_a_kind_give_each_predictor_day_by_day() {
+        // GET /v1/leaderboard/days (krx-quant #561), made-up values: an active algorithm flagged for decay,
+        // the climate baseline, the final consensus beside its members.
+        const auto read = parse_leaderboard_days(json(R"({
+          "kind": "direction", "days": ["2026-11-04", "2026-11-05"], "climate": "baseline-climate", "min_sample": 200,
+          "algorithms": [{
+            "algorithm": "alg-t", "status": "active",
+            "decay": {"days": 8, "rule_days": 10, "weakest": {"baseline": "baseline-flat", "n": 8800, "value": -0.012},
+                      "enough": true, "flagged": true},
+            "days": [
+              {"day": "2026-11-04", "status": "active", "simulated": false, "n": 1100, "accuracy": 0.57, "coverage": 0.53,
+               "precision": {"up": {"n": 380, "value": 0.43}, "flat": {"n": 520, "value": 0.77},
+                             "down": {"n": 200, "value": 0.32}},
+               "lift": {"n": 1100, "value": 0.08}, "log_loss": 0.94},
+              {"day": "2026-11-05", "status": "active", "simulated": true, "n": 900, "accuracy": 0.5, "coverage": 0.4,
+               "precision": {"up": {"n": 0, "value": null}, "flat": {"n": 540, "value": 0.6},
+                             "down": {"n": 360, "value": 0.25}},
+               "lift": null, "log_loss": null}]}],
+          "baselines": [{"algorithm": "baseline-climate", "status": null, "decay": null, "days": [
+              {"day": "2026-11-04", "status": null, "simulated": false, "n": 1100, "accuracy": 0.5, "coverage": 0.1,
+               "precision": {"up": {"n": 100, "value": 0.38}, "flat": {"n": 1000, "value": 0.51},
+                             "down": {"n": 0, "value": null}},
+               "lift": null, "log_loss": 12.7}]}],
+          "consensus": [{"algorithm": "consensus-final", "status": null, "decay": null, "days": []}],
+          "members": [{"day": "2026-11-04", "consensus": "consensus-final", "members": ["alg-n", "alg-t"], "n": 1100,
+                       "accuracy": 0.59,
+                       "vs": {"alg-t": {"n": 1100, "accuracy": 0.57, "consensus": 0.59, "lift": 0.02},
+                              "alg-n": {"n": 1100, "accuracy": 0.6, "consensus": 0.59, "lift": -0.01}},
+                       "best": "alg-n", "lift": -0.01}]})"));
+        QVERIFY(read.is_ok());
+        const LeaderboardDays& d = read.value();
+        QCOMPARE(d.kind, QStringLiteral("direction"));
+        QCOMPARE(d.days, (QStringList{"2026-11-04", "2026-11-05"}));
+        QCOMPARE(d.climate, QStringLiteral("baseline-climate"));
+        QCOMPARE(d.min_sample, 200);
+        const PredictorDays* t = d.of("alg-t");
+        QVERIFY(t != nullptr);
+        QCOMPARE(t->status, QStringLiteral("active"));
+        QVERIFY(t->decay && t->decay->flagged && t->decay->enough);
+        QCOMPARE(t->decay->days, 8);
+        QCOMPARE(t->decay->rule_days, 10);
+        QCOMPARE(t->decay->baseline, QStringLiteral("baseline-flat"));
+        QCOMPARE(t->decay->n, 8800);
+        QCOMPARE(t->decay->value, std::optional<double>(-0.012));
+        QCOMPARE(t->days.size(), qsizetype(2));
+        const DayStats& first = t->days[0];
+        QCOMPARE(first.n, 1100);
+        QCOMPARE(first.accuracy, std::optional<double>(0.57));
+        QCOMPARE(first.precision.value("up").n, 380);
+        QCOMPARE(first.precision.value("up").value, std::optional<double>(0.43));
+        QCOMPARE(first.lift, std::optional<double>(0.08));
+        QCOMPARE(first.lift_n, 1100);
+        QCOMPARE(first.log_loss, std::optional<double>(0.94));
+        const DayStats& second = t->days[1];
+        QVERIFY(second.simulated);
+        QVERIFY(!second.precision.value("up").value); // not called
+        QVERIFY(!second.lift && !second.log_loss);
+        const PredictorDays* climate = d.of("baseline-climate");
+        QVERIFY(climate && climate->status.isEmpty() && !climate->decay);
+        QVERIFY(d.of("consensus-final") && d.of("consensus-final")->days.isEmpty());
+        QVERIFY(!d.of("alg-x"));
+        QCOMPARE(d.members.size(), qsizetype(1));
+        const MembersDay& m = d.members[0];
+        QCOMPARE(m.members, (QStringList{"alg-n", "alg-t"}));
+        QCOMPARE(m.accuracy, std::optional<double>(0.59));
+        QCOMPARE(m.vs.size(), qsizetype(2));
+        QCOMPARE(m.vs[0].member, QStringLiteral("alg-n")); // the members' order, not the object's
+        QCOMPARE(m.vs[1].lift, std::optional<double>(0.02));
+        QCOMPARE(m.best, QStringLiteral("alg-n"));
+        QCOMPARE(m.lift, std::optional<double>(-0.01));
+        // A class's precision pooled over the days: the calls summed, the hits weighed by them.
+        const DayPrecision down = pooled_precision(*t, "down");
+        QCOMPARE(down.n, 560);
+        QVERIFY(qAbs(*down.value - (0.32 * 200 + 0.25 * 360) / 560) < 1e-12);
+        QCOMPARE(pooled_precision(*t, "up").n, 380); // the day without a call adds none
+        QCOMPARE(pooled_precision(*t, "down", {"2026-11-05"}).n, 360);
+        QVERIFY(!pooled_precision(*climate, "down").value);
+    }
+
+    void the_days_from_an_answer_without_them_are_an_error() {
+        QVERIFY(parse_leaderboard_days(json(R"({"error": "unknown kind"})")).is_err());
+        QVERIFY(parse_leaderboard_days(json(R"({"kind": "direction"})")).is_err());
+    }
+
     void the_range_s_baselines_read_in_korean() {
         QCOMPARE(predictor_label("range-climate"), QStringLiteral("기준: 변동폭 시간대 기후"));
         QCOMPARE(predictor_label("range-persist"), QStringLiteral("기준: 직전 4분 변동폭"));

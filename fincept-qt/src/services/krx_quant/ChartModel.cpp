@@ -609,6 +609,151 @@ QList<CloseRow> close_rows(const QList<Prediction>& predictions, const QMap<QStr
     return out;
 }
 
+namespace {
+
+QString class_title(const QString& klass) {
+    return klass == QLatin1String("up") ? QStringLiteral("상승") : QStringLiteral("하락");
+}
+
+/// A share as the panel writes its probabilities: a whole percent.
+int whole_percent(double share) {
+    return static_cast<int>(std::lround(share * 100.0));
+}
+
+RecentCell recent_cell(const LeaderboardDays& days, const QString& predictor, const QString& klass) {
+    RecentCell cell;
+    const PredictorDays* mine = days.of(predictor);
+    if (!mine)
+        return cell; // not in the answer: nothing to say
+    const QString title = class_title(klass);
+    QStringList on;
+    int simulated = 0;
+    for (const auto& d : mine->days) {
+        on << d.day;
+        simulated += d.simulated ? 1 : 0;
+    }
+    if (on.isEmpty()) {
+        cell.text = QStringLiteral("—");
+        cell.tip = QStringLiteral("최근 %1거래일에 채점된 예측이 없다.").arg(days.days.size());
+        return cell;
+    }
+    QStringList tip{QStringLiteral("최근 %1거래일 중 예측이 채점된 %2일 (%3 – %4)")
+                        .arg(days.days.size())
+                        .arg(on.size())
+                        .arg(on.first(), on.last())};
+    const DayPrecision own = pooled_precision(*mine, klass);
+    if (!own.value) {
+        cell.text = QStringLiteral("—");
+        tip << QStringLiteral("%1을 부른 적이 없다.").arg(title);
+        cell.tip = tip.join('\n');
+        return cell;
+    }
+    const int percent = whole_percent(*own.value);
+    cell.text = QStringLiteral("%1%").arg(percent);
+    tip << QStringLiteral("%1을 부른 봉 마감 %2개 중 %3%가 %1").arg(title).arg(own.n).arg(percent);
+    const PredictorDays* climate = days.of(days.climate);
+    if (climate && climate != mine) {
+        const DayPrecision base = pooled_precision(*climate, klass, on);
+        if (base.value) {
+            const int diff = percent - whole_percent(*base.value);
+            cell.text += diff > 0 ? QStringLiteral(" (+%1%p)").arg(diff) : QStringLiteral(" (%1%p)").arg(diff);
+            tip << QStringLiteral("같은 날들 %1: %2을 부른 %3개 중 %4%")
+                       .arg(predictor_label(days.climate), title)
+                       .arg(base.n)
+                       .arg(whole_percent(*base.value));
+        } else {
+            tip << QStringLiteral("같은 날들 %1: %2을 부르지 않아 견주지 않는다.")
+                       .arg(predictor_label(days.climate), title);
+        }
+    }
+    if (simulated > 0)
+        tip << QStringLiteral("그중 %1일은 수습 시뮬레이션의 예측이다.").arg(simulated);
+    cell.tip = tip.join('\n');
+    return cell;
+}
+
+/// Whether ``algorithm`` is in the consensus now: an active algorithm (``states``), or one the consensus
+/// names (``members``, GET /v1/consensus: the active ones too, once it has weighed them).
+bool member_of(const QString& algorithm, const QStringList& members, const QMap<QString, QString>& states) {
+    return members.contains(algorithm) || states.value(algorithm) == QLatin1String("active");
+}
+
+/// 0: consensus, 1: member, 2: another algorithm, 3: baseline.
+int panel_group(const Prediction& p, const QStringList& members, const QMap<QString, QString>& states) {
+    if (is_consensus(p.algorithm))
+        return 0;
+    if (is_baseline(p.algorithm))
+        return 3;
+    return member_of(p.algorithm, members, states) ? 1 : 2;
+}
+
+} // namespace
+
+QList<LatestRow> latest_rows(const QList<Prediction>& predictions, const QStringList& members,
+                             const QMap<QString, QString>& states, const std::optional<LeaderboardDays>& days,
+                             bool served) {
+    QList<Prediction> sorted = predictions;
+    if (served)
+        std::stable_sort(sorted.begin(), sorted.end(), [&](const Prediction& a, const Prediction& b) {
+            return panel_group(a, members, states) < panel_group(b, members, states);
+        });
+    QList<LatestRow> out;
+    for (const auto& p : sorted) {
+        LatestRow row;
+        row.prediction = p;
+        row.name = predictor_label(p.algorithm);
+        row.consensus = is_consensus(p.algorithm);
+        row.baseline = is_baseline(p.algorithm);
+        const QString member_tip = QStringLiteral("정식: 합의에 들어간다");
+        if (!served) { // an engine before krx-quant #561: as before
+            row.member = members.contains(p.algorithm);
+            row.name_tip = row.member ? member_tip : QString();
+            out << row;
+            continue;
+        }
+        row.member = !row.consensus && !row.baseline && member_of(p.algorithm, members, states);
+        row.dimmed = !row.consensus && !row.member;
+        QStringList tip;
+        if (!p.model_version.isEmpty())
+            tip << QStringLiteral("모델 %1").arg(p.model_version);
+        if (row.member)
+            tip << member_tip;
+        row.name_tip = tip.join('\n');
+        if (!row.consensus && !row.baseline)
+            row.status = standing_label(states.value(p.algorithm));
+        if (days) {
+            if (const PredictorDays* mine = days->of(p.algorithm); mine && mine->decay && mine->decay->flagged) {
+                const Decay& d = *mine->decay;
+                row.decay = true;
+                row.status = (row.status.isEmpty() ? standing_label(QStringLiteral("active")) : row.status) +
+                             QStringLiteral(" · 하락");
+                row.status_tip =
+                    QStringLiteral("하락 표시: 정식이 된 뒤 최근 %1일에서 기준 예측 대비 가장 약한 lift가 %2 대비 "
+                                   "%3%p (짝 %4)다. 상태는 바꾸지 않는다. 벤치 판정은 정식 %5일째부터 그 날들로 한다.")
+                        .arg(d.days)
+                        .arg(predictor_label(d.baseline),
+                             d.value ? QString::number(*d.value * 100, 'f', 1) : QStringLiteral("—"))
+                        .arg(d.n)
+                        .arg(d.rule_days);
+            }
+            row.up = recent_cell(*days, p.algorithm, QStringLiteral("up"));
+            row.down = recent_cell(*days, p.algorithm, QStringLiteral("down"));
+        }
+        out << row;
+    }
+    return out;
+}
+
+QString recent_header_tip(const QString& klass) {
+    const QString title = class_title(klass);
+    return QStringLiteral(
+               "최근 %1거래일(엔진이 점검을 마친 날) 동안 %2을 부른 봉 마감 중 %2이 맞은 비율이다(종목 합침, "
+               "특수 상황 제외). 괄호는 같은 날들 '기준: 시간대 기후'의 %2 정밀도와의 차이(%p)다. 칸의 "
+               "툴팁에 부른 수와 날이 있다. 설명용이고, 상태는 순위표의 거래일 lift로 판정한다.")
+        .arg(kRecentDays)
+        .arg(title);
+}
+
 std::pair<double, double> fit_range(int bars) {
     const int last = std::max(0, bars - 1);
     return {static_cast<double>(std::max(0, bars - kFitBars)), last + kRightOffset};

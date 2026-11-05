@@ -373,6 +373,25 @@ KrxStatsWindow::KrxStatsWindow(QWidget* parent) : QWidget(parent, Qt::Window) {
     breakdowns_->addTab(by_model_version_, tr("모델 버전별"));
     breakdowns_->addTab(by_symbol_, tr("종목별"));
     breakdowns_->addTab(by_volatility_, tr("변동성별")); // the direction's only (krx-quant #262)
+    // The predictor day by day and every algorithm's state (krx-quant #561), each hidden until the
+    // engine gives them: an older engine's window is as before.
+    days_summary_ = new QLabel;
+    days_summary_->setContentsMargins(12, 4, 12, 4);
+    days_summary_->setWordWrap(true);
+    days_table_ = krx_tables::table({tr("날")});
+    days_table_->horizontalHeader()->setStretchLastSection(false);
+    days_ = new QWidget;
+    auto* days_column = new QVBoxLayout(days_);
+    days_column->setContentsMargins(0, 0, 0, 0);
+    days_column->setSpacing(0);
+    days_column->addWidget(days_summary_);
+    days_column->addWidget(days_table_, 1);
+    breakdowns_->addTab(days_, tr("날짜별"));
+    breakdowns_->setTabVisible(breakdowns_->indexOf(days_), false);
+    states_ = krx_tables::table({tr("알고리즘"), tr("종류"), tr("상태"), tr("사전 검증"), tr("내용")});
+    breakdowns_->addTab(states_, tr("알고리즘 상태"));
+    breakdowns_->setTabVisible(breakdowns_->indexOf(states_), false);
+    breakdowns_->setTabToolTip(breakdowns_->indexOf(states_), krx_quant::states_tip());
 
     auto* split = new QSplitter(Qt::Vertical);
     split->addWidget(middle);
@@ -399,6 +418,9 @@ void KrxStatsWindow::open(const QString& algorithm) {
         algorithm_ = algorithm;
         about_->clear(); // the stats' failure leaves the algorithm's description as read
         learning_->clear();
+        days_table_->setRowCount(0); // another predictor's days and bold row: shown again by the screen
+        days_summary_->clear();
+        states_->setRowCount(0);
         learning_header_.bar->hide();
         learning_->hide();
         clear();
@@ -445,6 +467,58 @@ void KrxStatsWindow::show_about(const std::optional<krx_quant::AlgorithmInfo>& i
     learning_->setText(learned.join(QStringLiteral("<br>")));
     learning_header_.bar->setVisible(!learning.isEmpty());
     learning_->setVisible(!learning.isEmpty());
+}
+
+void KrxStatsWindow::show_days(const std::optional<krx_quant::LeaderboardDays>& days, bool served,
+                               const QString& failure, const std::optional<krx_quant::KindInfo>& kind) {
+    const int tab = breakdowns_->indexOf(days_);
+    breakdowns_->setTabVisible(tab, served);
+    days_table_->setRowCount(0);
+    if (!days) {
+        days_summary_->setText(failure.isEmpty() ? tr("날짜별 성적을 읽는 중이다.")
+                                                 : tr("엔진에서 날짜별 성적을 읽지 못했습니다: %1").arg(failure));
+        breakdowns_->setTabToolTip(tab, QString());
+        return;
+    }
+    krx_tables::set_columns(days_table_, krx_quant::day_columns(*days, algorithm_, kind));
+    days_summary_->setText(krx_quant::day_summary(*days, algorithm_));
+    breakdowns_->setTabToolTip(
+        tab, tr("엔진이 점검을 마친 최근 %1거래일, 날마다의 성적이다(종목 합침, 특수 상황 제외, 순위표와 같이 센다). "
+                "하루 값이라 구간은 없다. 상태 판정은 순위표의 거래일 lift로 한다.")
+                 .arg(krx_quant::kRecentDays));
+    for (const auto& r : krx_quant::day_rows(*days, algorithm_, kind)) {
+        const int row = days_table_->rowCount();
+        days_table_->insertRow(row);
+        for (int c = 0; c < r.cells.size(); ++c) {
+            auto* item = cell(r.cells[c], c <= 1 ? Qt::AlignLeft | Qt::AlignVCenter : kNumber);
+            item->setToolTip(r.tips.value(c));
+            if (r.simulated) // not live: its simulated probation's
+                item->setForeground(QColor(ui::colors::TEXT_SECONDARY()));
+            days_table_->setItem(row, c, item);
+        }
+    }
+}
+
+void KrxStatsWindow::show_states(const QList<krx_quant::StateRow>& rows) {
+    breakdowns_->setTabVisible(breakdowns_->indexOf(states_), !rows.isEmpty());
+    states_->setRowCount(0);
+    for (const auto& r : rows) {
+        const int row = states_->rowCount();
+        states_->insertRow(row);
+        const QStringList cells{r.algorithm, r.kind, r.state, r.prevalidation, r.detail};
+        for (int c = 0; c < cells.size(); ++c) {
+            auto* item = cell(cells[c]);
+            item->setToolTip(c == 4 && r.tip.isEmpty() ? r.detail : r.tip);
+            if (!r.predicts) // not run: waiting, refused, held, awaiting, retired
+                item->setForeground(QColor(ui::colors::TEXT_DIM()));
+            if (r.algorithm == algorithm_) {
+                QFont font = item->font();
+                font.setBold(true);
+                item->setFont(font);
+            }
+            states_->setItem(row, c, item);
+        }
+    }
 }
 
 void KrxStatsWindow::set_kind(const std::optional<krx_quant::KindInfo>& kind) {
@@ -605,8 +679,9 @@ void KrxStatsWindow::restyle() {
     learning_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
     failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
     for (auto* table : {overall_, lifts_, by_slot_, by_model_version_, by_symbol_, by_volatility_, quantile_table_,
-                        barrier_table_, skill_table_})
+                        barrier_table_, skill_table_, days_table_, states_})
         krx_tables::restyle(table);
+    days_summary_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
     fit_rows(overall_);
     if (barrier_table_->rowCount() > 0)
         fit_rows(barrier_table_);

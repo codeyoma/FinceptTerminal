@@ -61,6 +61,15 @@ class KrxStatsWindow : public QWidget {
     /// none for a baseline or a consensus, or before the engine answers; ``failure``: why the
     /// engine's descriptions could not be read (none shown then, not a stale one).
     void show_about(const std::optional<krx_quant::AlgorithmInfo>& info, const QString& failure = {});
+    /// The "날짜별" tab (krx-quant #561): the predictor's days of ``days`` (its kind's GET
+    /// /v1/leaderboard/days; none before they are read or while they cannot be, ``failure`` why), the
+    /// classes ``kind``'s (none: the direction's). Hidden while the engine does not give them
+    /// (``served`` false: an engine before #561), as it is before this is called.
+    void show_days(const std::optional<krx_quant::LeaderboardDays>& days, bool served, const QString& failure = {},
+                   const std::optional<krx_quant::KindInfo>& kind = {});
+    /// The "알고리즘 상태" tab (krx-quant #561): every registered algorithm and where it stands, this
+    /// window's own in bold. Hidden without rows (an engine before #561), as it is before this is called.
+    void show_states(const QList<krx_quant::StateRow>& rows);
 
   signals:
     void closed();
@@ -98,6 +107,10 @@ class KrxStatsWindow : public QWidget {
     QTableWidget* by_model_version_ = nullptr;
     QTableWidget* by_symbol_ = nullptr;
     QTableWidget* by_volatility_ = nullptr; ///< by volatility tercile (krx-quant #262): the direction's only
+    QWidget* days_ = nullptr;               ///< the predictor's days (krx-quant #561): a line, then a table
+    QLabel* days_summary_ = nullptr;
+    QTableWidget* days_table_ = nullptr;
+    QTableWidget* states_ = nullptr;             ///< every algorithm's state (krx-quant #561)
     QString kind_ = QStringLiteral("direction"); ///< the kind whose columns are shown
     QWidget* quantiles_ = nullptr;               ///< a range predictor's quantile stats (krx-quant #182)
     krx_panel::Header quantiles_header_;

@@ -178,6 +178,22 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
         algorithms_failure_ = reason;
         emit algorithms_changed();
     });
+    // The predictors day by day (krx-quant #561), a kind at a time.
+    connect(service_, &KrxQuantService::days_ready, this,
+            [this](const QString& kind, const krx_quant::LeaderboardDays& days, bool served) {
+                days_failures_.remove(kind);
+                days_served_ = served;
+                if (served)
+                    days_.insert(kind, days);
+                else
+                    days_.remove(kind); // an engine before #561: what was shown before
+                emit days_changed(kind);
+            });
+    connect(service_, &KrxQuantService::days_failed, this, [this](const QString& kind, const QString& reason) {
+        days_.remove(kind); // not shown as the engine's while they cannot be read
+        days_failures_.insert(kind, reason);
+        emit days_changed(kind);
+    });
     connect(service_, &KrxQuantService::kinds_ready, this, [this](const QList<krx_quant::KindInfo>& kinds) {
         const auto described = kind_info();
         const QString shown = kind_;
@@ -336,9 +352,12 @@ KrxLive::KrxLive(QObject* parent) : QObject(parent) {
             });
     connect(service_, &KrxQuantService::base_url_changed, this, [this](const QString& url) {
         marks_paging_ = false; // its page was dropped with the old engine's reads
-        algorithms_.clear(); // the old engine's; the new one's come with the details
+        algorithms_.clear();   // the old engine's; the new one's are read
         algorithms_failure_.clear();
         emit algorithms_changed();
+        service_->read_algorithms();
+        forget_days(); // likewise its days (krx-quant #561)
+        read_days();
         // The old engine's kinds go: the direction until the new one says what it makes (krx-quant #182).
         kind_paging_ = false;
         kinds_.reset();
@@ -385,7 +404,9 @@ void KrxLive::start() {
     service_->refresh(); // reads the address from the settings; opens the stream on it
     service_->read_kinds();
     service_->read_macro();
+    service_->read_algorithms(); // their states (krx-quant #561)
     read_leaderboard();
+    read_days();
     timer_.start();
 }
 
@@ -422,7 +443,10 @@ void KrxLive::apply_base_url(const QString& url) {
         stream_->open(before); // the same address again: connect again too
     service_->restart();       // a new one opens the stream through base_url_changed
     service_->read_macro();
+    service_->read_algorithms(); // the same address's again too
+    forget_days();
     read_leaderboard();
+    read_days();
 }
 
 void KrxLive::set_shown(bool shown) {
@@ -519,14 +543,66 @@ void KrxLive::read_kind_history(bool latest) {
 
 void KrxLive::set_details(const QStringList& algorithms) {
     const QStringList before = std::exchange(details_, algorithms);
-    bool opened = false;
+    QStringList kinds;
     for (const auto& algorithm : details_)
         if (!before.contains(algorithm)) {
             service_->read_stats(algorithm, query_);
-            opened = true;
+            if (const QString kind = kind_of(algorithm); !kinds.contains(kind))
+                kinds << kind;
         }
-    if (opened)
-        service_->read_algorithms();
+    if (kinds.isEmpty())
+        return;
+    service_->read_algorithms();
+    for (const auto& kind : kinds) // its day series (krx-quant #561), read as it opens
+        service_->read_days(kind, krx_quant::kRecentDays);
+}
+
+QMap<QString, QString> KrxLive::states() const {
+    QMap<QString, QString> out = standings_; // the leaderboard's, under the engine's own
+    for (auto it = algorithms_.cbegin(); it != algorithms_.cend(); ++it)
+        if (const QString state = krx_quant::state_of(*it); !state.isEmpty())
+            out.insert(it.key(), state);
+    return out;
+}
+
+QString KrxLive::kind_of(const QString& predictor) const {
+    // An algorithm's own; the direction's baselines and the consensus are listed there too.
+    if (const auto it = algorithms_.constFind(predictor); it != algorithms_.cend())
+        return it->prediction_kind;
+    if (krx_quant::is_consensus(predictor))
+        return krx_quant::kDirectionKind;
+    if (kinds_)
+        for (const auto& kind : *kinds_)
+            if (krx_quant::is_kind_baseline(kind, predictor))
+                return kind.name;
+    return kind_; // a row of the leaderboard shown
+}
+
+QStringList KrxLive::days_kinds() const {
+    QStringList kinds;
+    if (shown_)
+        kinds << krx_quant::kDirectionKind; // the panel's
+    for (const auto& algorithm : details_)
+        if (const QString kind = kind_of(algorithm); !kinds.contains(kind))
+            kinds << kind;
+    return kinds;
+}
+
+void KrxLive::read_days() {
+    // Asked again even of an engine that answered 404: it may be upgraded while the screen is open.
+    for (const auto& kind : days_kinds())
+        service_->read_days(kind, krx_quant::kRecentDays);
+}
+
+void KrxLive::forget_days() {
+    const QStringList kinds = days_.keys() + days_failures_.keys();
+    days_.clear();
+    days_failures_.clear();
+    days_served_ = true; // not known to be without them until it answers
+    for (const auto& kind : kinds)
+        emit days_changed(kind);
+    if (!kinds.contains(QLatin1String(krx_quant::kDirectionKind)))
+        emit days_changed(krx_quant::kDirectionKind); // the panel's columns, as served
 }
 
 void KrxLive::set_bars(const QList<QPair<QString, QDateTime>>& bars) {
@@ -913,6 +989,9 @@ QDateTime KrxLive::engine_now() const {
 void KrxLive::tick() {
     ++ticks_;
     const bool live = stream_->is_connected();
+    // The days (krx-quant #561): the engine adds a reviewed day after the close, and keeps the others.
+    if (ticks_ % kMacroEvery == 0)
+        read_days();
     // The bar windows (krx-quant #255) stay open beside other screens too: without the stream they
     // are read here until settled; with it, each minute as well (the engine clock alone settles one
     // the engine never scores).
@@ -947,6 +1026,7 @@ void KrxLive::tick() {
     if (ticks_ % kMacroEvery == 0) {
         service_->read_macro();
         read_supply();
+        service_->read_algorithms(); // a pre-validation's verdict comes at night, without a stream event
     }
 }
 
@@ -956,6 +1036,8 @@ void KrxLive::read_everything() {
     read_chart();
     read_leaderboard();
     service_->read_macro();
+    service_->read_algorithms(); // their states (krx-quant #561)
+    read_days();
     read_bars_due(); // what the stream did not bring them meanwhile (krx-quant #255)
 }
 
@@ -1025,8 +1107,10 @@ void KrxLive::on_status(const krx_quant::EngineStatus& status, bool with_snapsho
             service_->refresh();
         service_->read_kinds();
         service_->read_macro();
+        service_->read_algorithms();
         read_leaderboard();
         read_chart();
+        read_days();
     }
     emit status_changed();
 }
@@ -1048,10 +1132,14 @@ void KrxLive::on_failure(const QString& reason) {
     supply_read_.reset();
     smt_.clear(); // and its SMT divergences (codeyoma/krx-quant#522)
     smt_read_.reset();
+    const QStringList kinds = days_.keys(); // and the days (krx-quant #561): read again once back
+    days_.clear();
     emit predictions_changed();
     emit kind_predictions_changed();
     emit chart_changed();
     emit status_changed();
+    for (const auto& kind : kinds)
+        emit days_changed(kind);
 }
 
 void KrxLive::on_chart(const QString& symbol, const QList<krx_quant::Bar>& bars,
@@ -1098,6 +1186,7 @@ void KrxLive::on_event(const krx_quant::Event& event) {
         case krx_quant::Event::Type::Lifecycle:
             board_.apply(event);
             leaderboard_soon_.start(); // its status in the leaderboard
+            service_->read_algorithms(); // and its state (krx-quant #561)
             emit predictions_changed();
             return;
         case krx_quant::Event::Type::Bar:
