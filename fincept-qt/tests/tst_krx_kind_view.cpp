@@ -13,6 +13,8 @@
 #include <QTest>
 #include <QTimeZone>
 
+#include <tuple>
+
 using namespace fincept::krx_quant;
 
 namespace {
@@ -1221,6 +1223,33 @@ class TstKrxKindView : public QObject {
         QCOMPARE(daily_runs_lines(held, QStringList{"cox-5d"}),
                  (QStringList{QStringLiteral("알고리즘은 수습에 오르지 않는다: 판정일을 정하기 전")}));
         QVERIFY(daily_runs_text(range_kind(), QStringList{}).isEmpty()); // a bar-close kind
+    }
+
+    void an_engine_that_lists_every_algorithm_says_which_of_the_kind_do_not_run() {
+        // Since krx-quant #561 the engine lists the refused and waiting ones too, with their state: they do
+        // not run, so only the baselines predict, and the tooltip names them.
+        QMap<QString, AlgorithmInfo> algorithms;
+        for (const auto& [name, kind, state] :
+             {std::tuple{"cox", "open_to_close", "probation"}, std::tuple{"cox-5d", "open_to_close_5d", "refused"},
+              std::tuple{"cox-5x", "open_to_close_5d", "retired"}}) {
+            AlgorithmInfo a;
+            a.name = QString::fromLatin1(name);
+            a.prediction_kind = QString::fromLatin1(kind);
+            a.state = QString::fromLatin1(state);
+            algorithms.insert(a.name, a);
+        }
+        QCOMPARE(kind_algorithms(algorithms, "open_to_close"), (QStringList{"cox"}));
+        QVERIFY(kind_algorithms(algorithms, "open_to_close_5d").isEmpty());
+        const auto idle = idle_algorithms(algorithms, "open_to_close_5d");
+        QCOMPARE(idle.size(), qsizetype(2));
+        QVERIFY(idle_algorithms(algorithms, "open_to_close").isEmpty());
+        const KindInfo five = five_kind();
+        QCOMPARE(daily_runs_text(five, QStringList{}), QStringLiteral("기준 예측만"));
+        QCOMPARE(daily_runs_lines(five, QStringList{}, idle),
+                 (QStringList{QStringLiteral(
+                     "기준 예측만 예측하고 채점한다(기준: 5거래일 늘 보합, 기준: 5거래일 기후, 기준: 지난 5거래일 방향 "
+                     "잇기). 이 종류의 알고리즘은 등록되어 있지만 돌지 않는다: cox-5d(사전 검증 거부), cox-5x(은퇴). "
+                     "이유는 상세 통계 창의 알고리즘 상태 탭에 있다.")}));
     }
 
     void a_daily_kind_s_predictions_are_read_by_days_back_to_the_first_day_held() {

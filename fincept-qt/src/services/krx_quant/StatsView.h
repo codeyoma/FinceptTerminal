@@ -224,4 +224,50 @@ QList<QPair<QString, QString>> about_rows(const std::optional<AlgorithmInfo>& in
 /// that is not an algorithm, or with nothing read.
 QList<QPair<QString, QString>> learning_rows(const std::optional<AlgorithmInfo>& info);
 
+/// Why an algorithm the engine does not run does not (krx-quant #561), in Korean: its place in the
+/// nightly pre-validation order, the refusal's checks and the engine's reason, what its daily kind
+/// waits for (``kind``'s ``awaiting`` or ``review_hold``, when given); empty for one that runs.
+QString idle_text(const AlgorithmInfo& info, const std::optional<KindInfo>& kind = std::nullopt);
+
+/// A row of a detail window's algorithm table (krx-quant #561): a registered algorithm and where it stands.
+struct StateRow {
+    QString algorithm;
+    QString kind;          ///< its kind's title (the engine's), or its name when not described
+    QString state;         ///< in Korean (standing_label)
+    QString prevalidation; ///< "면제", "통과", "대기", "거부"; "—" when not said
+    QString
+        detail;  ///< toward its next review, or why it does not run (idle_text: its place, a refusal's date and reason)
+    QString tip; ///< a refusal's checks, code and answer version; empty otherwise
+    bool predicts = false; ///< the engine predicts with it
+};
+
+/// Every algorithm of ``algorithms`` (GET /v1/algorithms) in the engine's order (the direction's, other
+/// kinds', the daily kinds'), named by ``kinds`` (GET /v1/kinds). Empty from an engine before krx-quant
+/// #561, which gives no state.
+QList<StateRow> state_rows(const QMap<QString, AlgorithmInfo>& algorithms, const std::optional<QList<KindInfo>>& kinds);
+/// The algorithm table's tooltip: what each state means, and that waiting ones are pre-validated a night at a time.
+QString states_tip();
+
+/// A day of a detail window's day series (krx-quant #561), a cell per column, the latest day first.
+struct DayRow {
+    QString day; ///< "YYYY-MM-DD"
+    QStringList cells;
+    QStringList tips;       ///< a cell's tooltip each, empty where the cell says it
+    bool simulated = false; ///< its values are its simulated probation's
+};
+
+/// The day series' columns for ``predictor`` (GET /v1/leaderboard/days of its kind; ``kind`` names
+/// the classes, none the direction's): the day, its status that day, the samples, accuracy, the call
+/// rate, each class's precision, the lift over the climate baseline and the log loss. The direction's
+/// final consensus also against its best member that day, and an algorithm against the final consensus
+/// on the days it was a member.
+QList<StatsColumn> day_columns(const LeaderboardDays& days, const QString& predictor,
+                               const std::optional<KindInfo>& kind = std::nullopt);
+/// Its rows under day_columns: the days it has scored predictions on, the latest first.
+QList<DayRow> day_rows(const LeaderboardDays& days, const QString& predictor,
+                       const std::optional<KindInfo>& kind = std::nullopt);
+/// The line above them: the days covered and the climate baseline; an active algorithm's decay flag;
+/// the final consensus's days ahead of and behind its best member.
+QString day_summary(const LeaderboardDays& days, const QString& predictor);
+
 } // namespace fincept::krx_quant

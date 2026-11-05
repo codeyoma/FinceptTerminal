@@ -774,19 +774,46 @@ std::optional<Simulation> simulation_of(const QJsonValue& v) {
     return simulation;
 }
 
+std::optional<Prevalidation> prevalidation_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    Prevalidation out;
+    out.exempt = o.value("exempt").toBool();
+    out.queue = integer_of(o.value("queue"));
+    if (const QJsonValue r = o.value("refused"); r.isObject()) {
+        const QJsonObject refused = r.toObject();
+        out.refused = Prevalidation::Refusal{time_of(refused.value("at")), refused.value("code").toString(),
+                                             integer_of(refused.value("target_version")),
+                                             strings_of(refused.value("checks")), refused.value("why").toString()};
+    }
+    return out;
+}
+
 } // namespace
+
+bool predicts(const QString& state) {
+    return state == QLatin1String("active") || state == QLatin1String("probation") || state == QLatin1String("bench") ||
+           state == QLatin1String("clone");
+}
+
+QString state_of(const AlgorithmInfo& info) {
+    return info.state.isEmpty() ? info.status : info.state;
+}
 
 Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc) {
     const auto obj = object_of(doc);
     if (obj.is_err())
         return Result<QMap<QString, AlgorithmInfo>>::err(obj.error());
     QMap<QString, AlgorithmInfo> out;
+    int order = 0;
     for (const auto& v : obj.value().value("algorithms").toArray()) {
         const QJsonObject a = v.toObject();
         AlgorithmInfo info;
         info.name = a.value("name").toString();
         if (info.name.isEmpty())
             continue;
+        info.order = order++; // the engine lists them in registration order (krx-quant #561)
         if (const QString kind = a.value("kind").toString(); !kind.isEmpty())
             info.prediction_kind = kind;
         info.card = card_of(a.value("card"));
@@ -817,6 +844,9 @@ Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc) 
                                          record.value("from").toString(), record.value("to").toString(),
                                          record.value("reason").toString(), record.value("simulated").toBool()};
         }
+        // Where it stands and its pre-validation (krx-quant #561); neither from an older engine.
+        info.state = a.value("state").toString();
+        info.prevalidation = prevalidation_of(a.value("prevalidation"));
         out.insert(info.name, info);
     }
     // The baselines and the consensus: what they are, nothing more (krx-quant #164).
@@ -871,6 +901,130 @@ Result<QStringList> parse_members(const QJsonDocument& doc) {
     if (obj.is_err())
         return Result<QStringList>::err(obj.error());
     return Result<QStringList>::ok(strings_of(obj.value().value("members")));
+}
+
+namespace {
+
+DayStats day_stats_of(const QJsonObject& d) {
+    DayStats day;
+    day.day = d.value("day").toString();
+    day.status = d.value("status").toString();
+    day.simulated = d.value("simulated").toBool();
+    day.n = d.value("n").toInt();
+    day.accuracy = number(d.value("accuracy"));
+    day.coverage = number(d.value("coverage"));
+    const QJsonObject precision = d.value("precision").toObject();
+    for (auto it = precision.begin(); it != precision.end(); ++it) {
+        const QJsonObject c = it.value().toObject();
+        day.precision.insert(it.key(), DayPrecision{c.value("n").toInt(), number(c.value("value"))});
+    }
+    if (const QJsonValue lift = d.value("lift"); lift.isObject()) {
+        day.lift = number(lift.toObject().value("value"));
+        day.lift_n = lift.toObject().value("n").toInt();
+    }
+    day.log_loss = number(d.value("log_loss"));
+    return day;
+}
+
+QList<PredictorDays> predictor_days_of(const QJsonValue& v) {
+    QList<PredictorDays> out;
+    for (const auto& item : v.toArray()) {
+        const QJsonObject p = item.toObject();
+        PredictorDays predictor;
+        predictor.algorithm = p.value("algorithm").toString();
+        if (predictor.algorithm.isEmpty())
+            continue;
+        predictor.status = p.value("status").toString();
+        if (const QJsonValue d = p.value("decay"); d.isObject()) {
+            const QJsonObject decay = d.toObject();
+            Decay flag;
+            flag.days = decay.value("days").toInt();
+            flag.rule_days = decay.value("rule_days").toInt();
+            if (const QJsonValue w = decay.value("weakest"); w.isObject()) {
+                flag.baseline = w.toObject().value("baseline").toString();
+                flag.n = w.toObject().value("n").toInt();
+                flag.value = number(w.toObject().value("value"));
+            }
+            flag.enough = decay.value("enough").toBool();
+            flag.flagged = decay.value("flagged").toBool();
+            predictor.decay = flag;
+        }
+        for (const auto& day : p.value("days").toArray())
+            predictor.days << day_stats_of(day.toObject());
+        out << predictor;
+    }
+    return out;
+}
+
+} // namespace
+
+const PredictorDays* LeaderboardDays::of(const QString& predictor) const {
+    for (const auto* list : {&algorithms, &baselines, &consensus})
+        for (const auto& p : *list)
+            if (p.algorithm == predictor)
+                return &p;
+    return nullptr;
+}
+
+Result<LeaderboardDays> parse_leaderboard_days(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<LeaderboardDays>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    if (!o.value("algorithms").isArray())
+        return Result<LeaderboardDays>::err(QStringLiteral("엔진이 날짜별 성적을 주지 않았습니다").toStdString());
+    LeaderboardDays out;
+    if (const QString kind = o.value("kind").toString(); !kind.isEmpty())
+        out.kind = kind;
+    out.days = strings_of(o.value("days"));
+    out.climate = o.value("climate").toString();
+    out.min_sample = o.value("min_sample").toInt();
+    out.algorithms = predictor_days_of(o.value("algorithms"));
+    out.baselines = predictor_days_of(o.value("baselines"));
+    out.consensus = predictor_days_of(o.value("consensus"));
+    for (const auto& item : o.value("members").toArray()) {
+        const QJsonObject m = item.toObject();
+        MembersDay day;
+        day.day = m.value("day").toString();
+        day.consensus = m.value("consensus").toString();
+        day.members = strings_of(m.value("members"));
+        day.n = m.value("n").toInt();
+        day.accuracy = number(m.value("accuracy"));
+        const QJsonObject vs = m.value("vs").toObject();
+        // In the members' order (an object keeps none), then any other the engine compared.
+        QStringList names = day.members;
+        for (const auto& key : vs.keys())
+            if (!names.contains(key))
+                names << key;
+        for (const auto& name : names) {
+            if (!vs.contains(name))
+                continue;
+            const QJsonObject one = vs.value(name).toObject();
+            day.vs << MemberVs{name, one.value("n").toInt(), number(one.value("accuracy")),
+                               number(one.value("consensus")), number(one.value("lift"))};
+        }
+        day.best = m.value("best").toString();
+        day.lift = number(m.value("lift"));
+        out.members << day;
+    }
+    return Result<LeaderboardDays>::ok(out);
+}
+
+DayPrecision pooled_precision(const PredictorDays& predictor, const QString& klass, const QStringList& only) {
+    int calls = 0;
+    double hits = 0;
+    for (const auto& day : predictor.days) {
+        if (!only.isEmpty() && !only.contains(day.day))
+            continue;
+        const auto it = day.precision.constFind(klass);
+        if (it == day.precision.cend() || it->n <= 0 || !it->value)
+            continue;
+        calls += it->n;
+        hits += *it->value * it->n;
+    }
+    if (calls == 0)
+        return {};
+    return DayPrecision{calls, hits / calls};
 }
 
 bool is_barrier_kind(const QString& name) {
@@ -1295,9 +1449,17 @@ QString regime_label(const QString& regime) {
 }
 
 QString standing_label(const QString& status) {
+    // The statuses, then the states an algorithm is not run in (krx-quant #561).
     static const QMap<QString, QString> labels = {
-        {"probation", QStringLiteral("수습")}, {"active", QStringLiteral("정식")}, {"bench", QStringLiteral("벤치")},
-        {"retired", QStringLiteral("은퇴")},   {"clone", QStringLiteral("복제")},
+        {"probation", QStringLiteral("수습")},
+        {"active", QStringLiteral("정식")},
+        {"bench", QStringLiteral("벤치")},
+        {"retired", QStringLiteral("은퇴")},
+        {"clone", QStringLiteral("복제")},
+        {"waiting", QStringLiteral("사전 검증 대기")},
+        {"refused", QStringLiteral("사전 검증 거부")},
+        {"held", QStringLiteral("수습 보류")},
+        {"awaiting", QStringLiteral("탐침 대기")},
     };
     return labels.value(status, status);
 }

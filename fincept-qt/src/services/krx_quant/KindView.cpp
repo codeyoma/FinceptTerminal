@@ -630,12 +630,23 @@ QString daily_closes_text(const std::optional<KindAnswer>& answer) {
 QStringList kind_algorithms(const QMap<QString, AlgorithmInfo>& algorithms, const QString& kind) {
     QStringList out;
     for (auto it = algorithms.cbegin(); it != algorithms.cend(); ++it)
-        if (it->kind == QLatin1String("algorithm") && it->prediction_kind == kind)
+        if (it->kind == QLatin1String("algorithm") && it->prediction_kind == kind &&
+            (it->state.isEmpty() || predicts(it->state))) // an older engine lists only those it runs
             out << it.key();
     return out; // by name, as the map keeps them
 }
 
-QStringList daily_runs_lines(const KindInfo& kind, const std::optional<QStringList>& algorithms) {
+QList<AlgorithmInfo> idle_algorithms(const QMap<QString, AlgorithmInfo>& algorithms, const QString& kind) {
+    QList<AlgorithmInfo> out;
+    for (const auto& info : algorithms)
+        if (info.kind == QLatin1String("algorithm") && info.prediction_kind == kind && !info.state.isEmpty() &&
+            !predicts(info.state))
+            out << info;
+    return out;
+}
+
+QStringList daily_runs_lines(const KindInfo& kind, const std::optional<QStringList>& algorithms,
+                             const QList<AlgorithmInfo>& idle) {
     QStringList lines;
     if (!kind.daily)
         return lines;
@@ -645,9 +656,18 @@ QStringList daily_runs_lines(const KindInfo& kind, const std::optional<QStringLi
         QStringList names;
         for (const auto& b : kind.baselines)
             names << predictor_label(b.name);
-        lines << QStringLiteral("기준 예측만 예측하고 채점한다(%1). 엔진의 알고리즘 목록에 이 종류의 알고리즘이 "
-                                "없다. 사전 검증에서 거부되었거나 아직 없는 알고리즘은 목록에 나오지 않는다.")
-                     .arg(names.join(QStringLiteral(", ")));
+        if (idle.isEmpty()) {
+            lines << QStringLiteral("기준 예측만 예측하고 채점한다(%1). 엔진의 알고리즘 목록에 이 종류의 알고리즘이 "
+                                    "없다. 사전 검증에서 거부되었거나 아직 없는 알고리즘은 목록에 나오지 않는다.")
+                         .arg(names.join(QStringLiteral(", ")));
+        } else { // the engine lists them with their state (krx-quant #561)
+            QStringList standing;
+            for (const auto& a : idle)
+                standing << QStringLiteral("%1(%2)").arg(a.name, standing_label(a.state));
+            lines << QStringLiteral("기준 예측만 예측하고 채점한다(%1). 이 종류의 알고리즘은 등록되어 있지만 돌지 "
+                                    "않는다: %2. 이유는 상세 통계 창의 알고리즘 상태 탭에 있다.")
+                         .arg(names.join(QStringLiteral(", ")), standing.join(QStringLiteral(", ")));
+        }
     }
     if (!kind.daily->review_hold.isEmpty())
         lines << QStringLiteral("알고리즘은 수습에 오르지 않는다: %1").arg(kind.daily->review_hold);

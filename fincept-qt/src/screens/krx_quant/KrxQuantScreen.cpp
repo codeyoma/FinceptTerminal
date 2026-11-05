@@ -54,6 +54,20 @@ constexpr auto kKindKey = "krx_quant/kind";
 // a bar close brings about ten at once.
 constexpr int kChartSettleMs = 250;
 enum PredictionColumn { kPredictor, kDirection, kUp, kFlat, kDown, kTicks, kModel, kPredictionColumns };
+// The latest panel with the engine's days (krx-quant #561): each predictor's last 20 days' up and down hit
+// rates and its state in place of the model version, which moves to the name's tooltip.
+enum BoardColumn {
+    kBoardName,
+    kBoardDirection,
+    kBoardUp,
+    kBoardFlat,
+    kBoardDown,
+    kBoardTicks,
+    kBoardRecentUp,
+    kBoardRecentDown,
+    kBoardStatus,
+    kBoardColumns
+};
 // The table while a bar close is pinned (krx-quant #107).
 enum PinnedColumn {
     kPinnedName,
@@ -434,10 +448,24 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
             window->show_failure(reason);
     });
     connect(live_, &services::KrxLive::algorithms_changed, this, [this]() {
-        for (auto it = stats_windows_.cbegin(); it != stats_windows_.cend(); ++it)
+        const auto states = krx_quant::state_rows(live_->algorithms(), live_->kinds());
+        for (auto it = stats_windows_.cbegin(); it != stats_windows_.cend(); ++it) {
             it.value()->show_about(about_of(it.key()), about_failure(it.key()));
+            it.value()->show_states(states); // every algorithm's state (krx-quant #561)
+        }
         if (const auto kind = live_->kind_info(); kind && krx_quant::is_daily(*kind))
             kind_title(); // whether only its baselines run (krx-quant #310)
+        else if (live_->kind() == QLatin1String(krx_quant::kDirectionKind) && !live_->pinned().isValid())
+            fill_predictions(); // the panel's states (krx-quant #561)
+    });
+    connect(live_, &services::KrxLive::days_changed, this, [this](const QString& kind) {
+        // The predictors day by day (krx-quant #561): the panel's hit rates, and the windows of that kind.
+        if (kind == QLatin1String(krx_quant::kDirectionKind) &&
+            live_->kind() == QLatin1String(krx_quant::kDirectionKind) && !live_->pinned().isValid())
+            fill_predictions();
+        for (auto it = stats_windows_.cbegin(); it != stats_windows_.cend(); ++it)
+            if (live_->kind_of(it.key()) == kind)
+                show_days(it.value(), it.key());
     });
     connect(live_, &services::KrxLive::kinds_changed, this, [this]() {
         show_kinds();
@@ -939,6 +967,8 @@ void KrxQuantScreen::kind_title() {
         std::optional<QStringList> algorithms;
         if (live_->algorithms_failure().isEmpty() && !live_->algorithms().isEmpty())
             algorithms = krx_quant::kind_algorithms(live_->algorithms(), kind->name);
+        // Those it lists but does not run, with their state (krx-quant #561).
+        const auto idle = krx_quant::idle_algorithms(live_->algorithms(), kind->name);
         const QString runs = krx_quant::daily_runs_text(*kind, algorithms);
         const auto show = [&](const QString& title, const QList<krx_quant::KindPrediction>& at_day) {
             panel_title->setText(runs.isEmpty() ? title : title + QStringLiteral(" · ") + runs);
@@ -949,7 +979,7 @@ void KrxQuantScreen::kind_title() {
                     answer = p.answer;
             if (const QString closes = krx_quant::daily_closes_text(answer); !closes.isEmpty())
                 tip << closes; // the window's sessions (krx-quant #310)
-            tip << krx_quant::daily_tip(*kind) << krx_quant::daily_runs_lines(*kind, algorithms);
+            tip << krx_quant::daily_tip(*kind) << krx_quant::daily_runs_lines(*kind, algorithms, idle);
             panel_title->setToolTip(tip.join('\n'));
         };
         if (live_->pinned().isValid()) { // the day pinned
@@ -1025,17 +1055,23 @@ void KrxQuantScreen::fill_predictions() {
         return fill_kind(); // another kind's panel (krx-quant #182)
     if (live_->pinned().isValid())
         return fill_pinned();
+    const krx_quant::Latest latest = live_->board().latest(live_->selected());
+    const auto held = live_->days().constFind(QLatin1String(krx_quant::kDirectionKind));
+    const auto days = held != live_->days().cend() ? std::optional(*held) : std::nullopt;
+    const auto rows = krx_quant::latest_rows(latest.predictions, live_->board().members(), live_->states(), days,
+                                             live_->days_served());
+    if (live_->days_served())
+        return fill_board(rows, days.has_value());
     predictions_table_->setColumnCount(kPredictionColumns);
     predictions_table_->setHorizontalHeaderLabels(
         {tr("예측"), tr("방향"), tr("상승"), tr("보합"), tr("하락"), tr("기대 틱"), tr("모델")});
     predictions_table_->setRowCount(0);
-    const krx_quant::Latest latest = live_->board().latest(live_->selected());
-    for (const auto& p : latest.predictions) {
+    for (const auto& r : rows) { // an engine before krx-quant #561: as before
+        const krx_quant::Prediction& p = r.prediction;
         const int row = predictions_table_->rowCount();
         predictions_table_->insertRow(row);
-        auto* name = cell(krx_quant::predictor_label(p.algorithm));
-        if (live_->board().members().contains(p.algorithm))
-            name->setToolTip(tr("정식: 합의에 들어간다"));
+        auto* name = cell(r.name);
+        name->setToolTip(r.name_tip);
         predictions_table_->setItem(row, kPredictor, name);
         predictions_table_->setItem(row, kDirection, direction_cell(p));
         predictions_table_->setItem(row, kUp, cell(krx_percent(p.p_up), kNumber));
@@ -1051,6 +1087,62 @@ void KrxQuantScreen::fill_predictions() {
                 predictions_table_->item(row, c)->setFont(font);
             }
         }
+    }
+    update_panel_title();
+}
+
+void KrxQuantScreen::fill_board(const QList<krx_quant::LatestRow>& rows, bool days_read) {
+    predictions_table_->setColumnCount(kBoardColumns);
+    predictions_table_->setHorizontalHeaderLabels({tr("예측"), tr("방향"), tr("상승"), tr("보합"), tr("하락"),
+                                                   tr("기대 틱"), tr("▲ 20일"), tr("▼ 20일"), tr("상태")});
+    // What the hit rates count, and why there are none while the days are not read (krx-quant #561).
+    const QString failure = live_->days_failure(QString::fromLatin1(krx_quant::kDirectionKind));
+    for (const auto& [column, klass] : {std::pair{kBoardRecentUp, "up"}, std::pair{kBoardRecentDown, "down"}}) {
+        QString tip = krx_quant::recent_header_tip(QString::fromLatin1(klass));
+        if (!failure.isEmpty())
+            tip += tr("\n엔진에서 날짜별 성적을 읽지 못했습니다: %1").arg(failure);
+        else if (!days_read)
+            tip += tr("\n날짜별 성적을 읽는 중이다.");
+        predictions_table_->horizontalHeaderItem(column)->setToolTip(tip);
+    }
+    predictions_table_->horizontalHeaderItem(kBoardStatus)
+        ->setToolTip(tr("알고리즘의 지금 상태다. 정식만 합의에 들어간다. '하락'은 정식인 알고리즘의 최근 날들에서 "
+                        "기준 예측 대비 가장 약한 lift가 0 이하라는 엔진의 표시이고, 상태는 바꾸지 않는다."));
+    predictions_table_->setRowCount(0);
+    for (const auto& r : rows) {
+        const krx_quant::Prediction& p = r.prediction;
+        const int row = predictions_table_->rowCount();
+        predictions_table_->insertRow(row);
+        auto* name = cell(r.name);
+        name->setToolTip(r.name_tip); // the model version is here now
+        predictions_table_->setItem(row, kBoardName, name);
+        auto* status = cell(r.status);
+        status->setToolTip(r.status_tip);
+        predictions_table_->setItem(row, kBoardStatus, status);
+        predictions_table_->setItem(row, kBoardDirection, direction_cell(p));
+        predictions_table_->setItem(row, kBoardUp, cell(krx_percent(p.p_up), kNumber));
+        predictions_table_->setItem(row, kBoardFlat, cell(krx_percent(p.p_flat), kNumber));
+        predictions_table_->setItem(row, kBoardDown, cell(krx_percent(p.p_down), kNumber));
+        const QString ticks = p.expected_ticks ? QString::number(*p.expected_ticks, 'f', 1) : QString();
+        predictions_table_->setItem(row, kBoardTicks, cell(ticks, kNumber));
+        auto* up = cell(r.up.text, kNumber);
+        up->setToolTip(r.up.tip);
+        predictions_table_->setItem(row, kBoardRecentUp, up);
+        auto* down = cell(r.down.text, kNumber);
+        down->setToolTip(r.down.tip);
+        predictions_table_->setItem(row, kBoardRecentDown, down);
+        for (int c = 0; c < kBoardColumns; ++c) {
+            QTableWidgetItem* item = predictions_table_->item(row, c);
+            if (r.dimmed) // neither a consensus nor a member: everything else, dimmed
+                item->setForeground(QColor(ui::colors::TEXT_DIM()));
+            if (r.consensus) {
+                QFont font = item->font();
+                font.setBold(true);
+                item->setFont(font);
+            }
+        }
+        if (r.decay && !r.dimmed)
+            status->setForeground(QColor(ui::colors::WARNING()));
     }
     update_panel_title();
 }
@@ -1345,7 +1437,18 @@ void KrxQuantScreen::open_detail(const QString& algorithm) {
     }
     window->open(algorithm);
     window->show_about(about_of(algorithm), about_failure(algorithm)); // as last read; read again with its stats
+    window->show_states(krx_quant::state_rows(live_->algorithms(), live_->kinds()));
+    show_days(window, algorithm); // as last read; its kind's are read again as it opens
     live_->set_details(stats_windows_.keys());
+}
+
+void KrxQuantScreen::show_days(KrxStatsWindow* window, const QString& predictor) {
+    const QString kind = live_->kind_of(predictor);
+    const auto held = live_->days().constFind(kind);
+    window->show_days(held != live_->days().cend() ? std::optional(*held) : std::nullopt, live_->days_served(),
+                      live_->days_failure(kind),
+                      kind == QLatin1String(krx_quant::kDirectionKind) ? std::nullopt
+                                                                       : krx_quant::kind_named(live_->kinds(), kind));
 }
 
 void KrxQuantScreen::open_bar(const QDateTime& bar_close) {

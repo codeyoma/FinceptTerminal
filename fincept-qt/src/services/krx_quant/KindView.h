@@ -197,15 +197,22 @@ QString daily_window_text(const QList<KindPrediction>& at_day, const KindInfo& k
 /// has none of; empty without them (a one-day kind, no answer yet, no candle).
 QString daily_closes_text(const std::optional<KindAnswer>& answer);
 
-/// The algorithms of the kind named ``kind`` among GET /v1/algorithms' (``algorithms``), by name.
+/// The algorithms of the kind named ``kind`` among GET /v1/algorithms' (``algorithms``) the engine
+/// predicts with, by name: since krx-quant #561 it lists every registered one with its state, and those
+/// waiting for or refused by their pre-validation (held, awaiting, retired) are left out here; an older
+/// engine listed only the ones it ran.
 QStringList kind_algorithms(const QMap<QString, AlgorithmInfo>& algorithms, const QString& kind);
+/// Those of the kind it lists but does not predict with (krx-quant #561), by name; none from an older engine.
+QList<AlgorithmInfo> idle_algorithms(const QMap<QString, AlgorithmInfo>& algorithms, const QString& kind);
 
 /// What of a daily kind runs (krx-quant #310), as the engine tells it: why it is not run yet
 /// (``daily.awaiting``), that only its baselines predict when ``algorithms`` (kind_algorithms, none
-/// when not read) has none of it — an algorithm refused by its pre-validation is not listed, and
-/// the engine gives no reason for one — and why its algorithms are held out of probation
-/// (``daily.review_hold``). One line each; empty when its algorithms run, or nothing is known.
-QStringList daily_runs_lines(const KindInfo& kind, const std::optional<QStringList>& algorithms);
+/// when not read) has none of it — with the ones it lists but does not run (``idle``, krx-quant #561:
+/// idle_algorithms) and their state; from an older engine, which lists none of those, that one refused
+/// is not listed — and why its algorithms are held out of probation (``daily.review_hold``). One line
+/// each; empty when its algorithms run, or nothing is known.
+QStringList daily_runs_lines(const KindInfo& kind, const std::optional<QStringList>& algorithms,
+                             const QList<AlgorithmInfo>& idle = {});
 
 /// The short of it for the panel's title: "기준 예측만" when only the baselines predict, "돌지 않음"
 /// when the kind is not run yet; empty otherwise.

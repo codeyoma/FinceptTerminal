@@ -298,6 +298,46 @@ struct CloseRow {
 QList<CloseRow> close_rows(const QList<Prediction>& predictions, const QMap<QString, QString>& statuses,
                            const QStringList& selection = {});
 
+/// A predictor's hit rate of one class over the last reviewed days (krx-quant #561), as the latest
+/// panel's cell shows it: "43% (+5%p)", its precision and how far above or below the climate
+/// baseline's on the same days; its tooltip the calls and hits of both. Empty without its days;
+/// "—" without a call.
+struct RecentCell {
+    QString text;
+    QString tip;
+};
+
+/// A row of the latest predictions' panel (krx-quant #561).
+struct LatestRow {
+    Prediction prediction;
+    QString name; ///< as the screen names it (predictor_label)
+    bool consensus = false;
+    bool baseline = false;
+    bool member = false; ///< in the consensus now: active
+    bool dimmed = false; ///< neither a consensus nor a member
+    /// Its state in Korean ("정식", "수습", …), "정식 · 하락" with its decay flag; empty for a consensus
+    /// or a baseline.
+    QString status;
+    bool decay = false; ///< an active algorithm's decay flag is up
+    QString status_tip; ///< what the decay flag found; empty without it
+    QString name_tip;   ///< its model version, and that a member is in the consensus
+    RecentCell up;
+    RecentCell down;
+};
+
+/// The latest predictions' panel, from ``predictions`` in the screen's order (in_screen_order). With
+/// the engine's days (``served``, krx-quant #561): the consensuses, the members (the active algorithms of
+/// ``states``, and those ``members`` names: GET /v1/consensus), the other algorithms, then the baselines,
+/// the last two dimmed; each algorithm with
+/// its state (``states``, KrxLive::states) and decay flag, and each predictor with its up and down hit
+/// rates over ``days`` (the direction's) against the climate baseline. Without them (an engine before
+/// #561), as before: in their order, none dimmed, no state or hit rate, a member's tooltip alone.
+QList<LatestRow> latest_rows(const QList<Prediction>& predictions, const QStringList& members,
+                             const QMap<QString, QString>& states, const std::optional<LeaderboardDays>& days,
+                             bool served);
+/// A hit rate column's header tooltip (``klass``: "up" or "down"): what it counts and against what.
+QString recent_header_tip(const QString& klass);
+
 /// The logical range (bar indexes) a fitted chart of ``bars`` bars shows: the last
 /// kFitBars, and kRightOffset free after them.
 std::pair<double, double> fit_range(int bars);

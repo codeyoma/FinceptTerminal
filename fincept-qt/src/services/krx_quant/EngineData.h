@@ -1240,6 +1240,21 @@ struct Simulation {
     QString why;         ///< why it could not be simulated; empty when it was
 };
 
+/// Where an algorithm stands in pre-validation (krx-quant #24, #561: GET /v1/algorithms' ``prevalidation``).
+struct Prevalidation {
+    /// The latest report's refusal of the code, answer version and inputs the engine has now.
+    struct Refusal {
+        QDateTime at;                      ///< when the report ran
+        QString code;                      ///< the code digest it judged
+        std::optional<int> target_version; ///< the answer version it judged
+        QStringList checks;                ///< the checks failed, in the report's order ("days", "stats", …)
+        QString why;                       ///< "검사: 내용" for each, joined by "; " (the engine's text, in English)
+    };
+    bool exempt = false;            ///< registered before pre-validation (newton, gauss, …): it runs without a report
+    std::optional<int> queue;       ///< a waiting bar-close algorithm's place in the nightly order (1: next)
+    std::optional<Refusal> refused; ///< none unless refused
+};
+
 /// One algorithm of GET /v1/algorithms (krx-quant #163): its card, inputs, the model it
 /// runs now and its status with the history. Empty where the engine leaves a value out.
 struct AlgorithmInfo {
@@ -1265,11 +1280,116 @@ struct AlgorithmInfo {
     QString status;
     QDateTime since;
     QList<StatusRecord> history; ///< oldest first
+    /// Where it stands (krx-quant #561, the engine's ``state``): its status when the engine runs it
+    /// ("probation", "active", "bench", "clone", "retired"), else why not: "waiting" (for pre-validation),
+    /// "refused" (by it), "held" (passed, but its daily kind's reviews are not fixed yet), "awaiting" (its
+    /// daily kind waits for a probe). Empty from an older engine, which lists only the algorithms it runs.
+    QString state{};
+    std::optional<Prevalidation> prevalidation{}; ///< none from an older engine (krx-quant #561)
+    /// Its place in the engine's list, the registration order (the direction's, other kinds', the daily
+    /// kinds'); -1 for a baseline or the consensus.
+    int order = -1;
 };
+
+/// Whether ``state`` (AlgorithmInfo::state, krx-quant #561) is one the engine predicts with: active,
+/// probation, bench or clone. Not retired, waiting, refused, held or awaiting.
+bool predicts(const QString& state);
+/// An algorithm's state now (krx-quant #561): the engine's ``state``, or its status from an older engine.
+QString state_of(const AlgorithmInfo& info);
 
 /// Every algorithm of GET /v1/algorithms, by name, and the baselines' and the consensus'
 /// cards beside them (krx-quant #164: only a card, no model or status).
 Result<QMap<QString, AlgorithmInfo>> parse_algorithms(const QJsonDocument& doc);
+
+/// A class's precision on one day (GET /v1/leaderboard/days, krx-quant #561): how often it was called,
+/// and of those how often it happened; none without a call.
+struct DayPrecision {
+    int n = 0;
+    std::optional<double> value;
+};
+
+/// A predictor's scored predictions of one day (krx-quant #561), the symbols pooled and the special
+/// situations left out, as the leaderboard counts them.
+struct DayStats {
+    QString day;            ///< "YYYY-MM-DD"
+    QString status;         ///< its status at that day's close; empty for a baseline or a consensus
+    bool simulated = false; ///< the day's values are its simulated probation's (krx-quant #298)
+    int n = 0;
+    std::optional<double> accuracy;        ///< its likeliest class right (a tie the middle class, then the first)
+    std::optional<double> coverage;        ///< the share calling an action class (the direction's up and down)
+    QMap<QString, DayPrecision> precision; ///< by class ("up", "flat", "down")
+    /// Its accuracy less the climate baseline's on the same symbols and bar closes, and how many such
+    /// pairs; none for the climate baseline itself, a day without pairs or an engine without it.
+    std::optional<double> lift;
+    int lift_n = 0;
+    std::optional<double> log_loss; ///< −ln p(the class that happened), the mean
+};
+
+/// The decay flag of an active algorithm (krx-quant #561, the engine's ``decay``): the weakest lift over a
+/// baseline across its days as active, the last 20 at most, taken as the bench review takes it.
+struct Decay {
+    int days = 0;      ///< the active days counted
+    int rule_days = 0; ///< the active days from which on the bench review judges these days alone
+    QString baseline;  ///< the weakest lift's baseline; empty when a baseline had no pair
+    int n = 0;         ///< its pairs
+    std::optional<double> value;
+    bool enough = false;  ///< enough scored predictions and pairs (``min_sample``)
+    bool flagged = false; ///< enough, and the weakest lift at most 0
+};
+
+/// One predictor's days (krx-quant #561).
+struct PredictorDays {
+    QString algorithm;
+    QString status;             ///< now; empty for a baseline, a consensus or an algorithm that never ran
+    std::optional<Decay> decay; ///< an active algorithm's only
+    QList<DayStats> days;       ///< oldest first, the days it has scored predictions on
+};
+
+/// One member against the final consensus on a day (krx-quant #561): on the bar closes both predicted.
+struct MemberVs {
+    QString member;
+    int n = 0;
+    std::optional<double> accuracy;  ///< the member's
+    std::optional<double> consensus; ///< the consensus's on the same bar closes
+    std::optional<double> lift;      ///< consensus − member
+};
+
+/// The final consensus beside its members on a day (krx-quant #561, the direction's ``members``).
+struct MembersDay {
+    QString day;
+    QString consensus;   ///< "consensus-final"
+    QStringList members; ///< active at that day's close, in registration order
+    int n = 0;
+    std::optional<double> accuracy;
+    QList<MemberVs> vs; ///< in members' order, those that predicted with it
+    QString best;       ///< the member it led least (the weakest lift); empty without one
+    std::optional<double> lift;
+};
+
+/// The reviewed days the screen reads of GET /v1/leaderboard/days (krx-quant #561): the latest panel's
+/// hit rates and the detail windows' day series.
+inline constexpr int kRecentDays = 20;
+
+/// GET /v1/leaderboard/days?kind=&limit= (krx-quant #561): a kind's predictors day by day.
+struct LeaderboardDays {
+    QString kind = QStringLiteral("direction");
+    QStringList days; ///< oldest first: the reviewed days with that kind's predictions
+    QString climate;  ///< the climate baseline the lifts are over ("baseline-climate", "range-climate", …)
+    int min_sample = 0;
+    QList<PredictorDays> algorithms; ///< registration order, then other names that predicted, by name
+    QList<PredictorDays> baselines;  ///< by name
+    QList<PredictorDays> consensus;  ///< the direction's two; empty for another kind
+    QList<MembersDay> members;       ///< the direction's; empty for another kind
+
+    /// The predictor's days among the three lists; none when the answer does not list it.
+    const PredictorDays* of(const QString& predictor) const;
+};
+
+Result<LeaderboardDays> parse_leaderboard_days(const QJsonDocument& doc);
+
+/// ``predictor``'s precision of ``klass`` pooled over its days (krx-quant #561): its calls of it summed
+/// and the share that happened; with ``only``, those days alone. None without a call.
+DayPrecision pooled_precision(const PredictorDays& predictor, const QString& klass, const QStringList& only = {});
 /// GET /v1/consensus: its members, the active algorithms.
 Result<QStringList> parse_members(const QJsonDocument& doc);
 
@@ -2039,7 +2159,8 @@ QString status_label(const QString& status);
 QString special_label(const QString& kind);
 /// The day's macro regime in Korean; an unknown one as it is.
 QString regime_label(const QString& regime);
-/// An algorithm's status in Korean ("probation", "active", …); empty for none.
+/// An algorithm's status in Korean ("probation", "active", …), also a state it is not run in (krx-quant
+/// #561: "waiting", "refused", "held", "awaiting"); empty for none.
 QString standing_label(const QString& status);
 /// Why last night's training runs or not, in Korean where the engine's reason is known; an
 /// unknown one as it is.

@@ -113,6 +113,7 @@ void KrxQuantService::rebind() {
     next_close_.reset();
     stats_reads_.clear();
     bar_reads_.clear();
+    days_reads_.clear();
     if (const QString url = base_url(); url != url_) {
         url_ = url;
         emit base_url_changed(url_);
@@ -437,6 +438,25 @@ void KrxQuantService::read_stats(const QString& algorithm, const LeaderboardQuer
         if (stats.is_err())
             return emit stats_failed(algorithm, why(stats.error()));
         emit stats_ready(stats.value());
+    });
+}
+
+void KrxQuantService::read_days(const QString& kind, int limit) {
+    if (url_.isEmpty() || days_reads_.contains(kind))
+        return;
+    days_reads_.insert(kind);
+    const QString path = QStringLiteral("/v1/leaderboard/days?kind=%1&limit=%2")
+                             .arg(QString::fromUtf8(QUrl::toPercentEncoding(kind)))
+                             .arg(limit);
+    get(path, [this, kind](Result<QJsonDocument> answer) {
+        days_reads_.remove(kind);
+        // An engine before krx-quant #561 has no such answer: the screen shows what it showed before.
+        if (answer.is_err() && HttpClient::status_from_error(answer.error()) == 404)
+            return emit days_ready(kind, {}, false);
+        auto days = parsed(answer, krx_quant::parse_leaderboard_days);
+        if (days.is_err())
+            return emit days_failed(kind, why(days.error()));
+        emit days_ready(kind, days.value(), true);
     });
 }
 

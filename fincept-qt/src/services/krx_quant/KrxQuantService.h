@@ -9,6 +9,7 @@
 #include <QList>
 #include <QMap>
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 
@@ -126,6 +127,12 @@ class KrxQuantService : public QObject {
     /// status history; krx-quant #163): algorithms_ready or algorithms_failed. Asked again
     /// while one is read, it is not read.
     void read_algorithms();
+    /// A kind's predictors day by day over the last ``limit`` reviewed days (GET /v1/leaderboard/days,
+    /// krx-quant #561): days_ready, with ``served`` false and nothing from an engine without the answer
+    /// (404, before #561), or days_failed. The engine works out a day once and keeps it, so only the
+    /// first read after its start is slow (some seconds). Each kind's on its own; asked again while that
+    /// kind's is read, it is not read: KrxLive asks again on its next round.
+    void read_days(const QString& kind, int limit);
     /// The kinds of prediction the engine makes (GET /v1/kinds, krx-quant #179, #182):
     /// kinds_ready or kinds_failed (an engine before #179 has no such answer). Asked again while
     /// one is read, it is not read.
@@ -254,6 +261,8 @@ class KrxQuantService : public QObject {
     void macro_failed(const QString& reason);
     void algorithms_ready(const QMap<QString, fincept::krx_quant::AlgorithmInfo>& algorithms);
     void algorithms_failed(const QString& reason);
+    void days_ready(const QString& kind, const fincept::krx_quant::LeaderboardDays& days, bool served);
+    void days_failed(const QString& kind, const QString& reason);
     void kinds_ready(const QList<fincept::krx_quant::KindInfo>& kinds);
     void kinds_failed(const QString& reason);
     void kind_latest_ready(const fincept::krx_quant::KindLatest& latest);
@@ -380,6 +389,7 @@ class KrxQuantService : public QObject {
         QStringList kinds;
     };
     QHash<QString, BarReadAsked> bar_reads_; ///< by krx_quant::bar_key
+    QSet<QString> days_reads_;               ///< the kinds whose days are read (krx-quant #561)
     QString url_;                            ///< the address of the reads under way, or of the last ones
 };
 
