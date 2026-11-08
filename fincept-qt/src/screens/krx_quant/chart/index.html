@@ -160,11 +160,13 @@
     return { paneViews: () => [view], updateAllViews() {} };
   }
 
-  // The special situations (krx-quant #236): each VI, circuit breaker or sidecar a faint band from
+  // The special situations (krx-quant #236): each VI, circuit breaker, sidecar or market halt
+  // (krx-quant #625), and a kind the screen does not know yet, a faint band from
   // where it started to where it ended (bar positions on the bars drawn, the empty bars' slots among
   // them), the whole height of each pane it is attached to, behind the bars; ``labelled`` (the price
-  // pane) writes its name at the top, below the legend where they would meet. As the screen sends
-  // them: [{from, to, label, fill, color}].
+  // pane) writes its name at the top, below the legend where they would meet, and a line lower where
+  // an earlier band's name is (codeyoma/krx-quant#638: a market halt starts with its circuit breaker).
+  // As the screen sends them: [{from, to, label, fill, color}].
   let specialBands = [];
   function specialPrimitive(labelled) {
     const renderer = {
@@ -177,6 +179,7 @@
           const legend = legendBoxes.length ? legendBoxes[0] : null;
           const legendRight = legend && legend.childElementCount ? legend.offsetLeft + legend.offsetWidth : 0;
           const legendFoot = legend ? legend.offsetTop + legend.offsetHeight : 0;
+          const placed = []; // the names written: [left, right, top]
           for (const band of specialBands) {
             const a = logicalX(band.from), b = logicalX(band.to);
             if (a === null || b === null || b < 0 || a > size.width) continue;
@@ -188,7 +191,11 @@
             g.fillStyle = band.color;
             g.textAlign = 'left';
             g.textBaseline = 'top';
-            g.fillText(band.label, x, x < legendRight + 6 ? legendFoot + 4 : 4);
+            const right = x + g.measureText(band.label).width;
+            let y = x < legendRight + 6 ? legendFoot + 4 : 4;
+            while (placed.some((p) => p[2] === y && x < p[1] + 4 && right + 4 > p[0])) y += px + 3;
+            placed.push([x, right, y]);
+            g.fillText(band.label, x, y);
           }
         });
       },
@@ -2139,6 +2146,9 @@
       return range ? range.to - (bars.length - 1) : null;
     },
     hovered: function () { return hovered ? [hovered.time, hoverAt.has(hovered.time)] : null; },
+    // The special situations' bands as the screen sent them: each one's label and colour
+    // (codeyoma/krx-quant#638: a market halt apart from a circuit breaker).
+    specials: function () { return specialBands.map((b) => [b.label, b.color]); },
     // The price pane legend's prices (krx-quant #285): each field's text and its change's colour
     // (up, down, flat; '' without one); none while there are no bars.
     prices: function () {

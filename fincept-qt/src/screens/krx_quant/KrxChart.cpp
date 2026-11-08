@@ -87,12 +87,16 @@ QString box_json(const krx_quant::BarHover& h) {
     return compact(box);
 }
 
-/// A special situation's colour (krx-quant #236): a circuit breaker red, a sidecar yellow, a VI blue.
+/// A special situation's colour (krx-quant #236): a circuit breaker red, a sidecar yellow, a VI blue,
+/// a market halt violet (krx-quant #625: apart from the breaker it often comes with; the theme has no
+/// fourth colour). A kind the screen does not know yet is drawn as a VI is.
 QColor special_color(const QString& kind) {
     if (kind == QLatin1String("circuit_breaker"))
         return QColor(ui::colors::NEGATIVE());
     if (kind == QLatin1String("sidecar"))
         return QColor(ui::colors::WARNING());
+    if (kind == QLatin1String("market_halt"))
+        return QColor(QStringLiteral("#a855f7"));
     return QColor(ui::colors::INFO());
 }
 

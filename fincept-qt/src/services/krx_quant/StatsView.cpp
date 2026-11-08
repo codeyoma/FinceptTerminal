@@ -124,6 +124,7 @@ QList<CalibrationSeries> calibration_series(const AlgorithmStats& stats, const s
 
 QString excluded_text(const Excluded& excluded, const QString& special) {
     static const QMap<QString, QString> kStatus = {{"vi", QStringLiteral("VI")},
+                                                   {"halt", QStringLiteral("시장 정지")}, // krx-quant #625
                                                    {"no_book", QStringLiteral("호가 없음")},
                                                    {"timed_out", QStringLiteral("시간 초과")},
                                                    {"error", QStringLiteral("오류")},

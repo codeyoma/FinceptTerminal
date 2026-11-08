@@ -75,15 +75,20 @@ LiveSlots append_live_slots(QList<ChartBar>& slotted, const ChartBar& live, int 
 
 /// A special situation as the chart names it: a circuit breaker with its stage ("서킷브레이커 1단계"),
 /// "사이드카", a VI by its kind as KIS reports it (static "정적 VI", dynamic "동적 VI", both "정적·동적
-/// VI"; "VI" without one). Another detail follows the name as it is.
+/// VI"; "VI" without one), a market halt with its phase ("시장 매매 정지 (단일가 단계)", krx-quant #625).
+/// Another detail follows the name as it is; an unknown kind is named as the engine sends it.
 QString special_title(const SpecialWindow& window);
+
+/// A special situation's name on its band: special_title, but a market halt by its name alone
+/// ("시장 매매 정지", krx-quant #625), its phase in the hover lines.
+QString special_band_label(const SpecialWindow& window);
 
 /// A special situation's band over a minute view.
 struct SpecialBand {
-    QString kind;    ///< "circuit_breaker", "sidecar" or "vi"
+    QString kind;    ///< "circuit_breaker", "sidecar", "vi", "market_halt" or one the screen does not know yet
     double from = 0; ///< where its start lies, a bar position on the bars drawn (ChartDrawings' logical_at)
     double to = 0;   ///< where its end lies
-    QString label;   ///< special_title
+    QString label;   ///< special_band_label
     bool operator==(const SpecialBand&) const = default;
 };
 

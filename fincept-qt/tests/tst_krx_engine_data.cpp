@@ -705,6 +705,11 @@ class TstKrxEngineData : public QObject {
         QCOMPARE(status_label("timed_out"), QStringLiteral("시간 초과"));
         QCOMPARE(status_label("no_previous"), QStringLiteral("직전 창 없음")); // krx-quant #255
         QCOMPARE(special_label("sidecar"), QStringLiteral("사이드카"));
+        // The whole market halted (codeyoma/krx-quant#638, the engine's #625): said so, not as a failure;
+        // a kind the screen does not know yet as the engine sends it.
+        QCOMPARE(status_label("halt"), QStringLiteral("시장 정지 중"));
+        QCOMPARE(special_label("market_halt"), QStringLiteral("시장 매매 정지"));
+        QCOMPARE(special_label("something_new"), QStringLiteral("something_new"));
     }
 
     void the_status_names_the_engine_s_code_and_when_it_started() {
