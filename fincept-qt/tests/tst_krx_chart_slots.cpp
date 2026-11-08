@@ -283,6 +283,22 @@ class TstKrxChartSlots : public QObject {
         QCOMPARE(special_title(window("circuit_breaker", "2026-10-15T13:10:00+09:00", "2026-10-15T13:30:00+09:00",
                                       QStringLiteral("3단계"))),
                  QStringLiteral("서킷브레이커 3단계"));
+        // A market halt (codeyoma/krx-quant#638) with its phase; its band by its name alone. A kind
+        // not known yet keeps the engine's name.
+        const auto halt = [](const char* detail) {
+            return window("market_halt", "2026-11-06T09:03:32+09:00", "2026-11-06T09:35:00+09:00",
+                          QString::fromUtf8(detail));
+        };
+        QCOMPARE(special_title(halt("정지")), QStringLiteral("시장 매매 정지 (정지 단계)"));
+        QCOMPARE(special_title(halt("단일가")), QStringLiteral("시장 매매 정지 (단일가 단계)"));
+        QCOMPARE(special_title(halt("재개")), QStringLiteral("시장 매매 정지 (재개 단계)"));
+        QCOMPARE(special_title(halt("")), QStringLiteral("시장 매매 정지"));
+        QCOMPARE(special_band_label(halt("단일가")), QStringLiteral("시장 매매 정지"));
+        QCOMPARE(special_band_label(window("circuit_breaker", "2026-10-15T13:10:00+09:00", "2026-10-15T13:30:00+09:00",
+                                           QStringLiteral("1단계"))),
+                 QStringLiteral("서킷브레이커 1단계"));
+        QCOMPARE(special_title(window("something_new", "2026-10-15T13:10:00+09:00", "2026-10-15T13:15:00+09:00")),
+                 QStringLiteral("something_new"));
     }
 
     void the_bands_cover_their_slots() {

@@ -55,6 +55,9 @@
 // consensus's icon and the trader's there, a bullish one's ▲ under the bar, hollow (▽ △) for those worked out
 // again, in a colour of their own, each event's line in its bar's box; none while off or in a wider view.
 //
+// A market halt (codeyoma/krx-quant#638) has a band of its own colour, apart from a circuit breaker's,
+// named 시장 매매 정지 with its phase in the hover box; a kind the screen does not know yet is drawn too.
+//
 // The page runs in Qt WebEngine with TradingView Lightweight Charts, so this suite opens a
 // window. It is skipped where the WebEngine runtime is missing or the platform draws nothing
 // (offscreen).
@@ -723,6 +726,49 @@ class TstKrxChartPage : public QObject {
         hover_at(chart_time(kst("2026-10-15T13:27:00+09:00")));
         QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.tip()").toString(),
                                   QStringLiteral("서킷브레이커 1단계 13:10–13:30"), 10000);
+    }
+
+    void a_market_halt_has_its_own_band() {
+        // The whole market halted (codeyoma/krx-quant#638, the engine's #625) during a circuit breaker:
+        // its band violet, apart from the breaker's red, named 시장 매매 정지 alone; its phase in the hover
+        // box. A kind the screen does not know yet is still drawn, by the name the engine sends.
+        empty();
+        const QList<Bar> before = minutes("2026-10-15T12:30:00+09:00", 40);
+        const QList<Bar> after = minutes("2026-10-15T13:40:00+09:00", 20);
+        const QList<SpecialWindow> windows = {
+            SpecialWindow{"circuit_breaker",
+                          {},
+                          kst("2026-10-15T13:10:00+09:00"),
+                          kst("2026-10-15T13:30:00+09:00"),
+                          QStringLiteral("1단계")},
+            SpecialWindow{"market_halt",
+                          {},
+                          kst("2026-10-15T13:10:00+09:00"),
+                          kst("2026-10-15T13:41:00+09:00"),
+                          QStringLiteral("단일가")},
+            SpecialWindow{"something_new", {}, kst("2026-10-15T13:50:00+09:00"), kst("2026-10-15T13:52:00+09:00"), {}},
+        };
+        chart_->set_data(before + after, {}, {}, {}, 1, {}, windows);
+        QTRY_COMPARE_WITH_TIMEOUT(slots_drawn(), (std::pair{90, 30}), 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(range_ && range_->second == chart_time(kst("2026-10-15T13:59:00+09:00")), 10000);
+        QTRY_COMPARE_WITH_TIMEOUT(js("window.krxChart.specials().length").toInt(), 3, 10000);
+        const QVariantList specials = js("window.krxChart.specials()").toList();
+        const auto band = [&](int i) { return specials[i].toList(); };
+        QCOMPARE(band(0)[0].toString(), QStringLiteral("서킷브레이커 1단계"));
+        QCOMPARE(band(1)[0].toString(), QStringLiteral("시장 매매 정지"));
+        QCOMPARE(band(1)[1].toString(), QStringLiteral("rgba(168,85,247,0.9)"));
+        QVERIFY(band(1)[1] != band(0)[1]);
+        QCOMPARE(band(2)[0].toString(), QStringLiteral("something_new"));
+        // Hovered again until the box shows: the page's first pointer of a run can come before the
+        // chart follows moves.
+        const auto tip = [&] {
+            hover_at(chart_time(kst("2026-10-15T13:20:00+09:00")));
+            return js("window.krxChart.tip()").toString();
+        };
+        QTRY_COMPARE_WITH_TIMEOUT(tip(),
+                                  QStringLiteral("13:20–13:21 · 체결 없음\n서킷브레이커 1단계 13:10–13:30\n"
+                                                 "시장 매매 정지 (단일가 단계) 13:10–13:41"),
+                                  10000);
     }
 
     void a_bar_clicked_in_the_1_minute_view_tells_its_bar_close() {

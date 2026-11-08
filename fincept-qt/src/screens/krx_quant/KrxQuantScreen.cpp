@@ -692,8 +692,11 @@ void KrxQuantScreen::show_status() {
 
         QStringList windows;
         for (const auto& w : s.special) {
-            const QString who = w.symbol.isEmpty() ? tr("시장 전체") : w.symbol;
-            windows << QString("%1 %2 %3–%4")
+            // A market halt's name says the whole market itself (krx-quant #625): not "시장 전체 시장 매매 정지".
+            const QString who = !w.symbol.isEmpty()                      ? w.symbol + ' '
+                                : w.kind == QLatin1String("market_halt") ? QString()
+                                                                         : tr("시장 전체") + ' ';
+            windows << QString("%1%2 %3–%4")
                            .arg(who, krx_quant::special_label(w.kind), krx_quant::kst_text(w.start, "HH:mm:ss"),
                                 krx_quant::kst_text(w.end, "HH:mm:ss"));
         }

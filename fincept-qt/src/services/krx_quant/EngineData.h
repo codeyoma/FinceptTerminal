@@ -25,7 +25,7 @@ enum class Direction { Up, Flat, Down, None };
 /// A VI, circuit breaker or sidecar: known today (the status), or a symbol's over days (GET
 /// /v1/symbols/{symbol}/special, krx-quant #236).
 struct SpecialWindow {
-    QString kind;   ///< "vi", "circuit_breaker" or "sidecar"
+    QString kind;   ///< "vi", "circuit_breaker", "sidecar" or "market_halt" (krx-quant #625)
     QString symbol; ///< empty: the whole market
     QDateTime start;
     QDateTime end;
@@ -2060,7 +2060,7 @@ struct ClosingDay {
     std::optional<bool> agree; ///< none: the auction or what it is compared with did not move
     std::optional<double> next_gap_bp;
     std::optional<double> next_close_bp;
-    QStringList special; ///< "vi", "circuit_breaker", "sidecar"
+    QStringList special; ///< "vi", "circuit_breaker", "sidecar", "market_halt"
     /// Whose net assets the day's demand read (codeyoma/krx-quant#368): "krx", "kis", "krx+kis" when its
     /// products read both; empty without a demand, and from an engine before it.
     QString net_assets_source;
@@ -2161,7 +2161,8 @@ QString predictor_label(const QString& predictor);
 QString phase_label(const QString& phase);
 /// Why a prediction has no forecast, in Korean; empty for "ok".
 QString status_label(const QString& status);
-/// A special situation's kind in Korean ("vi", "circuit_breaker", "sidecar").
+/// A special situation's kind in Korean ("vi", "circuit_breaker", "sidecar", "market_halt"); an
+/// unknown one as it is.
 QString special_label(const QString& kind);
 /// The day's macro regime in Korean; an unknown one as it is.
 QString regime_label(const QString& regime);

@@ -273,6 +273,8 @@ class TstKrxStatsView : public QObject {
                  QStringLiteral("특수 상황 포함 2 · 제외: 채점 불가 1 · 시간 초과 3 · VI 4"));
         QCOMPARE(excluded_text(Excluded{2, 0, {}}, "include"), QStringLiteral("특수 상황 포함 2 · 제외 없음"));
         QCOMPARE(excluded_text(Excluded{}, "exclude"), QStringLiteral("제외 없음"));
+        // The market halt's (codeyoma/krx-quant#638).
+        QCOMPARE(excluded_text(Excluded{0, 0, {{"halt", 5}}}, "exclude"), QStringLiteral("제외: 시장 정지 5"));
     }
 
     void the_calibration_plot_has_a_point_per_bin_with_forecasts_in_it() {

@@ -119,7 +119,21 @@ QString special_title(const SpecialWindow& window) {
             return *it;
     }
     const QString name = special_label(window.kind);
-    return window.detail.isEmpty() ? name : name + ' ' + window.detail;
+    if (window.detail.isEmpty())
+        return name;
+    // A market halt's phase (krx-quant #625: 정지, 단일가, 재개), said as one: "시장 매매 정지 정지" reads
+    // as a typo.
+    if (window.kind == QLatin1String("market_halt"))
+        return QStringLiteral("%1 (%2 단계)").arg(name, window.detail);
+    return name + ' ' + window.detail;
+}
+
+QString special_band_label(const SpecialWindow& window) {
+    // A market halt's band by its name alone (krx-quant #625): its phase moves on while it lasts, the
+    // hover lines say it.
+    if (window.kind == QLatin1String("market_halt"))
+        return special_label(window.kind);
+    return special_title(window);
 }
 
 QList<SpecialBand> special_bands(const QList<ChartBar>& slotted, const QList<SpecialWindow>& windows, int minutes,
@@ -141,7 +155,7 @@ QList<SpecialBand> special_bands(const QList<ChartBar>& slotted, const QList<Spe
         const auto to = logical_at(slotted, end, minutes);
         if (!from || !to || *to - *from < 1e-6) // within a night between two days
             continue;
-        out << SpecialBand{w.kind, *from, *to, special_title(w)};
+        out << SpecialBand{w.kind, *from, *to, special_band_label(w)};
     }
     return out;
 }

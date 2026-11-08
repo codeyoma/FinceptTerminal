@@ -1430,6 +1430,8 @@ QString status_label(const QString& status) {
         {"timed_out", QStringLiteral("시간 초과")},
         {"error", QStringLiteral("오류")},
         {"vi", QStringLiteral("VI 중")},
+        // The whole market halted (krx-quant #625): not a failure, the engine waits for the reopening.
+        {"halt", QStringLiteral("시장 정지 중")},
         {"no_book", QStringLiteral("호가 없음")},
         {"no_members", QStringLiteral("합의 대상 없음")},
         {"none_finished", QStringLiteral("끝난 알고리즘 없음")},
@@ -1574,6 +1576,7 @@ QString special_label(const QString& kind) {
         {"vi", QStringLiteral("VI")},
         {"circuit_breaker", QStringLiteral("서킷브레이커")},
         {"sidecar", QStringLiteral("사이드카")},
+        {"market_halt", QStringLiteral("시장 매매 정지")}, // confirmed from KIS's fields (krx-quant #625)
     };
     return labels.value(kind, kind);
 }
