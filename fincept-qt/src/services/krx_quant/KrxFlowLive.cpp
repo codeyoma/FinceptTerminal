@@ -1,82 +1,77 @@
 #include "services/krx_quant/KrxFlowLive.h"
 
 #include "core/config/AppConfig.h"
+#include "services/krx_quant/EnginePoller.h"
 #include "services/krx_quant/FlowView.h"
 #include "services/krx_quant/KrxQuantService.h"
-
-#include <QTimer>
 
 #include <algorithm>
 
 namespace fincept::services {
 
-KrxFlowLive::KrxFlowLive(QObject* parent, std::function<QDateTime()> now)
-    : QObject(parent), now_(now ? std::move(now) : [] { return QDateTime::currentDateTime(); }) {
-    service_ = new KrxQuantService(this);
-    timer_ = new QTimer(this);
-    timer_->setSingleShot(true);
+KrxFlowLive::KrxFlowLive(QObject* parent, std::function<QDateTime()> now) : QObject(parent) {
+    poller_ = new EnginePoller(EnginePoller::Symbols::Required, this, std::move(now));
+    poller_->set_read([this] { read(); });
+    poller_->set_poll([this] { return krx_quant::flow::poll_ms(flow_, poller_->now()); });
     symbol_ = AppConfig::instance().get(kSymbolKey).toString();
-    connect(timer_, &QTimer::timeout, this, &KrxFlowLive::read);
-    connect(service_, &KrxQuantService::flow_ready, this,
+    connect(poller_, &EnginePoller::changed, this, &KrxFlowLive::changed);
+    auto* service = poller_->service();
+    connect(service, &KrxQuantService::flow_ready, this,
             [this](const QString& symbol, const QDate& day, const krx_quant::Flow& flow) {
                 reading_ = false;
                 if (symbol != symbol_ || day != day_) // asked for another since: read that one now
-                    return read_wanted();
+                    return poller_->read_now();
                 flow_ = flow;
-                failure_.clear();
-                answered_at_ = now_();
-                emit changed();
-                schedule();
+                poller_->answered();
             });
-    connect(service_, &KrxQuantService::flow_failed, this,
+    connect(service, &KrxQuantService::flow_failed, this,
             [this](const QString& symbol, const QDate& day, const QString& reason) {
                 reading_ = false;
                 if (symbol != symbol_ || day != day_)
-                    return read_wanted();
-                failure_ = reason;
-                emit changed();
-                schedule();
+                    return poller_->read_now();
+                poller_->failed(reason);
             });
-    connect(service_, &KrxQuantService::symbols_ready, this, [this](const QList<krx_quant::SymbolQuote>& symbols) {
-        symbols_ = symbols;
-        if (symbols_.isEmpty()) { // nothing to read: say so and ask again on schedule, not at once
-            failure_ = QStringLiteral("엔진이 예측하는 종목이 없습니다.");
-            emit changed();
-            schedule();
-            return;
-        }
-        const bool known = std::any_of(symbols_.begin(), symbols_.end(),
+    connect(poller_, &EnginePoller::symbols_ready, this, [this] {
+        const auto& symbols = poller_->symbols();
+        const bool known = std::any_of(symbols.begin(), symbols.end(),
                                        [this](const krx_quant::SymbolQuote& s) { return s.symbol == symbol_; });
-        if (!known && !symbols_.isEmpty()) { // none chosen yet, or one this engine does not predict
-            symbol_ = symbols_.first().symbol;
+        if (!known) { // none chosen yet, or one this engine does not predict
+            symbol_ = symbols.first().symbol;
             flow_.reset();
         }
-        emit changed();
-        if (running_ && !reading_)
-            read();
     });
-    connect(service_, &KrxQuantService::symbols_failed, this, [this](const QString& reason) {
-        failure_ = reason;
-        emit changed();
-        schedule();
-    });
-    connect(service_, &KrxQuantService::base_url_changed, this, [this] {
+    connect(poller_, &EnginePoller::engine_changed, this, [this] {
         flow_.reset();
-        symbols_.clear();
-        answered_at_ = {};
+        reading_ = false;
     });
 }
 
 void KrxFlowLive::start() {
-    if (running_)
-        return;
-    running_ = true;
-    read();
+    poller_->start();
 }
 
 void KrxFlowLive::stop() {
-    running_ = false;
-    timer_->stop();
+    poller_->stop();
+}
+
+bool KrxFlowLive::running() const {
+    return poller_->running();
+}
+
+void KrxFlowLive::run_while_shown(QObject* widget) {
+    poller_->run_while_shown(widget);
+}
+
+const QList<krx_quant::SymbolQuote>& KrxFlowLive::symbols() const {
+    return poller_->symbols();
+}
+
+const QString& KrxFlowLive::failure() const {
+    return poller_->failure();
+}
+
+const QDateTime& KrxFlowLive::answered_at() const {
+    return poller_->answered_at();
 }
 
 void KrxFlowLive::set_symbol(const QString& symbol) {
@@ -86,8 +81,8 @@ void KrxFlowLive::set_symbol(const QString& symbol) {
     AppConfig::instance().set(kSymbolKey, symbol);
     flow_.reset();
     emit changed();
-    if (running_ && !reading_) // a read under way is of the old symbol: its answer is dropped, this one read then
-        read();
+    if (!reading_) // a read under way is of the old symbol: its answer is dropped, this one read then
+        poller_->read_now();
 }
 
 void KrxFlowLive::set_day(const QDate& day) {
@@ -96,48 +91,22 @@ void KrxFlowLive::set_day(const QDate& day) {
     day_ = day;
     flow_.reset();
     emit changed();
-    if (running_ && !reading_)
-        read();
+    if (!reading_)
+        poller_->read_now();
 }
 
 void KrxFlowLive::read_now() {
-    if (running_)
-        read();
-}
-
-void KrxFlowLive::read_wanted() {
-    if (running_)
-        read();
+    poller_->read_now();
 }
 
 int KrxFlowLive::next_ms() const {
-    return running_ ? krx_quant::flow::poll_ms(flow_, now_()) : 0;
+    return poller_->next_ms();
 }
 
 void KrxFlowLive::read() {
-    timer_->stop();
-    if (KrxQuantService::base_url() != service_->url()) {
-        service_->rebind(); // what was under way is dropped
-        reading_ = false;
-    }
-    if (service_->url().isEmpty()) {
-        failure_ = QStringLiteral("엔진 주소가 없습니다. KRX 4분 예측 화면에서 엔진 주소를 넣으세요.");
-        emit changed();
-        schedule();
-        return;
-    }
-    if (symbols_.isEmpty()) { // the symbols first: which one to read, and their names
-        service_->read_symbol_list();
-        return;
-    }
     reading_ = true;
     emit changed();
-    service_->read_flow(symbol_, day_);
-}
-
-void KrxFlowLive::schedule() {
-    if (running_)
-        timer_->start(next_ms());
+    poller_->service()->read_flow(symbol_, day_);
 }
 
 } // namespace fincept::services

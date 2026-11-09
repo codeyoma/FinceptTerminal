@@ -1,61 +1,66 @@
 #include "services/krx_quant/KrxBriefingLive.h"
 
 #include "services/krx_quant/BriefingView.h"
+#include "services/krx_quant/EnginePoller.h"
 #include "services/krx_quant/KrxQuantService.h"
-
-#include <QTimer>
 
 namespace fincept::services {
 
-KrxBriefingLive::KrxBriefingLive(QObject* parent, std::function<QDateTime()> now)
-    : QObject(parent), now_(now ? std::move(now) : [] { return QDateTime::currentDateTime(); }) {
-    service_ = new KrxQuantService(this);
-    timer_ = new QTimer(this);
-    timer_->setSingleShot(true);
-    connect(timer_, &QTimer::timeout, this, &KrxBriefingLive::read);
-    connect(service_, &KrxQuantService::briefing_ready, this,
+KrxBriefingLive::KrxBriefingLive(QObject* parent, std::function<QDateTime()> now) : QObject(parent) {
+    poller_ = new EnginePoller(EnginePoller::Symbols::Names, this, std::move(now));
+    poller_->set_read([this] { read(); });
+    poller_->set_poll([this] { return krx_quant::briefing::poll_ms(briefing_, poller_->now()); });
+    connect(poller_, &EnginePoller::changed, this, &KrxBriefingLive::changed);
+    connect(poller_->service(), &KrxQuantService::briefing_ready, this,
             [this](const QDate& day, const krx_quant::Briefing& briefing) {
                 reading_ = false;
                 if (day != day_) // asked for another day since: read that one now
-                    return read_wanted();
+                    return poller_->read_now();
                 briefing_ = briefing;
-                failure_.clear();
-                answered_at_ = now_();
-                emit changed();
-                schedule();
+                poller_->answered();
             });
-    connect(service_, &KrxQuantService::briefing_failed, this, [this](const QDate& day, const QString& reason) {
-        reading_ = false;
-        if (day != day_)
-            return read_wanted();
-        failure_ = reason;
-        emit changed();
-        schedule();
-    });
-    connect(service_, &KrxQuantService::symbols_ready, this, [this](const QList<krx_quant::SymbolQuote>& symbols) {
+    connect(poller_->service(), &KrxQuantService::briefing_failed, this,
+            [this](const QDate& day, const QString& reason) {
+                reading_ = false;
+                if (day != day_)
+                    return poller_->read_now();
+                poller_->failed(reason);
+            });
+    connect(poller_, &EnginePoller::symbols_ready, this, [this] {
         symbols_.clear();
-        for (const auto& s : symbols)
+        for (const auto& s : poller_->symbols())
             symbols_.insert(s.symbol, s);
-        emit changed();
     });
     // Another engine: what was read of the old one goes.
-    connect(service_, &KrxQuantService::base_url_changed, this, [this] {
+    connect(poller_, &EnginePoller::engine_changed, this, [this] {
         briefing_.reset();
         symbols_.clear();
-        answered_at_ = {};
+        reading_ = false;
     });
 }
 
 void KrxBriefingLive::start() {
-    if (running_)
-        return;
-    running_ = true;
-    read();
+    poller_->start();
 }
 
 void KrxBriefingLive::stop() {
-    running_ = false;
-    timer_->stop();
+    poller_->stop();
+}
+
+bool KrxBriefingLive::running() const {
+    return poller_->running();
+}
+
+void KrxBriefingLive::run_while_shown(QObject* widget) {
+    poller_->run_while_shown(widget);
+}
+
+const QString& KrxBriefingLive::failure() const {
+    return poller_->failure();
+}
+
+const QDateTime& KrxBriefingLive::answered_at() const {
+    return poller_->answered_at();
 }
 
 void KrxBriefingLive::set_day(const QDate& day) {
@@ -65,46 +70,22 @@ void KrxBriefingLive::set_day(const QDate& day) {
     briefing_.reset();
     emit changed();
     // A read under way is of the old day: its answer is dropped and this day read then.
-    if (running_ && !reading_)
-        read();
-}
-
-void KrxBriefingLive::read_wanted() {
-    if (running_)
-        read();
+    if (!reading_)
+        poller_->read_now();
 }
 
 void KrxBriefingLive::read_now() {
-    if (running_)
-        read();
+    poller_->read_now();
 }
 
 int KrxBriefingLive::next_ms() const {
-    return running_ ? krx_quant::briefing::poll_ms(briefing_, now_()) : 0;
+    return poller_->next_ms();
 }
 
 void KrxBriefingLive::read() {
-    timer_->stop();
-    if (KrxQuantService::base_url() != service_->url()) {
-        service_->rebind(); // what was under way is dropped
-        reading_ = false;
-    }
-    if (service_->url().isEmpty()) {
-        failure_ = QStringLiteral("엔진 주소가 없습니다. KRX 4분 예측 화면에서 엔진 주소를 넣으세요.");
-        emit changed();
-        schedule();
-        return;
-    }
-    if (symbols_.isEmpty())
-        service_->read_symbol_list();
     reading_ = true;
     emit changed();
-    service_->read_briefing(day_);
-}
-
-void KrxBriefingLive::schedule() {
-    if (running_)
-        timer_->start(next_ms());
+    poller_->service()->read_briefing(day_);
 }
 
 } // namespace fincept::services

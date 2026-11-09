@@ -13,9 +13,9 @@
 #include <functional>
 #include <optional>
 
-class QTimer;
-
 namespace fincept::services {
+
+class EnginePoller;
 
 /// What the KRX horizon and cost screen shows (codeyoma/krx-quant#307), kept for it: the cost map
 /// for the chosen symbol, period and special situations (GET /v1/cost-map), the engine's symbols, its
@@ -26,7 +26,8 @@ namespace fincept::services {
 /// is live (continuous trading), else every 10 minutes. A new choice reads at once; an answer to an
 /// older one is dropped. The choices and the cost the table is held to are kept in the settings
 /// (`krx_quant/cost_symbol`, `cost_period`, `cost_special`, `cost_order`). The engine's address is the
-/// KRX screen's setting; a new one drops what was read and reads again.
+/// KRX screen's setting; a new one drops what was read and reads again. Its EnginePoller reads the
+/// address and the symbols and keeps the schedule.
 class KrxCostLive : public QObject {
     Q_OBJECT
   public:
@@ -37,7 +38,9 @@ class KrxCostLive : public QObject {
 
     void start(); ///< read at once, then on schedule
     void stop();  ///< read no more until started again
-    bool running() const { return running_; }
+    bool running() const;
+    /// Start when ``widget`` is shown, stop when it is hidden.
+    void run_while_shown(QObject* widget);
 
     /// Show ``query``'s symbol, period and special situations (its kind is not read), kept in the
     /// settings; read at once.
@@ -50,14 +53,14 @@ class KrxCostLive : public QObject {
 
     const std::optional<krx_quant::CostMap>& map() const { return map_; }
     /// The engine's symbols, in its order, with names and logos; empty before they are read.
-    const QList<krx_quant::SymbolQuote>& symbols() const { return symbols_; }
+    const QList<krx_quant::SymbolQuote>& symbols() const;
     /// The kinds as the engine describes them (a detail window's columns); empty before they are read.
     const QList<krx_quant::KindInfo>& kinds() const { return kinds_; }
     std::optional<krx_quant::KindInfo> kind_info(const QString& kind) const;
     /// What the engine says about each algorithm (a detail window's "학습·예측 방식").
     const QMap<QString, krx_quant::AlgorithmInfo>& algorithms() const { return algorithms_; }
-    const QString& failure() const { return failure_; }
-    const QDateTime& answered_at() const { return answered_at_; }
+    const QString& failure() const;
+    const QDateTime& answered_at() const;
     bool reading() const { return reading_; }
     int next_ms() const; ///< 0 when stopped
 
@@ -81,23 +84,15 @@ class KrxCostLive : public QObject {
 
   private:
     void read();
-    void schedule();
     void read_details(const QStringList& algorithms);
 
-    std::function<QDateTime()> now_;
-    KrxQuantService* service_ = nullptr;
-    QTimer* timer_ = nullptr;
+    EnginePoller* poller_ = nullptr;
     Query query_;
     krx_quant::cost::Cost cost_ = krx_quant::cost::Cost::Market;
     std::optional<krx_quant::CostMap> map_;
-    QList<krx_quant::SymbolQuote> symbols_;
-    bool symbols_read_ = false;
     QList<krx_quant::KindInfo> kinds_;
     QMap<QString, krx_quant::AlgorithmInfo> algorithms_;
     QStringList details_; ///< the predictors whose detail windows are open
-    QString failure_;
-    QDateTime answered_at_;
-    bool running_ = false;
     bool reading_ = false;
 };
 

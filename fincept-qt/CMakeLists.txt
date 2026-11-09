@@ -1529,6 +1529,7 @@ set(SERVICE_SOURCES
     src/services/krx_quant/KindView.cpp
     src/services/krx_quant/KrxLive.cpp
     src/services/krx_quant/KrxQuantService.cpp
+    src/services/krx_quant/EnginePoller.cpp
     src/services/krx_quant/KrxStream.cpp
     src/services/krx_quant/Signals.cpp
     src/services/krx_quant/StatsView.cpp
@@ -2777,6 +2778,7 @@ set_source_files_properties(
     src/services/krx_quant/KindView.cpp
     src/services/krx_quant/KrxLive.cpp
     src/services/krx_quant/KrxQuantService.cpp
+    src/services/krx_quant/EnginePoller.cpp
     src/services/krx_quant/KrxStream.cpp
     src/services/krx_quant/Signals.cpp
     src/services/krx_quant/StatsView.cpp

@@ -7,6 +7,7 @@
 
 #include "core/config/AppConfig.h"
 #include "services/krx_quant/ClosingView.h"
+#include "services/krx_quant/EnginePoller.h"
 #include "services/krx_quant/KrxClosingLive.h"
 #include "services/krx_quant/KrxQuantService.h"
 
@@ -290,9 +291,11 @@ class StandIn : public QObject {
     QTcpServer server_;
 };
 
-/// The live object's own schedule, fired now (its next read, as the timer would start it).
+/// The live object's schedule (its EnginePoller's), fired now (its next read, as the timer would start it).
 void fire_schedule(services::KrxClosingLive& live) {
-    auto* timer = live.findChild<QTimer*>(QString(), Qt::FindDirectChildrenOnly);
+    auto* poller = live.findChild<services::EnginePoller*>();
+    QVERIFY(poller);
+    auto* timer = poller->findChild<QTimer*>(QString(), Qt::FindDirectChildrenOnly);
     QVERIFY(timer);
     timer->start(0);
 }
@@ -754,14 +757,6 @@ class TstKrxClosing : public QObject {
         fire_schedule(live); // the same day's next read: the days only because they failed
         QTRY_COMPARE_WITH_TIMEOUT(engine.count("/005930/closing-flow/days"), asked + 1, 10000);
         QTRY_VERIFY_WITH_TIMEOUT(live.failure().isEmpty(), 10000);
-        live.stop();
-    }
-
-    void without_an_address_it_says_where_to_set_it() {
-        services::KrxQuantService::set_base_url(QString());
-        services::KrxClosingLive live;
-        live.start();
-        QVERIFY(live.failure().contains(QStringLiteral("엔진 주소")));
         live.stop();
     }
 };

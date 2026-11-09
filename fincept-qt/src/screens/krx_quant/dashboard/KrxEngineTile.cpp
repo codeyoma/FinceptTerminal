@@ -2,17 +2,17 @@
 
 #include "core/events/EventBus.h"
 #include "screens/krx_quant/KrxTables.h"
+#include "services/krx_quant/EnginePoller.h"
 #include "services/krx_quant/KrxQuantService.h"
 #include "ui/theme/Theme.h"
 #include "ui/theme/ThemeManager.h"
-
-#include <algorithm>
 
 #include <QDateTime>
 #include <QHeaderView>
 #include <QLabel>
 #include <QTableWidget>
-#include <QTimer>
+
+#include <algorithm>
 
 namespace fincept::screens::krx_dashboard {
 
@@ -27,7 +27,20 @@ void open_krx_screen() {
 
 KrxEngineTile::KrxEngineTile(const QString& title, int every_ms, QWidget* parent)
     : BaseWidget(title, parent), head_(title) {
-    service_ = new services::KrxQuantService(this);
+    poller_ = new services::EnginePoller(services::EnginePoller::Symbols::None, this);
+    poller_->set_read([this] { tick(); });
+    poller_->set_poll([every_ms] { return every_ms; });
+    // Nothing is asked of the engine while the tile cannot be seen.
+    poller_->run_while_shown(this);
+    // Without the address: where to set it, and nothing read.
+    connect(poller_, &services::EnginePoller::changed, this, [this] {
+        if (!service()->url().isEmpty())
+            return;
+        set_loading(false);
+        set_error(tr("KRX %1").arg(QString::fromUtf8(services::EnginePoller::kNoAddress)));
+    });
+    // A new address (set on the KRX screen): every read under way was dropped with the old one.
+    connect(poller_, &services::EnginePoller::engine_changed, this, [this] { reading_ = false; });
 
     failure_ = new QLabel(this);
     failure_->setWordWrap(true);
@@ -41,40 +54,16 @@ KrxEngineTile::KrxEngineTile(const QString& title, int every_ms, QWidget* parent
     body_->setSpacing(0);
     content_layout()->addWidget(holder, 1);
 
-    timer_ = new QTimer(this);
-    timer_->setInterval(every_ms);
-    connect(timer_, &QTimer::timeout, this, &KrxEngineTile::tick);
-    connect(this, &BaseWidget::refresh_requested, this, &KrxEngineTile::tick);
+    connect(this, &BaseWidget::refresh_requested, poller_, &services::EnginePoller::read_now);
 
     on_theme_changed();
 }
 
-void KrxEngineTile::showEvent(QShowEvent* event) {
-    BaseWidget::showEvent(event);
-    if (!timer_->isActive()) {
-        timer_->start();
-        tick();
-    }
-}
-
-void KrxEngineTile::hideEvent(QHideEvent* event) {
-    BaseWidget::hideEvent(event);
-    timer_->stop(); // nothing is asked of the engine while the tile cannot be seen
+services::KrxQuantService* KrxEngineTile::service() const {
+    return poller_->service();
 }
 
 void KrxEngineTile::tick() {
-    const QString address = services::KrxQuantService::base_url();
-    if (address.isEmpty()) {
-        set_loading(false);
-        set_error(tr("KRX 엔진 주소가 없습니다. KRX 4분 예측 화면에서 엔진 주소를 넣으세요."));
-        return;
-    }
-    if (address != service_->url()) {
-        // A new address (set on the KRX screen): every read under way is dropped with the old one,
-        // and nothing else is read (restart() would read a snapshot the tile may not want).
-        service_->rebind();
-        reading_ = false;
-    }
     if (reading_)
         return;
     reading_ = true;
@@ -86,7 +75,7 @@ void KrxEngineTile::tick() {
 
 void KrxEngineTile::read_again() {
     reading_ = false;
-    tick();
+    poller_->read_now();
 }
 
 void KrxEngineTile::read_done(const QString& problem) {
@@ -95,12 +84,13 @@ void KrxEngineTile::read_done(const QString& problem) {
     set_loading(false);
     failure_->setText(problem.isEmpty() ? QString() : tr("일부 읽지 못함: %1").arg(problem));
     failure_->setVisible(!problem.isEmpty());
-    answered_at_ = QDateTime::currentDateTime().toString("HH:mm:ss");
+    poller_->answered(); // the time shown, and the next read
     update_title();
 }
 
 void KrxEngineTile::read_failed(const QString& reason) {
     reading_ = false;
+    poller_->failed(reason); // the next read
     if (!shown_data_) {
         set_loading(false);
         set_error(reason);
@@ -116,7 +106,8 @@ void KrxEngineTile::set_head(const QString& head) {
 }
 
 void KrxEngineTile::update_title() {
-    set_title(answered_at_.isEmpty() ? head_ : QStringLiteral("%1 · %2").arg(head_, answered_at_));
+    const QDateTime& at = poller_->answered_at();
+    set_title(!at.isValid() ? head_ : QStringLiteral("%1 · %2").arg(head_, at.toString("HH:mm:ss")));
 }
 
 QTableWidget* KrxEngineTile::make_table(const QStringList& headers) {

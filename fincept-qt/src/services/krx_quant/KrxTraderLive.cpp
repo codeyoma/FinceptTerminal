@@ -1,5 +1,6 @@
 #include "services/krx_quant/KrxTraderLive.h"
 
+#include "services/krx_quant/EnginePoller.h"
 #include "services/krx_quant/KrxQuantService.h"
 
 #include <QStringList>
@@ -21,13 +22,19 @@ QDate kst_day(const krx_quant::Bar& bar) {
 
 } // namespace
 
-KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
-    : QObject(parent), now_(now ? std::move(now) : [] { return QDateTime::currentDateTime(); }) {
-    service_ = new KrxQuantService(this);
-    timer_ = new QTimer(this);
-    timer_->setObjectName(kStateTimerName);
-    timer_->setSingleShot(true);
-    connect(timer_, &QTimer::timeout, this, &KrxTraderLive::read);
+KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now) : QObject(parent) {
+    poller_ = new EnginePoller(EnginePoller::Symbols::None, this, std::move(now));
+    poller_->set_timer_name(QString::fromLatin1(kStateTimerName));
+    poller_->set_read([this] { read(); });
+    poller_->set_poll([this] { return view::poll_ms(state_, poller_->now()); });
+    service_ = poller_->service();
+    connect(poller_, &EnginePoller::changed, this, &KrxTraderLive::changed);
+    // Started: the chart first (it takes a new address, and reads the chart from it), then the state.
+    connect(poller_, &EnginePoller::started, this, [this] {
+        stale_ = true; // not read while hidden: days may have passed
+        read_chart();
+    });
+    connect(poller_, &EnginePoller::stopped, this, [this] { chart_timer_->stop(); });
     chart_timer_ = new QTimer(this);
     chart_timer_->setObjectName(kChartTimerName);
     chart_timer_->setSingleShot(true);
@@ -35,22 +42,17 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
     connect(service_, &KrxQuantService::trader_state_ready, this, [this](const krx_quant::TraderState& state) {
         reading_state_ = false;
         // The engine answers again after a failure (it restarted, or was out of reach): its chart at once.
-        const bool back = !state_failure_.isEmpty();
+        const bool back = !poller_->failure().isEmpty();
         state_ = state;
-        state_failure_.clear();
-        answered_at_ = now_();
-        if (running_)
+        if (running())
             check_history();
-        emit changed();
-        schedule();
+        poller_->answered();
         if (back)
             read_chart();
     });
     connect(service_, &KrxQuantService::trader_state_failed, this, [this](const QString& reason) {
         reading_state_ = false;
-        state_failure_ = reason;
-        emit changed();
-        schedule();
+        poller_->failed(reason);
     });
     connect(service_, &KrxQuantService::trader_days_ready, this, [this](const QList<krx_quant::TraderDay>& days) {
         reading_days_ = false;
@@ -99,8 +101,7 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
                                        krx_quant::kst_text(control.at, "HH:mm:ss"));
                 history_wanted_ = true; // the request and what it does, read at once
                 emit changed();
-                if (running_)
-                    read();
+                poller_->read_now();
             });
     connect(service_, &KrxQuantService::trader_pause_failed, this, [this](bool sell_now, const QString& reason) {
         sending_ = false;
@@ -124,7 +125,7 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
         day_bars_ = bars;
         chart_failure_.clear();
         emit chart_changed();
-        if (!running_)
+        if (!running())
             return;
         read_marks(); // over them
         if (day_bars_.isEmpty() && older_.isEmpty()) {
@@ -147,7 +148,7 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
         older_ = krx_quant::join_bars(bars, older_);
         older_failure_.clear();
         emit chart_changed();
-        if (running_) {
+        if (running()) {
             read_marks(); // the buys and sells over them
             check_decisions_day();
         }
@@ -188,10 +189,10 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
         [this](const QString& book, const QDateTime& before, const krx_quant::TraderDecisions& answer, bool served) {
             reading_decisions_ = false;
             // Asked for another book, or stopped since: not kept (a book chosen since is read now).
-            if (book != decisions_book_ || !running_ || (before.isValid() && !pages_)) {
+            if (book != decisions_book_ || !running() || (before.isValid() && !pages_)) {
                 pages_.reset();
                 emit decisions_changed();
-                if (running_)
+                if (running())
                     read_decisions();
                 return;
             }
@@ -227,36 +228,52 @@ KrxTraderLive::KrxTraderLive(QObject* parent, std::function<QDateTime()> now)
                 if (book == decisions_book_)
                     decisions_failure_ = reason; // those shown stay; asked again as the next minute turns
                 emit decisions_changed();
-                if (running_ && (decisions_wanted_ || book != decisions_book_))
+                if (running() && (decisions_wanted_ || book != decisions_book_))
                     read_decisions();
             });
-    connect(service_, &KrxQuantService::base_url_changed, this, [this] {
+    // Another engine: what was under way was dropped with the old one's reads.
+    connect(poller_, &EnginePoller::engine_changed, this, [this] {
+        reading_state_ = false;
+        reading_days_ = false;
+        reading_trades_ = false;
+        reading_policies_ = false;
+        trades_wanted_ = false;
+        sending_ = false;
         drop();
         read_chart(); // the new engine's, at once
     });
 }
 
 void KrxTraderLive::start() {
-    if (running_)
-        return;
-    running_ = true;
-    stale_ = true; // not read while hidden: days may have passed
-    read_chart();  // first: a new address is taken there, and the chart read from it
-    read();
+    poller_->start();
 }
 
 void KrxTraderLive::stop() {
-    running_ = false;
-    timer_->stop();
-    chart_timer_->stop();
+    poller_->stop();
+}
+
+bool KrxTraderLive::running() const {
+    return poller_->running();
+}
+
+void KrxTraderLive::run_while_shown(QObject* widget) {
+    poller_->run_while_shown(widget);
+}
+
+const QDateTime& KrxTraderLive::answered_at() const {
+    return poller_->answered_at();
+}
+
+QDateTime KrxTraderLive::now() const {
+    return poller_->now();
 }
 
 void KrxTraderLive::read_now() {
     history_wanted_ = true;
-    if (!running_)
+    if (!running())
         return;
     read_chart();
-    read();
+    poller_->read_now();
 }
 
 void KrxTraderLive::view_from(double from, double to) {
@@ -267,10 +284,10 @@ void KrxTraderLive::view_from(double from, double to) {
 
 void KrxTraderLive::read_chart() {
     chart_timer_->stop();
-    if (!running_)
+    if (!running())
         return;
     if (KrxQuantService::base_url() != service_->url())
-        return read(); // another engine: read() takes it, and its base_url_changed reads its chart
+        return poller_->read_now(); // another engine: the poller takes it, and its engine_changed reads its chart
     if (!service_->url().isEmpty()) {
         if (!reading_bars_) { // else the read under way answers
             reading_bars_ = true;
@@ -279,11 +296,11 @@ void KrxTraderLive::read_chart() {
         read_marks(true); // the buys and sells since, and the sells of trades open then
         read_decisions(); // codeyoma/krx-quant#601
     }
-    chart_timer_->start(view::chart_ms(now_()));
+    chart_timer_->start(view::chart_ms(now()));
 }
 
 void KrxTraderLive::read_older() {
-    if (!running_ || oldest_ || reading_older_ || service_->url().isEmpty())
+    if (!running() || oldest_ || reading_older_ || service_->url().isEmpty())
         return; // one at a time: the view moves on, and asks again once it is drawn
     // The first bar shown: the earliest read before, else the day's first; none: those before now.
     const QDateTime first = !older_.isEmpty()      ? older_.first().start
@@ -303,7 +320,7 @@ void KrxTraderLive::forget_older() {
 
 void KrxTraderLive::read_marks(bool latest) {
     marks_latest_ |= latest;
-    if (!running_ || marks_paging_)
+    if (!running() || marks_paging_)
         return; // asked again once started, or once the page under way answers
     const QDateTime first = !older_.isEmpty()      ? older_.first().start
                             : !day_bars_.isEmpty() ? day_bars_.first().start
@@ -341,13 +358,13 @@ void KrxTraderLive::set_decisions_book(const QString& book) {
     decisions_.reset(); // another book's are not shown under this one
     decisions_failure_.clear();
     pages_.reset(); // a page under way is the other book's: its answer is not kept
-    if (running_)
+    if (running())
         read_decisions();
     emit decisions_changed();
 }
 
 void KrxTraderLive::read_decisions() {
-    if (!running_ || service_->url().isEmpty())
+    if (!running() || service_->url().isEmpty())
         return;
     if (reading_decisions_) { // once the read under way ends: what came since
         decisions_wanted_ = true;
@@ -364,7 +381,7 @@ void KrxTraderLive::read_decisions() {
 void KrxTraderLive::check_decisions_day() {
     // Once the engine has them and they were read: an engine without them, or one that failed, is asked
     // again with the chart as the next minute turns, not on each answer of its bars.
-    if (!running_ || !decisions_served_ || !decisions_failure_.isEmpty())
+    if (!running() || !decisions_served_ || !decisions_failure_.isEmpty())
         return;
     const QDate day = chart_day();
     const QDate read = reading_decisions_ ? decisions_day_ : decisions_ ? decisions_->day : QDate();
@@ -395,7 +412,7 @@ void KrxTraderLive::set_trades_policy(std::optional<qint64> policy) {
     trades_policy_ = policy;
     trades_.reset(); // another policy's trades are not shown under this one
     trades_failure_.clear();
-    if (running_)
+    if (running())
         read_trades();
     emit changed();
 }
@@ -438,8 +455,7 @@ bool KrxTraderLive::pause(bool sell_now, const Confirm& confirm) {
 }
 
 bool KrxTraderLive::refuse_pause() {
-    if (running_)
-        read(); // the new engine's, what was read of the other dropped
+    poller_->read_now(); // the new engine's, what was read of the other dropped
     pause_failed_ = true;
     pause_note_ = QStringLiteral("엔진 주소가 바뀌었습니다. 보내지 않았습니다. 새 엔진의 상태를 읽은 뒤에 다시 누르세요.");
     emit changed();
@@ -448,8 +464,8 @@ bool KrxTraderLive::refuse_pause() {
 
 QString KrxTraderLive::failure() const {
     QStringList parts;
-    if (!state_failure_.isEmpty())
-        parts << state_failure_;
+    if (!poller_->failure().isEmpty())
+        parts << poller_->failure();
     if (!days_failure_.isEmpty() && !parts.contains(days_failure_))
         parts << QStringLiteral("날마다: %1").arg(days_failure_);
     if (!trades_failure_.isEmpty() && !parts.contains(trades_failure_))
@@ -460,26 +476,10 @@ QString KrxTraderLive::failure() const {
 }
 
 int KrxTraderLive::next_ms() const {
-    return running_ ? view::poll_ms(state_, now_()) : 0;
+    return poller_->next_ms();
 }
 
 void KrxTraderLive::read() {
-    timer_->stop();
-    if (KrxQuantService::base_url() != service_->url()) {
-        service_->rebind(); // what was under way is dropped
-        reading_state_ = false;
-        reading_days_ = false;
-        reading_trades_ = false;
-        reading_policies_ = false;
-        trades_wanted_ = false;
-        sending_ = false;
-    }
-    if (service_->url().isEmpty()) {
-        state_failure_ = QStringLiteral("엔진 주소가 없습니다. KRX 4분 예측 화면에서 엔진 주소를 넣으세요.");
-        emit changed();
-        schedule();
-        return;
-    }
     if (!reading_state_) {
         reading_state_ = true;
         service_->read_trader();
@@ -501,7 +501,7 @@ void KrxTraderLive::check_history() {
             history_wanted_ = true;
         return;
     }
-    const bool stale = !history_asked_at_.isValid() || history_asked_at_.msecsTo(now_()) >= view::kIdleMs;
+    const bool stale = !history_asked_at_.isValid() || history_asked_at_.msecsTo(now()) >= view::kIdleMs;
     // A failure is asked again with the next state's answer, not at once: no loop on an engine that fails.
     if (history_wanted_ || !days_ || !trades_ || !policies_ || !days_failure_.isEmpty() || !trades_failure_.isEmpty() ||
         !policies_failure_.isEmpty() || *history_key_ != key || stale)
@@ -510,7 +510,7 @@ void KrxTraderLive::check_history() {
 
 void KrxTraderLive::read_history() {
     history_wanted_ = false;
-    history_asked_at_ = now_();
+    history_asked_at_ = now();
     history_key_ = state_ ? std::optional(view::history_key(*state_)) : std::nullopt;
     reading_days_ = true;
     service_->read_trader_days();
@@ -521,18 +521,13 @@ void KrxTraderLive::read_history() {
 
 void KrxTraderLive::history_done() {
     emit changed();
-    if (!running_)
+    if (!running())
         return;
     // Asked for again while they were read (read_now, a pause sent, a state changed meanwhile): now.
     if (history_wanted_ && !reading_days_ && !reading_trades_ && !reading_policies_)
         read_history();
     else if (trades_wanted_ && !reading_trades_) // another policy chosen while the trades were read
         read_trades();
-}
-
-void KrxTraderLive::schedule() {
-    if (running_)
-        timer_->start(next_ms());
 }
 
 void KrxTraderLive::drop() {
@@ -546,13 +541,12 @@ void KrxTraderLive::drop() {
     trades_wanted_ = false;
     history_key_.reset();
     history_asked_at_ = {};
-    state_failure_.clear();
+    poller_->clear_failure();
     days_failure_.clear();
     trades_failure_.clear();
     policies_failure_.clear();
     pause_note_.clear();
     pause_failed_ = false;
-    answered_at_ = {};
     forget_chart();
     forget_decisions();
 }

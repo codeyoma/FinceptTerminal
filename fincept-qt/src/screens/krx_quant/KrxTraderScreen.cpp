@@ -295,6 +295,7 @@ void KrxTraderDaysChart::leaveEvent(QEvent*) {
 KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
     setObjectName("krxTraderScreen");
     live_ = new services::KrxTraderLive(this);
+    live_->run_while_shown(this); // read only while the screen is seen
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -660,13 +661,11 @@ KrxTraderScreen::KrxTraderScreen(QWidget* parent) : QWidget(parent) {
 
 void KrxTraderScreen::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
-    live_->start();
     clock_timer_->start();
 }
 
 void KrxTraderScreen::hideEvent(QHideEvent* event) {
     QWidget::hideEvent(event);
-    live_->stop();
     clock_timer_->stop();
 }
 

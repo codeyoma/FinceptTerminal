@@ -11,11 +11,9 @@
 #include <functional>
 #include <optional>
 
-class QTimer;
-
 namespace fincept::services {
 
-class KrxQuantService;
+class EnginePoller;
 
 /// What the KRX flow screen shows (codeyoma/krx-quant#306), kept for it: the chosen symbol's flows of
 /// the chosen day (GET /v1/symbols/{symbol}/flow), the engine's symbols with their names and logos,
@@ -24,7 +22,7 @@ class KrxQuantService;
 /// While started it reads at once and then again by flow::poll_ms: every 30 s on today while KRX
 /// trades, else every 5 minutes. The symbol chosen is kept in the settings (`krx_quant/flow_symbol`);
 /// without one, the engine's first. The engine's address is the KRX screen's setting; a new one drops
-/// what was read and reads again.
+/// what was read and reads again. Its EnginePoller reads the address and the symbols and keeps the schedule.
 class KrxFlowLive : public QObject {
     Q_OBJECT
   public:
@@ -33,7 +31,9 @@ class KrxFlowLive : public QObject {
 
     void start(); ///< read at once, then on schedule
     void stop();  ///< read no more until started again
-    bool running() const { return running_; }
+    bool running() const;
+    /// Start when ``widget`` is shown, stop when it is hidden.
+    void run_while_shown(QObject* widget);
 
     /// Show ``symbol`` (kept in the settings), read at once.
     void set_symbol(const QString& symbol);
@@ -45,9 +45,9 @@ class KrxFlowLive : public QObject {
 
     const std::optional<krx_quant::Flow>& flow() const { return flow_; }
     /// The engine's symbols, in its order, with names and logos; empty before they are read.
-    const QList<krx_quant::SymbolQuote>& symbols() const { return symbols_; }
-    const QString& failure() const { return failure_; }
-    const QDateTime& answered_at() const { return answered_at_; }
+    const QList<krx_quant::SymbolQuote>& symbols() const;
+    const QString& failure() const;
+    const QDateTime& answered_at() const;
     bool reading() const { return reading_; }
     int next_ms() const; ///< 0 when stopped
 
@@ -59,19 +59,11 @@ class KrxFlowLive : public QObject {
 
   private:
     void read();
-    void read_wanted();
-    void schedule();
 
-    std::function<QDateTime()> now_;
-    KrxQuantService* service_ = nullptr;
-    QTimer* timer_ = nullptr;
+    EnginePoller* poller_ = nullptr;
     QString symbol_;
     QDate day_;
     std::optional<krx_quant::Flow> flow_;
-    QList<krx_quant::SymbolQuote> symbols_;
-    QString failure_;
-    QDateTime answered_at_;
-    bool running_ = false;
     bool reading_ = false;
 };
 

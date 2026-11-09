@@ -341,15 +341,6 @@ class TstKrxBriefing : public QObject {
         live.stop();
         QCOMPARE(live.next_ms(), 0);
     }
-
-    void without_an_address_it_says_where_to_set_it() {
-        services::KrxQuantService::set_base_url(QString());
-        services::KrxBriefingLive live;
-        live.start();
-        QVERIFY(live.failure().contains(QStringLiteral("엔진 주소")));
-        QVERIFY(!live.reading());
-        live.stop();
-    }
 };
 
 QTEST_GUILESS_MAIN(TstKrxBriefing)

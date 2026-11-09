@@ -7,16 +7,17 @@
 
 class QLabel;
 class QTableWidget;
-class QTimer;
 
 namespace fincept::services {
+class EnginePoller;
 class KrxQuantService;
-}
+} // namespace fincept::services
 
 namespace fincept::screens::krx_dashboard {
 
 /// A dashboard tile that reads the KRX prediction engine (codeyoma/krx-quant#302) through its own
-/// KrxQuantService: at once and then every ``every_ms`` while it is shown, never while it is hidden.
+/// EnginePoller (codeyoma/krx-quant#649): at once and then ``every_ms`` after each answer while it is
+/// shown, never while it is hidden.
 ///
 /// Without the engine's address (set on the KRX screen) it says where to set it and reads nothing.
 /// A failed read keeps the last values on screen with why above them; with nothing shown yet, the
@@ -27,7 +28,7 @@ class KrxEngineTile : public widgets::BaseWidget {
     KrxEngineTile(const QString& title, int every_ms, QWidget* parent = nullptr);
 
   protected:
-    services::KrxQuantService* service() const { return service_; }
+    services::KrxQuantService* service() const;
     /// Where the subclass puts its content, below the failure line.
     QVBoxLayout* body() const { return body_; }
 
@@ -50,8 +51,6 @@ class KrxEngineTile : public widgets::BaseWidget {
     /// painted again on a theme change. Double-clicking a row opens the KRX screen.
     QTableWidget* make_table(const QStringList& headers);
 
-    void showEvent(QShowEvent* event) override;
-    void hideEvent(QHideEvent* event) override;
     void on_theme_changed() override;
 
   private:
@@ -59,9 +58,7 @@ class KrxEngineTile : public widgets::BaseWidget {
     void update_title();
 
     QString head_;
-    QString answered_at_; ///< "HH:mm:ss" of the last answer; empty before any
-    services::KrxQuantService* service_ = nullptr;
-    QTimer* timer_ = nullptr;
+    services::EnginePoller* poller_ = nullptr;
     QLabel* failure_ = nullptr;
     QVBoxLayout* body_ = nullptr;
     bool shown_data_ = false; ///< something read is on screen
