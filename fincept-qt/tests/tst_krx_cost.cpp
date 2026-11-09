@@ -429,14 +429,6 @@ class TstKrxCost : public QObject {
         live.set_details({});
         live.stop();
     }
-
-    void without_an_address_it_says_where_to_set_it() {
-        services::KrxQuantService::set_base_url(QString());
-        services::KrxCostLive live;
-        live.start();
-        QVERIFY(live.failure().contains(QStringLiteral("엔진 주소")));
-        live.stop();
-    }
 };
 
 QTEST_GUILESS_MAIN(TstKrxCost)

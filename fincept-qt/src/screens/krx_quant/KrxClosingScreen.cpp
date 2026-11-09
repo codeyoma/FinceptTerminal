@@ -91,6 +91,7 @@ QTableWidgetItem* side_cell(const QString& text, Side side, const QString& tip =
 KrxClosingScreen::KrxClosingScreen(QWidget* parent) : QWidget(parent) {
     setObjectName("krxClosingScreen");
     live_ = new services::KrxClosingLive(this);
+    live_->run_while_shown(this); // read only while the screen is seen
     logos_ = new KrxLogos(this);
 
     auto* layout = new QVBoxLayout(this);
@@ -240,13 +241,11 @@ KrxClosingScreen::KrxClosingScreen(QWidget* parent) : QWidget(parent) {
 
 void KrxClosingScreen::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
-    live_->start();
     clock_timer_->start();
 }
 
 void KrxClosingScreen::hideEvent(QHideEvent* event) {
     QWidget::hideEvent(event);
-    live_->stop();
     clock_timer_->stop();
 }
 

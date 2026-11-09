@@ -17,6 +17,7 @@ class QTimer;
 
 namespace fincept::services {
 
+class EnginePoller;
 class KrxQuantService;
 
 /// What the KRX auto trader screen shows (codeyoma/krx-quant#397, #401), kept for it: the trader's state
@@ -48,7 +49,8 @@ class KrxQuantService;
 /// Its one write is the screen's pause (pause): it asks first, through the screen's ``confirm``, and
 /// sends POST /v1/trader/pause only on a yes. Nothing here resumes the trader: that is the server's
 /// alone (krx-quant trade resume). The engine's address is the KRX screen's setting; a new one drops
-/// what was read and reads again.
+/// what was read and reads again. Its EnginePoller reads the address and keeps the state's schedule; the
+/// chart's timer and the pause keep their own rules here.
 class KrxTraderLive : public QObject {
     Q_OBJECT
   public:
@@ -62,7 +64,9 @@ class KrxTraderLive : public QObject {
 
     void start(); ///< read at once, then on schedule
     void stop();  ///< read no more until started again
-    bool running() const { return running_; }
+    bool running() const;
+    /// Start when ``widget`` is shown, stop when it is hidden.
+    void run_while_shown(QObject* widget);
     /// Read the state, the days, the trades, the policy versions and the chart now.
     void read_now();
     /// Whose trades to read (codeyoma/krx-quant#401): none, the champion's (the default); else that
@@ -90,8 +94,8 @@ class KrxTraderLive : public QObject {
     /// Why the last read failed (the state's, the days', the trades' or the policies'); empty when it did not.
     QString failure() const;
     /// When the state shown was answered, on ``now``'s clock.
-    const QDateTime& answered_at() const { return answered_at_; }
-    QDateTime now() const { return now_(); }
+    const QDateTime& answered_at() const;
+    QDateTime now() const;
     bool reading() const { return reading_state_ || reading_days_ || reading_trades_ || reading_policies_; }
     int next_ms() const; ///< 0 when stopped
 
@@ -140,6 +144,7 @@ class KrxTraderLive : public QObject {
     void decisions_changed();
 
   private:
+    /// The state, and the days and trades when due: the poller's read.
     void read();
     /// On a state's answer: the days and trades asked for when they are due.
     void check_history();
@@ -148,7 +153,6 @@ class KrxTraderLive : public QObject {
     void read_trades();
     /// The days, the trades or the policy versions answered.
     void history_done();
-    void schedule();
     /// Another engine: what was read of the one before is dropped.
     void drop();
     /// A pause confirmed for an engine other than the one now read: not sent, said so. Always false.
@@ -175,9 +179,8 @@ class KrxTraderLive : public QObject {
     /// Back to no decisions: another engine.
     void forget_decisions();
 
-    std::function<QDateTime()> now_;
-    KrxQuantService* service_ = nullptr;
-    QTimer* timer_ = nullptr;
+    EnginePoller* poller_ = nullptr;     ///< its failure: the state's
+    KrxQuantService* service_ = nullptr; ///< the poller's
     QTimer* chart_timer_ = nullptr; ///< the chart's next read (codeyoma/krx-quant#537)
     std::optional<krx_quant::TraderState> state_;
     std::optional<QList<krx_quant::TraderDay>> days_;
@@ -189,16 +192,13 @@ class KrxTraderLive : public QObject {
     /// The state's key when the days and trades were last asked for; none when they were asked before
     /// any state answered (the first read).
     std::optional<QString> history_key_;
-    QDateTime history_asked_at_; ///< when they were (now_'s clock)
+    QDateTime history_asked_at_;  ///< when they were (now()'s clock)
     bool history_wanted_ = false; ///< read_now, a pause sent: the days and trades too
-    QString state_failure_;
     QString days_failure_;
     QString trades_failure_;
     QString policies_failure_;
     QString pause_note_;
     bool pause_failed_ = false;
-    QDateTime answered_at_;
-    bool running_ = false;
     bool reading_state_ = false;
     bool reading_days_ = false;
     bool reading_trades_ = false;

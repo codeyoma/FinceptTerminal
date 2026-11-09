@@ -93,6 +93,7 @@ class KrxNightLine : public QWidget {
 KrxBriefingScreen::KrxBriefingScreen(QWidget* parent) : QWidget(parent) {
     setObjectName("krxBriefingScreen");
     live_ = new services::KrxBriefingLive(this);
+    live_->run_while_shown(this); // read only while the screen is seen
     logos_ = new KrxLogos(this);
 
     auto* layout = new QVBoxLayout(this);
@@ -233,13 +234,11 @@ KrxBriefingScreen::KrxBriefingScreen(QWidget* parent) : QWidget(parent) {
 
 void KrxBriefingScreen::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
-    live_->start();
     clock_timer_->start();
 }
 
 void KrxBriefingScreen::hideEvent(QHideEvent* event) {
     QWidget::hideEvent(event);
-    live_->stop();
     clock_timer_->stop();
 }
 

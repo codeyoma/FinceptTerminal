@@ -883,7 +883,7 @@ class StandIn : public QObject {
 
 /// The live object's own schedule, fired now (its next read, as the timer would start it).
 void fire_schedule(services::KrxTraderLive& live) {
-    auto* timer = live.findChild<QTimer*>(services::KrxTraderLive::kStateTimerName, Qt::FindDirectChildrenOnly);
+    auto* timer = live.findChild<QTimer*>(services::KrxTraderLive::kStateTimerName);
     QVERIFY(timer);
     timer->start(0);
 }
@@ -2098,7 +2098,7 @@ class TstKrxTrader : public QObject {
         QCOMPARE(live.next_ms(), 0);
         live.read_now();
         QVERIFY(!live.reading()); // a read asks at once: none was asked
-        auto* timer = live.findChild<QTimer*>(services::KrxTraderLive::kStateTimerName, Qt::FindDirectChildrenOnly);
+        auto* timer = live.findChild<QTimer*>(services::KrxTraderLive::kStateTimerName);
         QVERIFY(timer && !timer->isActive());
         // Nothing here writes but the pause.
         QVERIFY(std::all_of(engine.asked.cbegin(), engine.asked.cend(),
@@ -2952,14 +2952,6 @@ class TstKrxTrader : public QObject {
                                  10000);
         QVERIFY(!live.decisions());
         QCOMPARE(live.decisions_book(), QStringLiteral("practice")); // the choice is kept
-        live.stop();
-    }
-
-    void without_an_address_it_says_where_to_set_it() {
-        services::KrxQuantService::set_base_url(QString());
-        services::KrxTraderLive live;
-        live.start();
-        QVERIFY(live.failure().contains(QStringLiteral("엔진 주소")));
         live.stop();
     }
 };

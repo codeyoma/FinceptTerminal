@@ -81,6 +81,7 @@ QString verdict_background(Verdict verdict) {
 KrxCostScreen::KrxCostScreen(QWidget* parent) : QWidget(parent) {
     setObjectName("krxCostScreen");
     live_ = new services::KrxCostLive(this);
+    live_->run_while_shown(this); // read only while the screen is seen
     logos_ = new KrxLogos(this);
 
     auto* layout = new QVBoxLayout(this);
@@ -216,13 +217,11 @@ KrxCostScreen::KrxCostScreen(QWidget* parent) : QWidget(parent) {
 
 void KrxCostScreen::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
-    live_->start();
     clock_timer_->start();
 }
 
 void KrxCostScreen::hideEvent(QHideEvent* event) {
     QWidget::hideEvent(event);
-    live_->stop();
     clock_timer_->stop();
 }
 

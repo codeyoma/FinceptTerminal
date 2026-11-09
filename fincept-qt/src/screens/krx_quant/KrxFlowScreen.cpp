@@ -292,6 +292,7 @@ void KrxFlowChart::leaveEvent(QEvent*) {
 KrxFlowScreen::KrxFlowScreen(QWidget* parent) : QWidget(parent) {
     setObjectName("krxFlowScreen");
     live_ = new services::KrxFlowLive(this);
+    live_->run_while_shown(this); // read only while the screen is seen
     logos_ = new KrxLogos(this);
 
     auto* layout = new QVBoxLayout(this);
@@ -400,13 +401,11 @@ KrxFlowScreen::KrxFlowScreen(QWidget* parent) : QWidget(parent) {
 
 void KrxFlowScreen::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
-    live_->start();
     clock_timer_->start();
 }
 
 void KrxFlowScreen::hideEvent(QHideEvent* event) {
     QWidget::hideEvent(event);
-    live_->stop();
     clock_timer_->stop();
 }
 

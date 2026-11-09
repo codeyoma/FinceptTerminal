@@ -63,6 +63,7 @@ add_executable(krx_capture
     "${SRC}/services/krx_quant/ChartSlots.cpp"
     "${SRC}/services/krx_quant/ChartStudies.cpp"
     "${SRC}/services/krx_quant/EngineData.cpp"
+    "${SRC}/services/krx_quant/EnginePoller.cpp"
     "${SRC}/services/krx_quant/KindView.cpp"
     "${SRC}/services/krx_quant/KrxBriefingLive.cpp"
     "${SRC}/services/krx_quant/KrxFlowLive.cpp"
