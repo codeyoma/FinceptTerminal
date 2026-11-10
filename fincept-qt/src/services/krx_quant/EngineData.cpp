@@ -1522,6 +1522,7 @@ QString trader_exit_label(const QString& reason) {
         {"pause", QStringLiteral("정지 매도")},
         {"daily_limit", QStringLiteral("하루 한도")},
         {"cumulative_limit", QStringLiteral("누적 한도")},
+        {"verdict_sell", QStringLiteral("판정 매도")}, // codeyoma/krx-quant#677
     };
     return labels.value(reason, reason);
 }

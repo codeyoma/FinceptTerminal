@@ -2737,6 +2737,15 @@ class TstKrxTrader : public QObject {
         QVERIFY(view::reason_tip(QStringLiteral("new_reason")).isEmpty());
         QCOMPARE(view::book_choices().first().book, QString::fromLatin1(view::kDefaultBook)); // the practice's first
         QCOMPARE(view::book_label(QStringLiteral("shadow")), QStringLiteral("그림자"));
+        // The verdict's book, skips and sale (codeyoma/krx-quant#677).
+        QCOMPARE(view::book_label(QStringLiteral("verdict")), QStringLiteral("판정"));
+        QCOMPARE(view::book_choices()[2].book, QStringLiteral("verdict")); // after the champion's, before the shadow's
+        for (const char* reason : {"verdict_wait", "verdict_sell", "spacing", "predictor_inactive"}) {
+            const QString key = QString::fromLatin1(reason);
+            QVERIFY2(view::reason_label(key) != key, reason);
+        }
+        QCOMPARE(trader_exit_label(QStringLiteral("verdict_sell")), QStringLiteral("판정 매도"));
+        QCOMPARE(view::kind_label(QStringLiteral("barrier_60m")), QStringLiteral("장벽 60분"));
         // Before any answer, from an engine without them, an empty day.
         QCOMPARE(view::decisions_line(std::nullopt, true, true), QStringLiteral("읽는 중"));
         QCOMPARE(view::decisions_line(std::nullopt, false, false), QStringLiteral("엔진이 아직 지원하지 않음"));

@@ -2183,7 +2183,7 @@ QString trader_status_label(const QString& status);
 /// "waited" "호가가 돌아온 뒤 첫 호가로 청산", "rest" "끊긴 동안 KIS 호가로 매도", none "청산에 영향 없음".
 QString trader_stall_label(const QString& effect);
 /// Why a trade was sold, in Korean: "익절", "손절", "시간 청산", and since codeyoma/krx-quant#396 "정지 매도",
-/// "하루 한도", "누적 한도"; an unknown one as it is.
+/// "하루 한도", "누적 한도", and since codeyoma/krx-quant#677 "판정 매도"; an unknown one as it is.
 QString trader_exit_label(const QString& reason);
 
 /// A macro reading as the screen writes it: its name, value and change.

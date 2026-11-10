@@ -282,14 +282,15 @@ inline constexpr const char* kDefaultBook = "practice";
 
 /// A book the decisions panel can show (GET /v1/trader/decisions?book=).
 struct BookChoice {
-    QString book; ///< "practice", "champion", "shadow", "challenger"
-    QString text; ///< "연습", "챔피언", "그림자", "도전"
+    QString book; ///< "practice", "champion", "verdict", "shadow", "challenger"
+    QString text; ///< "연습", "챔피언", "판정", "그림자", "도전"
     QString tip;
     bool operator==(const BookChoice&) const = default;
 };
-/// The books, the practice's first (the default), then the champion's, the shadow's and the challengers'.
+/// The books, the practice's first (the default), then the champion's, the verdict's (codeyoma/krx-quant#677),
+/// the shadow's and the challengers'.
 QList<BookChoice> book_choices();
-/// A book's name in Korean: "연습", "챔피언", "그림자", "도전"; an unknown one as it is.
+/// A book's name in Korean: "연습", "챔피언", "판정", "그림자", "도전"; an unknown one as it is.
 QString book_label(const QString& book);
 /// One of a day's books by its mode and policy: "연습 · KIS 모의", "챔피언 정책 1 · 실전", "도전 정책 2 · 모의";
 /// "챔피언 · 모의" before the first champion.
