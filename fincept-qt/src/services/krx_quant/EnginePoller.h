@@ -17,7 +17,7 @@ namespace fincept::services {
 class KrxQuantService;
 
 /// Reads the KRX prediction engine on a schedule for one screen or dashboard tile (codeyoma/krx-quant#649).
-/// The KRX screens' live objects (KrxFlowLive, KrxClosingLive, KrxCostLive, KrxBriefingLive,
+/// The KRX screens' live objects (KrxVerdictLive, KrxFlowLive, KrxClosingLive, KrxCostLive, KrxBriefingLive,
 /// KrxTraderLive) and the dashboard's KrxEngineTile each own one and give it only what they read
 /// (set_read) and when to read again (set_poll); it does the rest.
 ///

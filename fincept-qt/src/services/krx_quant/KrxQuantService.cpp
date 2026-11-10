@@ -670,6 +670,18 @@ void KrxQuantService::read_flow(const QString& symbol, const QDate& day) {
     });
 }
 
+void KrxQuantService::read_verdicts() {
+    if (!begin(kVerdicts))
+        return;
+    get(QStringLiteral("/v1/verdict"), [this](Result<QJsonDocument> answer) {
+        end(kVerdicts);
+        auto verdicts = parsed(answer, krx_quant::parse_verdicts);
+        if (verdicts.is_err())
+            return emit verdicts_failed(why(verdicts.error()));
+        emit verdicts_ready(verdicts.value());
+    });
+}
+
 void KrxQuantService::read_cost_map(const LeaderboardQuery& query) {
     if (busy_[kCostMap] && !url_.isEmpty()) { // read once the one under way ends, as the leaderboard
         next_cost_map_ = query == cost_map_asked_ ? std::nullopt : std::optional(query);

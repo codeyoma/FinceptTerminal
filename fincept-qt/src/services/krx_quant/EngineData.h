@@ -2223,4 +2223,82 @@ QString failure_text(int http_status, const QString& message);
 /// endpoint, or an unknown symbol (codeyoma/krx-quant#302).
 bool is_not_found(const QString& failure);
 
+/// A barrier's three probabilities: up first, the time running out, down first.
+struct BarrierOdds {
+    double up_first = 0;
+    double timeout = 0;
+    double down_first = 0;
+};
+
+/// A horizon of a verdict (GET /v1/verdict, codeyoma/krx-quant#678): its members' pooled probabilities,
+/// lean and the expected net of a share bought now.
+struct VerdictHorizon {
+    QString kind; ///< "barrier", "barrier_15m", …
+    int minutes = 0;
+    std::optional<int> width_ticks;
+    std::optional<BarrierOdds> odds; ///< none without members
+    int families = 0;
+    int members = 0;
+    QString lean;     ///< "up", "down", "none"; empty when the engine gave none
+    QString strength; ///< "none", "weak", "moderate", "strong"; empty when the engine gave none
+    std::optional<double> margin;
+    std::optional<double> target;
+    std::optional<double> stop;
+    std::optional<double> expected_net; ///< won a share
+    std::optional<double> expected_net_ticks;
+};
+
+/// A barrier algorithm that took part in a verdict, with its own opinion.
+struct VerdictMember {
+    QString name;
+    QString kind;
+    QString family;
+    QString status; ///< "probation", "active", "bench", …; empty without a record
+    int evidence = 0;
+    BarrierOdds odds;
+    QString lean;
+    QString strength;
+    double margin = 0;
+    double weight = 0;
+    bool counted = true; ///< false: a consensus beside its own members, weight 0
+};
+
+/// A forecast shown beside a verdict, not pooled into it: a direction algorithm, the final consensus, or
+/// another kind (the range). Its output's numbers by key.
+struct VerdictSide {
+    QString name;
+    QString kind;
+    QString status; ///< empty for the consensus
+    QList<QPair<QString, double>> output;
+};
+
+/// A symbol's verdict at a bar close (GET /v1/verdict, codeyoma/krx-quant#676, #678).
+struct SymbolVerdict {
+    QString symbol;
+    QDateTime bar_close;
+    int version = 0;
+    QString verdict;  ///< "buy", "sell", "wait"
+    QString meaning;  ///< a sell's: "exit", "avoid"; else empty
+    QString reason;   ///< a wait's: "no_members", "no_edge", "holding"; else empty
+    QString strength; ///< "none", "weak", "moderate", "strong"
+    std::optional<double> margin;
+    QString horizon_kind; ///< empty without members
+    int horizon_minutes = 0;
+    QDateTime deadline; ///< a buy's maximum holding time, an exit's time barrier; invalid otherwise
+    std::optional<double> target;
+    std::optional<double> stop;
+    bool held = false;
+    QList<VerdictHorizon> horizons; ///< shortest first
+    QList<VerdictMember> members;
+    QList<VerdictSide> side;
+};
+
+struct Verdicts {
+    int version = 0; ///< the engine's verdict rules now
+    QList<SymbolVerdict> verdicts;
+};
+
+/// GET /v1/verdict (codeyoma/krx-quant#676).
+Result<Verdicts> parse_verdicts(const QJsonDocument& doc);
+
 } // namespace fincept::krx_quant

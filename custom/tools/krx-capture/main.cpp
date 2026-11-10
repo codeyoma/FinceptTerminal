@@ -16,6 +16,8 @@
 // KRX_CAPTURE_SCROLL=trades|policies scrolls the screen to that panel before it is saved
 // (codeyoma/krx-quant#401). KRX_CAPTURE_HOVER_AT=<ISO 8601> rests the pointer on that moment's bar of its
 // 1-minute chart (codeyoma/krx-quant#537), as on the KRX screen's.
+// KRX_CAPTURE_VERDICT=1 saves the verdict screen (종합 판단, codeyoma/krx-quant#678): KRX_CAPTURE_SYMBOL the
+// symbol whose members are shown (default the one kept, else the first verdict's).
 //
 //   krx_capture <engine url> <out.png> [seconds=8] [width=1600] [height=1000] [predictor,...]
 //
@@ -26,6 +28,7 @@
 #include "screens/krx_quant/KrxBriefingScreen.h"
 #include "screens/krx_quant/KrxFlowScreen.h"
 #include "screens/krx_quant/KrxCostScreen.h"
+#include "screens/krx_quant/KrxVerdictScreen.h"
 #include "screens/krx_quant/KrxClosingScreen.h"
 #include "screens/krx_quant/KrxTraderScreen.h"
 #include "screens/krx_quant/KrxBarWindow.h"
@@ -40,6 +43,7 @@
 #include "services/krx_quant/KrxBriefingLive.h"
 #include "services/krx_quant/KrxFlowLive.h"
 #include "services/krx_quant/KrxCostLive.h"
+#include "services/krx_quant/KrxVerdictLive.h"
 #include "services/krx_quant/KrxClosingLive.h"
 #include "services/krx_quant/KrxLive.h"
 #include "services/krx_quant/KrxQuantService.h"
@@ -196,6 +200,27 @@ int main(int argc, char* argv[]) {
         int status = 0;
         QTimer::singleShot(seconds * 1000, &app, [&]() {
             if (!flow.grab().save(out)) {
+                QTextStream(stderr) << "could not save " << out << "\n";
+                status = 1;
+            }
+            app.quit();
+        });
+        app.exec();
+        return status;
+    }
+
+    // KRX_CAPTURE_VERDICT=1: the verdict screen (codeyoma/krx-quant#678), saved after the wait;
+    // KRX_CAPTURE_SYMBOL the symbol whose members are shown.
+    if (qEnvironmentVariableIntValue("KRX_CAPTURE_VERDICT") != 0) {
+        if (const QString symbol = qEnvironmentVariable("KRX_CAPTURE_SYMBOL"); !symbol.isEmpty())
+            fincept::AppConfig::instance().set(fincept::services::KrxVerdictLive::kSymbolKey, symbol);
+        fincept::screens::KrxVerdictScreen verdict;
+        verdict.resize(width, height);
+        verdict.show();
+        const QString out = QString::fromLocal8Bit(argv[2]);
+        int status = 0;
+        QTimer::singleShot(seconds * 1000, &app, [&]() {
+            if (!verdict.grab().save(out)) {
                 QTextStream(stderr) << "could not save " << out << "\n";
                 status = 1;
             }

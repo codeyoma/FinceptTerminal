@@ -2717,4 +2717,84 @@ Result<TraderDecisions> parse_trader_decisions(const QJsonDocument& doc) {
     return Result<TraderDecisions>::ok(out);
 }
 
+namespace {
+
+BarrierOdds odds_of(const QJsonObject& o) {
+    return {o.value("p_up_first").toDouble(), o.value("p_timeout").toDouble(), o.value("p_down_first").toDouble()};
+}
+
+} // namespace
+
+Result<Verdicts> parse_verdicts(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<Verdicts>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    Verdicts out;
+    out.version = o.value("version").toInt();
+    for (const auto& v : o.value("verdicts").toArray()) {
+        const QJsonObject j = v.toObject();
+        SymbolVerdict verdict;
+        verdict.symbol = j.value("symbol").toString();
+        verdict.bar_close = time_of(j.value("bar_close"));
+        verdict.version = j.value("version").toInt();
+        verdict.verdict = j.value("verdict").toString();
+        verdict.meaning = j.value("meaning").toString();
+        verdict.reason = j.value("reason").toString();
+        verdict.strength = j.value("strength").toString();
+        verdict.margin = number(j.value("margin"));
+        if (j.value("horizon").isObject()) {
+            const QJsonObject h = j.value("horizon").toObject();
+            verdict.horizon_kind = h.value("kind").toString();
+            verdict.horizon_minutes = h.value("minutes").toInt();
+        }
+        verdict.deadline = time_of(j.value("deadline"));
+        verdict.target = number(j.value("target"));
+        verdict.stop = number(j.value("stop"));
+        verdict.held = j.value("held").toBool();
+        for (const auto& hv : j.value("horizons").toArray()) {
+            const QJsonObject h = hv.toObject();
+            VerdictHorizon horizon;
+            horizon.kind = h.value("kind").toString();
+            horizon.minutes = h.value("minutes").toInt();
+            if (h.value("width_ticks").isDouble())
+                horizon.width_ticks = h.value("width_ticks").toInt();
+            if (h.value("probabilities").isObject())
+                horizon.odds = odds_of(h.value("probabilities").toObject());
+            horizon.families = h.value("families").toInt();
+            horizon.members = h.value("members").toInt();
+            horizon.lean = h.value("lean").toString();
+            horizon.strength = h.value("strength").toString();
+            horizon.margin = number(h.value("margin"));
+            horizon.target = number(h.value("target"));
+            horizon.stop = number(h.value("stop"));
+            horizon.expected_net = number(h.value("expected_net"));
+            horizon.expected_net_ticks = number(h.value("expected_net_ticks"));
+            verdict.horizons.push_back(horizon);
+        }
+        for (const auto& mv : j.value("members").toArray()) {
+            const QJsonObject m = mv.toObject();
+            verdict.members.push_back({m.value("name").toString(), m.value("kind").toString(),
+                                       m.value("family").toString(), m.value("status").toString(),
+                                       m.value("evidence").toInt(), odds_of(m.value("probabilities").toObject()),
+                                       m.value("lean").toString(), m.value("strength").toString(),
+                                       m.value("margin").toDouble(), m.value("weight").toDouble(),
+                                       m.value("counted").toBool(true)});
+        }
+        for (const auto& sv : j.value("side").toArray()) {
+            const QJsonObject side = sv.toObject();
+            VerdictSide s{side.value("name").toString(), side.value("kind").toString(),
+                          side.value("status").toString(), {}};
+            const QJsonObject output = side.value("output").toObject();
+            // By key (QJsonObject sorts them); the screen orders the ones it knows.
+            for (auto it = output.begin(); it != output.end(); ++it)
+                if (it.value().isDouble())
+                    s.output.push_back({it.key(), it.value().toDouble()});
+            verdict.side.push_back(s);
+        }
+        out.verdicts.push_back(verdict);
+    }
+    return Result<Verdicts>::ok(out);
+}
+
 } // namespace fincept::krx_quant
