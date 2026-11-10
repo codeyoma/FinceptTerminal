@@ -166,6 +166,13 @@ void CommandBar::build_commands() {
          {"watch", "watchlist", "wl"},
          "F6",
          {"watchlist", "favorites", "track"}},
+        // Fork addition (codeyoma/krx-quant#678)
+        {"krx_verdict",
+         tr("KRX 종합 판단"),
+         "KRX verdict: buy, sell or wait",
+         {"krx", "krx_verdict", "verdict"},
+         "",
+         {"krx", "korea", "verdict", "판단", "종합", "매수", "매도"}},
         // Fork addition (custom/README.md)
         {"krx_quant",
          tr("KRX 4분 예측"),

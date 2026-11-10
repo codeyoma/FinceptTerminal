@@ -61,9 +61,17 @@ QString role_label(const QString& role) {
     return role;
 }
 
+/// A trade's or call's predictor: the engine's verdict (codeyoma/krx-quant#677) as "종합 판단", an algorithm
+/// as predictor_label names it.
+QString predictor_text(const QString& predictor) {
+    if (predictor == QLatin1String("verdict"))
+        return QStringLiteral("종합 판단");
+    return predictor_label(predictor);
+}
+
 QString cell_text(const QString& kind, const QString& predictor, const QString& role = {}) {
-    QString text = QStringLiteral("%1 · %2").arg(kind_label(kind), predictor_label(predictor));
-    if (!role.isEmpty())
+    QString text = QStringLiteral("%1 · %2").arg(kind_label(kind), predictor_text(predictor));
+    if (!role.isEmpty() && role != QLatin1String("verdict")) // the verdict's role is its predictor
         text += QStringLiteral(" (%1)").arg(role_label(role));
     return text;
 }
@@ -1479,6 +1487,9 @@ QList<BookChoice> book_choices() {
          QStringLiteral(
              "챔피언: trader 자신의 장부. 챔피언 정책 아래 trader가 돈 모드의 결정이고, 그 매매가 한도에 세고 차트에 "
              "보인다.")},
+        {QStringLiteral("verdict"), QStringLiteral("판정"),
+         QStringLiteral("판정: mock 장부가 엔진의 종합 판단(codeyoma/krx-quant#677)을 읽고 BUY면 산 것과, 대기·매도라 "
+                        "건너뛴 것. 정책이 없다. 그 매매는 챔피언의 것이라 한도에 센다.")},
         {QStringLiteral("shadow"), QStringLiteral("그림자"),
          QStringLiteral(
              "그림자: mock·live에서 KIS 장부 옆에서 챔피언 정책을 모의로 체결하는 장부. 그 매매는 차트에 없다.")},
@@ -1524,6 +1535,11 @@ const Reason* reason_of(const QString& key) {
         {"closed", "휴장", "거래일이 아니었다."},
         {"before_entry", "진입 전", "봉 마감이 개장 + 5분(보통 09:05) 전이었다."},
         {"past_last_exit", "청산 마감 뒤", "시간 장벽이 종가 단일가 − 5분(보통 15:15) 뒤였다."},
+        {"verdict_wait", "판정 대기", "엔진의 종합 판단이 기다리세요였다(codeyoma/krx-quant#677)."},
+        {"verdict_sell", "판정 매도", "엔진의 종합 판단이 파세요였다(codeyoma/krx-quant#677)."},
+        {"spacing", "매수 간격", "그날 마지막 연습 매수 주문의 봉 마감부터 15분이 지나지 않았다(#598)."},
+        {"predictor_inactive", "예측자 비활성",
+         "고르기가 그 검토 주기에 이 칸의 예측자를 active가 아니라고 보아 읽되 사지 않았다(#603)."},
         {"holding", "보유 중", "들고 있는 포지션이나 사려고 기다리는 매수가 있었다. 포지션은 하나다."},
         {"reconciling", "계좌 맞추는 중", "시작할 때의 KIS 계좌 맞추기가 아직 끝나지 않았다."},
         {"outranked", "순위에 밀림", "같은 봉 마감에 순위가 더 높은 칸이 샀다."},
@@ -1759,7 +1775,7 @@ QList<DecisionRow> decision_rows(const TraderDecisions& decisions) {
         row.id = d->id;
         row.at = kst_text(d->decided_at, "HH:mm:ss");
         row.book = book_entry_label(*book);
-        row.cell = kind_label(d->kind) + QStringLiteral(" · ") + d->predictor;
+        row.cell = kind_label(d->kind) + QStringLiteral(" · ") + predictor_text(d->predictor);
         row.probability = d->probability ? percent_text(*d->probability) : dash();
         row.threshold = d->threshold ? percent_text(*d->threshold) : dash();
         row.p_star = d->p_star ? percent_text(*d->p_star) : dash();
@@ -1797,7 +1813,7 @@ QList<DecisionRow> decision_rows(const TraderDecisions& decisions) {
         QStringList tip{QStringLiteral("결정 %1 · 예측 %2 (%3 · %4)")
                             .arg(d->id)
                             .arg(d->prediction_id)
-                            .arg(kind_label(d->kind), d->predictor),
+                            .arg(kind_label(d->kind), predictor_text(d->predictor)),
                         QStringLiteral("봉 마감 %1 · 표시 %2 · 결정 %3")
                             .arg(kst_text(d->bar_close, "HH:mm:ss"), kst_text(d->displayed_at, "HH:mm:ss.zzz"),
                                  kst_text(d->decided_at, "HH:mm:ss.zzz")),
@@ -1832,7 +1848,7 @@ QString skip_line(const TraderDecision& d, const TraderDecisionBook& book) {
     if (book.policy)
         who += QStringLiteral(" 정책 %1").arg(*book.policy);
     QStringList parts{who + (d.buy ? QStringLiteral(" 매수 못 함") : QStringLiteral(" 건너뜀")), kind_label(d.kind),
-                      d.predictor};
+                      predictor_text(d.predictor)};
     if (d.probability)
         parts << (d.threshold
                       ? QStringLiteral("%1 (θ %2)").arg(percent_text(*d.probability), percent_text(*d.threshold))

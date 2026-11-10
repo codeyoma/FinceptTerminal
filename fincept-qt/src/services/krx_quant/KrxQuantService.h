@@ -232,6 +232,10 @@ class KrxQuantService : public QObject {
     /// position at once. trader_paused with the control the engine wrote, or trader_pause_failed. The
     /// engine's one write: nothing here resumes. Asked again while one is sent, it is not sent (false).
     bool pause_trader(bool sell_now);
+    /// Every symbol's verdict at its latest bar close with one (GET /v1/verdict, codeyoma/krx-quant#676,
+    /// #678): verdicts_ready or verdicts_failed (also from an engine before #676). Asked again while one is
+    /// read, it is not read.
+    void read_verdicts();
 
   signals:
     void snapshot_ready(const fincept::services::KrxQuantService::Snapshot& snapshot);
@@ -310,6 +314,8 @@ class KrxQuantService : public QObject {
     void trader_decisions_failed(const QString& book, const QDateTime& before, const QString& reason);
     void trader_paused(bool sell_now, const fincept::krx_quant::TraderControl& control);
     void trader_pause_failed(bool sell_now, const QString& reason);
+    void verdicts_ready(const fincept::krx_quant::Verdicts& verdicts);
+    void verdicts_failed(const QString& reason);
     /// The address this service reads changed (also when another panel set it).
     void base_url_changed(const QString& url);
 
@@ -347,6 +353,7 @@ class KrxQuantService : public QObject {
         kTraderPolicies, ///< its policy versions (codeyoma/krx-quant#401)
         kBars,           ///< a symbol's day of 1-minute bars alone (codeyoma/krx-quant#537)
         kDecisions,      ///< the auto trader's decisions of a day (codeyoma/krx-quant#601)
+        kVerdicts,       ///< every symbol's latest verdict (codeyoma/krx-quant#678)
         kKinds           ///< how many kinds of read there are
     };
 
