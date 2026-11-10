@@ -133,7 +133,7 @@ secret이 없거나 만료되면 `custom-krx-pointer`가 실패한다. 그래도
 
 > **바뀜** (2026-10-30, codeyoma/FinceptTerminal#108, codeyoma/krx-quant#397): 위 표의 화면 등록 네 파일에 등록한 KRX 화면 다섯 → 여섯(`krx_trader`, "KRX 자동 매매"), `tests/CMakeLists.txt` 줄의 KRX 테스트에 `tst_krx_trader`, `tst_krx_trader_screen`. 이유: 새 화면 KRX 자동 매매(아래 "KRX 자동 매매").
 
-> **바뀜** (2026-11-10, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#674): 위 표의 화면 등록 네 파일에 등록한 KRX 화면 여섯 → 일곱(`krx_action`, "KRX 할 일", 메뉴와 명령 팔레트의 맨 앞), `tests/CMakeLists.txt` 줄의 KRX 테스트에 `tst_krx_action`. 이유: 사용자가 기능과 용어가 너무 많아 지금 살지와 언제 팔지만 단순하게 보고 싶다고 했다(아래 "KRX 할 일", spec codeyoma/krx-quant#671).
+> **바뀜** (2026-11-10, codeyoma/FinceptTerminal#123, codeyoma/krx-quant#674): 위 표의 화면 등록 네 파일에 등록한 KRX 화면 여섯 → 일곱(`krx_action`, "KRX 할 일", 메뉴와 명령 팔레트의 맨 앞), `tests/CMakeLists.txt` 줄의 KRX 테스트에 `tst_krx_action`. 이유: 사용자가 기능과 용어가 너무 많아 지금 살지와 언제 팔지만 단순하게 보고 싶다고 했다(아래 "KRX 할 일", spec codeyoma/krx-quant#671).
 
 > **삭제됨** (2026-10-13, codeyoma/krx-quant#136): `build-cpp.yml`의 macOS x64(Intel) 대상과 그 결과를 arm64와 합치던 macOS Universal 작업, 릴리스 목록의 두 파일. 이유: Intel Mac은 지원하지 않기로 했다(사용자 결정). 교차 컴파일한 x64 앱은 ARM64 Homebrew OpenSSL을 링크해 실패했고, Intel runner로 고치면 빌드가 가장 오래 걸렸다. 대신: macOS는 Apple Silicon(arm64)만 빌드한다.
 
