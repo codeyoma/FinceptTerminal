@@ -1539,6 +1539,8 @@ set(SERVICE_SOURCES
     src/services/krx_quant/EngineCalendar.cpp
     src/services/krx_quant/LocalCliRunner.cpp
     src/services/krx_quant/DashboardView.cpp
+    src/services/krx_quant/ActionView.cpp
+    src/services/krx_quant/KrxActionLive.cpp
     src/services/krx_quant/BriefingView.cpp
     src/services/krx_quant/KrxBriefingLive.cpp
     src/services/krx_quant/FlowView.cpp
@@ -2159,6 +2161,7 @@ set(SCREEN_SOURCES
     # KRX prediction screen (fork addition, custom/README.md)
     src/screens/krx_quant/KrxAlerts.cpp
     src/screens/krx_quant/KrxBarWindow.cpp
+    src/screens/krx_quant/KrxActionScreen.cpp
     src/screens/krx_quant/KrxBriefingScreen.cpp
     src/screens/krx_quant/KrxFlowScreen.cpp
     src/screens/krx_quant/KrxCostScreen.cpp
@@ -2750,6 +2753,7 @@ set_source_files_properties(
     src/core/currency/fx/FxRates.cpp
     src/screens/krx_quant/KrxAlerts.cpp
     src/screens/krx_quant/KrxBarWindow.cpp
+    src/screens/krx_quant/KrxActionScreen.cpp
     src/screens/krx_quant/KrxBriefingScreen.cpp
     src/screens/krx_quant/KrxFlowScreen.cpp
     src/screens/krx_quant/KrxCostScreen.cpp
@@ -2788,6 +2792,8 @@ set_source_files_properties(
     src/services/krx_quant/EngineCalendar.cpp
     src/services/krx_quant/LocalCliRunner.cpp
     src/services/krx_quant/DashboardView.cpp
+    src/services/krx_quant/ActionView.cpp
+    src/services/krx_quant/KrxActionLive.cpp
     src/services/krx_quant/BriefingView.cpp
     src/services/krx_quant/KrxBriefingLive.cpp
     src/services/krx_quant/FlowView.cpp

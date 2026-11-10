@@ -232,6 +232,10 @@ class KrxQuantService : public QObject {
     /// position at once. trader_paused with the control the engine wrote, or trader_pause_failed. The
     /// engine's one write: nothing here resumes. Asked again while one is sent, it is not sent (false).
     bool pause_trader(bool sell_now);
+    /// What to do now (GET /v1/action, codeyoma/krx-quant#672): a card a symbol the auto trader trades.
+    /// action_ready, with ``served`` false and none from an engine without the answer (404, before #672),
+    /// or action_failed. Asked again while one is read, it is not read.
+    void read_action();
 
   signals:
     void snapshot_ready(const fincept::services::KrxQuantService::Snapshot& snapshot);
@@ -286,6 +290,8 @@ class KrxQuantService : public QObject {
     void bar_failed(const QString& symbol, const QDateTime& bar_close, const QString& reason);
     void briefing_ready(const QDate& day, const fincept::krx_quant::Briefing& briefing);
     void briefing_failed(const QDate& day, const QString& reason);
+    void action_ready(const fincept::krx_quant::ActionBoard& board, bool served);
+    void action_failed(const QString& reason);
     void symbols_ready(const QList<fincept::krx_quant::SymbolQuote>& symbols);
     void symbols_failed(const QString& reason);
     void flow_ready(const QString& symbol, const QDate& day, const fincept::krx_quant::Flow& flow);
@@ -347,6 +353,7 @@ class KrxQuantService : public QObject {
         kTraderPolicies, ///< its policy versions (codeyoma/krx-quant#401)
         kBars,           ///< a symbol's day of 1-minute bars alone (codeyoma/krx-quant#537)
         kDecisions,      ///< the auto trader's decisions of a day (codeyoma/krx-quant#601)
+        kAction,         ///< what to do now (codeyoma/krx-quant#672)
         kKinds           ///< how many kinds of read there are
     };
 

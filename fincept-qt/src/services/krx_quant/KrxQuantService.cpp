@@ -802,6 +802,21 @@ bool KrxQuantService::read_trader_decisions(const QString& book, const QDate& da
     return true;
 }
 
+void KrxQuantService::read_action() {
+    if (!begin(kAction))
+        return;
+    get("/v1/action", [this](Result<QJsonDocument> answer) {
+        end(kAction);
+        // An engine before krx-quant #672 has no such answer: said on the screen, not a failure.
+        if (answer.is_err() && HttpClient::status_from_error(answer.error()) == 404)
+            return emit action_ready({}, false);
+        auto board = parsed(answer, krx_quant::parse_action);
+        if (board.is_err())
+            return emit action_failed(why(board.error()));
+        emit action_ready(board.value(), true);
+    });
+}
+
 bool KrxQuantService::pause_trader(bool sell_now) {
     if (!begin(kTraderPause))
         return false;

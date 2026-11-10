@@ -284,6 +284,35 @@ fincept_add_test(tst_krx_engine_poller
     "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
 target_link_libraries(tst_krx_engine_poller PRIVATE Qt6::Network)
 
+# src/services/krx_quant/ActionView.{h,cpp} and KrxActionLive.{h,cpp} — what the KRX "할 일" screen
+# (codeyoma/krx-quant#674) reads of GET /v1/action, what it shows of it, when it alerts and when it reads
+# it, the last against a stand-in engine on this computer, a 404 included (Qt Network; the settings are a
+# temporary file's: the test defines AppConfig).
+fincept_add_test(tst_krx_action
+    tst_krx_action.cpp
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ActionView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxActionLive.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxActionLive.h"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.h"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EnginePoller.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EnginePoller.h"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/StatsView.cpp"
+    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp"
+    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.cpp"
+    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.h"
+    "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
+target_link_libraries(tst_krx_action PRIVATE Qt6::Network)
+
 # src/services/krx_quant/BriefingView.{h,cpp} and KrxBriefingLive.{h,cpp} — what the KRX pre-open
 # briefing screen (codeyoma/krx-quant#304) reads of GET /v1/briefing, what it shows of it and when it
 # reads it, the last against a stand-in engine on this computer (Qt Network; the settings are a

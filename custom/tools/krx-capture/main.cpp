@@ -8,6 +8,7 @@
 // KRX_CAPTURE_DAY its day, KRX_CAPTURE_HOVER=<0..1> the mouse over its chart at that share of the width.
 // KRX_CAPTURE_COST=1 saves the horizon and cost screen (codeyoma/krx-quant#307): KRX_CAPTURE_PERIOD its
 // period (default 20d), KRX_CAPTURE_SYMBOL its symbol (default all).
+// KRX_CAPTURE_ACTION=1 saves the "할 일" screen (codeyoma/krx-quant#674).
 // KRX_CAPTURE_CLOSING=1 saves the closing flow screen (codeyoma/krx-quant#305): KRX_CAPTURE_SYMBOL its
 // symbol (default the one kept, else the engine's first).
 // KRX_CAPTURE_TRADER=1 saves the auto trader screen (codeyoma/krx-quant#397); KRX_CAPTURE_CONFIRM=entries or
@@ -23,6 +24,7 @@
 // With QT_QPA_PLATFORM=offscreen no window opens, and the chart's panel stays empty. The
 // theme and font are the app's defaults (Obsidian, Consolas 14px).
 #include "core/config/AppConfig.h"
+#include "screens/krx_quant/KrxActionScreen.h"
 #include "screens/krx_quant/KrxBriefingScreen.h"
 #include "screens/krx_quant/KrxFlowScreen.h"
 #include "screens/krx_quant/KrxCostScreen.h"
@@ -150,6 +152,24 @@ int main(int argc, char* argv[]) {
     if (qEnvironmentVariableIsSet("KRX_CAPTURE_LOG"))
         fincept::AppConfig::instance().set(fincept::krx_quant::kLogScaleKey,
                                            qEnvironmentVariableIntValue("KRX_CAPTURE_LOG") != 0);
+
+    // KRX_CAPTURE_ACTION=1: the "할 일" screen (codeyoma/krx-quant#674), saved after the wait.
+    if (qEnvironmentVariableIntValue("KRX_CAPTURE_ACTION") != 0) {
+        fincept::screens::KrxActionScreen action;
+        action.resize(width, height);
+        action.show();
+        const QString out = QString::fromLocal8Bit(argv[2]);
+        int status = 0;
+        QTimer::singleShot(seconds * 1000, &app, [&]() {
+            if (!action.grab().save(out)) {
+                QTextStream(stderr) << "could not save " << out << "\n";
+                status = 1;
+            }
+            app.quit();
+        });
+        app.exec();
+        return status;
+    }
 
     // KRX_CAPTURE_BRIEFING=1: the pre-open briefing screen (codeyoma/krx-quant#304), saved after the wait.
     if (qEnvironmentVariableIntValue("KRX_CAPTURE_BRIEFING") != 0) {

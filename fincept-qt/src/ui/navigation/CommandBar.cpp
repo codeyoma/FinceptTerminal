@@ -166,6 +166,13 @@ void CommandBar::build_commands() {
          {"watch", "watchlist", "wl"},
          "F6",
          {"watchlist", "favorites", "track"}},
+        // Fork addition (codeyoma/krx-quant#674): what to do now, first of the KRX screens
+        {"krx_action",
+         tr("KRX 할 일"),
+         "KRX what to do now: wait, buy, sell",
+         {"krx", "krx_action", "action", "buy", "sell"},
+         "",
+         {"krx", "korea", "buy", "sell", "할 일", "매수", "매도", "살까"}},
         // Fork addition (custom/README.md)
         {"krx_quant",
          tr("KRX 4분 예측"),

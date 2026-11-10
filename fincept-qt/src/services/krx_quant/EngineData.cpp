@@ -2717,4 +2717,65 @@ Result<TraderDecisions> parse_trader_decisions(const QJsonDocument& doc) {
     return Result<TraderDecisions>::ok(out);
 }
 
+
+Result<ActionBoard> parse_action(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<ActionBoard>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    ActionBoard out;
+    out.as_of = time_of(o.value("as_of"));
+    out.mode = o.value("mode").toString();
+    out.alive = o.value("alive").toBool();
+    for (const auto& v : o.value("symbols").toArray()) {
+        const QJsonObject c = v.toObject();
+        ActionCard card;
+        card.symbol = c.value("symbol").toString();
+        card.action = c.value("action").toString();
+        if (card.symbol.isEmpty() || card.action.isEmpty())
+            continue;
+        card.name = c.value("name").toString();
+        card.why = c.value("why").toString();
+        card.said = c.value("said").toString();
+        card.since = time_of(c.value("since"));
+        card.until = time_of(c.value("until"));
+        const QJsonObject plan = c.value("plan").toObject();
+        const auto entry = number(plan.value("entry_price"));
+        const auto target = number(plan.value("target"));
+        const auto stop = number(plan.value("stop"));
+        if (entry && target && stop) {
+            ActionPlan p;
+            p.entry_price = *entry;
+            p.entry_at = time_of(plan.value("entry_at"));
+            p.target = *target;
+            p.stop = *stop;
+            p.sell_by = time_of(plan.value("sell_by"));
+            p.bid = number(plan.value("bid"));
+            p.bid_at = time_of(plan.value("bid_at"));
+            card.plan = p;
+        }
+        const QJsonObject exit = c.value("exit").toObject();
+        if (!exit.isEmpty())
+            card.exit = ActionExit{exit.value("reason").toString(), number(exit.value("price")), time_of(exit.value("at"))};
+        const QJsonObject record = c.value("record").toObject();
+        if (!record.isEmpty()) {
+            ActionRecord r;
+            r.kind = record.value("kind").toString();
+            r.predictor = record.value("predictor").toString();
+            r.threshold = record.value("threshold").toDouble();
+            r.days = int_of(record.value("days"));
+            r.signal_count = int_of(record.value("signals"));
+            r.bought = int_of(record.value("bought"));
+            r.wins = int_of(record.value("wins"));
+            r.per_signal_ticks = number(record.value("per_signal_ticks"));
+            r.low_ticks = number(record.value("low_ticks"));
+            r.per_signal_won = number(record.value("per_signal_won"));
+            r.low_won = number(record.value("low_won"));
+            card.record = r;
+        }
+        out.cards.push_back(card);
+    }
+    return Result<ActionBoard>::ok(out);
+}
+
 } // namespace fincept::krx_quant

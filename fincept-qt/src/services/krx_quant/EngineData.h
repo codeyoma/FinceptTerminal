@@ -1130,6 +1130,57 @@ Result<TraderPolicies> parse_trader_policies(const QJsonDocument& doc);
 /// decisions newest first; a book without its name or mode, or a decision without its id or time, is dropped.
 Result<TraderDecisions> parse_trader_decisions(const QJsonDocument& doc);
 
+/// What to do now (GET /v1/action, codeyoma/krx-quant#672, spec #671): a card a symbol the auto trader
+/// trades, following its champion's book alone. ``action`` is "wait", "buy" or "sell"; ``why`` a word of
+/// the engine's ("bought", "take_profit", "holding", "no_cell", …) and ``said`` its line of Korean.
+struct ActionPlan {
+    double entry_price = 0;
+    QDateTime entry_at;
+    double target = 0;   ///< the take-profit price
+    double stop = 0;     ///< the stop price
+    QDateTime sell_by;   ///< the time barrier: sold by then at the latest
+    std::optional<double> bid; ///< the best bid the trader valued it at (an open trade's)
+    QDateTime bid_at;
+};
+struct ActionExit {
+    QString reason; ///< take_profit, stop_loss, time, pause, daily_limit, cumulative_limit
+    std::optional<double> price;
+    QDateTime at;
+};
+/// The cell's record of the nightly fit: its signals bought alone a share over ``days``.
+struct ActionRecord {
+    QString kind;
+    QString predictor;
+    double threshold = 0;
+    std::optional<int> days;
+    std::optional<int> signal_count; ///< "signals" (a Qt keyword)
+    std::optional<int> bought;
+    std::optional<int> wins;
+    std::optional<double> per_signal_ticks;
+    std::optional<double> low_ticks;
+    std::optional<double> per_signal_won;
+    std::optional<double> low_won;
+};
+struct ActionCard {
+    QString symbol;
+    QString name;
+    QString action; ///< wait, buy, sell
+    QString why;
+    QString said;
+    QDateTime since; ///< a buy's or a sale's, and a held trade's entry; invalid otherwise
+    QDateTime until; ///< a buy's or a sale's minute; invalid otherwise
+    std::optional<ActionPlan> plan;
+    std::optional<ActionExit> exit;
+    std::optional<ActionRecord> record;
+};
+struct ActionBoard {
+    QDateTime as_of;
+    QString mode; ///< paper, mock, live; empty before the trader wrote its state
+    bool alive = false;
+    QList<ActionCard> cards;
+};
+Result<ActionBoard> parse_action(const QJsonDocument& doc);
+
 /// Day candles the engine stored (krx-quant #111): oldest first, each starting at 00:00 KST of
 /// its day, and the market they come from ("UN" integrated, "KRX"; empty with none stored).
 struct Candles {
