@@ -8,8 +8,9 @@
 
 /// What the KRX verdict screen (종합 판단, codeyoma/krx-quant#678) shows, from the engine's GET
 /// /v1/verdict answer: each symbol's card (사세요 / 파세요 / 기다리세요, its strength, the maximum
-/// holding time with the target and stop, the expected net per horizon), the members' table and the
-/// forecasts beside it. The screen only draws them.
+/// holding time with the target and stop, the expected net per horizon, and the day and week rows
+/// labelled 참고(매매 안 함), codeyoma/krx-quant#699), the members' table and the forecasts beside it;
+/// and from GET /v1/ranking, each verdict horizon's ranking (#699). The screen only draws them.
 ///
 /// Qt Core only (no network, no widgets), unit-tested on its own (tests/tst_krx_verdict.cpp).
 namespace fincept::krx_quant::judgment {
@@ -90,6 +91,60 @@ struct SideRow {
     QString output; ///< "상승 62% · 보합 14% · 하락 24% · 기대 +0.3틱"
 };
 QList<SideRow> side_rows(const SymbolVerdict& v);
+
+/// What the day and week rows are labelled: nothing trades on them.
+QString advisory_label();
+/// A day or week horizon's name: "하루", "1주"; "N거래일" for another.
+QString advisory_horizon_text(const QString& kind, int sessions);
+/// An open-to-close call in Korean: "상승", "보합", "하락", "대기".
+QString day_call_text(const QString& call);
+
+/// A day or week row on the card (verdict version 2, codeyoma/krx-quant#699).
+struct AdvisoryLine {
+    QString horizon; ///< "하루", "1주"
+    QString call;    ///< "상승", "보합", "하락", "대기"
+    QString odds;    ///< "상승 34% · 보합 33% · 하락 33%"; "—" without members
+    QString members; ///< "멤버 2"
+    bool up = false;
+    bool down = false;
+    QString tip; ///< the margin, families, and each forecaster's probabilities and whether it counted
+};
+QList<AdvisoryLine> advisory_lines(const SymbolVerdict& v);
+
+/// What a horizon's ranking says when no algorithm qualifies.
+QString no_qualifier_text();
+
+/// An algorithm's row in a horizon's ranking table, in its columns' order.
+struct RankingLine {
+    QString rank;      ///< "1"; "—" when not ranked
+    QString algorithm;
+    QString status;
+    QString skill;     ///< "+0.0082 (+0.0042 ~ +0.0122)"; why it is not ranked otherwise
+    QString precision; ///< "55%"; "—" without calls
+    QString calls;
+    QString member; ///< "예", "아니오"
+    QString nights; ///< "4밤"; "4밤 · 반대 1/3" while the other result runs
+    bool is_member = false;
+    bool qualifies = false;
+    bool ranked = false;
+    QString tip;
+};
+
+/// A verdict horizon's ranking panel.
+struct RankingPanel {
+    QString kind;
+    QString title; ///< "순위 · 장벽 15분", "순위 · 하루 · 참고(매매 안 함)"
+    QString line;  ///< "10-08 밤 · 멤버 breiman-15m"; "10-08 밤 · 기준선보다 나은 알고리즘 없음"
+    bool no_members = false;
+    QString tip; ///< the rules
+    QList<RankingLine> rows; ///< members first, then the engine's order
+};
+/// Each horizon's panel, in the engine's order.
+QList<RankingPanel> ranking_panels(const Ranking& ranking);
+/// What the ranking says without any horizon.
+QString ranking_empty_text();
+/// An engine before #697 answers 404: say so instead of the bare failure.
+QString ranking_failure_text(const QString& failure);
 
 /// The verdict of ``symbol`` in ``verdicts``; else the first; none when there is none.
 std::optional<SymbolVerdict> chosen(const Verdicts& verdicts, const QString& symbol);

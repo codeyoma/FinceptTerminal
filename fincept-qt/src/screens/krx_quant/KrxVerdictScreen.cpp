@@ -69,11 +69,20 @@ class KrxVerdictCard : public QFrame {
         horizons_->horizontalHeader()->setStretchLastSection(true);
         horizons_->setSelectionMode(QAbstractItemView::NoSelection);
         horizons_->viewport()->installEventFilter(this); // a click on the table chooses too
+        // The day and the week (codeyoma/krx-quant#699): the header says nothing trades on them.
+        advisory_ = krx_tables::table({view::advisory_label(), QObject::tr("판단"), QObject::tr("확률"),
+                                       QObject::tr("멤버")});
+        advisory_->setObjectName("krxVerdictAdvisory");
+        advisory_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        advisory_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        advisory_->horizontalHeader()->setStretchLastSection(true);
+        advisory_->setSelectionMode(QAbstractItemView::NoSelection);
+        advisory_->viewport()->installEventFilter(this);
         as_of_ = new QLabel;
         for (QWidget* w : {static_cast<QWidget*>(title_), static_cast<QWidget*>(word_),
                            static_cast<QWidget*>(reason_), static_cast<QWidget*>(hold_),
                            static_cast<QWidget*>(levels_), static_cast<QWidget*>(horizons_),
-                           static_cast<QWidget*>(as_of_)})
+                           static_cast<QWidget*>(advisory_), static_cast<QWidget*>(as_of_)})
             layout->addWidget(w);
         layout->addStretch(1);
     }
@@ -119,6 +128,22 @@ class KrxVerdictCard : public QFrame {
         horizons_->setVisible(!lines.isEmpty());
         krx_tables::restyle(horizons_);
         fit_height(horizons_);
+        const auto days = view::advisory_lines(v);
+        advisory_->setRowCount(static_cast<int>(days.size()));
+        for (int r = 0; r < days.size(); ++r) {
+            const auto& line = days[r];
+            const QStringList texts{line.horizon, line.call, line.odds, line.members};
+            for (int c = 0; c < texts.size(); ++c) {
+                auto* item = cell(texts[c], c == 0 || c == 1 ? Qt::AlignLeft | Qt::AlignVCenter : kNumber);
+                item->setToolTip(line.tip);
+                if (c == 1 && (line.up || line.down))
+                    item->setForeground(QColor(line.up ? ui::colors::POSITIVE() : ui::colors::NEGATIVE()));
+                advisory_->setItem(r, c, item);
+            }
+        }
+        advisory_->setVisible(!days.isEmpty());
+        krx_tables::restyle(advisory_);
+        fit_height(advisory_);
         as_of_->setText(view::as_of_text(v));
         as_of_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_DIM()));
     }
@@ -143,6 +168,7 @@ class KrxVerdictCard : public QFrame {
     QLabel* hold_ = nullptr;
     QLabel* levels_ = nullptr;
     QTableWidget* horizons_ = nullptr;
+    QTableWidget* advisory_ = nullptr;
     QLabel* as_of_ = nullptr;
 };
 
@@ -247,6 +273,23 @@ KrxVerdictScreen::KrxVerdictScreen(QWidget* parent) : QWidget(parent) {
     side_layout->addStretch(1);
     lower_row->addWidget(krx_panel::panel(side_header_, side_body), 2);
     body_layout->addWidget(lower);
+
+    // A ranking panel per verdict horizon (GET /v1/ranking, codeyoma/krx-quant#699), under one header.
+    ranking_header_ = krx_panel::header(
+        tr("알고리즘 순위"),
+        tr("판정이 지평마다 합치는 알고리즘(멤버)을 엔진이 날마다 점검 뒤 정한 순위입니다. 기술은 기준선(기후)보다 "
+           "로그 손실을 얼마나 줄였는지이고, 하한이 0보다 크면 기준선보다 낫습니다. 멤버가 먼저 옵니다. 하루와 1주는 "
+           "참고이고 매매하지 않습니다."));
+    auto* ranking_body = new QWidget;
+    ranking_layout_ = new QVBoxLayout(ranking_body);
+    ranking_layout_->setContentsMargins(0, 0, 0, 0);
+    ranking_layout_->setSpacing(1);
+    ranking_note_ = new QLabel;
+    ranking_note_->setObjectName("krxRankingNote");
+    ranking_note_->setContentsMargins(12, 8, 12, 8);
+    ranking_note_->setWordWrap(true);
+    ranking_layout_->addWidget(ranking_note_);
+    body_layout->addWidget(krx_panel::panel(ranking_header_, ranking_body));
     body_layout->addStretch(1);
     scroll->setWidget(body);
     layout->addWidget(scroll, 1);
@@ -276,12 +319,16 @@ void KrxVerdictScreen::refresh_theme() {
                           "padding:1px 6px;font-weight:700;}"
                           "#krxVerdictScreen QPushButton:hover{border-color:%3;}")
                       .arg(ui::colors::BG_BASE(), ui::colors::TEXT_PRIMARY(), ui::colors::BORDER_MED()));
-    for (const auto* header : {&header_, &cards_header_, &members_header_, &side_header_})
+    for (const auto* header : {&header_, &cards_header_, &members_header_, &side_header_, &ranking_header_})
         header->restyle();
     for (auto* table : {members_, side_})
         krx_tables::restyle(table);
+    for (const auto& box : ranking_boxes_) {
+        box.header.restyle();
+        krx_tables::restyle(box.table);
+    }
     failure_->setStyleSheet(QString("color:%1;font-weight:700;").arg(ui::colors::NEGATIVE()));
-    for (auto* label : {as_of_, empty_, members_empty_})
+    for (auto* label : {as_of_, empty_, members_empty_, ranking_note_})
         label->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_SECONDARY()));
     dot_->setProperty("krxColor", QVariant());
     render();
@@ -302,6 +349,7 @@ void KrxVerdictScreen::render() {
     fill_cards();
     fill_members();
     fill_side();
+    fill_ranking();
 }
 
 void KrxVerdictScreen::show_dot() {
@@ -386,6 +434,82 @@ void KrxVerdictScreen::fill_side() {
         side_->setItem(r, 3, cell(row.output));
     }
     fit_height(side_);
+}
+
+void KrxVerdictScreen::fill_ranking() {
+    const auto& ranking = live_->ranking();
+    const QString failure = view::ranking_failure_text(live_->ranking_failure());
+    const auto panels = ranking ? view::ranking_panels(*ranking) : QList<view::RankingPanel>{};
+    QString note;
+    if (!failure.isEmpty())
+        note = ranking ? tr("순위를 읽지 못함: %1 (아래는 앞서 읽은 것)").arg(failure) : failure;
+    else if (ranking && panels.isEmpty())
+        note = view::ranking_empty_text();
+    ranking_note_->setText(note);
+    ranking_note_->setVisible(!note.isEmpty());
+    ranking_note_->setStyleSheet(QString("color:%1;%2")
+                                     .arg(failure.isEmpty() ? ui::colors::TEXT_SECONDARY() : ui::colors::NEGATIVE(),
+                                          failure.isEmpty() ? "" : "font-weight:700;"));
+    while (ranking_boxes_.size() > panels.size()) {
+        RankingBox box = ranking_boxes_.takeLast();
+        ranking_layout_->removeWidget(box.panel);
+        box.panel->deleteLater();
+    }
+    while (ranking_boxes_.size() < panels.size()) {
+        RankingBox box;
+        box.header = krx_panel::header(QString());
+        auto* body = new QWidget;
+        auto* layout = new QVBoxLayout(body);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(0);
+        box.line = new QLabel;
+        box.line->setContentsMargins(12, 4, 12, 4);
+        box.line->setWordWrap(true);
+        layout->addWidget(box.line);
+        box.table = krx_tables::table({tr("순위"), tr("알고리즘"), tr("상태"), tr("기술 (95% 구간)"), tr("방향 맞힘률"),
+                                       tr("호출"), tr("멤버"), tr("그 상태로")});
+        box.table->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        box.table->horizontalHeader()->setStretchLastSection(true);
+        layout->addWidget(box.table);
+        box.panel = krx_panel::panel(box.header, body);
+        box.panel->setObjectName(QStringLiteral("krxRankingPanel"));
+        ranking_layout_->addWidget(box.panel);
+        krx_tables::restyle(box.table);
+        ranking_boxes_ << box;
+    }
+    for (int i = 0; i < panels.size(); ++i) {
+        const auto& panel = panels[i];
+        auto& box = ranking_boxes_[i];
+        box.header.title->setText(panel.title);
+        box.header.title->setToolTip(panel.tip);
+        box.line->setText(panel.line);
+        box.line->setStyleSheet(panel.no_members ? QString("color:%1;font-weight:700;").arg(ui::colors::AMBER())
+                                                 : QString("color:%1;").arg(ui::colors::TEXT_SECONDARY()));
+        box.table->setRowCount(0);
+        for (const auto& row : panel.rows) {
+            const int r = box.table->rowCount();
+            box.table->insertRow(r);
+            const QStringList texts{row.rank,      row.algorithm, row.status, row.skill,
+                                    row.precision, row.calls,     row.member, row.nights};
+            for (int c = 0; c < texts.size(); ++c) {
+                const bool number = c == 0 || c == 3 || c == 4 || c == 5;
+                auto* item = cell(texts[c], number ? kNumber : Qt::AlignLeft | Qt::AlignVCenter);
+                item->setToolTip(row.tip);
+                if (row.is_member) {
+                    QFont bold = item->font();
+                    bold.setBold(true);
+                    item->setFont(bold);
+                    if (c == 6)
+                        item->setForeground(QColor(ui::colors::POSITIVE()));
+                } else if (!row.ranked) {
+                    item->setForeground(QColor(ui::colors::TEXT_DIM()));
+                }
+                box.table->setItem(r, c, item);
+            }
+        }
+        box.table->setVisible(!panel.rows.isEmpty());
+        fit_height(box.table);
+    }
 }
 
 } // namespace fincept::screens

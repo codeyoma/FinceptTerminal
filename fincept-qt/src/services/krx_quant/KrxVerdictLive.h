@@ -15,8 +15,13 @@ namespace fincept::services {
 class EnginePoller;
 
 /// What the KRX verdict screen (종합 판단, codeyoma/krx-quant#678) shows, kept for it: every symbol's
-/// verdict at its latest bar close (GET /v1/verdict), the engine's symbols with their names and logos,
-/// and whether the engine answered. The screen owns it and only draws what it holds.
+/// verdict at its latest bar close (GET /v1/verdict), each verdict horizon's ranking (GET /v1/ranking,
+/// codeyoma/krx-quant#699), the engine's symbols with their names and logos, and whether the engine
+/// answered. The screen owns it and only draws what it holds.
+///
+/// Each read asks for both and ends when both answered. The verdicts' failure is the screen's (failure);
+/// the ranking's is kept apart (ranking_failure), so an engine before #697 still shows its verdicts. Either
+/// failure keeps what was read before.
 ///
 /// While started it reads at once and then again by judgment::poll_ms: every 15 s on a weekday from 08:59
 /// to 15:40 KST, else every 5 minutes. The symbol whose members are shown is kept in the settings
@@ -43,6 +48,9 @@ class KrxVerdictLive : public QObject {
     std::optional<krx_quant::SymbolVerdict> chosen() const;
 
     const std::optional<krx_quant::Verdicts>& verdicts() const { return verdicts_; }
+    const std::optional<krx_quant::Ranking>& ranking() const { return ranking_; }
+    /// Why the last ranking read failed; empty after an answer.
+    const QString& ranking_failure() const { return ranking_failure_; }
     /// The engine's symbols, in its order, with names and logos; empty before they are read.
     const QList<krx_quant::SymbolQuote>& symbols() const;
     const QString& failure() const;
@@ -58,11 +66,18 @@ class KrxVerdictLive : public QObject {
 
   private:
     void read();
+    /// Both reads answered: the read ends with the verdicts' answer or failure.
+    void settle();
 
     EnginePoller* poller_ = nullptr;
     QString symbol_;
     std::optional<krx_quant::Verdicts> verdicts_;
+    std::optional<krx_quant::Ranking> ranking_;
+    QString ranking_failure_;
+    QString verdicts_failure_; ///< this read's, until it settles
     bool reading_ = false;
+    bool waiting_verdicts_ = false;
+    bool waiting_ranking_ = false;
 };
 
 } // namespace fincept::services

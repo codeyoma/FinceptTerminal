@@ -625,9 +625,9 @@ void KrxQuantService::read_bar(const QString& symbol, const QDateTime& bar_close
     }
 }
 
-void KrxQuantService::read_verdicts() {
+bool KrxQuantService::read_verdicts() {
     if (!begin(kVerdicts))
-        return;
+        return false;
     get(QStringLiteral("/v1/verdict"), [this](Result<QJsonDocument> answer) {
         end(kVerdicts);
         auto verdicts = parsed(answer, krx_quant::parse_verdicts);
@@ -635,6 +635,20 @@ void KrxQuantService::read_verdicts() {
             return emit verdicts_failed(why(verdicts.error()));
         emit verdicts_ready(verdicts.value());
     });
+    return true;
+}
+
+bool KrxQuantService::read_ranking() {
+    if (!begin(kRanking))
+        return false;
+    get(QStringLiteral("/v1/ranking"), [this](Result<QJsonDocument> answer) {
+        end(kRanking);
+        auto ranking = parsed(answer, krx_quant::parse_ranking);
+        if (ranking.is_err())
+            return emit ranking_failed(why(ranking.error()));
+        emit ranking_ready(ranking.value());
+    });
+    return true;
 }
 
 void KrxQuantService::read_trader() {

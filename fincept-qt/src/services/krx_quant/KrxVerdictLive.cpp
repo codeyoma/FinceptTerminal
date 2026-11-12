@@ -15,17 +15,34 @@ KrxVerdictLive::KrxVerdictLive(QObject* parent, std::function<QDateTime()> now) 
     connect(poller_, &EnginePoller::changed, this, &KrxVerdictLive::changed);
     auto* service = poller_->service();
     connect(service, &KrxQuantService::verdicts_ready, this, [this](const krx_quant::Verdicts& verdicts) {
-        reading_ = false;
+        waiting_verdicts_ = false;
         verdicts_ = verdicts;
-        poller_->answered();
+        verdicts_failure_.clear();
+        settle();
     });
     connect(service, &KrxQuantService::verdicts_failed, this, [this](const QString& reason) {
-        reading_ = false;
-        poller_->failed(reason); // the last verdicts stay
+        waiting_verdicts_ = false;
+        verdicts_failure_ = reason; // the last verdicts stay
+        settle();
+    });
+    connect(service, &KrxQuantService::ranking_ready, this, [this](const krx_quant::Ranking& ranking) {
+        waiting_ranking_ = false;
+        ranking_ = ranking;
+        ranking_failure_.clear();
+        settle();
+    });
+    connect(service, &KrxQuantService::ranking_failed, this, [this](const QString& reason) {
+        waiting_ranking_ = false;
+        ranking_failure_ = reason; // the last ranking stays
+        settle();
     });
     connect(poller_, &EnginePoller::engine_changed, this, [this] {
+        // The reads under way were dropped: none of them answers.
         verdicts_.reset();
-        reading_ = false;
+        ranking_.reset();
+        ranking_failure_.clear();
+        verdicts_failure_.clear();
+        reading_ = waiting_verdicts_ = waiting_ranking_ = false;
     });
 }
 
@@ -82,7 +99,25 @@ int KrxVerdictLive::next_ms() const {
 void KrxVerdictLive::read() {
     reading_ = true;
     emit changed();
-    poller_->service()->read_verdicts();
+    // A read still under way is not asked again: its answer settles this one.
+    if (poller_->service()->read_verdicts())
+        waiting_verdicts_ = true;
+    if (poller_->service()->read_ranking())
+        waiting_ranking_ = true;
+    if (!waiting_verdicts_ && !waiting_ranking_) { // nothing asked (no address in the service): try later
+        reading_ = false;
+        poller_->schedule();
+    }
+}
+
+void KrxVerdictLive::settle() {
+    if (waiting_verdicts_ || waiting_ranking_)
+        return;
+    reading_ = false;
+    if (verdicts_failure_.isEmpty())
+        poller_->answered();
+    else
+        poller_->failed(verdicts_failure_);
 }
 
 } // namespace fincept::services
