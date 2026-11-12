@@ -77,7 +77,7 @@ secret이 없거나 만료되면 `custom-krx-pointer`가 실패한다. 그래도
 
 > **바뀜** (2026-10-19, codeyoma/krx-quant#302): 위의 것에 더해, 대시보드의 KRX 위젯 때문에 `WidgetRegistry.cpp`, `AddWidgetDialog.cpp`, `DashboardTemplates.cpp`, `TemplatePicker.cpp`도 고친다(아래 표, 아래 "대시보드 KRX 위젯"). 이유: 위젯 목록, 카테고리 색, 템플릿 목록이 upstream 파일 안의 고정된 목록이라, 거기에 한 줄씩 갈래를 넣어야 했다. 템플릿 선택 창은 640×400 고정이라 일곱째 템플릿(셋째 줄)이 들어가면 카드가 모두 겹쳤다. 위젯 코드는 `screens/krx_quant/dashboard/`에 둔다.
 
-> **바뀜** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 대시보드 KRX 위젯 때문에 고치던 `WidgetRegistry.cpp`, `AddWidgetDialog.cpp`, `DashboardTemplates.cpp`, `TemplatePicker.cpp` → upstream v4.5.1 그대로 되돌렸다(아래 표, 아래 "대시보드 KRX 위젯"). 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12).
+> **바뀜** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 대시보드 KRX 위젯 때문에 고치던 `WidgetRegistry.cpp`, `AddWidgetDialog.cpp`, `DashboardTemplates.cpp`, `TemplatePicker.cpp` → upstream v4.5.1 그대로 되돌렸다(아래 표, 아래 "대시보드 KRX 위젯"). 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12).
 
 > **바뀜** (2026-10-16, codeyoma/krx-quant#247): 위의 것에 더해, 업데이트마다 실패하던 Python 라이브러리 설치 때문에 `fincept-qt/src/python/PythonSetupManager.cpp`도 고친다(아래 표). 이유: upstream v4.5.1의 분석 핵심 설치 단계가 uv `-c`에 lock의 절대 경로를 넘기는데, uv는 이 값을 공백에서 나눈다. 맥의 `Application Support` 경로에서 늘 실패해, 요구 목록이 바뀌는 업데이트마다 "Python 라이브러리 설치에 실패했습니다" 알림이 떴다. upstream이 고치면 이 갈래는 뺀다.
 
@@ -131,9 +131,9 @@ secret이 없거나 만료되면 `custom-krx-pointer`가 실패한다. 그래도
 
 > **바뀜** (2026-10-30, codeyoma/FinceptTerminal#108, codeyoma/krx-quant#397): 위 표의 화면 등록 네 파일에 등록한 KRX 화면 다섯 → 여섯(`krx_trader`, "KRX 자동 매매"), `tests/CMakeLists.txt` 줄의 KRX 테스트에 `tst_krx_trader`, `tst_krx_trader_screen`. 이유: 새 화면 KRX 자동 매매(아래 "KRX 자동 매매").
 
-> **바뀜** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 위 표의 화면 등록 네 파일에 등록한 KRX 화면 일곱 → 셋(`krx_verdict`, `krx_quant`, `krx_trader`, 메뉴와 명령 팔레트도 이 순서). `krx_briefing`, `krx_flow`, `krx_cost`, `krx_closing`의 factory, 탭 제목, 메뉴, 명령은 없다. 저장된 도킹 배치에 그 화면이 있으면 upstream의 `DockScreenRouter`가 "Unknown screen"을 남기고 건너뛴다. `tests/CMakeLists.txt` 줄의 KRX 테스트에서 `tst_krx_chart_drawings`, `tst_krx_dashboard_view`, `tst_krx_briefing`, `tst_krx_flow`, `tst_krx_cost`, `tst_krx_closing`을 뺐다. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12).
+> **바뀜** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 위 표의 화면 등록 네 파일에 등록한 KRX 화면 일곱 → 셋(`krx_verdict`, `krx_quant`, `krx_trader`, 메뉴와 명령 팔레트도 이 순서). `krx_briefing`, `krx_flow`, `krx_cost`, `krx_closing`의 factory, 탭 제목, 메뉴, 명령은 없다. 저장된 도킹 배치에 그 화면이 있으면 upstream의 `DockScreenRouter`가 "Unknown screen"을 남기고 건너뛴다. `tests/CMakeLists.txt` 줄의 KRX 테스트에서 `tst_krx_chart_drawings`, `tst_krx_dashboard_view`, `tst_krx_briefing`, `tst_krx_flow`, `tst_krx_cost`, `tst_krx_closing`을 뺐다. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12).
 
-> **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 표의 `fincept-qt/src/screens/dashboard/canvas/WidgetRegistry.cpp`, `AddWidgetDialog.cpp`, `DashboardTemplates.cpp`, `TemplatePicker.cpp` 네 줄(KRX 위젯 등록, `KRX` 카테고리 색, `KRX` 템플릿, 템플릿 선택 창 높이). 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: 네 파일은 upstream v4.5.1 그대로다. 저장된 대시보드 배치의 KRX 위젯은 upstream의 `DashboardCanvas`가 "unknown widget type"으로 버리고 칸을 당긴다.
+> **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 표의 `fincept-qt/src/screens/dashboard/canvas/WidgetRegistry.cpp`, `AddWidgetDialog.cpp`, `DashboardTemplates.cpp`, `TemplatePicker.cpp` 네 줄(KRX 위젯 등록, `KRX` 카테고리 색, `KRX` 템플릿, 템플릿 선택 창 높이). 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: 네 파일은 upstream v4.5.1 그대로다. 저장된 대시보드 배치의 KRX 위젯은 upstream의 `DashboardCanvas`가 "unknown widget type"으로 버리고 칸을 당긴다.
 
 > **삭제됨** (2026-10-13, codeyoma/krx-quant#136): `build-cpp.yml`의 macOS x64(Intel) 대상과 그 결과를 arm64와 합치던 macOS Universal 작업, 릴리스 목록의 두 파일. 이유: Intel Mac은 지원하지 않기로 했다(사용자 결정). 교차 컴파일한 x64 앱은 ARM64 Homebrew OpenSSL을 링크해 실패했고, Intel runner로 고치면 빌드가 가장 오래 걸렸다. 대신: macOS는 Apple Silicon(arm64)만 빌드한다.
 
@@ -289,10 +289,10 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
 
     > **바뀜** (2026-10-15, codeyoma/krx-quant#224): `그리기`와 휴지통은 비활성이었다(툴팁 "준비 중") → `그리기`는 도구 12종과 `자석`의 메뉴를 열고, 휴지통은 지금 종목의 그린 것을 확인 뒤 모두 지운다(그린 것이 없으면 비활성). 이유: 그리기 도구를 만들었다(spec codeyoma/krx-quant#220의 네 번째 하위 이슈).
 
-    > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 툴바의 `그리기` 메뉴(도구 12종과 자석, Cmd+D와 글자 단축키, 고른 도구의 이름), 휴지통. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 그리기 도구는 쓰지 않았다. 대신: 없다. 툴바는 보기, 차트 모양, 보조지표, SMT, 톱니다(아래 **그리기**).
+    > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 툴바의 `그리기` 메뉴(도구 12종과 자석, Cmd+D와 글자 단축키, 고른 도구의 이름), 휴지통. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 그리기 도구는 쓰지 않았다. 대신: 없다. 툴바는 보기, 차트 모양, 보조지표, SMT, 톱니다(아래 **그리기**).
   - **종목별 차트 설정**(codeyoma/krx-quant#221): 보기와 차트 모양은 종목마다 앱 설정 `krx_quant/chart/<종목코드>/view`(분 수: 1–240, 일 1440, 주 10080, 월 44640, 년 527040)와 `krx_quant/chart/<종목코드>/style`(아래 차트 모양의 이름)에 남는다. 종목을 고르면 그 종목의 보기와 모양으로 바뀐다(`KrxLive::selected_changed`). 처음 여는 종목과 목록 밖의 값은 1분·캔들이다(`ChartLook::parse_prefs`). 켠 지표와 설정값은 `krx_quant/chart/<종목코드>/indicators`, 고정 VWAP 기준은 `…/vwap_anchor`에 남는다(codeyoma/krx-quant#222, 아래 보조지표). 하단 칸 높이는 `…/pane_heights`에 남는다(codeyoma/krx-quant#223, 아래 하단 칸). 시간축 없는 차트의 크기는 `…/brick_sizes`에 남는다(codeyoma/krx-quant#225, 아래 차트 모양). 종목을 고르기 전에는 1분·캔들이고 남기지 않는다.
 
-    > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 그린 것 `krx_quant/chart/<종목코드>/drawings`와 자석 `krx_quant/chart_magnet` 설정. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: 앱은 이 두 키를 읽지도 쓰지도 않는다. 이미 남은 값은 지우지 않고 그대로 둔다.
+    > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 그린 것 `krx_quant/chart/<종목코드>/drawings`와 자석 `krx_quant/chart_magnet` 설정. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: 앱은 이 두 키를 읽지도 쓰지도 않는다. 이미 남은 값은 지우지 않고 그대로 둔다.
 
 
     > **바뀜** (2026-10-15, codeyoma/krx-quant#221): 보기는 모든 종목에 하나(`krx_quant/chart_view_minutes`)였다 → 종목마다 남는다. 옛 키는 더 읽지 않는다. 이유: 한 종목에 맞춘 차트가 다른 종목에 그대로 남지 않게(2026-10-15 인터뷰, codeyoma/krx-quant#220).
@@ -327,7 +327,7 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
       - 보조지표는 실제 봉으로만 센다. 빈 봉 때문에 바뀌는 값은 없다. 빈 봉에는 점이 없어 선이 그 앞뒤 실제 봉을 바로 잇는다. TradingView의 기본 선(`plot.style_line`)이 값 없는 봉을 건너 잇는 것과 같다(끊는 것은 `plot.style_linebr`다). 두 선 사이 채우기(볼린저 밴드, 일목 구름)도 같다. 빈 봉 위의 범례는 선의 값과 "비움" 이유를 보이지 않는다.
       - 특수 상황 띠는 시각의 봉 위치(`ChartSlots::logical_at`)로 놓고, 그 변환이 빈 칸을 센다. 그래서 멈춘 시간 안의 시각은 제 칸에 놓인다.
 
-        > **바뀜** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 이 변환(`logical_at`과 만들어지는 봉 붙이기 `append_live`)은 그리기의 `ChartDrawings`에 있었다 → `ChartSlots`에 있다. 그리기의 거꾸로 변환(`time_at`)과 자석(`magnet_spot`)은 없다. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12).
+        > **바뀜** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 이 변환(`logical_at`과 만들어지는 봉 붙이기 `append_live`)은 그리기의 `ChartDrawings`에 있었다 → `ChartSlots`에 있다. 그리기의 거꾸로 변환(`time_at`)과 자석(`magnet_spot`)은 없다. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12).
       - 맞춤의 최근 60봉은 최근 60칸(빈 봉 포함, 시계까지 채운 것도)이다. 날짜 구분선은 그날의 첫 실제 봉에 칠한다(첫 봉 앞에는 빈 봉이 없다).
       - 베이스라인의 기준값, 하이킨아시 봉, 매물대는 실제 봉으로 센다.
       - 시간축 없는 차트의 벽돌은 빈 봉을 쓰지 않는다.
@@ -389,7 +389,7 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
         - 체이킨 오실레이터는 두 EMA의 차이라 0점과 상관없이 늘 그린다.
     - **일별 수급 8종**(codeyoma/krx-quant#220, #226)
 
-      > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 보조지표 패널의 `일별 수급` 칸과 그 하단 지표 8종(공매도 거래량, 개인·기관·외국인 순매수량, 외국인 보유수량·지분율, 대차잔고, 신용잔고), 그 읽기(`GET /v1/symbols/{s}/supply`, `KrxLive::supply`, `KrxQuantService::read_supply`, `EngineData::parse_supply`), 막대와 계단 선, 범례의 마지막 값. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 엔진은 그 출처의 하나인 토스증권 일별 수급을 더 모으지 않는다(codeyoma/krx-quant#694). 대신: 없다. 종목에 남은 설정(`…/indicators`)의 이 지표들은 모르는 지표로 읽혀 버려지고, 그 칸 높이도 쓰이지 않는다.
+      > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 보조지표 패널의 `일별 수급` 칸과 그 하단 지표 8종(공매도 거래량, 개인·기관·외국인 순매수량, 외국인 보유수량·지분율, 대차잔고, 신용잔고), 그 읽기(`GET /v1/symbols/{s}/supply`, `KrxLive::supply`, `KrxQuantService::read_supply`, `EngineData::parse_supply`), 막대와 계단 선, 범례의 마지막 값. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 엔진은 그 출처의 하나인 토스증권 일별 수급을 더 모으지 않는다(codeyoma/krx-quant#694). 대신: 없다. 종목에 남은 설정(`…/indicators`)의 이 지표들은 모르는 지표로 읽혀 버려지고, 그 칸 높이도 쓰이지 않는다.
     - **하단 칸**(codeyoma/krx-quant#223): 하단 지표마다 가격 칸 아래에 칸 하나를 켠 순서대로 쌓는다(마지막에 켠 것이 맨 아래). 끄면 그 칸이 없어지고 아래 칸들이 올라온다. 범례에서 숨긴 지표의 칸은 비운 채 남고, 범례 줄만 흐리게 남는다.
       - 칸 높이는 처음 100px이다. 칸 경계를 드래그해 바꾸고(40–1000px), 놓으면 그 종목의 `krx_quant/chart/<종목코드>/pane_heights`에 남는다. 끈 지표의 높이도 남아 다시 켜면 그 높이다.
       - 가격 칸은 남은 높이를 쓰되 200px 아래로는 줄지 않는다. 하단 칸이 많아 모자라면 차트가 패널보다 길어지고, 오른쪽 세로 스크롤 막대로 내려 본다(휠은 지금처럼 차트를 줌한다).
@@ -403,7 +403,7 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
     - 설정 키: `krx_quant/chart/<종목코드>/indicators`는 JSON 배열이다. 지표마다 `{"study", "on", "hidden", "source", "inputs", "lines": [{"color", "width"}]}`이고, 켠 것이 켠 순서대로 앞에 온다(하단 칸의 순서). `study`는 위 괄호의 이름(상단 12종, 하단 25종), `inputs`는 패널의 숫자 순서(이동평균선은 기간들, 프라이스 오실레이터의 `방식`은 0 단순·1 지수), `color`는 `#rrggbb`, `width`는 1–4(마커, 매물대, MACD 히스토그램은 0)다. `krx_quant/chart/<종목코드>/pane_heights`는 하단 칸 높이의 JSON 객체다(예: `{"rsi":140,"volume":80}`, CSS 픽셀, codeyoma/krx-quant#223). 드래그한 칸만 있고, 없는 칸은 100px이다. 하단 지표가 아닌 이름, 40–1000의 정수가 아닌 값은 버린다. `krx_quant/chart/<종목코드>/vwap_anchor`는 ISO 8601 시각이다(예: `2026-10-12T09:30:00+09:00`). 처음 여는 종목(키 없음)이나 JSON 배열이 아닌 값은 이동평균선(5·20·60·120, 종가)과 거래량만 켠 기본값이다. 모르는 지표는 버리고, 없는 지표는 처음 여는 종목의 기본값이다. 범위 밖의 숫자, `#rrggbb`가 아닌 색, 1–4가 아닌 굵기, 모르는 기준값은 그 칸의 기본값이다.
   - **그리기**(codeyoma/krx-quant#220, #224, #241, #248)
 
-    > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 그리기 도구 12종(추세선, 반직선, 수평선, 수직선, 크로스, 사각형, 타원, 피치포크, 피보나치 되돌림·채널·속도 저항 팬, 텍스트), 고르기·끌기·지우기, 그린 것의 팝업(`KrxDrawingPopup`), 자석, 휴지통, Cmd+D와 메뉴의 글자 단축키, 종목별 저장(`…/drawings`), `services/krx_quant/ChartDrawings`와 `tst_krx_chart_drawings`. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: 없다. 시각의 봉 위치(`logical_at`)와 만들어지는 봉 붙이기(`append_live`)는 특수 상황 띠와 차트가 쓰므로 `ChartSlots`로 옮겼고, 그 테스트도 `tst_krx_chart_slots`로 옮겼다.
+    > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 그리기 도구 12종(추세선, 반직선, 수평선, 수직선, 크로스, 사각형, 타원, 피치포크, 피보나치 되돌림·채널·속도 저항 팬, 텍스트), 고르기·끌기·지우기, 그린 것의 팝업(`KrxDrawingPopup`), 자석, 휴지통, Cmd+D와 메뉴의 글자 단축키, 종목별 저장(`…/drawings`), `services/krx_quant/ChartDrawings`와 `tst_krx_chart_drawings`. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: 없다. 시각의 봉 위치(`logical_at`)와 만들어지는 봉 붙이기(`append_live`)는 특수 상황 띠와 차트가 쓰므로 `ChartSlots`로 옮겼고, 그 테스트도 `tst_krx_chart_slots`로 옮겼다.
   - 분 단위 보기(codeyoma/krx-quant#109): 툴바의 분 드롭다운 `1분 ▾`(1·3·5·10·15·30·60·120·240분)으로 N분봉 보기를 고른다. 단추 글자는 마지막으로 고른 분이고, 분 보기일 때만 주황으로 채운다. 고른 보기는 종목별로 남는다(위).
 
     > **바뀜** (2026-10-15, codeyoma/krx-quant#221): 차트 위 한 줄의 버튼 "분 1 3 5 10 15 30 60 120 240" → 드롭다운 하나. 이유: 버튼 9개가 한 줄을 차지해 좁은 패널에서 오른쪽 버튼이 잘렸고, 차트 모양·보조지표·그리기 버튼이 들어갈 자리가 필요했다(codeyoma/krx-quant#220).
@@ -572,7 +572,7 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
     - 손익 열 제목의 툴팁은 "그날 시가 단일가에 사서 마지막 세션 종가 단일가에 판다고 친다 … 날마다 새 창을 거래한다고 쳐서 한 종목에 포지션이 여럿 겹친다. 구간은 겹침을 보정한 Driscoll–Kraay다 … −2배 인버스 상품(날마다 재조정)"이다(`daily_pnl_tip`이 종류를 받는다).
     - "특수 상황 포함" 툴팁은 "세션 중 하루라도 서킷브레이커·사이드카가 있던 창의 예측도 센다(기본은 뺀다). VI는 특수 상황이 아니다(창의 그 종목 VI 수는 정답에 남는다)."다.
 
-      > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): "대시보드의 KRX 순위표 위젯에서도 이 종류를 고를 수 있고, 손익 단위는 bp다". 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: 대시보드 KRX 위젯이 없다(아래 "대시보드 KRX 위젯").
+      > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): "대시보드의 KRX 순위표 위젯에서도 이 종류를 고를 수 있고, 손익 단위는 bp다". 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: 대시보드 KRX 위젯이 없다(아래 "대시보드 KRX 위젯").
 
   > **바뀜** (2026-10-15, codeyoma/krx-quant#182): 순위표는 늘 방향이었다 → 고른 예측 종류의 순위표다. 방향을 고르면 전과 같다. 이유: 위와 같다.
   - 체크한 모델이 있고 1분 보기이면 차트는 모든 예측자의 예측을 읽는다: 봉 마감마다 최근 60봉 마감, 왼쪽 끝에서는 지난 봉과 같은 수. 처음 체크하거나 다른 보기에서 1분 보기로 오면, 이미 읽은 범위를 최신부터 1,000봉 마감씩 다시 읽는다(`marks_before`, `full_from_after`). 왼쪽 끝 더 읽기는 기다리지 않고 봉과 같은 때에 읽는다(codeyoma/krx-quant#239). 체크한 모델이 없거나 3분 이상 보기이면 최종 합의와 "늘 보합"만 읽는다. 모든 예측자의 기록은 고른 종목만 두고, 종목을 바꾸면 비운다.
@@ -703,10 +703,10 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
   - `tst_krx_chart_look`: 차트 모양의 이름(설정 이름과 메뉴 이름, 시간축 없는 4종도 그림, codeyoma/krx-quant#225), 종목별 설정(처음 여는 종목은 1분·캔들, 목록 밖의 보기·모르는 모양은 기본값, 남은 시간축 없는 모양은 그대로, INI 문자열 값), 하이킨아시 봉(첫 봉, 이어지는 시가, 고가·저가, 시각·거래량은 그대로), 베이스라인 기준값(분 보기의 전일 종가, 오늘만 읽었으면 첫 봉 시가, 일 보기의 화면 첫 봉, 마지막 봉 뒤), 날짜 구분선(1–240분 보기마다 날마다 첫 봉, 중간부터 읽은 날, 09:00에 여는 종목, 일 보기는 없음).
   - `tst_krx_chart_drawings`(codeyoma/krx-quant#224)
 
-    > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 그리기 도구, 그린 것의 저장, 자석, 단축키 글자의 테스트. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: 시각의 봉 위치와 만들어지는 봉 붙이기의 테스트는 `tst_krx_chart_slots`로 옮겼다(거꾸로 변환의 왕복은 없다).
+    > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 그리기 도구, 그린 것의 저장, 자석, 단축키 글자의 테스트. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: 시각의 봉 위치와 만들어지는 봉 붙이기의 테스트는 `tst_krx_chart_slots`로 옮겼다(거꾸로 변환의 왕복은 없다).
   - `tst_krx_chart_toolbar`(codeyoma/krx-quant#522): 차트 위 툴바를 실제 창에 띄운다(Widgets가 필요하다. offscreen이거나 창이 활성이 되지 않으면 건너뛴다). `SMT` 버튼이 누르면 켜고 끄기를 알리고 화면이 보인 것은 알리지 않는지, 켠 동안 채워지는지, 1분 보기가 아니거나 시간축 없는 모양이면 비활성이고 채워지지 않는지 본다. 툴바보다 좁은 패널에서 `보조지표`가 아이콘만 보이고 넓히면 글자가 돌아오는지 본다.
 
-    > **바뀜** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 그리기 메뉴의 단축키(Cmd+D, 글자, 한글 키, 자석의 M)와 도구 이름의 버튼(codeyoma/krx-quant#241, #248)을 보던 테스트 → SMT 버튼과 `보조지표` 글자만 본다. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12).
+    > **바뀜** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 그리기 메뉴의 단축키(Cmd+D, 글자, 한글 키, 자석의 M)와 도구 이름의 버튼(codeyoma/krx-quant#241, #248)을 보던 테스트 → SMT 버튼과 `보조지표` 글자만 본다. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12).
   - 예측 종류(codeyoma/krx-quant#182, 지어낸 값): `tst_krx_engine_data`는 `/v1/kinds`, 종류의 최신 예측과 정답·경로, `kind_prediction`·`kind_answer` 이벤트, 예측과 함께 오는 봉 마감의 k(`flat_ticks`, 없거나 `null`이면 없음, codeyoma/krx-quant#200), 변동폭 순위표의 `kind`와 분위수 통계(`extra`), `/stats`의 `kind`, `/v1/symbols`의 `tick`·`flat_ticks`, 알고리즘의 종류, 장벽(codeyoma/krx-quant#185)의 봉 마감 w(`width_ticks`), 예측과 함께 오는 봉 마감 중간가와 호가단위(`anchor`, `tick`, 없거나 `null`이면 없음, codeyoma/krx-quant#210), 정답 경로(U·L, 처음 닿은 시각과 호가, 따라가지 못한 창과 중간가 없는 창), 스트림의 장벽 정답, 순위표의 장벽 손익(`extra`)과 기준 예측 이름을 읽는 것을, `tst_krx_board`는 `KindBoard`(종목별 최신, 고른 종목의 봉 마감별 기록, 정답 붙이기와 되돌리지 않기, 다른 종류의 이벤트 무시, 되감기, 장벽 정답의 경로가 그 봉 마감의 모든 예측에 붙고 w, 중간가, 호가단위는 남기)를, `tst_krx_stats_view`는 변동폭·장벽 순위표와 상세 창의 열과 칸, 분위수 표와 요약, 장벽 손익 칸·표·요약, 클래스별 보정 곡선(과 그 툴팁의 조사 "을/를"), 기준 예측의 lift 툴팁, 순위 규칙을 본다.
   - 하루 한 번 예측(codeyoma/krx-quant#264, 지어낸 값): `tst_krx_engine_data`는 `/v1/kinds`의 `daily`와 `horizon_minutes: null`(0으로 둠, 봉 마감 종류는 `daily` 없음), 예측의 `band`, 정답 경로(시가·종가·변화·보합 폭·σ̂·s·VI 수, 일봉이 오지 않은 날의 빈 경로), 스트림의 그 정답, 순위표의 `open_to_close_stats`(bp, 장벽 손익으로 읽지 않음)와 기준 예측 셋의 한국어 이름을, `tst_krx_board`는 08:50 예측과 그날 15:45부터의 정답이 `KindBoard`에 붙는 것을, `tst_krx_stats_view`는 순위표·상세 창의 열(표본(종목·일), 손익)과 칸·툴팁, 손익 표와 요약, 순위 규칙의 하루 한 번 줄, 특수 상황·lift 열 툴팁을, `tst_krx_kind_view`는 버튼(엔진이 주면 고를 수 있음, 없으면 흐림, 툴팁), 날과 그날 08:50(1분봉·UTC 시각에서도), 패널 열과 행(결과 늘, "전 거래일 정답 없음"), 제목(채점 전, 정답, 지난 거래일, 예측 없음, 보합 폭 없음), 정답 문구(특수, VI, 채점 불가 이유), 보합 폭, 알고리즘 평균과 동률 규칙, 일 보기 아이콘(봉 없는 날·알고리즘 없는 날 빠짐, 흐림, ?)과 호버 줄, 보이는 날의 성적, 날 단위 읽기를 본다. `tst_krx_chart_page`는 일 보기에 아이콘과 창 없는 상자가 그려지고 주 보기에는 없는 것을 본다(그래서 페이지의 `window.krxChart`에 `icons`를 더했다).
   - 5거래일 시가→종가(codeyoma/krx-quant#310, 지어낸 값): `tst_krx_engine_data`는 `/v1/kinds`의 `daily.sessions`(옛 엔진은 1)·`awaiting`·`review_hold`, 정답 경로의 `end_day`·`sessions`·`closes`(`null`인 세션)·`ex_dividend`(`true`, `null`), 정답 전 예측의 `target_at`, 순위표 항목의 `overlap_sessions`·`independent_days`(옛 엔진은 1과 없음)와 그 `extra`, 기준 예측 셋의 한국어 이름을, `tst_krx_kind_view`는 버튼(엔진이 주면 고를 수 있음, 옛 엔진은 흐림, 툴팁)과 `window_sessions`, 창 끝(정답 전 `target_at`의 날 "(예정)", 정답의 `end_day`), 채점 대기 문구와 결과 열, 정답의 배당락 표시와 세션 종가("—" 포함), 고정한 날의 제목, 일 보기 호버의 창 끝과 세션 종가 줄, 기준 예측만 있는 날의 아이콘 없음, 패널 툴팁(대기, 겹침, 배당락, 판정일)과 결과 열 툴팁, `kind_algorithms`와 "기준 예측만"·"돌지 않음"·수습 보류 문구를, `tst_krx_stats_view`는 표본 열 제목 툴팁, "45 (독립 3)" 칸과 그 툴팁, 구간 툴팁의 "겹침 보정(Driscoll–Kraay)", `overlap_text`, 순위 규칙의 5세션·겹침·판정일 줄, 손익 열 툴팁, 특수 상황·lift 열·보정도 툴팁을, `tst_krx_dashboard_view`는 이 종류의 손익 단위(bp)와 기준 예측 이름을 본다.
@@ -727,7 +727,7 @@ QT_QPA_PLATFORM=offscreen fincept-qt/build/fx-ui-check/base_widget_check
 
     > **바뀜** (2026-11-05, codeyoma/FinceptTerminal#116, codeyoma/krx-quant#537): "차트가 없어 확인 창 없이는 `QT_QPA_PLATFORM=offscreen`으로 찍어도 된다" → 1분봉 차트가 생겨 창을 띄워 찍는다(offscreen이면 차트 칸이 빈다). 이유: 화면에 1분봉 차트가 생겼다.
 
-  > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): `KRX_CAPTURE_BRIEFING`, `KRX_CAPTURE_FLOW`, `KRX_CAPTURE_COST`, `KRX_CAPTURE_CLOSING`(그 화면들, 그 `KRX_CAPTURE_DAY`와 수급 흐름의 `KRX_CAPTURE_HOVER`), 그리기의 `KRX_CAPTURE_DRAWINGS`, `KRX_CAPTURE_SELECT`, `KRX_CAPTURE_MAGNET`, `KRX_CAPTURE_DRAW`, `KRX_CAPTURE_MENU`의 `drawing`·`edit`. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: 남은 세 화면의 변수는 그대로다.
+  > **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): `KRX_CAPTURE_BRIEFING`, `KRX_CAPTURE_FLOW`, `KRX_CAPTURE_COST`, `KRX_CAPTURE_CLOSING`(그 화면들, 그 `KRX_CAPTURE_DAY`와 수급 흐름의 `KRX_CAPTURE_HOVER`), 그리기의 `KRX_CAPTURE_DRAWINGS`, `KRX_CAPTURE_SELECT`, `KRX_CAPTURE_MAGNET`, `KRX_CAPTURE_DRAW`, `KRX_CAPTURE_MENU`의 `drawing`·`edit`. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: 남은 세 화면의 변수는 그대로다.
 
   - 환경 변수 `KRX_CAPTURE_VERDICT=1`을 주면 KRX 종합 판단 화면(codeyoma/krx-quant#678)을 찍는다. `KRX_CAPTURE_SYMBOL`이 참여 알고리즘을 보일 종목이다(없으면 지난번 종목, 그것도 없으면 첫 판정의 종목). 차트가 없어 `QT_QPA_PLATFORM=offscreen`으로 찍어도 된다.
   - 환경 변수 `KRX_CAPTURE_VIEW=<분>`을 주면 기다리는 시간의 0.3 지점(엔진을 읽고 종목이 골라진 뒤)에 툴바에서 그 보기를 고른다(codeyoma/krx-quant#109, #221). `1440`은 일 보기, `10080`·`44640`·`527040`은 주·월·년 보기다(codeyoma/krx-quant#111, #112). 고른 보기는 임시 설정에 그 종목의 것으로 남아 다음 캡처도 그 보기로 열린다.
@@ -794,7 +794,7 @@ Fincept의 LLM 기능을 Fincept 크레딧이나 API key 대신 이 컴퓨터에
 
 ## 대시보드 KRX 위젯 (codeyoma/krx-quant#302)
 
-> **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 대시보드의 KRX 위젯 넷(`krx_signals` 지금 신호, `krx_leaderboard` 순위표, `krx_engine_status` 엔진 상태, `krx_open_to_close` 오늘 시가→종가), 위젯 추가 창의 `KRX` 카테고리, `KRX` 템플릿, 그 코드(`screens/krx_quant/dashboard/`, `services/krx_quant/DashboardView`)와 `tst_krx_dashboard_view`. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: KRX 화면 셋에서 본다. upstream 대시보드 파일 넷은 v4.5.1 그대로다(위 "upstream 파일 수정 원칙"). 저장된 대시보드 배치의 KRX 위젯은 열 때 버려진다.
+> **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 대시보드의 KRX 위젯 넷(`krx_signals` 지금 신호, `krx_leaderboard` 순위표, `krx_engine_status` 엔진 상태, `krx_open_to_close` 오늘 시가→종가), 위젯 추가 창의 `KRX` 카테고리, `KRX` 템플릿, 그 코드(`screens/krx_quant/dashboard/`, `services/krx_quant/DashboardView`)와 `tst_krx_dashboard_view`. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: KRX 화면 셋에서 본다. upstream 대시보드 파일 넷은 v4.5.1 그대로다(위 "upstream 파일 수정 원칙"). 저장된 대시보드 배치의 KRX 위젯은 열 때 버려진다.
 
 ## KRX 엔진 읽기 (codeyoma/krx-quant#649)
 
@@ -809,7 +809,7 @@ KRX 화면 둘(종합 판단, 자동 매매)은 엔진을 한 모듈로 주기�
 - **자기 규칙을 지키는 것.** 자동 매매 화면의 1분봉 차트 타이머(`kChartTimerName`)와 결정 읽기, 정지 POST는 `KrxTraderLive`가 전처럼 맡는다. 상태 타이머의 이름(`kStateTimerName`)은 `EnginePoller`의 타이머에 붙는다.
 - **테스트.** `tst_krx_engine_poller`가 가짜 엔진(`QTcpServer`) 하나로 본다: 주소 없음(문장, 읽지 않음, 다음 주기), 이름을 화면의 읽기와 함께 읽기(다시 읽을 때 다시 묻지 않음), 이름의 실패는 화면의 실패가 아님(다음 읽기에 다시), 실패를 답까지 들기, 새 주소에서 앞 엔진의 늦은 답 버리기와 읽은 것 버리기, 보일 때만 읽기.
 
-  > **바뀜** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 이 모듈을 쓰는 것은 화면 여섯(종합 판단, 장전 브리핑, 수급 흐름, 지평·비용, 마감 흐름, 자동 매매)과 대시보드의 KRX 위젯 넷이었다 → 종합 판단과 자동 매매 둘. 그 화면들만 쓰던 종목 읽기 두 방식("화면의 읽기 전에 답이 올 때까지"(지평·비용), "종목이 있을 때까지"와 그 실패 문장 "엔진이 예측하는 종목이 없습니다."(수급 흐름, 마감 흐름))은 없앴다. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12).
+  > **바뀜** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 이 모듈을 쓰는 것은 화면 여섯(종합 판단, 장전 브리핑, 수급 흐름, 지평·비용, 마감 흐름, 자동 매매)과 대시보드의 KRX 위젯 넷이었다 → 종합 판단과 자동 매매 둘. 그 화면들만 쓰던 종목 읽기 두 방식("화면의 읽기 전에 답이 올 때까지"(지평·비용), "종목이 있을 때까지"와 그 실패 문장 "엔진이 예측하는 종목이 없습니다."(수급 흐름, 마감 흐름))은 없앴다. 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12).
 
   > **바뀜** (2026-11-09, codeyoma/FinceptTerminal#121, codeyoma/krx-quant#649): 화면 다섯과 대시보드 타일이 저마다 `KrxQuantService`, 주소 확인, 종목 읽기, 실패, 단발 타이머를 가졌고 "엔진 주소가 없습니다…" 문장이 일곱 번 있었다 → `EnginePoller` 하나가 맡는다. 화면에 보이는 것과 문장, 화면의 읽기 간격은 그대로다. `tst_krx_briefing`, `tst_krx_flow`, `tst_krx_cost`, `tst_krx_closing`, `tst_krx_trader`의 주소 없음 테스트와 `tst_krx_flow`의 종목 없는 엔진 테스트는 `tst_krx_engine_poller`로 옮겼다. 이유: 같은 일을 일곱 곳에서 했고, 같은 테스트가 다섯 번 반복됐다(2026-11-09 구조 검토).
 
@@ -837,19 +837,19 @@ KRX 화면 둘(종합 판단, 자동 매매)은 엔진을 한 모듈로 주기�
 
 ## KRX 장전 브리핑 (codeyoma/krx-quant#304)
 
-> **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 화면 **KRX 장전 브리핑**(밤사이 미국·국면, KOSPI200 야간선물, 종목의 예상 시가, 08:50 시가→종가와 입력 기여, 오늘 일정), 그 메뉴·명령·탭, `KrxBriefingScreen`, `KrxBriefingLive`, `BriefingView`, `EngineData`의 `parse_briefing`과 그 구조체, `KrxQuantService::read_briefing`, `tst_krx_briefing`. 엔진도 `/v1/briefing`을 없앤다(codeyoma/krx-quant#693). 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: KRX 종합 판단, KRX 4분 예측, KRX 자동 매매 화면. 남은 설정 값은 지우지 않고 읽지도 않는다.
+> **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 화면 **KRX 장전 브리핑**(밤사이 미국·국면, KOSPI200 야간선물, 종목의 예상 시가, 08:50 시가→종가와 입력 기여, 오늘 일정), 그 메뉴·명령·탭, `KrxBriefingScreen`, `KrxBriefingLive`, `BriefingView`, `EngineData`의 `parse_briefing`과 그 구조체, `KrxQuantService::read_briefing`, `tst_krx_briefing`. 엔진도 `/v1/briefing`을 없앤다(codeyoma/krx-quant#693). 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: KRX 종합 판단, KRX 4분 예측, KRX 자동 매매 화면. 남은 설정 값은 지우지 않고 읽지도 않는다.
 
 ## KRX 수급 흐름 (codeyoma/krx-quant#306)
 
-> **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 화면 **KRX 수급 흐름**(한 종목의 장중 프로그램매매·외국계 회원사·외국인·기관 추정 흐름 차트, 지금까지의 합, 회원사 상위 5), 그 메뉴·명령·탭, 설정 `krx_quant/flow_symbol`, `KrxFlowScreen`, `KrxFlowLive`, `FlowView`, `EngineData`의 `parse_flow`와 그 구조체, `KrxQuantService::read_flow`, `tst_krx_flow`. 엔진도 `/v1/symbols/{s}/flow`를 없앤다(codeyoma/krx-quant#693). 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: KRX 종합 판단, KRX 4분 예측, KRX 자동 매매 화면. 남은 설정 값은 지우지 않고 읽지도 않는다.
+> **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 화면 **KRX 수급 흐름**(한 종목의 장중 프로그램매매·외국계 회원사·외국인·기관 추정 흐름 차트, 지금까지의 합, 회원사 상위 5), 그 메뉴·명령·탭, 설정 `krx_quant/flow_symbol`, `KrxFlowScreen`, `KrxFlowLive`, `FlowView`, `EngineData`의 `parse_flow`와 그 구조체, `KrxQuantService::read_flow`, `tst_krx_flow`. 엔진도 `/v1/symbols/{s}/flow`를 없앤다(codeyoma/krx-quant#693). 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: KRX 종합 판단, KRX 4분 예측, KRX 자동 매매 화면. 남은 설정 값은 지우지 않고 읽지도 않는다.
 
 ## KRX 지평·비용 (codeyoma/krx-quant#307)
 
-> **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 화면 **KRX 지평·비용**(종목별 왕복 비용, 지평 표와 손익분기 판정, 기간 기준율), 그 메뉴·명령·탭, 설정 `krx_quant/cost_symbol`·`cost_period`·`cost_special`·`cost_order`, `KrxCostScreen`, `KrxCostLive`, `CostView`, `EngineData`의 `parse_cost_map`과 그 구조체, `KrxQuantService::read_cost_map`, `tst_krx_cost`. 엔진도 `/v1/cost-map`을 없앤다(codeyoma/krx-quant#693). 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: KRX 종합 판단, KRX 4분 예측, KRX 자동 매매 화면. 남은 설정 값은 지우지 않고 읽지도 않는다.
+> **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 화면 **KRX 지평·비용**(종목별 왕복 비용, 지평 표와 손익분기 판정, 기간 기준율), 그 메뉴·명령·탭, 설정 `krx_quant/cost_symbol`·`cost_period`·`cost_special`·`cost_order`, `KrxCostScreen`, `KrxCostLive`, `CostView`, `EngineData`의 `parse_cost_map`과 그 구조체, `KrxQuantService::read_cost_map`, `tst_krx_cost`. 엔진도 `/v1/cost-map`을 없앤다(codeyoma/krx-quant#693). 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: KRX 종합 판단, KRX 4분 예측, KRX 자동 매매 화면. 남은 설정 값은 지우지 않고 읽지도 않는다.
 
 ## KRX 마감 흐름 (codeyoma/krx-quant#305)
 
-> **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#PRNUM, codeyoma/krx-quant#695): 화면 **KRX 마감 흐름**(단일종목 ±2배 ETF의 마감 리밸런싱 수요, 상품, 지난날과 기간 요약), 그 메뉴·명령·탭, 설정 `krx_quant/closing_symbol`, `KrxClosingScreen`, `KrxClosingLive`, `ClosingView`, `EngineData`의 `parse_closing_flow`·`parse_closing_days`와 그 구조체, `KrxQuantService::read_closing_flow`·`read_closing_days`, `tst_krx_closing`. 엔진도 `/v1/symbols/{s}/closing-flow*`를 없앤다(codeyoma/krx-quant#693). 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: KRX 종합 판단, KRX 4분 예측, KRX 자동 매매 화면. 남은 설정 값은 지우지 않고 읽지도 않는다.
+> **삭제됨** (2026-11-12, codeyoma/FinceptTerminal#125, codeyoma/krx-quant#695): 화면 **KRX 마감 흐름**(단일종목 ±2배 ETF의 마감 리밸런싱 수요, 상품, 지난날과 기간 요약), 그 메뉴·명령·탭, 설정 `krx_quant/closing_symbol`, `KrxClosingScreen`, `KrxClosingLive`, `ClosingView`, `EngineData`의 `parse_closing_flow`·`parse_closing_days`와 그 구조체, `KrxQuantService::read_closing_flow`·`read_closing_days`, `tst_krx_closing`. 엔진도 `/v1/symbols/{s}/closing-flow*`를 없앤다(codeyoma/krx-quant#693). 이유: 사용자가 KRX 화면을 종합 판단, 차트(KRX 4분 예측), 자동 매매 셋만 남기기로 정했다(2026-11-12). 대신: KRX 종합 판단, KRX 4분 예측, KRX 자동 매매 화면. 남은 설정 값은 지우지 않고 읽지도 않는다.
 
 ## KRX 자동 매매 (codeyoma/krx-quant#397, #401, #427, #430, #475, #536, #537, #601)
 
