@@ -18,31 +18,16 @@ EnginePoller::EnginePoller(Symbols symbols, QObject* parent, std::function<QDate
     // Another engine: what was read of the old one goes, first here, then the screen's.
     connect(service_, &KrxQuantService::base_url_changed, this, [this] {
         symbols_.clear();
-        symbols_in_ = false;
         answered_at_ = {};
         emit engine_changed();
     });
     if (want_ == Symbols::None)
         return;
+    // The names alone: a failure is not the screen's, and they are asked for again with the next read.
     connect(service_, &KrxQuantService::symbols_ready, this, [this](const QList<krx_quant::SymbolQuote>& symbols) {
         symbols_ = symbols;
-        if (want_ == Symbols::Required && symbols_.isEmpty()) {
-            // Nothing to read: say so and ask again on schedule, not at once.
-            failure_ = QString::fromUtf8(kNoSymbols);
-            emit changed();
-            schedule();
-            return;
-        }
-        symbols_in_ = true;
         emit symbols_ready();
         emit changed();
-        if (want_ != Symbols::Names && running_)
-            read(); // the read they held back
-    });
-    connect(service_, &KrxQuantService::symbols_failed, this, [this](const QString& reason) {
-        if (want_ == Symbols::Names)
-            return; // the names alone: asked again with the next read
-        failed(reason);
     });
 }
 
@@ -113,21 +98,8 @@ void EnginePoller::read() {
         schedule();
         return;
     }
-    switch (want_) {
-        case Symbols::None:
-            break;
-        case Symbols::Names:
-            if (symbols_.isEmpty())
-                service_->read_symbol_list();
-            break;
-        case Symbols::First:
-        case Symbols::Required:
-            if (!symbols_in_) { // the symbols first: which one to read, and their names
-                service_->read_symbol_list();
-                return;
-            }
-            break;
-    }
+    if (want_ == Symbols::Names && symbols_.isEmpty())
+        service_->read_symbol_list();
     if (read_)
         read_();
 }

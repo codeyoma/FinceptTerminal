@@ -5,7 +5,6 @@
 #include "screens/krx_quant/KrxBarWindow.h"
 #include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxChartToolbar.h"
-#include "screens/krx_quant/KrxDrawingPopup.h"
 #include "screens/krx_quant/KrxLeaderboard.h"
 #include "screens/krx_quant/KrxStatsWindow.h"
 #include "screens/krx_quant/KrxStudyPanel.h"
@@ -19,7 +18,6 @@
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QLocale>
-#include <QMessageBox>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSplitter>
@@ -41,8 +39,7 @@ using krx_tables::kNumber;
 enum SymbolColumn { kSymbol, kMid, kFinal };
 // The chart's view and style are kept for each symbol (krx-quant #221, krx_quant::prefs_group), and
 // so are its indicators and the anchored VWAP's anchor (krx-quant #222), and its lower panes'
-// heights (krx-quant #223), and its drawings (krx-quant #224, krx_quant::kPrefsDrawings); the magnet is
-// every symbol's (krx_quant::kMagnetKey), and so is the price pane's scale (krx-quant #245,
+// heights (krx-quant #223); the price pane's scale is every symbol's (krx-quant #245,
 // krx_quant::kLogScaleKey).
 // "krx_quant/chart_view_minutes", the view of every symbol until then (krx-quant #109), and
 // "krx_quant/chart_minutes", the range box's until #134, are no longer read.
@@ -270,74 +267,6 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
                                       krx_quant::pane_heights_value(look_.pane_heights));
         fill_chart();
     });
-    // The drawings (krx-quant #224): a tool from the toolbar's drawing menu draws with the next clicks
-    // on the chart; what the chart placed, dragged, removed or double-clicked is kept for the symbol.
-    // The magnet is every symbol's; the trash asks before it removes all of the symbol's.
-    drawing_popup_ = new KrxDrawingPopup(this);
-    look_.magnet = AppConfig::instance().get(krx_quant::kMagnetKey, false).toBool();
-    chart_toolbar_->show_magnet(look_.magnet);
-    // Cmd+D (Ctrl+D) opens the drawing menu while the keyboard is anywhere in the screen: the chart
-    // or a list clicked (krx-quant #241).
-    chart_toolbar_->take_keys(this);
-    connect(chart_toolbar_, &KrxChartToolbar::tool_chosen, this,
-            [this](krx_quant::DrawingTool tool) { set_tool(tool); });
-    connect(chart_, &KrxChart::tool_finished, this, [this]() { chart_toolbar_->show_tool(std::nullopt); });
-    connect(chart_toolbar_, &KrxChartToolbar::magnet_toggled, this, [this](bool on) {
-        look_.magnet = on;
-        AppConfig::instance().set(krx_quant::kMagnetKey, on);
-        chart_->set_drawings(look_.drawings, look_.magnet);
-    });
-    connect(chart_toolbar_, &KrxChartToolbar::trash_requested, this, [this]() {
-        const auto count = look_.drawings.size();
-        if (count == 0 || live_->selected().isEmpty())
-            return;
-        if (QMessageBox::question(this, tr("그린 것 지우기"), tr("그린 것 %1개를 지울까요?").arg(count),
-                                  QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
-            return;
-        look_.drawings.clear();
-        drawing_popup_->hide();
-        drawings_changed(-1);
-    });
-    connect(chart_, &KrxChart::drawing_added, this, [this](krx_quant::Drawing drawing, const QPoint& at) {
-        if (live_->selected().isEmpty())
-            return;
-        drawing.id = krx_quant::next_drawing_id(look_.drawings);
-        // A text placed with the tool opens its input, its first text selected to be typed over.
-        const bool typing = drawing.tool == krx_quant::DrawingTool::Text && drawing.text.isEmpty();
-        if (typing)
-            drawing.text = QString::fromUtf8(krx_quant::kDrawingText);
-        look_.drawings << drawing;
-        drawings_changed(drawing.id);
-        if (typing)
-            drawing_popup_->open_for(drawing, at);
-    });
-    connect(chart_, &KrxChart::drawing_changed, this, [this](const krx_quant::Drawing& drawing) {
-        for (auto& d : look_.drawings)
-            if (d.id == drawing.id)
-                d = drawing;
-        drawings_changed(drawing.id);
-    });
-    connect(chart_, &KrxChart::drawing_removed, this, &KrxQuantScreen::remove_drawing);
-    connect(chart_, &KrxChart::drawing_edit_requested, this, [this](int id, const QPoint& at) {
-        for (const auto& d : std::as_const(look_.drawings))
-            if (d.id == id)
-                drawing_popup_->open_for(d, at);
-    });
-    connect(drawing_popup_, &KrxDrawingPopup::drawing_changed, this, [this](const krx_quant::Drawing& drawing) {
-        for (auto& d : look_.drawings)
-            if (d.id == drawing.id)
-                d = drawing;
-        drawings_changed(drawing.id);
-    });
-    connect(drawing_popup_, &KrxDrawingPopup::remove_requested, this, &KrxQuantScreen::remove_drawing);
-    connect(drawing_popup_, &KrxDrawingPopup::closed, this, [this](int id) {
-        const bool empty =
-            std::any_of(look_.drawings.cbegin(), look_.drawings.cend(), [id](const krx_quant::Drawing& d) {
-                return d.id == id && d.tool == krx_quant::DrawingTool::Text && d.text.trimmed().isEmpty();
-            });
-        if (empty) // a text left empty is not kept
-            remove_drawing(id);
-    });
     auto* chart_body = new QWidget;
     auto* chart_column = new QVBoxLayout(chart_body);
     chart_column->setContentsMargins(0, 0, 0, 0);
@@ -407,12 +336,6 @@ KrxQuantScreen::KrxQuantScreen(QWidget* parent) : QWidget(parent) {
     // (codeyoma/krx-quant#522).
     connect(live_, &services::KrxLive::special_changed, chart_soon_, qOverload<>(&QTimer::start));
     connect(live_, &services::KrxLive::smt_changed, chart_soon_, qOverload<>(&QTimer::start));
-    // The daily supply data (krx-quant #226) with the next drawing; an engine without it greys its
-    // indicators in the panel.
-    connect(live_, &services::KrxLive::supply_changed, this, [this]() {
-        study_panel_->show_studies(look_.studies, minutes_, krx_quant::timeless(look_.style), live_->supply_served());
-        chart_soon_->start();
-    });
     connect(live_, &services::KrxLive::live_changed, this, [this]() {
         // A candle view's last candle holds today, made of the day's bars (krx-quant #111, #112).
         const bool candles = krx_quant::candle_view(minutes_);
@@ -615,7 +538,6 @@ void KrxQuantScreen::refresh_theme() {
     chart_score_->setStyleSheet(QString("color:%1;").arg(ui::colors::TEXT_PRIMARY()));
     chart_toolbar_->restyle();
     study_panel_->restyle();
-    drawing_popup_->restyle();
     // The kind selector as the views (krx-quant #182); a kind that cannot be chosen, dim.
     kind_bar_->setStyleSheet(
         QString("QLabel{color:%1;padding-right:4px;}"
@@ -1162,8 +1084,8 @@ void KrxQuantScreen::set_view(int minutes) {
     chart_toolbar_->show_view(minutes);
     live_->set_view(minutes);
     want_history(); // the indicators' bars in this view (krx-quant #222)
-    study_panel_->show_studies(look_.studies, minutes, krx_quant::timeless(look_.style),
-                               live_->supply_served()); // the VWAP is the minute views'
+    study_panel_->show_studies(look_.studies, minutes,
+                               krx_quant::timeless(look_.style)); // the VWAP is the minute views'
     fill_chart();
     chart_->fit(); // the last 60 bars of the new view
 }
@@ -1176,12 +1098,7 @@ void KrxQuantScreen::set_style(krx_quant::ChartStyle style) {
     chart_toolbar_->show_style(style);
     show_brick_size();
     const bool timeless = krx_quant::timeless(style);
-    if (timeless) { // no drawings there (krx-quant #220, #224, #225)
-        set_tool(std::nullopt);
-        drawing_popup_->hide();
-    }
-    study_panel_->show_studies(look_.studies, minutes_, timeless,
-                               live_->supply_served()); // neither VWAP on bricks (krx-quant #225)
+    study_panel_->show_studies(look_.studies, minutes_, timeless); // neither VWAP on bricks (krx-quant #225)
     if (timeless != was_timeless)
         want_history(); // the bars the bricks start with, or the indicators' again
     fill_chart();
@@ -1230,34 +1147,8 @@ void KrxQuantScreen::show_symbol_prefs() {
     look_.picking = krx_quant::anchor_pickable(look_.studies) && !look_.anchor;
     // Its lower panes' heights (krx-quant #223): those dragged; the others the default.
     look_.pane_heights = krx_quant::parse_pane_heights(AppConfig::instance().get(group + krx_quant::kPrefsPaneHeights));
-    study_panel_->show_studies(look_.studies, minutes_, krx_quant::timeless(look_.style), live_->supply_served());
+    study_panel_->show_studies(look_.studies, minutes_, krx_quant::timeless(look_.style));
     want_history();
-    // Its drawings (krx-quant #224), none selected; a tool chosen for another symbol is put down.
-    look_.drawings = krx_quant::parse_drawings(AppConfig::instance().get(group + krx_quant::kPrefsDrawings));
-    drawing_popup_->hide();
-    set_tool(std::nullopt);
-    chart_toolbar_->show_drawings(static_cast<int>(look_.drawings.size()));
-    chart_->set_drawings(look_.drawings, look_.magnet, -1);
-}
-
-void KrxQuantScreen::drawings_changed(int select) {
-    if (const QString& symbol = live_->selected(); !symbol.isEmpty())
-        AppConfig::instance().set(krx_quant::prefs_group(symbol) + krx_quant::kPrefsDrawings,
-                                  krx_quant::drawings_value(look_.drawings));
-    chart_toolbar_->show_drawings(static_cast<int>(look_.drawings.size()));
-    chart_->set_drawings(look_.drawings, look_.magnet, select);
-}
-
-void KrxQuantScreen::remove_drawing(int id) {
-    const auto before = look_.drawings.size();
-    look_.drawings.removeIf([id](const krx_quant::Drawing& d) { return d.id == id; });
-    if (look_.drawings.size() != before)
-        drawings_changed(-1);
-}
-
-void KrxQuantScreen::set_tool(std::optional<krx_quant::DrawingTool> tool) {
-    chart_toolbar_->show_tool(tool);
-    chart_->set_tool(tool);
 }
 
 void KrxQuantScreen::set_studies(const krx_quant::StudySet& set) {
@@ -1273,14 +1164,13 @@ void KrxQuantScreen::set_studies(const krx_quant::StudySet& set) {
     if (const QString& symbol = live_->selected(); !symbol.isEmpty())
         AppConfig::instance().set(krx_quant::prefs_group(symbol) + krx_quant::kPrefsStudies,
                                   krx_quant::studies_value(set));
-    study_panel_->show_studies(set, minutes_, krx_quant::timeless(look_.style),
-                               live_->supply_served()); // as the legend changed it
+    study_panel_->show_studies(set, minutes_, krx_quant::timeless(look_.style)); // as the legend changed it
     want_history();
     fill_chart();
 }
 
 void KrxQuantScreen::open_studies(std::optional<krx_quant::Study> study) {
-    study_panel_->show_studies(look_.studies, minutes_, krx_quant::timeless(look_.style), live_->supply_served());
+    study_panel_->show_studies(look_.studies, minutes_, krx_quant::timeless(look_.style));
     if (study)
         study_panel_->select(*study);
     study_panel_->open_at(chart_toolbar_->indicators_corner());
@@ -1370,9 +1260,6 @@ void KrxQuantScreen::fill_chart() {
     // Nothing before the first bar held in this view: its first day's VWAP is drawn, and the AD
     // line's and the OBV's stretch from their 0 is whole (krx-quant #223).
     look_.first_day_whole = live_->reached_start(minutes_);
-    // The daily supply data over the days held, and whether the engine gives it (krx-quant #226).
-    look_.supply = live_->supply();
-    look_.supply_served = live_->supply_served();
     // Today's slots after the last bar fill up to the engine's clock while the session is open (krx-quant #238).
     const auto clock = krx_quant::session_clock(live_->status(), live_->engine_now());
     clock_slot_drawn_ = krx_quant::clock_slot(clock, minutes_);

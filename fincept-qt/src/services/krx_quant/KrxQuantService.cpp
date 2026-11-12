@@ -109,7 +109,6 @@ void KrxQuantService::rebind() {
     for (bool& busy : busy_)
         busy = false;
     next_leaderboard_.reset();
-    next_cost_map_.reset();
     next_close_.reset();
     stats_reads_.clear();
     bar_reads_.clear();
@@ -520,23 +519,6 @@ void KrxQuantService::read_special(const QString& symbol, const QDate& from, con
     });
 }
 
-void KrxQuantService::read_supply(const QString& symbol, const QDate& from, const QDate& to) {
-    if (!begin(kSupply))
-        return;
-    const QString path =
-        QStringLiteral("/supply?from=%1&to=%2").arg(from.toString(Qt::ISODate), to.toString(Qt::ISODate));
-    get(symbol_path(symbol, path), [this, symbol, from, to](Result<QJsonDocument> answer) {
-        end(kSupply);
-        // An engine before krx-quant #226 has no such answer: its supply indicators are greyed.
-        if (answer.is_err() && HttpClient::status_from_error(answer.error()) == 404)
-            return emit supply_ready(symbol, from, to, {}, false);
-        auto days = parsed(answer, krx_quant::parse_supply);
-        if (days.is_err())
-            return emit supply_failed(symbol, from, to, why(days.error()));
-        emit supply_ready(symbol, from, to, days.value(), true);
-    });
-}
-
 void KrxQuantService::read_trader_marks(const QString& symbol, const QDateTime& before, int limit) {
     if (!begin(kTrader))
         return;
@@ -643,33 +625,6 @@ void KrxQuantService::read_bar(const QString& symbol, const QDateTime& bar_close
     }
 }
 
-void KrxQuantService::read_briefing(const QDate& day) {
-    if (!begin(kBriefing))
-        return;
-    const QString path =
-        day.isValid() ? "/v1/briefing?day=" + day.toString(Qt::ISODate) : QStringLiteral("/v1/briefing");
-    get(path, [this, day](Result<QJsonDocument> answer) {
-        end(kBriefing);
-        auto briefing = parsed(answer, krx_quant::parse_briefing);
-        if (briefing.is_err())
-            return emit briefing_failed(day, why(briefing.error()));
-        emit briefing_ready(day, briefing.value());
-    });
-}
-
-void KrxQuantService::read_flow(const QString& symbol, const QDate& day) {
-    if (!begin(kFlow))
-        return;
-    const QString query = day.isValid() ? "/flow?day=" + day.toString(Qt::ISODate) : QStringLiteral("/flow");
-    get(symbol_path(symbol, query), [this, symbol, day](Result<QJsonDocument> answer) {
-        end(kFlow);
-        auto flow = parsed(answer, krx_quant::parse_flow);
-        if (flow.is_err())
-            return emit flow_failed(symbol, day, why(flow.error()));
-        emit flow_ready(symbol, day, flow.value());
-    });
-}
-
 void KrxQuantService::read_verdicts() {
     if (!begin(kVerdicts))
         return;
@@ -679,58 +634,6 @@ void KrxQuantService::read_verdicts() {
         if (verdicts.is_err())
             return emit verdicts_failed(why(verdicts.error()));
         emit verdicts_ready(verdicts.value());
-    });
-}
-
-void KrxQuantService::read_cost_map(const LeaderboardQuery& query) {
-    if (busy_[kCostMap] && !url_.isEmpty()) { // read once the one under way ends, as the leaderboard
-        next_cost_map_ = query == cost_map_asked_ ? std::nullopt : std::optional(query);
-        return;
-    }
-    if (!begin(kCostMap))
-        return;
-    cost_map_asked_ = query;
-    get("/v1/cost-map?" + query_string(query), [this](Result<QJsonDocument> answer) {
-        end(kCostMap);
-        if (next_cost_map_) { // asked again meanwhile: this answer, or its failure, is stale
-            const LeaderboardQuery next = *next_cost_map_;
-            next_cost_map_.reset();
-            return read_cost_map(next);
-        }
-        auto map = parsed(answer, krx_quant::parse_cost_map);
-        if (map.is_err())
-            return emit cost_map_failed(cost_map_asked_, why(map.error()));
-        emit cost_map_ready(cost_map_asked_, map.value());
-    });
-}
-
-void KrxQuantService::read_closing_flow(const QString& symbol) {
-    if (!begin(kClosingFlow))
-        return;
-    get(symbol_path(symbol, "/closing-flow"), [this, symbol](Result<QJsonDocument> answer) {
-        end(kClosingFlow);
-        auto flow = parsed(answer, krx_quant::parse_closing_flow);
-        if (flow.is_err())
-            return emit closing_flow_failed(symbol, why(flow.error()));
-        emit closing_flow_ready(symbol, flow.value());
-    });
-}
-
-void KrxQuantService::read_closing_days(const QString& symbol, const QDate& from, const QDate& to) {
-    if (!begin(kClosingDays))
-        return;
-    QUrlQuery q;
-    if (from.isValid())
-        q.addQueryItem("from", from.toString(Qt::ISODate));
-    if (to.isValid())
-        q.addQueryItem("to", to.toString(Qt::ISODate));
-    const QString query = q.isEmpty() ? QString() : "?" + q.toString(QUrl::FullyEncoded);
-    get(symbol_path(symbol, "/closing-flow/days" + query), [this, symbol](Result<QJsonDocument> answer) {
-        end(kClosingDays);
-        auto days = parsed(answer, krx_quant::parse_closing_days);
-        if (days.is_err())
-            return emit closing_days_failed(symbol, why(days.error()));
-        emit closing_days_ready(symbol, days.value());
     });
 }
 

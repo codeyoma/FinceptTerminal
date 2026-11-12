@@ -1,7 +1,5 @@
 ﻿#include "screens/dashboard/canvas/DashboardTemplates.h"
 
-#include "screens/krx_quant/dashboard/KrxDashboard.h" // fork addition (codeyoma/krx-quant#302)
-
 namespace fincept::screens {
 
 // Helper: create a GridItem with type + 12-col layout (no instance_id)
@@ -93,9 +91,6 @@ QVector<DashboardTemplate> all_dashboard_templates() {
              gi("screener", 0, 5, 6, 5, 3, 4),
              gi("indices", 6, 5, 6, 4),
          }},
-
-        // Fork addition (codeyoma/krx-quant#302): the KRX widgets.
-        krx_dashboard::dashboard_template(),
     };
 }
 

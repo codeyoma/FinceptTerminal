@@ -81,8 +81,8 @@ class KrxQuantService : public QObject {
     /// Drop every read under way and refresh from the setting's address.
     void restart();
     /// Drop every read under way and take the setting's address, reading nothing (restart() without
-    /// its refresh): for a reader of one answer alone, e.g. a dashboard tile of the status
-    /// (codeyoma/krx-quant#302). base_url_changed follows when the address is a new one.
+    /// its refresh): for a reader of one answer alone (EnginePoller). base_url_changed follows when the
+    /// address is a new one.
     void rebind();
     /// The status alone (its feeds' silences change by the second): status_ready or refresh_failed.
     void read_status();
@@ -151,12 +151,6 @@ class KrxQuantService : public QObject {
     /// answer (404, before krx-quant #236), or special_failed. Asked again while one is read, it is
     /// not read: KrxLive asks again once that one answers.
     void read_special(const QString& symbol, const QDate& from, const QDate& to);
-    /// A symbol's daily supply data from ``from`` to ``to`` (KST dates, both in; GET
-    /// /v1/symbols/{symbol}/supply, krx-quant #226), for the chart's supply indicators. supply_ready,
-    /// with ``served`` false and none from an engine without the answer (404, before krx-quant #226),
-    /// or supply_failed. Asked again while one is read, it is not read: KrxLive asks again once that
-    /// one answers.
-    void read_supply(const QString& symbol, const QDate& from, const QDate& to);
     /// A symbol's trader marks (krx-quant #398, GET /v1/symbols/{symbol}/trader-marks): the trader's
     /// last ``limit`` buys and sells before ``before`` (invalid: before now), for the auto trader screen's
     /// chart (codeyoma/krx-quant#537). trader_ready, also with none from an engine without the answer (404,
@@ -179,30 +173,9 @@ class KrxQuantService : public QObject {
     /// still shows (a kind's failure in BarRead::kind_failures). Each bar's on its own, several at
     /// once; asked again while that bar's is read, it is read again once that one answers.
     void read_bar(const QString& symbol, const QDateTime& bar_close, const QStringList& kinds);
-    /// The pre-open briefing of ``day`` (invalid: the engine's default, today or the next trading
-    /// day; GET /v1/briefing, codeyoma/krx-quant#304): briefing_ready, or briefing_failed (also from an
-    /// engine before #304, which has no such answer). Asked again while one is read, it is not read.
-    void read_briefing(const QDate& day);
     /// The symbols the engine predicts, with their names and logos (GET /v1/symbols, krx-quant #250),
     /// read alone: symbols_ready or symbols_failed. Asked again while one is read, it is not read.
     void read_symbol_list();
-    /// A symbol's intraday flows of ``day`` (invalid: the engine's default, today or the last trading
-    /// day; GET /v1/symbols/{symbol}/flow, codeyoma/krx-quant#306): flow_ready or flow_failed (also from an
-    /// engine before #306). Asked again while one is read, it is not read.
-    void read_flow(const QString& symbol, const QDate& day);
-    /// The cost map for ``query``'s symbol, period and special situations (its kind is not asked;
-    /// GET /v1/cost-map, codeyoma/krx-quant#307): cost_map_ready or cost_map_failed (also from an
-    /// engine before #307). Asked again while one is read, the latest query is read once it ends and
-    /// the answer under way is dropped, as read_leaderboard's.
-    void read_cost_map(const LeaderboardQuery& query);
-    /// A symbol's closing rebalancing demand today (GET /v1/symbols/{symbol}/closing-flow,
-    /// codeyoma/krx-quant#305): closing_flow_ready or closing_flow_failed (also from an engine before
-    /// #305). Asked again while one is read, it is not read.
-    void read_closing_flow(const QString& symbol);
-    /// A symbol's closing-flow days from ``from`` to ``to`` and their summary (invalid: the engine's
-    /// default, the year to today; GET /v1/symbols/{symbol}/closing-flow/days, codeyoma/krx-quant#305):
-    /// closing_days_ready or closing_days_failed. Asked again while one is read, it is not read.
-    void read_closing_days(const QString& symbol, const QDate& from = {}, const QDate& to = {});
     /// The auto trader's state as it last wrote it (GET /v1/trader, codeyoma/krx-quant#396):
     /// trader_state_ready or trader_state_failed (also from an engine before #396). Asked again while one
     /// is read, it is not read.
@@ -277,9 +250,6 @@ class KrxQuantService : public QObject {
     void special_ready(const QString& symbol, const QDate& from, const QDate& to,
                        const QList<fincept::krx_quant::SpecialWindow>& windows);
     void special_failed(const QString& symbol, const QDate& from, const QDate& to, const QString& reason);
-    void supply_ready(const QString& symbol, const QDate& from, const QDate& to,
-                      const QList<fincept::krx_quant::SupplyDay>& days, bool served);
-    void supply_failed(const QString& symbol, const QDate& from, const QDate& to, const QString& reason);
     void trader_ready(const QString& symbol, const QDateTime& before,
                       const QList<fincept::krx_quant::TraderMark>& marks);
     void trader_failed(const QString& symbol, const QString& reason);
@@ -288,19 +258,8 @@ class KrxQuantService : public QObject {
     void smt_failed(const QString& symbol, const QDate& from, const QDate& to, const QString& reason);
     void bar_ready(const fincept::krx_quant::BarRead& read);
     void bar_failed(const QString& symbol, const QDateTime& bar_close, const QString& reason);
-    void briefing_ready(const QDate& day, const fincept::krx_quant::Briefing& briefing);
-    void briefing_failed(const QDate& day, const QString& reason);
     void symbols_ready(const QList<fincept::krx_quant::SymbolQuote>& symbols);
     void symbols_failed(const QString& reason);
-    void flow_ready(const QString& symbol, const QDate& day, const fincept::krx_quant::Flow& flow);
-    void flow_failed(const QString& symbol, const QDate& day, const QString& reason);
-    void cost_map_ready(const fincept::services::KrxQuantService::LeaderboardQuery& query,
-                        const fincept::krx_quant::CostMap& map);
-    void cost_map_failed(const fincept::services::KrxQuantService::LeaderboardQuery& query, const QString& reason);
-    void closing_flow_ready(const QString& symbol, const fincept::krx_quant::ClosingFlow& flow);
-    void closing_flow_failed(const QString& symbol, const QString& reason);
-    void closing_days_ready(const QString& symbol, const fincept::krx_quant::ClosingDays& days);
-    void closing_days_failed(const QString& symbol, const QString& reason);
     void trader_state_ready(const fincept::krx_quant::TraderState& state);
     void trader_state_failed(const QString& reason);
     void trader_days_ready(const QList<fincept::krx_quant::TraderDay>& days);
@@ -337,15 +296,9 @@ class KrxQuantService : public QObject {
         kKindLatest,     ///< a kind's latest predictions
         kKindHistory,    ///< a kind's predictions over bar closes
         kSpecial,        ///< a symbol's special situations over days (krx-quant #236)
-        kSupply,         ///< a symbol's daily supply data over days (krx-quant #226)
         kTrader,         ///< a symbol's trader marks (codeyoma/krx-quant#398)
         kSmt,            ///< a symbol's SMT divergences over days (codeyoma/krx-quant#522)
-        kBriefing,       ///< a day's pre-open briefing (codeyoma/krx-quant#304)
         kSymbolList,     ///< the symbols alone
-        kFlow,           ///< a symbol's intraday flows (codeyoma/krx-quant#306)
-        kCostMap,        ///< the cost map (codeyoma/krx-quant#307)
-        kClosingFlow,    ///< a symbol's closing demand today (codeyoma/krx-quant#305)
-        kClosingDays,    ///< a symbol's closing-flow days (codeyoma/krx-quant#305)
         kTraderState,    ///< the auto trader's state (codeyoma/krx-quant#396)
         kTraderDays,     ///< its days
         kTraderTrades,   ///< its trades
@@ -379,8 +332,6 @@ class KrxQuantService : public QObject {
     bool busy_[kKinds] = {};
     LeaderboardQuery leaderboard_asked_;                      ///< the leaderboard under way, or the last
     std::optional<LeaderboardQuery> next_leaderboard_;        ///< asked for while another was under way
-    LeaderboardQuery cost_map_asked_;                         ///< the cost map under way, or the last
-    std::optional<LeaderboardQuery> next_cost_map_;           ///< asked for while another was under way
     std::optional<std::pair<QString, QDateTime>> next_close_; ///< a bar close asked for while another was read
     /// A bar close's read ended: the one asked for meanwhile is read next.
     void close_done();

@@ -26,7 +26,6 @@ class KrxAlerts;
 class KrxBarWindow;
 class KrxChart;
 class KrxChartToolbar;
-class KrxDrawingPopup;
 class KrxLeaderboard;
 class KrxLogos;
 class KrxStatsWindow;
@@ -81,15 +80,15 @@ class KrxQuantScreen : public QWidget {
     /// chosen (krx-quant #221).
     void set_view(int minutes);
     /// Draw the chart in ``style`` (krx-quant #221), and keep the choice for the symbol chosen. A
-    /// style without a time axis (krx-quant #225) puts the drawing tool down and reads the bars its
-    /// bricks start with; going to or from one fits the chart again.
+    /// style without a time axis (krx-quant #225) reads the bars its bricks start with; going to or
+    /// from one fits the chart again.
     void set_style(krx_quant::ChartStyle style);
     /// The options menu's size for the style shown when it has no time axis (krx-quant #225).
     void show_brick_size();
     /// ``size`` set for ``style`` in the options menu (0: its default), kept for the symbol chosen.
     void set_brick_size(krx_quant::ChartStyle style, double size);
     /// The symbol chosen now: its chart's view and style as it kept them (krx-quant #221), its
-    /// indicators and the anchored VWAP's anchor (krx-quant #222), and its drawings (krx-quant #224).
+    /// indicators and the anchored VWAP's anchor (krx-quant #222).
     void show_symbol_prefs();
     /// Draw the chart's indicators as ``set`` says (krx-quant #222), and keep them for the symbol
     /// chosen. The anchored VWAP turned on without an anchor waits for a click on the chart.
@@ -100,13 +99,6 @@ class KrxQuantScreen : public QWidget {
     void set_anchor(qint64 time);
     /// Tell KrxLive how many bars the indicators want, and back to the anchor (krx-quant #222).
     void want_history();
-    /// The symbol's drawings changed (krx-quant #224): kept for it, drawn (``select``: the one to
-    /// select, as KrxChart::set_drawings), and the trash on while there are any.
-    void drawings_changed(int select = 0);
-    /// The drawing ``id`` gone (the trash, Delete, the popup's `삭제`, a text left empty).
-    void remove_drawing(int id);
-    /// A drawing tool chosen (krx-quant #224); none: back at the cursor.
-    void set_tool(std::optional<krx_quant::DrawingTool> tool);
     void open_detail(const QString& algorithm);
     /// ``window``'s day series (krx-quant #561): its predictor's kind's days as last read.
     void show_days(KrxStatsWindow* window, const QString& predictor);
@@ -149,10 +141,9 @@ class KrxQuantScreen : public QWidget {
     KrxChart* chart_ = nullptr;
     KrxChartToolbar* chart_toolbar_ = nullptr; ///< the row above the chart (krx-quant #221)
     int minutes_ = 1;                          ///< the chart's view
-    krx_quant::ChartLook look_;                ///< its style, day separators (#221), indicators (#222), drawings (#224)
+    krx_quant::ChartLook look_;                ///< its style, day separators (#221), indicators (#222)
     std::optional<double> brick_atr_;          ///< ATR(14) the chart last counted for the bricks' default (#225)
     KrxStudyPanel* study_panel_ = nullptr;     ///< the indicators panel (krx-quant #222)
-    KrxDrawingPopup* drawing_popup_ = nullptr; ///< a drawing's colour, width, line style and text (krx-quant #224)
     krx_panel::Header predictions_header_;     ///< titled with the bar close's four minutes
     QTableWidget* predictions_table_ = nullptr;
     QPushButton* latest_ = nullptr; ///< back to the latest bar close, while one is pinned

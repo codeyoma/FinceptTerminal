@@ -2,14 +2,7 @@
 // waits for it to read the engine, and saves the screen as a PNG. Given predictors, it
 // also opens their detail windows, as a double-click on the leaderboard does, and saves
 // each next to the screen's: <out>-<predictor>.png. KRX_CAPTURE_BAR opens bar windows, as a
-// double-click on a 1-minute bar does (krx-quant #255): <out>-bar<n>.png. KRX_CAPTURE_BRIEFING=1 saves
-// the pre-open briefing screen instead (codeyoma/krx-quant#304); KRX_CAPTURE_DAY=<YYYY-MM-DD> its day.
-// KRX_CAPTURE_FLOW=1 saves the flow screen (codeyoma/krx-quant#306): KRX_CAPTURE_SYMBOL its symbol,
-// KRX_CAPTURE_DAY its day, KRX_CAPTURE_HOVER=<0..1> the mouse over its chart at that share of the width.
-// KRX_CAPTURE_COST=1 saves the horizon and cost screen (codeyoma/krx-quant#307): KRX_CAPTURE_PERIOD its
-// period (default 20d), KRX_CAPTURE_SYMBOL its symbol (default all).
-// KRX_CAPTURE_CLOSING=1 saves the closing flow screen (codeyoma/krx-quant#305): KRX_CAPTURE_SYMBOL its
-// symbol (default the one kept, else the engine's first).
+// double-click on a 1-minute bar does (krx-quant #255): <out>-bar<n>.png.
 // KRX_CAPTURE_TRADER=1 saves the auto trader screen (codeyoma/krx-quant#397); KRX_CAPTURE_CONFIRM=entries or
 // =sell then presses that pause button and saves its confirm window, <out>-confirm.png, and cancels it:
 // nothing is sent. KRX_CAPTURE_POLICY=<version> chooses that policy's trades over the trades table, and
@@ -25,26 +18,16 @@
 // With QT_QPA_PLATFORM=offscreen no window opens, and the chart's panel stays empty. The
 // theme and font are the app's defaults (Obsidian, Consolas 14px).
 #include "core/config/AppConfig.h"
-#include "screens/krx_quant/KrxBriefingScreen.h"
-#include "screens/krx_quant/KrxFlowScreen.h"
-#include "screens/krx_quant/KrxCostScreen.h"
 #include "screens/krx_quant/KrxVerdictScreen.h"
-#include "screens/krx_quant/KrxClosingScreen.h"
 #include "screens/krx_quant/KrxTraderScreen.h"
 #include "screens/krx_quant/KrxBarWindow.h"
 #include "screens/krx_quant/KrxChart.h"
 #include "screens/krx_quant/KrxChartToolbar.h"
-#include "screens/krx_quant/KrxDrawingPopup.h"
 #include "screens/krx_quant/KrxLeaderboard.h"
 #include "screens/krx_quant/KrxQuantScreen.h"
 #include "screens/krx_quant/KrxStatsWindow.h"
 #include "screens/krx_quant/KrxStudyPanel.h"
-#include "services/krx_quant/ChartDrawings.h"
-#include "services/krx_quant/KrxBriefingLive.h"
-#include "services/krx_quant/KrxFlowLive.h"
-#include "services/krx_quant/KrxCostLive.h"
 #include "services/krx_quant/KrxVerdictLive.h"
-#include "services/krx_quant/KrxClosingLive.h"
 #include "services/krx_quant/KrxLive.h"
 #include "services/krx_quant/KrxQuantService.h"
 #include "ui/theme/ThemeManager.h"
@@ -54,13 +37,9 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QGuiApplication>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QKeyEvent>
 #include <QKeySequence>
 #include <QMenu>
-#include <QMouseEvent>
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
@@ -76,39 +55,6 @@
 #ifdef HAS_QT_WEBENGINE
 #    include <QWebEngineView>
 #endif
-
-namespace {
-
-/// KRX_CAPTURE_DRAWINGS's drawings (krx-quant #224): as a symbol keeps them (custom/README.md), but
-/// a point's "time" may be a whole number, bars back from the last 1-minute bar read (0 the last,
-/// -10 ten before it; the bar's middle), and its "price" then "open", "high", "low" or "close" of
-/// that bar.
-QList<fincept::krx_quant::Drawing> capture_drawings(const QString& json, const QList<fincept::krx_quant::Bar>& bars) {
-    QJsonArray resolved;
-    for (const QJsonValue& value : QJsonDocument::fromJson(json.toUtf8()).array()) {
-        QJsonObject drawing = value.toObject();
-        QJsonArray points;
-        for (const QJsonValue& p : drawing.value("points").toArray()) {
-            QJsonObject point = p.toObject();
-            std::optional<fincept::krx_quant::Bar> bar;
-            if (const QJsonValue time = point.value("time"); time.isDouble() && !bars.isEmpty()) {
-                bar = bars[std::clamp<qsizetype>(bars.size() - 1 + time.toInt(), 0, bars.size() - 1)];
-                point["time"] = bar->start.addSecs(30).toString(Qt::ISODate);
-            }
-            if (const QString price = point.value("price").toString(); bar && !price.isEmpty())
-                point["price"] = price == "open"   ? bar->open
-                                 : price == "high" ? bar->high
-                                 : price == "low"  ? bar->low
-                                                   : bar->close;
-            points.append(point);
-        }
-        drawing["points"] = points;
-        resolved.append(drawing);
-    }
-    return fincept::krx_quant::parse_drawings(QString::fromUtf8(QJsonDocument(resolved).toJson()));
-}
-
-} // namespace
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {
@@ -146,68 +92,10 @@ int main(int argc, char* argv[]) {
     if (qEnvironmentVariableIsSet("KRX_CAPTURE_SMT"))
         fincept::AppConfig::instance().set(fincept::krx_quant::kSmtKey,
                                            qEnvironmentVariableIntValue("KRX_CAPTURE_SMT") != 0);
-    // KRX_CAPTURE_MAGNET=<0|1>: the drawing menu's magnet (krx-quant #224).
-    if (qEnvironmentVariableIsSet("KRX_CAPTURE_MAGNET"))
-        fincept::AppConfig::instance().set(fincept::krx_quant::kMagnetKey,
-                                           qEnvironmentVariableIntValue("KRX_CAPTURE_MAGNET") != 0);
     // KRX_CAPTURE_LOG=<0|1>: 일반 or 로그 at the chart's bottom right (krx-quant #245).
     if (qEnvironmentVariableIsSet("KRX_CAPTURE_LOG"))
         fincept::AppConfig::instance().set(fincept::krx_quant::kLogScaleKey,
                                            qEnvironmentVariableIntValue("KRX_CAPTURE_LOG") != 0);
-
-    // KRX_CAPTURE_BRIEFING=1: the pre-open briefing screen (codeyoma/krx-quant#304), saved after the wait.
-    if (qEnvironmentVariableIntValue("KRX_CAPTURE_BRIEFING") != 0) {
-        fincept::screens::KrxBriefingScreen briefing;
-        briefing.resize(width, height);
-        briefing.show();
-        if (const QString day = qEnvironmentVariable("KRX_CAPTURE_DAY"); !day.isEmpty())
-            if (auto* live = briefing.findChild<fincept::services::KrxBriefingLive*>())
-                live->set_day(QDate::fromString(day, Qt::ISODate));
-        const QString out = QString::fromLocal8Bit(argv[2]);
-        int status = 0;
-        QTimer::singleShot(seconds * 1000, &app, [&]() {
-            if (!briefing.grab().save(out)) {
-                QTextStream(stderr) << "could not save " << out << "\n";
-                status = 1;
-            }
-            app.quit();
-        });
-        app.exec();
-        return status;
-    }
-
-    // KRX_CAPTURE_FLOW=1: the flow screen (codeyoma/krx-quant#306), saved after the wait.
-    if (qEnvironmentVariableIntValue("KRX_CAPTURE_FLOW") != 0) {
-        if (const QString symbol = qEnvironmentVariable("KRX_CAPTURE_SYMBOL"); !symbol.isEmpty())
-            fincept::AppConfig::instance().set(fincept::services::KrxFlowLive::kSymbolKey, symbol);
-        fincept::screens::KrxFlowScreen flow;
-        flow.resize(width, height);
-        flow.show();
-        if (const QString day = qEnvironmentVariable("KRX_CAPTURE_DAY"); !day.isEmpty())
-            if (auto* live = flow.findChild<fincept::services::KrxFlowLive*>())
-                live->set_day(QDate::fromString(day, Qt::ISODate));
-        if (const QString hover = qEnvironmentVariable("KRX_CAPTURE_HOVER"); !hover.isEmpty()) {
-            QTimer::singleShot(seconds * 800, &app, [&flow, hover]() {
-                if (auto* chart = flow.findChild<fincept::screens::KrxFlowChart*>()) {
-                    const QPoint at(static_cast<int>(chart->width() * hover.toDouble()), chart->height() / 2);
-                    QMouseEvent move(QEvent::MouseMove, at, chart->mapToGlobal(at), Qt::NoButton, Qt::NoButton,
-                                     Qt::NoModifier);
-                    QApplication::sendEvent(chart, &move);
-                }
-            });
-        }
-        const QString out = QString::fromLocal8Bit(argv[2]);
-        int status = 0;
-        QTimer::singleShot(seconds * 1000, &app, [&]() {
-            if (!flow.grab().save(out)) {
-                QTextStream(stderr) << "could not save " << out << "\n";
-                status = 1;
-            }
-            app.quit();
-        });
-        app.exec();
-        return status;
-    }
 
     // KRX_CAPTURE_VERDICT=1: the verdict screen (codeyoma/krx-quant#678), saved after the wait;
     // KRX_CAPTURE_SYMBOL the symbol whose members are shown.
@@ -221,51 +109,6 @@ int main(int argc, char* argv[]) {
         int status = 0;
         QTimer::singleShot(seconds * 1000, &app, [&]() {
             if (!verdict.grab().save(out)) {
-                QTextStream(stderr) << "could not save " << out << "\n";
-                status = 1;
-            }
-            app.quit();
-        });
-        app.exec();
-        return status;
-    }
-
-    // KRX_CAPTURE_COST=1: the horizon and cost screen (codeyoma/krx-quant#307), saved after the wait;
-    // KRX_CAPTURE_PERIOD (today, 5d, 20d) and KRX_CAPTURE_SYMBOL (or all) choose its query.
-    if (qEnvironmentVariableIntValue("KRX_CAPTURE_COST") != 0) {
-        auto& config = fincept::AppConfig::instance();
-        config.set(fincept::services::KrxCostLive::kSymbolKey,
-                   qEnvironmentVariable("KRX_CAPTURE_SYMBOL", QStringLiteral("all")));
-        config.set(fincept::services::KrxCostLive::kPeriodKey,
-                   qEnvironmentVariable("KRX_CAPTURE_PERIOD", QStringLiteral("20d")));
-        fincept::screens::KrxCostScreen cost;
-        cost.resize(width, height);
-        cost.show();
-        const QString out = QString::fromLocal8Bit(argv[2]);
-        int status = 0;
-        QTimer::singleShot(seconds * 1000, &app, [&]() {
-            if (!cost.grab().save(out)) {
-                QTextStream(stderr) << "could not save " << out << "\n";
-                status = 1;
-            }
-            app.quit();
-        });
-        app.exec();
-        return status;
-    }
-
-    // KRX_CAPTURE_CLOSING=1: the closing flow screen (codeyoma/krx-quant#305), saved after the wait;
-    // KRX_CAPTURE_SYMBOL its symbol.
-    if (qEnvironmentVariableIntValue("KRX_CAPTURE_CLOSING") != 0) {
-        if (const QString symbol = qEnvironmentVariable("KRX_CAPTURE_SYMBOL"); !symbol.isEmpty())
-            fincept::AppConfig::instance().set(fincept::services::KrxClosingLive::kSymbolKey, symbol);
-        fincept::screens::KrxClosingScreen closing;
-        closing.resize(width, height);
-        closing.show();
-        const QString out = QString::fromLocal8Bit(argv[2]);
-        int status = 0;
-        QTimer::singleShot(seconds * 1000, &app, [&]() {
-            if (!closing.grab().save(out)) {
                 QTextStream(stderr) << "could not save " << out << "\n";
                 status = 1;
             }
@@ -464,35 +307,10 @@ int main(int argc, char* argv[]) {
         const QDateTime anchor = QDateTime::fromString(qEnvironmentVariable("KRX_CAPTURE_ANCHOR"), Qt::ISODate);
         if (auto* chart = screen.findChild<fincept::screens::KrxChart*>(); chart && anchor.isValid())
             emit chart->anchor_chosen(fincept::krx_quant::chart_time(anchor));
-        // KRX_CAPTURE_DRAWINGS=<JSON array>: the symbol's drawings now (krx-quant #224), as if drawn, those
-        // it kept removed; "[]" removes them all. The format is the one kept (custom/README.md), and
-        // capture_drawings above takes bars back from the last and their prices too.
-        auto* chart = screen.findChild<fincept::screens::KrxChart*>();
-        auto* live = screen.findChild<fincept::services::KrxLive*>();
-        if (const QString set = qEnvironmentVariable("KRX_CAPTURE_DRAWINGS"); chart && live && !set.isEmpty()) {
-            const QString kept =
-                fincept::AppConfig::instance()
-                    .get(fincept::krx_quant::prefs_group(live->selected()) + fincept::krx_quant::kPrefsDrawings)
-                    .toString();
-            for (const auto& d : fincept::krx_quant::parse_drawings(kept))
-                emit chart->drawing_removed(d.id);
-            for (const auto& d : capture_drawings(set, live->bars()))
-                emit chart->drawing_added(d, QPoint());
-        }
     });
-    // KRX_CAPTURE_SELECT=<n>: the n-th drawing (1 the first) selected at 0.6 of the wait, as a click on
-    // it: its handles show (krx-quant #224).
-    if (const int n = qEnvironmentVariableIntValue("KRX_CAPTURE_SELECT"); n > 0) {
-        QTimer::singleShot(seconds * 600, &app, [&screen, n]() {
-            if (auto* chart = screen.findChild<fincept::screens::KrxChart*>())
-                chart->select_drawing(n);
-        });
-    }
-    // KRX_CAPTURE_MENU=<minutes|style|options|indicators|drawing|edit>: that menu of the row above the
-    // chart opened at 0.9 of the wait, and saved as <out>-menu.png (a menu is a window of its own).
-    // "indicators" is the indicators panel (krx-quant #222), KRX_CAPTURE_INDICATOR=<indicator> picked in
-    // it; "drawing" the drawing menu, "edit" the popup of the drawing KRX_CAPTURE_SELECT names (the
-    // first without it) as a double-click on it opens it (krx-quant #224).
+    // KRX_CAPTURE_MENU=<minutes|style|options|indicators>: that menu of the row above the chart opened
+    // at 0.9 of the wait, and saved as <out>-menu.png (a menu is a window of its own). "indicators" is
+    // the indicators panel (krx-quant #222), KRX_CAPTURE_INDICATOR=<indicator> picked in it.
     QWidget* menu = nullptr;
     if (const QString which = qEnvironmentVariable("KRX_CAPTURE_MENU"); !which.isEmpty()) {
         QTimer::singleShot(seconds * 900, &app, [&screen, &menu, which]() {
@@ -507,19 +325,8 @@ int main(int argc, char* argv[]) {
                 menu = panel;
                 return;
             }
-            if (which == "edit") {
-                auto* chart = screen.findChild<fincept::screens::KrxChart*>();
-                auto* popup = screen.findChild<fincept::screens::KrxDrawingPopup*>();
-                if (!chart || !popup)
-                    return;
-                const int n = std::max(1, qEnvironmentVariableIntValue("KRX_CAPTURE_SELECT"));
-                emit chart->drawing_edit_requested(n, chart->mapToGlobal(chart->rect().center()));
-                menu = popup;
-                return;
-            }
             const QString name = which == "style"     ? "krxStyle"
                                  : which == "options" ? "krxOptions"
-                                 : which == "drawing" ? "krxDrawing"
                                                       : "krxMinutes";
             if (auto* button = screen.findChild<QToolButton*>(name); button && button->menu()) {
                 button->menu()->popup(button->mapToGlobal(QPoint(0, button->height())));
@@ -653,47 +460,8 @@ int main(int argc, char* argv[]) {
                         .arg(drag.section(':', 1, 1).toInt()));
         });
     }
-    // KRX_CAPTURE_DRAW=<tool>@<x>,<y>[@<x>,<y>…][;<tool>@…]: as picking that drawing tool (krx-quant #224)
-    // and clicking the chart at those places (each a share of the chart's width and height, on the
-    // prices), a drawing every 1.5 s from half the wait: the page places them as clicks do and the
-    // screen keeps them. E.g. "trend_line@0.2,0.3@0.6,0.2;horizontal@0.5,0.4".
-    if (const QString draw = qEnvironmentVariable("KRX_CAPTURE_DRAW"); !draw.isEmpty()) {
-        const QStringList drawings = draw.split(';', Qt::SkipEmptyParts);
-        for (qsizetype k = 0; k < drawings.size(); ++k) {
-            QStringList parts = drawings[k].split('@', Qt::SkipEmptyParts);
-            const auto tool = fincept::krx_quant::parse_tool(parts.value(0).trimmed());
-            if (!tool)
-                continue;
-            parts.removeFirst();
-            QStringList clicks;
-            for (qsizetype i = 0; i < parts.size(); ++i)
-                clicks << QStringLiteral("setTimeout(() => click(%1, %2), %3);")
-                              .arg(parts[i].section(',', 0, 0).toDouble())
-                              .arg(parts[i].section(',', 1, 1).toDouble())
-                              .arg(150 * (i + 1));
-            QTimer::singleShot(seconds * 500 + static_cast<int>(k) * 1500, &app, [&screen, tool = *tool, clicks]() {
-                auto* toolbar = screen.findChild<fincept::screens::KrxChartToolbar*>();
-                auto* chart = screen.findChild<fincept::screens::KrxChart*>();
-                auto* view = chart ? chart->findChild<QWebEngineView*>() : nullptr;
-                if (!toolbar || !view)
-                    return;
-                emit toolbar->tool_chosen(tool);
-                QTimer::singleShot(300, view, [view, clicks]() {
-                    view->page()->runJavaScript(
-                        QStringLiteral(
-                            "(function(){const click = (fx, fy) => {const x = innerWidth * fx, y = innerHeight * fy;"
-                            "const at = document.elementFromPoint(x, y);"
-                            "const event = (type) => new MouseEvent(type, {clientX: x, clientY: y, button: 0,"
-                            "  buttons: type === 'mousedown' ? 1 : 0, bubbles: true, cancelable: true, view: window});"
-                            "for (const type of ['mousemove', 'mousedown', 'mouseup']) at.dispatchEvent(event(type));};"
-                            "%1})();")
-                            .arg(clicks.join(QString())));
-                });
-            });
-        }
-    }
     // KRX_CAPTURE_JS=<script>: that script run on the chart's page at 0.7 of the wait, e.g. synthetic mouse
-    // and key events to try the drawings' clicks, drags, Delete and Esc (krx-quant #224).
+    // and key events.
     if (const QString script = qEnvironmentVariable("KRX_CAPTURE_JS"); !script.isEmpty()) {
         QTimer::singleShot(seconds * 700, &app, [&screen, script]() {
             auto* chart = screen.findChild<fincept::screens::KrxChart*>();
@@ -701,11 +469,10 @@ int main(int argc, char* argv[]) {
                 view->page()->runJavaScript(script);
         });
     }
-    // KRX_CAPTURE_KEY=<key>[,<key>…]: each key (Escape, Delete, Backspace, Ctrl+D, a letter) pressed 0.3 s
-    // apart from 0.75 of the wait, through Qt's shortcuts as the keyboard's are: to the open menu, else the
-    // widget with the keyboard. The chart takes the keyboard first, as a click on it does (and a drawing
-    // tool chosen, krx-quant #224). Ctrl+D is Cmd+D on a Mac: it opens the drawing menu, where a letter
-    // picks a tool (krx-quant #241). Each key's widget is named on stderr.
+    // KRX_CAPTURE_KEY=<key>[,<key>…]: each key (Escape, a letter, …) pressed 0.3 s apart from 0.75 of the
+    // wait, through Qt's shortcuts as the keyboard's are: to the open menu, else the widget with the
+    // keyboard. The chart takes the keyboard first, as a click on it does. Each key's widget is named on
+    // stderr.
     if (const QStringList keys = qEnvironmentVariable("KRX_CAPTURE_KEY").split(',', Qt::SkipEmptyParts);
         !keys.isEmpty()) {
         QTimer::singleShot(seconds * 750 - 100, &app, [&screen]() {
@@ -786,10 +553,7 @@ int main(int argc, char* argv[]) {
                 QStringLiteral("%1-bar%2.%3").arg(file.completeBaseName()).arg(i + 1).arg(file.suffix());
             save(bars[i], file.dir().filePath(name));
         }
-        // A drawing's popup a double-click opened (KRX_CAPTURE_JS, krx-quant #224) is saved as a menu.
-        if (auto* popup = screen.findChild<fincept::screens::KrxDrawingPopup*>(); !menu && popup && popup->isVisible())
-            menu = popup;
-        // So is a menu the keys opened (KRX_CAPTURE_KEY, krx-quant #241).
+        // A menu the keys opened (KRX_CAPTURE_KEY) is saved as a menu.
         if (!menu)
             menu = QApplication::activePopupWidget();
         if (menu)

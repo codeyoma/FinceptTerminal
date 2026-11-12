@@ -60889,13 +60889,6 @@ It stops monitoring immediately. Its alert history is kept.</source>
         </message>
     </context>
     <context>
-        <name>fincept::screens::KrxDrawingPopup</name>
-        <message>
-            <source>%1px</source>
-            <translation>%1px</translation>
-        </message>
-    </context>
-    <context>
         <name>fincept::screens::KrxQuantScreen</name>
         <message>
             <source>%1 · %2</source>

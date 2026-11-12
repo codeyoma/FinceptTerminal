@@ -1,4 +1,4 @@
-// Tests for how the KRX screens and the dashboard's engine tiles read the engine on a schedule
+// Tests for how the KRX screens read the engine on a schedule
 // (src/services/krx_quant/EnginePoller.h, codeyoma/krx-quant#649): the address, a new one, the symbols, the
 // last failure and reading only while shown, against a stand-in engine on this computer. Each screen's own
 // tests keep what it reads and when; what every screen shares is tested here once. The settings (the
@@ -62,7 +62,6 @@ class StandIn : public QObject {
   public:
     QString name = QStringLiteral("삼성전자"); ///< the first symbol's: tells two engines apart
     bool fail = false;                         ///< GET /v1/symbols answers 500
-    bool empty = false;                        ///< GET /v1/symbols answers an empty list
     bool hold = false;                         ///< the next GET /v1/symbols is answered only by release()
     QStringList asked;
 
@@ -107,9 +106,6 @@ class StandIn : public QObject {
         if (path == "/v1/symbols" && fail) {
             status = 500;
             body = R"({"error": "made-up failure"})";
-        } else if (path == "/v1/symbols" && empty) {
-            status = 200;
-            body = R"({"symbols": []})";
         } else if (path == "/v1/symbols") {
             status = 200;
             body =
@@ -170,7 +166,7 @@ class TstKrxEnginePoller : public QObject {
 
     void without_an_address_it_says_where_to_set_it_and_reads_nothing() {
         services::KrxQuantService::set_base_url(QString());
-        Screen screen(Symbols::Required);
+        Screen screen(Symbols::Names);
         QSignalSpy changed(&screen.poller, &EnginePoller::changed);
         screen.poller.start();
         QCOMPARE(screen.poller.failure(), QString::fromUtf8(EnginePoller::kNoAddress));
@@ -183,19 +179,18 @@ class TstKrxEnginePoller : public QObject {
         QCOMPARE(screen.poller.next_ms(), 0);
     }
 
-    void the_symbols_come_before_the_screen_s_read() {
+    void their_names_are_read_beside_the_screen_s_read() {
         StandIn engine;
         services::KrxQuantService::set_base_url(engine.url());
-        Screen screen(Symbols::Required);
+        Screen screen(Symbols::Names);
         screen.answer = true;
         QSignalSpy symbols(&screen.poller, &EnginePoller::symbols_ready);
         screen.poller.start();
-        QCOMPARE(screen.reads, 0); // the symbols first
-        QTRY_COMPARE_WITH_TIMEOUT(screen.reads, 1, 10000);
+        QCOMPARE(screen.reads, 1); // at once: the names do not hold it back
+        QTRY_COMPARE_WITH_TIMEOUT(screen.poller.symbols().size(), 2, 10000);
         QCOMPARE(symbols.count(), 1);
-        QCOMPARE(engine.asked, QStringList{"/v1/symbols"});
-        QCOMPARE(screen.poller.symbols().size(), 2);
         QCOMPARE(screen.poller.symbols().first().name, QStringLiteral("삼성전자"));
+        QCOMPARE(engine.asked, QStringList{"/v1/symbols"});
         QVERIFY(screen.poller.failure().isEmpty());
         QCOMPARE(screen.poller.answered_at(), at_nine());
         QVERIFY(screen.scheduled());
@@ -203,62 +198,45 @@ class TstKrxEnginePoller : public QObject {
         // Held: read again without asking for them again.
         screen.poller.read_now();
         QCOMPARE(screen.reads, 2);
-        screen.poller.stop();
-    }
-
-    void their_names_are_read_beside_the_screen_s_read() {
-        StandIn engine;
-        services::KrxQuantService::set_base_url(engine.url());
-        Screen screen(Symbols::Names);
-        screen.poller.start();
-        QCOMPARE(screen.reads, 1); // at once: the names do not hold it back
-        QTRY_COMPARE_WITH_TIMEOUT(screen.poller.symbols().size(), 2, 10000);
         QCOMPARE(engine.asked, QStringList{"/v1/symbols"});
         screen.poller.stop();
     }
 
-    void an_engine_without_symbols_is_asked_again_on_schedule_not_at_once() {
-        // An empty list answered at once must not be asked for again at once, in a loop.
+    void the_names_failing_is_not_the_screen_s_failure() {
+        // They are asked for again with the next read; the screen's read goes on.
         StandIn engine;
-        engine.empty = true;
+        engine.fail = true;
         services::KrxQuantService::set_base_url(engine.url());
-        Screen screen(Symbols::Required);
+        Screen screen(Symbols::Names);
+        QSignalSpy names_failed(screen.poller.service(), &services::KrxQuantService::symbols_failed);
         screen.poller.start();
-        QTRY_VERIFY_WITH_TIMEOUT(!screen.poller.failure().isEmpty(), 10000);
-        QCOMPARE(screen.poller.failure(), QString::fromUtf8(EnginePoller::kNoSymbols));
-        QCOMPARE(screen.reads, 0);
-        QVERIFY(screen.scheduled());
+        QCOMPARE(screen.reads, 1);
+        QTRY_COMPARE_WITH_TIMEOUT(names_failed.count(), 1, 10000);
+        QVERIFY(screen.poller.failure().isEmpty());
+        engine.fail = false;
+        screen.poller.read_now();
+        QCOMPARE(screen.reads, 2);
+        QTRY_COMPARE_WITH_TIMEOUT(screen.poller.symbols().size(), 2, 10000);
+        QCOMPARE(engine.asked.size(), 2);
         screen.poller.stop();
-
-        // A screen that reads every symbol (Symbols::First) goes on with none.
-        Screen any(Symbols::First);
-        any.poller.start();
-        QTRY_COMPARE_WITH_TIMEOUT(any.reads, 1, 10000);
-        QVERIFY(any.poller.symbols().isEmpty());
-        QVERIFY(any.poller.failure().isEmpty());
-        any.poller.stop();
     }
 
     void a_failure_is_kept_until_an_answer() {
         StandIn engine;
-        engine.fail = true;
         services::KrxQuantService::set_base_url(engine.url());
-        Screen screen(Symbols::Required);
+        Screen screen(Symbols::None);
         screen.poller.start();
-        QTRY_VERIFY_WITH_TIMEOUT(!screen.poller.failure().isEmpty(), 10000);
-        QCOMPARE(screen.reads, 0);
-        QVERIFY(screen.scheduled());
-
-        engine.fail = false;
-        screen.poller.read_now();
-        QTRY_COMPARE_WITH_TIMEOUT(screen.reads, 1, 10000);
-        QVERIFY(!screen.poller.failure().isEmpty()); // the screen's read has not answered yet
+        QCOMPARE(screen.reads, 1);
+        QVERIFY(engine.asked.isEmpty()); // no symbols asked for
 
         // The screen's own read fails: why is kept, and the next read is on schedule.
         screen.poller.failed(QStringLiteral("made-up"));
         QCOMPARE(screen.poller.failure(), QStringLiteral("made-up"));
         QVERIFY(screen.scheduled());
         QVERIFY(!screen.poller.answered_at().isValid());
+        screen.poller.read_now();
+        QCOMPARE(screen.reads, 2);
+        QCOMPARE(screen.poller.failure(), QStringLiteral("made-up")); // not answered yet
 
         screen.poller.answered();
         QVERIFY(screen.poller.failure().isEmpty());
@@ -273,26 +251,30 @@ class TstKrxEnginePoller : public QObject {
         second.name = QStringLiteral("다른 엔진");
         second.hold = true;
         services::KrxQuantService::set_base_url(first.url());
-        Screen screen(Symbols::Required);
-        screen.answer = true;
+        Screen screen(Symbols::Names);
         QSignalSpy engines(&screen.poller, &EnginePoller::engine_changed);
         QSignalSpy symbols(&screen.poller, &EnginePoller::symbols_ready);
         screen.poller.start();
+        QCOMPARE(screen.reads, 1);
         QTRY_VERIFY_WITH_TIMEOUT(first.holding(), 10000);
         QCOMPARE(engines.count(), 1); // the first address taken
+        screen.poller.answered();
+        QCOMPARE(screen.poller.answered_at(), at_nine());
 
         services::KrxQuantService::set_base_url(second.url());
         screen.poller.read_now();
         QCOMPARE(engines.count(), 2);
+        QCOMPARE(screen.reads, 2);
+        QVERIFY(!screen.poller.answered_at().isValid());
         QTRY_VERIFY_WITH_TIMEOUT(second.holding(), 10000);
         // The old engine answers after the address changed: its answer is not taken.
         first.release();
         QTRY_VERIFY_WITH_TIMEOUT(!first.holding(), 10000);
         second.release();
-        QTRY_COMPARE_WITH_TIMEOUT(screen.reads, 1, 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(!screen.poller.symbols().isEmpty() &&
+                                     screen.poller.symbols().first().name == QStringLiteral("다른 엔진"),
+                                 10000);
         QCOMPARE(symbols.count(), 1);
-        QCOMPARE(screen.poller.symbols().first().name, QStringLiteral("다른 엔진"));
-        QCOMPARE(screen.poller.answered_at(), at_nine());
 
         // Another address again: what was read of the old engine goes.
         services::KrxQuantService::set_base_url(first.url());
