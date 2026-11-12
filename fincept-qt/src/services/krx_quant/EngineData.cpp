@@ -1422,6 +1422,7 @@ QString standing_label(const QString& status) {
         {"refused", QStringLiteral("사전 검증 거부")},
         {"held", QStringLiteral("수습 보류")},
         {"awaiting", QStringLiteral("탐침 대기")},
+        {"shadow", QStringLiteral("그림자")}, // not registered: the ranking's evidence only (codeyoma/krx-quant#697)
     };
     return labels.value(status, status);
 }
@@ -2193,6 +2194,35 @@ BarrierOdds odds_of(const QJsonObject& o) {
     return {o.value("p_up_first").toDouble(), o.value("p_timeout").toDouble(), o.value("p_down_first").toDouble()};
 }
 
+std::optional<DayOdds> day_odds_of(const QJsonValue& v) {
+    if (!v.isObject())
+        return std::nullopt;
+    const QJsonObject o = v.toObject();
+    return DayOdds{o.value("p_up").toDouble(), o.value("p_flat").toDouble(), o.value("p_down").toDouble()};
+}
+
+VerdictAdvisory advisory_of(const QJsonObject& a) {
+    VerdictAdvisory out;
+    out.kind = a.value("kind").toString();
+    out.sessions = a.value("sessions").toInt();
+    out.call = a.value("call").toString();
+    out.odds = day_odds_of(a.value("probabilities"));
+    out.families = a.value("families").toInt();
+    out.members = a.value("members").toInt();
+    out.lean = a.value("lean").toString();
+    out.strength = a.value("strength").toString();
+    out.margin = number(a.value("margin"));
+    for (const auto& fv : a.value("forecasters").toArray()) {
+        const QJsonObject f = fv.toObject();
+        out.forecasters.push_back({f.value("name").toString(), f.value("family").toString(),
+                                   f.value("status").toString(), day_odds_of(f.value("probabilities")),
+                                   f.value("lean").toString(), f.value("strength").toString(),
+                                   f.value("margin").toDouble(), f.value("weight").toDouble(),
+                                   f.value("counted").toBool(), f.value("ranked").toBool()});
+    }
+    return out;
+}
+
 } // namespace
 
 Result<Verdicts> parse_verdicts(const QJsonDocument& doc) {
@@ -2249,7 +2279,7 @@ Result<Verdicts> parse_verdicts(const QJsonDocument& doc) {
                                        m.value("evidence").toInt(), odds_of(m.value("probabilities").toObject()),
                                        m.value("lean").toString(), m.value("strength").toString(),
                                        m.value("margin").toDouble(), m.value("weight").toDouble(),
-                                       m.value("counted").toBool(true)});
+                                       m.value("counted").toBool(true), m.value("ranked").toBool(true)});
         }
         for (const auto& sv : j.value("side").toArray()) {
             const QJsonObject side = sv.toObject();
@@ -2262,9 +2292,70 @@ Result<Verdicts> parse_verdicts(const QJsonDocument& doc) {
                     s.output.push_back({it.key(), it.value().toDouble()});
             verdict.side.push_back(s);
         }
+        for (const auto& av : j.value("advisory").toArray()) // version 2 (codeyoma/krx-quant#697)
+            if (av.isObject())
+                verdict.advisory.push_back(advisory_of(av.toObject()));
         out.verdicts.push_back(verdict);
     }
     return Result<Verdicts>::ok(out);
+}
+
+Result<Ranking> parse_ranking(const QJsonDocument& doc) {
+    const auto obj = object_of(doc);
+    if (obj.is_err())
+        return Result<Ranking>::err(obj.error());
+    const QJsonObject& o = obj.value();
+    Ranking out;
+    out.version = o.value("version").toInt();
+    for (const auto& kv : o.value("kinds").toArray()) {
+        const QJsonObject k = kv.toObject();
+        RankingKind kind;
+        kind.kind = k.value("kind").toString();
+        if (kind.kind.isEmpty())
+            continue;
+        kind.night = QDate::fromString(k.value("night").toString(), Qt::ISODate);
+        kind.version = k.value("version").toInt();
+        kind.made_at = time_of(k.value("made_at"));
+        kind.through = QDate::fromString(k.value("through").toString(), Qt::ISODate);
+        const QJsonObject rules = k.value("rules").toObject();
+        kind.level = rules.value("level").toDouble();
+        kind.nights = rules.value("nights").toInt();
+        kind.window_days = int_of(rules.value("window_days"));
+        kind.min_days = rules.value("min_days").toInt();
+        kind.min_calls = rules.value("min_calls").toInt();
+        kind.settled = k.value("settled").toBool();
+        for (const auto& m : k.value("members").toArray())
+            kind.members << m.toString();
+        for (const auto& rv : k.value("rows").toArray()) {
+            const QJsonObject r = rv.toObject();
+            RankingRow row;
+            row.algorithm = r.value("algorithm").toString();
+            if (row.algorithm.isEmpty())
+                continue;
+            row.rank = int_of(r.value("rank"));
+            row.status = r.value("status").toString();
+            row.source = r.value("source").toString();
+            row.days = r.value("days").toInt();
+            row.n = r.value("n").toInt();
+            row.skill = number(r.value("skill"));
+            row.skill_low = number(r.value("skill_low"));
+            row.skill_high = number(r.value("skill_high"));
+            row.precision = number(r.value("precision"));
+            row.calls = r.value("calls").toInt();
+            row.call_rate = number(r.value("call_rate"));
+            row.longs = r.value("longs").toInt();
+            row.net_ticks = number(r.value("net_ticks"));
+            row.ranked = r.value("ranked").toBool();
+            row.why = r.value("why").toString();
+            row.qualifies = r.value("qualifies").toBool();
+            row.member = r.value("member").toBool();
+            row.nights = r.value("nights").toInt();
+            row.pending = r.value("pending").toInt();
+            kind.rows.push_back(row);
+        }
+        out.kinds.push_back(kind);
+    }
+    return Result<Ranking>::ok(out);
 }
 
 } // namespace fincept::krx_quant

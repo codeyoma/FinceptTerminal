@@ -1,5 +1,5 @@
 // Tests for the KRX verdict screen's model (종합 판단, codeyoma/krx-quant#678): how it reads GET /v1/verdict
-// (src/services/krx_quant/EngineData.h, parse_verdicts), what it shows of it (src/services/krx_quant/
+// and GET /v1/ranking (src/services/krx_quant/EngineData.h, parse_verdicts and parse_ranking, #699), what it shows of it (src/services/krx_quant/
 // VerdictView.h) and when it reads it (src/services/krx_quant/KrxVerdictLive.h), the last against a stand-in
 // engine on this computer. The settings (the engine's address, the symbol chosen) go to a temporary INI
 // file: AppConfig is defined below, in place of core/config/AppConfig.cpp.
@@ -163,6 +163,123 @@ QJsonObject no_members(const char* symbol = "009150") {
     return o;
 }
 
+QJsonObject day_odds(double up, double flat, double down) {
+    return {{"p_up", up}, {"p_flat", flat}, {"p_down", down}};
+}
+
+QJsonObject forecaster(const char* name, const char* status, double up, double weight, bool ranked) {
+    return {{"name", name},
+            {"family", name},
+            {"status", status},
+            {"probabilities", day_odds(up, 0.3, 0.7 - up)},
+            {"lean", "up"},
+            {"strength", "weak"},
+            {"margin", up - (0.7 - up)},
+            {"weight", weight},
+            {"counted", ranked},
+            {"ranked", ranked}};
+}
+
+/// A version-2 buy: the 15-minute member ranked, a day call up and a week without members.
+QJsonObject buy_v2(const char* symbol = "005930") {
+    QJsonObject o = buy(symbol);
+    o["version"] = 2;
+    QJsonArray members = o["members"].toArray();
+    QJsonObject ranked = members[0].toObject();
+    ranked["ranked"] = true;
+    QJsonObject unranked = ranked;
+    unranked["name"] = "turing-15m";
+    unranked["family"] = "turing";
+    unranked["status"] = "shadow";
+    unranked["ranked"] = false;
+    unranked["counted"] = false;
+    unranked["weight"] = 0.0;
+    o["members"] = QJsonArray{ranked, unranked};
+    o["advisory"] = QJsonArray{
+        QJsonObject{{"kind", "open_to_close"},
+                    {"sessions", 1},
+                    {"call", "up"},
+                    {"probabilities", day_odds(0.46, 0.3, 0.24)},
+                    {"families", 1},
+                    {"members", 1},
+                    {"lean", "up"},
+                    {"strength", "strong"},
+                    {"margin", 0.22},
+                    {"forecasters", QJsonArray{forecaster("cox", "active", 0.46, 1.0, true),
+                                               forecaster("lorenz", "probation", 0.35, 0.0, false)}}},
+        QJsonObject{{"kind", "open_to_close_5d"},
+                    {"sessions", 5},
+                    {"call", "wait"},
+                    {"probabilities", QJsonValue()},
+                    {"families", 0},
+                    {"members", 0},
+                    {"lean", QJsonValue()},
+                    {"strength", QJsonValue()},
+                    {"margin", QJsonValue()},
+                    {"forecasters", QJsonArray{}}}};
+    QJsonObject r = o["rules"].toObject();
+    r["version"] = 2;
+    r["ranked"] = true;
+    o["rules"] = r;
+    return o;
+}
+
+QJsonObject ranking_row(QJsonValue rank, const char* algorithm, bool member, double low, int nights, int pending = 0) {
+    const bool ranked = rank.isDouble();
+    return {{"rank", rank},
+            {"algorithm", algorithm},
+            {"status", member ? "active" : "shadow"},
+            {"source", "live"},
+            {"days", ranked ? 20 : 3},
+            {"n", 7400},
+            {"skill", ranked ? QJsonValue(low + 0.004) : QJsonValue()},
+            {"skill_low", ranked ? QJsonValue(low) : QJsonValue()},
+            {"skill_high", ranked ? QJsonValue(low + 0.008) : QJsonValue()},
+            {"precision", 0.58},
+            {"calls", 900},
+            {"call_rate", 0.12},
+            {"longs", 450},
+            {"net_ticks", 0.3},
+            {"ranked", ranked},
+            {"why", ranked ? QJsonValue() : QJsonValue("few_days")},
+            {"qualifies", low > 0},
+            {"member", member},
+            {"nights", nights},
+            {"pending", pending}};
+}
+
+QJsonObject ranking_kind(const char* kind, const QJsonArray& members, const QJsonArray& rows) {
+    return {{"kind", kind},
+            {"night", "2026-11-13"},
+            {"version", 1},
+            {"made_at", "2026-11-13T15:40:02+09:00"},
+            {"through", "2026-11-13"},
+            {"rules", QJsonObject{{"level", 0.95}, {"nights", 3}, {"window_days", 20}, {"min_days", 10}, {"min_calls", 30}}},
+            {"settled", true},
+            {"members", members},
+            {"rows", rows}};
+}
+
+/// Two horizons: at 15 minutes the second-ranked a member still (its lower bound fell below 0 a night ago)
+/// and the first not yet (two nights above 0 of three); at a day, none qualifies.
+QJsonObject ranking_answer() {
+    return {{"version", 1},
+            {"kinds",
+             QJsonArray{ranking_kind("barrier_15m", QJsonArray{"breiman-15m"},
+                                     QJsonArray{ranking_row(1, "turing-15m", false, 0.003, 5, 2),
+                                                ranking_row(2, "breiman-15m", true, -0.001, 4, 1),
+                                                ranking_row(QJsonValue(), "friedman-15m", false, 0, 1)}),
+                        ranking_kind("open_to_close", QJsonArray{},
+                                     QJsonArray{ranking_row(1, "cox", false, -0.002, 2)})}}};
+}
+
+Ranking ranking_parsed(const QJsonObject& body) {
+    auto r = parse_ranking(QJsonDocument(body));
+    if (r.is_err())
+        qFatal("%s", r.error().c_str());
+    return r.value();
+}
+
 QJsonObject answer(const QJsonArray& verdicts) {
     return {{"version", 1}, {"verdicts", verdicts}};
 }
@@ -179,6 +296,8 @@ class StandIn : public QObject {
   public:
     int status = 200; ///< /v1/verdict's
     QJsonObject body = answer({buy(), sell(), no_members()});
+    int ranking_status = 200; ///< /v1/ranking's
+    QJsonObject ranking = ranking_answer();
     QStringList asked;
 
     StandIn() {
@@ -209,6 +328,9 @@ class StandIn : public QObject {
         } else if (path == "/v1/verdict") {
             code = status;
             reply = status == 200 ? body : QJsonObject{{"error", "made-up failure"}};
+        } else if (path == "/v1/ranking") {
+            code = ranking_status;
+            reply = ranking_status == 200 ? ranking : QJsonObject{{"error", "made-up failure"}};
         }
         const QByteArray bytes = QJsonDocument(reply).toJson(QJsonDocument::Compact);
         socket->write("HTTP/1.1 " + QByteArray::number(code) + (code == 200 ? " OK" : " Error") +
@@ -340,6 +462,110 @@ class TstKrxVerdict : public QObject {
         QCOMPARE(side[2].output, QStringLiteral("작음 20% · 중간 50% · 큼 30% · q50 2.0"));
     }
 
+    void a_version_2_verdict_has_its_day_and_week_and_ranked_members() {
+        const SymbolVerdict v = parsed(answer({buy_v2()})).verdicts.first();
+        QCOMPARE(v.version, 2);
+        QCOMPARE(v.advisory.size(), 2);
+        QCOMPARE(v.advisory[0].kind, QStringLiteral("open_to_close"));
+        QCOMPARE(v.advisory[0].call, QStringLiteral("up"));
+        QCOMPARE(v.advisory[0].odds->up, 0.46);
+        QCOMPARE(v.advisory[0].forecasters.size(), 2);
+        QVERIFY(v.advisory[0].forecasters[0].ranked);
+        QVERIFY(!v.advisory[0].forecasters[1].ranked);
+        QVERIFY(!v.advisory[1].odds);
+        QVERIFY(v.members[0].ranked);
+        QVERIFY(!v.members[1].ranked);
+        // Version 1 has neither: its members count as ranked and no day row shows.
+        const SymbolVerdict old = parsed(answer({buy()})).verdicts.first();
+        QVERIFY(old.advisory.isEmpty());
+        QVERIFY(old.members[0].ranked);
+        QVERIFY(view::advisory_lines(old).isEmpty());
+    }
+
+    void the_day_and_week_rows_say_their_call_and_that_nothing_trades() {
+        const SymbolVerdict v = parsed(answer({buy_v2()})).verdicts.first();
+        const auto lines = view::advisory_lines(v);
+        QCOMPARE(lines.size(), 2);
+        QCOMPARE(lines[0].horizon, QStringLiteral("하루"));
+        QCOMPARE(lines[0].call, QStringLiteral("상승"));
+        QCOMPARE(lines[0].odds, QStringLiteral("상승 46% · 보합 30% · 하락 24%"));
+        QCOMPARE(lines[0].members, QStringLiteral("멤버 1"));
+        QVERIFY(lines[0].up && !lines[0].down);
+        QVERIFY(lines[0].tip.contains(view::advisory_label()));
+        QVERIFY(lines[0].tip.contains(QStringLiteral("lorenz (검증 중)")));
+        QVERIFY(lines[0].tip.contains(QStringLiteral("순위 멤버 아님")));
+        QCOMPARE(lines[1].horizon, QStringLiteral("1주"));
+        QCOMPARE(lines[1].call, QStringLiteral("대기"));
+        QCOMPARE(lines[1].odds, QStringLiteral("—"));
+        QCOMPARE(lines[1].members, QStringLiteral("멤버 0"));
+        QCOMPARE(view::advisory_label(), QStringLiteral("참고(매매 안 함)"));
+        QCOMPARE(view::day_call_text("down"), QStringLiteral("하락"));
+        QCOMPARE(view::day_call_text("flat"), QStringLiteral("보합"));
+        // A member outside the ranking is not counted, and says why.
+        const auto members = view::member_rows(v);
+        QCOMPARE(members[1].status, QStringLiteral("그림자"));
+        QVERIFY(!members[1].counted);
+        QVERIFY(members[1].tip.contains(QStringLiteral("순위의 멤버가 아니라")));
+        // A version-2 wait without members: none better than the baseline.
+        QJsonObject none = no_members();
+        none["version"] = 2;
+        const SymbolVerdict w = parsed(answer({none})).verdicts.first();
+        QCOMPARE(view::reason_text(w), QStringLiteral("참여 알고리즘 없음 — 기준선보다 나은 알고리즘 없음"));
+    }
+
+    void a_ranking_is_read_whole() {
+        const Ranking r = ranking_parsed(ranking_answer());
+        QCOMPARE(r.version, 1);
+        QCOMPARE(r.kinds.size(), 2);
+        const RankingKind& k = r.kinds[0];
+        QCOMPARE(k.kind, QStringLiteral("barrier_15m"));
+        QCOMPARE(k.night, QDate(2026, 11, 13));
+        QCOMPARE(k.nights, 3);
+        QCOMPARE(*k.window_days, 20);
+        QCOMPARE(k.members, QStringList{QStringLiteral("breiman-15m")});
+        QCOMPARE(k.rows.size(), 3);
+        QCOMPARE(*k.rows[0].rank, 1);
+        QCOMPARE(*k.rows[0].skill_low, 0.003);
+        QVERIFY(!k.rows[2].rank);
+        QVERIFY(!k.rows[2].skill);
+        QCOMPARE(k.rows[2].why, QStringLiteral("few_days"));
+        QVERIFY(r.kinds[1].members.isEmpty());
+        QVERIFY(parse_ranking(QJsonDocument(QJsonObject{{"error", "night must be a date"}})).is_err());
+    }
+
+    void the_ranking_shows_members_first_and_says_when_none_qualifies() {
+        const auto panels = view::ranking_panels(ranking_parsed(ranking_answer()));
+        QCOMPARE(panels.size(), 2);
+        const auto& p = panels[0];
+        QCOMPARE(p.title, QStringLiteral("순위 · 장벽 15분"));
+        QCOMPARE(p.line, QStringLiteral("11-13 밤 · 멤버 breiman-15m"));
+        QVERIFY(!p.no_members);
+        QCOMPARE(p.rows.size(), 3);
+        QCOMPARE(p.rows[0].algorithm, QStringLiteral("breiman-15m")); // the member, though ranked second
+        QCOMPARE(p.rows[0].rank, QStringLiteral("2"));
+        QCOMPARE(p.rows[0].member, QStringLiteral("예"));
+        QCOMPARE(p.rows[0].status, QStringLiteral("정식"));
+        QCOMPARE(p.rows[0].skill, QStringLiteral("+0.0030 (-0.0010 ~ +0.0070)"));
+        QCOMPARE(p.rows[0].precision, QStringLiteral("58%"));
+        QCOMPARE(p.rows[0].calls, QStringLiteral("900"));
+        QCOMPARE(p.rows[0].nights, QStringLiteral("4밤 · 반대 1/3"));
+        QCOMPARE(p.rows[1].algorithm, QStringLiteral("turing-15m"));
+        QCOMPARE(p.rows[1].member, QStringLiteral("아니오"));
+        QCOMPARE(p.rows[1].status, QStringLiteral("그림자"));
+        QVERIFY(p.rows[1].qualifies);
+        QCOMPARE(p.rows[2].rank, QStringLiteral("—"));
+        QCOMPARE(p.rows[2].skill, QStringLiteral("날 부족 (3일 / 10일)"));
+        QVERIFY(!p.rows[2].ranked);
+        const auto& day = panels[1];
+        QCOMPARE(day.title, QStringLiteral("순위 · 하루 · 참고(매매 안 함)"));
+        QVERIFY(day.no_members);
+        QVERIFY(day.line.contains(QStringLiteral("기준선보다 나은 알고리즘 없음")));
+        QCOMPARE(view::no_qualifier_text(), QStringLiteral("기준선보다 나은 알고리즘 없음"));
+        QVERIFY(view::ranking_panels(Ranking{}).isEmpty());
+        QVERIFY(view::ranking_failure_text(QStringLiteral("엔진 오류 (HTTP 404): not found"))
+                    .contains(QStringLiteral("GET /v1/ranking")));
+    }
+
     void it_reads_often_while_krx_trades_and_seldom_otherwise() {
         QCOMPARE(view::poll_ms(kst("2026-10-12T08:58:59+09:00")), view::kSlowMs);
         QCOMPARE(view::poll_ms(kst("2026-10-12T08:59:00+09:00")), view::kFastMs);
@@ -368,6 +594,9 @@ class TstKrxVerdict : public QObject {
         QCOMPARE(live.chosen()->symbol, QStringLiteral("005930")); // none chosen: the first verdict's
         QCOMPARE(live.next_ms(), view::kFastMs);
         QTRY_COMPARE_WITH_TIMEOUT(live.symbols().size(), 2, 10000); // the names, read beside it
+        QTRY_VERIFY_WITH_TIMEOUT(live.ranking().has_value(), 10000); // read with the verdicts
+        QCOMPARE(live.ranking()->kinds.size(), 2);
+        QVERIFY(live.ranking_failure().isEmpty());
 
         live.set_symbol("009150");
         QCOMPARE(live.chosen()->reason, QStringLiteral("no_members"));
@@ -395,6 +624,42 @@ class TstKrxVerdict : public QObject {
         // The symbol kept is shown first next time.
         services::KrxVerdictLive again(nullptr, [] { return kst("2026-10-12T10:00:30+09:00"); });
         QCOMPARE(again.symbol(), QStringLiteral("009150"));
+    }
+
+    void an_engine_before_the_ranking_still_shows_its_verdicts() {
+        StandIn engine;
+        engine.ranking_status = 404;
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxVerdictLive live(nullptr, [] { return kst("2026-10-12T10:00:30+09:00"); });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(!live.ranking_failure().isEmpty() && live.verdicts().has_value(), 10000);
+        QVERIFY(live.failure().isEmpty()); // the screen's failure is the verdicts'
+        QVERIFY(!live.ranking());
+        QVERIFY(view::ranking_failure_text(live.ranking_failure()).contains(QStringLiteral("GET /v1/ranking")));
+
+        // The ranking comes once the engine gives it, and its failure goes; a later failure keeps it.
+        engine.ranking_status = 200;
+        live.read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(live.ranking().has_value(), 10000);
+        QVERIFY(live.ranking_failure().isEmpty());
+        engine.ranking_status = 500;
+        live.read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(!live.ranking_failure().isEmpty(), 10000);
+        QVERIFY(live.ranking().has_value());
+        QVERIFY(live.failure().isEmpty());
+    }
+
+    void another_engine_drops_the_ranking() {
+        StandIn engine;
+        services::KrxQuantService::set_base_url(engine.url());
+        services::KrxVerdictLive live(nullptr, [] { return kst("2026-10-12T10:00:30+09:00"); });
+        live.start();
+        QTRY_VERIFY_WITH_TIMEOUT(live.ranking().has_value(), 10000);
+        StandIn other;
+        other.ranking = QJsonObject{{"version", 1}, {"kinds", QJsonArray{}}};
+        services::KrxQuantService::set_base_url(other.url());
+        live.read_now();
+        QTRY_VERIFY_WITH_TIMEOUT(live.ranking().has_value() && live.ranking()->kinds.isEmpty(), 10000);
     }
 
     void an_engine_before_the_verdict_says_so() {

@@ -8,6 +8,7 @@
 #include <QPushButton>
 #include <QTableWidget>
 #include <QTimer>
+#include <QVBoxLayout>
 #include <QWidget>
 
 namespace fincept::services {
@@ -23,7 +24,11 @@ class KrxVerdictCard;
 /// 사세요 / 파세요 / 기다리세요 with its strength, a buy's maximum holding time with its target and
 /// stop, and the expected net of a share bought now per horizon (4/15/30/60 minutes). Clicking a card
 /// shows that symbol's members below (name, kind and horizon, family, status, evidence, probabilities,
-/// lean, weight) and the direction and range forecasts beside them. It reads GET /v1/verdict through its
+/// lean, weight) and the direction and range forecasts beside them. Each card also has the day and week
+/// rows (하루, 1주: up, flat or down with its probabilities and member count), labelled 참고(매매 안 함),
+/// and below, a ranking panel per verdict horizon (rank, algorithm, status, skill with its bound,
+/// directional precision, calls, member, nights in that state; members first; "기준선보다 나은 알고리즘
+/// 없음" when none qualifies; codeyoma/krx-quant#699). It reads GET /v1/verdict and GET /v1/ranking through its
 /// KrxVerdictLive and only draws what that holds, in Fincept's panels, tables, fonts and theme. The
 /// text is Korean. It places no order.
 class KrxVerdictScreen : public QWidget {
@@ -42,6 +47,15 @@ class KrxVerdictScreen : public QWidget {
     void fill_cards();
     void fill_members();
     void fill_side();
+    void fill_ranking();
+
+    /// A horizon's ranking panel.
+    struct RankingBox {
+        krx_panel::Header header;
+        QLabel* line = nullptr;
+        QTableWidget* table = nullptr;
+        QWidget* panel = nullptr;
+    };
 
     services::KrxVerdictLive* live_ = nullptr;
     QTimer* clock_timer_ = nullptr;
@@ -59,6 +73,10 @@ class KrxVerdictScreen : public QWidget {
     QTableWidget* members_ = nullptr;
     krx_panel::Header side_header_;
     QTableWidget* side_ = nullptr;
+    krx_panel::Header ranking_header_;
+    QLabel* ranking_note_ = nullptr;
+    QVBoxLayout* ranking_layout_ = nullptr;
+    QList<RankingBox> ranking_boxes_;
 };
 
 } // namespace fincept::screens

@@ -85,7 +85,8 @@ QString strength_text(const QString& strength) {
 QString reason_text(const SymbolVerdict& v) {
     if (call(v) == Call::Wait) {
         if (v.reason == QLatin1String("no_members"))
-            return QStringLiteral("참여 알고리즘 없음 — 장벽 알고리즘 검증 대기");
+            return v.version >= 2 ? QStringLiteral("참여 알고리즘 없음 — 기준선보다 나은 알고리즘 없음")
+                                  : QStringLiteral("참여 알고리즘 없음 — 장벽 알고리즘 검증 대기");
         if (v.reason == QLatin1String("no_edge"))
             return QStringLiteral("우위 없음 — 어느 지평도 사거나 팔 만큼 기울지 않음");
         if (v.reason == QLatin1String("holding"))
@@ -235,7 +236,9 @@ QList<MemberRow> member_rows(const SymbolVerdict& v) {
         row.active = m.status == QLatin1String("active");
         row.tip = QStringLiteral("%1 · 마진 %2\n증거: 그 종류의 예측 중 정답이 난 수")
                       .arg(m.name, signed_text(m.margin, 2));
-        if (!m.counted)
+        if (!m.ranked)
+            row.tip += QStringLiteral("\n그 지평 순위의 멤버가 아니라 세지 않습니다(무게 0)");
+        else if (!m.counted)
             row.tip += QStringLiteral("\n자기 구성원과 함께 있는 합의라 세지 않습니다(무게 0)");
         out.push_back(row);
     }
@@ -243,6 +246,9 @@ QList<MemberRow> member_rows(const SymbolVerdict& v) {
 }
 
 QString no_members_text(const SymbolVerdict& v) {
+    if (v.reason == QLatin1String("no_members") && v.version >= 2)
+        return QStringLiteral("이 봉 마감에 순위의 멤버가 낸 장벽 예측이 없습니다. 기준선보다 나은 알고리즘이 "
+                              "순위의 멤버가 되면 여기에 보입니다.");
     if (v.reason == QLatin1String("no_members"))
         return QStringLiteral("이 봉 마감에 예측을 낸 장벽 알고리즘이 없습니다. 장벽 알고리즘이 검증을 거쳐 "
                               "예측을 내기 시작하면 여기에 보입니다.");
@@ -278,6 +284,180 @@ QList<SideRow> side_rows(const SymbolVerdict& v) {
                        s.status.isEmpty() ? QString() : status_text(s.status), parts.join(QStringLiteral(" · "))});
     }
     return out;
+}
+
+QString advisory_label() {
+    return QStringLiteral("참고(매매 안 함)");
+}
+
+QString advisory_horizon_text(const QString& kind, int sessions) {
+    if (kind == QLatin1String("open_to_close"))
+        return QStringLiteral("하루");
+    if (kind == QLatin1String("open_to_close_5d"))
+        return QStringLiteral("1주");
+    return sessions > 0 ? QStringLiteral("%1거래일").arg(sessions) : kind;
+}
+
+QString day_call_text(const QString& call) {
+    if (call == QLatin1String("up"))
+        return QStringLiteral("상승");
+    if (call == QLatin1String("flat"))
+        return QStringLiteral("보합");
+    if (call == QLatin1String("down"))
+        return QStringLiteral("하락");
+    return QStringLiteral("대기");
+}
+
+namespace {
+
+QString day_odds_text(const DayOdds& o) {
+    return QStringLiteral("상승 %1 · 보합 %2 · 하락 %3")
+        .arg(percent_text(o.up), percent_text(o.flat), percent_text(o.down));
+}
+
+} // namespace
+
+QList<AdvisoryLine> advisory_lines(const SymbolVerdict& v) {
+    QList<AdvisoryLine> out;
+    for (const auto& a : v.advisory) {
+        AdvisoryLine line;
+        line.horizon = advisory_horizon_text(a.kind, a.sessions);
+        line.call = day_call_text(a.call);
+        line.odds = a.odds ? day_odds_text(*a.odds) : dash();
+        line.members = QStringLiteral("멤버 %1").arg(a.members);
+        line.up = a.call == QLatin1String("up");
+        line.down = a.call == QLatin1String("down");
+        QStringList tip;
+        tip << QStringLiteral("%1(시가→종가 %2거래일): 그날 08:50 예측을 순위의 멤버로 합친 것입니다. %3")
+                   .arg(line.horizon)
+                   .arg(a.sessions)
+                   .arg(advisory_label());
+        if (a.call == QLatin1String("wait"))
+            tip << QStringLiteral("멤버의 예측이 없습니다");
+        else
+            tip << QStringLiteral("계열 %1 · 멤버 %2%3")
+                       .arg(a.families)
+                       .arg(a.members)
+                       .arg(a.margin ? QStringLiteral(" · 마진 %1 (±0.05 넘으면 상승·하락)").arg(signed_text(*a.margin, 2))
+                                     : QString());
+        for (const auto& f : a.forecasters) {
+            QString text = QStringLiteral("%1 (%2): %3")
+                               .arg(predictor_label(f.name), status_text(f.status),
+                                    f.odds ? day_odds_text(*f.odds) : dash());
+            text += f.counted ? QStringLiteral(" · 무게 %1").arg(number_text(f.weight, 2))
+                              : (f.ranked ? QStringLiteral(" · 세지 않음") : QStringLiteral(" · 순위 멤버 아님"));
+            tip << text;
+        }
+        line.tip = tip.join('\n');
+        out.push_back(line);
+    }
+    return out;
+}
+
+QString no_qualifier_text() {
+    return QStringLiteral("기준선보다 나은 알고리즘 없음");
+}
+
+namespace {
+
+QString ranking_kind_text(const QString& kind) {
+    if (kind == QLatin1String("open_to_close") || kind == QLatin1String("open_to_close_5d"))
+        return QStringLiteral("%1 · %2").arg(advisory_horizon_text(kind, 0), advisory_label());
+    return kind_text(kind);
+}
+
+QString why_text(const RankingRow& r, const RankingKind& k) {
+    if (r.why == QLatin1String("few_days"))
+        return QStringLiteral("날 부족 (%1일 / %2일)").arg(r.days).arg(k.min_days);
+    if (r.why == QLatin1String("few_calls"))
+        return QStringLiteral("호출 부족 (%1 / %2)").arg(r.calls).arg(k.min_calls);
+    if (r.why == QLatin1String("no_evidence"))
+        return QStringLiteral("증거 없음");
+    return r.why.isEmpty() ? dash() : r.why;
+}
+
+RankingLine ranking_line(const RankingRow& r, const RankingKind& k) {
+    RankingLine line;
+    line.rank = r.rank ? QString::number(*r.rank) : dash();
+    line.algorithm = predictor_label(r.algorithm);
+    line.status = status_text(r.status);
+    if (r.ranked && r.skill && r.skill_low && r.skill_high)
+        line.skill = QStringLiteral("%1 (%2 ~ %3)")
+                         .arg(signed_text(*r.skill, 4), signed_text(*r.skill_low, 4), signed_text(*r.skill_high, 4));
+    else
+        line.skill = why_text(r, k);
+    line.precision = r.precision && r.calls > 0 ? percent_text(*r.precision) : dash();
+    line.calls = number_text(r.calls, 0);
+    line.member = r.member ? QStringLiteral("예") : QStringLiteral("아니오");
+    line.nights = QStringLiteral("%1밤").arg(r.nights);
+    if (r.pending > 0)
+        line.nights += QStringLiteral(" · 반대 %1/%2").arg(r.pending).arg(k.nights);
+    line.is_member = r.member;
+    line.qualifies = r.qualifies;
+    line.ranked = r.ranked;
+    QStringList tip;
+    tip << r.algorithm;
+    if (r.source == QLatin1String("live"))
+        tip << QStringLiteral("증거: 기록된 실시간 예측");
+    else if (r.source == QLatin1String("walk_forward"))
+        tip << QStringLiteral("증거: 사전 검증의 전진 학습");
+    tip << QStringLiteral("%1일 · 기후와 짝지은 예측 %2").arg(r.days).arg(number_text(r.n, 0));
+    if (r.call_rate)
+        tip << QStringLiteral("호출 비율 %1").arg(percent_text(*r.call_rate));
+    if (r.longs > 0 && r.net_ticks)
+        tip << QStringLiteral("매수 호출 %1 · 비용 뒤 평균 %2틱").arg(number_text(r.longs, 0), signed_text(*r.net_ticks, 1));
+    tip << (r.qualifies ? QStringLiteral("이 밤 기술 하한 > 0: 기준선보다 낫습니다")
+                        : QStringLiteral("이 밤 기술 하한 ≤ 0이거나 순위 밖입니다"));
+    tip << QStringLiteral("%1 상태로 %2밤").arg(r.member ? QStringLiteral("멤버") : QStringLiteral("멤버 아님")).arg(r.nights);
+    if (r.pending > 0)
+        tip << QStringLiteral("반대 결과가 %1밤 이어짐: %2밤이면 바뀝니다").arg(r.pending).arg(k.nights);
+    line.tip = tip.join('\n');
+    return line;
+}
+
+} // namespace
+
+QList<RankingPanel> ranking_panels(const Ranking& ranking) {
+    QList<RankingPanel> out;
+    for (const auto& k : ranking.kinds) {
+        RankingPanel panel;
+        panel.kind = k.kind;
+        panel.title = QStringLiteral("순위 · %1").arg(ranking_kind_text(k.kind));
+        panel.no_members = k.members.isEmpty();
+        QStringList names;
+        for (const auto& m : k.members)
+            names << predictor_label(m);
+        const QString night = k.night.isValid() ? k.night.toString(QStringLiteral("MM-dd")) + QStringLiteral(" 밤")
+                                                : dash();
+        panel.line = panel.no_members ? QStringLiteral("%1 · %2 — 이 지평은 대기").arg(night, no_qualifier_text())
+                                      : QStringLiteral("%1 · 멤버 %2").arg(night, names.join(QStringLiteral(", ")));
+        panel.tip = QStringLiteral("기술: 날마다 기후(기준선)의 로그 손실 − 자기 로그 손실의 평균과 %1% 구간. "
+                                   "하한이 0보다 크면 기준선보다 낫습니다. 멤버는 결과가 %2밤 이어져야 바뀝니다. "
+                                   "최소 증거 %3일 · 호출 %4%5.")
+                        .arg(number_text(k.level * 100, 0))
+                        .arg(k.nights)
+                        .arg(k.min_days)
+                        .arg(k.min_calls)
+                        .arg(k.window_days ? QStringLiteral(" · 최근 %1일로 셈").arg(*k.window_days) : QString());
+        for (const auto& r : k.rows)
+            if (r.member)
+                panel.rows.push_back(ranking_line(r, k));
+        for (const auto& r : k.rows)
+            if (!r.member)
+                panel.rows.push_back(ranking_line(r, k));
+        out.push_back(panel);
+    }
+    return out;
+}
+
+QString ranking_empty_text() {
+    return QStringLiteral("아직 순위가 없습니다. 엔진은 날마다 점검 뒤 지평마다 순위를 만듭니다.");
+}
+
+QString ranking_failure_text(const QString& failure) {
+    if (is_not_found(failure))
+        return QStringLiteral("이 엔진은 순위(GET /v1/ranking)를 주지 않습니다. 엔진이 새 버전으로 배포되면 보입니다.");
+    return failure;
 }
 
 std::optional<SymbolVerdict> chosen(const Verdicts& verdicts, const QString& symbol) {

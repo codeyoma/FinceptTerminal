@@ -8,6 +8,7 @@
 #include <QMap>
 #include <QPair>
 #include <QString>
+#include <QStringList>
 
 #include <array>
 #include <optional>
@@ -1747,7 +1748,44 @@ struct VerdictMember {
     QString strength;
     double margin = 0;
     double weight = 0;
-    bool counted = true; ///< false: a consensus beside its own members, weight 0
+    bool counted = true; ///< false: a consensus beside its own members, or not the ranking's member; weight 0
+    bool ranked = true;  ///< the ranking's member (verdict version 2, codeyoma/krx-quant#697); true before
+};
+
+/// Up, flat and down of an open-to-close forecast.
+struct DayOdds {
+    double up = 0;
+    double flat = 0;
+    double down = 0;
+};
+
+/// An algorithm that forecast a day or week horizon of the verdict's advisory (codeyoma/krx-quant#697).
+struct AdvisoryForecaster {
+    QString name;
+    QString family;
+    QString status; ///< "probation", "active", "shadow", …; empty without a record
+    std::optional<DayOdds> odds;
+    QString lean;
+    QString strength;
+    double margin = 0;
+    double weight = 0;
+    bool counted = false;
+    bool ranked = false; ///< the ranking's member
+};
+
+/// A day or week horizon beside a verdict (verdict version 2, codeyoma/krx-quant#697): the morning's
+/// 08:50 forecasts of the ranking's members, pooled. Advisory: nothing trades on it.
+struct VerdictAdvisory {
+    QString kind;     ///< "open_to_close", "open_to_close_5d"
+    int sessions = 0; ///< 1, 5
+    QString call;     ///< "up", "flat", "down", "wait" (no member forecast)
+    std::optional<DayOdds> odds; ///< none without members
+    int families = 0;
+    int members = 0;
+    QString lean;
+    QString strength;
+    std::optional<double> margin;
+    QList<AdvisoryForecaster> forecasters;
 };
 
 /// A forecast shown beside a verdict, not pooled into it: a direction algorithm, the final consensus, or
@@ -1778,6 +1816,7 @@ struct SymbolVerdict {
     QList<VerdictHorizon> horizons; ///< shortest first
     QList<VerdictMember> members;
     QList<VerdictSide> side;
+    QList<VerdictAdvisory> advisory; ///< the day and the week (version 2); empty before, and in a replay
 };
 
 struct Verdicts {
@@ -1787,5 +1826,54 @@ struct Verdicts {
 
 /// GET /v1/verdict (codeyoma/krx-quant#676).
 Result<Verdicts> parse_verdicts(const QJsonDocument& doc);
+
+/// An algorithm's row in a horizon's ranking (GET /v1/ranking, codeyoma/krx-quant#697).
+struct RankingRow {
+    std::optional<int> rank; ///< none: not ranked (``why``)
+    QString algorithm;
+    QString status; ///< that night's; "shadow" when not registered
+    QString source; ///< "live", "walk_forward"; empty without evidence
+    int days = 0;
+    int n = 0;
+    std::optional<double> skill; ///< the mean a day of the climatology's log loss less its own; none unranked
+    std::optional<double> skill_low;
+    std::optional<double> skill_high;
+    std::optional<double> precision; ///< of its up and down calls
+    int calls = 0;
+    std::optional<double> call_rate;
+    int longs = 0;
+    std::optional<double> net_ticks;
+    bool ranked = false;
+    QString why; ///< "few_days", "few_calls", "no_evidence"; empty when ranked
+    bool qualifies = false;
+    bool member = false;
+    int nights = 0;  ///< rankings it has been in this member state for
+    int pending = 0; ///< rankings in a row of the other result (three change it)
+};
+
+/// A verdict horizon's latest ranking: whom the verdict pools there.
+struct RankingKind {
+    QString kind;
+    QDate night;
+    int version = 0;
+    QDateTime made_at;
+    QDate through;
+    double level = 0;
+    int nights = 0; ///< nights in a row that change a member
+    std::optional<int> window_days;
+    int min_days = 0;
+    int min_calls = 0;
+    bool settled = false;
+    QStringList members; ///< empty: none qualifies, the horizon waits
+    QList<RankingRow> rows; ///< by rank, then the unranked by name
+};
+
+struct Ranking {
+    int version = 0;
+    QList<RankingKind> kinds;
+};
+
+/// GET /v1/ranking (codeyoma/krx-quant#697).
+Result<Ranking> parse_ranking(const QJsonDocument& doc);
 
 } // namespace fincept::krx_quant
