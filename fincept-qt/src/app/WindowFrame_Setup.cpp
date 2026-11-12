@@ -75,10 +75,6 @@
 #include "screens/surface_analytics/SurfaceAnalyticsScreen.h"
 #include "screens/trade_viz/TradeVizScreen.h"
 #include "screens/watchlist/WatchlistScreen.h"
-#include "screens/krx_quant/KrxBriefingScreen.h" // fork addition (custom/README.md)
-#include "screens/krx_quant/KrxFlowScreen.h" // fork addition (custom/README.md)
-#include "screens/krx_quant/KrxClosingScreen.h" // fork addition (custom/README.md)
-#include "screens/krx_quant/KrxCostScreen.h" // fork addition (custom/README.md)
 #include "screens/krx_quant/KrxQuantScreen.h" // fork addition (custom/README.md)
 #include "screens/krx_quant/KrxTraderScreen.h" // fork addition (custom/README.md)
 #include "screens/krx_quant/KrxVerdictScreen.h" // fork addition (custom/README.md)
@@ -310,13 +306,6 @@ void WindowFrame::setup_dock_screens() {
     dock_router_->register_factory("krx_verdict", []() { return new screens::KrxVerdictScreen; });
     // Fork addition (custom/README.md): the KRX 4-minute prediction engine's screen.
     dock_router_->register_factory("krx_quant", []() { return new screens::KrxQuantScreen; });
-    // Fork addition (custom/README.md): the pre-open briefing (codeyoma/krx-quant#304).
-    dock_router_->register_factory("krx_briefing", []() { return new screens::KrxBriefingScreen; });
-    // Fork addition (custom/README.md): the intraday flows (codeyoma/krx-quant#306).
-    dock_router_->register_factory("krx_flow", []() { return new screens::KrxFlowScreen; });
-    dock_router_->register_factory("krx_cost", []() { return new screens::KrxCostScreen; });
-    // Fork addition (custom/README.md): the closing flow (codeyoma/krx-quant#305).
-    dock_router_->register_factory("krx_closing", []() { return new screens::KrxClosingScreen; });
     // Fork addition (custom/README.md): the auto trader (codeyoma/krx-quant#397).
     dock_router_->register_factory("krx_trader", []() { return new screens::KrxTraderScreen; });
 }

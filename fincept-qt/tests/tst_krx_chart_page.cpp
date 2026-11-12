@@ -20,9 +20,6 @@
 // a window holding the chart away from its corner, zooms on the bar nearest the pointer too, as much as
 // the fingers spread or close, and a smart zoom does not magnify the page itself.
 //
-// The page keeps no key the screen's shortcuts want: Cmd+D (Ctrl+D) with the keyboard on the chart
-// opens the toolbar's drawing menu (krx-quant #241).
-//
 // 일반 and 로그 at the bottom right (krx-quant #245) choose the price pane's scale: a click turns it
 // and tells the screen, and the screen's choice draws it so.
 //
@@ -31,13 +28,12 @@
 // a drag, and a wider view's bar tell it nothing.
 //
 // A bar of the 1-minute view double-clicked (krx-quant #255) tells the screen its bar close for its
-// window, its first click the panel's as before, and no longer fits the chart. Past the last bar, on a
-// drawing (its popup opens), with a drawing tool chosen, while the anchored VWAP waits for its bar,
-// and in a wider view, it tells nothing.
+// window, its first click the panel's as before, and no longer fits the chart. Past the last bar,
+// while the anchored VWAP waits for its bar, and in a wider view, it tells nothing.
 //
 // The crosshair's line across and its price on the price axis follow the pointer, over a bar too
-// (krx-quant #275): the chart's own magnet put them on the bar's close or the volume bar's top. The drawings' magnet
-// and another style leave it so.
+// (krx-quant #275): the chart's own magnet put them on the bar's close or the volume bar's top. Another
+// style leaves it so.
 //
 // The price pane legend's first row (krx-quant #285) shows the bar under the crosshair, or the last
 // bar, as Toss Securities' chart does: 시가, 고가, 저가 and 종가 in won, each against the close of the
@@ -63,11 +59,9 @@
 // (offscreen).
 
 #include "screens/krx_quant/KrxChart.h"
-#include "screens/krx_quant/KrxChartToolbar.h"
 
 #include <QApplication>
 #include <QGuiApplication>
-#include <QMenu>
 #include <QNativeGestureEvent>
 #include <QPointingDevice>
 #include <QScopeGuard>
@@ -76,7 +70,6 @@
 #include <QTest>
 #include <QTimeZone>
 #include <QTimer>
-#include <QToolButton>
 #include <QVBoxLayout>
 #include <QWebEngineView>
 #include <QWheelEvent>
@@ -545,15 +538,11 @@ class TstKrxChartPage : public QObject {
         hover_at(times(kToday).last());
         QTRY_VERIFY(js("window.krxChart.hovered()").isValid() && !js("window.krxChart.hovered()").isNull());
         QCOMPARE(mode(), 0);
-        chart_->set_drawings({}, true); // the drawings' magnet on
-        QTest::qWait(100);
-        QCOMPARE(mode(), 0);
         ChartLook line;
         line.style = ChartStyle::Line;
         draw(kBefore + kToday, line);
         QTest::qWait(100);
         QCOMPARE(mode(), 0);
-        chart_->set_drawings({}, false);
         draw(kBefore + kToday);
     }
 
@@ -1058,45 +1047,6 @@ class TstKrxChartPage : public QObject {
         QCOMPARE(opened.size(), 0);
         QCOMPARE(clicked.size(), 0);
 
-        // On a drawing (a horizontal line through the bar's close): its popup, not the window. As the
-        // hand does it, in the page (its double-click comes with Chromium's own click count).
-        const qint64 drawn = times(morning).at(100);
-        const double price = morning.at(100).close;
-        krx_quant::Drawing line = krx_quant::new_drawing(krx_quant::DrawingTool::Horizontal, {{drawn + 30, price}});
-        line.id = 1;
-        chart_->set_drawings({line}, false);
-        QTest::qWait(300);
-        QSignalSpy edited(chart_, &screens::KrxChart::drawing_edit_requested);
-        js(QStringLiteral("(function(){const x = window.krxChart.x(%1), y = window.krxChart.y(%2);"
-                          "const at = document.elementFromPoint(x, y);"
-                          "const event = (type, buttons, detail) => new MouseEvent(type, {clientX: x, clientY: y, "
-                          "  pageX: x, pageY: y, button: 0, buttons: buttons, detail: detail, bubbles: true, "
-                          "  cancelable: true, view: window});"
-                          "for (const n of [1, 2]) {"
-                          "  at.dispatchEvent(event('mousedown', 1, n)); at.dispatchEvent(event('mouseup', 0, n));"
-                          "  at.dispatchEvent(event('click', 0, n)); }"
-                          "at.dispatchEvent(event('dblclick', 0, 2));})()")
-               .arg(drawn)
-               .arg(price));
-        QTRY_COMPARE_WITH_TIMEOUT(edited.size(), 1, 5000);
-        QCOMPARE(edited[0][0].toInt(), 1);
-        QTest::qWait(700);
-        QCOMPARE(opened.size(), 0);
-        QCOMPARE(clicked.size(), 0);
-        chart_->set_drawings({}, false);
-
-        // A drawing tool chosen (a trend line): both clicks are its points.
-        QSignalSpy added(chart_, &screens::KrxChart::drawing_added);
-        chart_->set_tool(krx_quant::DrawingTool::TrendLine);
-        QTest::qWait(300);
-        QTest::mouseClick(input, Qt::LeftButton, {}, spot(times(morning).at(90)));
-        QTest::mouseClick(input, Qt::LeftButton, {}, spot(times(morning).at(90)));
-        QTRY_COMPARE_WITH_TIMEOUT(added.size(), 1, 5000);
-        QTest::qWait(700);
-        QCOMPARE(opened.size(), 0);
-        QCOMPARE(clicked.size(), 0);
-        chart_->set_tool(std::nullopt);
-
         // The anchored VWAP waiting for its bar: the first click chooses it, the second pins (as a
         // click after it always did), and no window opens.
         ChartLook picking;
@@ -1123,23 +1073,6 @@ class TstKrxChartPage : public QObject {
         QTest::qWait(700);
         QCOMPARE(opened.size(), 0);
         QCOMPARE(clicked.size(), 0);
-    }
-
-    void cmd_d_on_the_chart_opens_the_drawing_menu() {
-        screens::KrxChartToolbar toolbar;
-        toolbar.show_style(ChartStyle::Candle);
-        toolbar.take_keys(chart_);
-        toolbar.show();
-        chart_->activateWindow();
-        if (!QTest::qWaitForWindowActive(chart_))
-            QSKIP("no window becomes active here");
-        view_->setFocus(Qt::MouseFocusReason); // as a click on the chart
-        QTRY_VERIFY(QApplication::focusWidget() && chart_->isAncestorOf(QApplication::focusWidget()));
-        QMenu* menu = toolbar.findChild<QToolButton*>("krxDrawing")->menu();
-        QSignalSpy shown(menu, &QMenu::aboutToShow);
-        connect(menu, &QMenu::aboutToShow, menu, [menu]() { QTimer::singleShot(200, menu, &QMenu::hide); });
-        QTest::keyClick(QApplication::focusWidget(), Qt::Key_D, Qt::ControlModifier); // returns once it closed
-        QCOMPARE(shown.size(), 1);
     }
 };
 

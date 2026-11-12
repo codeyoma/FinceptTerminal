@@ -18,7 +18,6 @@
 #include <optional>
 
 class QJsonObject;
-class QJsonValue;
 class QLabel;
 class QWebEngineView;
 
@@ -26,11 +25,8 @@ namespace fincept::screens {
 
 /// What the chart's page and the screen say to each other over the web channel: the page
 /// asks for what to draw once it listens and says where its view is; the screen sends the
-/// theme, the data, the bars' hover boxes (those changed) and fits. The drawings (krx-quant #224)
-/// go both ways: the screen sends them and the tool chosen, the page what was drawn, moved,
-/// removed or double-clicked, in bar positions ([logical, price]) on the bars it has, which start
-/// at ``first`` (chart_time). The price pane's scale (krx-quant #245) goes both ways too: the screen
-/// sends the one kept, the page the one clicked.
+/// theme, the data, the bars' hover boxes (those changed) and fits. The price pane's scale
+/// (krx-quant #245) goes both ways: the screen sends the one kept, the page the one clicked.
 class KrxChartBridge : public QObject {
     Q_OBJECT
   public:
@@ -58,18 +54,6 @@ class KrxChartBridge : public QObject {
     /// A border between panes was dragged (krx-quant #223): the lower panes' heights now, a JSON
     /// object by indicator ({"rsi": 140}, CSS pixels).
     Q_INVOKABLE void panes(const QString& heights);
-    /// A drawing was placed with the tool (krx-quant #224): {"tool", "points": [[logical, price]…],
-    /// "first", "x", "y"}, its last point at (x, y) in the page.
-    Q_INVOKABLE void drawn(const QString& json);
-    /// A drawing was dragged: {"id", "grip" (the point dragged; -1: the whole drawing), "points",
-    /// "first"}.
-    Q_INVOKABLE void reshaped(const QString& json);
-    /// The selected drawing was removed (Delete or Backspace).
-    Q_INVOKABLE void erased(int id);
-    /// A drawing was double-clicked at (``x``, ``y``) in the page.
-    Q_INVOKABLE void edit(int id, double x, double y);
-    /// The tool placed its drawing or was cancelled (Esc): the page is back at the cursor.
-    Q_INVOKABLE void tool_ended();
     /// 일반 or 로그 was clicked at the bottom right (krx-quant #245): whether the price pane is
     /// drawn on a logarithmic scale now.
     Q_INVOKABLE void scaled(bool log);
@@ -84,11 +68,6 @@ class KrxChartBridge : public QObject {
     void anchor_moved(double time);
     void legend_clicked(const QString& key, const QString& action);
     void panes_resized(const QString& heights);
-    void drawing_drawn(const QString& json);
-    void drawing_reshaped(const QString& json);
-    void drawing_erased(int id);
-    void drawing_edit(int id, double x, double y);
-    void tool_done();
     void scale_chosen(bool log);
     void theme_changed(const QString& json);
     void data_changed(const QString& json);
@@ -100,12 +79,6 @@ class KrxChartBridge : public QObject {
     /// The volume profile of the bars now in view (krx-quant #222): {"color", "rows": [{"low",
     /// "high", "volume"}]}, or {} when it is not drawn.
     void profile_changed(const QString& json);
-    /// The drawings (krx-quant #224): {"items": [{"id", "tool", "points": [[logical, price]…],
-    /// "times", "color", "width", "style", "text"}], "magnet", "hidden", "select"}.
-    void drawings_changed(const QString& json);
-    /// The drawing tool chosen (krx-quant #224): {"tool", "points", "color", "width", "style"}; {}
-    /// for the cursor.
-    void tool_changed(const QString& json);
     void fit_requested();
     /// The price pane's scale (krx-quant #245): logarithmic or not.
     void scale_changed(bool log);
@@ -121,10 +94,8 @@ class KrxChartBridge : public QObject {
 /// them) each in a pane below, their borders dragged to resize them (krx-quant #223), and the
 /// last price on the price axis, its scale 일반 or 로그 (krx-quant #245) by the choice at the bottom
 /// right. Over the bars, the final consensus's icons
-/// (ChartModel: ▲▼– and ✓/✗/?, faint for special predictions). Over the prices, the symbol's
-/// drawings (krx-quant #224): placed with the tool chosen, picked, dragged, removed and
-/// double-clicked on the page, kept as moments and prices by the screen. Without Qt WebEngine, at
-/// build or at run time, it says the chart cannot open.
+/// (ChartModel: ▲▼– and ✓/✗/?, faint for special predictions). Without Qt WebEngine, at build or
+/// at run time, it says the chart cannot open.
 class KrxChart : public QWidget {
     Q_OBJECT
   public:
@@ -146,11 +117,11 @@ class KrxChart : public QWidget {
     /// its volumes and indicators those of the bricks: from a start fixed once for the view's bars
     /// (krx_quant::brick_start: none drawn until it is), at the size set or ATR(14) of the bars but
     /// the last (krx_quant::atr_size: not the bar being made). It has no icons, hover boxes,
-    /// four-minute windows, day separators or drawings.
+    /// four-minute windows or day separators.
     /// A minute view with a time axis keeps a slot for each minute (N-minute slot) without trades
     /// between two bars of a day (krx-quant #236, krx_quant::fill_slots): an empty bar, drawn as
-    /// nothing, its hover box "체결 없음"; the drawings and windows count it, the indicators, the
-    /// baseline, the volume profile and the magnet do not, and no icon sits on it. With
+    /// nothing, its hover box "체결 없음"; the windows count it, the indicators, the baseline and the
+    /// volume profile do not, and no icon sits on it. With
     /// ``look.special`` it draws ``special`` (the symbol's VIs and the market's circuit breakers and
     /// sidecars) as faint bands over its panes with their names, and the hover box of a bar under
     /// one names it (krx_quant::special_bands, slot_hovers); a wider view's bar has a box then too.
@@ -185,20 +156,11 @@ class KrxChart : public QWidget {
     /// drawn again, in the view of ``minutes`` and the style last set. A candle view's ``bars``
     /// are its candles. The indicators' values on it move with it (krx-quant #222): the point
     /// each line takes from it, the fractals and the volume profile. A Heikin-Ashi bar comes with its
-    /// own prices, which the magnet picks from; a new bar sends the drawings again, as the places
-    /// past the old last bar move onto it (krx-quant #224). Bricks (krx-quant #225) are made again at
+    /// own prices, which the price row shows (krx-quant #285). Bricks (krx-quant #225) are made again at
     /// the start and size last drawn: all of them sent again when they changed, else the price line.
     /// A new bar after minutes without trades in a minute view fills them with empty bars at once
     /// (krx-quant #236, krx_quant::append_live_slots), their hover boxes and the bands with them.
     void update_live(const QList<krx_quant::Bar>& bars, int minutes);
-    /// The drawings to draw (krx-quant #224) and whether the magnet is on, sent at once apart from
-    /// the data; ``select``: the drawing to select (0: as it is; -1: none).
-    void set_drawings(const QList<krx_quant::Drawing>& drawings, bool magnet, int select = 0);
-    /// The tool the next clicks on the chart's prices draw with (krx-quant #224); none: the cursor.
-    /// The chart takes the keyboard, so Esc cancels it.
-    void set_tool(std::optional<krx_quant::DrawingTool> tool);
-    /// Select the drawing ``id``, as a click on it does (krx-capture).
-    void select_drawing(int id);
     /// Show the last 60 bars again.
     void fit();
     /// Draw the price pane on a logarithmic scale or not (krx-quant #245), as 로그 or 일반 at the
@@ -213,8 +175,8 @@ class KrxChart : public QWidget {
     void close_clicked(const QDateTime& bar_close);
     /// A bar of the 1-minute view with a time axis was double-clicked (krx-quant #255), an icon on it
     /// or not, an empty one too: the screen opens that bar's window. Its first click came as
-    /// close_clicked. Not past the last bar, nor a drawing's, a drawing tool's or the anchored VWAP's
-    /// clicks; nothing in a wider view, a candle view or a style without a time axis.
+    /// close_clicked. Not past the last bar, nor the anchored VWAP's clicks; nothing in a wider view, a
+    /// candle view or a style without a time axis.
     void bar_window_requested(const QDateTime& bar_close);
     /// The view was scrolled or zoomed: it shows the bars from ``from`` to ``to`` (logical
     /// indexes from the left end, ``from`` negative past the first bar); with less than a screen
@@ -231,17 +193,6 @@ class KrxChart : public QWidget {
     void study_removed(krx_quant::Study study);
     /// A border between panes was dragged (krx-quant #223): the lower panes' heights now.
     void pane_heights_changed(const krx_quant::PaneHeights& heights);
-    /// A drawing placed with the tool (krx-quant #224), its id 0, its points as moments (on the
-    /// magnet's when it is on); ``at`` is where its last point went (global): a text's input opens
-    /// there.
-    void drawing_added(const krx_quant::Drawing& drawing, const QPoint& at);
-    /// A drawing dragged: moved whole, or one of its points (on the magnet's when it is on).
-    void drawing_changed(const krx_quant::Drawing& drawing);
-    void drawing_removed(int id);
-    /// A drawing double-clicked at ``at`` (global): its colour, width and line style (a text's text).
-    void drawing_edit_requested(int id, const QPoint& at);
-    /// The tool placed its drawing or was cancelled: back to the cursor.
-    void tool_finished();
     /// 일반 or 로그 was clicked at the bottom right (krx-quant #245): the price pane is drawn so now.
     void log_scale_chosen(bool log);
     /// The default size of the styles without a time axis changed (krx-quant #225): ATR(14) of the
@@ -267,20 +218,11 @@ class KrxChart : public QWidget {
     /// What the page draws of ``real`` (the view's bars as they are) in the look last set, the icons
     /// ``icons`` over them: the bars, or the bricks last made (krx-quant #225); shown_ and drawing_ follow.
     QJsonObject data_json(const QList<krx_quant::ChartBar>& real, const QJsonArray& icons);
-    /// The drawings as the page takes them, on the bars last sent (krx-quant #224); none on bricks.
-    QJsonObject drawings_json(int select) const;
     /// The special situations' bands over the bars last sent (krx-quant #236), as the page takes them.
     QJsonArray special_json() const;
     /// The hover boxes the bar being made (starting at ``live``) changed (krx-quant #236, #238), sent
     /// to the page: krx_quant::live_hovers.
     void live_boxes(qint64 live, const krx_quant::LiveSlots& made);
-    /// The page's points ([[logical, price]…] on its bars from ``first``) as moments on the bars
-    /// last sent; with the magnet on, those of ``snap`` (-1: none, -2: all, else that one). None when
-    /// they cannot be read or placed.
-    std::optional<QList<krx_quant::DrawingPoint>> page_points(const QJsonValue& points, const QJsonValue& first,
-                                                              int snap) const;
-    /// A point (x, y) of the page, global.
-    QPoint global_at(double x, double y) const;
 
     KrxChartBridge* bridge_ = nullptr;
     QWebEngineView* view_ = nullptr;
@@ -304,7 +246,6 @@ class KrxChart : public QWidget {
     std::optional<qint64> first_in_view_; ///< the first bar in view, as the page last said
     std::optional<qint64> last_in_view_;  ///< and the last
     krx_quant::StudyDrawing drawing_;     ///< the indicators as last sent (krx-quant #222)
-    QString tool_ = QStringLiteral("{}"); ///< the drawing tool as last sent (krx-quant #224)
     bool log_scale_ = false;              ///< the price pane's scale as last set or clicked (krx-quant #245)
     // The styles without a time axis (krx-quant #225).
     bool timeless_ = false;            ///< the style last set draws bricks

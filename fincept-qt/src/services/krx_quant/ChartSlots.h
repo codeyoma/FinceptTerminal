@@ -15,14 +15,33 @@
 /// minutes) vanished from the chart and its time jumped. The minute views keep a slot for each
 /// such minute (or N-minute slot) between a day's first and last bar: an empty bar, which takes
 /// a slot but draws no candle and has no volume. Everything that places by time counts the
-/// slots (the drawings, the hover boxes, the four-minute windows, the special situations'
-/// bands); nothing that computes on prices does (the indicators, the bricks, the baseline's
-/// base, the volume profile, the magnet). Over the slots the special situations the engine
+/// slots (the hover boxes, the four-minute windows, the special situations' bands); nothing
+/// that computes on prices does (the indicators, the bricks, the baseline's base, the volume
+/// profile). Over the slots the special situations the engine
 /// knows (VIs of the symbol, circuit breakers and sidecars of the market) are drawn as faint
 /// bands with their names. While the session is open (krx-quant #238), today's slots after the last
 /// bar are filled up to the engine's clock too, so a halt in progress shows at its length as it
 /// goes on, and its band grows with the clock. Qt Core only.
 namespace fincept::krx_quant {
+
+/// Where the moment ``time`` (chart_time) lies on ``bars``, the view ``view``'s bars as drawn
+/// (oldest first, each starting its slot: a minute view's N minutes on the clock, a day, a week
+/// from Monday, a month or a year), as a bar position. Within a bar, as far into it as the moment
+/// is into the bar's trading time (08:00–20:00 KST on weekdays; a 1-minute bar's clock, a day
+/// candle's 08:00 at its start and 14:00 at its middle). An empty bar (krx-quant #236,
+/// fill_slots: a minute without trades within a day) is a bar like the others: a moment of a halt
+/// lies on its slot. Between two bars (the night, or minutes without trades on bars not filled),
+/// at the edge between them. Before the first bar or after the last, as many of the
+/// view's slots away as the trading time between holds (holidays are not known): an estimate
+/// until those bars are read. None without bars. The special situations' bands are placed by it.
+std::optional<double> logical_at(const QList<ChartBar>& bars, qint64 time, int view);
+
+/// The bar being made (``live``, as the chart draws it) on ``bars``, the bars the page has, oldest
+/// first: one with the last bar's start replaces it; a later one is appended; an earlier one is left
+/// out. Whether it was appended: then the places past the old last bar move (the slots up to the new
+/// bar, a night or a weekend, are that one bar now; a gap without trades within the day is filled
+/// with empty bars first in a minute view, append_live_slots).
+bool append_live(QList<ChartBar>& bars, const ChartBar& live);
 
 /// The engine's session today and its clock (GET /v1/status: ``session``, ``now``), as chart_time.
 struct SessionClock {
@@ -67,7 +86,7 @@ struct LiveSlots {
 };
 
 /// The bar being made (``live``, a real bar of the view ``minutes``) on ``slotted`` (fill_slots'
-/// bars), as ChartDrawings' append_live: one with the start of a bar there replaces it, an empty
+/// bars), as append_live: one with the start of a bar there replaces it, an empty
 /// one's too (filled up to the clock, krx-quant #238); a later one than the last is appended, after
 /// an empty bar for each slot between the two when they are of the same day, so a bar after a halt
 /// fills the halt at once; an earlier one without a slot is left out. A candle view fills nothing.
@@ -86,7 +105,7 @@ QString special_band_label(const SpecialWindow& window);
 /// A special situation's band over a minute view.
 struct SpecialBand {
     QString kind;    ///< "circuit_breaker", "sidecar", "vi", "market_halt" or one the screen does not know yet
-    double from = 0; ///< where its start lies, a bar position on the bars drawn (ChartDrawings' logical_at)
+    double from = 0; ///< where its start lies, a bar position on the bars drawn (logical_at)
     double to = 0;   ///< where its end lies
     QString label;   ///< special_band_label
     bool operator==(const SpecialBand&) const = default;
@@ -96,7 +115,7 @@ struct SpecialBand {
 /// in the windows' order: each that ends after the first bar starts and spans some time on the
 /// bars, from where its start lies to where its end lies. On empty bars a halt's band covers its
 /// slots; past the last bar, an ongoing one runs into the free space on the right (at a slot per
-/// minute of trading time, ChartDrawings' logical_at). A window without a valid start and end is
+/// minute of trading time, logical_at). A window without a valid start and end is
 /// left out. With ``clock`` (krx-quant #238), one still going on at its ``now`` ends there: the band
 /// grows with the clock instead of running to the end the engine expects. None in a candle view or
 /// without bars.

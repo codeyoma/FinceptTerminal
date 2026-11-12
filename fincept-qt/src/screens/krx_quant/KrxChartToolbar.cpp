@@ -7,15 +7,12 @@
 #include <QCheckBox>
 #include <QFrame>
 #include <QHBoxLayout>
-#include <QKeyEvent>
-#include <QKeySequence>
 #include <QLabel>
 #include <QMenu>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
 #include <QPushButton>
-#include <QShortcut>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStyle>
@@ -29,7 +26,6 @@
 namespace fincept::screens {
 
 using krx_quant::ChartStyle;
-using krx_quant::DrawingTool;
 
 namespace {
 
@@ -202,151 +198,6 @@ QIcon plus_icon(const Ink& ink) {
     });
 }
 
-QIcon drawing_icon(const Ink& ink) {
-    return paint([&](QPainter& p) {
-        p.setPen(pen(ink.text, 1.3));
-        p.drawLine(QPointF(3.5, 12.5), QPointF(12.5, 3.5));
-        p.setBrush(ink.text);
-        p.drawEllipse(QPointF(3.5, 12.5), 1.6, 1.6);
-        p.drawEllipse(QPointF(12.5, 3.5), 1.6, 1.6);
-    });
-}
-
-void dot(QPainter& p, const QPointF& at, const QColor& color, double radius = 1.6) {
-    p.save();
-    p.setPen(Qt::NoPen);
-    p.setBrush(color);
-    p.drawEllipse(at, radius, radius);
-    p.restore();
-}
-
-/// The drawing tools' icons (krx-quant #224), in ``color``.
-QIcon tool_icon(DrawingTool tool, const QColor& color) {
-    return paint([&](QPainter& p) {
-        p.setPen(pen(color, 1.3));
-        p.setBrush(Qt::NoBrush);
-        switch (tool) {
-            case DrawingTool::TrendLine:
-                p.drawLine(QPointF(3, 13), QPointF(13, 3));
-                dot(p, {3, 13}, color);
-                dot(p, {13, 3}, color);
-                break;
-            case DrawingTool::Ray:
-                p.drawLine(QPointF(3, 13), QPointF(15, 1));
-                dot(p, {3, 13}, color);
-                dot(p, {8, 8}, color);
-                break;
-            case DrawingTool::Horizontal:
-                p.drawLine(QPointF(1, 8), QPointF(15, 8));
-                dot(p, {8, 8}, color);
-                break;
-            case DrawingTool::Vertical:
-                p.drawLine(QPointF(8, 1), QPointF(8, 15));
-                dot(p, {8, 8}, color);
-                break;
-            case DrawingTool::Cross:
-                p.drawLine(QPointF(1, 8), QPointF(15, 8));
-                p.drawLine(QPointF(8, 1), QPointF(8, 15));
-                dot(p, {8, 8}, color);
-                break;
-            case DrawingTool::Rectangle:
-                p.drawRect(QRectF(2.5, 4, 11, 8));
-                dot(p, {2.5, 4}, color);
-                dot(p, {13.5, 12}, color);
-                break;
-            case DrawingTool::Ellipse:
-                p.drawEllipse(QRectF(1.5, 3.5, 13, 9));
-                break;
-            case DrawingTool::Pitchfork:
-                p.drawLine(QPointF(2, 14), QPointF(14, 2));
-                p.drawLine(QPointF(4, 7), QPointF(9.5, 1.5));
-                p.drawLine(QPointF(9, 12), QPointF(14.5, 6.5));
-                p.drawLine(QPointF(4, 7), QPointF(9, 12));
-                dot(p, {2, 14}, color);
-                break;
-            case DrawingTool::FibRetracement:
-                for (const double y : {2.5, 6.0, 9.0, 13.5})
-                    p.drawLine(QPointF(2, y), QPointF(14, y));
-                break;
-            case DrawingTool::FibChannel:
-                p.drawLine(QPointF(1, 9), QPointF(8, 2));
-                p.drawLine(QPointF(4, 12), QPointF(11, 5));
-                p.drawLine(QPointF(7, 15), QPointF(14, 8));
-                break;
-            case DrawingTool::FibFan:
-                for (const QPointF to :
-                     {QPointF(14, 2), QPointF(14, 6.5), QPointF(14, 11), QPointF(9.5, 2), QPointF(5, 2)})
-                    p.drawLine(QPointF(2, 14), to);
-                break;
-            case DrawingTool::Text:
-                p.setPen(pen(color, 1.8));
-                p.drawLine(QPointF(3, 3), QPointF(13, 3));
-                p.drawLine(QPointF(8, 3), QPointF(8, 13.5));
-                break;
-        }
-    });
-}
-
-QIcon magnet_icon(const Ink& ink) {
-    return paint([&](QPainter& p) {
-        QPainterPath u;
-        u.moveTo(4, 2);
-        u.lineTo(4, 8.5);
-        u.arcTo(QRectF(4, 4.5, 8, 8), 180, 180);
-        u.lineTo(12, 2);
-        p.setPen(QPen(ink.text, 2.4, Qt::SolidLine, Qt::FlatCap, Qt::RoundJoin));
-        p.setBrush(Qt::NoBrush);
-        p.drawPath(u);
-        p.setPen(QPen(ink.down, 2.4, Qt::SolidLine, Qt::FlatCap));
-        p.drawLine(QPointF(4, 2), QPointF(4, 4.5));
-        p.drawLine(QPointF(12, 2), QPointF(12, 4.5));
-    });
-}
-
-/// What a tool draws, on its menu entry.
-QString tool_tip(DrawingTool tool) {
-    switch (tool) {
-        case DrawingTool::TrendLine:
-            return QObject::tr("두 점을 잇는 선");
-        case DrawingTool::Ray:
-            return QObject::tr("첫 점에서 둘째 점 쪽으로 끝없이 뻗는 선");
-        case DrawingTool::Horizontal:
-            return QObject::tr("한 점의 가격에 긋는 가로선. 가격 축에 그 가격이 나온다.");
-        case DrawingTool::Vertical:
-            return QObject::tr("한 점의 시각에 긋는 세로선. 시간 축에 그 시각이 나온다.");
-        case DrawingTool::Cross:
-            return QObject::tr("한 점에서 긋는 가로선과 세로선");
-        case DrawingTool::Rectangle:
-            return QObject::tr("두 점을 마주 보는 꼭짓점으로 하는 사각형");
-        case DrawingTool::Ellipse:
-            return QObject::tr("두 점이 이루는 사각형 안의 타원");
-        case DrawingTool::Pitchfork:
-            return QObject::tr(
-                "세 점: 첫 점에서 둘째·셋째 점의 가운데로 뻗는 중심선과, 둘째·셋째 점에서 나란히 뻗는 두 갈래");
-        case DrawingTool::FibRetracement:
-            return QObject::tr("두 점 사이를 0 · 0.236 · 0.382 · 0.5 · 0.618 · 0.786 · 1로 나눈 가격(0이 둘째 점)");
-        case DrawingTool::FibChannel:
-            return QObject::tr("세 점: 첫 두 점의 선과, 셋째 점까지 0.236–1 비율로 나란한 선들");
-        case DrawingTool::FibFan:
-            return QObject::tr("두 점: 첫 점에서 가격과 시간의 0.25–1 지점으로 뻗는 선들");
-        case DrawingTool::Text:
-            return QObject::tr("한 점에 글을 쓴다. 찍으면 입력창이 열린다.");
-    }
-    return {};
-}
-
-QIcon trash_icon(const Ink& ink) {
-    return paint([&](QPainter& p) {
-        p.setPen(pen(ink.text, 1.3));
-        p.setBrush(Qt::NoBrush);
-        p.drawLine(QPointF(2.5, 4), QPointF(13.5, 4));
-        p.drawPolyline(QPolygonF{{6, 4}, {6, 2.2}, {10, 2.2}, {10, 4}});
-        p.drawPolyline(QPolygonF{{4, 4}, {4.8, 14}, {11.2, 14}, {12, 4}});
-        p.drawLine(QPointF(6.7, 6.5), QPointF(6.9, 11.5));
-        p.drawLine(QPointF(9.3, 6.5), QPointF(9.1, 11.5));
-    });
-}
-
 QIcon gear_icon(const Ink& ink) {
     return paint([&](QPainter& p) {
         QPainterPath gear;
@@ -362,16 +213,6 @@ QIcon gear_icon(const Ink& ink) {
     });
 }
 
-/// The keys that open the drawing menu (krx-quant #241): Cmd+D on a Mac (Qt's Ctrl), Ctrl+D elsewhere.
-QKeySequence drawing_keys() {
-    return QKeySequence(Qt::CTRL | Qt::Key_D);
-}
-
-/// An item's text in the drawing menu: its name, and at its right the letter that picks it (krx-quant #241).
-QString lettered(const QString& title, QChar letter) {
-    return title + u'\t' + letter;
-}
-
 void repolish(QWidget* widget) {
     widget->style()->unpolish(widget);
     widget->style()->polish(widget);
@@ -381,7 +222,7 @@ void repolish(QWidget* widget) {
 
 KrxChartToolbar::KrxChartToolbar(QWidget* parent) : QWidget(parent) {
     // Its width never widens the chart's panel: a narrow one drops the labels, then cuts the
-    // left group off at its right end. The SMT toggle, the trash and the options stay at the right end.
+    // left group off at its right end. The SMT toggle and the options stay at the right end.
     setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
     left_clip_ = new QWidget(this);
     left_ = new QWidget(left_clip_);
@@ -471,39 +312,9 @@ KrxChartToolbar::KrxChartToolbar(QWidget* parent) : QWidget(parent) {
     indicators_->setText(tr("보조지표"));
     indicators_->setToolTip(tr("보조지표"));
     connect(indicators_, &QToolButton::clicked, this, &KrxChartToolbar::indicators_requested);
-    // The drawing tools and the magnet (krx-quant #224): a tool picked draws with the next clicks on
-    // the chart, then the chart is back at the cursor.
-    drawing_ = new QToolButton;
-    drawing_->setObjectName("krxDrawing");
-    drawing_->setText(tr("그리기"));
-    drawing_->setPopupMode(QToolButton::InstantPopup);
-    drawing_menu_ = new QMenu(drawing_);
-    drawing_menu_->setToolTipsVisible(true);
-    for (const DrawingTool tool : krx_quant::kDrawingTools) {
-        QAction* action = drawing_menu_->addAction(lettered(krx_quant::tool_title(tool), krx_quant::tool_letter(tool)));
-        action->setCheckable(true);
-        action->setIconVisibleInMenu(true);
-        action->setData(krx_quant::tool_key(tool));
-        action->setToolTip(tool_tip(tool));
-        connect(action, &QAction::triggered, this, [this, tool]() {
-            show_tool(tool_shown_); // checked as the screen says
-            emit tool_chosen(tool);
-        });
-    }
-    drawing_menu_->addSeparator();
-    magnet_ = drawing_menu_->addAction(lettered(tr("자석"), QChar(krx_quant::kMagnetLetter)));
-    magnet_->setCheckable(true);
-    magnet_->setIconVisibleInMenu(true);
-    magnet_->setToolTip(
-        tr("찍거나 끄는 점이 가장 가까운 봉의 시가·고가·저가·종가 중 가까운 값에 붙는다. 모든 종목에 하나다."));
-    connect(magnet_, &QAction::toggled, this, &KrxChartToolbar::magnet_toggled);
-    drawing_->setMenu(drawing_menu_);
-    drawing_menu_->installEventFilter(this); // its letters (krx-quant #241)
-    for (auto* button : {indicators_, drawing_}) {
-        button->setFocusPolicy(Qt::NoFocus);
-        button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        row->addWidget(button);
-    }
+    indicators_->setFocusPolicy(Qt::NoFocus);
+    indicators_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    row->addWidget(indicators_);
 
     // The SMT divergences (codeyoma/krx-quant#522): every symbol's, filled while on. At the right end, so a
     // narrow panel that cuts the left group off still shows it.
@@ -517,13 +328,6 @@ KrxChartToolbar::KrxChartToolbar(QWidget* parent) : QWidget(parent) {
         emit smt_toggled(on);
     });
     end->addWidget(smt_);
-
-    // The symbol's drawings, all of them (krx-quant #224): the screen asks first.
-    trash_ = new QToolButton;
-    trash_->setObjectName("krxTrash");
-    trash_->setFocusPolicy(Qt::NoFocus);
-    connect(trash_, &QToolButton::clicked, this, &KrxChartToolbar::trash_requested);
-    end->addWidget(trash_);
 
     // The options (krx-quant #221): the day separators and the special situations' bands (krx-quant
     // #236), each for every symbol.
@@ -570,8 +374,6 @@ KrxChartToolbar::KrxChartToolbar(QWidget* parent) : QWidget(parent) {
 
     show_view(view_);
     show_style(style_shown_);
-    show_tool(std::nullopt);
-    show_drawings(0);
     restyle();
 }
 
@@ -657,95 +459,10 @@ void KrxChartToolbar::show_style(ChartStyle style) {
     style_shown_ = style;
     show_day_separator_state();
     show_brick_size(brick_kept_, brick_atr_value_);
-    show_drawings(drawings_shown_);
     for (QAction* action : style_menu_->actions())
         action->setChecked(action->data().toString() == krx_quant::style_key(style));
     style_->setToolTip(tr("차트 모양: %1").arg(krx_quant::style_title(style)));
-    // A style without a time axis hides the drawings (krx-quant #220, #225).
-    const bool timeless = krx_quant::timeless(style);
-    drawing_->setEnabled(!timeless);
-    if (timeless)
-        drawing_->setToolTip(tr("그리기: 시간축 없는 차트에서는 쓰지 않는다"));
-    else
-        show_tool(tool_shown_);
     paint_icons();
-}
-
-void KrxChartToolbar::show_tool(std::optional<DrawingTool> tool) {
-    tool_shown_ = tool;
-    for (QAction* action : drawing_menu_->actions())
-        if (action != magnet_ && action->isCheckable())
-            action->setChecked(tool && action->data().toString() == krx_quant::tool_key(*tool));
-    drawing_->setProperty("active", tool.has_value());
-    repolish(drawing_);
-    // While a tool is chosen, its name on the button (krx-quant #248).
-    drawing_->setText(tool ? krx_quant::tool_title(*tool) : tr("그리기"));
-    const QString keys = drawing_keys().toString(QKeySequence::NativeText);
-    if (drawing_->isEnabled())
-        drawing_->setToolTip(tool ? tr("그리기 (%1): %2. 차트를 눌러 점을 찍는다. Esc로 취소한다.")
-                                        .arg(keys, krx_quant::tool_title(*tool))
-                                  : tr("그리기 (%1)").arg(keys));
-    paint_icons();
-    wide_ = 0; // measured again with the new label
-    fit_labels();
-    place();
-}
-
-void KrxChartToolbar::show_magnet(bool on) {
-    const QSignalBlocker quiet(magnet_); // shown, not toggled
-    magnet_->setChecked(on);
-}
-
-void KrxChartToolbar::show_drawings(int count) {
-    drawings_shown_ = count;
-    // A style without a time axis hides them (krx-quant #225): not removed unseen.
-    const bool bricks = krx_quant::timeless(style_shown_);
-    trash_->setEnabled(count > 0 && !bricks);
-    trash_->setToolTip(bricks ? tr("그린 것 모두 지우기: 시간축 없는 차트에서는 그린 것을 숨긴다")
-                       : count > 0 ? tr("그린 것 모두 지우기 (%1개)").arg(count)
-                                   : tr("그린 것 모두 지우기: 그린 것이 없다"));
-}
-
-void KrxChartToolbar::take_keys(QWidget* area) {
-    auto* keys = new QShortcut(drawing_keys(), area);
-    keys->setContext(Qt::WidgetWithChildrenShortcut);
-    connect(keys, &QShortcut::activated, this, &KrxChartToolbar::toggle_drawing_menu);
-}
-
-void KrxChartToolbar::toggle_drawing_menu() {
-    if (drawing_menu_->isVisible())
-        drawing_menu_->hide();
-    else if (drawing_->isEnabled() && drawing_->isVisible())
-        drawing_->showMenu(); // as a click: under the button, until an item is picked or it closes
-}
-
-bool KrxChartToolbar::eventFilter(QObject* watched, QEvent* event) {
-    if (watched != drawing_menu_ || event->type() != QEvent::KeyPress)
-        return QWidget::eventFilter(watched, event);
-    const auto* key = static_cast<QKeyEvent*>(event);
-    const auto letter = krx_quant::typed_letter(key->key(), key->nativeVirtualKey());
-    if (!letter)
-        return QWidget::eventFilter(watched, event);
-    // Cmd+D (Ctrl+D) closes it again, also where the screen's shortcut did not see the keys.
-    const Qt::KeyboardModifiers held = key->modifiers() & ~Qt::KeypadModifier;
-    if (held & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier)) {
-        if (held != Qt::ControlModifier || *letter != u'D')
-            return QWidget::eventFilter(watched, event);
-        drawing_menu_->hide();
-        return true;
-    }
-    for (QAction* action : drawing_menu_->actions()) {
-        const auto tool = krx_quant::parse_tool(action->data().toString());
-        const QChar its = action == magnet_ ? QChar(krx_quant::kMagnetLetter)
-                          : tool            ? krx_quant::tool_letter(*tool)
-                                            : QChar();
-        if (its != *letter || !action->isEnabled())
-            continue;
-        drawing_menu_->hide(); // closed first: a tool picked gives the chart the keyboard
-        action->trigger();
-        return true;
-    }
-    return true; // a letter of nothing: not the menu's search by the first letters
 }
 
 QPoint KrxChartToolbar::indicators_corner() const {
@@ -777,13 +494,6 @@ void KrxChartToolbar::paint_icons() {
         if (const auto style = krx_quant::parse_style(action->data().toString()))
             action->setIcon(style_icon(*style, ink));
     indicators_->setIcon(plus_icon(ink));
-    // While a tool is chosen, its icon on the filled button (krx-quant #224).
-    drawing_->setIcon(tool_shown_ ? tool_icon(*tool_shown_, QColor(ui::colors::BG_BASE())) : drawing_icon(ink));
-    for (QAction* action : drawing_menu_->actions())
-        if (const auto tool = krx_quant::parse_tool(action->data().toString()))
-            action->setIcon(tool_icon(*tool, ink.text));
-    magnet_->setIcon(magnet_icon(ink));
-    trash_->setIcon(trash_icon(ink));
     options_->setIcon(gear_icon(ink));
 }
 
@@ -825,8 +535,7 @@ void KrxChartToolbar::resizeEvent(QResizeEvent* event) {
 
 void KrxChartToolbar::fit_labels() {
     if (wide_ == 0) {
-        // Measured with the labels, also while they are hidden: the drawing button's changes with
-        // the tool chosen (krx-quant #248).
+        // Measured with the labels, also while they are hidden.
         if (narrow_)
             show_labels(true);
         wide_ = sizeHint().width();
@@ -842,8 +551,7 @@ void KrxChartToolbar::fit_labels() {
 }
 
 void KrxChartToolbar::show_labels(bool on) {
-    for (auto* button : {indicators_, drawing_})
-        button->setToolButtonStyle(on ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly);
+    indicators_->setToolButtonStyle(on ? Qt::ToolButtonTextBesideIcon : Qt::ToolButtonIconOnly);
 }
 
 void KrxChartToolbar::place() {

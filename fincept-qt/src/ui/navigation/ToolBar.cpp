@@ -446,10 +446,6 @@ QMenu* ToolBar::build_navigate_menu() {
     nav(trd, tr("Watchlist"), "watchlist");
     nav(trd, tr("KRX 종합 판단"), "krx_verdict"); // fork addition (codeyoma/krx-quant#678)
     nav(trd, tr("KRX 4분 예측"), "krx_quant"); // fork addition (custom/README.md)
-    nav(trd, tr("KRX 장전 브리핑"), "krx_briefing"); // fork addition (codeyoma/krx-quant#304)
-    nav(trd, tr("KRX 수급 흐름"), "krx_flow"); // fork addition (codeyoma/krx-quant#306)
-    nav(trd, tr("KRX 지평·비용"), "krx_cost"); // fork addition (codeyoma/krx-quant#307)
-    nav(trd, tr("KRX 마감 흐름"), "krx_closing"); // fork addition (codeyoma/krx-quant#305)
     nav(trd, tr("KRX 자동 매매"), "krx_trader"); // fork addition (codeyoma/krx-quant#397)
 
     auto* crypto = add_sub(tr("Crypto"));

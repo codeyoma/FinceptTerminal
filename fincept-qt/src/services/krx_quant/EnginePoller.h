@@ -16,19 +16,17 @@ namespace fincept::services {
 
 class KrxQuantService;
 
-/// Reads the KRX prediction engine on a schedule for one screen or dashboard tile (codeyoma/krx-quant#649).
-/// The KRX screens' live objects (KrxVerdictLive, KrxFlowLive, KrxClosingLive, KrxCostLive, KrxBriefingLive,
-/// KrxTraderLive) and the dashboard's KrxEngineTile each own one and give it only what they read
-/// (set_read) and when to read again (set_poll); it does the rest.
+/// Reads the KRX prediction engine on a schedule for one screen (codeyoma/krx-quant#649). The KRX screens'
+/// live objects (KrxVerdictLive, KrxTraderLive) each own one and give it only what they read (set_read) and
+/// when to read again (set_poll); it does the rest.
 ///
 /// - The address: each read takes the KRX screen's setting (`krx_quant/base_url`). A new one drops every
 ///   read under way (KrxQuantService::rebind), the symbols and the time of the last answer, and says so
 ///   (engine_changed) for the screen to drop what it read of the old engine. Without one it reads nothing
 ///   and says where to set it (kNoAddress).
-/// - The symbols (GET /v1/symbols), as ``symbols`` says: not read, read beside the screen's read for their
-///   names, or read before it until they are in.
-/// - The last failure: the address's, the symbols', or what the screen says (failed); an answer
-///   (answered) clears it.
+/// - The symbols (GET /v1/symbols), as ``symbols`` says: not read, or read beside the screen's read for
+///   their names.
+/// - The last failure: the address's, or what the screen says (failed); an answer (answered) clears it.
 /// - The schedule: one read at a time on a single-shot timer, the next started after an answer or a
 ///   failure by the screen's poll rule; read_now reads at once.
 /// - Shown or hidden: started, it reads at once and then on schedule; stopped, it reads nothing.
@@ -41,23 +39,19 @@ class EnginePoller : public QObject {
   public:
     /// What the screen needs of the engine's symbols.
     enum class Symbols {
-        None,     ///< nothing: they are not read
-        Names,    ///< their names and logos: read beside the screen's read while none are held
-        First,    ///< read before the screen's read until they answer; an empty list too
-        Required, ///< read before the screen's read until the engine has some; an empty list is a failure
+        None,  ///< nothing: they are not read
+        Names, ///< their names and logos: read beside the screen's read while none are held
     };
 
     /// What a read without the engine's address says.
     static constexpr const char* kNoAddress = "엔진 주소가 없습니다. KRX 4분 예측 화면에서 엔진 주소를 넣으세요.";
-    /// What an engine without symbols says (Symbols::Required).
-    static constexpr const char* kNoSymbols = "엔진이 예측하는 종목이 없습니다.";
 
     /// ``now`` is the clock answers are stamped with and the poll rule reads (tests give their own).
     explicit EnginePoller(Symbols symbols, QObject* parent = nullptr, std::function<QDateTime()> now = {});
 
     /// The service the screen reads through: it connects its answers there.
     KrxQuantService* service() const { return service_; }
-    /// The screen's read, called once the address (and the symbols, as Symbols says) are in. It ends with
+    /// The screen's read, called once the address is in. It ends with
     /// answered(), failed() or read_now(); a read that leaves the schedule to another answer may end without.
     void set_read(std::function<void()> read) { read_ = std::move(read); }
     /// The screen's poll rule: the interval to the next read, ms, asked after each answer or failure.
@@ -102,7 +96,7 @@ class EnginePoller : public QObject {
     void stopped();
     /// Another address: the reads under way were dropped. What was read of the old engine goes.
     void engine_changed();
-    /// The symbols came (symbols()), before changed and before the read they let go on.
+    /// The symbols came (symbols()), before changed.
     void symbols_ready();
 
   protected:
@@ -118,7 +112,6 @@ class EnginePoller : public QObject {
     KrxQuantService* service_ = nullptr;
     QTimer* timer_ = nullptr;
     QList<krx_quant::SymbolQuote> symbols_;
-    bool symbols_in_ = false; ///< the symbols answered (Symbols::First, Required)
     QString failure_;
     QDateTime answered_at_;
     bool running_ = false;

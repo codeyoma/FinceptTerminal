@@ -106,17 +106,6 @@ fincept_add_test(tst_krx_chart_studies
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
 
-# src/services/krx_quant/ChartDrawings.{h,cpp} — the KRX chart's drawings: the tools, a symbol's drawings as
-# kept, where a moment lies on each view's bars and back, and the magnet (codeyoma/krx-quant#224). Qt Core only.
-fincept_add_test(tst_krx_chart_drawings
-    tst_krx_chart_drawings.cpp
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
-
 # src/services/krx_quant/ChartBricks.{h,cpp} — the KRX chart's styles without a time axis: renko, kagi, point
 # and figure and line break of the view's bars, their sizes and where they start, and the indicators on
 # them (codeyoma/krx-quant#225). Qt Core only.
@@ -124,7 +113,6 @@ fincept_add_test(tst_krx_chart_bricks
     tst_krx_chart_bricks.cpp
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartBricks.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
@@ -132,13 +120,12 @@ fincept_add_test(tst_krx_chart_bricks
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
 
 # src/services/krx_quant/ChartSlots.{h,cpp} — the minute views' empty bars for the minutes without trades
-# and the special situations' bands and hover lines over them (codeyoma/krx-quant#236), with what places
-# by time on them (the drawings' positions) and what computes on prices beside them (the indicators).
-# Qt Core only.
+# and the special situations' bands and hover lines over them (codeyoma/krx-quant#236), with where a moment
+# lies on a view's bars and the bar being made appended, and what computes on prices beside them (the
+# indicators). Qt Core only.
 fincept_add_test(tst_krx_chart_slots
     tst_krx_chart_slots.cpp
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
@@ -153,7 +140,6 @@ fincept_add_test(tst_krx_bar_view
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
@@ -175,7 +161,6 @@ fincept_add_test(tst_krx_live
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
@@ -189,8 +174,7 @@ target_link_libraries(tst_krx_live PRIVATE Qt6::Network)
 
 # src/screens/krx_quant/chart/index.html as src/screens/krx_quant/KrxChart.{h,cpp} drives it: the
 # first screen fits the latest bars however the bars read before them come in, and a view moved
-# by hand stays. With the keyboard on the chart, Cmd+D still opens the toolbar's drawing menu
-# (codeyoma/krx-quant#241). Unlike the suites above it needs Widgets and Qt WebEngine: what it tests is the
+# by hand stays. Unlike the suites above it needs Widgets and Qt WebEngine: what it tests is the
 # page running TradingView Lightweight Charts, which only a web view runs. It opens a window and
 # skips itself offscreen or without the WebEngine runtime.
 if(HAS_WEBENGINE)
@@ -201,7 +185,6 @@ if(HAS_WEBENGINE)
         "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChartToolbar.cpp"
         "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChartToolbar.h"
         "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartBricks.cpp"
-        "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
         "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
         "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
         "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
@@ -224,15 +207,14 @@ if(HAS_WEBENGINE)
             "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/chart/lightweight-charts.standalone.production.js")
 endif()
 
-# src/screens/krx_quant/KrxChartToolbar.{h,cpp} — the row above the KRX chart: Cmd+D (Ctrl+D) opens its
-# drawing menu and a letter in it picks a tool (codeyoma/krx-quant#241). It needs Widgets and Qt's
-# shortcuts, so it opens a window and skips itself offscreen or where no window becomes active.
+# src/screens/krx_quant/KrxChartToolbar.{h,cpp} — the row above the KRX chart: its SMT button
+# (codeyoma/krx-quant#522) and its indicators button's label in a narrow panel. It needs Widgets, so it
+# opens a window and skips itself offscreen or where no window becomes active.
 fincept_add_test(tst_krx_chart_toolbar
     tst_krx_chart_toolbar.cpp
     "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChartToolbar.cpp"
     "${PROJECT_SOURCE_DIR}/src/screens/krx_quant/KrxChartToolbar.h"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartBricks.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
@@ -246,19 +228,7 @@ fincept_add_test(tst_krx_chart_toolbar
     "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
 target_link_libraries(tst_krx_chart_toolbar PRIVATE Qt6::Widgets)
 
-# src/services/krx_quant/DashboardView.{h,cpp} — what the dashboard's KRX widgets show, from the
-# engine's answers (codeyoma/krx-quant#302). Qt Core only.
-fincept_add_test(tst_krx_dashboard_view
-    tst_krx_dashboard_view.cpp
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/DashboardView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/StatsView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp")
-
-# src/services/krx_quant/EnginePoller.{h,cpp} — how the KRX screens and the dashboard's engine tiles read
+# src/services/krx_quant/EnginePoller.{h,cpp} — how the KRX screens read
 # the engine on a schedule (codeyoma/krx-quant#649): the address, a new one, the symbols, the last failure
 # and reading only while shown, against a stand-in engine on this computer (Qt Network; the settings are a
 # temporary file's: the test defines AppConfig).
@@ -271,7 +241,6 @@ fincept_add_test(tst_krx_engine_poller
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
@@ -283,122 +252,6 @@ fincept_add_test(tst_krx_engine_poller
     "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.h"
     "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
 target_link_libraries(tst_krx_engine_poller PRIVATE Qt6::Network)
-
-# src/services/krx_quant/BriefingView.{h,cpp} and KrxBriefingLive.{h,cpp} — what the KRX pre-open
-# briefing screen (codeyoma/krx-quant#304) reads of GET /v1/briefing, what it shows of it and when it
-# reads it, the last against a stand-in engine on this computer (Qt Network; the settings are a
-# temporary file's: the test defines AppConfig).
-fincept_add_test(tst_krx_briefing
-    tst_krx_briefing.cpp
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BriefingView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxBriefingLive.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxBriefingLive.h"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.h"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EnginePoller.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EnginePoller.h"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/StatsView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp"
-    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.cpp"
-    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.h"
-    "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
-target_link_libraries(tst_krx_briefing PRIVATE Qt6::Network)
-
-# src/services/krx_quant/FlowView.{h,cpp} and KrxFlowLive.{h,cpp} — what the KRX flow screen
-# (codeyoma/krx-quant#306) reads of GET /v1/symbols/{symbol}/flow, what it draws and shows of it and
-# when it reads it, the last against a stand-in engine on this computer (Qt Network; the settings are
-# a temporary file's: the test defines AppConfig).
-fincept_add_test(tst_krx_flow
-    tst_krx_flow.cpp
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/FlowView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxFlowLive.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxFlowLive.h"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.h"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EnginePoller.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EnginePoller.h"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/StatsView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp"
-    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.cpp"
-    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.h"
-    "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
-target_link_libraries(tst_krx_flow PRIVATE Qt6::Network)
-
-# src/services/krx_quant/CostView.{h,cpp} and KrxCostLive.{h,cpp} — what the KRX horizon and cost
-# screen (codeyoma/krx-quant#307) reads of GET /v1/cost-map, what it shows of it and when it reads it,
-# the last against a stand-in engine on this computer (Qt Network; the settings are a temporary file's:
-# the test defines AppConfig).
-fincept_add_test(tst_krx_cost
-    tst_krx_cost.cpp
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/CostView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxCostLive.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxCostLive.h"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.h"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EnginePoller.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EnginePoller.h"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/StatsView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp"
-    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.cpp"
-    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.h"
-    "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
-target_link_libraries(tst_krx_cost PRIVATE Qt6::Network)
-
-# src/services/krx_quant/ClosingView.{h,cpp} and KrxClosingLive.{h,cpp} — what the KRX closing flow
-# screen (codeyoma/krx-quant#305) reads of GET /v1/symbols/{symbol}/closing-flow and …/closing-flow/days,
-# what it shows of them and when it reads them, the last against a stand-in engine on this computer
-# (Qt Network; the settings are a temporary file's: the test defines AppConfig).
-fincept_add_test(tst_krx_closing
-    tst_krx_closing.cpp
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ClosingView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxClosingLive.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxClosingLive.h"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KrxQuantService.h"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EnginePoller.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EnginePoller.h"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Signals.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/Board.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/StatsView.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/EngineData.cpp"
-    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.cpp"
-    "${PROJECT_SOURCE_DIR}/src/network/http/HttpClient.h"
-    "${PROJECT_SOURCE_DIR}/src/core/logging/Logger.cpp")
-target_link_libraries(tst_krx_closing PRIVATE Qt6::Network)
 
 # src/services/krx_quant/TraderView.{h,cpp} and KrxTraderLive.{h,cpp} — what the KRX auto trader screen
 # (codeyoma/krx-quant#397, #401) reads of GET /v1/trader, /v1/trader/days, /v1/trader/trades and
@@ -417,7 +270,6 @@ fincept_add_test(tst_krx_trader
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
@@ -454,7 +306,6 @@ fincept_add_test(tst_krx_trader_screen
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"
@@ -487,7 +338,6 @@ fincept_add_test(tst_krx_verdict
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/KindView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/BarView.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartSlots.cpp"
-    "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartDrawings.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartLook.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartStudies.cpp"
     "${PROJECT_SOURCE_DIR}/src/services/krx_quant/ChartModel.cpp"

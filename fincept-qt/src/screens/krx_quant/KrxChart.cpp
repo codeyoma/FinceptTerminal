@@ -115,8 +115,6 @@ QJsonObject studies_json(const krx_quant::StudyDrawing& d) {
             one.insert("histogram", true);
             one.insert("down", line.down_color);
         }
-        if (line.steps) // the daily supply data's (krx-quant #226): a level held until the next day's
-            one.insert("steps", true);
         series.append(one);
     }
     // The lower panes, top down (krx-quant #223): each indicator's, its height and guide lines.
@@ -146,8 +144,7 @@ QJsonObject studies_json(const krx_quant::StudyDrawing& d) {
                                   {"values", QJsonArray::fromStringList(row.values)},
                                   {"colors", QJsonArray::fromStringList(row.colors)},
                                   {"note", row.note},
-                                  {"missing", row.missing},
-                                  {"latest", row.latest}});
+                                  {"missing", row.missing}});
     QJsonObject out{{"series", series},
                     {"fills", fills},
                     {"marks", marks},
@@ -225,26 +222,6 @@ void KrxChartBridge::panes(const QString& heights) {
     emit panes_resized(heights);
 }
 
-void KrxChartBridge::drawn(const QString& json) {
-    emit drawing_drawn(json);
-}
-
-void KrxChartBridge::reshaped(const QString& json) {
-    emit drawing_reshaped(json);
-}
-
-void KrxChartBridge::erased(int id) {
-    emit drawing_erased(id);
-}
-
-void KrxChartBridge::edit(int id, double x, double y) {
-    emit drawing_edit(id, x, y);
-}
-
-void KrxChartBridge::tool_ended() {
-    emit tool_done();
-}
-
 void KrxChartBridge::scaled(bool log) {
     emit scale_chosen(log);
 }
@@ -263,7 +240,6 @@ KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
         for (const auto& json : std::as_const(hovers_))
             all.append(QJsonDocument::fromJson(json.toUtf8()).object());
         emit bridge_->hovers_changed(compact(QJsonObject{{"reset", true}, {"set", all}, {"drop", QJsonArray{}}}));
-        emit bridge_->tool_changed(tool_); // the drawings came with the data (krx-quant #224)
         emit bridge_->scale_changed(log_scale_);
     });
     connect(bridge_, &KrxChartBridge::icon_clicked, this, [this](const QString& bar_close) {
@@ -307,40 +283,6 @@ KrxChart::KrxChart(QWidget* parent) : QWidget(parent) {
     connect(bridge_, &KrxChartBridge::panes_resized, this, [this](const QString& heights) {
         if (const auto parsed = krx_quant::parse_pane_heights(heights); !parsed.isEmpty())
             emit pane_heights_changed(parsed);
-    });
-    // The drawings (krx-quant #224): what the page placed, dragged, removed or double-clicked, its
-    // bar positions as moments on the bars it has.
-    connect(bridge_, &KrxChartBridge::drawing_drawn, this, [this](const QString& json) {
-        const QJsonObject o = QJsonDocument::fromJson(json.toUtf8()).object();
-        const auto tool = krx_quant::parse_tool(o.value("tool").toString());
-        if (!tool)
-            return;
-        const auto points = page_points(o.value("points"), o.value("first"), -2);
-        if (!points || points->size() != krx_quant::tool_points(*tool))
-            return;
-        emit drawing_added(krx_quant::new_drawing(*tool, *points),
-                           global_at(o.value("x").toDouble(), o.value("y").toDouble()));
-    });
-    connect(bridge_, &KrxChartBridge::drawing_reshaped, this, [this](const QString& json) {
-        const QJsonObject o = QJsonDocument::fromJson(json.toUtf8()).object();
-        const int id = o.value("id").toInt();
-        const auto it = std::find_if(look_.drawings.cbegin(), look_.drawings.cend(),
-                                     [id](const krx_quant::Drawing& d) { return d.id == id; });
-        if (it == look_.drawings.cend())
-            return;
-        const auto points = page_points(o.value("points"), o.value("first"), o.value("grip").toInt(-1));
-        if (!points || points->size() != it->points.size())
-            return;
-        krx_quant::Drawing moved = *it;
-        moved.points = *points;
-        emit drawing_changed(moved);
-    });
-    connect(bridge_, &KrxChartBridge::drawing_erased, this, &KrxChart::drawing_removed);
-    connect(bridge_, &KrxChartBridge::drawing_edit, this,
-            [this](int id, double x, double y) { emit drawing_edit_requested(id, global_at(x, y)); });
-    connect(bridge_, &KrxChartBridge::tool_done, this, [this]() {
-        tool_ = QStringLiteral("{}");
-        emit tool_finished();
     });
     // 일반 or 로그 clicked (krx-quant #245): the page drew it already.
     connect(bridge_, &KrxChartBridge::scale_chosen, this, [this](bool log) {
@@ -601,7 +543,7 @@ QJsonObject KrxChart::data_json(const QList<krx_quant::ChartBar>& real, const QJ
     // The last bar's own close, for the price line of a Heikin-Ashi chart and of bricks (krx-quant #225).
     if (!real.isEmpty())
         data.insert("last", QJsonObject{{"close", real.last().close}, {"rising", real.last().rising}});
-    if (heikin) { // the bars as they are, which the magnet picks from (krx-quant #224); none on an empty one
+    if (heikin) { // the bars as they are, which the price row shows (krx-quant #285); none on an empty one
         QJsonArray bars_as_they_are;
         for (const auto& b : shown_)
             bars_as_they_are.append(b.empty ? QJsonValue() : QJsonValue(QJsonArray{b.open, b.high, b.low, b.close}));
@@ -613,14 +555,13 @@ QJsonObject KrxChart::data_json(const QList<krx_quant::ChartBar>& real, const QJ
             ends.append(b.time);
         data.insert("bricks", QJsonObject{{"size", brick_size_.value_or(0)}, {"ends", ends}});
     }
-    data.insert("drawings", drawings_json(0)); // on these bars (krx-quant #224)
-    data.insert("special", special_json());    // the special situations' bands (krx-quant #236)
+    data.insert("special", special_json()); // the special situations' bands (krx-quant #236)
     // The indicators, over the bars as they are (krx-quant #222), the real ones alone (krx-quant #236:
     // their lines bridge the empty bars), or the bricks (krx-quant #225), and the volume profile of
     // those in view.
     drawing_ =
         krx_quant::draw_studies(priced, look_.studies, minutes_, look_.anchor, look_.picking, look_.first_day_whole,
-                                look_.pane_heights, timeless_, look_.supply, look_.supply_served);
+                                look_.pane_heights, timeless_);
     data.insert("studies", studies_json(drawing_));
     data.insert("profile", QJsonDocument::fromJson(profile_json().toUtf8()).object());
     return data;
@@ -666,8 +607,8 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
     if (heikin && !all.isEmpty())
         drawn = krx_quant::heikin_ashi(all).last();
     const QColor color(last->rising ? ui::colors::POSITIVE() : ui::colors::NEGATIVE());
-    // The bars as the page has them, the bar being made last: the drawings are placed on them (krx-quant
-    // #224). In a minute view a new bar after minutes without trades comes after an empty bar for each
+    // The bars as the page has them, the bar being made last: the special situations' bands are placed on
+    // them. In a minute view a new bar after minutes without trades comes after an empty bar for each
     // (krx-quant #236): the page puts their slots in first.
     const krx_quant::LiveSlots made = dated ? krx_quant::LiveSlots{krx_quant::append_live(shown_, *last), {}, {}, false}
                                             : krx_quant::append_live_slots(shown_, *last, minutes_);
@@ -687,7 +628,7 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
                                          {"close", drawn.close}}},
                      {"volume", QJsonObject{{"time", last->time}, {"value", last->volume}, {"color", css(color, 0.5)}}},
                      {"last", QJsonObject{{"close", last->close}, {"rising", last->rising}}}};
-    if (heikin) // the bar as it is, which the magnet picks from (krx-quant #224)
+    if (heikin) // the bar as it is, which the price row shows (krx-quant #285)
         live.insert("real", QJsonArray{last->open, last->high, last->low, last->close});
     if (!made.filled.isEmpty()) {
         QJsonArray gap;
@@ -702,7 +643,7 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
         // the lagging span's displacement back. The page moves that one (it is each line's last).
         drawing_ =
             krx_quant::draw_studies(all, look_.studies, minutes_, look_.anchor, look_.picking, look_.first_day_whole,
-                                    look_.pane_heights, false, look_.supply, look_.supply_served);
+                                    look_.pane_heights, false);
         const qsizetype n = all.size();
         QJsonArray points;
         for (const auto& line : drawing_.series) {
@@ -726,10 +667,6 @@ void KrxChart::update_live(const QList<krx_quant::Bar>& bars, int minutes) {
     }
     emit bridge_->live_changed(compact(live));
     live_boxes(last->time, made);
-    // A new bar takes the slots up to it: the drawings' points past the old last bar, placed by
-    // their moments, move (krx-quant #224).
-    if (grown && !look_.drawings.isEmpty())
-        emit bridge_->drawings_changed(compact(drawings_json(0)));
 }
 
 void KrxChart::live_boxes(qint64 live, const krx_quant::LiveSlots& made) {
@@ -786,36 +723,6 @@ void KrxChart::rebase(std::optional<qint64> first_in_view) {
     emit bridge_->base_changed(compact(QJsonObject{{"base", *base}}));
 }
 
-QJsonObject KrxChart::drawings_json(int select) const {
-    QJsonArray items;
-    if (!shown_.isEmpty() && !timeless_) { // bricks have no time to place them by
-        for (const auto& d : look_.drawings) {
-            QJsonArray points;
-            QJsonArray times;
-            for (const auto& p : d.points) {
-                const auto logical = krx_quant::logical_at(shown_, p.time, minutes_);
-                if (!logical)
-                    break;
-                points.append(QJsonArray{rounded(*logical), p.price});
-                times.append(p.time);
-            }
-            if (points.size() != d.points.size())
-                continue;
-            items.append(QJsonObject{{"id", d.id},
-                                     {"tool", krx_quant::tool_key(d.tool)},
-                                     {"points", points},
-                                     {"times", times},
-                                     {"color", d.color},
-                                     {"width", d.width},
-                                     {"style", krx_quant::line_style_key(d.style)},
-                                     {"text", d.text}});
-        }
-    }
-    // A style without a time axis hides them (krx-quant #220, #225).
-    return QJsonObject{
-        {"items", items}, {"magnet", look_.magnet}, {"hidden", krx_quant::timeless(look_.style)}, {"select", select}};
-}
-
 QJsonArray KrxChart::special_json() const {
     QJsonArray bands;
     for (const auto& band : krx_quant::special_bands(shown_, special_, minutes_, clock_)) {
@@ -827,80 +734,6 @@ QJsonArray KrxChart::special_json() const {
                                  {"color", css(color, 0.9)}});
     }
     return bands;
-}
-
-std::optional<QList<krx_quant::DrawingPoint>> KrxChart::page_points(const QJsonValue& points, const QJsonValue& first,
-                                                                    int snap) const {
-    // The page's bars may start later than those sent since (older ones read): its positions move
-    // by the bars before its first.
-    qsizetype offset = -1;
-    for (qsizetype i = 0; i < shown_.size(); ++i)
-        if (shown_[i].time == first.toInteger()) {
-            offset = i;
-            break;
-        }
-    if (offset < 0 || !points.isArray())
-        return std::nullopt;
-    QList<krx_quant::DrawingPoint> out;
-    const QJsonArray all = points.toArray();
-    for (qsizetype k = 0; k < all.size(); ++k) {
-        const QJsonArray p = all[k].toArray();
-        const double logical = p.at(0).toDouble(std::nan(""));
-        const double price = p.at(1).toDouble(std::nan(""));
-        if (!std::isfinite(logical) || !std::isfinite(price))
-            return std::nullopt;
-        krx_quant::ChartSpot spot{logical + static_cast<double>(offset), price};
-        if (look_.magnet && (snap == -2 || snap == k))
-            spot = krx_quant::magnet_spot(shown_, spot);
-        const auto time = krx_quant::time_at(shown_, spot.logical, minutes_);
-        if (!time)
-            return std::nullopt;
-        out << krx_quant::DrawingPoint{*time, rounded(spot.price)};
-    }
-    return out;
-}
-
-QPoint KrxChart::global_at(double x, double y) const {
-    const QPoint at(static_cast<int>(std::lround(x)), static_cast<int>(std::lround(y)));
-#ifdef HAS_QT_WEBENGINE
-    if (view_)
-        return view_->mapToGlobal(at);
-#endif
-    return mapToGlobal(at);
-}
-
-void KrxChart::set_drawings(const QList<krx_quant::Drawing>& drawings, bool magnet, int select) {
-    look_.drawings = drawings;
-    look_.magnet = magnet;
-    // The data the page reads again when it reloads carries them too.
-    if (QJsonObject data = QJsonDocument::fromJson(data_.toUtf8()).object(); !data.isEmpty()) {
-        data.insert("drawings", drawings_json(0));
-        data_ = compact(data);
-    }
-    emit bridge_->drawings_changed(compact(drawings_json(select)));
-}
-
-void KrxChart::select_drawing(int id) {
-    emit bridge_->drawings_changed(compact(drawings_json(id)));
-}
-
-void KrxChart::set_tool(std::optional<krx_quant::DrawingTool> tool) {
-    QJsonObject json;
-    if (tool) {
-        const krx_quant::Drawing look = krx_quant::new_drawing(*tool, {});
-        json = QJsonObject{{"tool", krx_quant::tool_key(*tool)},
-                           {"points", krx_quant::tool_points(*tool)},
-                           {"color", look.color},
-                           {"width", look.width},
-                           {"style", krx_quant::line_style_key(look.style)},
-                           {"text", QString::fromUtf8(krx_quant::kDrawingText)}};
-    }
-    tool_ = compact(json);
-    emit bridge_->tool_changed(tool_);
-#ifdef HAS_QT_WEBENGINE
-    if (tool && view_) // the keyboard: Esc cancels on the page
-        view_->setFocus(Qt::OtherFocusReason);
-#endif
 }
 
 void KrxChart::fit() {

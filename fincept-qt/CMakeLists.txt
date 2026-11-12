@@ -1520,7 +1520,6 @@ set(SERVICE_SOURCES
     src/services/krx_quant/BarView.cpp
     src/services/krx_quant/Board.cpp
     src/services/krx_quant/ChartBricks.cpp
-    src/services/krx_quant/ChartDrawings.cpp
     src/services/krx_quant/ChartLook.cpp
     src/services/krx_quant/ChartSlots.cpp
     src/services/krx_quant/ChartStudies.cpp
@@ -1538,15 +1537,6 @@ set(SERVICE_SOURCES
     src/services/krx_quant/LocalCliLlm.cpp
     src/services/krx_quant/EngineCalendar.cpp
     src/services/krx_quant/LocalCliRunner.cpp
-    src/services/krx_quant/DashboardView.cpp
-    src/services/krx_quant/BriefingView.cpp
-    src/services/krx_quant/KrxBriefingLive.cpp
-    src/services/krx_quant/FlowView.cpp
-    src/services/krx_quant/KrxFlowLive.cpp
-    src/services/krx_quant/CostView.cpp
-    src/services/krx_quant/KrxCostLive.cpp
-    src/services/krx_quant/ClosingView.cpp
-    src/services/krx_quant/KrxClosingLive.cpp
     src/services/krx_quant/TraderView.cpp
     src/services/krx_quant/KrxTraderLive.cpp
     src/services/krx_quant/VerdictView.cpp
@@ -2161,23 +2151,15 @@ set(SCREEN_SOURCES
     # KRX prediction screen (fork addition, custom/README.md)
     src/screens/krx_quant/KrxAlerts.cpp
     src/screens/krx_quant/KrxBarWindow.cpp
-    src/screens/krx_quant/KrxBriefingScreen.cpp
-    src/screens/krx_quant/KrxFlowScreen.cpp
-    src/screens/krx_quant/KrxCostScreen.cpp
-    src/screens/krx_quant/KrxClosingScreen.cpp
     src/screens/krx_quant/KrxTraderScreen.cpp
     src/screens/krx_quant/KrxVerdictScreen.cpp
     src/screens/krx_quant/KrxChart.cpp
     src/screens/krx_quant/KrxChartToolbar.cpp
-    src/screens/krx_quant/KrxDrawingPopup.cpp
     src/screens/krx_quant/KrxLeaderboard.cpp
     src/screens/krx_quant/KrxQuantScreen.cpp
     src/screens/krx_quant/KrxStatsWindow.cpp
     src/screens/krx_quant/KrxStudyPanel.cpp
     src/screens/krx_quant/KrxSymbolCell.cpp
-    src/screens/krx_quant/dashboard/KrxDashboard.cpp
-    src/screens/krx_quant/dashboard/KrxDashboardWidgets.cpp
-    src/screens/krx_quant/dashboard/KrxEngineTile.cpp
 )
 
 # App
@@ -2753,27 +2735,18 @@ set_source_files_properties(
     src/core/currency/fx/FxRates.cpp
     src/screens/krx_quant/KrxAlerts.cpp
     src/screens/krx_quant/KrxBarWindow.cpp
-    src/screens/krx_quant/KrxBriefingScreen.cpp
-    src/screens/krx_quant/KrxFlowScreen.cpp
-    src/screens/krx_quant/KrxCostScreen.cpp
-    src/screens/krx_quant/KrxClosingScreen.cpp
     src/screens/krx_quant/KrxTraderScreen.cpp
     src/screens/krx_quant/KrxVerdictScreen.cpp
     src/screens/krx_quant/KrxChart.cpp
     src/screens/krx_quant/KrxChartToolbar.cpp
-    src/screens/krx_quant/KrxDrawingPopup.cpp
     src/screens/krx_quant/KrxLeaderboard.cpp
     src/screens/krx_quant/KrxQuantScreen.cpp
     src/screens/krx_quant/KrxStatsWindow.cpp
     src/screens/krx_quant/KrxStudyPanel.cpp
     src/screens/krx_quant/KrxSymbolCell.cpp
-    src/screens/krx_quant/dashboard/KrxDashboard.cpp
-    src/screens/krx_quant/dashboard/KrxDashboardWidgets.cpp
-    src/screens/krx_quant/dashboard/KrxEngineTile.cpp
     src/services/krx_quant/BarView.cpp
     src/services/krx_quant/Board.cpp
     src/services/krx_quant/ChartBricks.cpp
-    src/services/krx_quant/ChartDrawings.cpp
     src/services/krx_quant/ChartLook.cpp
     src/services/krx_quant/ChartSlots.cpp
     src/services/krx_quant/ChartStudies.cpp
@@ -2791,15 +2764,6 @@ set_source_files_properties(
     src/services/krx_quant/LocalCliLlm.cpp
     src/services/krx_quant/EngineCalendar.cpp
     src/services/krx_quant/LocalCliRunner.cpp
-    src/services/krx_quant/DashboardView.cpp
-    src/services/krx_quant/BriefingView.cpp
-    src/services/krx_quant/KrxBriefingLive.cpp
-    src/services/krx_quant/FlowView.cpp
-    src/services/krx_quant/KrxFlowLive.cpp
-    src/services/krx_quant/CostView.cpp
-    src/services/krx_quant/KrxCostLive.cpp
-    src/services/krx_quant/ClosingView.cpp
-    src/services/krx_quant/KrxClosingLive.cpp
     src/services/krx_quant/TraderView.cpp
     src/services/krx_quant/KrxTraderLive.cpp
     src/services/krx_quant/VerdictView.cpp

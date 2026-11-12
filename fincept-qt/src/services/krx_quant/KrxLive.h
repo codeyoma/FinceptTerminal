@@ -31,9 +31,8 @@ namespace fincept::services {
 /// symbols, latest predictions and members every 30 s, the chosen symbol's chart and the
 /// leaderboard every 60 s (and the chart on a new bar close, the leaderboard 3 s after
 /// outcomes), the macro row every 5 min. The chosen symbol's special situations over the days of
-/// its bars held (krx-quant #236) every 60 s while shown, and as soon as those days change; its daily
-/// supply data over the days of the view's bars held (krx-quant #226) every 5 min while shown, and as
-/// soon as those days change; while the chart shows them, its SMT divergences over the days of its bars
+/// its bars held (krx-quant #236) every 60 s while shown, and as soon as those days change; while the
+/// chart shows them, its SMT divergences over the days of its bars
 /// held (codeyoma/krx-quant#522) with each chart read (a new bar close's too) and as soon as those days
 /// change. The stats of each predictor
 /// a detail window shows are read with the leaderboard, each on its own. Without the stream, the status, predictions,
@@ -179,13 +178,6 @@ class KrxLive : public QObject {
     /// #236): its VIs and the market's circuit breakers and sidecars, in start order. None before
     /// they are read, from an engine without them, or while the engine cannot be read.
     const QList<krx_quant::SpecialWindow>& special() const { return special_; }
-    /// The chosen symbol's daily supply data over the days of the view's bars held (krx-quant #226):
-    /// from the first 1-minute bar (a candle view's first candle) to the engine's day, oldest first.
-    /// None before it is read, from an engine without it, or while the engine cannot be read.
-    const QList<krx_quant::SupplyDay>& supply() const { return supply_; }
-    /// Whether the engine gives the daily supply data: false once it answered 404 (an engine before
-    /// krx-quant #226), until another address is applied. True before it answered.
-    bool supply_served() const { return supply_served_; }
     /// Whether the chart shows the SMT divergences (codeyoma/krx-quant#522: the toolbar's SMT): they are
     /// read while it does, at once when it starts to.
     void set_smt(bool on);
@@ -220,9 +212,6 @@ class KrxLive : public QObject {
     void chart_failed(const QString& reason);
     /// The chosen symbol's special situations changed (krx-quant #236): the chart's bands.
     void special_changed();
-    /// The chosen symbol's daily supply data, or whether the engine gives it, changed (krx-quant
-    /// #226): the chart's supply indicators and the panel's list.
-    void supply_changed();
     /// The chosen symbol's SMT divergences changed (codeyoma/krx-quant#522): the chart's SMT marks.
     void smt_changed();
     void macro_changed(const fincept::krx_quant::Macro& macro);
@@ -362,17 +351,6 @@ class KrxLive : public QObject {
     void read_special(bool always = true);
     QList<krx_quant::SpecialWindow> special_;
     std::optional<std::pair<QDate, QDate>> special_read_; ///< the days special_ is of
-    /// The days whose daily supply data the chart wants (krx-quant #226): from the first bar of the
-    /// view held (a minute view's first 1-minute bar, a candle view's first candle; a week, month or
-    /// year view's kSupplyLead days before it, for its first period's sums) to the engine's day, the
-    /// last kSupplyDays at most; none without a symbol or bars.
-    std::optional<std::pair<QDate, QDate>> supply_days() const;
-    /// Read the chosen symbol's daily supply data over supply_days (``always``), or only when those
-    /// days are not the ones read.
-    void read_supply(bool always = true);
-    QList<krx_quant::SupplyDay> supply_;
-    std::optional<std::pair<QDate, QDate>> supply_read_;  ///< the days supply_ is of
-    bool supply_served_ = true;                           ///< the engine answered it (not 404)
     /// The days whose SMT divergences the chart wants (codeyoma/krx-quant#522): from the first 1-minute
     /// bar held to the engine's day, the last krx_quant::kSmtDays at most (what the engine answers at
     /// once); none without a symbol or bars.

@@ -5,12 +5,12 @@
 // as 30 empty slots instead of the time jumping. Nothing is filled before a day's first bar, after its
 // last or between two days; a new bar after a gap fills it at once, and history read before joins
 // the same way. What computes on prices (the indicators) sees the real bars alone, what places by
-// time (the drawings, the bands) counts the slots. Over them, the special situations' bands and
-// hover lines. While today's session is open (krx-quant #238) the slots after the last bar fill up
-// to the engine's clock, so a halt in progress grows a slot a minute and its band with it. The
-// expected slots and positions are worked out by hand.
+// time (the bands) counts the slots. Over them, the special situations' bands and hover lines.
+// While today's session is open (krx-quant #238) the slots after the last bar fill up to the
+// engine's clock, so a halt in progress grows a slot a minute and its band with it. Where a moment
+// lies on a view's bars (logical_at), across the minute and candle views, and the bar being made
+// appended (append_live). The expected slots and positions are worked out by hand.
 
-#include "services/krx_quant/ChartDrawings.h"
 #include "services/krx_quant/ChartSlots.h"
 #include "services/krx_quant/ChartStudies.h"
 
@@ -80,6 +80,17 @@ std::optional<SessionClock> session_at(const char* now) {
 
 bool near(const std::optional<double>& got, double want) {
     return got && std::abs(*got - want) < 1e-3;
+}
+
+Bar bar(const char* start, double open, double high, double low, double close) {
+    return Bar{kst(start), open, high, low, close, 100};
+}
+
+/// 1-minute bars on Monday 2026-10-12: 09:00, 09:01, 09:02, then none until 09:05 and 09:06.
+QList<Bar> monday() {
+    return {bar("2026-10-12T09:00:00+09:00", 100, 104, 99, 102), bar("2026-10-12T09:01:00+09:00", 102, 103, 100, 101),
+            bar("2026-10-12T09:02:00+09:00", 101, 105, 101, 104), bar("2026-10-12T09:05:00+09:00", 104, 106, 103, 105),
+            bar("2026-10-12T09:06:00+09:00", 105, 105, 102, 103)};
 }
 
 /// The MA 5's value at ``time`` among ``drawing``'s lines.
@@ -250,19 +261,162 @@ class TstKrxChartSlots : public QObject {
                 QVERIFY2(!empties(slotted).contains(time), qPrintable(line.id));
     }
 
-    void drawings_place_by_the_slots() {
-        // A moment of the halt lies on its own slot; its time comes back.
+    void moments_place_by_the_slots() {
+        // A moment of the halt lies on its own slot.
         const auto slotted = fill_slots(view_of(halted_day(), 1), 1);
         const qint64 halt = at("2026-10-15T13:25:30+09:00");
         QVERIFY(near(logical_at(slotted, halt, 1), 25)); // 13:25's slot, its middle
-        QCOMPARE(time_at(slotted, 25, 1).value_or(0), halt);
         // A moment after the halt keeps its place in the 5-minute view: 13:40's slot (index 8).
         const auto five = fill_slots(view_of(halted_day(), 5), 5);
         QVERIFY(near(logical_at(five, at("2026-10-15T13:42:30+09:00"), 5), 8));
         QVERIFY(near(logical_at(five, halt, 5), 5 - 0.5 + 30.0 / 300)); // 30 s into 13:25's slot
-        // The magnet leaves a point over an empty bar where it is: there is no price to snap to.
-        QCOMPARE(magnet_spot(slotted, {25, 1234}), (ChartSpot{25, 1234}));
-        QCOMPARE(magnet_spot(slotted, {9.2, 1101}), (ChartSpot{9, 1100})); // 13:09, the last before it
+    }
+
+    void a_moment_on_the_one_minute_bars() {
+        const auto bars = view_of(monday(), 1);
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:00:00+09:00"), 1), -0.5)); // a bar's start: its left edge
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:00:30+09:00"), 1), 0));    // its middle
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:01:15+09:00"), 1), 0.75));
+        // Minutes without trades: the edge between the bars around them.
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:03:00+09:00"), 1), 2.5));
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:04:59+09:00"), 1), 2.5));
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:06:30+09:00"), 1), 4));
+        // After the last bar: a slot a minute.
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:07:30+09:00"), 1), 5));
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:10:00+09:00"), 1), 7.5));
+        // Before the first: trading minutes back, the weekend and the nights left out. Friday's
+        // 19:59 bar is 61 minutes of trading before Monday's 09:00 (one on Friday, 60 on Monday).
+        QVERIFY(near(logical_at(bars, at("2026-10-09T19:59:00+09:00"), 1), -61.5));
+        QVERIFY(near(logical_at(bars, at("2026-10-10T12:00:00+09:00"), 1), -60.5)); // Saturday: Monday's 08:00
+        QVERIFY(near(logical_at(bars, at("2026-10-12T07:00:00+09:00"), 1), -60.5));
+        // A whole trading day back: Friday's 09:00:30.
+        QVERIFY(near(logical_at(bars, at("2026-10-09T09:00:30+09:00"), 1), -720));
+        QVERIFY(!logical_at({}, at("2026-10-12T09:00:00+09:00"), 1));
+    }
+
+    void a_moment_keeps_its_place_in_the_other_minute_views() {
+        const QList<Bar> one = monday();
+        // 09:06's middle, and the edge into 09:01, as the 1-minute view has them.
+        const qint64 late = at("2026-10-12T09:06:30+09:00");
+        const qint64 early = at("2026-10-12T09:01:00+09:00");
+        QVERIFY(near(logical_at(view_of(one, 1), late, 1), 4));
+        QVERIFY(near(logical_at(view_of(one, 1), early, 1), 0.5));
+        // 5 minutes: 09:00 (09:00–09:02) and 09:05 (09:05, 09:06).
+        const auto five = view_of(one, 5);
+        QCOMPARE(five.size(), 2);
+        QVERIFY(near(logical_at(five, late, 5), 1 - 0.5 + 90.0 / 300));
+        QVERIFY(near(logical_at(five, early, 5), -0.5 + 60.0 / 300));
+        QVERIFY(near(logical_at(five, at("2026-10-12T09:12:30+09:00"), 5), 2)); // the next slot's middle
+        // 60 minutes: one bar, 09:00–10:00.
+        QVERIFY(near(logical_at(view_of(one, 60), late, 60), -0.5 + 6.5 / 60));
+        // 240 minutes: the 08:00 slot holds them; 14:00 is the middle of the 12:00 one after it.
+        const auto four = view_of(one, 240);
+        QCOMPARE(four.first().time, at("2026-10-12T08:00:00+09:00"));
+        QVERIFY(near(logical_at(four, late, 240), -0.5 + (66.5 / 240)));
+        QVERIFY(near(logical_at(four, at("2026-10-12T14:00:00+09:00"), 240), 1));
+        // After 20:00 the next slot is the next trading day's.
+        QVERIFY(near(logical_at(four, at("2026-10-12T21:00:00+09:00"), 240), 2.5));
+        QVERIFY(near(logical_at(four, at("2026-10-13T10:00:00+09:00"), 240), 3));
+    }
+
+    void a_bar_being_made_is_appended_or_replaces_the_last() {
+        auto bars = view_of(monday(), 1);
+        ChartBar grown = bars.last();
+        grown.close = 99;
+        QVERIFY(!append_live(bars, grown)); // the same minute: the last one, replaced
+        QCOMPARE(bars.size(), 5);
+        QCOMPARE(bars.last().close, 99.0);
+        ChartBar earlier = bars.first();
+        earlier.close = 1;
+        QVERIFY(!append_live(bars, earlier)); // an earlier one: left out
+        QCOMPARE(bars.first().close, 102.0);
+        const ChartBar next = chart_bars({bar("2026-10-12T09:09:00+09:00", 103, 104, 102, 103)}).first();
+        QVERIFY(append_live(bars, next)); // a later one: appended
+        QCOMPARE(bars.size(), 6);
+        QList<ChartBar> none;
+        QVERIFY(append_live(none, next));
+        QCOMPARE(none.size(), 1);
+    }
+
+    void places_past_the_last_bar_move_onto_a_new_one() {
+        // After a gap without trades: the last bar is 09:06; the next one comes at 09:09.
+        auto bars = view_of(monday(), 1);
+        const qint64 on_it = at("2026-10-12T09:09:30+09:00");
+        const qint64 after_it = at("2026-10-12T09:10:30+09:00");
+        QVERIFY(near(logical_at(bars, on_it, 1), 7)); // three slots after 09:06's
+        QVERIFY(near(logical_at(bars, after_it, 1), 8));
+        QVERIFY(append_live(bars, chart_bars({bar("2026-10-12T09:09:00+09:00", 103, 104, 102, 103)}).first()));
+        QVERIFY(near(logical_at(bars, on_it, 1), 5));    // the new bar's middle
+        QVERIFY(near(logical_at(bars, after_it, 1), 6)); // the slot after it
+        // After a weekend: Friday's 19:59 bar, then Monday's first trades at 08:03.
+        QList<ChartBar> friday = chart_bars({bar("2026-10-09T19:59:00+09:00", 100, 101, 99, 100)});
+        const qint64 morning = at("2026-10-12T08:03:30+09:00");
+        QVERIFY(near(logical_at(friday, morning, 1), 4)); // Monday 08:00, 08:01, 08:02 estimated before it
+        QVERIFY(append_live(friday, chart_bars({bar("2026-10-12T08:03:00+09:00", 100, 102, 100, 101)}).first()));
+        QVERIFY(near(logical_at(friday, morning, 1), 1));
+        QVERIFY(near(logical_at(friday, at("2026-10-12T08:05:30+09:00"), 1), 3));
+    }
+
+    void a_moment_across_a_filled_gap() {
+        // 09:00, 09:01, 09:02, then empty bars at 09:03 and 09:04 (krx-quant #236), 09:05 and 09:06.
+        const auto bars = fill_slots(view_of(monday(), 1), 1);
+        QCOMPARE(bars.size(), 7);
+        // A moment without trades lies on its own slot now, not on the edge between the bars around it.
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:03:00+09:00"), 1), 2.5));
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:03:30+09:00"), 1), 3));
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:04:45+09:00"), 1), 4.25));
+        QVERIFY(near(logical_at(bars, at("2026-10-12T09:06:30+09:00"), 1), 6));
+        // 5 minutes: 09:00 holds 09:00–09:02 and 09:05 the rest; nothing between them to fill.
+        QCOMPARE(fill_slots(view_of(monday(), 5), 5).size(), 2);
+    }
+
+    void places_past_the_last_bar_stay_when_a_gap_fills() {
+        // The last bar is 09:06 (slot 6); the next one comes at 09:09 after two minutes without trades.
+        auto bars = fill_slots(view_of(monday(), 1), 1);
+        const qint64 on_it = at("2026-10-12T09:09:30+09:00");
+        const qint64 after_it = at("2026-10-12T09:10:30+09:00");
+        QVERIFY(near(logical_at(bars, on_it, 1), 9));
+        QVERIFY(near(logical_at(bars, after_it, 1), 10));
+        const auto made =
+            append_live_slots(bars, chart_bars({bar("2026-10-12T09:09:00+09:00", 103, 104, 102, 103)}).first(), 1);
+        QVERIFY(made.appended);
+        QCOMPARE(made.filled.size(), 2);
+        // The empty bars took the slots between: the places stay at their moments.
+        QVERIFY(near(logical_at(bars, on_it, 1), 9));
+        QVERIFY(near(logical_at(bars, after_it, 1), 10));
+    }
+
+    void a_moment_on_the_candle_views() {
+        // Day candles on Thursday 10-08, Friday 10-09 and Monday 10-12, each from 00:00 KST.
+        const QList<ChartBar> days =
+            chart_bars({bar("2026-10-08T00:00:00+09:00", 1, 2, 1, 2), bar("2026-10-09T00:00:00+09:00", 2, 3, 2, 3),
+                        bar("2026-10-12T00:00:00+09:00", 3, 4, 3, 4)});
+        // A day candle spans 08:00–20:00: 14:00 is its middle, the night before its start.
+        QVERIFY(near(logical_at(days, at("2026-10-12T14:00:00+09:00"), kDayView), 2));
+        QVERIFY(near(logical_at(days, at("2026-10-09T08:00:00+09:00"), kDayView), 0.5));
+        QVERIFY(near(logical_at(days, at("2026-10-09T03:00:00+09:00"), kDayView), 0.5));
+        QVERIFY(near(logical_at(days, at("2026-10-09T17:00:00+09:00"), kDayView), 1.25));
+        QVERIFY(near(logical_at(days, at("2026-10-10T12:00:00+09:00"), kDayView), 1.5)); // Saturday: an edge
+        QVERIFY(near(logical_at(days, at("2026-10-13T14:00:00+09:00"), kDayView), 3));   // the next weekday
+        QVERIFY(near(logical_at(days, at("2026-10-07T14:00:00+09:00"), kDayView), -1));  // the weekday before
+        // The 1-minute view's 09:06:30 on Monday's candle: 1h6m30s of its 12 hours in.
+        QVERIFY(near(logical_at(days, at("2026-10-12T09:06:30+09:00"), kDayView), 1.5 + 3990.0 / 43200));
+
+        // Weeks from Monday: Wednesday 14:00 is the middle of its week (2.5 of 5 trading days).
+        const QList<ChartBar> weeks =
+            chart_bars({bar("2026-10-05T00:00:00+09:00", 1, 2, 1, 2), bar("2026-10-12T00:00:00+09:00", 2, 3, 2, 3)});
+        QVERIFY(near(logical_at(weeks, at("2026-10-14T14:00:00+09:00"), kWeekView), 1));
+        QVERIFY(near(logical_at(weeks, at("2026-10-19T08:00:00+09:00"), kWeekView), 1.5));
+        // Months: October 2026 has 22 weekdays, ten of them before the 15th.
+        const QList<ChartBar> months =
+            chart_bars({bar("2026-09-01T00:00:00+09:00", 1, 2, 1, 2), bar("2026-10-01T00:00:00+09:00", 2, 3, 2, 3)});
+        QVERIFY(near(logical_at(months, at("2026-10-15T08:00:00+09:00"), kMonthView), 0.5 + 10.0 / 22));
+        QVERIFY(near(logical_at(months, at("2026-12-01T08:00:00+09:00"), kMonthView), 2.5)); // a month on
+        QVERIFY(near(logical_at(months, at("2026-08-01T00:00:00+09:00"), kMonthView), -1.5));
+        // Years: 2026 has 261 weekdays; July 1st follows 129 of them.
+        const QList<ChartBar> years =
+            chart_bars({bar("2025-01-01T00:00:00+09:00", 1, 2, 1, 2), bar("2026-01-01T00:00:00+09:00", 2, 3, 2, 3)});
+        QVERIFY(near(logical_at(years, at("2026-07-01T08:00:00+09:00"), kYearView), 0.5 + 129.0 / 261));
     }
 
     void special_situations_are_named() {

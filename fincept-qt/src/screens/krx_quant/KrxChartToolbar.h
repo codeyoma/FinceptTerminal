@@ -20,15 +20,12 @@ class QWidgetAction;
 namespace fincept::screens {
 
 /// The row above the KRX chart (krx-quant #220, #221): the minute views in a drop-down, the
-/// day, week, month and year buttons, the chart style's menu, the indicators button (#222: it
-/// asks the screen to open the indicators panel) and the drawing menu (#224: the twelve tools and
-/// the magnet), and at the right end the SMT divergences' toggle (codeyoma/krx-quant#522), the trash
-/// (#224: the symbol's drawings, all of them) and the
-/// options menu with the day separators, the special situations' bands (#236) and, while a style
-/// without a time axis is shown (#225), its size. It only shows what the screen says and tells it
-/// what was picked; the screen keeps the choices. While a tool is chosen the drawing button is
-/// named after it (#248). In a narrow panel the indicators and drawing buttons lose their labels.
-/// Cmd+D (Ctrl+D on Windows) opens the drawing menu and a letter in it picks a tool (#241).
+/// day, week, month and year buttons, the chart style's menu and the indicators button (#222: it
+/// asks the screen to open the indicators panel), and at the right end the SMT divergences' toggle
+/// (codeyoma/krx-quant#522) and the options menu with the day separators, the special situations'
+/// bands (#236) and, while a style without a time axis is shown (#225), its size. It only shows
+/// what the screen says and tells it what was picked; the screen keeps the choices. In a narrow
+/// panel the indicators button loses its label.
 class KrxChartToolbar : public QWidget {
     Q_OBJECT
   public:
@@ -47,19 +44,8 @@ class KrxChartToolbar : public QWidget {
     /// (``kept``; none: the default) and ATR(14) of the view's bars (``atr``; none: not counted yet),
     /// in the options menu below the day separators. Hidden for a style with a time axis.
     void show_brick_size(std::optional<double> kept, std::optional<double> atr);
-    /// The drawing tool chosen (krx-quant #224): the drawing button filled with its icon and named
-    /// after it (#248); none: the cursor, and the button's `그리기`.
-    void show_tool(std::optional<krx_quant::DrawingTool> tool);
-    void show_magnet(bool on);
-    /// The symbol's drawings: the trash is off without any, and on bricks (krx-quant #225), where they
-    /// are hidden.
-    void show_drawings(int count);
     /// Where the indicators panel opens: under the indicators button (global).
     QPoint indicators_corner() const;
-    /// Cmd+D (Ctrl+D on Windows) with the keyboard anywhere in ``area`` (the screen) opens the
-    /// drawing menu as a click on its button does, or closes it (krx-quant #241). Not while the
-    /// button is off (a style without a time axis).
-    void take_keys(QWidget* area);
     /// Paint in the theme's colors now.
     void restyle();
     QSize sizeHint() const override;
@@ -77,26 +63,16 @@ class KrxChartToolbar : public QWidget {
     void brick_size_chosen(krx_quant::ChartStyle style, double size);
     /// The indicators button was pressed (krx-quant #222).
     void indicators_requested();
-    /// A drawing tool was picked from the drawing menu (krx-quant #224).
-    void tool_chosen(krx_quant::DrawingTool tool);
-    void magnet_toggled(bool on);
-    /// The trash was pressed: the screen asks before it removes the symbol's drawings.
-    void trash_requested();
 
   protected:
     void resizeEvent(QResizeEvent* event) override;
-    /// A letter in the open drawing menu (krx-quant #241, krx_quant::tool_letter, kMagnetLetter)
-    /// closes it and picks that tool or turns the magnet, as a click on its item does.
-    bool eventFilter(QObject* watched, QEvent* event) override;
 
   private:
-    /// The drawing menu opened under its button, or closed while it is open.
-    void toggle_drawing_menu();
-    /// The indicators and drawing buttons with their labels while the row fits, else icons only.
+    /// The indicators button with its label while the row fits, else its icon only.
     void fit_labels();
-    /// The indicators and drawing buttons' labels shown, or icons only.
+    /// The indicators button's label shown, or its icon only.
     void show_labels(bool on);
-    /// The left group from the left end, cut off where the right group (SMT, trash, options) starts.
+    /// The left group from the left end, cut off where the right group (SMT, options) starts.
     void place();
     void paint_icons();
     /// The day separators' item and the special situations' (krx-quant #236): on in a minute view
@@ -104,18 +80,14 @@ class KrxChartToolbar : public QWidget {
     void show_day_separator_state();
 
     QWidget* left_clip_ = nullptr;   ///< clips the left group
-    QWidget* left_ = nullptr;        ///< the views, the style, the indicators and drawing buttons
-    QWidget* right_ = nullptr;       ///< the SMT toggle, the trash and the options
+    QWidget* left_ = nullptr;        ///< the views, the style and the indicators button
+    QWidget* right_ = nullptr;       ///< the SMT toggle and the options
     QToolButton* minutes_ = nullptr; ///< the minute views' drop-down, labelled with the last one picked
     QMenu* minutes_menu_ = nullptr;
     QList<QPushButton*> candle_buttons_; ///< 일 주 월 년 (property "view")
     QToolButton* style_ = nullptr;       ///< the chart style's menu, showing the style's icon
     QMenu* style_menu_ = nullptr;
     QToolButton* indicators_ = nullptr;
-    QToolButton* drawing_ = nullptr; ///< the drawing menu, filled while a tool is chosen
-    QMenu* drawing_menu_ = nullptr;
-    QAction* magnet_ = nullptr;
-    QToolButton* trash_ = nullptr;
     QToolButton* options_ = nullptr;
     QAction* day_separator_ = nullptr;
     QAction* special_ = nullptr;         ///< the special situations' bands (krx-quant #236)
@@ -130,9 +102,7 @@ class KrxChartToolbar : public QWidget {
     int view_ = 1;
     int last_minutes_ = 1; ///< the minute view the drop-down names
     krx_quant::ChartStyle style_shown_ = krx_quant::ChartStyle::Candle;
-    std::optional<krx_quant::DrawingTool> tool_shown_;
-    int drawings_shown_ = 0; ///< the symbol's drawings, as the screen last said
-    int wide_ = 0;           ///< the row's width with the labels
+    int wide_ = 0; ///< the row's width with the labels
     bool narrow_ = false;
 };
 

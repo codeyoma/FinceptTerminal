@@ -1,7 +1,6 @@
 #include "services/krx_quant/ChartSlots.h"
 
-#include "services/krx_quant/ChartDrawings.h"
-
+#include <QDate>
 #include <QDateTime>
 #include <QMap>
 #include <QTimeZone>
@@ -13,6 +12,88 @@ namespace fincept::krx_quant {
 namespace {
 
 constexpr qint64 kDaySeconds = 24 * 3600;
+constexpr qint64 kOpenSeconds = 8 * 3600; ///< the trading day placed by: 08:00 to 20:00 KST (NXT), on weekdays
+constexpr qint64 kSessionSeconds = 12 * 3600;
+constexpr qint64 kWeekSessionSeconds = 5 * kSessionSeconds;
+/// 1970-01-05, a Monday, as days since the epoch: the trading time's 0.
+constexpr qint64 kMondayDay = 4;
+
+qint64 floor_div(qint64 a, qint64 b) {
+    return a >= 0 ? a / b : -((-a + b - 1) / b);
+}
+
+/// The trading time of the moment ``t`` (chart_time): the seconds within 08:00–20:00 on weekdays
+/// since Monday 1970-01-05. Flat over nights and weekends.
+qint64 trading(qint64 t) {
+    const qint64 day = floor_div(t, kDaySeconds);
+    const qint64 into = t - day * kDaySeconds;
+    const qint64 week = floor_div(day - kMondayDay, 7);
+    const qint64 weekday = day - kMondayDay - week * 7; // 0 Monday … 6 Sunday
+    qint64 out = week * kWeekSessionSeconds + std::min<qint64>(weekday, 5) * kSessionSeconds;
+    if (weekday < 5)
+        out += std::clamp<qint64>(into - kOpenSeconds, 0, kSessionSeconds);
+    return out;
+}
+
+QDate date_of(qint64 t) {
+    return QDate(1970, 1, 1).addDays(floor_div(t, kDaySeconds));
+}
+
+qint64 time_of(const QDate& date) {
+    return QDate(1970, 1, 1).daysTo(date) * kDaySeconds;
+}
+
+/// The view's slot holding ``t`` starts: its N minutes on the clock, its day, its week's Monday,
+/// its month's 1st or its year's 1 January.
+qint64 slot_start(qint64 t, int view) {
+    if (!candle_view(view)) {
+        const qint64 length = std::max(1, view) * 60;
+        return floor_div(t, length) * length;
+    }
+    return time_of(period_start(date_of(t), view));
+}
+
+/// The start of the slot after the one starting at ``start``.
+qint64 slot_end(qint64 start, int view) {
+    if (!candle_view(view))
+        return start + std::max(1, view) * 60;
+    const QDate date = date_of(start);
+    switch (view) {
+        case kWeekView:
+            return time_of(date.addDays(7));
+        case kMonthView:
+            return time_of(QDate(date.year(), date.month(), 1).addMonths(1));
+        case kYearView:
+            return time_of(QDate(date.year() + 1, 1, 1));
+        default:
+            return start + kDaySeconds;
+    }
+}
+
+/// How many of the view's slots there are from a fixed start to the moment ``t``, counted in
+/// trading time: a minute view's N trading minutes, a trading day, a week of five, and a month or
+/// a year each one, as far into it as its trading time goes.
+double slot_count(qint64 t, int view) {
+    if (!candle_view(view))
+        return static_cast<double>(trading(t)) / (std::max(1, view) * 60);
+    if (view == kDayView)
+        return static_cast<double>(trading(t)) / kSessionSeconds;
+    if (view == kWeekView)
+        return static_cast<double>(trading(t)) / kWeekSessionSeconds;
+    const QDate date = date_of(t);
+    const qint64 start = slot_start(t, view);
+    const qint64 end = slot_end(start, view);
+    const double whole = view == kMonthView ? date.year() * 12.0 + (date.month() - 1) : date.year();
+    const qint64 span = trading(end) - trading(start);
+    return whole + (span > 0 ? static_cast<double>(trading(t) - trading(start)) / span : 0.0);
+}
+
+/// The last bar starting at or before ``time``; -1 when the first starts after it.
+qsizetype bar_at(const QList<ChartBar>& bars, qint64 time) {
+    const auto it =
+        std::upper_bound(bars.begin(), bars.end(), time, [](qint64 t, const ChartBar& b) { return t < b.time; });
+    return (it - bars.begin()) - 1;
+}
 
 /// The KST day of a chart time (KST read as UTC), as days since the epoch.
 qint64 day_of(qint64 time) {
@@ -37,6 +118,38 @@ QString clock(qint64 time, bool seconds) {
 }
 
 } // namespace
+
+std::optional<double> logical_at(const QList<ChartBar>& bars, qint64 time, int view) {
+    if (bars.isEmpty())
+        return std::nullopt;
+    const qsizetype n = bars.size();
+    if (time < bars.first().time) // before the bars read: in trading slots back from the first
+        return -0.5 - (slot_count(bars.first().time, view) - slot_count(time, view));
+    const qsizetype i = bar_at(bars, time);
+    const qint64 start = bars[i].time;
+    const qint64 end = slot_end(slot_start(start, view), view);
+    if (time >= end) {
+        if (i < n - 1)
+            return static_cast<double>(i) + 0.5; // between two bars: at their edge
+        return static_cast<double>(n) - 0.5 + (slot_count(time, view) - slot_count(end, view)); // after the last
+    }
+    const double span = slot_count(end, view) - slot_count(start, view);
+    // A bar outside the trading time (none is, as read) goes by the clock.
+    const double into = span > 1e-9 ? (slot_count(time, view) - slot_count(start, view)) / span
+                                    : static_cast<double>(time - start) / static_cast<double>(end - start);
+    return static_cast<double>(i) - 0.5 + std::clamp(into, 0.0, 1.0);
+}
+
+bool append_live(QList<ChartBar>& bars, const ChartBar& live) {
+    if (!bars.isEmpty() && bars.last().time == live.time) {
+        bars.last() = live;
+        return false;
+    }
+    if (!bars.isEmpty() && bars.last().time > live.time)
+        return false;
+    bars.append(live);
+    return true;
+}
 
 std::optional<SessionClock> session_clock(const std::optional<EngineStatus>& status, const QDateTime& now) {
     if (!status || !status->session_open.isValid() || !status->session_close.isValid() || !now.isValid())
