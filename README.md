@@ -57,14 +57,38 @@ State-of-the-art financial intelligence platform with institutional-grade financ
 
 <sub>English · [Deutsch](docs/translations/README.de.md) · [Español](docs/translations/README.es.md) · [Français](docs/translations/README.fr.md) · [हिन्दी](docs/translations/README.hi.md) · [日本語](docs/translations/README.ja.md) · [한국어](docs/translations/README.ko.md) · [简体中文](docs/translations/README.zh-CN.md) · [繁體中文](docs/translations/README.zh-TW.md)</sub>
 
-![Fincept Terminal](https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/FinceptBanner.png)
+https://github.com/user-attachments/assets/f8fbabf2-400b-4d66-9e9c-565c8bda5a50
 
 <table>
   <tr>
-    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/EquityResearch.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/EquityResearch.png" width="100%"/></a><br/><sub><b>Equity Research</b></sub></td>
-    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Portfolio.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Portfolio.png" width="100%"/></a><br/><sub><b>Portfolio</b></sub></td>
-    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/News.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/News.png" width="100%"/></a><br/><sub><b>News</b></sub></td>
-    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/NodeEditor.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/NodeEditor.png" width="100%"/></a><br/><sub><b>Node Editor</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Dashboard.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Dashboard.png" alt="Dashboard" width="100%"/></a><br/><sub><b>Dashboard</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Markets.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Markets.png" alt="Markets" width="100%"/></a><br/><sub><b>Markets</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/EquityResearch.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/EquityResearch.png" alt="Equity Research" width="100%"/></a><br/><sub><b>Equity Research</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/EquityTrading.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/EquityTrading.png" alt="Equity Trading" width="100%"/></a><br/><sub><b>Equity Trading</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Portfolio.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Portfolio.png" alt="Portfolio" width="100%"/></a><br/><sub><b>Portfolio</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/News.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/News.png" alt="News" width="100%"/></a><br/><sub><b>News</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/AIChat.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/AIChat.png" alt="AI Chat" width="100%"/></a><br/><sub><b>AI Chat</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Economics.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Economics.png" alt="Economics" width="100%"/></a><br/><sub><b>Economics</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Backtesting.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Backtesting.png" alt="Backtesting" width="100%"/></a><br/><sub><b>Backtesting</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/AlgoTrading.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/AlgoTrading.png" alt="Algo Trading" width="100%"/></a><br/><sub><b>Algo Trading</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/NodeEditor.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/NodeEditor.png" alt="Node Editor" width="100%"/></a><br/><sub><b>Node Editor</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/CodeEditor.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/CodeEditor.png" alt="Code Editor" width="100%"/></a><br/><sub><b>Code Editor</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/QuantLab.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/QuantLab.png" alt="AI Quant Lab" width="100%"/></a><br/><sub><b>AI Quant Lab</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/QuantLib.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/QuantLib.png" alt="QuantLib Suite" width="100%"/></a><br/><sub><b>QuantLib Suite</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Screener.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Screener.png" alt="Equity Screener" width="100%"/></a><br/><sub><b>Equity Screener</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/RelationshipMap.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/RelationshipMap.png" alt="Relationship Map" width="100%"/></a><br/><sub><b>Relationship Map</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Derivatives.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Derivatives.png" alt="Derivatives" width="100%"/></a><br/><sub><b>Derivatives</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/SurfaceAnalytics.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/SurfaceAnalytics.png" alt="Surface Analytics" width="100%"/></a><br/><sub><b>Surface Analytics</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Geopolitics.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/Geopolitics.png" alt="Geopolitics" width="100%"/></a><br/><sub><b>Geopolitics</b></sub></td>
+    <td align="center" width="25%"><a href="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/MAAnalytics.png"><img src="https://raw.githubusercontent.com/Fincept-Corporation/FinceptTerminal/main/images/MAAnalytics.png" alt="M&amp;A Analytics" width="100%"/></a><br/><sub><b>M&amp;A Analytics</b></sub></td>
   </tr>
 </table>
 
